@@ -1,18 +1,18 @@
-import type { StoreApi } from "zustand";
-import { remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
-import type { AppData, Entity, ID } from "@capacitylens/shared/types/entities";
-import { clearEntityLenses } from "./types";
-import type { ImportSummary, Patch, StoreState } from "./types";
-import { touch } from "./revisions";
-import { HISTORY_LIMIT } from "./history";
-import { resetSchedulerView } from "./storeConstants";
-import { createGuards } from "./storeGuards";
+import type { StoreApi } from 'zustand';
+import { remapAndValidateImport } from '@capacitylens/shared/domain/mutations';
+import type { AppData, Entity, ID } from '@capacitylens/shared/types/entities';
+import { clearEntityLenses } from './types';
+import type { ImportSummary, Patch, StoreState } from './types';
+import { touch } from './revisions';
+import { HISTORY_LIMIT } from './history';
+import { resetSchedulerView } from './storeConstants';
+import { createGuards } from './storeGuards';
 
-export * from "./revisions";
-export * from "./history";
-export * from "./storeConstants";
+export * from './revisions';
+export * from './history';
+export * from './storeConstants';
 
-function createMutationActions(set: StoreApi<StoreState>["setState"]) {
+function createMutationActions(set: StoreApi<StoreState>['setState']) {
   // Mutations publish only after a producer succeeds, so integrity failures leave state
   // untouched. Let these pure failures reach the caller’s error surface rather than
   // hiding rejected writes. Undo and redo use the same validation boundary.
@@ -34,7 +34,7 @@ const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
   return next;
 };
 
-function createGuardedActions(blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"]) {
+function createGuardedActions(blockedByViewer: ReturnType<typeof createGuards>['blockedByViewer']) {
   const createGuardedAction =
     <A extends unknown[]>(action: (...parameters: A) => void) =>
     (...parameters: A): void => {
@@ -49,9 +49,9 @@ function createGuardedActions(blockedByViewer: ReturnType<typeof createGuards>["
 }
 
 function createImportAction(
-  set: StoreApi<StoreState>["setState"],
-  get: StoreApi<StoreState>["getState"],
-  createGuardedValueAction: ReturnType<typeof createGuardedActions>["createGuardedValueAction"],
+  set: StoreApi<StoreState>['setState'],
+  get: StoreApi<StoreState>['getState'],
+  createGuardedValueAction: ReturnType<typeof createGuardedActions>['createGuardedValueAction'],
 ) {
   return createGuardedValueAction(
     (accountId: ID, incoming: AppData): ImportSummary => {
@@ -70,7 +70,10 @@ function createImportAction(
 }
 
 /** Create the shared internal actions used by store slices. */
-export function createStoreInternals(set: StoreApi<StoreState>["setState"], get: StoreApi<StoreState>["getState"]) {
+export function createStoreInternals(
+  set: StoreApi<StoreState>['setState'],
+  get: StoreApi<StoreState>['getState'],
+) {
   const { mutate } = createMutationActions(set);
 
   const {

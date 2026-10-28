@@ -1,7 +1,7 @@
-import { memo } from "react";
-import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
-import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { resolveAvatarInitials } from "@/lib/metadata";
+import { memo } from 'react';
+import { resolveAccessibleBarColors } from '@capacitylens/shared/lib/color';
+import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { resolveAvatarInitials } from '@/lib/metadata';
 
 /** Shows a preset colour without changing its semantic value. */
 export function ColorSwatch({ color }: { color: string }) {
@@ -41,7 +41,9 @@ export const Avatar = memo(function Avatar({
       className="ring-2 ring-surface"
     >
       {imageUrl && <AvatarImage src={imageUrl} alt="" referrerPolicy="no-referrer" />}
-      <AvatarFallback className="bg-transparent text-2xs font-semibold text-inherit">{initials}</AvatarFallback>
+      <AvatarFallback className="bg-transparent text-2xs font-semibold text-inherit">
+        {initials}
+      </AvatarFallback>
     </ShadAvatar>
   );
 });

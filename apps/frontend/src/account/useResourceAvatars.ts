@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
-import { accountClient } from "./accountClient";
-import { isServerConfigured } from "@/data/apiConfig";
-import { useStore } from "@/store/useStore";
-import { useAuth } from "@/auth/authContext";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
+import { accountClient } from './accountClient';
+import { isServerConfigured } from '@/data/apiConfig';
+import { useStore } from '@/store/useStore';
+import { useAuth } from '@/auth/authContext';
 
 const EMPTY_AVATARS = new Map<string, string>();
 /** Page-local event emitted when the authoritative member/resource association may have changed. */
-export const RESOURCE_AVATARS_INVALIDATED = "capacitylens:resource-avatars-invalidated";
+export const RESOURCE_AVATARS_INVALIDATED = 'capacitylens:resource-avatars-invalidated';
 
 /** Notify mounted scheduler projections that a link or identity image may have changed. */
 export function invalidateResourceAvatars(): void {
@@ -15,15 +15,16 @@ export function invalidateResourceAvatars(): void {
 }
 
 function parseProjection(body: unknown): ReadonlyMap<string, string> {
-  if (!body || typeof body !== "object" || !Array.isArray((body as { avatars?: unknown }).avatars))
-    throw new Error("Resource avatars returned an invalid response.");
+  if (!body || typeof body !== 'object' || !Array.isArray((body as { avatars?: unknown }).avatars))
+    throw new Error('Resource avatars returned an invalid response.');
   const next = new Map<string, string>();
   for (const row of (body as { avatars: unknown[] }).avatars) {
-    if (!row || typeof row !== "object") throw new Error("Resource avatars returned an invalid row.");
+    if (!row || typeof row !== 'object')
+      throw new Error('Resource avatars returned an invalid row.');
     const { resourceId, imageUrl } = row as Record<string, unknown>;
     const parsed = parseResourceAvatarUrl(imageUrl);
-    if (typeof resourceId !== "string" || !resourceId || parsed === null || parsed === undefined)
-      throw new Error("Resource avatars returned an unsafe row.");
+    if (typeof resourceId !== 'string' || !resourceId || parsed === null || parsed === undefined)
+      throw new Error('Resource avatars returned an unsafe row.');
     next.set(resourceId, parsed);
   }
   return next;
@@ -34,11 +35,12 @@ export function useResourceAvatars(accountId: string | null): ReadonlyMap<string
   const membershipRevision = useStore((state) => state.membershipRevision);
   const accountData = useStore((state) => state.data);
   const { user } = useAuth();
-  const boundary = `${accountId ?? ""}\u0000${membershipRevision}\u0000${user?.id ?? ""}\u0000${user?.image ?? ""}`;
+  const boundary = `${accountId ?? ''}\u0000${membershipRevision}\u0000${user?.id ?? ''}\u0000${user?.image ?? ''}`;
   const [renderedBoundary, setRenderedBoundary] = useState(boundary);
-  const [projection, setProjection] = useState<{ accountId: string; avatars: ReadonlyMap<string, string> } | null>(
-    null,
-  );
+  const [projection, setProjection] = useState<{
+    accountId: string;
+    avatars: ReadonlyMap<string, string>;
+  } | null>(null);
   const requestEpoch = useRef(0);
   if (renderedBoundary !== boundary) {
     setRenderedBoundary(boundary);
@@ -56,7 +58,8 @@ export function useResourceAvatars(accountId: string | null): ReadonlyMap<string
         if (requestEpoch.current === epoch) setProjection({ accountId, avatars });
       })
       .catch((error: unknown) => {
-        if (requestEpoch.current === epoch) console.error("Could not load scheduled-person avatars", error);
+        if (requestEpoch.current === epoch)
+          console.error('Could not load scheduled-person avatars', error);
       });
   }, [accountId]);
 
@@ -66,17 +69,19 @@ export function useResourceAvatars(accountId: string | null): ReadonlyMap<string
       requestEpoch.current += 1;
       setProjection(null);
     };
-    window.addEventListener("online", refresh);
-    window.addEventListener("focus", refresh);
-    window.addEventListener("offline", onOffline);
+    window.addEventListener('online', refresh);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('offline', onOffline);
     window.addEventListener(RESOURCE_AVATARS_INVALIDATED, refresh);
     return () => {
       requestEpoch.current += 1;
-      window.removeEventListener("online", refresh);
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("offline", onOffline);
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('offline', onOffline);
       window.removeEventListener(RESOURCE_AVATARS_INVALIDATED, refresh);
     };
   }, [refresh, membershipRevision, user, accountData]);
-  return renderedBoundary === boundary && projection?.accountId === accountId ? projection.avatars : EMPTY_AVATARS;
+  return renderedBoundary === boundary && projection?.accountId === accountId
+    ? projection.avatars
+    : EMPTY_AVATARS;
 }

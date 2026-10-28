@@ -12,10 +12,10 @@ type ClientProject = EffectivelyNamed & { clientId: string };
 
 // CapacityLens is currently English-only. Pinning the locale keeps management-list order independent
 // of the host/browser locale; exact spelling and id then make every collation tie deterministic.
-const displayNameCollator = new Intl.Collator("en", {
+const displayNameCollator = new Intl.Collator('en', {
   numeric: true,
-  sensitivity: "base",
-  usage: "sort",
+  sensitivity: 'base',
+  usage: 'sort',
 });
 
 function compareCodeUnits(left: string, right: string): number {
@@ -24,7 +24,12 @@ function compareCodeUnits(left: string, right: string): number {
   return 0;
 }
 
-function compareNamesAndIds({ leftName, leftId, rightName, rightId }: CompareDisplayNamesInput): number {
+function compareNamesAndIds({
+  leftName,
+  leftId,
+  rightName,
+  rightId,
+}: CompareDisplayNamesInput): number {
   return (
     displayNameCollator.compare(leftName, rightName) ||
     compareCodeUnits(leftName, rightName) ||
@@ -33,12 +38,19 @@ function compareNamesAndIds({ leftName, leftId, rightName, rightId }: CompareDis
 }
 
 /** Sorts names consistently, using stable IDs to break ties. */
-export function compareDisplayNames({ leftName, leftId, rightName, rightId }: CompareDisplayNamesInput): number {
+export function compareDisplayNames({
+  leftName,
+  leftId,
+  rightName,
+  rightId,
+}: CompareDisplayNamesInput): number {
   return compareNamesAndIds({ leftName, leftId, rightName, rightId });
 }
 
 /** Creates a comparator that sorts items by display name and stable ID. */
-export function createDisplayNameComparator<T extends Identified>(displayName: (item: T) => string) {
+export function createDisplayNameComparator<T extends Identified>(
+  displayName: (item: T) => string,
+) {
   return (left: T, right: T): number =>
     compareDisplayNames({
       leftName: displayName(left),
@@ -56,15 +68,17 @@ export function effectiveDisplayName(item: { name: string; codeName?: string | n
 }
 
 /** Shared client-first project ordering for project selectors and management views. */
-export function createClientProjectDisplayNameComparator<T extends ClientProject>(clients: EffectivelyNamed[]) {
+export function createClientProjectDisplayNameComparator<T extends ClientProject>(
+  clients: EffectivelyNamed[],
+) {
   const clientsById = new Map(clients.map((client) => [client.id, client]));
   return (left: T, right: T): number => {
     const leftClient = clientsById.get(left.clientId);
     const rightClient = clientsById.get(right.clientId);
     const clientOrder = compareDisplayNames({
-      leftName: leftClient ? effectiveDisplayName(leftClient) : "",
+      leftName: leftClient ? effectiveDisplayName(leftClient) : '',
       leftId: left.clientId,
-      rightName: rightClient ? effectiveDisplayName(rightClient) : "",
+      rightName: rightClient ? effectiveDisplayName(rightClient) : '',
       rightId: right.clientId,
     });
     return (
@@ -80,22 +94,23 @@ export function createClientProjectDisplayNameComparator<T extends ClientProject
 }
 
 /** Creates a comparator that places favourites before other items, then sorts names. */
-export function createFavouriteDisplayNameComparator<T extends Identified & { isFavourite?: boolean | null }>(
-  displayName: (item: T) => string,
-) {
+export function createFavouriteDisplayNameComparator<
+  T extends Identified & { isFavourite?: boolean | null },
+>(displayName: (item: T) => string) {
   const byDisplayName = createDisplayNameComparator(displayName);
   return (left: T, right: T): number =>
-    Number(right.isFavourite === true) - Number(left.isFavourite === true) || byDisplayName(left, right);
+    Number(right.isFavourite === true) - Number(left.isFavourite === true) ||
+    byDisplayName(left, right);
 }
 
 /** Studio before Supplementary, then favourites first and deterministic display-name order within
  * each engagement partition. Used by both Resources and the scheduler so the two views cannot drift. */
 export function createEngagementFavouriteDisplayNameComparator<
-  T extends Identified & { engagement: "studio" | "supplementary"; isFavourite?: boolean | null },
+  T extends Identified & { engagement: 'studio' | 'supplementary'; isFavourite?: boolean | null },
 >(displayName: (item: T) => string) {
   const byFavouriteDisplayName = createFavouriteDisplayNameComparator(displayName);
   return (left: T, right: T): number =>
-    Number(left.engagement === "supplementary") - Number(right.engagement === "supplementary") ||
+    Number(left.engagement === 'supplementary') - Number(right.engagement === 'supplementary') ||
     byFavouriteDisplayName(left, right);
 }
 

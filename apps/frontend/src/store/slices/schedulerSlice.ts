@@ -1,26 +1,26 @@
-import type { StateCreator } from "zustand";
-import { addDaysISO, startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
-import { lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
-import { isExternalResource } from "@capacitylens/shared/types/entities";
-import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from "@/lib/schedulerConfig";
-import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
-import type { Filters, SchedulerUI, StoreState } from "@/store/types";
-import { resolveTimeZone, resolveWeekStart } from "@/store/selectors";
+import type { StateCreator } from 'zustand';
+import { addDaysISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath';
+import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
+import { isExternalResource } from '@capacitylens/shared/types/entities';
+import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
+import type { AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
+import type { Filters, SchedulerUI, StoreState } from '@/store/types';
+import { resolveTimeZone, resolveWeekStart } from '@/store/selectors';
 
 type SchedulerSliceKeys =
-  | "ui"
-  | "setZoom"
-  | "setOriginDate"
-  | "panDays"
-  | "goToToday"
-  | "goToDate"
-  | "setDrawMode"
-  | "selectAllocation"
-  | "setFilters"
-  | "clearFilters"
-  | "toggleGroup"
-  | "jumpToResource"
-  | "consumeResourceJump";
+  | 'ui'
+  | 'setZoom'
+  | 'setOriginDate'
+  | 'panDays'
+  | 'goToToday'
+  | 'goToDate'
+  | 'setDrawMode'
+  | 'selectAllocation'
+  | 'setFilters'
+  | 'clearFilters'
+  | 'toggleGroup'
+  | 'jumpToResource'
+  | 'consumeResourceJump';
 
 type SchedulerSlice = Pick<StoreState, SchedulerSliceKeys>;
 type SchedulerSet = Parameters<StateCreator<StoreState, [], [], SchedulerSlice>>[0];
@@ -37,7 +37,9 @@ export function readCurrentWeekAnchor(
   data: AppData,
   accountId: ID | null,
 ): { originDate: ISODate; focusDate: ISODate } {
-  return buildWeekAnchor(startOfWeekISO(todayISO(resolveTimeZone(data, accountId)), resolveWeekStart(data, accountId)));
+  return buildWeekAnchor(
+    startOfWeekISO(todayISO(resolveTimeZone(data, accountId)), resolveWeekStart(data, accountId)),
+  );
 }
 
 function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
@@ -47,7 +49,7 @@ function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
     originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
     rangeDays: PAST_BUFFER_DAYS + DEFAULT_RANGE_DAYS,
     focusDate: weekStart,
-    drawMode: "work",
+    drawMode: 'work',
     selectedAllocationId: null,
     filters: emptyFilters(),
     collapsedGroups: [],
@@ -66,11 +68,15 @@ function recenterOn(state: StoreState, weekStart: ISODate): { ui: SchedulerUI } 
   };
 }
 
-function hasSuppliedValue(value: ID | Filters["activityKind"] | undefined): boolean {
+function hasSuppliedValue(value: ID | Filters['activityKind'] | undefined): boolean {
   return value !== null && value !== undefined;
 }
 
-function applyFilterPatch(filters: Filters, patch: Partial<Filters>, projects: AppData["projects"]): Filters {
+function applyFilterPatch(
+  filters: Filters,
+  patch: Partial<Filters>,
+  projects: AppData['projects'],
+): Filters {
   const normalizedPatch = { ...patch };
   // If an invalid patch supplies both lenses, the kind wins consistently with the toolbar.
   // Normalize before merging so the two branches cannot clear both requested values.
@@ -90,14 +96,15 @@ function applyFilterPatch(filters: Filters, patch: Partial<Filters>, projects: A
         (project) =>
           project.id === nextFilters.projectId &&
           project.clientId === patch.clientId &&
-          lifecycleStatus(project) === "active",
+          lifecycleStatus(project) === 'active',
       )
     ) {
       nextFilters.projectId = null;
     }
   }
 
-  const patchesActivityLens = hasSuppliedValue(patch.activityId) || hasSuppliedValue(patch.activityKind);
+  const patchesActivityLens =
+    hasSuppliedValue(patch.activityId) || hasSuppliedValue(patch.activityKind);
   const patchesProjectLens = hasSuppliedValue(patch.clientId) || hasSuppliedValue(patch.projectId);
   // A malformed bulk patch spanning both lens families resolves to the activity family.
   if (patchesActivityLens) {
@@ -113,24 +120,27 @@ function applyFilterPatch(filters: Filters, patch: Partial<Filters>, projects: A
 function resolveResourceGroupKey(state: StoreState, id: ID): string | null {
   const resource = state.data.resources.find((candidate) => candidate.id === id);
   if (!resource) return null;
-  if (isExternalResource(resource)) return "external";
+  if (isExternalResource(resource)) return 'external';
   if (
     resource.disciplineId != null &&
     state.data.disciplines.some((discipline) => discipline.id === resource.disciplineId)
   ) {
     return resource.disciplineId;
   }
-  return "none";
+  return 'none';
 }
 
 function createFilterActions(
   set: SchedulerSet,
   emptyFilters: () => Filters,
-): Pick<SchedulerSlice, "setFilters" | "clearFilters"> {
+): Pick<SchedulerSlice, 'setFilters' | 'clearFilters'> {
   return {
     setFilters: (patch) =>
       set((state) => ({
-        ui: { ...state.ui, filters: applyFilterPatch(state.ui.filters, patch, state.data.projects) },
+        ui: {
+          ...state.ui,
+          filters: applyFilterPatch(state.ui.filters, patch, state.data.projects),
+        },
       })),
     clearFilters: () => set((state) => ({ ui: { ...state.ui, filters: emptyFilters() } })),
   };
@@ -139,7 +149,7 @@ function createFilterActions(
 function createResourceJumpActions(
   set: SchedulerSet,
   emptyFilters: () => Filters,
-): Pick<SchedulerSlice, "jumpToResource" | "consumeResourceJump"> {
+): Pick<SchedulerSlice, 'jumpToResource' | 'consumeResourceJump'> {
   return {
     jumpToResource: (id) =>
       set((state) => {
@@ -170,7 +180,9 @@ function createResourceJumpActions(
 }
 
 /** Scheduler navigation and filter state, isolated from domain persistence mutations. */
-export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<StoreState, [], [], SchedulerSlice> {
+export function createSchedulerSlice(
+  emptyFilters: () => Filters,
+): StateCreator<StoreState, [], [], SchedulerSlice> {
   return (set) => ({
     ui: createDefaultSchedulerUi(emptyFilters),
     setZoom: (zoom) => set((state) => ({ ui: { ...state.ui, zoom } })),
@@ -190,9 +202,15 @@ export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<
         ),
       ),
     goToDate: (date) =>
-      set((state) => recenterOn(state, startOfWeekISO(date, resolveWeekStart(state.data, state.activeAccountId)))),
+      set((state) =>
+        recenterOn(
+          state,
+          startOfWeekISO(date, resolveWeekStart(state.data, state.activeAccountId)),
+        ),
+      ),
     setDrawMode: (drawMode) => set((state) => ({ ui: { ...state.ui, drawMode } })),
-    selectAllocation: (selectedAllocationId) => set((state) => ({ ui: { ...state.ui, selectedAllocationId } })),
+    selectAllocation: (selectedAllocationId) =>
+      set((state) => ({ ui: { ...state.ui, selectedAllocationId } })),
     ...createFilterActions(set, emptyFilters),
     toggleGroup: (key) =>
       set((state) => ({

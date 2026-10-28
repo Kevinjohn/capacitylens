@@ -1,7 +1,7 @@
-import { m } from "@/i18n";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import type { AccountSummary } from "@/store/useStore";
-import { Button } from "@/components/ui/button";
+import { m } from '@/i18n';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import type { AccountSummary } from '@/store/useStore';
+import { Button } from '@/components/ui/button';
 
 interface PickerHeadingProps {
   accountCount: number;
@@ -14,7 +14,11 @@ function resolvePickerTitle({ accountCount, companySetupEligible }: PickerHeadin
   return companySetupEligible ? m.picker_first_company_title() : m.picker_empty_title();
 }
 
-function PickerHeading({ accountCount, canCreateAccount, companySetupEligible }: PickerHeadingProps) {
+function PickerHeading({
+  accountCount,
+  canCreateAccount,
+  companySetupEligible,
+}: PickerHeadingProps) {
   let subtitle = canCreateAccount ? m.picker_subtitle() : m.picker_subtitle_capped();
   if (accountCount === 0) {
     subtitle = canCreateAccount ? m.picker_empty_subtitle() : m.picker_empty_subtitle_no_create();
@@ -22,7 +26,7 @@ function PickerHeading({ accountCount, canCreateAccount, companySetupEligible }:
   return (
     <div className="mb-6 text-center">
       <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-      <h1 className={companySetupEligible ? "sr-only" : "text-lg font-semibold text-ink"}>
+      <h1 className={companySetupEligible ? 'sr-only' : 'text-lg font-semibold text-ink'}>
         {resolvePickerTitle({ accountCount, canCreateAccount, companySetupEligible })}
       </h1>
       <p className="text-sm text-muted-foreground">

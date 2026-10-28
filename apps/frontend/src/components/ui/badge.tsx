@@ -1,34 +1,34 @@
-import * as React from "react";
-import { Slot } from "radix-ui";
-import { cva } from "class-variance-authority";
-import type { VariantProps } from "class-variance-authority";
+import * as React from 'react';
+import { Slot } from 'radix-ui';
+import { cva } from 'class-variance-authority';
+import type { VariantProps } from 'class-variance-authority';
 
-import { cn } from "@/lib/cn";
+import { cn } from '@/lib/cn';
 
 // Local shadcn deviation: preserve the brand default/link colours and AA-tuned soft danger and
 // warning states when comparing or refreshing this source-owned primitive.
 
 /** Defines the visual variants available to badges. */
 const badgeVariants = cva(
-  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3",
+  'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3',
   {
     variants: {
       variant: {
         default:
-          "bg-brand-soft text-brand-soft-ink [a&]:hover:bg-brand-soft/90",
+          'bg-brand-soft text-brand-soft-ink [a&]:hover:bg-brand-soft/90',
         secondary:
-          "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+          'bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
         danger:
-          "bg-danger-soft text-danger-soft-ink [a&]:hover:bg-danger-soft-hover",
-        warn: "border-warn/40 bg-warn/10 text-ink [a&]:hover:bg-warn/15",
+          'bg-danger-soft text-danger-soft-ink [a&]:hover:bg-danger-soft-hover',
+        warn: 'border-warn/40 bg-warn/10 text-ink [a&]:hover:bg-warn/15',
         outline:
-          "border-line text-ink [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        link: "text-brand underline-offset-4 [a&]:hover:underline",
+          'border-line text-ink [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
+        ghost: '[a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
+        link: 'text-brand underline-offset-4 [a&]:hover:underline',
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: 'default',
     },
   },
 );
@@ -36,13 +36,13 @@ const badgeVariants = cva(
 /** Renders a compact status or category label. */
 function Badge({
   className,
-  variant = "default",
+  variant = 'default',
   asChild = false,
   ...props
-}: React.ComponentProps<"span"> &
+}: React.ComponentProps<'span'> &
   VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
   // Local convention: spell out the JSX binding while preserving the primitive props.
-  const Component = asChild ? Slot.Root : "span";
+  const Component = asChild ? Slot.Root : 'span';
 
   return (
     <Component

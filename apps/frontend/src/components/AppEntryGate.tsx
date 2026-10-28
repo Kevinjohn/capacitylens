@@ -1,13 +1,13 @@
-import { lazy, Suspense, useEffect } from "react";
-import type { ReactNode } from "react";
-import { AccountPicker } from "./accounts/AccountPicker";
-import { AccountLoadRecovery } from "./accounts/AccountLoadRecovery";
-import { ConnectionError } from "./ConnectionError";
-import { RotateHint } from "./RotateHint";
-import { m } from "@/i18n";
+import { lazy, Suspense, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import { AccountPicker } from './accounts/AccountPicker';
+import { AccountLoadRecovery } from './accounts/AccountLoadRecovery';
+import { ConnectionError } from './ConnectionError';
+import { RotateHint } from './RotateHint';
+import { m } from '@/i18n';
 
 const StorageRecovery = lazy(async () => ({
-  default: (await import("./StorageRecovery")).StorageRecovery,
+  default: (await import('./StorageRecovery')).StorageRecovery,
 }));
 
 function LoadingBoundary() {
@@ -23,7 +23,7 @@ function LoadingBoundary() {
 function FocusableStage({ children }: { children: ReactNode }) {
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      document.querySelector<HTMLElement>("main input, main button, main a[href]")?.focus();
+      document.querySelector<HTMLElement>('main input, main button, main a[href]')?.focus();
     });
     return () => cancelAnimationFrame(frame);
   }, []);

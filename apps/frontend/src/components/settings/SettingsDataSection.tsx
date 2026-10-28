@@ -1,14 +1,14 @@
-import { m } from "@/i18n";
-import { useState } from "react";
-import { accountClient } from "@/account/accountClient";
-import { useCan } from "@/auth/permissionContext";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { readApiError } from "@/lib/readApiError";
-import { useScopedData } from "@/store/useScopedData";
-import { useStore } from "@/store/useStore";
-import { Button } from "@/components/ui/button";
-import { SettingsSection } from "./SettingsSection";
-import { CompanyAnonymiseSection } from "./CompanyAnonymiseSection";
+import { m } from '@/i18n';
+import { useState } from 'react';
+import { accountClient } from '@/account/accountClient';
+import { useCan } from '@/auth/permissionContext';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { readApiError } from '@/lib/readApiError';
+import { useScopedData } from '@/store/useScopedData';
+import { useStore } from '@/store/useStore';
+import { Button } from '@/components/ui/button';
+import { SettingsSection } from './SettingsSection';
+import { CompanyAnonymiseSection } from './CompanyAnonymiseSection';
 
 // Ignore the infrastructure Internal client when deciding whether the company has user-created content.
 function useCompanyIsEmpty(): boolean {
@@ -28,12 +28,12 @@ function ExampleDataSection() {
   const addExampleData = async () => {
     if (accountId === null || busy) return;
     if (!useStore.getState().planningReadyForReplacement()) {
-      setNotice("Finish loading or resolving company changes before adding example data.", "error");
+      setNotice('Finish loading or resolving company changes before adding example data.', 'error');
       return;
     }
     const release = useStore.getState().suspendPlanningCommands();
     if (!release) {
-      setNotice("Finish loading or resolving company changes before adding example data.", "error");
+      setNotice('Finish loading or resolving company changes before adding example data.', 'error');
       return;
     }
     const planningContext = useStore.getState().planning.context;
@@ -53,16 +53,23 @@ function ExampleDataSection() {
           if (!ownsContext()) return;
           keepBlocked = !accepted;
         }
-        const message = (await readApiError(response)) ?? m.settings_example_data_failed({ status: response.status });
+        const message =
+          (await readApiError(response)) ??
+          m.settings_example_data_failed({ status: response.status });
         if (ownsContext())
-          setNotice(keepBlocked ? `${message} ${m.settings_example_data_unknown_reload_required()}` : message, "error");
+          setNotice(
+            keepBlocked
+              ? `${message} ${m.settings_example_data_unknown_reload_required()}`
+              : message,
+            'error',
+          );
         return;
       }
       const accepted = await useStore.getState().refreshPlanning({ fresh: true });
       if (!ownsContext()) return;
       keepBlocked = !accepted;
       if (accepted) setNotice(m.settings_example_data_added());
-      else setNotice(m.settings_example_data_reload(), "warning");
+      else setNotice(m.settings_example_data_reload(), 'warning');
     } catch (cause) {
       if (!ownsContext()) return;
       const accepted = await useStore
@@ -72,7 +79,10 @@ function ExampleDataSection() {
       if (!ownsContext()) return;
       keepBlocked = !accepted;
       const message = resolveErrorMessage(cause);
-      setNotice(keepBlocked ? `${message} ${m.settings_example_data_unknown_reload_required()}` : message, "error");
+      setNotice(
+        keepBlocked ? `${message} ${m.settings_example_data_unknown_reload_required()}` : message,
+        'error',
+      );
     } finally {
       if (!keepBlocked) release();
       setBusy(false);
@@ -101,7 +111,7 @@ function ExampleDataSection() {
 
 /** Exposes export, import, and local data controls allowed by the current mode. */
 export function SettingsDataSection({ serverMode }: { serverMode: boolean }) {
-  const canAddExampleData = useCan("manageMembers");
+  const canAddExampleData = useCan('manageMembers');
   const companyIsEmpty = useCompanyIsEmpty();
   return (
     <>

@@ -1,4 +1,4 @@
-import type { AppData, Entity } from "@capacitylens/shared/types/entities";
+import type { AppData, Entity } from '@capacitylens/shared/types/entities';
 
 /** Create matching creation and update timestamps from the current clock. */
 export const stamp = () => {
@@ -20,7 +20,7 @@ export const advancePast = (value: string | undefined, next: number): number => 
   // The maximum representable Date is valid ISO input but has no representable successor. Refuse
   // the write explicitly; publishing Date.now() here would silently move its revision backwards.
   if (parsed === MAX_DATE_MS) {
-    throw new Error("Cannot update data whose revision has no representable successor.");
+    throw new Error('Cannot update data whose revision has no representable successor.');
   }
   return Number.isFinite(parsed) && parsed >= next ? parsed + 1 : next;
 };
@@ -41,7 +41,8 @@ export const touchAfterAll = (timestamps: Array<string | undefined>): string => 
  *
  * @throws When any supplied timestamp has no representable successor.
  */
-export const touchAfter = (...timestamps: Array<string | undefined>): string => touchAfterAll(timestamps);
+export const touchAfter = (...timestamps: Array<string | undefined>): string =>
+  touchAfterAll(timestamps);
 // Reduce each account table directly so reading a tenant revision does not allocate an intermediate
 // array of every row's timestamp.
 /**

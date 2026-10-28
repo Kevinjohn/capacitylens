@@ -6,7 +6,7 @@ export function restoreFocus(previousValue: HTMLElement | null) {
   if (previousValue?.isConnected) {
     previousValue.focus();
   } else {
-    const main = document.querySelector<HTMLElement>("main");
+    const main = document.querySelector<HTMLElement>('main');
     if (main) {
       main.tabIndex = -1;
       main.focus();

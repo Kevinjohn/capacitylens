@@ -1,4 +1,4 @@
-import type { ID, ScopedEntity } from "../types/entities.js";
+import type { ID, ScopedEntity } from '../types/entities.js';
 
 // The tenant boundary, in one place. Multi-tenancy is the app's core invariant: every scoped row
 // belongs to exactly one account, every read is narrowed to the active account, and every write

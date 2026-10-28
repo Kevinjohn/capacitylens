@@ -1,4 +1,4 @@
-import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
+import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand';
 
 // Match only the application prefix so clearing device data preserves other tools on a shared origin.
 /** Prefix used to identify application-owned browser storage keys. */
@@ -19,10 +19,12 @@ function listOwnedLocalStorageKeys(store: Storage): string[] {
 }
 
 /** Read app-owned values without parsing them, so corrupt bytes can still be downloaded intact. */
-export function readCapacitylensLocalStorage(store: Storage = localStorage): OwnedLocalStorageEntry[] {
+export function readCapacitylensLocalStorage(
+  store: Storage = localStorage,
+): OwnedLocalStorageEntry[] {
   return listOwnedLocalStorageKeys(store).map((key) => ({
     key,
-    value: store.getItem(key) ?? "",
+    value: store.getItem(key) ?? '',
   }));
 }
 

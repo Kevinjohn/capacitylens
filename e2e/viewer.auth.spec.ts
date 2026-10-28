@@ -1,5 +1,5 @@
-import { test, expect } from "./fixtures";
-import type { APIRequestContext } from "./fixtures";
+import { test, expect } from './fixtures';
+import type { APIRequestContext } from './fixtures';
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
@@ -9,10 +9,10 @@ import {
   masqueradeContextHeaders,
   seedFixtureMember,
   signUpUser as signUp,
-} from "./authTestSupport";
-import { waitForAppLanding } from "./browserTestSupport";
+} from './authTestSupport';
+import { waitForAppLanding } from './browserTestSupport';
 
-test.use({ contextOptions: { reducedMotion: "reduce" } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // The password server on this run’s auth API lane must enforce the same viewer restrictions as the UI.
 
@@ -21,22 +21,26 @@ const STAMP = Date.now();
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;
 const EDITOR = `v-editor-${STAMP}@capacitylens.dev`;
-const VIEWER_AVATAR_URL = "https://images.example/viewer-person.png";
+const VIEWER_AVATAR_URL = 'https://images.example/viewer-person.png';
 
-async function signInAndOpen(page: import("@playwright/test").Page, email: string) {
-  await page.goto("/");
-  await page.getByRole("heading", { name: "Sign in" }).waitFor();
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
+async function signInAndOpen(page: import('@playwright/test').Page, email: string) {
+  await page.goto('/');
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
   // The intro is once-per-device; on the second sign-in it won't reappear. Wait for either the intro
   // or the app (Schedule heading) to settle the race, then dismiss the intro if present.
-  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
-  await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
+  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
+  await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
 }
 
-async function assertViewerWriteRejected(request: APIRequestContext, accountId: string, cookie: string) {
+async function assertViewerWriteRejected(
+  request: APIRequestContext,
+  accountId: string,
+  cookie: string,
+) {
   const newClientId = crypto.randomUUID();
   const directWrite = await request.post(`${API}/api/accounts/${accountId}/clients`, {
     headers: await masqueradeContextHeaders(request, cookie),
@@ -44,8 +48,12 @@ async function assertViewerWriteRejected(request: APIRequestContext, accountId: 
       mutationId: crypto.randomUUID(),
       baseRevision: 2,
       intent: {
-        operation: "catalogue.create",
-        entity: { entity: "clients", id: newClientId, fields: { name: "Should be rejected", color: "#76a5e7" } },
+        operation: 'catalogue.create',
+        entity: {
+          entity: 'clients',
+          id: newClientId,
+          fields: { name: 'Should be rejected', color: '#76a5e7' },
+        },
       },
     },
   });
@@ -58,20 +66,24 @@ async function seedViewerScenario(request: APIRequestContext) {
   const editor = await signUp(EDITOR);
   const accountId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
   const clientId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "clients", {
-    operation: "catalogue.create",
-    entity: { entity: "clients", id: clientId, fields: { name: "Viewer-visible client", color: "#76a5e7" } },
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'clients', {
+    operation: 'catalogue.create',
+    entity: {
+      entity: 'clients',
+      id: clientId,
+      fields: { name: 'Viewer-visible client', color: '#76a5e7' },
+    },
   });
   const resourceId = crypto.randomUUID();
   await createFixturePerson(request, owner.cookie, accountId, {
     id: resourceId,
-    name: "Viewer-visible person",
-    role: "Designer",
+    name: 'Viewer-visible person',
+    role: 'Designer',
     avatarUrl: VIEWER_AVATAR_URL,
   });
   for (const [who, role] of [
-    [viewer, "viewer"],
-    [editor, "editor"],
+    [viewer, 'viewer'],
+    [editor, 'editor'],
   ] as const) {
     seedFixtureMember(accountId, who.email, role);
   }
@@ -81,7 +93,7 @@ async function seedViewerScenario(request: APIRequestContext) {
 
 // This end-to-end permission contrast intentionally keeps both roles in one session.
 
-test("a viewer sees no edit affordances; an editor does; a direct viewer write is 403", async ({
+test('a viewer sees no edit affordances; an editor does; a direct viewer write is 403', async ({
   page,
   request,
   context,
@@ -89,10 +101,10 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   const { resourceId } = await seedViewerScenario(request);
   await page.route(VIEWER_AVATAR_URL, (route) =>
     route.fulfill({
-      contentType: "image/png",
+      contentType: 'image/png',
       body: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-        "base64",
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+        'base64',
       ),
     }),
   );
@@ -101,40 +113,51 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
 
   // Team & access remains available so a Viewer can understand the role without being shown the
   // company context, directory or management controls.
-  await expect(page.getByTestId("getting-started")).toHaveCount(0);
-  await page.getByRole("link", { name: "Team & access" }).click();
-  const currentAccess = page.getByTestId("current-access");
-  await expect(currentAccess).toContainText("Viewer");
-  await expect(currentAccess.getByText("View the schedule")).toHaveCount(0);
-  await currentAccess.getByTestId("capabilities-toggle").click();
-  await expect(currentAccess.getByText("View the schedule")).toBeVisible();
-  await expect(currentAccess.getByText("Edit scheduling data")).toHaveClass(/text-muted/);
+  await expect(page.getByTestId('getting-started')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Team & access' }).click();
+  const currentAccess = page.getByTestId('current-access');
+  await expect(currentAccess).toContainText('Viewer');
+  await expect(currentAccess.getByText('View the schedule')).toHaveCount(0);
+  await currentAccess.getByTestId('capabilities-toggle').click();
+  await expect(currentAccess.getByText('View the schedule')).toBeVisible();
+  await expect(currentAccess.getByText('Edit scheduling data')).toHaveClass(/text-muted/);
   await expect(page.getByText(/An Owner or Admin manages invitations/)).toBeVisible();
-  await expect(page.getByTestId("members-section")).toHaveCount(0);
+  await expect(page.getByTestId('members-section')).toHaveCount(0);
 
-  await page.getByRole("link", { name: "Clients" }).click();
-  await expect(page.getByRole("heading", { name: "Clients" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add client" })).toHaveCount(0);
-  const viewerClientRow = page.getByTestId("client-row").filter({ hasText: "Viewer-visible client" });
+  await page.getByRole('link', { name: 'Clients' }).click();
+  await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add client' })).toHaveCount(0);
+  const viewerClientRow = page
+    .getByTestId('client-row')
+    .filter({ hasText: 'Viewer-visible client' });
   await expect(viewerClientRow).toBeVisible();
-  await expect(viewerClientRow.getByRole("button")).toHaveCount(0);
+  await expect(viewerClientRow.getByRole('button')).toHaveCount(0);
 
-  await page.getByRole("link", { name: "Resources" }).click();
-  const viewerResourceRow = page.getByTestId("resource-row").filter({ hasText: "Viewer-visible person" });
+  await page.getByRole('link', { name: 'Resources' }).click();
+  const viewerResourceRow = page
+    .getByTestId('resource-row')
+    .filter({ hasText: 'Viewer-visible person' });
   await expect(viewerResourceRow).toBeVisible();
-  await expect(viewerResourceRow.getByRole("button", { name: "Edit Viewer-visible person" })).toHaveCount(0);
+  await expect(
+    viewerResourceRow.getByRole('button', { name: 'Edit Viewer-visible person' }),
+  ).toHaveCount(0);
 
-  await page.getByRole("link", { name: "Schedule" }).click();
-  const viewerScheduleTrigger = page.getByRole("button", { name: "View Viewer-visible person's schedule VP" });
-  await expect(viewerScheduleTrigger.locator("img")).toHaveAttribute("src", VIEWER_AVATAR_URL);
-  await expect(viewerScheduleTrigger.locator("img")).toHaveAttribute("referrerpolicy", "no-referrer");
-  await expect(page.getByTestId("scheduler-grid")).toBeVisible();
-  await page.getByRole("button", { name: "Show filters" }).click();
-  await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toHaveCount(0);
-  await expect(page.getByTestId("undo-button")).toHaveCount(0);
-  await expect(page.getByTestId("redo-button")).toHaveCount(0);
+  await page.getByRole('link', { name: 'Schedule' }).click();
+  const viewerScheduleTrigger = page.getByRole('button', {
+    name: "View Viewer-visible person's schedule VP",
+  });
+  await expect(viewerScheduleTrigger.locator('img')).toHaveAttribute('src', VIEWER_AVATAR_URL);
+  await expect(viewerScheduleTrigger.locator('img')).toHaveAttribute(
+    'referrerpolicy',
+    'no-referrer',
+  );
+  await expect(page.getByTestId('scheduler-grid')).toBeVisible();
+  await page.getByRole('button', { name: 'Show filters' }).click();
+  await expect(page.getByRole('radiogroup', { name: 'Draw mode' })).toHaveCount(0);
+  await expect(page.getByTestId('undo-button')).toHaveCount(0);
+  await expect(page.getByTestId('redo-button')).toHaveCount(0);
 
-  await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
+  await expect(page.getByTestId('allocation-bar')).toHaveCount(0);
   const lane = page.locator(`[data-testid="resource-lane"][data-resource-id="${resourceId}"]`);
   await expect(lane).toBeVisible();
   const box = await lane.boundingBox();
@@ -145,27 +168,31 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
     await page.mouse.move(box.x + 150, box.y + box.height / 2);
     await page.mouse.up();
   }
-  await expect(page.getByRole("dialog", { name: "Add allocation" })).toHaveCount(0);
-  await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Add allocation' })).toHaveCount(0);
+  await expect(page.getByTestId('allocation-bar')).toHaveCount(0);
 
   await context.clearCookies();
   await signInAndOpen(page, EDITOR);
 
-  await expect(page.getByTestId("getting-started")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Invite your team" })).toHaveCount(0);
-  await page.getByRole("link", { name: "Team & access" }).click();
-  await expect(page.getByTestId("current-access")).toContainText("Editor");
-  await expect(page.getByTestId("members-section")).toHaveCount(0);
+  await expect(page.getByTestId('getting-started')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Invite your team' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Team & access' }).click();
+  await expect(page.getByTestId('current-access')).toContainText('Editor');
+  await expect(page.getByTestId('members-section')).toHaveCount(0);
 
-  await page.getByRole("link", { name: "Clients" }).click();
-  await expect(page.getByRole("heading", { name: "Clients" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add client" })).toBeVisible();
-  const editorClientRow = page.getByTestId("client-row").filter({ hasText: "Viewer-visible client" });
-  await expect(editorClientRow.getByRole("button", { name: /^Edit / })).toBeVisible();
-  await expect(editorClientRow.getByRole("button", { name: "Archive Viewer-visible client" })).toBeVisible();
+  await page.getByRole('link', { name: 'Clients' }).click();
+  await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add client' })).toBeVisible();
+  const editorClientRow = page
+    .getByTestId('client-row')
+    .filter({ hasText: 'Viewer-visible client' });
+  await expect(editorClientRow.getByRole('button', { name: /^Edit / })).toBeVisible();
+  await expect(
+    editorClientRow.getByRole('button', { name: 'Archive Viewer-visible client' }),
+  ).toBeVisible();
 
-  await page.getByRole("link", { name: "Schedule" }).click();
-  await page.getByRole("button", { name: "Show filters" }).click();
-  await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toBeVisible();
-  await expect(page.getByTestId("undo-button")).toBeVisible();
+  await page.getByRole('link', { name: 'Schedule' }).click();
+  await page.getByRole('button', { name: 'Show filters' }).click();
+  await expect(page.getByRole('radiogroup', { name: 'Draw mode' })).toBeVisible();
+  await expect(page.getByTestId('undo-button')).toBeVisible();
 });

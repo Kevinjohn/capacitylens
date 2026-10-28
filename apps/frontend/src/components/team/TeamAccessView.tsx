@@ -1,18 +1,25 @@
-import { useState } from "react";
-import { can, canSeePrivateNames, canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
-import type { Role } from "@capacitylens/shared/domain/access";
-import { usePermissionStatus, useRole } from "@/auth/permissionContext";
-import { resolveAccessLabel, resolveAccessSummary } from "@/lib/accessCopy";
-import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
-import { MembersSection } from "./MembersSection";
-import { AdmissionRequestsPanel } from "./AdmissionRequestsPanel";
-import { useStore } from "@/store/useStore";
-import { OwnershipTransferCard } from "./OwnershipTransferCard";
-import { Badge } from "@/components/ui/badge";
-import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { m } from "@/i18n";
+import { useState } from 'react';
+import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
+import type { Role } from '@capacitylens/shared/domain/access';
+import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { resolveAccessLabel, resolveAccessSummary } from '@/lib/accessCopy';
+import { resolveAccessExperience } from '@/lib/resolveAccessExperience';
+import { MembersSection } from './MembersSection';
+import { AdmissionRequestsPanel } from './AdmissionRequestsPanel';
+import { useStore } from '@/store/useStore';
+import { OwnershipTransferCard } from './OwnershipTransferCard';
+import { Badge } from '@/components/ui/badge';
+import { Check, ChevronDown, ChevronRight, X } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { m } from '@/i18n';
 
 interface Capability {
   label: string;
@@ -38,35 +45,52 @@ interface ResolveAccessWarningInput {
 
 function listCapabilities(role: Role): Capability[] {
   return [
-    { label: m.access_cap_view_schedule(), allowed: can(role, "read") },
-    { label: m.access_cap_edit_schedule(), allowed: can(role, "write") },
-    { label: m.access_cap_manage_team(), allowed: can(role, "manageMembers") },
+    { label: m.access_cap_view_schedule(), allowed: can(role, 'read') },
+    { label: m.access_cap_edit_schedule(), allowed: can(role, 'write') },
+    { label: m.access_cap_manage_team(), allowed: can(role, 'manageMembers') },
     { label: m.access_cap_timeoff_notes(), allowed: canSeeTimeOffNote(role) },
     { label: m.access_cap_private_names(), allowed: canSeePrivateNames(role) },
-    { label: m.access_cap_transfer_owner(), allowed: can(role, "transferOwnership") },
+    { label: m.access_cap_transfer_owner(), allowed: can(role, 'transferOwnership') },
   ];
 }
 
 function resolveAccessWarning({ accessExperience }: ResolveAccessWarningInput) {
-  if (accessExperience === "demo") return m.access_demo_warning();
+  if (accessExperience === 'demo') return m.access_demo_warning();
   return null;
 }
 
 function CapabilityList({ role }: { role: Role }) {
   return (
-    <ul id="access-capabilities" className="mt-3 grid gap-2 sm:grid-cols-2" aria-label={m.access_capabilities_label()}>
+    <ul
+      id="access-capabilities"
+      className="mt-3 grid gap-2 sm:grid-cols-2"
+      aria-label={m.access_capabilities_label()}
+    >
       {listCapabilities(role).map((capability) => (
         <li key={capability.label} className="flex items-center gap-2 text-sm text-ink">
-          {capability.allowed ? <Check className="text-brand" /> : <X className="text-muted-foreground" />}
-          <span className="sr-only">{capability.allowed ? m.access_cap_allowed() : m.access_cap_not_allowed()}</span>
-          <span className={capability.allowed ? undefined : "text-muted-foreground"}>{capability.label}</span>
+          {capability.allowed ? (
+            <Check className="text-brand" />
+          ) : (
+            <X className="text-muted-foreground" />
+          )}
+          <span className="sr-only">
+            {capability.allowed ? m.access_cap_allowed() : m.access_cap_not_allowed()}
+          </span>
+          <span className={capability.allowed ? undefined : 'text-muted-foreground'}>
+            {capability.label}
+          </span>
         </li>
       ))}
     </ul>
   );
 }
 
-function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiveRole }: CurrentAccessCardProps) {
+function CurrentAccessCard({
+  accessLabel,
+  accessSummary,
+  accessWarning,
+  effectiveRole,
+}: CurrentAccessCardProps) {
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   let accessDetails = null;
 
@@ -82,7 +106,11 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
           data-testid="capabilities-toggle"
           onClick={() => setCapabilitiesOpen((open) => !open)}
         >
-          {capabilitiesOpen ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
+          {capabilitiesOpen ? (
+            <ChevronDown data-icon="inline-start" />
+          ) : (
+            <ChevronRight data-icon="inline-start" />
+          )}
           {capabilitiesOpen ? m.access_capabilities_hide() : m.access_capabilities_show()}
         </button>
         {capabilitiesOpen && <CapabilityList role={effectiveRole} />}
@@ -96,7 +124,7 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
     );
   }
 
-  const badgeVariant = effectiveRole === "viewer" || !effectiveRole ? "outline" : "default";
+  const badgeVariant = effectiveRole === 'viewer' || !effectiveRole ? 'outline' : 'default';
   return (
     <Card data-testid="current-access">
       <CardHeader>
@@ -122,7 +150,7 @@ function AccessManagement({ authenticated, mayManage, permissionStatus }: Access
     );
   }
   if (mayManage) return <MembersSection />;
-  if (permissionStatus !== "resolved") return null;
+  if (permissionStatus !== 'resolved') return null;
 
   return (
     <Card>
@@ -141,12 +169,12 @@ export function TeamAccessView() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const masqueradeActive = useStore((state) => state.masquerade.kind !== "inactive");
+  const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const accessExperience = resolveAccessExperience();
-  const authenticated = accessExperience === "authenticated";
-  const resolvedRole = authenticated && permissionStatus === "resolved" ? role : null;
+  const authenticated = accessExperience === 'authenticated';
+  const resolvedRole = authenticated && permissionStatus === 'resolved' ? role : null;
   const effectiveRole: Role | null = resolvedRole;
-  const mayManage = resolvedRole !== null && can(resolvedRole, "manageMembers");
+  const mayManage = resolvedRole !== null && can(resolvedRole, 'manageMembers');
   const accessCopyInput = {
     experience: accessExperience,
     permissionStatus,
@@ -173,14 +201,20 @@ export function TeamAccessView() {
 
       {/* Resolve permission before mounting: lower roles must not issue privileged directory reads
           merely by visiting this page. */}
-      <AccessManagement authenticated={authenticated} mayManage={mayManage} permissionStatus={permissionStatus} />
+      <AccessManagement
+        authenticated={authenticated}
+        mayManage={mayManage}
+        permissionStatus={permissionStatus}
+      />
 
-      {authenticated && !masqueradeActive && (resolvedRole === "owner" || resolvedRole === "admin") && (
-        <AdmissionRequestsPanel key={activeAccountId} />
-      )}
+      {authenticated &&
+        !masqueradeActive &&
+        (resolvedRole === 'owner' || resolvedRole === 'admin') && (
+          <AdmissionRequestsPanel key={activeAccountId} />
+        )}
 
       {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}
-      {authenticated && !masqueradeActive && resolvedRole === "owner" && <OwnershipTransferCard />}
+      {authenticated && !masqueradeActive && resolvedRole === 'owner' && <OwnershipTransferCard />}
     </div>
   );
 }

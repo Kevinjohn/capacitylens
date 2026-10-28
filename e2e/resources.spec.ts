@@ -1,5 +1,5 @@
-import { test, expect } from "./fixtures";
-import type { Locator } from "./fixtures";
+import { test, expect } from './fixtures';
+import type { Locator } from './fixtures';
 import {
   dismissLandscapeHint,
   goToSeedWeek,
@@ -7,16 +7,16 @@ import {
   selectShadOption,
   setZoom,
   showPlaceholders,
-} from "./browserTestSupport";
+} from './browserTestSupport';
 
 async function expectWorkingDaysGeometry(dialog: Locator) {
   const compactFields = dialog.locator('[data-product-layout="label-control"]');
   await expect(compactFields).toHaveCount(4);
   const fieldGroupBox = await dialog.locator('[data-slot="field-group"]').boundingBox();
-  const workingDays = dialog.getByRole("group", { name: "Working days" });
-  await expect(workingDays.getByRole("radio")).toHaveCount(21);
+  const workingDays = dialog.getByRole('group', { name: 'Working days' });
+  await expect(workingDays.getByRole('radio')).toHaveCount(21);
   const workingDaysBox = await workingDays.boundingBox();
-  const workingDaysTable = workingDays.getByRole("table");
+  const workingDaysTable = workingDays.getByRole('table');
   const tableBox = await workingDaysTable.boundingBox();
   expect(fieldGroupBox).not.toBeNull();
   expect(workingDaysBox).not.toBeNull();
@@ -27,13 +27,15 @@ async function expectWorkingDaysGeometry(dialog: Locator) {
 }
 
 async function expectAvailabilitySeparatorSpacing(dialog: Locator) {
-  const dateRow = dialog.locator("[data-resource-availability-date-row]");
+  const dateRow = dialog.locator('[data-resource-availability-date-row]');
   const separators = dialog.locator('[data-slot="separator"]');
   await expect
     .poll(async () => {
       const dateRowBox = await dateRow.boundingBox();
       const separatorBox = await separators.nth(0).boundingBox();
-      return dateRowBox && separatorBox ? dateRowBox.y - (separatorBox.y + separatorBox.height) : -1;
+      return dateRowBox && separatorBox
+        ? dateRowBox.y - (separatorBox.y + separatorBox.height)
+        : -1;
     })
     .toBeGreaterThanOrEqual(16);
   await expect
@@ -46,24 +48,26 @@ async function expectAvailabilitySeparatorSpacing(dialog: Locator) {
 }
 
 async function expectAvailabilityDateGeometry(dialog: Locator) {
-  await expect(dialog.getByLabel("Avatar URL")).toHaveCount(0);
-  const dateRow = dialog.locator("[data-resource-availability-date-row]");
-  const startDateBox = await dialog.getByLabel("Start date").boundingBox();
-  const endDateBox = await dialog.getByLabel("End date").boundingBox();
+  await expect(dialog.getByLabel('Avatar URL')).toHaveCount(0);
+  const dateRow = dialog.locator('[data-resource-availability-date-row]');
+  const startDateBox = await dialog.getByLabel('Start date').boundingBox();
+  const endDateBox = await dialog.getByLabel('End date').boundingBox();
   const dateRowBox = await dateRow.boundingBox();
   expect(startDateBox).not.toBeNull();
   expect(endDateBox).not.toBeNull();
   expect(dateRowBox).not.toBeNull();
   expect(Math.abs(startDateBox!.y - endDateBox!.y)).toBeLessThanOrEqual(1);
   expect(Math.abs(startDateBox!.x - dateRowBox!.x)).toBeLessThanOrEqual(1);
-  expect(Math.abs(endDateBox!.x + endDateBox!.width - (dateRowBox!.x + dateRowBox!.width))).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(endDateBox!.x + endDateBox!.width - (dateRowBox!.x + dateRowBox!.width)),
+  ).toBeLessThanOrEqual(1);
   await expectAvailabilitySeparatorSpacing(dialog);
 }
 
 async function expectNarrowAvailabilityDateGeometry(dialog: Locator) {
-  const dateRowBox = await dialog.locator("[data-resource-availability-date-row]").boundingBox();
-  const startDateBox = await dialog.getByLabel("Start date").boundingBox();
-  const endDateBox = await dialog.getByLabel("End date").boundingBox();
+  const dateRowBox = await dialog.locator('[data-resource-availability-date-row]').boundingBox();
+  const startDateBox = await dialog.getByLabel('Start date').boundingBox();
+  const endDateBox = await dialog.getByLabel('End date').boundingBox();
   expect(dateRowBox).not.toBeNull();
   expect(startDateBox).not.toBeNull();
   expect(endDateBox).not.toBeNull();
@@ -76,33 +80,33 @@ async function expectNarrowAvailabilityDateGeometry(dialog: Locator) {
 // Covers US-RES-01..10 (Resources area). Each test starts from the seeded app
 // (Playwright gives every test a fresh page → fresh in-memory seed).
 
-test("adds a person and shows them in the list and schedule", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/resources");
-  await page.getByRole("button", { name: "Add resource" }).click();
+test('adds a person and shows them in the list and schedule', async ({ page }) => {
+  await openApp(page, 'Wayne Enterprises', '/resources');
+  await page.getByRole('button', { name: 'Add resource' }).click();
 
-  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Dana Lee");
-  await page.getByLabel("Role").fill("Motion Designer");
-  await selectShadOption(page.getByLabel("Discipline"), { label: "Design" });
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Dana Lee');
+  await page.getByLabel('Role').fill('Motion Designer');
+  await selectShadOption(page.getByLabel('Discipline'), { label: 'Design' });
+  await page.getByRole('button', { name: 'Save' }).click();
 
-  await expect(page.getByText("Dana Lee")).toBeVisible();
-  await page.getByRole("link", { name: "Schedule" }).click();
-  await expect(page.getByTestId("scheduler-row").filter({ hasText: "Dana Lee" })).toBeVisible();
+  await expect(page.getByText('Dana Lee')).toBeVisible();
+  await page.getByRole('link', { name: 'Schedule' }).click();
+  await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Dana Lee' })).toBeVisible();
 });
 
-test("keeps resource details compact and the working-days table aligned without narrow-screen overflow", async ({
+test('keeps resource details compact and the working-days table aligned without narrow-screen overflow', async ({
   page,
 }) => {
-  await openApp(page, "Wayne Enterprises", "/resources");
-  await page.getByRole("button", { name: "Add resource" }).click();
+  await openApp(page, 'Wayne Enterprises', '/resources');
+  await page.getByRole('button', { name: 'Add resource' }).click();
 
-  const dialog = page.getByRole("dialog", { name: "Add resource" });
-  const workingDays = dialog.getByRole("group", { name: "Working days" });
-  const workingDaysTable = workingDays.getByRole("table");
+  const dialog = page.getByRole('dialog', { name: 'Add resource' });
+  const workingDays = dialog.getByRole('group', { name: 'Working days' });
+  const workingDaysTable = workingDays.getByRole('table');
   await expectWorkingDaysGeometry(dialog);
   await expectAvailabilityDateGeometry(dialog);
 
-  for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+  for (const label of ['Name', 'Role', 'Discipline', 'Engagement']) {
     const control = dialog.getByLabel(label, { exact: true });
     const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
     const fieldBox = await field.boundingBox();
@@ -120,10 +124,10 @@ test("keeps resource details compact and the working-days table aligned without 
   await dismissLandscapeHint(page);
   await expect(dialog).toBeVisible();
   await expectNarrowAvailabilityDateGeometry(dialog);
-  for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+  for (const label of ['Name', 'Role', 'Discipline', 'Engagement']) {
     const control = dialog.getByLabel(label, { exact: true });
     const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
-    const labelBox = await field.locator(":scope > :first-child").boundingBox();
+    const labelBox = await field.locator(':scope > :first-child').boundingBox();
     const fieldBox = await field.boundingBox();
     const controlBox = await control.boundingBox();
     expect(labelBox).not.toBeNull();
@@ -136,20 +140,20 @@ test("keeps resource details compact and the working-days table aligned without 
 
   // Exercise long translated-style labels without claiming an end-to-end non-English locale.
   // The no-wrap contract should widen only this scroll area, never the dialog or page.
-  await workingDays.getByRole("columnheader", { name: "Not working" }).evaluate((element) => {
-    element.textContent = "Ganztägig nicht verfügbar";
+  await workingDays.getByRole('columnheader', { name: 'Not working' }).evaluate((element) => {
+    element.textContent = 'Ganztägig nicht verfügbar';
   });
-  await workingDays.getByRole("rowheader", { name: "Wednesday" }).evaluate((element) => {
-    element.textContent = "Mittwoch (zusätzlicher Arbeitstag)";
+  await workingDays.getByRole('rowheader', { name: 'Wednesday' }).evaluate((element) => {
+    element.textContent = 'Mittwoch (zusätzlicher Arbeitstag)';
   });
-  const scrollArea = workingDaysTable.locator("..");
+  const scrollArea = workingDaysTable.locator('..');
   const overflow = await scrollArea.evaluate((element) => ({
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
-    whiteSpace: getComputedStyle(element.querySelector("th:not(.sr-only)")!).whiteSpace,
+    whiteSpace: getComputedStyle(element.querySelector('th:not(.sr-only)')!).whiteSpace,
   }));
   expect(overflow.scrollWidth).toBeGreaterThan(overflow.clientWidth);
-  expect(overflow.whiteSpace).toBe("nowrap");
+  expect(overflow.whiteSpace).toBe('nowrap');
   const narrowDialogBox = await dialog.boundingBox();
   expect(narrowDialogBox).not.toBeNull();
   expect(narrowDialogBox!.x).toBeGreaterThanOrEqual(0);
@@ -157,146 +161,153 @@ test("keeps resource details compact and the working-days table aligned without 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
 });
 
-test('adds a placeholder bound to a project and shows it as "Placeholder" on the schedule', async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/settings");
+test('adds a placeholder bound to a project and shows it as "Placeholder" on the schedule', async ({
+  page,
+}) => {
+  await openApp(page, 'Wayne Enterprises', '/settings');
   // Placeholders are hidden by default (per-account pref), turn them on so the management
   // section + "Add placeholder" button appear on the Resources page.
   await showPlaceholders(page);
-  await page.getByRole("link", { name: "Resources" }).click();
-  await page.getByRole("button", { name: "Add placeholder" }).click();
+  await page.getByRole('link', { name: 'Resources' }).click();
+  await page.getByRole('button', { name: 'Add placeholder' }).click();
 
-  await page.getByLabel("Role").fill("Junior Dev");
-  await selectShadOption(page.getByLabel("Bound project"), "p-acme");
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByLabel('Role').fill('Junior Dev');
+  await selectShadOption(page.getByLabel('Bound project'), 'p-acme');
+  await page.getByRole('button', { name: 'Save' }).click();
 
-  await page.getByRole("link", { name: "Schedule" }).click();
-  const row = page.getByTestId("scheduler-row").filter({ hasText: "Placeholder" }).filter({ hasText: "Junior Dev" });
+  await page.getByRole('link', { name: 'Schedule' }).click();
+  const row = page
+    .getByTestId('scheduler-row')
+    .filter({ hasText: 'Placeholder' })
+    .filter({ hasText: 'Junior Dev' });
   await expect(row).toBeVisible();
 });
 
-test("rejects a placeholder with no bound project", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/settings");
+test('rejects a placeholder with no bound project', async ({ page }) => {
+  await openApp(page, 'Wayne Enterprises', '/settings');
   await showPlaceholders(page);
-  await page.getByRole("link", { name: "Resources" }).click();
-  await page.getByRole("button", { name: "Add placeholder" }).click();
-  await page.getByLabel("Role").fill("Unbound slot");
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByRole("alert")).toContainText(/must be bound to a project/i);
+  await page.getByRole('link', { name: 'Resources' }).click();
+  await page.getByRole('button', { name: 'Add placeholder' }).click();
+  await page.getByLabel('Role').fill('Unbound slot');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('alert')).toContainText(/must be bound to a project/i);
 });
 
-test("edits a resource and the change persists", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/resources");
+test('edits a resource and the change persists', async ({ page }) => {
+  await openApp(page, 'Wayne Enterprises', '/resources');
   await page
-    .getByTestId("resource-row")
-    .filter({ hasText: "Clark Kent" })
-    .getByRole("button", { name: /^Edit / })
+    .getByTestId('resource-row')
+    .filter({ hasText: 'Clark Kent' })
+    .getByRole('button', { name: /^Edit / })
     .click();
-  const role = page.getByLabel("Role");
-  await role.fill("Lead Developer");
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Lead Developer")).toBeVisible();
+  const role = page.getByLabel('Role');
+  await role.fill('Lead Developer');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Lead Developer')).toBeVisible();
 });
 
-test("persists a mixed full, half and non-working weekday pattern", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/resources");
-  await page.getByRole("button", { name: "Add resource" }).click();
-  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Barbara Gordon");
-  const dialog = page.getByRole("dialog", { name: "Add resource" });
-  await expect(dialog.getByRole("columnheader", { name: "Full day" })).toBeVisible();
-  await expect(dialog.getByRole("columnheader", { name: "Half day" })).toBeVisible();
-  await expect(dialog.getByRole("columnheader", { name: "Not working" })).toBeVisible();
-  const tableBox = await dialog.getByRole("table").boundingBox();
-  const groupBox = await dialog.getByRole("group", { name: "Working days" }).boundingBox();
+test('persists a mixed full, half and non-working weekday pattern', async ({ page }) => {
+  await openApp(page, 'Wayne Enterprises', '/resources');
+  await page.getByRole('button', { name: 'Add resource' }).click();
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Barbara Gordon');
+  const dialog = page.getByRole('dialog', { name: 'Add resource' });
+  await expect(dialog.getByRole('columnheader', { name: 'Full day' })).toBeVisible();
+  await expect(dialog.getByRole('columnheader', { name: 'Half day' })).toBeVisible();
+  await expect(dialog.getByRole('columnheader', { name: 'Not working' })).toBeVisible();
+  const tableBox = await dialog.getByRole('table').boundingBox();
+  const groupBox = await dialog.getByRole('group', { name: 'Working days' }).boundingBox();
   expect(tableBox).not.toBeNull();
   expect(groupBox).not.toBeNull();
   expect(Math.abs(tableBox!.x - groupBox!.x)).toBeLessThanOrEqual(2);
   expect(Math.abs(tableBox!.width - groupBox!.width)).toBeLessThanOrEqual(2);
-  const mondayFull = dialog.getByRole("radio", { name: "Monday Full day" });
+  const mondayFull = dialog.getByRole('radio', { name: 'Monday Full day' });
   await mondayFull.click();
-  await mondayFull.press("ArrowRight");
-  await expect(dialog.getByRole("radio", { name: "Monday Half day" })).toBeChecked();
-  await dialog.getByRole("radio", { name: "Monday Half day" }).press("ArrowLeft");
+  await mondayFull.press('ArrowRight');
+  await expect(dialog.getByRole('radio', { name: 'Monday Half day' })).toBeChecked();
+  await dialog.getByRole('radio', { name: 'Monday Half day' }).press('ArrowLeft');
   await expect(mondayFull).toBeChecked();
-  await dialog.getByRole("radio", { name: "Tuesday Half day" }).click();
-  await dialog.getByRole("radio", { name: "Friday Not working" }).click();
-  await page.getByRole("button", { name: "Save" }).click();
+  await dialog.getByRole('radio', { name: 'Tuesday Half day' }).click();
+  await dialog.getByRole('radio', { name: 'Friday Not working' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
 
   await page
-    .getByTestId("resource-row")
-    .filter({ hasText: "Barbara Gordon" })
-    .getByRole("button", { name: /^Edit / })
+    .getByTestId('resource-row')
+    .filter({ hasText: 'Barbara Gordon' })
+    .getByRole('button', { name: /^Edit / })
     .click();
-  await expect(page.getByRole("radio", { name: "Monday Full day" })).toBeChecked();
-  await expect(page.getByRole("radio", { name: "Tuesday Half day" })).toBeChecked();
-  await expect(page.getByRole("radio", { name: "Friday Not working" })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Monday Full day' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Tuesday Half day' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Friday Not working' })).toBeChecked();
 });
 
-test("favourites a person and keeps them first in the resource list and discipline group", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/resources");
+test('favourites a person and keeps them first in the resource list and discipline group', async ({
+  page,
+}) => {
+  await openApp(page, 'Wayne Enterprises', '/resources');
 
-  const clarkRow = page.getByTestId("resource-row").filter({ hasText: "Clark Kent" });
-  const favourite = clarkRow.getByRole("button", { name: "Add Clark Kent to favourites" });
-  await expect(favourite).toHaveAttribute("aria-pressed", "false");
+  const clarkRow = page.getByTestId('resource-row').filter({ hasText: 'Clark Kent' });
+  const favourite = clarkRow.getByRole('button', { name: 'Add Clark Kent to favourites' });
+  await expect(favourite).toHaveAttribute('aria-pressed', 'false');
 
   await favourite.click();
 
-  const unfavourite = page.getByRole("button", { name: "Remove Clark Kent from favourites" });
-  await expect(unfavourite).toHaveAttribute("aria-pressed", "true");
-  await expect(unfavourite.locator(".lucide-star")).toHaveClass(/fill-warn/);
-  await expect(page.getByTestId("resource-row").first()).toContainText("Clark Kent");
+  const unfavourite = page.getByRole('button', { name: 'Remove Clark Kent from favourites' });
+  await expect(unfavourite).toHaveAttribute('aria-pressed', 'true');
+  await expect(unfavourite.locator('.lucide-star')).toHaveClass(/fill-warn/);
+  await expect(page.getByTestId('resource-row').first()).toContainText('Clark Kent');
 
-  await page.getByRole("link", { name: "Schedule" }).click();
+  await page.getByRole('link', { name: 'Schedule' }).click();
   await expect
     .poll(async () => {
-      const rows = await page.getByTestId("scheduler-row").allTextContents();
+      const rows = await page.getByTestId('scheduler-row').allTextContents();
       return [
-        rows.findIndex((row) => row.includes("Clark Kent")),
-        rows.findIndex((row) => row.includes("Barry Allen")),
+        rows.findIndex((row) => row.includes('Clark Kent')),
+        rows.findIndex((row) => row.includes('Barry Allen')),
       ];
     })
     .toEqual([1, 2]);
 });
 
-test("groups Studio before Supplementary only while someone is Supplementary", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/resources");
-  await expect(page.getByRole("heading", { name: "Studio" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Supplementary" })).toHaveCount(0);
+test('groups Studio before Supplementary only while someone is Supplementary', async ({ page }) => {
+  await openApp(page, 'Wayne Enterprises', '/resources');
+  await expect(page.getByRole('heading', { name: 'Studio' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Supplementary' })).toHaveCount(0);
 
-  const barry = page.getByTestId("resource-row").filter({ hasText: "Barry Allen" });
-  await barry.getByRole("button", { name: "Edit Barry Allen" }).click();
-  await page.getByRole("radio", { name: "Supplementary" }).click();
-  await page.getByRole("button", { name: "Save" }).click();
-  await barry.getByRole("button", { name: "Add Barry Allen to favourites" }).click();
+  const barry = page.getByTestId('resource-row').filter({ hasText: 'Barry Allen' });
+  await barry.getByRole('button', { name: 'Edit Barry Allen' }).click();
+  await page.getByRole('radio', { name: 'Supplementary' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await barry.getByRole('button', { name: 'Add Barry Allen to favourites' }).click();
 
-  const supplementary = page.getByRole("heading", { name: "Supplementary" }).locator("..");
-  await expect(supplementary.getByTestId("resource-row")).toContainText("Barry Allen");
+  const supplementary = page.getByRole('heading', { name: 'Supplementary' }).locator('..');
+  await expect(supplementary.getByTestId('resource-row')).toContainText('Barry Allen');
 
-  await page.getByRole("link", { name: "Schedule" }).click();
+  await page.getByRole('link', { name: 'Schedule' }).click();
   await expect
     .poll(async () => {
-      const rows = await page.getByTestId("scheduler-row").allTextContents();
+      const rows = await page.getByTestId('scheduler-row').allTextContents();
       return [
-        rows.findIndex((row) => row.includes("Clark Kent")),
-        rows.findIndex((row) => row.includes("Barry Allen")),
+        rows.findIndex((row) => row.includes('Clark Kent')),
+        rows.findIndex((row) => row.includes('Barry Allen')),
       ];
     })
     .toEqual([1, 2]);
 
-  await page.getByRole("link", { name: "Resources" }).click();
-  await barry.getByRole("button", { name: "Edit Barry Allen" }).click();
-  await page.getByRole("radio", { name: "Studio" }).click();
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByRole("heading", { name: "Studio" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Supplementary" })).toHaveCount(0);
-  await expect(page.getByTestId("resource-row").first()).toContainText("Barry Allen");
+  await page.getByRole('link', { name: 'Resources' }).click();
+  await barry.getByRole('button', { name: 'Edit Barry Allen' }).click();
+  await page.getByRole('radio', { name: 'Studio' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('heading', { name: 'Studio' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Supplementary' })).toHaveCount(0);
+  await expect(page.getByTestId('resource-row').first()).toContainText('Barry Allen');
 
-  await page.getByRole("link", { name: "Schedule" }).click();
+  await page.getByRole('link', { name: 'Schedule' }).click();
   await expect
     .poll(async () => {
-      const rows = await page.getByTestId("scheduler-row").allTextContents();
+      const rows = await page.getByTestId('scheduler-row').allTextContents();
       return [
-        rows.findIndex((row) => row.includes("Barry Allen")),
-        rows.findIndex((row) => row.includes("Clark Kent")),
+        rows.findIndex((row) => row.includes('Barry Allen')),
+        rows.findIndex((row) => row.includes('Clark Kent')),
       ];
     })
     .toEqual([1, 2]);
@@ -304,53 +315,55 @@ test("groups Studio before Supplementary only while someone is Supplementary", a
 
 // the per-row destructive action archives (hidden from list + schedule, fully retained),
 // not a hard cascade-delete. Booking-only Undo leaves the archive in place.
-test("archiving a resource hides it from the list + schedule, and undo leaves it archived", async ({ page }) => {
+test('archiving a resource hides it from the list + schedule, and undo leaves it archived', async ({
+  page,
+}) => {
   await openApp(page);
   await setZoom(page, 4);
   await goToSeedWeek(page);
-  const bruceBars = page.locator('[data-resource-id="r-tyler"]').getByTestId("allocation-bar");
+  const bruceBars = page.locator('[data-resource-id="r-tyler"]').getByTestId('allocation-bar');
   await expect(bruceBars.first()).toBeVisible();
 
-  await page.getByRole("link", { name: "Resources" }).click();
+  await page.getByRole('link', { name: 'Resources' }).click();
   await page
-    .getByTestId("resource-row")
-    .filter({ hasText: "Bruce Wayne" })
-    .getByRole("button", { name: "Archive Bruce Wayne" })
+    .getByTestId('resource-row')
+    .filter({ hasText: 'Bruce Wayne' })
+    .getByRole('button', { name: 'Archive Bruce Wayne' })
     .click();
   await page
-    .getByRole("alertdialog", { name: "Archive resource?" })
-    .getByRole("button", { name: "Archive", exact: true })
+    .getByRole('alertdialog', { name: 'Archive resource?' })
+    .getByRole('button', { name: 'Archive', exact: true })
     .click();
-  await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toHaveCount(0);
+  await expect(page.getByTestId('resource-row').filter({ hasText: 'Bruce Wayne' })).toHaveCount(0);
 
-  await page.keyboard.press("Meta+z");
-  await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toHaveCount(0);
+  await page.keyboard.press('Meta+z');
+  await expect(page.getByTestId('resource-row').filter({ hasText: 'Bruce Wayne' })).toHaveCount(0);
 });
 
-test("uses fixed working hours without showing an hours field", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/resources");
-  await page.getByRole("button", { name: "Add resource" }).click();
-  await expect(page.getByLabel("Working hours / day")).toHaveCount(0);
-  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Fixed Hours");
-  await page.getByLabel("Role").fill("Tester");
-  await page.getByRole("button", { name: "Save" }).click();
+test('uses fixed working hours without showing an hours field', async ({ page }) => {
+  await openApp(page, 'Wayne Enterprises', '/resources');
+  await page.getByRole('button', { name: 'Add resource' }).click();
+  await expect(page.getByLabel('Working hours / day')).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Fixed Hours');
+  await page.getByLabel('Role').fill('Tester');
+  await page.getByRole('button', { name: 'Save' }).click();
 
-  const row = page.getByTestId("resource-row").filter({ hasText: "Fixed Hours" });
+  const row = page.getByTestId('resource-row').filter({ hasText: 'Fixed Hours' });
   await expect(row).toBeVisible();
   await expect(row).not.toContainText(/\d+h\/day/);
 });
 
-test("edits Engagement while Employment stays hidden and unbadged", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/resources");
-  const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
-  await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
+test('edits Engagement while Employment stays hidden and unbadged', async ({ page }) => {
+  await openApp(page, 'Wayne Enterprises', '/resources');
+  const bruce = page.getByTestId('resource-row').filter({ hasText: 'Bruce Wayne' });
+  await bruce.getByRole('button', { name: 'Edit Bruce Wayne' }).click();
 
-  await expect(page.getByLabel("Employment")).toHaveCount(0);
-  await expect(page.getByRole("radio", { name: "Studio" })).toBeChecked();
-  await page.getByRole("radio", { name: "Supplementary" }).click();
-  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByLabel('Employment')).toHaveCount(0);
+  await expect(page.getByRole('radio', { name: 'Studio' })).toBeChecked();
+  await page.getByRole('radio', { name: 'Supplementary' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
 
-  await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
-  await expect(page.getByRole("radio", { name: "Supplementary" })).toBeChecked();
-  await expect(page.getByText("Temp", { exact: true })).toHaveCount(0);
+  await bruce.getByRole('button', { name: 'Edit Bruce Wayne' }).click();
+  await expect(page.getByRole('radio', { name: 'Supplementary' })).toBeChecked();
+  await expect(page.getByText('Temp', { exact: true })).toHaveCount(0);
 });

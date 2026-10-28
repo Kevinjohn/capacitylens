@@ -1,8 +1,8 @@
-import { m } from "@/i18n";
-import { formatUtilizationPercent } from "@/lib/formatUtilizationPercent";
-import { isCapacityTracked } from "@capacitylens/shared/types/entities";
-import type { RowModel } from "./schedulerModel";
-import type { DrawMode } from "@/store/useStore";
+import { m } from '@/i18n';
+import { formatUtilizationPercent } from '@/lib/formatUtilizationPercent';
+import { isCapacityTracked } from '@capacitylens/shared/types/entities';
+import type { RowModel } from './schedulerModel';
+import type { DrawMode } from '@/store/useStore';
 
 /** View preferences and the visible window label used by the row's accessible summary. */
 export interface RowSummaryContext {
@@ -19,15 +19,23 @@ export function buildRowScreenReaderSummary(row: RowModel, context: RowSummaryCo
   if (row.overSoon) parts.push(m.scheduler_sr_overbooked_two_weeks());
   if (row.conflictDayCount) {
     const count = row.conflictDayCount;
-    parts.push(count > 1 ? m.scheduler_sr_over_capacity_other({ count }) : m.scheduler_sr_over_capacity_one({ count }));
+    parts.push(
+      count > 1
+        ? m.scheduler_sr_over_capacity_other({ count })
+        : m.scheduler_sr_over_capacity_one({ count }),
+    );
   }
   if (row.partialCapacityDayCount) {
     const count = row.partialCapacityDayCount;
-    parts.push(count > 1 ? m.scheduler_sr_half_day_other({ count }) : m.scheduler_sr_half_day_one({ count }));
+    parts.push(
+      count > 1 ? m.scheduler_sr_half_day_other({ count }) : m.scheduler_sr_half_day_one({ count }),
+    );
   }
   if (row.timeOff.length) {
     const count = row.timeOff.length;
-    parts.push(count > 1 ? m.scheduler_sr_timeoff_other({ count }) : m.scheduler_sr_timeoff_one({ count }));
+    parts.push(
+      count > 1 ? m.scheduler_sr_timeoff_other({ count }) : m.scheduler_sr_timeoff_one({ count }),
+    );
   }
   if (context.showPersonalUtilization && isCapacityTracked(row.resource)) {
     parts.push(
@@ -38,9 +46,13 @@ export function buildRowScreenReaderSummary(row: RowModel, context: RowSummaryCo
     );
   }
   // Time-off draw mode is about absences, not bookings: an allocation count would be noise there.
-  if (context.drawMode !== "timeoff") {
+  if (context.drawMode !== 'timeoff') {
     const count = row.bars.length;
-    parts.push(count === 1 ? m.scheduler_sr_allocations_one({ count }) : m.scheduler_sr_allocations_other({ count }));
+    parts.push(
+      count === 1
+        ? m.scheduler_sr_allocations_one({ count })
+        : m.scheduler_sr_allocations_other({ count }),
+    );
   }
-  return parts.join("");
+  return parts.join('');
 }

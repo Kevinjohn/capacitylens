@@ -1,10 +1,10 @@
-import { Component } from "react";
-import type { ErrorInfo, ReactNode } from "react";
-import { useRouteError } from "react-router-dom";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { reloadPage } from "@/lib/reloadPage";
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
+import { Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
+import { useRouteError } from 'react-router-dom';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { reloadPage } from '@/lib/reloadPage';
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
 
 /** The branded "something broke, reload" recovery screen, shared by the top-level
  * class boundary and the router's errorElement so both render identically. */
@@ -22,7 +22,7 @@ export function ErrorFallback({ message }: { message?: string }) {
 /** Renders route errors caught by the data router, which do not reach the outer React class boundary. */
 export function RouteError() {
   const error = useRouteError();
-  if (error) console.error("CapacityLens route error:", error);
+  if (error) console.error('CapacityLens route error:', error);
   return <ErrorFallback message={resolveErrorMessage(error)} />;
 }
 
@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("CapacityLens crashed:", error, info);
+    console.error('CapacityLens crashed:', error, info);
   }
 
   render() {

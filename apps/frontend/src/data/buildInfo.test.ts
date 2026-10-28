@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // buildStamp() reads VITE_CAPACITYLENS_BUILD_SHA at call time, but the server/demo suffix comes
 // from apiConfig (server is the default; the demo build sets VITE_CAPACITYLENS_DEMO=1), resolved at
@@ -8,15 +8,16 @@ afterEach(() => vi.unstubAllEnvs());
 
 async function freshBuildInfo() {
   vi.resetModules();
-  return import("./buildInfo");
+  return import('./buildInfo');
 }
 
 const client = {
   browser: {
-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
-    viewport: "1280×800",
-    timeZone: "Europe/London",
-    language: "en-GB",
+    userAgent:
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15',
+    viewport: '1280×800',
+    timeZone: 'Europe/London',
+    language: 'en-GB',
   },
 } as const;
 
@@ -25,157 +26,164 @@ async function freshBuildStamp() {
   return readBuildStamp;
 }
 
-describe("buildStamp", () => {
+describe('buildStamp', () => {
   it("is null when VITE_CAPACITYLENS_BUILD_SHA is unset (today's UI — render nothing)", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "");
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', '');
     const buildStamp = await freshBuildStamp();
     expect(buildStamp()).toBeNull();
   });
 
-  it("is null for a whitespace-only sha", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "   ");
+  it('is null for a whitespace-only sha', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', '   ');
     const buildStamp = await freshBuildStamp();
     expect(buildStamp()).toBeNull();
   });
 
-  it("reports demo mode when VITE_CAPACITYLENS_DEMO=1", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
-    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
+  it('reports demo mode when VITE_CAPACITYLENS_DEMO=1', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d');
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const buildStamp = await freshBuildStamp();
-    expect(buildStamp()).toBe("build a1b2c3d · demo");
+    expect(buildStamp()).toBe('build a1b2c3d · demo');
   });
 
-  it("reports server mode by default (server is the default; no demo flag)", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
-    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
+  it('reports server mode by default (server is the default; no demo flag)', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d');
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
     const buildStamp = await freshBuildStamp();
-    expect(buildStamp()).toBe("build a1b2c3d · server");
+    expect(buildStamp()).toBe('build a1b2c3d · server');
   });
   // API_BASE does not affect the mode suffix, so an explicit origin would duplicate the server branch.
 });
 
-describe("feedbackMailto", () => {
-  it("is null when VITE_CAPACITYLENS_FEEDBACK_MAILTO is unset (render nothing)", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "");
+describe('feedbackMailto', () => {
+  it('is null when VITE_CAPACITYLENS_FEEDBACK_MAILTO is unset (render nothing)', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO', '');
     const { readFeedbackMailto } = await freshBuildInfo();
     expect(readFeedbackMailto()).toBeNull();
   });
 
-  it("pins the subject to the build stamp when there is one", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "owner@example.com");
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
-    vi.stubEnv("VITE_CAPACITYLENS_API", "https://api.example.com");
+  it('pins the subject to the build stamp when there is one', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO', 'owner@example.com');
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d');
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'https://api.example.com');
     const { readFeedbackMailto } = await freshBuildInfo();
     expect(readFeedbackMailto()).toBe(
-      `mailto:owner@example.com?subject=${encodeURIComponent("CapacityLens feedback — build a1b2c3d · server")}`,
+      `mailto:owner@example.com?subject=${encodeURIComponent('CapacityLens feedback — build a1b2c3d · server')}`,
     );
   });
 
-  it("falls back to a plain subject without a build stamp", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "owner@example.com");
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "");
+  it('falls back to a plain subject without a build stamp', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO', 'owner@example.com');
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', '');
     const { readFeedbackMailto } = await freshBuildInfo();
     expect(readFeedbackMailto()).toBe(
-      `mailto:owner@example.com?subject=${encodeURIComponent("CapacityLens feedback")}`,
+      `mailto:owner@example.com?subject=${encodeURIComponent('CapacityLens feedback')}`,
     );
   });
 
-  it("encodes reserved characters as part of a valid recipient mailbox", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "owner?reports@example.com");
+  it('encodes reserved characters as part of a valid recipient mailbox', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO', 'owner?reports@example.com');
     const { readFeedbackMailto } = await freshBuildInfo();
     expect(readFeedbackMailto()).toBe(
-      `mailto:owner%3Freports@example.com?subject=${encodeURIComponent("CapacityLens feedback")}`,
+      `mailto:owner%3Freports@example.com?subject=${encodeURIComponent('CapacityLens feedback')}`,
     );
   });
 
-  it.each(["not-an-email-address", "two@@example.com", "owner @example.com"])(
-    "renders no feedback link for an invalid mailbox: %s",
+  it.each(['not-an-email-address', 'two@@example.com', 'owner @example.com'])(
+    'renders no feedback link for an invalid mailbox: %s',
     async (value) => {
-      vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", value);
+      vi.stubEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO', value);
       const { readFeedbackMailto } = await freshBuildInfo();
       expect(readFeedbackMailto()).toBeNull();
     },
   );
 });
 
-describe("diagnostics projection", () => {
-  it("records when the client observed the point-in-time snapshot", async () => {
+describe('diagnostics projection', () => {
+  it('records when the client observed the point-in-time snapshot', async () => {
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
-    const observedAt = "2026-09-11T10:11:12.123Z";
+    const observedAt = '2026-09-11T10:11:12.123Z';
     const report = readDiagnostics(null, observedAt, client);
 
     expect(report.observedAt).toBe(observedAt);
     expect(formatDiagnostics(report)).toContain(`Snapshot observed: ${observedAt}`);
   });
 
-  it("leaves the observation time empty until a snapshot or failure is classified", async () => {
+  it('leaves the observation time empty until a snapshot or failure is classified', async () => {
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
     expect(readDiagnostics(null, undefined, client).observedAt).toBeNull();
-    expect(readDiagnostics(null, "not-a-timestamp", client).observedAt).toBeNull();
-    expect(formatDiagnostics(readDiagnostics(null, undefined, client))).toContain("Snapshot observed: Unknown");
+    expect(readDiagnostics(null, 'not-a-timestamp', client).observedAt).toBeNull();
+    expect(formatDiagnostics(readDiagnostics(null, undefined, client))).toContain(
+      'Snapshot observed: Unknown',
+    );
   });
 
-  it("returns a fresh unavailable server projection for each read", async () => {
+  it('returns a fresh unavailable server projection for each read', async () => {
     const { readDiagnostics } = await freshBuildInfo();
     const first = readDiagnostics(null, undefined, client);
     const second = readDiagnostics(null, undefined, client);
 
-    first.server.connectivity = "ok";
-    first.server.database.status = "ok";
-    first.server.schema.migration = "database/migrations/202610120001_create_capacitylens_baseline";
-    first.server.backup.newestSnapshotAt = "2026-09-10T12:00:00.000Z";
+    first.server.connectivity = 'ok';
+    first.server.database.status = 'ok';
+    first.server.schema.migration = 'database/migrations/202610120001_create_capacitylens_baseline';
+    first.server.backup.newestSnapshotAt = '2026-09-10T12:00:00.000Z';
 
     expect(second.server).toEqual({
-      connectivity: "unavailable",
-      database: { status: "unavailable" },
+      connectivity: 'unavailable',
+      database: { status: 'unavailable' },
       schema: { migration: null },
       backup: { newestSnapshotAt: null },
     });
   });
 });
 
-describe("diagnostics projection privacy", () => {
-  it("keeps only real migration and snapshot fields", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "A1B2C3D4");
+describe('diagnostics projection privacy', () => {
+  it('keeps only real migration and snapshot fields', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'A1B2C3D4');
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
     const report = readDiagnostics(
       {
         server: {
-          connectivity: "ok",
-          database: { status: "ok", secret: "password" },
-          schema: { migration: "database/migrations/202610120001_create_capacitylens_baseline", path: "/private/db" },
-          backup: { newestSnapshotAt: "2026-09-10T12:00:00.000Z", sessionId: "secret" },
-          persistence: "degraded",
-          password: "should never be copied",
+          connectivity: 'ok',
+          database: { status: 'ok', secret: 'password' },
+          schema: {
+            migration: 'database/migrations/202610120001_create_capacitylens_baseline',
+            path: '/private/db',
+          },
+          backup: { newestSnapshotAt: '2026-09-10T12:00:00.000Z', sessionId: 'secret' },
+          persistence: 'degraded',
+          password: 'should never be copied',
         },
-        inviteToken: "never copy",
+        inviteToken: 'never copy',
       },
       undefined,
       client,
     );
-    expect(report.buildRevision).toBe("A1B2C3D4");
+    expect(report.buildRevision).toBe('A1B2C3D4');
     expect(report.server).toEqual({
-      connectivity: "ok",
-      database: { status: "ok" },
-      schema: { migration: "database/migrations/202610120001_create_capacitylens_baseline" },
-      backup: { newestSnapshotAt: "2026-09-10T12:00:00.000Z" },
+      connectivity: 'ok',
+      database: { status: 'ok' },
+      schema: { migration: 'database/migrations/202610120001_create_capacitylens_baseline' },
+      backup: { newestSnapshotAt: '2026-09-10T12:00:00.000Z' },
     });
     const text = formatDiagnostics(report);
-    expect(text).toContain("Schema migration: database/migrations/202610120001_create_capacitylens_baseline");
-    expect(text).toContain("Newest snapshot: 2026-09-10T12:00:00.000Z");
+    expect(text).toContain(
+      'Schema migration: database/migrations/202610120001_create_capacitylens_baseline',
+    );
+    expect(text).toContain('Newest snapshot: 2026-09-10T12:00:00.000Z');
     expect(text).not.toMatch(/password|sessionId|inviteToken|secret|Persistence:/i);
   });
 
-  it("rejects invalid migration names and snapshot timestamps", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "revision-with-private-path");
+  it('rejects invalid migration names and snapshot timestamps', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'revision-with-private-path');
     const { readDiagnostics } = await freshBuildInfo();
     const report = readDiagnostics(
       {
         server: {
           connectivity: true,
-          database: { status: "ok" },
-          schema: { migration: "/private/database/migration" },
-          backup: { newestSnapshotAt: "database password" },
+          database: { status: 'ok' },
+          schema: { migration: '/private/database/migration' },
+          backup: { newestSnapshotAt: 'database password' },
         },
       },
       undefined,
@@ -183,102 +191,108 @@ describe("diagnostics projection privacy", () => {
     );
     expect(report.buildRevision).toBeNull();
     expect(report.server).toEqual({
-      connectivity: "unavailable",
-      database: { status: "ok" },
+      connectivity: 'unavailable',
+      database: { status: 'ok' },
       schema: { migration: null },
       backup: { newestSnapshotAt: null },
     });
   });
 
-  it("clears migration and rejects non-canonical timestamps from unavailable projections", async () => {
+  it('clears migration and rejects non-canonical timestamps from unavailable projections', async () => {
     const { readDiagnostics } = await freshBuildInfo();
     const report = readDiagnostics(
       {
         server: {
-          connectivity: "ok",
-          database: { status: "unavailable" },
-          schema: { migration: "database/migrations/202610120001_create_capacitylens_baseline" },
-          backup: { newestSnapshotAt: "2026-02-31T12:00:00.000Z" },
+          connectivity: 'ok',
+          database: { status: 'unavailable' },
+          schema: { migration: 'database/migrations/202610120001_create_capacitylens_baseline' },
+          backup: { newestSnapshotAt: '2026-02-31T12:00:00.000Z' },
         },
       },
       undefined,
       client,
     );
-    expect(report.server.database).toEqual({ status: "unavailable" });
+    expect(report.server.database).toEqual({ status: 'unavailable' });
     expect(report.server.schema).toEqual({ migration: null });
     expect(report.server.backup).toEqual({ newestSnapshotAt: null });
   });
 });
 
-describe("diagnostics client facts", () => {
-  it("adds the browser details", async () => {
+describe('diagnostics client facts', () => {
+  it('adds the browser details', async () => {
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
     const text = formatDiagnostics(readDiagnostics(null, undefined, client));
 
     for (const line of [
       `User agent: ${client.browser.userAgent}`,
-      "Viewport: 1280×800",
-      "Time zone: Europe/London",
-      "Language: en-GB",
+      'Viewport: 1280×800',
+      'Time zone: Europe/London',
+      'Language: en-GB',
     ]) {
       expect(text).toContain(line);
     }
   });
 
-  it("excludes names, email addresses, identifiers and hosts from every input", async () => {
+  it('excludes names, email addresses, identifiers and hosts from every input', async () => {
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
-    const accountName = "Wayne Enterprises";
-    const id = "3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b";
+    const accountName = 'Wayne Enterprises';
+    const id = '3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b';
     const text = formatDiagnostics(
       readDiagnostics(
         {
           account: { id, name: accountName },
-          user: { email: "bruce.wayne@wayne.example", name: "Bruce Wayne" },
+          user: { email: 'bruce.wayne@wayne.example', name: 'Bruce Wayne' },
           server: {
-            connectivity: "ok",
-            database: { status: "ok", path: "/srv/capacitylens/app.db" },
-            schema: { migration: "database/migrations/202610120001_create_capacitylens_baseline" },
-            backup: { newestSnapshotAt: "2026-09-10T12:00:00.000Z", target: "https://backups.example" },
+            connectivity: 'ok',
+            database: { status: 'ok', path: '/srv/capacitylens/app.db' },
+            schema: { migration: 'database/migrations/202610120001_create_capacitylens_baseline' },
+            backup: {
+              newestSnapshotAt: '2026-09-10T12:00:00.000Z',
+              target: 'https://backups.example',
+            },
             accountId: id,
           },
         },
-        "2026-09-11T10:11:12.123Z",
+        '2026-09-11T10:11:12.123Z',
         {
           ...client,
           browser: {
             userAgent: `Agent\u0000${accountName}`,
-            viewport: "wide",
-            timeZone: "https://zones.example/London",
-            language: "bruce.wayne@wayne.example",
+            viewport: 'wide',
+            timeZone: 'https://zones.example/London',
+            language: 'bruce.wayne@wayne.example',
           },
         },
       ),
     );
 
-    expect(text).not.toContain("@");
+    expect(text).not.toContain('@');
     expect(text).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
     expect(text).not.toContain(accountName);
-    expect(text).not.toContain("Bruce Wayne");
+    expect(text).not.toContain('Bruce Wayne');
     expect(text).not.toMatch(/https?:\/\/|\.example|\/srv\//);
-    expect(text).toContain("User agent: Unknown");
-    expect(text).toContain("Viewport: Unknown");
+    expect(text).toContain('User agent: Unknown');
+    expect(text).toContain('Viewport: Unknown');
   });
 
-  it("drops a printable user agent that carries a URL or an email address", async () => {
+  it('drops a printable user agent that carries a URL or an email address', async () => {
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
-    for (const userAgent of ["Mozilla/5.0 (+https://crawler.example/bot)", "Mozilla/5.0 bruce@wayne.example"]) {
+    for (const userAgent of [
+      'Mozilla/5.0 (+https://crawler.example/bot)',
+      'Mozilla/5.0 bruce@wayne.example',
+    ]) {
       const text = formatDiagnostics(
         readDiagnostics(null, undefined, { ...client, browser: { ...client.browser, userAgent } }),
       );
-      expect(text).toContain("User agent: Unknown");
+      expect(text).toContain('User agent: Unknown');
     }
   });
 
-  it("reads the browser facts in their expected shape", async () => {
+  it('reads the browser facts in their expected shape', async () => {
     const { readBrowserDiagnostics } = await freshBuildInfo();
     const browser = readBrowserDiagnostics();
     expect(browser.viewport).toMatch(/^\d+×\d+$/);
-    expect(browser.timeZone).not.toBe("");
-    expect(browser.language).not.toBe("");
+    expect(browser.timeZone).not.toBe('');
+    expect(browser.language).not.toBe('');
   });
 });

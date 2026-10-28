@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from "react";
-import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
-import { addDaysISO, startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
-import type { Account, AppData, ID, ISODate, Resource } from "@capacitylens/shared/types/entities";
-import { useAuth } from "@/auth/authContext";
-import { usePermissionStatus, useRole } from "@/auth/permissionContext";
-import { m } from "@/i18n";
-import { resolveResourceDisplayName } from "@/lib/metadata";
+import { useEffect, useMemo } from 'react';
+import { canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
+import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import type { Account, AppData, ID, ISODate, Resource } from '@capacitylens/shared/types/entities';
+import { useAuth } from '@/auth/authContext';
+import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { m } from '@/i18n';
+import { resolveResourceDisplayName } from '@/lib/metadata';
 import {
   hasExternalResourcesEnabled,
   hasVisibleTaskFieldInSchedule,
@@ -13,13 +13,13 @@ import {
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from "@/store/selectors";
-import { useActiveScopedData } from "@/store/useScopedData";
-import { useStore } from "@/store/useStore";
-import { buildPersonSchedule } from "./personScheduleModel";
-import type { PersonScheduleResult } from "./personScheduleTypes";
-import { reportInvalidScheduleDateRangeOnce } from "@/components/scheduler/schedulerModelIndexing";
-import { useCalendarToday } from "@/components/scheduler/useCalendarToday";
+} from '@/store/selectors';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { useStore } from '@/store/useStore';
+import { buildPersonSchedule } from './personScheduleModel';
+import type { PersonScheduleResult } from './personScheduleTypes';
+import { reportInvalidScheduleDateRangeOnce } from '@/components/scheduler/schedulerModelIndexing';
+import { useCalendarToday } from '@/components/scheduler/useCalendarToday';
 
 /** Account and resource identities requested for a person schedule. */
 export interface UsePersonScheduleInput {
@@ -27,22 +27,25 @@ export interface UsePersonScheduleInput {
   resourceId: ID | null;
 }
 
-const UNAVAILABLE: PersonScheduleResult = { kind: "unavailable" };
+const UNAVAILABLE: PersonScheduleResult = { kind: 'unavailable' };
 
 function isResourceFeatureVisible(resource: Resource, data: AppData, accountId: ID): boolean {
-  if (resource.kind === "placeholder") return hasPlaceholdersEnabled(data, accountId);
-  if (resource.kind === "external") return hasExternalResourcesEnabled(data, accountId);
+  if (resource.kind === 'placeholder') return hasPlaceholdersEnabled(data, accountId);
+  if (resource.kind === 'external') return hasExternalResourcesEnabled(data, accountId);
   return true;
 }
 
 /** Chooses the display identity for a person or placeholder resource. */
 export function resolvePersonScheduleIdentity(resource: Resource, data: AppData): string {
-  if (resource.kind !== "placeholder") return resolveResourceDisplayName(resource);
+  if (resource.kind !== 'placeholder') return resolveResourceDisplayName(resource);
   const discipline = resource.disciplineId
     ? data.disciplines.find((candidate) => candidate.id === resource.disciplineId)
     : undefined;
   if (!discipline) return m.scheduler_person_schedule_placeholder_role({ role: resource.role });
-  return m.scheduler_person_schedule_placeholder_discipline({ role: resource.role, discipline: discipline.name });
+  return m.scheduler_person_schedule_placeholder_discipline({
+    role: resource.role,
+    discipline: discipline.name,
+  });
 }
 
 interface AvailableScheduleInput extends UsePersonScheduleInput {
@@ -78,7 +81,10 @@ function buildAvailableSchedule(input: AvailableScheduleInput) {
 }
 
 /** Projects the requested resource schedule from active scoped data. */
-export function usePersonSchedule({ accountId, resourceId }: UsePersonScheduleInput): PersonScheduleResult {
+export function usePersonSchedule({
+  accountId,
+  resourceId,
+}: UsePersonScheduleInput): PersonScheduleResult {
   const data = useActiveScopedData();
   const activeAccountId = useStore((state) => state.activeAccountId);
   const activeAccount = useStore((state) =>
@@ -93,8 +99,9 @@ export function usePersonSchedule({ accountId, resourceId }: UsePersonScheduleIn
   );
   const timeZone = resolveTimeZone(accountView, activeAccountId);
   const today = useCalendarToday(timeZone);
-  const permissionAvailable = authMode === "off" || (permissionStatus === "resolved" && role !== null);
-  const canSeeTimeOffNotes = authMode === "off" || (role !== null && canSeeTimeOffNote(role));
+  const permissionAvailable =
+    authMode === 'off' || (permissionStatus === 'resolved' && role !== null);
+  const canSeeTimeOffNotes = authMode === 'off' || (role !== null && canSeeTimeOffNote(role));
 
   const built = useMemo(
     () =>
@@ -126,12 +133,12 @@ export function usePersonSchedule({ accountId, resourceId }: UsePersonScheduleIn
     if (!built) return;
     for (const invalid of built.invalidRecords) {
       const source =
-        invalid.kind === "allocation"
+        invalid.kind === 'allocation'
           ? data.allocations.find((candidate) => candidate.id === invalid.sourceId)
           : data.timeOff.find((candidate) => candidate.id === invalid.sourceId);
       if (source) reportInvalidScheduleDateRangeOnce(source);
     }
   }, [built, data.allocations, data.timeOff]);
 
-  return built ? { kind: "available", model: built.model } : UNAVAILABLE;
+  return built ? { kind: 'available', model: built.model } : UNAVAILABLE;
 }

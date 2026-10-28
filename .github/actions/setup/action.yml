@@ -18,7 +18,7 @@ runs:
         CAPACITYLENS_SECRET: capacitylens-build-secret-0123456789abcdef
         CAPACITYLENS_PUBLIC_URL: https://127.0.0.1
         HOST: 127.0.0.1
-        PORT: "0"
+        PORT: '0'
         LOG_LEVEL: error
         APP_KEY: capacitylens-build-key-0123456789abcdef
         APP_URL: http://127.0.0.1

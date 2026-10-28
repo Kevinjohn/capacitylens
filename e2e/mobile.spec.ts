@@ -1,48 +1,52 @@
-import { test, expect } from "./fixtures";
-import AxeBuilder from "@axe-core/playwright";
-import { openApp } from "./browserTestSupport";
+import { test, expect } from './fixtures';
+import AxeBuilder from '@axe-core/playwright';
+import { openApp } from './browserTestSupport';
 
 // Light mobile affordances: portrait phones use the ShadCN off-canvas Sidebar,
 // compact landscape layouts use its icon mode, and portrait phones get a
 // dismissable session-scoped "rotate to landscape" hint.
 // These specs cover mobile layout affordances; full mobile workflows are outside their scope.
 
-const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
-test.describe("portrait phone", () => {
+test.describe('portrait phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("shows the rotate hint; dismissing it sticks for the session", async ({ page }) => {
-    await page.goto("/");
+  test('shows the rotate hint; dismissing it sticks for the session', async ({ page }) => {
+    await page.goto('/');
     // The hint rides over the company picker, a phone user's first contact.
-    const dialog = page.getByRole("dialog", { name: "Best in landscape" });
+    const dialog = page.getByRole('dialog', { name: 'Best in landscape' });
     await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "Got it" }).click();
+    await dialog.getByRole('button', { name: 'Got it' }).click();
     await expect(dialog).toBeHidden();
 
     // The session-scoped hint dismissal must survive a reload.
     await page.reload();
-    await expect(page.getByRole("button", { name: "Wayne Enterprises", exact: true })).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "Best in landscape" })).toBeHidden();
+    await expect(
+      page.getByRole('button', { name: 'Wayne Enterprises', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Best in landscape' })).toBeHidden();
   });
 
-  test("rotate hint has no serious or critical accessibility violations", async ({ page }) => {
+  test('rotate hint has no serious or critical accessibility violations', async ({ page }) => {
     // Reduce motion so axe samples settled colours after the entrance animation completes.
     // This describe-level setup does not apply test.use({ reducedMotion }), so set the media
     // feature directly on the page.
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("/");
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
     // Settle first: hydration swaps the loading shell for the company picker, which remounts
     // the hint. The modal makes that underlying screen inaccessible, so wait for the picker's
     // button to be attached rather than querying a hidden accessible role.
     await expect(
-      page.getByRole("button", { name: "Wayne Enterprises", exact: true, includeHidden: true }),
+      page.getByRole('button', { name: 'Wayne Enterprises', exact: true, includeHidden: true }),
     ).toBeAttached();
-    const dialog = page.getByRole("dialog", { name: "Best in landscape" });
+    const dialog = page.getByRole('dialog', { name: 'Best in landscape' });
     await expect(dialog).toBeVisible();
-    await expect(dialog).toHaveCSS("opacity", "1");
+    await expect(dialog).toHaveCSS('opacity', '1');
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
-    const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+    const blocking = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    );
     expect(
       blocking,
       JSON.stringify(
@@ -53,88 +57,93 @@ test.describe("portrait phone", () => {
     ).toEqual([]);
   });
 
-  test("opens the off-canvas sidebar and closes it after navigation", async ({ page }) => {
-    await page.addInitScript(() => sessionStorage.setItem("capacitylens/rotateHintDismissed", "1"));
+  test('opens the off-canvas sidebar and closes it after navigation', async ({ page }) => {
+    await page.addInitScript(() => sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'));
     await openApp(page);
 
     const trigger = page.locator('[data-sidebar="trigger"]');
     await expect(trigger).toBeVisible();
     await trigger.click();
 
-    const sidebar = page.getByRole("dialog", { name: "Sidebar" });
+    const sidebar = page.getByRole('dialog', { name: 'Sidebar' });
     await expect(sidebar).toBeVisible();
-    const collapse = sidebar.getByRole("button", { name: "Collapse menu" });
+    const collapse = sidebar.getByRole('button', { name: 'Collapse menu' });
     await expect(collapse).toBeVisible();
-    await expect(collapse).toHaveAttribute("aria-expanded", "true");
-    await sidebar.getByRole("link", { name: "Projects" }).click();
+    await expect(collapse).toHaveAttribute('aria-expanded', 'true');
+    await sidebar.getByRole('link', { name: 'Projects' }).click();
     await expect(page).toHaveURL(/\/projects$/);
     await expect(sidebar).toBeHidden();
 
     await trigger.click();
     await expect(sidebar).toBeVisible();
     const footerHrefs = await sidebar
-      .locator("a")
-      .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
-    expect(footerHrefs.slice(-2)).toEqual(["/help", "/account"]);
-    await sidebar.getByRole("link", { name: "Help" }).click();
-    await expect(page.getByTestId("show-tour")).toBeVisible();
+      .locator('a')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+    expect(footerHrefs.slice(-2)).toEqual(['/help', '/account']);
+    await sidebar.getByRole('link', { name: 'Help' }).click();
+    await expect(page.getByTestId('show-tour')).toBeVisible();
     await expect(sidebar).toBeHidden();
   });
 });
 
-test.describe("landscape phone", () => {
+test.describe('landscape phone', () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
-  test("sidebar starts in icon mode and its destinations still navigate", async ({ page }) => {
+  test('sidebar starts in icon mode and its destinations still navigate', async ({ page }) => {
     await openApp(page);
 
-    await expect(page.getByRole("dialog", { name: "Best in landscape" })).toBeHidden();
-    const projects = page.getByRole("link", { name: "Projects" });
+    await expect(page.getByRole('dialog', { name: 'Best in landscape' })).toBeHidden();
+    const projects = page.getByRole('link', { name: 'Projects' });
     await expect(projects).toBeVisible();
-    await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
+    await expect(page.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed');
     await projects.click();
     await expect(page).toHaveURL(/\/projects$/);
 
     await page.reload();
-    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
-    await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
-    await expect(page.getByRole("link", { name: "Projects" })).toBeVisible();
+    await page.getByRole('button', { name: 'Wayne Enterprises', exact: true }).click();
+    await expect(page.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed');
+    await expect(page.getByRole('link', { name: 'Projects' })).toBeVisible();
     const footerHrefs = await page
-      .getByTestId("app-sidebar")
-      .locator("a")
-      .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
-    expect(footerHrefs.slice(-2)).toEqual(["/help", "/account"]);
-    await page.getByRole("link", { name: "Help" }).click();
-    await expect(page.getByTestId("show-tour")).toBeVisible();
+      .getByTestId('app-sidebar')
+      .locator('a')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+    expect(footerHrefs.slice(-2)).toEqual(['/help', '/account']);
+    await page.getByRole('link', { name: 'Help' }).click();
+    await expect(page.getByTestId('show-tour')).toBeVisible();
   });
 });
 
-test.describe("desktop", () => {
-  test("sidebar is open by default, every nav link carries an icon, toggle collapses it", async ({ page }) => {
+test.describe('desktop', () => {
+  test('sidebar is open by default, every nav link carries an icon, toggle collapses it', async ({
+    page,
+  }) => {
     await openApp(page);
 
     for (const name of [
-      "Schedule",
-      "Resources",
-      "Team & access",
-      "Disciplines",
-      "Clients",
-      "Projects",
-      "Activities",
-      "Time off",
-      "Settings",
-      "Help",
+      'Schedule',
+      'Resources',
+      'Team & access',
+      'Disciplines',
+      'Clients',
+      'Projects',
+      'Activities',
+      'Time off',
+      'Settings',
+      'Help',
     ]) {
-      const link = page.getByRole("link", { name, exact: true });
+      const link = page.getByRole('link', { name, exact: true });
       await expect(link).toBeVisible();
-      await expect(link.locator("svg")).toHaveCount(1);
+      await expect(link.locator('svg')).toHaveCount(1);
     }
 
-    const toggle = page.getByRole("button", { name: "Collapse menu" });
-    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const toggle = page.getByRole('button', { name: 'Collapse menu' });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await toggle.click();
-    await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
-    await expect(page.getByRole("link", { name: "Projects" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Expand menu" })).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed');
+    await expect(page.getByRole('link', { name: 'Projects' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Expand menu' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
   });
 });

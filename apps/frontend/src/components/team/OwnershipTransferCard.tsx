@@ -1,16 +1,16 @@
-import { useEffect, useState } from "react";
-import { m } from "@/i18n";
-import { useAuth } from "@/auth/authContext";
-import { useStore } from "@/store/useStore";
-import { Modal } from "@/components/common/ui";
-import { SelectField } from "@/components/common/fields/SelectField";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { useOwnershipTransfer } from "./useOwnershipTransfer";
-import type { OwnershipTransferController } from "./useOwnershipTransfer";
-import { ActionProofDialog } from "@/auth/ActionProofDialog";
+import { useEffect, useState } from 'react';
+import { m } from '@/i18n';
+import { useAuth } from '@/auth/authContext';
+import { useStore } from '@/store/useStore';
+import { Modal } from '@/components/common/ui';
+import { SelectField } from '@/components/common/fields/SelectField';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { useOwnershipTransfer } from './useOwnershipTransfer';
+import type { OwnershipTransferController } from './useOwnershipTransfer';
+import { ActionProofDialog } from '@/auth/ActionProofDialog';
 
-const PENDING_KEY = "capacitylens/ownership-action-proof";
+const PENDING_KEY = 'capacitylens/ownership-action-proof';
 
 function TransferForm({
   controller,
@@ -84,7 +84,12 @@ function TransferContent({
         <Alert variant="destructive">
           <AlertDescription>{controller.error}</AlertDescription>
           {!controller.directoryLoaded && (
-            <Button type="button" size="sm" variant="outline" onClick={() => void controller.refresh()}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void controller.refresh()}
+            >
               {m.ownership_transfer_retry()}
             </Button>
           )}
@@ -96,7 +101,12 @@ function TransferContent({
         </p>
       )}
       {showForm && (
-        <TransferForm controller={controller} selected={selected} setSelected={setSelected} onTransfer={onTransfer} />
+        <TransferForm
+          controller={controller}
+          selected={selected}
+          setSelected={setSelected}
+          onTransfer={onTransfer}
+        />
       )}
     </div>
   );
@@ -105,40 +115,41 @@ function TransferContent({
 /** Shows the Owner a one-step transfer to an active Admin. */
 export function OwnershipTransferCard() {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState('');
   const [proofTarget, setProofTarget] = useState<string | null>(null);
   const [readyProof, setReadyProof] = useState<{ target: string; id: string } | null>(null);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { refreshAuth } = useAuth();
   const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("capacitylensActionConfirmed") !== "1") return;
+    if (new URLSearchParams(window.location.search).get('capacitylensActionConfirmed') !== '1')
+      return;
     if (!activeAccountId) return;
     const saved = sessionStorage.getItem(PENDING_KEY);
     if (!saved) return;
     const timer = window.setTimeout(() => {
       sessionStorage.removeItem(PENDING_KEY);
       const url = new URL(window.location.href);
-      url.searchParams.delete("capacitylensActionConfirmed");
-      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
+      url.searchParams.delete('capacitylensActionConfirmed');
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
       try {
         const pending: unknown = JSON.parse(saved);
         if (
           !pending ||
-          typeof pending !== "object" ||
-          !("accountId" in pending) ||
+          typeof pending !== 'object' ||
+          !('accountId' in pending) ||
           pending.accountId !== activeAccountId ||
-          !("target" in pending) ||
-          typeof pending.target !== "string" ||
-          !("proofId" in pending) ||
-          typeof pending.proofId !== "string"
+          !('target' in pending) ||
+          typeof pending.target !== 'string' ||
+          !('proofId' in pending) ||
+          typeof pending.proofId !== 'string'
         )
-          throw new Error("Ownership confirmation could not be resumed.");
+          throw new Error('Ownership confirmation could not be resumed.');
         setSelected(pending.target);
         setReadyProof({ target: pending.target, id: pending.proofId });
         setOpen(true);
       } catch {
-        useStore.getState().setNotice(m.reauth_failed(), "error");
+        useStore.getState().setNotice(m.reauth_failed(), 'error');
       }
     }, 0);
     return () => window.clearTimeout(timer);
@@ -152,7 +163,10 @@ export function OwnershipTransferCard() {
   if (!controller.available) return null;
 
   return (
-    <section data-testid="ownership-transfer-card" className="flex flex-wrap items-start justify-between gap-3">
+    <section
+      data-testid="ownership-transfer-card"
+      className="flex flex-wrap items-start justify-between gap-3"
+    >
       <div className="flex max-w-2xl flex-col gap-1">
         <h2 className="font-semibold">{m.ownership_transfer_heading()}</h2>
         <p className="text-sm text-muted-foreground">{m.ownership_transfer_intro()}</p>

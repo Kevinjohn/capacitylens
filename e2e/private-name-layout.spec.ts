@@ -1,12 +1,13 @@
-import { expect, test } from "./fixtures";
-import type { Locator, Page } from "./fixtures";
-import { dismissLandscapeHint, openApp, selectShadOption } from "./browserTestSupport";
+import { expect, test } from './fixtures';
+import type { Locator, Page } from './fixtures';
+import { dismissLandscapeHint, openApp, selectShadOption } from './browserTestSupport';
 
-const OWNER_DESCRIPTION = "Only account owners can see real names. Everyone else sees the code name.";
+const OWNER_DESCRIPTION =
+  'Only account owners can see real names. Everyone else sees the code name.';
 
 async function expectPrivacyLayout(dialog: Locator, stacked: boolean) {
-  const privacy = dialog.getByRole("switch", { name: "Use code name" });
-  const label = dialog.getByText("Use code name", { exact: true });
+  const privacy = dialog.getByRole('switch', { name: 'Use code name' });
+  const label = dialog.getByText('Use code name', { exact: true });
   const field = privacy.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
 
   const [fieldBox, labelBox, privacyBox] = await Promise.all([
@@ -21,18 +22,18 @@ async function expectPrivacyLayout(dialog: Locator, stacked: boolean) {
   if (stacked) {
     expect(Math.abs(privacyBox!.x - fieldBox!.x)).toBeLessThanOrEqual(1);
   } else {
-    const nameBox = await dialog.getByLabel("Name", { exact: true }).boundingBox();
+    const nameBox = await dialog.getByLabel('Name', { exact: true }).boundingBox();
     expect(nameBox).not.toBeNull();
-    expect(Math.abs(labelBox!.y + labelBox!.height / 2 - (privacyBox!.y + privacyBox!.height / 2))).toBeLessThanOrEqual(
-      1,
-    );
+    expect(
+      Math.abs(labelBox!.y + labelBox!.height / 2 - (privacyBox!.y + privacyBox!.height / 2)),
+    ).toBeLessThanOrEqual(1);
     expect(Math.abs(privacyBox!.x - nameBox!.x)).toBeLessThanOrEqual(1);
   }
 }
 
 async function expectCodeNameLayout(dialog: Locator, stacked: boolean) {
-  const codeName = dialog.getByLabel("Code name", { exact: true });
-  const label = dialog.getByText("Code name", { exact: true });
+  const codeName = dialog.getByLabel('Code name', { exact: true });
+  const label = dialog.getByText('Code name', { exact: true });
   const hint = dialog.getByText(OWNER_DESCRIPTION, { exact: true });
   const field = codeName.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
 
@@ -54,77 +55,92 @@ async function expectCodeNameLayout(dialog: Locator, stacked: boolean) {
     expect(Math.abs(inputBox!.width - fieldBox!.width)).toBeLessThanOrEqual(1);
     expect(Math.abs(hintBox!.x - fieldBox!.x)).toBeLessThanOrEqual(1);
   } else {
-    const nameBox = await dialog.getByLabel("Name", { exact: true }).boundingBox();
+    const nameBox = await dialog.getByLabel('Name', { exact: true }).boundingBox();
     expect(nameBox).not.toBeNull();
-    expect(Math.abs(labelBox!.y + labelBox!.height / 2 - (inputBox!.y + inputBox!.height / 2))).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(labelBox!.y + labelBox!.height / 2 - (inputBox!.y + inputBox!.height / 2)),
+    ).toBeLessThanOrEqual(1);
     expect(Math.abs(inputBox!.x - nameBox!.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(inputBox!.width - nameBox!.width)).toBeLessThanOrEqual(1);
     expect(Math.abs(hintBox!.x - nameBox!.x)).toBeLessThanOrEqual(1);
   }
 }
 
-async function openAddDialog(page: Page, section: "Clients" | "Projects") {
-  await page.getByRole("link", { name: section, exact: true }).click();
-  const singular = section === "Clients" ? "client" : "project";
-  await page.getByRole("button", { name: `Add ${singular}` }).click();
-  return page.getByRole("dialog", { name: `Add ${singular}` });
+async function openAddDialog(page: Page, section: 'Clients' | 'Projects') {
+  await page.getByRole('link', { name: section, exact: true }).click();
+  const singular = section === 'Clients' ? 'client' : 'project';
+  await page.getByRole('button', { name: `Add ${singular}` }).click();
+  return page.getByRole('dialog', { name: `Add ${singular}` });
 }
 
-test("private-name explanations align with their controls in Client and Project forms", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/clients");
+test('private-name explanations align with their controls in Client and Project forms', async ({
+  page,
+}) => {
+  await openApp(page, 'Wayne Enterprises', '/clients');
 
-  const clientDialog = await openAddDialog(page, "Clients");
+  const clientDialog = await openAddDialog(page, 'Clients');
   await expectPrivacyLayout(clientDialog, false);
-  await expect(clientDialog.getByLabel("Code name", { exact: true })).toHaveCount(0);
-  await clientDialog.getByRole("switch", { name: "Use code name" }).click();
+  await expect(clientDialog.getByLabel('Code name', { exact: true })).toHaveCount(0);
+  await clientDialog.getByRole('switch', { name: 'Use code name' }).click();
   await expectCodeNameLayout(clientDialog, false);
 
-  await clientDialog.getByLabel("Name", { exact: true }).fill("Kane Industries Confidential");
-  await clientDialog.getByRole("button", { name: "Save" }).click();
-  const clientCodeName = clientDialog.getByLabel("Code name", { exact: true });
+  await clientDialog.getByLabel('Name', { exact: true }).fill('Kane Industries Confidential');
+  await clientDialog.getByRole('button', { name: 'Save' }).click();
+  const clientCodeName = clientDialog.getByLabel('Code name', { exact: true });
   const clientHint = clientDialog.getByText(OWNER_DESCRIPTION, { exact: true });
-  const clientAlert = clientDialog.getByRole("alert");
-  await expect(clientCodeName).toHaveAttribute("aria-invalid", "true");
-  const describedBy = (await clientCodeName.getAttribute("aria-describedby"))?.split(" ") ?? [];
+  const clientAlert = clientDialog.getByRole('alert');
+  await expect(clientCodeName).toHaveAttribute('aria-invalid', 'true');
+  const describedBy = (await clientCodeName.getAttribute('aria-describedby'))?.split(' ') ?? [];
   expect(describedBy).toEqual(
-    expect.arrayContaining([await clientHint.getAttribute("id"), await clientAlert.getAttribute("id")]),
+    expect.arrayContaining([
+      await clientHint.getAttribute('id'),
+      await clientAlert.getAttribute('id'),
+    ]),
   );
 
   await dismissLandscapeHint(page);
   await expectPrivacyLayout(clientDialog, true);
   await expectCodeNameLayout(clientDialog, true);
-  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+  await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 360);
 
-  await clientCodeName.fill("Nightwing");
-  await clientDialog.getByRole("button", { name: "Save" }).click();
+  await clientCodeName.fill('Nightwing');
+  await clientDialog.getByRole('button', { name: 'Save' }).click();
   await page.setViewportSize({ width: 1280, height: 720 });
-  const clientRow = page.getByTestId("client-row").filter({ hasText: "Kane Industries Confidential" });
-  await clientRow.getByRole("button", { name: /^Edit / }).click();
-  const editClient = page.getByRole("dialog", { name: "Edit client" });
-  await expect(editClient.getByRole("switch", { name: "Use code name" })).toHaveAttribute("aria-checked", "true");
+  const clientRow = page
+    .getByTestId('client-row')
+    .filter({ hasText: 'Kane Industries Confidential' });
+  await clientRow.getByRole('button', { name: /^Edit / }).click();
+  const editClient = page.getByRole('dialog', { name: 'Edit client' });
+  await expect(editClient.getByRole('switch', { name: 'Use code name' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
   await expectPrivacyLayout(editClient, false);
   await expectCodeNameLayout(editClient, false);
-  await editClient.getByRole("button", { name: "Cancel" }).click();
+  await editClient.getByRole('button', { name: 'Cancel' }).click();
 
-  const projectDialog = await openAddDialog(page, "Projects");
+  const projectDialog = await openAddDialog(page, 'Projects');
   await expectPrivacyLayout(projectDialog, false);
-  await projectDialog.getByRole("switch", { name: "Use code name" }).click();
+  await projectDialog.getByRole('switch', { name: 'Use code name' }).click();
   await expectCodeNameLayout(projectDialog, false);
-  await projectDialog.getByLabel("Name", { exact: true }).fill("Project Monarch");
-  await projectDialog.getByLabel("Code name", { exact: true }).fill("Aurora");
-  await selectShadOption(projectDialog.getByLabel("Client"), { label: "Queen Consolidated" });
+  await projectDialog.getByLabel('Name', { exact: true }).fill('Project Monarch');
+  await projectDialog.getByLabel('Code name', { exact: true }).fill('Aurora');
+  await selectShadOption(projectDialog.getByLabel('Client'), { label: 'Queen Consolidated' });
 
   await page.setViewportSize({ width: 360, height: 800 });
   await expectPrivacyLayout(projectDialog, true);
   await expectCodeNameLayout(projectDialog, true);
-  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
-  await projectDialog.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 360);
+  await projectDialog.getByRole('button', { name: 'Save' }).click();
 
   await page.setViewportSize({ width: 1280, height: 720 });
-  const projectRow = page.getByTestId("project-row").filter({ hasText: "Project Monarch" });
-  await projectRow.getByRole("button", { name: /^Edit / }).click();
-  const editProject = page.getByRole("dialog", { name: "Edit project" });
-  await expect(editProject.getByRole("switch", { name: "Use code name" })).toHaveAttribute("aria-checked", "true");
+  const projectRow = page.getByTestId('project-row').filter({ hasText: 'Project Monarch' });
+  await projectRow.getByRole('button', { name: /^Edit / }).click();
+  const editProject = page.getByRole('dialog', { name: 'Edit project' });
+  await expect(editProject.getByRole('switch', { name: 'Use code name' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
   await expectPrivacyLayout(editProject, false);
   await expectCodeNameLayout(editProject, false);
 });

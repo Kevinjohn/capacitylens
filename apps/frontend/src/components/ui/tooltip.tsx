@@ -1,7 +1,7 @@
-import * as React from "react";
-import { Tooltip as TooltipPrimitive } from "radix-ui";
+import * as React from 'react';
+import { Tooltip as TooltipPrimitive } from 'radix-ui';
 
-import { cn } from "@/lib/cn";
+import { cn } from '@/lib/cn';
 
 // Local shadcn deviation: tooltips use elevated surface and ink tokens so supplementary content follows the app theme. Triggers retain their own accessible names.
 
@@ -63,7 +63,7 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          "bg-elevated text-ink ring-1 ring-line shadow-pop z-(--z-index-tooltip) w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-2 py-1 text-xs font-medium text-balance",
+          'bg-elevated text-ink ring-1 ring-line shadow-pop z-(--z-index-tooltip) w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-2 py-1 text-xs font-medium text-balance',
           className,
         )}
         {...props}

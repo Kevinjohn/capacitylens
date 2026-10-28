@@ -3,20 +3,20 @@
 // lane port, not a tree-wide ban on port literals. Production defaults
 // (apps/backend/app/services/configuration.ts), Compose pins, fixture generators, prose and assertion URLs all
 // legitimately carry numbers, and failing on those would teach people to work around this check.
-import { readFileSync, realpathSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { readFileSync, realpathSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 // Each guarded file must import its ports from scripts/ports.mjs and must not spell one out.
 /** Authored launch/configuration files that must derive their endpoints from the port registry. */
 export const GUARDED_FILES = Object.freeze([
-  "apps/frontend/vite.config.ts",
-  "playwright.config.ts",
-  "scripts/dev-fullstack.mjs",
-  "scripts/serve-dist.mjs",
-  "docs-src/.vitepress/config.mts",
-  "e2e/authTestSupport.ts",
-  "e2e/serverTestState.ts",
-  "apps/backend/scripts/e2e-server.mjs",
+  'apps/frontend/vite.config.ts',
+  'playwright.config.ts',
+  'scripts/dev-fullstack.mjs',
+  'scripts/serve-dist.mjs',
+  'docs-src/.vitepress/config.mts',
+  'e2e/authTestSupport.ts',
+  'e2e/serverTestState.ts',
+  'apps/backend/scripts/e2e-server.mjs',
 ]);
 
 // The lane bases and fixed access-lab ports that scripts/ports.mjs also owns.
@@ -29,10 +29,10 @@ const GUARDED_PORTS = Object.freeze([4173, 5173, 5273, 5373, 5473, 5900, 5910, 8
  */
 export function stripComments(content) {
   return content
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .split(/\r?\n/)
-    .map((line) => line.replace(/(^|[^:])\/\/.*$/, "$1"))
-    .join("\n");
+    .map((line) => line.replace(/(^|[^:])\/\/.*$/, '$1'))
+    .join('\n');
 }
 
 /** Returns port-policy errors without changing the supplied file records or reading from disk. */
@@ -55,12 +55,16 @@ export function evaluatePortUsage(files) {
 }
 
 function main() {
-  const root = new URL("../", import.meta.url);
-  const files = GUARDED_FILES.map((path) => ({ path, content: readFileSync(new URL(path, root), "utf8") }));
+  const root = new URL('../', import.meta.url);
+  const files = GUARDED_FILES.map((path) => ({
+    path,
+    content: readFileSync(new URL(path, root), 'utf8'),
+  }));
   const errors = evaluatePortUsage(files);
   if (errors.length === 0) return;
-  console.error(`Port lane check failed:\n${errors.map((error) => `  ${error}`).join("\n")}`);
+  console.error(`Port lane check failed:\n${errors.map((error) => `  ${error}`).join('\n')}`);
   process.exitCode = 1;
 }
 
-if (process.argv[1] && pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url) main();
+if (process.argv[1] && pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url)
+  main();

@@ -1,8 +1,8 @@
-import { useStore } from "./useStore";
-import { scopeData } from "./selectors";
-import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { AppData } from "@capacitylens/shared/types/entities";
+import { useStore } from './useStore';
+import { scopeData } from './selectors';
+import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
+import type { AppData } from '@capacitylens/shared/types/entities';
 
 const emptyScopedData = emptyAppData();
 const scopedCache = new WeakMap<AppData, Map<string, AppData>>();

@@ -1,16 +1,16 @@
-import { EyeIcon, MoonIcon, SunIcon } from "lucide-react";
-import { matchPath, NavLink, useLocation } from "react-router-dom";
-import { useAuth } from "@/auth/authContext";
-import { usePermissionStatus, useRole } from "@/auth/permissionContext";
-import { resolveAccessLabel } from "@/lib/accessCopy";
-import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
-import { FAKE_USER } from "@/lib/fakeAuth";
-import demoAvatarUrl from "@/assets/avatar-demo.svg";
-import { DEFAULT_COLORS } from "@/lib/palette";
-import { Avatar } from "./common/ui";
-import { ACCOUNT_LINK, HELP_LINK } from "@/lib/navLinks";
-import type { NavigationLinkDefinition } from "@/lib/navLinks";
-import { Badge } from "./ui/badge";
+import { EyeIcon, MoonIcon, SunIcon } from 'lucide-react';
+import { matchPath, NavLink, useLocation } from 'react-router-dom';
+import { useAuth } from '@/auth/authContext';
+import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { resolveAccessLabel } from '@/lib/accessCopy';
+import { resolveAccessExperience } from '@/lib/resolveAccessExperience';
+import { FAKE_USER } from '@/lib/fakeAuth';
+import demoAvatarUrl from '@/assets/avatar-demo.svg';
+import { DEFAULT_COLORS } from '@/lib/palette';
+import { Avatar } from './common/ui';
+import { ACCOUNT_LINK, HELP_LINK } from '@/lib/navLinks';
+import type { NavigationLinkDefinition } from '@/lib/navLinks';
+import { Badge } from './ui/badge';
 import {
   Sidebar,
   SidebarContent,
@@ -25,15 +25,15 @@ import {
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
-} from "./ui/sidebar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { m } from "@/i18n";
-import { SCHEDULER_DENSITY } from "./scheduler/layout";
-import { useStore } from "@/store/useStore";
-import { resolveTheme, subscribeToSystemScheme } from "@/lib/theme";
-import { useSyncExternalStore } from "react";
-import type React from "react";
-import { APP_NAME } from "@capacitylens/shared/brand";
+} from './ui/sidebar';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { m } from '@/i18n';
+import { SCHEDULER_DENSITY } from './scheduler/layout';
+import { useStore } from '@/store/useStore';
+import { resolveTheme, subscribeToSystemScheme } from '@/lib/theme';
+import { useSyncExternalStore } from 'react';
+import type React from 'react';
+import { APP_NAME } from '@capacitylens/shared/brand';
 
 interface AppSidebarProps {
   activeAccount: { name: string } | undefined;
@@ -73,14 +73,19 @@ export function AppSidebar({
       data-testid="app-sidebar"
       style={
         {
-          "--nav-menu-gap-y": `${density.navMenuGapY}px`,
-          "--nav-section-pad-y": `${density.navSectionPadY}px`,
-          "--nav-section-gap-y": `${density.navSectionGapY}px`,
+          '--nav-menu-gap-y': `${density.navMenuGapY}px`,
+          '--nav-section-pad-y': `${density.navSectionPadY}px`,
+          '--nav-section-gap-y': `${density.navSectionGapY}px`,
         } as React.CSSProperties
       }
     >
       <SidebarHeaderContent expanded={expanded} toggleLabel={toggleLabel} />
-      <SidebarNavigation navLinks={navLinks} adminLinks={adminLinks} pathname={pathname} onNavigate={closeOnMobile} />
+      <SidebarNavigation
+        navLinks={navLinks}
+        adminLinks={adminLinks}
+        pathname={pathname}
+        onNavigate={closeOnMobile}
+      />
       <SidebarAccountFooter
         activeAccount={activeAccount}
         demoAuthActive={demoAuthActive}
@@ -94,7 +99,13 @@ export function AppSidebar({
   );
 }
 
-function SidebarHeaderContent({ expanded, toggleLabel }: { expanded: boolean; toggleLabel: string }) {
+function SidebarHeaderContent({
+  expanded,
+  toggleLabel,
+}: {
+  expanded: boolean;
+  toggleLabel: string;
+}) {
   return (
     <SidebarHeader className="flex-row items-center">
       <Tooltip>
@@ -159,7 +170,7 @@ function SidebarAccountFooter({
   onNavigate,
   pathname,
 }: {
-  activeAccount: AppSidebarProps["activeAccount"];
+  activeAccount: AppSidebarProps['activeAccount'];
   demoAuthActive: boolean;
   onSwitchAccount: () => void;
   onNavigate: () => void;
@@ -190,7 +201,11 @@ function SidebarAccountFooter({
       )}
       <SidebarMenu>
         <HelpMenuItem onNavigate={onNavigate} pathname={pathname} />
-        <SessionMenuItem demoAuthActive={demoAuthActive} onNavigate={onNavigate} pathname={pathname} />
+        <SessionMenuItem
+          demoAuthActive={demoAuthActive}
+          onNavigate={onNavigate}
+          pathname={pathname}
+        />
       </SidebarMenu>
     </SidebarFooter>
   );
@@ -231,11 +246,11 @@ function NavMenu({
     <SidebarMenu>
       {links.map(({ to, label, icon: NavIcon }) => {
         const text = label();
-        const isActive = matchPath({ path: to, end: to === "/" }, pathname) !== null;
+        const isActive = matchPath({ path: to, end: to === '/' }, pathname) !== null;
         return (
           <SidebarMenuItem key={to}>
             <SidebarMenuButton asChild isActive={isActive} tooltip={text}>
-              <NavLink to={to} end={to === "/"} data-nav={to} onClick={onNavigate}>
+              <NavLink to={to} end={to === '/'} data-nav={to} onClick={onNavigate}>
                 <NavIcon aria-hidden="true" focusable="false" />
                 <span>{text}</span>
               </NavLink>
@@ -253,7 +268,7 @@ function NavMenu({
 function ThemeToggleMenuItem() {
   const theme = useStore((state) => state.theme);
   const setTheme = useStore((state) => state.setTheme);
-  const dark = useSyncExternalStore(subscribeToSystemScheme, () => resolveTheme(theme)) === "dark";
+  const dark = useSyncExternalStore(subscribeToSystemScheme, () => resolveTheme(theme)) === 'dark';
   const label = dark ? m.nav_switch_to_light_mode() : m.nav_switch_to_dark_mode();
   const ThemeIcon = dark ? SunIcon : MoonIcon;
 
@@ -263,7 +278,7 @@ function ThemeToggleMenuItem() {
         type="button"
         tooltip={label}
         aria-label={label}
-        onClick={() => setTheme(dark ? "light" : "dark")}
+        onClick={() => setTheme(dark ? 'light' : 'dark')}
       >
         <ThemeIcon aria-hidden="true" focusable="false" />
         <span>{label}</span>
@@ -301,9 +316,16 @@ function SessionMenuItem({
         <NavLink
           to={ACCOUNT_LINK.to}
           onClick={onNavigate}
-          {...(demoAuthActive || authMode !== "off" ? { title: m.nav_signed_in_as({ who: name }) } : {})}
+          {...(demoAuthActive || authMode !== 'off'
+            ? { title: m.nav_signed_in_as({ who: name }) }
+            : {})}
         >
-          <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
+          <Avatar
+            name={name}
+            color={DEFAULT_COLORS.account}
+            size={20}
+            {...(imageUrl ? { imageUrl } : {})}
+          />
           <span>{ACCOUNT_LINK.label()}</span>
         </NavLink>
       </SidebarMenuButton>
@@ -315,15 +337,16 @@ function ActiveRoleBadge() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const accessExperience = resolveAccessExperience();
-  const resolvedRole = accessExperience === "authenticated" && permissionStatus === "resolved" ? role : null;
+  const resolvedRole =
+    accessExperience === 'authenticated' && permissionStatus === 'resolved' ? role : null;
   const label = resolveAccessLabel({
     experience: accessExperience,
     permissionStatus,
     role: resolvedRole,
   });
-  const viewOnly = resolvedRole === "viewer";
+  const viewOnly = resolvedRole === 'viewer';
   let roleContent: React.ReactNode = label;
-  if (resolvedRole === "viewer") {
+  if (resolvedRole === 'viewer') {
     roleContent = (
       <>
         {label} · <span data-testid="view-only">{m.nav_view_only()}</span>

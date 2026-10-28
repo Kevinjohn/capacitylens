@@ -8,4 +8,7 @@ export function parseClientApiOrigin(apiValue: string, demoValue: string): strin
  * Renders the client nginx template with the configured API origin.
  * @throws When the template placeholder count or API configuration is invalid.
  */
-export function renderClientNginx(template: string, env?: Record<string, string | undefined>): string;
+export function renderClientNginx(
+  template: string,
+  env?: Record<string, string | undefined>,
+): string;

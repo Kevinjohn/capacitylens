@@ -1,5 +1,5 @@
-import { Fragment, useId } from "react";
-import { Field } from "@/components/ui/field";
+import { Fragment, useId } from 'react';
+import { Field } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -9,16 +9,16 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { useMarkFormDirty } from "@/components/common/formDirty";
-import { RequiredFieldLabel } from "./fieldLayout";
-import type { Option } from "./fieldTypes";
-import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
-import type { ProductFieldLayout } from "./fieldTypes";
+} from '@/components/ui/select';
+import { useMarkFormDirty } from '@/components/common/formDirty';
+import { RequiredFieldLabel } from './fieldLayout';
+import type { Option } from './fieldTypes';
+import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps';
+import type { ProductFieldLayout } from './fieldTypes';
 
 // Radix reserves the empty string for its placeholder state. Encode every caller value into a
 // separate non-empty domain instead of reserving one otherwise-legal string as a sentinel.
-const SELECT_VALUE_PREFIX = "__capacitylens_option__:";
+const SELECT_VALUE_PREFIX = '__capacitylens_option__:';
 const encodeSelectValue = (value: string): string => `${SELECT_VALUE_PREFIX}${value}`;
 const decodeSelectValue = (value: string): string => value.slice(SELECT_VALUE_PREFIX.length);
 
@@ -58,7 +58,7 @@ function buildOptionGroups(options: Option[]): OptionGroup[] {
 
 function SelectFieldOptions({ optionGroups }: { optionGroups: OptionGroup[] }) {
   return optionGroups.map((group, index) => (
-    <SelectGroup key={`${group.key ?? "ungrouped"}-${index}`}>
+    <SelectGroup key={`${group.key ?? 'ungrouped'}-${index}`}>
       {group.label && <SelectLabel>{group.label}</SelectLabel>}
       {group.options.map((option) => (
         <Fragment key={option.value}>
@@ -95,12 +95,12 @@ export function SelectField({
   ariaLabel,
   testId,
   autoFocus,
-  layout = "stacked",
+  layout = 'stacked',
 }: SelectFieldProps) {
   const id = useId();
   const markDirty = useMarkFormDirty();
   const selectedOption = options.find((option) => option.value === value);
-  const unresolvedValue = value !== "" && selectedOption === undefined;
+  const unresolvedValue = value !== '' && selectedOption === undefined;
   const optionGroups = buildOptionGroups(options);
   return (
     <Field
@@ -108,9 +108,13 @@ export function SelectField({
       data-disabled={trueOrUndefined({ value: disabled })}
       {...buildProductFieldLayoutProps(layout)}
     >
-      <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
+      <RequiredFieldLabel
+        htmlFor={id}
+        label={label}
+        {...(required !== undefined ? { required } : {})}
+      />
       <Select
-        value={selectedOption || unresolvedValue ? encodeSelectValue(value) : ""}
+        value={selectedOption || unresolvedValue ? encodeSelectValue(value) : ''}
         {...(disabled !== undefined ? { disabled } : {})}
         onValueChange={(next) => {
           const resolved = decodeSelectValue(next);
@@ -122,7 +126,7 @@ export function SelectField({
         <SelectTrigger
           id={id}
           autoFocus={autoFocus}
-          data-autofocus={autoFocus ? "" : undefined}
+          data-autofocus={autoFocus ? '' : undefined}
           className="w-full"
           aria-required={trueOrUndefined({ value: required })}
           aria-invalid={trueOrUndefined({ value: invalid })}
@@ -130,7 +134,9 @@ export function SelectField({
           aria-label={ariaLabel}
           data-testid={testId}
         >
-          <SelectValue placeholder={placeholder}>{selectedOption?.label ?? placeholder ?? value}</SelectValue>
+          <SelectValue placeholder={placeholder}>
+            {selectedOption?.label ?? placeholder ?? value}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectFieldOptions optionGroups={optionGroups} />

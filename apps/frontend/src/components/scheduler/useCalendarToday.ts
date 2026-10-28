@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
-import { todayISO } from "@capacitylens/shared/lib/dateMath";
-import type { ISODate } from "@capacitylens/shared/types/entities";
+import { useEffect, useState } from 'react';
+import { todayISO } from '@capacitylens/shared/lib/dateMath';
+import type { ISODate } from '@capacitylens/shared/types/entities';
 
 const BOUNDARY_SEARCH_MS = 36 * 60 * 60 * 1000;
 
 /** Computes the next date boundary through the same timezone resolver used for display, so daylight-saving changes and fallback zones cannot desynchronize the timer. */
-export function resolveMillisecondsUntilNextCalendarDate(timeZone: string, now = Date.now()): number {
+export function resolveMillisecondsUntilNextCalendarDate(
+  timeZone: string,
+  now = Date.now(),
+): number {
   const dateAt = (instant: number): ISODate => todayISO(timeZone, instant);
   const currentDate = dateAt(now);
   let lower = now;
@@ -37,16 +40,16 @@ export function useCalendarToday(timeZone: string): ISODate {
       schedule();
     };
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refresh();
+      if (document.visibilityState === 'visible') refresh();
     };
 
     schedule();
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    window.addEventListener("pageshow", refresh);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('pageshow', refresh);
     return () => {
       if (timer !== undefined) window.clearTimeout(timer);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-      window.removeEventListener("pageshow", refresh);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('pageshow', refresh);
     };
   }, [timeZone]);
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   readDefaultSidebarOpen,
   readStoredSidebarOpen,
@@ -13,19 +13,19 @@ import {
   readStoredBarLabelPrefs,
   writeStoredBarLabelPrefs,
   DEFAULT_BAR_LABEL_PREFS,
-} from "./displayPrefs";
-import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
+} from './displayPrefs';
+import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand';
 
-describe("sidebar preference", () => {
+describe('sidebar preference', () => {
   beforeEach(() => {
-    localStorage.removeItem("capacitylens/sidebar");
+    localStorage.removeItem('capacitylens/sidebar');
   });
 
-  it("reads null when the user has never chosen", () => {
+  it('reads null when the user has never chosen', () => {
     expect(readStoredSidebarOpen()).toBeNull();
   });
 
-  it("round-trips an explicit open/closed choice", () => {
+  it('round-trips an explicit open/closed choice', () => {
     writeStoredSidebarOpen({ open: false });
     expect(readStoredSidebarOpen()).toBe(false);
     writeStoredSidebarOpen({ open: true });
@@ -33,69 +33,69 @@ describe("sidebar preference", () => {
   });
 
   it('treats an unrecognised stored value as "no choice"', () => {
-    localStorage.setItem("capacitylens/sidebar", "sideways");
+    localStorage.setItem('capacitylens/sidebar', 'sideways');
     expect(readStoredSidebarOpen()).toBeNull();
   });
 
-  it("defaults open when matchMedia is unavailable (non-browser environment)", () => {
+  it('defaults open when matchMedia is unavailable (non-browser environment)', () => {
     // jsdom has no matchMedia. The guard must fall back to a large-screen default
     // rather than throwing.
     expect(readDefaultSidebarOpen()).toBe(true);
   });
 });
 
-describe("minimise-weekends preference", () => {
+describe('minimise-weekends preference', () => {
   beforeEach(() => {
-    localStorage.removeItem("capacitylens/minimiseWeekends");
+    localStorage.removeItem('capacitylens/minimiseWeekends');
   });
 
-  it("defaults to TRUE (on) when the user has never chosen", () => {
+  it('defaults to TRUE (on) when the user has never chosen', () => {
     expect(readStoredMinimiseWeekends()).toBe(true);
   });
 
-  it("round-trips an explicit on/off choice", () => {
+  it('round-trips an explicit on/off choice', () => {
     writeStoredMinimiseWeekends(false);
     expect(readStoredMinimiseWeekends()).toBe(false);
     writeStoredMinimiseWeekends(true);
     expect(readStoredMinimiseWeekends()).toBe(true);
   });
 
-  it("treats an unrecognised stored value as the default (on)", () => {
-    localStorage.setItem("capacitylens/minimiseWeekends", "maybe");
+  it('treats an unrecognised stored value as the default (on)', () => {
+    localStorage.setItem('capacitylens/minimiseWeekends', 'maybe');
     expect(readStoredMinimiseWeekends()).toBe(true);
   });
 
-  it("persists under the documented storage key", () => {
+  it('persists under the documented storage key', () => {
     writeStoredMinimiseWeekends(false);
-    expect(localStorage.getItem("capacitylens/minimiseWeekends")).toBe("off");
+    expect(localStorage.getItem('capacitylens/minimiseWeekends')).toBe('off');
   });
 });
 
 // The week snap has no Settings control; its storage key survives only as a browser-test override.
-describe("week-snap test override", () => {
+describe('week-snap test override', () => {
   const storageKey = `${STORAGE_KEY_PREFIX}${WEEK_SNAP_OVERRIDE_KEY}`;
   beforeEach(() => {
     localStorage.removeItem(storageKey);
   });
 
-  it("reads TRUE (snapping on) when nothing is stored", () => {
+  it('reads TRUE (snapping on) when nothing is stored', () => {
     expect(readStoredWeekSnapOverride()).toBe(true);
   });
 
   it("reads a stored 'off' as snapping disabled", () => {
-    localStorage.setItem(storageKey, "off");
+    localStorage.setItem(storageKey, 'off');
     expect(readStoredWeekSnapOverride()).toBe(false);
   });
 
-  it("treats an unrecognised stored value as the default (on)", () => {
-    localStorage.setItem(storageKey, "maybe");
+  it('treats an unrecognised stored value as the default (on)', () => {
+    localStorage.setItem(storageKey, 'maybe');
     expect(readStoredWeekSnapOverride()).toBe(true);
   });
 
-  it("swallows a blocked read to the default (on)", () => {
+  it('swallows a blocked read to the default (on)', () => {
     // Storage access can throw, so device preferences must retain their defaults without breaking boot.
-    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new DOMException("blocked", "SecurityError");
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
     });
     try {
       expect(readStoredWeekSnapOverride()).toBe(true);
@@ -105,45 +105,65 @@ describe("week-snap test override", () => {
   });
 });
 
-describe("utilization display preferences", () => {
+describe('utilization display preferences', () => {
   beforeEach(() => {
-    localStorage.removeItem("capacitylens/utilizationPrefs");
+    localStorage.removeItem('capacitylens/utilizationPrefs');
   });
 
-  it("defaults to showing everything", () => {
-    expect(DEFAULT_UTILIZATION_PREFS).toEqual({ showTotal: true, showDiscipline: true, showPersonal: true });
+  it('defaults to showing everything', () => {
+    expect(DEFAULT_UTILIZATION_PREFS).toEqual({
+      showTotal: true,
+      showDiscipline: true,
+      showPersonal: true,
+    });
   });
 
-  it("reads the show-everything defaults when never chosen", () => {
-    expect(readStoredUtilizationPrefs()).toEqual({ showTotal: true, showDiscipline: true, showPersonal: true });
+  it('reads the show-everything defaults when never chosen', () => {
+    expect(readStoredUtilizationPrefs()).toEqual({
+      showTotal: true,
+      showDiscipline: true,
+      showPersonal: true,
+    });
   });
 
-  it("round-trips a mixed explicit choice", () => {
+  it('round-trips a mixed explicit choice', () => {
     writeStoredUtilizationPrefs({ showTotal: false, showDiscipline: true, showPersonal: false });
-    expect(readStoredUtilizationPrefs()).toEqual({ showTotal: false, showDiscipline: true, showPersonal: false });
+    expect(readStoredUtilizationPrefs()).toEqual({
+      showTotal: false,
+      showDiscipline: true,
+      showPersonal: false,
+    });
   });
 
-  it("fills in defaults for fields missing from a partial stored shape", () => {
-    localStorage.setItem("capacitylens/utilizationPrefs", JSON.stringify({ showTotal: false }));
-    expect(readStoredUtilizationPrefs()).toEqual({ showTotal: false, showDiscipline: true, showPersonal: true });
+  it('fills in defaults for fields missing from a partial stored shape', () => {
+    localStorage.setItem('capacitylens/utilizationPrefs', JSON.stringify({ showTotal: false }));
+    expect(readStoredUtilizationPrefs()).toEqual({
+      showTotal: false,
+      showDiscipline: true,
+      showPersonal: true,
+    });
   });
 
-  it("falls back to defaults when a stored field is not a boolean", () => {
+  it('falls back to defaults when a stored field is not a boolean', () => {
     localStorage.setItem(
-      "capacitylens/utilizationPrefs",
-      JSON.stringify({ showTotal: "yes", showDiscipline: 1, showPersonal: null }),
+      'capacitylens/utilizationPrefs',
+      JSON.stringify({ showTotal: 'yes', showDiscipline: 1, showPersonal: null }),
     );
-    expect(readStoredUtilizationPrefs()).toEqual({ showTotal: true, showDiscipline: true, showPersonal: true });
+    expect(readStoredUtilizationPrefs()).toEqual({
+      showTotal: true,
+      showDiscipline: true,
+      showPersonal: true,
+    });
   });
 
-  it("falls back to defaults on malformed JSON", () => {
-    localStorage.setItem("capacitylens/utilizationPrefs", "{not json");
+  it('falls back to defaults on malformed JSON', () => {
+    localStorage.setItem('capacitylens/utilizationPrefs', '{not json');
     expect(readStoredUtilizationPrefs()).toEqual(DEFAULT_UTILIZATION_PREFS);
   });
 
-  it("swallows a blocked read to the defaults", () => {
-    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new DOMException("blocked", "SecurityError");
+  it('swallows a blocked read to the defaults', () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
     });
     try {
       expect(readStoredUtilizationPrefs()).toEqual(DEFAULT_UTILIZATION_PREFS);
@@ -152,9 +172,9 @@ describe("utilization display preferences", () => {
     }
   });
 
-  it("does not throw when the write is blocked", () => {
-    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new DOMException("quota", "QuotaExceededError");
+  it('does not throw when the write is blocked', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
     });
     try {
       expect(() => writeStoredUtilizationPrefs(DEFAULT_UTILIZATION_PREFS)).not.toThrow();
@@ -163,47 +183,50 @@ describe("utilization display preferences", () => {
     }
   });
 
-  it("persists under the documented storage key", () => {
+  it('persists under the documented storage key', () => {
     writeStoredUtilizationPrefs({ showTotal: false, showDiscipline: false, showPersonal: false });
-    expect(localStorage.getItem("capacitylens/utilizationPrefs")).toBe(
+    expect(localStorage.getItem('capacitylens/utilizationPrefs')).toBe(
       JSON.stringify({ showTotal: false, showDiscipline: false, showPersonal: false }),
     );
   });
 });
 
-describe("bar-label display preferences", () => {
+describe('bar-label display preferences', () => {
   beforeEach(() => {
-    localStorage.removeItem("capacitylens/barLabelPrefs");
+    localStorage.removeItem('capacitylens/barLabelPrefs');
   });
 
-  it("defaults to showing both client and project", () => {
+  it('defaults to showing both client and project', () => {
     expect(DEFAULT_BAR_LABEL_PREFS).toEqual({ showClient: true, showProject: true });
   });
 
-  it("reads the show-everything defaults when never chosen", () => {
+  it('reads the show-everything defaults when never chosen', () => {
     expect(readStoredBarLabelPrefs()).toEqual({ showClient: true, showProject: true });
   });
 
-  it("round-trips a mixed explicit choice", () => {
+  it('round-trips a mixed explicit choice', () => {
     writeStoredBarLabelPrefs({ showClient: false, showProject: true });
     expect(readStoredBarLabelPrefs()).toEqual({ showClient: false, showProject: true });
     writeStoredBarLabelPrefs({ showClient: true, showProject: false });
     expect(readStoredBarLabelPrefs()).toEqual({ showClient: true, showProject: false });
   });
 
-  it("falls back to defaults when a stored field is not a boolean", () => {
-    localStorage.setItem("capacitylens/barLabelPrefs", JSON.stringify({ showClient: "yes", showProject: 0 }));
+  it('falls back to defaults when a stored field is not a boolean', () => {
+    localStorage.setItem(
+      'capacitylens/barLabelPrefs',
+      JSON.stringify({ showClient: 'yes', showProject: 0 }),
+    );
     expect(readStoredBarLabelPrefs()).toEqual({ showClient: true, showProject: true });
   });
 
-  it("falls back to defaults on malformed JSON", () => {
-    localStorage.setItem("capacitylens/barLabelPrefs", "{not json");
+  it('falls back to defaults on malformed JSON', () => {
+    localStorage.setItem('capacitylens/barLabelPrefs', '{not json');
     expect(readStoredBarLabelPrefs()).toEqual(DEFAULT_BAR_LABEL_PREFS);
   });
 
-  it("swallows a blocked read to the defaults", () => {
-    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new DOMException("blocked", "SecurityError");
+  it('swallows a blocked read to the defaults', () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
     });
     try {
       expect(readStoredBarLabelPrefs()).toEqual(DEFAULT_BAR_LABEL_PREFS);
@@ -212,9 +235,9 @@ describe("bar-label display preferences", () => {
     }
   });
 
-  it("does not throw when the write is blocked", () => {
-    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new DOMException("quota", "QuotaExceededError");
+  it('does not throw when the write is blocked', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
     });
     try {
       expect(() => writeStoredBarLabelPrefs(DEFAULT_BAR_LABEL_PREFS)).not.toThrow();
@@ -223,54 +246,54 @@ describe("bar-label display preferences", () => {
     }
   });
 
-  it("persists under the documented storage key", () => {
+  it('persists under the documented storage key', () => {
     writeStoredBarLabelPrefs({ showClient: false, showProject: false });
-    expect(localStorage.getItem("capacitylens/barLabelPrefs")).toBe(
+    expect(localStorage.getItem('capacitylens/barLabelPrefs')).toBe(
       JSON.stringify({ showClient: false, showProject: false }),
     );
   });
 });
 
-describe("sidebar default (viewport-derived)", () => {
+describe('sidebar default (viewport-derived)', () => {
   afterEach(() => {
     // @ts-expect-error jsdom has no matchMedia by default, restore that absence
     delete window.matchMedia;
   });
 
-  it("collapses by default when the viewport matches the small-screen query", () => {
+  it('collapses by default when the viewport matches the small-screen query', () => {
     const matchMedia = vi.fn().mockReturnValue({ matches: true });
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
     expect(readDefaultSidebarOpen()).toBe(false);
   });
 
-  it("opens by default when the viewport does not match the small-screen query", () => {
+  it('opens by default when the viewport does not match the small-screen query', () => {
     const matchMedia = vi.fn().mockReturnValue({ matches: false });
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
     expect(readDefaultSidebarOpen()).toBe(true);
   });
 
-  it("queries the documented small-viewport media query", () => {
+  it('queries the documented small-viewport media query', () => {
     const matchMedia = vi.fn().mockReturnValue({ matches: false });
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
     readDefaultSidebarOpen();
-    expect(matchMedia).toHaveBeenCalledWith("(max-width: 1023px), (max-height: 480px)");
+    expect(matchMedia).toHaveBeenCalledWith('(max-width: 1023px), (max-height: 480px)');
   });
 
-  it("collapses by default at 1023px (below the lg breakpoint)", () => {
-    const matchMedia = vi.fn((query: string) => ({ matches: query.includes("max-width: 1023px") }));
+  it('collapses by default at 1023px (below the lg breakpoint)', () => {
+    const matchMedia = vi.fn((query: string) => ({ matches: query.includes('max-width: 1023px') }));
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
     expect(readDefaultSidebarOpen()).toBe(false);
   });
 
-  it("opens by default at 1024px (the lg breakpoint)", () => {
+  it('opens by default at 1024px (the lg breakpoint)', () => {
     const matchMedia = vi.fn(() => ({ matches: false }));
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
     expect(readDefaultSidebarOpen()).toBe(true);
   });
 
-  it("defaults open when matchMedia throws", () => {
+  it('defaults open when matchMedia throws', () => {
     window.matchMedia = (() => {
-      throw new Error("blocked");
+      throw new Error('blocked');
     }) as unknown as typeof window.matchMedia;
     expect(readDefaultSidebarOpen()).toBe(true);
   });

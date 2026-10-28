@@ -1,16 +1,16 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { announceAuditWarning, AUDIT_WARNING_EVENT } from "./auditWarning";
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { announceAuditWarning, AUDIT_WARNING_EVENT } from './auditWarning';
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("auditWarning", () => {
-  it("uses the stable, namespaced event name", () => {
-    expect(AUDIT_WARNING_EVENT).toBe("capacitylens:audit-warning");
+describe('auditWarning', () => {
+  it('uses the stable, namespaced event name', () => {
+    expect(AUDIT_WARNING_EVENT).toBe('capacitylens:audit-warning');
   });
 
-  it("dispatches the stable operational warning event", () => {
+  it('dispatches the stable operational warning event', () => {
     const listener = vi.fn();
     globalThis.addEventListener(AUDIT_WARNING_EVENT, listener);
     try {
@@ -23,8 +23,8 @@ describe("auditWarning", () => {
     }
   });
 
-  it("tolerates environments without a global dispatchEvent", () => {
-    vi.stubGlobal("dispatchEvent", undefined);
+  it('tolerates environments without a global dispatchEvent', () => {
+    vi.stubGlobal('dispatchEvent', undefined);
 
     expect(() => announceAuditWarning()).not.toThrow();
   });

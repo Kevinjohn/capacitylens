@@ -1,16 +1,18 @@
-import { apiFetch } from "@/data/requestTimeout";
-import { apiRouteUrl } from "@/api/queryClient";
-import type { BrowserAccountCommand } from "./accountCommands";
-import { buildCommandRequestInit, runCommand } from "./commandRequest";
+import { apiFetch } from '@/data/requestTimeout';
+import { apiRouteUrl } from '@/api/queryClient';
+import type { BrowserAccountCommand } from './accountCommands';
+import { buildCommandRequestInit, runCommand } from './commandRequest';
 
 /** Build the account-owned URL for the minimum scheduled-person avatar projection. */
 export function resourceAvatarsUrl(workspaceId: string): string {
-  return apiRouteUrl("api.member-resources.avatars", { params: { accountId: workspaceId } });
+  return apiRouteUrl('api.member-resources.avatars', { params: { accountId: workspaceId } });
 }
 
 /** Build the account-owned URL for one member/person association. */
 export function memberResourceLinkUrl(workspaceId: string, principalId: string): string {
-  return apiRouteUrl("api.member-resources.set", { params: { accountId: workspaceId, principalId } });
+  return apiRouteUrl('api.member-resources.set', {
+    params: { accountId: workspaceId, principalId },
+  });
 }
 
 /** Identifies the workspace member and resource for a resource-link request. */
@@ -29,7 +31,7 @@ export function setMemberResourceLink(
   return runCommand({
     operationKey:
       `member-resource-link:${input.workspaceId}:${input.principalId}:` +
-      `${input.resourceId}:${input.expectedRevision ?? "none"}`,
+      `${input.resourceId}:${input.expectedRevision ?? 'none'}`,
     explicit: command,
     request: (resolved) => {
       const [url, init] = memberResourceLinkRequest(input);
@@ -40,14 +42,19 @@ export function setMemberResourceLink(
 }
 
 /** Build a link-change request for the member-resource command adapter. */
-export function memberResourceLinkRequest(input: MemberResourceLinkRequestInput): [string, RequestInit] {
+export function memberResourceLinkRequest(
+  input: MemberResourceLinkRequestInput,
+): [string, RequestInit] {
   return [
     memberResourceLinkUrl(input.workspaceId, input.principalId),
     {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resourceId: input.resourceId, expectedRevision: input.expectedRevision }),
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        resourceId: input.resourceId,
+        expectedRevision: input.expectedRevision,
+      }),
     },
   ];
 }
@@ -61,9 +68,9 @@ export function clearMemberResourceLinkRequest(
   return [
     memberResourceLinkUrl(workspaceId, principalId),
     {
-      method: "DELETE",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expectedRevision }),
     },
   ];
@@ -78,7 +85,11 @@ export function clearMemberResourceLink(
     operationKey: `member-resource-unlink:${input.workspaceId}:${input.principalId}:${input.expectedRevision}`,
     explicit: command,
     request: (resolved) => {
-      const [url, init] = clearMemberResourceLinkRequest(input.workspaceId, input.principalId, input.expectedRevision);
+      const [url, init] = clearMemberResourceLinkRequest(
+        input.workspaceId,
+        input.principalId,
+        input.expectedRevision,
+      );
       return apiFetch(url, buildCommandRequestInit(init, resolved));
     },
     ambiguousStatus: 409,

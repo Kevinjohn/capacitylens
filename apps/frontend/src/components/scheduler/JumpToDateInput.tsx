@@ -1,7 +1,7 @@
-import { m } from "@/i18n";
-import { useStore } from "@/store/useStore";
-import { Input } from "@/components/ui/input";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { m } from '@/i18n';
+import { useStore } from '@/store/useStore';
+import { Input } from '@/components/ui/input';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
 
 /** A native date picker that reanchors the schedule only after a valid date is selected. */
 export function JumpToDateInput() {

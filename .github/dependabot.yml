@@ -16,7 +16,7 @@ updates:
       minor:
         update-types: [minor]
     ignore:
-      - dependency-name: "*"
+      - dependency-name: '*'
         update-types:
           - version-update:semver-major
     open-pull-requests-limit: 2
@@ -25,7 +25,7 @@ updates:
     schedule:
       interval: monthly
     ignore:
-      - dependency-name: "*"
+      - dependency-name: '*'
         update-types:
           - version-update:semver-minor
           - version-update:semver-major
@@ -34,7 +34,7 @@ updates:
     schedule:
       interval: monthly
     ignore:
-      - dependency-name: "*"
+      - dependency-name: '*'
         update-types:
           - version-update:semver-minor
           - version-update:semver-major

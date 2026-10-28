@@ -1,45 +1,45 @@
-import { requireCreated } from "@/test/requireCreated";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, render, screen, within, fireEvent, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { TimeOffList } from "./TimeOffList";
-import { TimeOffForm } from "./TimeOffForm";
-import { useStore } from "@/store/useStore";
+import { requireCreated } from '@/test/requireCreated';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { act, render, screen, within, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { TimeOffList } from './TimeOffList';
+import { TimeOffForm } from './TimeOffForm';
+import { useStore } from '@/store/useStore';
 import {
   DEFAULT_ACCOUNT_ID,
   WORKDAYS,
   requireValue,
   resetStoreWithAccount,
   setPlaceholdersEnabled,
-} from "@/test/fixtures";
-import { PermissionContext } from "@/auth/permissionContext";
+} from '@/test/fixtures';
+import { PermissionContext } from '@/auth/permissionContext';
 
 const resourceDraft = {
-  kind: "person" as const,
-  name: "Alice",
-  role: "Designer",
-  employmentType: "permanent" as const,
-  engagement: "studio" as const,
+  kind: 'person' as const,
+  name: 'Alice',
+  role: 'Designer',
+  employmentType: 'permanent' as const,
+  engagement: 'studio' as const,
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
   halfDays: [],
-  color: "#111",
+  color: '#111',
 };
 
 const placeholderDraft = {
-  kind: "placeholder" as const,
-  role: "Designer",
-  employmentType: "permanent" as const,
-  engagement: "studio" as const,
+  kind: 'placeholder' as const,
+  role: 'Designer',
+  employmentType: 'permanent' as const,
+  engagement: 'studio' as const,
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
   halfDays: [],
-  color: "#222",
+  color: '#222',
 };
 
 beforeEach(async () => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'));
   await resetStoreWithAccount();
   useStore.getState().clearFilters();
   // Enable the company placeholder setting for fixtures that need its rows; visibility tests override it explicitly.
@@ -51,414 +51,449 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("shows an error when saving without selecting a resource", async () => {
+it('shows an error when saving without selecting a resource', async () => {
   const user = userEvent.setup();
   render(<TimeOffList />);
 
-  await user.click(screen.getByRole("button", { name: "Add time off" }));
-  const dialog = screen.getByRole("dialog", { name: "Add time off" });
+  await user.click(screen.getByRole('button', { name: 'Add time off' }));
+  const dialog = screen.getByRole('dialog', { name: 'Add time off' });
   expect(dialog).toBeInTheDocument();
 
-  await user.click(within(dialog).getByRole("button", { name: "Save" }));
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
-  expect(screen.getByRole("alert")).toHaveTextContent(/choose a resource/i);
+  expect(screen.getByRole('alert')).toHaveTextContent(/choose a resource/i);
   expect(useStore.getState().data.timeOff).toHaveLength(0);
 });
 
-it("shows an error when end date is before start date", async () => {
+it('shows an error when end date is before start date', async () => {
   const user = userEvent.setup();
   await useStore.getState().addResource(resourceDraft);
   const resource = useStore.getState().data.resources[0];
-  if (!resource) throw new Error("Expected resource");
-  if (!resource.name) throw new Error("Expected named resource");
+  if (!resource) throw new Error('Expected resource');
+  if (!resource.name) throw new Error('Expected named resource');
   render(<TimeOffList />);
 
-  await user.click(screen.getByRole("button", { name: "Add time off" }));
-  const dialog = screen.getByRole("dialog", { name: "Add time off" });
+  await user.click(screen.getByRole('button', { name: 'Add time off' }));
+  const dialog = screen.getByRole('dialog', { name: 'Add time off' });
 
-  fireEvent.keyDown(within(dialog).getByLabelText("Resource"), { key: "ArrowDown" });
-  fireEvent.click(screen.getByRole("option", { name: resource.name }));
+  fireEvent.keyDown(within(dialog).getByLabelText('Resource'), { key: 'ArrowDown' });
+  fireEvent.click(screen.getByRole('option', { name: resource.name }));
 
-  fireEvent.change(within(dialog).getByLabelText("Start"), { target: { value: "2026-06-10" } });
-  fireEvent.change(within(dialog).getByLabelText("End"), { target: { value: "2026-06-01" } });
+  fireEvent.change(within(dialog).getByLabelText('Start'), { target: { value: '2026-06-10' } });
+  fireEvent.change(within(dialog).getByLabelText('End'), { target: { value: '2026-06-01' } });
 
-  await user.click(within(dialog).getByRole("button", { name: "Save" }));
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
-  expect(screen.getByRole("alert")).toHaveTextContent(/end date cannot be before the start date/i);
+  expect(screen.getByRole('alert')).toHaveTextContent(/end date cannot be before the start date/i);
   expect(useStore.getState().data.timeOff).toHaveLength(0);
 });
 
-it("lists the time-off entry after a valid save", async () => {
+it('lists the time-off entry after a valid save', async () => {
   const user = userEvent.setup();
   await useStore.getState().addResource(resourceDraft);
   const resource = useStore.getState().data.resources[0];
-  if (!resource) throw new Error("Expected resource");
-  if (!resource.name) throw new Error("Expected named resource");
+  if (!resource) throw new Error('Expected resource');
+  if (!resource.name) throw new Error('Expected named resource');
   render(<TimeOffList />);
 
-  await user.click(screen.getByRole("button", { name: "Add time off" }));
-  const dialog = screen.getByRole("dialog", { name: "Add time off" });
+  await user.click(screen.getByRole('button', { name: 'Add time off' }));
+  const dialog = screen.getByRole('dialog', { name: 'Add time off' });
 
-  fireEvent.keyDown(within(dialog).getByLabelText("Resource"), { key: "ArrowDown" });
-  fireEvent.click(screen.getByRole("option", { name: resource.name }));
-  fireEvent.change(within(dialog).getByLabelText("Start"), { target: { value: "2026-07-01" } });
-  fireEvent.change(within(dialog).getByLabelText("End"), { target: { value: "2026-07-05" } });
+  fireEvent.keyDown(within(dialog).getByLabelText('Resource'), { key: 'ArrowDown' });
+  fireEvent.click(screen.getByRole('option', { name: resource.name }));
+  fireEvent.change(within(dialog).getByLabelText('Start'), { target: { value: '2026-07-01' } });
+  fireEvent.change(within(dialog).getByLabelText('End'), { target: { value: '2026-07-05' } });
 
-  await user.click(within(dialog).getByRole("button", { name: "Save" }));
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
-  expect(screen.queryByRole("dialog", { name: "Add time off" })).not.toBeInTheDocument();
+  expect(screen.queryByRole('dialog', { name: 'Add time off' })).not.toBeInTheDocument();
 
-  expect(screen.getByRole("heading", { name: "Alice" })).toBeInTheDocument();
-  const row = screen.getByTestId("timeoff-row");
-  expect(row).not.toHaveTextContent("Alice");
-  expect(row).toHaveTextContent("Wed 1st Jul");
-  expect(row).toHaveTextContent("5 days");
+  expect(screen.getByRole('heading', { name: 'Alice' })).toBeInTheDocument();
+  const row = screen.getByTestId('timeoff-row');
+  expect(row).not.toHaveTextContent('Alice');
+  expect(row).toHaveTextContent('Wed 1st Jul');
+  expect(row).toHaveTextContent('5 days');
 
-  expect(row).not.toHaveTextContent("2026-07-01");
+  expect(row).not.toHaveTextContent('2026-07-01');
 
   await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(1));
-  expect(requireValue(useStore.getState().data.timeOff[0], "time off").resourceId).toBe(resource.id);
+  expect(requireValue(useStore.getState().data.timeOff[0], 'time off').resourceId).toBe(
+    resource.id,
+  );
 });
 
-it("keeps the row spare — start date and day count only, never the end date, type or note", async () => {
+it('keeps the row spare — start date and day count only, never the end date, type or note', async () => {
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   await useStore.getState().addTimeOff({
     resourceId: resource.id,
 
-    startDate: "2026-08-01",
+    startDate: '2026-08-01',
 
-    endDate: "2026-08-05",
-    type: "holiday",
-    note: "Visiting family",
+    endDate: '2026-08-05',
+    type: 'holiday',
+    note: 'Visiting family',
   });
   render(<TimeOffList />);
-  const row = screen.getByTestId("timeoff-row");
+  const row = screen.getByTestId('timeoff-row');
 
-  expect(row).toHaveTextContent("Sat 1st Aug");
-  expect(row).toHaveTextContent("5 days");
+  expect(row).toHaveTextContent('Sat 1st Aug');
+  expect(row).toHaveTextContent('5 days');
 
-  expect(row).not.toHaveTextContent("5th Aug");
-  expect(row).not.toHaveTextContent("Holiday");
-  expect(row).not.toHaveTextContent("holiday");
-  expect(row).not.toHaveTextContent("Visiting family");
+  expect(row).not.toHaveTextContent('5th Aug');
+  expect(row).not.toHaveTextContent('Holiday');
+  expect(row).not.toHaveTextContent('holiday');
+  expect(row).not.toHaveTextContent('Visiting family');
 });
 
 it("uses the active company's timezone and week-start setting for the visible boundary", async () => {
-  vi.setSystemTime(new Date("2026-06-08T00:30:00.000Z"));
+  vi.setSystemTime(new Date('2026-06-08T00:30:00.000Z'));
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   await useStore.getState().addTimeOff({
     resourceId: resource.id,
-    startDate: "2026-06-06",
-    endDate: "2026-06-07",
-    type: "holiday",
+    startDate: '2026-06-06',
+    endDate: '2026-06-07',
+    type: 'holiday',
   });
 
-  await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
+  await useStore
+    .getState()
+    .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
   const { rerender } = render(<TimeOffList />);
-  expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
+  expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument();
 
-  await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
+  await useStore
+    .getState()
+    .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Pacific/Honolulu', weekStartsOn: 1 });
   rerender(<TimeOffList />);
-  expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+  expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 
-  await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 0 });
+  await useStore
+    .getState()
+    .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 0 });
   rerender(<TimeOffList />);
-  expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+  expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 });
 
-it("removes expired time off when the company week rolls over while mounted", async () => {
+it('removes expired time off when the company week rolls over while mounted', async () => {
   vi.useRealTimers();
   vi.useFakeTimers();
-  vi.setSystemTime(new Date("2026-06-07T23:59:59.000Z"));
-  await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
-  const resource = await requireCreated(useStore.getState().addResource({ ...resourceDraft, name: "Bruce Wayne" }));
+  vi.setSystemTime(new Date('2026-06-07T23:59:59.000Z'));
+  await useStore
+    .getState()
+    .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
+  const resource = await requireCreated(
+    useStore.getState().addResource({ ...resourceDraft, name: 'Bruce Wayne' }),
+  );
   await useStore.getState().addTimeOff({
     resourceId: resource.id,
-    startDate: "2026-06-07",
-    endDate: "2026-06-07",
-    type: "holiday",
+    startDate: '2026-06-07',
+    endDate: '2026-06-07',
+    type: 'holiday',
   });
 
   render(<TimeOffList />);
-  expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+  expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 
   await act(() => vi.advanceTimersByTimeAsync(1_000));
 
-  expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
+  expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument();
 });
 
-it("hides archived resources and their retained time off", async () => {
+it('hides archived resources and their retained time off', async () => {
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   await useStore.getState().addTimeOff({
     resourceId: resource.id,
-    startDate: "2026-08-01",
-    endDate: "2026-08-05",
-    type: "holiday",
+    startDate: '2026-08-01',
+    endDate: '2026-08-05',
+    type: 'holiday',
   });
-  useStore.getState().archiveEntity("resources", resource.id);
+  useStore.getState().archiveEntity('resources', resource.id);
 
   render(<TimeOffList />);
 
-  expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
-  expect(screen.getByText("No time off booked.")).toBeInTheDocument();
+  expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument();
+  expect(screen.getByText('No time off booked.')).toBeInTheDocument();
   expect(useStore.getState().data.timeOff).toHaveLength(1);
 });
 
-it("states the year in an action name when the time off crosses one", async () => {
+it('states the year in an action name when the time off crosses one', async () => {
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   await useStore.getState().addTimeOff({
     resourceId: resource.id,
-    startDate: "2026-12-28",
-    endDate: "2027-01-08",
-    type: "holiday",
+    startDate: '2026-12-28',
+    endDate: '2027-01-08',
+    type: 'holiday',
   });
   render(<TimeOffList />);
 
   // Without the years this reads "from Mon 28th Dec to Fri 8th Jan", a range running backwards
   // through the year rather than the twelve days it is.
   expect(
-    screen.getByRole("button", { name: "Edit Alice time off from Mon 28th Dec 2026 to Fri 8th Jan 2027" }),
+    screen.getByRole('button', {
+      name: 'Edit Alice time off from Mon 28th Dec 2026 to Fri 8th Jan 2027',
+    }),
   ).toBeInTheDocument();
 });
 
-it("gives same-person time-off actions distinct date-specific names", async () => {
+it('gives same-person time-off actions distinct date-specific names', async () => {
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   await useStore.getState().addTimeOff({
     resourceId: resource.id,
-    startDate: "2026-08-01",
-    endDate: "2026-08-05",
-    type: "holiday",
+    startDate: '2026-08-01',
+    endDate: '2026-08-05',
+    type: 'holiday',
   });
   await useStore.getState().addTimeOff({
     resourceId: resource.id,
-    startDate: "2026-09-01",
-    endDate: "2026-09-02",
-    type: "holiday",
+    startDate: '2026-09-01',
+    endDate: '2026-09-02',
+    type: 'holiday',
   });
   render(<TimeOffList />);
 
   expect(
-    screen.getByRole("button", { name: "Edit Alice time off from Sat 1st Aug to Wed 5th Aug" }),
+    screen.getByRole('button', { name: 'Edit Alice time off from Sat 1st Aug to Wed 5th Aug' }),
   ).toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: "Edit Alice time off from Tue 1st Sep to Wed 2nd Sep" }),
+    screen.getByRole('button', { name: 'Edit Alice time off from Tue 1st Sep to Wed 2nd Sep' }),
   ).toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: "Delete Alice time off from Sat 1st Aug to Wed 5th Aug" }),
+    screen.getByRole('button', { name: 'Delete Alice time off from Sat 1st Aug to Wed 5th Aug' }),
   ).toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: "Delete Alice time off from Tue 1st Sep to Wed 2nd Sep" }),
+    screen.getByRole('button', { name: 'Delete Alice time off from Tue 1st Sep to Wed 2nd Sep' }),
   ).toBeInTheDocument();
 });
 
-it("confirms before deleting and removes the entry on confirm", async () => {
+it('confirms before deleting and removes the entry on confirm', async () => {
   const user = userEvent.setup();
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   await useStore.getState().addTimeOff({
     resourceId: resource.id,
-    startDate: "2026-08-01",
-    endDate: "2026-08-05",
-    type: "holiday",
+    startDate: '2026-08-01',
+    endDate: '2026-08-05',
+    type: 'holiday',
   });
   render(<TimeOffList />);
 
-  expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+  expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 
-  await user.click(screen.getByRole("button", { name: "Delete Alice time off from Sat 1st Aug to Wed 5th Aug" }));
+  await user.click(
+    screen.getByRole('button', { name: 'Delete Alice time off from Sat 1st Aug to Wed 5th Aug' }),
+  );
 
-  const dialog = screen.getByRole("alertdialog", { name: "Delete time off?" });
+  const dialog = screen.getByRole('alertdialog', { name: 'Delete time off?' });
   expect(dialog).toBeInTheDocument();
 
-  await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
   expect(useStore.getState().data.timeOff).toHaveLength(1);
-  expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+  expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 
-  await user.click(screen.getByRole("button", { name: "Delete Alice time off from Sat 1st Aug to Wed 5th Aug" }));
   await user.click(
-    within(screen.getByRole("alertdialog", { name: "Delete time off?" })).getByRole("button", { name: "Delete" }),
+    screen.getByRole('button', { name: 'Delete Alice time off from Sat 1st Aug to Wed 5th Aug' }),
+  );
+  await user.click(
+    within(screen.getByRole('alertdialog', { name: 'Delete time off?' })).getByRole('button', {
+      name: 'Delete',
+    }),
   );
 
   await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(0));
-  expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
+  expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument();
 });
 
 it('shows a placeholder time-off entry (named "Placeholder") when placeholders are ON', async () => {
   await setPlaceholdersEnabled({ on: true });
   const ph = await requireCreated(useStore.getState().addResource(placeholderDraft));
-  await useStore
-    .getState()
-    .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
+  await useStore.getState().addTimeOff({
+    resourceId: ph.id,
+    startDate: '2026-09-01',
+    endDate: '2026-09-05',
+    type: 'holiday',
+  });
   render(<TimeOffList />);
 
-  expect(screen.getByRole("heading", { name: "Placeholder" })).toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: "Designer" })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Placeholder' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Designer' })).not.toBeInTheDocument();
 });
 
-it("HIDES a placeholder time-off entry when placeholders are OFF (data stays intact)", async () => {
+it('HIDES a placeholder time-off entry when placeholders are OFF (data stays intact)', async () => {
   await setPlaceholdersEnabled({ on: true });
   const ph = await requireCreated(useStore.getState().addResource(placeholderDraft));
-  await useStore
-    .getState()
-    .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
+  await useStore.getState().addTimeOff({
+    resourceId: ph.id,
+    startDate: '2026-09-01',
+    endDate: '2026-09-05',
+    type: 'holiday',
+  });
 
   await setPlaceholdersEnabled({ on: false });
   render(<TimeOffList />);
-  expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
+  expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument();
 
-  expect(screen.getByText("No time off booked.")).toBeInTheDocument();
+  expect(screen.getByText('No time off booked.')).toBeInTheDocument();
 
   expect(useStore.getState().data.timeOff).toHaveLength(1);
 });
 
-it("still shows a non-placeholder entry when a placeholder entry is hidden (OFF)", async () => {
+it('still shows a non-placeholder entry when a placeholder entry is hidden (OFF)', async () => {
   await setPlaceholdersEnabled({ on: true });
   const alice = await requireCreated(useStore.getState().addResource(resourceDraft));
   const ph = await requireCreated(useStore.getState().addResource(placeholderDraft));
-  await useStore
-    .getState()
-    .addTimeOff({ resourceId: alice.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
-  await useStore
-    .getState()
-    .addTimeOff({ resourceId: ph.id, startDate: "2026-09-10", endDate: "2026-09-12", type: "sick" });
+  await useStore.getState().addTimeOff({
+    resourceId: alice.id,
+    startDate: '2026-09-01',
+    endDate: '2026-09-05',
+    type: 'holiday',
+  });
+  await useStore.getState().addTimeOff({
+    resourceId: ph.id,
+    startDate: '2026-09-10',
+    endDate: '2026-09-12',
+    type: 'sick',
+  });
 
   await setPlaceholdersEnabled({ on: false });
   render(<TimeOffList />);
 
-  expect(screen.getAllByTestId("timeoff-row")).toHaveLength(1);
-  expect(screen.getByRole("heading", { name: "Alice" })).toBeInTheDocument();
-  expect(screen.queryByText("Placeholder")).not.toBeInTheDocument();
+  expect(screen.getAllByTestId('timeoff-row')).toHaveLength(1);
+  expect(screen.getByRole('heading', { name: 'Alice' })).toBeInTheDocument();
+  expect(screen.queryByText('Placeholder')).not.toBeInTheDocument();
 });
 
-it("keeps edit and delete controls hidden for viewers", async () => {
+it('keeps edit and delete controls hidden for viewers', async () => {
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   await useStore.getState().addTimeOff({
     resourceId: resource.id,
-    startDate: "2026-08-01",
-    endDate: "2026-08-05",
-    type: "holiday",
+    startDate: '2026-08-01',
+    endDate: '2026-08-05',
+    type: 'holiday',
   });
 
   render(
-    <PermissionContext.Provider value={{ role: "viewer" }}>
+    <PermissionContext.Provider value={{ role: 'viewer' }}>
       <TimeOffList />
     </PermissionContext.Provider>,
   );
 
-  expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /^Edit / })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /^Delete / })).not.toBeInTheDocument();
+  expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^Edit / })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
 });
 
-it("keeps the complete single-line Note input for canonical length validation", () => {
+it('keeps the complete single-line Note input for canonical length validation', () => {
   render(<TimeOffForm onClose={() => {}} />);
 
-  const note = screen.getByRole("textbox", { name: "Note" });
-  expect(note.tagName).toBe("INPUT");
-  expect(note).toHaveAttribute("type", "text");
-  expect(note).not.toHaveAttribute("maxlength");
+  const note = screen.getByRole('textbox', { name: 'Note' });
+  expect(note.tagName).toBe('INPUT');
+  expect(note).toHaveAttribute('type', 'text');
+  expect(note).not.toHaveAttribute('maxlength');
 });
 
-it("keeps invalid Enter submission in the form instead of creating a note newline", async () => {
+it('keeps invalid Enter submission in the form instead of creating a note newline', async () => {
   const user = userEvent.setup();
   render(<TimeOffForm onClose={() => {}} />);
 
-  const note = screen.getByRole("textbox", { name: "Note" });
-  await user.type(note, "Planning note{Enter}");
+  const note = screen.getByRole('textbox', { name: 'Note' });
+  await user.type(note, 'Planning note{Enter}');
 
-  expect(note).toHaveValue("Planning note");
-  expect(screen.getByRole("dialog", { name: "Add time off" })).toBeInTheDocument();
-  expect(screen.getByRole("alert")).toHaveTextContent(/choose a resource/i);
+  expect(note).toHaveValue('Planning note');
+  expect(screen.getByRole('dialog', { name: 'Add time off' })).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent(/choose a resource/i);
   expect(useStore.getState().data.timeOff).toHaveLength(0);
 });
 
-it("stores a populated single-line Note without changing the selected time-off fields", async () => {
+it('stores a populated single-line Note without changing the selected time-off fields', async () => {
   const user = userEvent.setup();
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   render(
     <TimeOffForm
-      defaults={{ resourceId: resource.id, startDate: "2026-09-01", endDate: "2026-09-02" }}
+      defaults={{ resourceId: resource.id, startDate: '2026-09-01', endDate: '2026-09-02' }}
       onClose={() => {}}
     />,
   );
 
-  await user.type(screen.getByRole("textbox", { name: "Note" }), "  Planning note  ");
-  await user.click(screen.getByRole("button", { name: "Save" }));
+  await user.type(screen.getByRole('textbox', { name: 'Note' }), '  Planning note  ');
+  await user.click(screen.getByRole('button', { name: 'Save' }));
 
   await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(1));
   expect(useStore.getState().data.timeOff[0]).toMatchObject({
     resourceId: resource.id,
-    startDate: "2026-09-01",
-    endDate: "2026-09-02",
-    type: "holiday",
-    note: "Planning note",
+    startDate: '2026-09-01',
+    endDate: '2026-09-02',
+    type: 'holiday',
+    note: 'Planning note',
   });
 });
 
-it("rejects a stale edit instead of overwriting a concurrent change", async () => {
+it('rejects a stale edit instead of overwriting a concurrent change', async () => {
   const user = userEvent.setup();
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   const entry = await requireCreated(
     useStore.getState().addTimeOff({
       resourceId: resource.id,
-      startDate: "2026-09-01",
-      endDate: "2026-09-05",
-      type: "holiday",
-      note: "Original note",
+      startDate: '2026-09-01',
+      endDate: '2026-09-05',
+      type: 'holiday',
+      note: 'Original note',
     }),
   );
   const onClose = vi.fn();
   render(<TimeOffForm timeOff={entry} onClose={onClose} />);
 
-  await useStore.getState().updateTimeOff(entry.id, { type: "sick" });
-  await user.clear(screen.getByLabelText("Note"));
-  await user.type(screen.getByLabelText("Note"), "Edited note");
-  await user.click(screen.getByRole("button", { name: "Save" }));
+  await useStore.getState().updateTimeOff(entry.id, { type: 'sick' });
+  await user.clear(screen.getByLabelText('Note'));
+  await user.type(screen.getByLabelText('Note'), 'Edited note');
+  await user.click(screen.getByRole('button', { name: 'Save' }));
 
-  expect(screen.getByRole("alert")).toHaveTextContent(/time off changed while you were editing/i);
+  expect(screen.getByRole('alert')).toHaveTextContent(/time off changed while you were editing/i);
   expect(onClose).not.toHaveBeenCalled();
-  expect(useStore.getState().data.timeOff[0]).toMatchObject({ type: "sick", note: "Original note" });
+  expect(useStore.getState().data.timeOff[0]).toMatchObject({
+    type: 'sick',
+    note: 'Original note',
+  });
 });
 
-it.each([null, "owner", "admin"] as const)("shows Note for role %s", (role) => {
+it.each([null, 'owner', 'admin'] as const)('shows Note for role %s', (role) => {
   render(
     <PermissionContext.Provider value={{ role }}>
       <TimeOffForm onClose={() => {}} />
     </PermissionContext.Provider>,
   );
 
-  expect(screen.getByLabelText("Note")).toBeInTheDocument();
+  expect(screen.getByLabelText('Note')).toBeInTheDocument();
 });
 
-it.each(["editor", "viewer"] as const)("hides and omits Note for role %s", async (role) => {
+it.each(['editor', 'viewer'] as const)('hides and omits Note for role %s', async (role) => {
   const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   const entry = await requireCreated(
     useStore.getState().addTimeOff({
       resourceId: resource.id,
-      startDate: "2026-09-01",
-      endDate: "2026-09-05",
-      type: "holiday",
-      note: "Protected note",
+      startDate: '2026-09-01',
+      endDate: '2026-09-05',
+      type: 'holiday',
+      note: 'Protected note',
     }),
   );
-  const update = vi.spyOn(useStore.getState(), "updateTimeOff").mockImplementation(async () => {});
+  const update = vi.spyOn(useStore.getState(), 'updateTimeOff').mockImplementation(async () => {});
   render(
     <PermissionContext.Provider value={{ role }}>
       <TimeOffForm timeOff={entry} onClose={() => {}} />
     </PermissionContext.Provider>,
   );
 
-  expect(screen.queryByLabelText("Note")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(screen.queryByLabelText('Note')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   expect(update).toHaveBeenCalledWith(entry.id, {
     resourceId: resource.id,
-    startDate: "2026-09-01",
-    endDate: "2026-09-05",
-    type: "holiday",
+    startDate: '2026-09-01',
+    endDate: '2026-09-05',
+    type: 'holiday',
   });
 });
 
-describe("TimeOffForm resource picker (placeholder gating)", () => {
-  it("EXCLUDES placeholders from the picker when the pref is OFF", async () => {
+describe('TimeOffForm resource picker (placeholder gating)', () => {
+  it('EXCLUDES placeholders from the picker when the pref is OFF', async () => {
     await setPlaceholdersEnabled({ on: false });
 
     await useStore.getState().addResource(resourceDraft);
@@ -466,28 +501,31 @@ describe("TimeOffForm resource picker (placeholder gating)", () => {
     await useStore.getState().addResource(placeholderDraft);
     render(<TimeOffForm onClose={() => {}} />);
 
-    const select = screen.getByLabelText("Resource");
-    fireEvent.keyDown(select, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Alice" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Placeholder" })).not.toBeInTheDocument();
+    const select = screen.getByLabelText('Resource');
+    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Alice' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Placeholder' })).not.toBeInTheDocument();
   });
 
-  it("risk A: editing a time-off entry already ON a hidden placeholder still offers that placeholder", async () => {
+  it('risk A: editing a time-off entry already ON a hidden placeholder still offers that placeholder', async () => {
     await setPlaceholdersEnabled({ on: true });
     const ph = await requireCreated(useStore.getState().addResource(placeholderDraft));
     const entry = await requireCreated(
-      useStore
-        .getState()
-        .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" }),
+      useStore.getState().addTimeOff({
+        resourceId: ph.id,
+        startDate: '2026-09-01',
+        endDate: '2026-09-05',
+        type: 'holiday',
+      }),
     );
 
     // Keep an existing hidden placeholder selected when editing time off so saving cannot silently assign the entry to someone else.
     await setPlaceholdersEnabled({ on: false });
     render(<TimeOffForm timeOff={entry} onClose={() => {}} />);
 
-    const select = screen.getByLabelText("Resource");
-    expect(select).toHaveTextContent("Placeholder");
-    fireEvent.keyDown(select, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Placeholder" })).toBeInTheDocument();
+    const select = screen.getByLabelText('Resource');
+    expect(select).toHaveTextContent('Placeholder');
+    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Placeholder' })).toBeInTheDocument();
   });
 });

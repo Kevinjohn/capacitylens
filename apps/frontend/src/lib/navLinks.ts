@@ -12,9 +12,9 @@ import {
   TagIcon,
   UsersIcon,
   UserRoundIcon,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { m } from "@/i18n";
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { m } from '@/i18n';
 import {
   ROUTE_ACTIVITIES,
   ROUTE_ACCOUNT,
@@ -29,7 +29,7 @@ import {
   ROUTE_SETTINGS,
   ROUTE_TEAM,
   ROUTE_TIMEOFF,
-} from "./tourAnchors";
+} from './tourAnchors';
 
 /** A route, deferred label getter, and icon used by sidebar navigation. Labels resolve at render time so switching account locale does not retain import-time text. */
 export type NavigationLinkDefinition = { to: string; label: () => string; icon: LucideIcon };
@@ -37,7 +37,11 @@ export type NavigationLinkDefinition = { to: string; label: () => string; icon: 
 // Share route constants with tour anchors so navigation and spotlight targets cannot drift.
 /** Navigation links shown in the application sidebar. */
 export const LINKS: NavigationLinkDefinition[] = [
-  { to: ROUTE_CAPACITY_OVERVIEW, label: () => m.nav_capacity_overview(), icon: ChartNoAxesColumnIncreasingIcon },
+  {
+    to: ROUTE_CAPACITY_OVERVIEW,
+    label: () => m.nav_capacity_overview(),
+    icon: ChartNoAxesColumnIncreasingIcon,
+  },
   { to: ROUTE_SCHEDULE, label: () => m.nav_schedule(), icon: CalendarIcon },
   { to: ROUTE_RESOURCES, label: () => m.nav_resources(), icon: UsersIcon },
 

@@ -1,8 +1,8 @@
-import type { AppData, ISOTimestamp } from "../../types/entities.js";
-import { lifecycleStatus } from "./types.js";
-import type { LifecycleEntityKey, LifecycleFields } from "./types.js";
-import { activeOnly } from "./projection.js";
-import { LifecycleTransitionError } from "./transitions.js";
+import type { AppData, ISOTimestamp } from '../../types/entities.js';
+import { lifecycleStatus } from './types.js';
+import type { LifecycleEntityKey, LifecycleFields } from './types.js';
+import { activeOnly } from './projection.js';
+import { LifecycleTransitionError } from './transitions.js';
 
 /**
  * Per-table counts of currently-active descendants that archiving one entity would additionally hide
@@ -24,7 +24,7 @@ export interface ArchiveImpact {
 
 // A valid sentinel `archivedAt` used only to measure the cascade (never persisted), so this flips
 // the target row to 'archived' for the diff under the same strict timestamp rule as real rows.
-const ARCHIVE_IMPACT_SENTINEL = "2000-01-01T00:00:00.000Z" as ISOTimestamp;
+const ARCHIVE_IMPACT_SENTINEL = '2000-01-01T00:00:00.000Z' as ISOTimestamp;
 
 /**
  * Count what archiving one active `resource`/`client`/`project`/`activity` would additionally hide from the
@@ -41,18 +41,22 @@ const ARCHIVE_IMPACT_SENTINEL = "2000-01-01T00:00:00.000Z" as ISOTimestamp;
  * @param entity which lifecycle table the archived row lives in.
  * @param id     the row being archived; throws when it is missing or not active.
  */
-export function archiveImpact(data: AppData, entity: LifecycleEntityKey, id: string): ArchiveImpact {
+export function archiveImpact(
+  data: AppData,
+  entity: LifecycleEntityKey,
+  id: string,
+): ArchiveImpact {
   const target = data[entity].find((row) => row.id === id);
   if (!target) {
     throw new LifecycleTransitionError(
-      "invalid_transition",
+      'invalid_transition',
       `Cannot measure archive impact: ${entity}.${id} is missing.`,
     );
   }
   const targetState = lifecycleStatus(target);
-  if (targetState !== "active") {
+  if (targetState !== 'active') {
     throw new LifecycleTransitionError(
-      "already_inactive",
+      'already_inactive',
       `Cannot measure archive impact: ${entity}.${id} is ${targetState}, not active.`,
     );
   }
@@ -60,20 +64,20 @@ export function archiveImpact(data: AppData, entity: LifecycleEntityKey, id: str
     rows.map((row) => (row.id === id ? { ...row, archivedAt: ARCHIVE_IMPACT_SENTINEL } : row));
   const archived: AppData = {
     ...data,
-    resources: entity === "resources" ? flip(data.resources) : data.resources,
-    clients: entity === "clients" ? flip(data.clients) : data.clients,
-    projects: entity === "projects" ? flip(data.projects) : data.projects,
-    activities: entity === "activities" ? flip(data.activities) : data.activities,
+    resources: entity === 'resources' ? flip(data.resources) : data.resources,
+    clients: entity === 'clients' ? flip(data.clients) : data.clients,
+    projects: entity === 'projects' ? flip(data.projects) : data.projects,
+    activities: entity === 'activities' ? flip(data.activities) : data.activities,
   };
   const before = activeOnly(data);
   const after = activeOnly(archived);
-  const hidden = (key: "projects" | "phases" | "activities" | "allocations" | "timeOff"): number =>
+  const hidden = (key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff'): number =>
     before[key].length - after[key].length;
   return {
-    projects: entity === "clients" ? hidden("projects") : 0,
-    phases: hidden("phases"),
-    activities: entity === "activities" ? 0 : hidden("activities"),
-    allocations: hidden("allocations"),
-    timeOff: entity === "resources" ? hidden("timeOff") : 0,
+    projects: entity === 'clients' ? hidden('projects') : 0,
+    phases: hidden('phases'),
+    activities: entity === 'activities' ? 0 : hidden('activities'),
+    allocations: hidden('allocations'),
+    timeOff: entity === 'resources' ? hidden('timeOff') : 0,
   };
 }

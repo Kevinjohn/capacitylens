@@ -1,13 +1,13 @@
-import { NEUTRAL_COLOR, snapToPresetColor } from "./color.js";
-import { INTERNAL_CLIENT_COLOR } from "../data/internalClient.js";
-import { cleanText } from "./strings.js";
+import { NEUTRAL_COLOR, snapToPresetColor } from './color.js';
+import { INTERNAL_CLIENT_COLOR } from '../data/internalClient.js';
+import { cleanText } from './strings.js';
 import {
   externalCapacityDefaults,
   FULL_DAY_HOURS,
   isPlaceholderResource,
   placeholderCapacityDefaults,
-} from "../types/entities.js";
-import type { ScopedEntityKey, Weekday } from "../types/entities.js";
+} from '../types/entities.js';
+import type { ScopedEntityKey, Weekday } from '../types/entities.js';
 import {
   VALID_STATUS,
   VALID_KIND,
@@ -27,12 +27,12 @@ import {
   cleanRequiredField,
   repairPrivateNameFieldsInPlace,
   repairLifecycleFieldsInPlace,
-} from "./sanitize/coerce.js";
-import { stripUnknownFields } from "./sanitize/importedFields.js";
-import { parseResourceAvatarUrl } from "../domain/resourceAvatarUrl.js";
-import { fillNullableFields } from "../types/nullableFields.js";
+} from './sanitize/coerce.js';
+import { stripUnknownFields } from './sanitize/importedFields.js';
+import { parseResourceAvatarUrl } from '../domain/resourceAvatarUrl.js';
+import { fillNullableFields } from '../types/nullableFields.js';
 
-export { sanitizeAccount } from "./sanitize/account.js";
+export { sanitizeAccount } from './sanitize/account.js';
 
 // Import is the one write path that bypasses the form validators (a hand-edited or
 // corrupt file never went through them). The store already drops allocations/time-off
@@ -42,20 +42,22 @@ export { sanitizeAccount } from "./sanitize/account.js";
 
 // Resource kinds deliberately share this normalisation boundary so kind transitions are atomic.
 function sanitizeResource(record: Record<string, unknown>): void {
-  const kind = oneOf(record.kind, VALID_KIND, "person");
+  const kind = oneOf(record.kind, VALID_KIND, 'person');
   const isPlaceholder = isPlaceholderResource({ kind });
   record.kind = kind;
-  const avatarUrl = kind === "person" ? parseResourceAvatarUrl(record.avatarUrl) : undefined;
+  const avatarUrl = kind === 'person' ? parseResourceAvatarUrl(record.avatarUrl) : undefined;
   if (avatarUrl !== null && avatarUrl !== undefined) record.avatarUrl = avatarUrl;
   else delete record.avatarUrl;
-  if (kind === "external") {
+  if (kind === 'external') {
     Object.assign(record, externalCapacityDefaults());
     record.color = NEUTRAL_COLOR;
     delete record.disciplineId;
     delete record.projectId;
   } else {
-    record.employmentType = oneOf(record.employmentType, VALID_EMPLOYMENT, "permanent");
-    record.engagement = isPlaceholder ? "studio" : oneOf(record.engagement, VALID_ENGAGEMENT, "studio");
+    record.employmentType = oneOf(record.employmentType, VALID_EMPLOYMENT, 'permanent');
+    record.engagement = isPlaceholder
+      ? 'studio'
+      : oneOf(record.engagement, VALID_ENGAGEMENT, 'studio');
     record.workingHoursPerDay = clampHours(record.workingHoursPerDay);
     if (isPlaceholder) Object.assign(record, placeholderCapacityDefaults());
     else {
@@ -65,35 +67,37 @@ function sanitizeResource(record: Record<string, unknown>): void {
     }
     record.color = snapToPresetColor(record.color);
   }
-  if (isPlaceholder) cleanField({ record, field: "name" });
-  else cleanRequiredField(record, "name", kind === "external" ? "Unnamed company" : "Unnamed person");
+  if (isPlaceholder) cleanField({ record, field: 'name' });
+  else
+    cleanRequiredField(record, 'name', kind === 'external' ? 'Unnamed company' : 'Unnamed person');
   // Optional roles persist as blank strings; only absent or malformed roles need a default.
-  if (typeof record.role === "string") cleanField({ record, field: "role" });
-  else record.role = "Team member";
-  if (record.isFavourite !== undefined && typeof record.isFavourite !== "boolean") delete record.isFavourite;
+  if (typeof record.role === 'string') cleanField({ record, field: 'role' });
+  else record.role = 'Team member';
+  if (record.isFavourite !== undefined && typeof record.isFavourite !== 'boolean')
+    delete record.isFavourite;
   repairResourceAvailability(record);
   repairLifecycleFieldsInPlace(record);
 }
 
 function sanitizeAllocation(record: Record<string, unknown>): void {
-  record.status = oneOf(record.status, VALID_STATUS, "confirmed");
+  record.status = oneOf(record.status, VALID_STATUS, 'confirmed');
   record.hoursPerDay = clampAllocHours(record.hoursPerDay, FULL_DAY_HOURS);
-  for (const field of ["projectId", "seriesId"] as const) {
+  for (const field of ['projectId', 'seriesId'] as const) {
     if (record[field] === undefined) continue;
-    const value = typeof record[field] === "string" ? cleanText(record[field]) : "";
+    const value = typeof record[field] === 'string' ? cleanText(record[field]) : '';
     if (value) record[field] = value;
     else delete record[field];
   }
-  if (typeof record.ignoreWeekends !== "boolean") delete record.ignoreWeekends;
+  if (typeof record.ignoreWeekends !== 'boolean') delete record.ignoreWeekends;
   record.startDate = normalizeISODate(record.startDate);
   record.endDate = normalizeISODate(record.endDate);
-  cleanField({ record, field: "note", multiline: true });
-  cleanField({ record, field: "task" });
+  cleanField({ record, field: 'note', multiline: true });
+  cleanField({ record, field: 'task' });
 }
 
 function sanitizeClient(record: Record<string, unknown>): void {
   record.color = record.builtin === true ? INTERNAL_CLIENT_COLOR : snapToPresetColor(record.color);
-  cleanRequiredField(record, "name", "Untitled");
+  cleanRequiredField(record, 'name', 'Untitled');
   if (record.builtin !== true) delete record.builtin;
   if (record.builtin === true) {
     delete record.isPrivate;
@@ -110,54 +114,57 @@ function sanitizeDiscipline(record: Record<string, unknown>): void {
   record.sortOrder = safeInt(record.sortOrder, 0);
   if (record.color === null) delete record.color;
   else if (record.color !== undefined) record.color = snapToPresetColor(record.color);
-  cleanRequiredField(record, "name", "Untitled");
+  cleanRequiredField(record, 'name', 'Untitled');
 }
 
 function sanitizeActivity(record: Record<string, unknown>): void {
-  cleanRequiredField(record, "name", "Untitled");
-  const defaultKind = record.projectId != null ? "project" : "repeatable";
+  cleanRequiredField(record, 'name', 'Untitled');
+  const defaultKind = record.projectId != null ? 'project' : 'repeatable';
   record.kind = oneOf(record.kind, VALID_ACTIVITY_KIND, defaultKind);
   repairLifecycleFieldsInPlace(record);
 }
 
 /** Project one imported scoped record onto its declared schema, then repair constrained values in
  * place. The record has already had its id remapped + accountId stamped. */
-export function sanitizeImportedRecord(key: ScopedEntityKey, record: Record<string, unknown>): Record<string, unknown> {
+export function sanitizeImportedRecord(
+  key: ScopedEntityKey,
+  record: Record<string, unknown>,
+): Record<string, unknown> {
   stripUnknownFields(key, record);
   switch (key) {
-    case "resources":
+    case 'resources':
       sanitizeResource(record);
       break;
-    case "allocations":
+    case 'allocations':
       sanitizeAllocation(record);
       break;
-    case "timeOff":
-      record.type = oneOf(record.type, VALID_TIMEOFF, "other");
+    case 'timeOff':
+      record.type = oneOf(record.type, VALID_TIMEOFF, 'other');
       record.startDate = normalizeISODate(record.startDate);
       record.endDate = normalizeISODate(record.endDate);
-      cleanField({ record, field: "note", multiline: true });
+      cleanField({ record, field: 'note', multiline: true });
       break;
-    case "closures":
-      cleanRequiredField(record, "name", "Untitled closure");
+    case 'closures':
+      cleanRequiredField(record, 'name', 'Untitled closure');
       record.startDate = normalizeISODate(record.startDate);
       record.endDate = normalizeISODate(record.endDate);
       break;
-    case "disciplines":
+    case 'disciplines':
       sanitizeDiscipline(record);
       break;
-    case "clients":
+    case 'clients':
       sanitizeClient(record);
       break;
-    case "projects":
+    case 'projects':
       record.color = snapToPresetColor(record.color);
-      cleanRequiredField(record, "name", "Untitled");
+      cleanRequiredField(record, 'name', 'Untitled');
       repairPrivateNameFieldsInPlace(record);
       repairLifecycleFieldsInPlace(record);
       break;
-    case "phases":
-      cleanRequiredField(record, "name", "Untitled");
+    case 'phases':
+      cleanRequiredField(record, 'name', 'Untitled');
       break;
-    case "activities":
+    case 'activities':
       sanitizeActivity(record);
       break;
     default: {

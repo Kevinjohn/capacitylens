@@ -1,28 +1,28 @@
-import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { ErrorBoundary, ErrorFallback, RouteError } from "./ErrorBoundary";
+import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { ErrorBoundary, ErrorFallback, RouteError } from './ErrorBoundary';
 
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
-vi.mock("@/lib/reloadPage", () => reloadMock);
+vi.mock('@/lib/reloadPage', () => reloadMock);
 
 function Boom(): never {
-  throw new Error("boom");
+  throw new Error('boom');
 }
 
-describe("ErrorBoundary", () => {
-  it("renders children normally when no error is thrown", () => {
+describe('ErrorBoundary', () => {
+  it('renders children normally when no error is thrown', () => {
     render(
       <ErrorBoundary>
         <p>All good</p>
       </ErrorBoundary>,
     );
 
-    expect(screen.getByText("All good")).toBeInTheDocument();
+    expect(screen.getByText('All good')).toBeInTheDocument();
   });
 
   it('shows "Something went wrong" and a Reload button when a child throws', () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(
       <ErrorBoundary>
@@ -30,14 +30,14 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument();
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
 
     spy.mockRestore();
   });
 
-  it("displays the thrown error message in the fallback", () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+  it('displays the thrown error message in the fallback', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(
       <ErrorBoundary>
@@ -45,46 +45,48 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    expect(screen.getByText("boom")).toBeInTheDocument();
+    expect(screen.getByText('boom')).toBeInTheDocument();
 
     spy.mockRestore();
   });
 });
 
-describe("RouteError (React Router errorElement)", () => {
-  it("renders the branded recovery screen when a route element throws", () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const router = createMemoryRouter([{ path: "/", element: <Boom />, errorElement: <RouteError /> }]);
+describe('RouteError (React Router errorElement)', () => {
+  it('renders the branded recovery screen when a route element throws', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const router = createMemoryRouter([
+      { path: '/', element: <Boom />, errorElement: <RouteError /> },
+    ]);
 
     render(<RouterProvider router={router} />);
 
-    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-    expect(screen.getByText("boom")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument();
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('boom')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
 
     spy.mockRestore();
   });
 });
 
-describe("ErrorFallback", () => {
-  it("shows a default message when none is provided (never a blank screen)", () => {
+describe('ErrorFallback', () => {
+  it('shows a default message when none is provided (never a blank screen)', () => {
     render(<ErrorFallback />);
-    expect(screen.getByText("An unexpected error occurred.")).toBeInTheDocument();
+    expect(screen.getByText('An unexpected error occurred.')).toBeInTheDocument();
   });
 
-  it("shows a default message for empty or whitespace-only errors", () => {
+  it('shows a default message for empty or whitespace-only errors', () => {
     const { rerender } = render(<ErrorFallback message="" />);
-    expect(screen.getByText("An unexpected error occurred.")).toBeInTheDocument();
+    expect(screen.getByText('An unexpected error occurred.')).toBeInTheDocument();
 
     rerender(<ErrorFallback message="   " />);
-    expect(screen.getByText("An unexpected error occurred.")).toBeInTheDocument();
+    expect(screen.getByText('An unexpected error occurred.')).toBeInTheDocument();
   });
 
-  it("reloads the application from its sole recovery control", () => {
+  it('reloads the application from its sole recovery control', () => {
     // Mock the reload boundary because jsdom does not allow replacing window.location.reload.
     reloadMock.reloadPage.mockClear();
     render(<ErrorFallback message="boom" />);
-    fireEvent.click(screen.getByRole("button", { name: "Reload" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
     expect(reloadMock.reloadPage).toHaveBeenCalledOnce();
   });
 });

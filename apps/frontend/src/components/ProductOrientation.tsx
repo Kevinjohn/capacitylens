@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef } from "react";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import { m } from "@/i18n";
-import { Button } from "./ui/button";
+import { useEffect, useId, useRef } from 'react';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import { m } from '@/i18n';
+import { Button } from './ui/button';
 
 /** Guides the user to the requested product area. */
 export function ProductOrientation({
@@ -19,7 +19,7 @@ export function ProductOrientation({
       const heading = headingRef.current;
       if (!heading) return;
       const scrollIntoView = heading.scrollIntoView as typeof heading.scrollIntoView | undefined;
-      scrollIntoView?.call(heading, { block: "nearest" });
+      scrollIntoView?.call(heading, { block: 'nearest' });
       heading.focus();
     };
     if (focusRequest.delayMs === 0) {
@@ -38,7 +38,12 @@ export function ProductOrientation({
       data-testid="product-orientation"
     >
       <div className="max-w-3xl">
-        <h2 ref={headingRef} tabIndex={-1} id={headingId} className="text-base font-semibold text-ink outline-none">
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          id={headingId}
+          className="text-base font-semibold text-ink outline-none"
+        >
           {m.product_orientation_heading({ app: APP_NAME })}
         </h2>
         <div className="mt-2 space-y-2 text-sm text-muted-foreground">

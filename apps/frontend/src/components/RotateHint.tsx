@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { APP_NAME, STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
-import { Modal } from "./common/ui";
-import { Button } from "./ui/button";
-import { m } from "@/i18n";
+import { useEffect, useState } from 'react';
+import { APP_NAME, STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand';
+import { Modal } from './common/ui';
+import { Button } from './ui/button';
+import { m } from '@/i18n';
 
 // One-time-per-session nudge for portrait phones: the schedule is a wide
 // week-at-a-glance grid, so landscape is the orientation the app is built for.
@@ -11,12 +11,12 @@ import { m } from "@/i18n";
 // display prefs. Rotating to landscape hides it; rotating back re-shows it unless
 // it was dismissed.
 
-const PORTRAIT_PHONE_QUERY = "(orientation: portrait) and (max-width: 767px)";
+const PORTRAIT_PHONE_QUERY = '(orientation: portrait) and (max-width: 767px)';
 const DISMISS_KEY = `${STORAGE_KEY_PREFIX}rotateHintDismissed`;
 
 function isPortraitPhone(): boolean {
   try {
-    if (typeof window.matchMedia === "function") {
+    if (typeof window.matchMedia === 'function') {
       return window.matchMedia(PORTRAIT_PHONE_QUERY).matches;
     }
   } catch {
@@ -27,7 +27,7 @@ function isPortraitPhone(): boolean {
 
 function isDismissed(): boolean {
   try {
-    return sessionStorage.getItem(DISMISS_KEY) === "1";
+    return sessionStorage.getItem(DISMISS_KEY) === '1';
   } catch {
     // Device hint storage is optional; an unreadable dismissal flag defaults to showing the hint.
     return false;
@@ -40,18 +40,18 @@ export function RotateHint() {
   const [dismissed, setDismissed] = useState(isDismissed);
 
   useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
+    if (typeof window.matchMedia !== 'function') return;
     const mediaQuery = window.matchMedia(PORTRAIT_PHONE_QUERY);
     const onChange = (e: MediaQueryListEvent) => setPortrait(e.matches);
-    mediaQuery.addEventListener("change", onChange);
-    return () => mediaQuery.removeEventListener("change", onChange);
+    mediaQuery.addEventListener('change', onChange);
+    return () => mediaQuery.removeEventListener('change', onChange);
   }, []);
 
   if (!portrait || dismissed) return null;
 
   const dismiss = () => {
     try {
-      sessionStorage.setItem(DISMISS_KEY, "1");
+      sessionStorage.setItem(DISMISS_KEY, '1');
     } catch {
       // Blocked hint storage still leaves this mount dismissed because the in-memory choice is sufficient for the current visit.
     }

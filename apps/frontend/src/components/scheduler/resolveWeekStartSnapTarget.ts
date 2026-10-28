@@ -1,8 +1,8 @@
-import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { resolveLeftEdgeDate } from "./columnGeometry";
-import type { ColumnGeometry } from "./columnGeometry";
-import type { ISODate } from "@capacitylens/shared/types/entities";
+import { startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { resolveLeftEdgeDate } from './columnGeometry';
+import type { ColumnGeometry } from './columnGeometry';
+import type { ISODate } from '@capacitylens/shared/types/entities';
 
 // Pure week-start snapping floors free scrolling backward and converges near an existing week boundary. Use the shared rounded scroll inverse so sub-pixel browser positions cannot select the prior week.
 

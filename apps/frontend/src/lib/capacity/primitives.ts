@@ -1,8 +1,8 @@
-import { allocationWorksOnDay } from "@capacitylens/shared/lib/dateMath";
-import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { FULL_DAY_HOURS } from "@capacitylens/shared/types/entities";
-import type { Allocation } from "@capacitylens/shared/types/entities";
+import { allocationWorksOnDay } from '@capacitylens/shared/lib/dateMath';
+import { blockHoursPerDay } from '@capacitylens/shared/lib/schedulingDays';
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
+import type { Allocation } from '@capacitylens/shared/types/entities';
 
 // Arithmetic-only tolerance: one nanohour is 3.6 microseconds, far below any scheduling input,
 // while comfortably absorbing the few-ULP drift from summing days-mode fractional allocations.
@@ -22,9 +22,15 @@ interface ApplyCapacityModeInput {
 }
 
 /** Blocks carry placement but no hourly load. Reuse this projection across every capacity surface. */
-export function applyCapacityMode({ allocations, blocksMode }: ApplyCapacityModeInput): Allocation[] {
+export function applyCapacityMode({
+  allocations,
+  blocksMode,
+}: ApplyCapacityModeInput): Allocation[] {
   return blocksMode
-    ? allocations.map((allocation) => ({ ...allocation, hoursPerDay: BLOCK_PROJECTED_HOURS_PER_DAY }))
+    ? allocations.map((allocation) => ({
+        ...allocation,
+        hoursPerDay: BLOCK_PROJECTED_HOURS_PER_DAY,
+      }))
     : allocations;
 }
 
@@ -58,6 +64,6 @@ export function hasAllocationLoadOnDay({
   dayIsWorking,
 }: HasAllocationLoadOnDayInput): boolean {
   if (ignoreWorkingDays) return true;
-  if (effectiveWeek.kind === "none") return false;
+  if (effectiveWeek.kind === 'none') return false;
   return allocationWorksOnDay(effectiveWeek.days, false, dayIsWorking);
 }

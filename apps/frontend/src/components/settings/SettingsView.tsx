@@ -1,14 +1,18 @@
-import { useEffect } from "react";
-import { m } from "@/i18n";
-import { ListPage } from "@/components/common/ui";
-import { ImportExport } from "@/components/ImportExport";
-import { SettingsAccountOptions } from "./SettingsAccountSections";
-import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
-import { SettingsDataSection } from "./SettingsDataSection";
-import { CompanyFeaturesSection, ScheduleViewSection, SettingsCompanySetupSections } from "./SettingsSchedulingSection";
-import { SettingsGroup } from "./SettingsGroup";
-import { SettingsSection } from "./SettingsSection";
-import { useSettingsViewController } from "./useSettingsViewController";
+import { useEffect } from 'react';
+import { m } from '@/i18n';
+import { ListPage } from '@/components/common/ui';
+import { ImportExport } from '@/components/ImportExport';
+import { SettingsAccountOptions } from './SettingsAccountSections';
+import { SettingsAppearanceSection } from './SettingsAppearanceSection';
+import { SettingsDataSection } from './SettingsDataSection';
+import {
+  CompanyFeaturesSection,
+  ScheduleViewSection,
+  SettingsCompanySetupSections,
+} from './SettingsSchedulingSection';
+import { SettingsGroup } from './SettingsGroup';
+import { SettingsSection } from './SettingsSection';
+import { useSettingsViewController } from './useSettingsViewController';
 
 type Controller = ReturnType<typeof useSettingsViewController>;
 
@@ -17,9 +21,9 @@ function useSettingsOnboardingTarget({ ready }: UseSettingsOnboardingTargetOptio
   useEffect(() => {
     if (!ready) return;
     const id = window.location.hash.slice(1);
-    if (id !== "getting-started-import" && id !== "getting-started-settings") return;
+    if (id !== 'getting-started-import' && id !== 'getting-started-settings') return;
     const section = document.getElementById(id);
-    section?.scrollIntoView({ block: "start" });
+    section?.scrollIntoView({ block: 'start' });
     section?.focus({ preventScroll: true });
   }, [ready]);
 }
@@ -32,7 +36,7 @@ function SettingsImportSection() {
       help={m.settings_data_description()}
       description={m.settings_company_data_scope()}
       collapsible
-      defaultOpen={window.location.hash === "#getting-started-import"}
+      defaultOpen={window.location.hash === '#getting-started-import'}
     >
       <ImportExport />
     </SettingsSection>
@@ -95,7 +99,10 @@ export function SettingsView() {
             disciplinesEnabled={scheduling.disciplinesEnabled}
           />
         </SettingsGroup>
-        <SettingsGroup title={m.settings_support_heading()} description={m.settings_support_description()}>
+        <SettingsGroup
+          title={m.settings_support_heading()}
+          description={m.settings_support_description()}
+        >
           <SettingsDataSection serverMode={controller.serverMode} {...localData} />
           <SettingsBottomSections controller={controller} />
         </SettingsGroup>

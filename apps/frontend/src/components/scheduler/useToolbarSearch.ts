@@ -1,16 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { useStore } from "@/store/useStore";
-import type { StoreState } from "@/store/useStore";
+import { useEffect, useRef, useState } from 'react';
+import { useStore } from '@/store/useStore';
+import type { StoreState } from '@/store/useStore';
 
 interface UseToolbarSearchInput {
-  filters: StoreState["ui"]["filters"];
-  activeAccountId: StoreState["activeAccountId"];
-  setFilters: StoreState["setFilters"];
-  clearFilters: StoreState["clearFilters"];
+  filters: StoreState['ui']['filters'];
+  activeAccountId: StoreState['activeAccountId'];
+  setFilters: StoreState['setFilters'];
+  clearFilters: StoreState['clearFilters'];
 }
 
 /** Debounces schedule search and cancels stale text after external filter changes. */
-export function useToolbarSearch({ filters, activeAccountId, setFilters, clearFilters }: UseToolbarSearchInput) {
+export function useToolbarSearch({
+  filters,
+  activeAccountId,
+  setFilters,
+  clearFilters,
+}: UseToolbarSearchInput) {
   // Debounce the search into the store: each keystroke otherwise rebuilds the whole
   // scheduler model (new filters object → model useMemo) and re-renders every lane.
   // Keep the input snappy locally; push to filters after a short pause.
@@ -46,7 +51,7 @@ export function useToolbarSearch({ filters, activeAccountId, setFilters, clearFi
   // Clear must cancel its pending timer as well as reset local text so stale input cannot return after the debounce.
   const clearSearch = () => {
     cancelSearchTimer();
-    setSearchInput("");
+    setSearchInput('');
     clearFilters();
   };
 

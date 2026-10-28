@@ -1,13 +1,20 @@
-import { Fragment } from "react";
-import { Plus, Users } from "lucide-react";
-import type { Resource } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { AddButton, ColorSwatch, DeleteButton, EditButton, EmptyState, SectionHelp } from "@/components/common/ui";
-import { Separator } from "@/components/ui/separator";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
-import { externalExplainer } from "@/lib/externalCopy";
-import { NEUTRAL_COLOR } from "@/lib/palette";
-import { FavouriteButton } from "./FavouriteButton";
+import { Fragment } from 'react';
+import { Plus, Users } from 'lucide-react';
+import type { Resource } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import {
+  AddButton,
+  ColorSwatch,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+  SectionHelp,
+} from '@/components/common/ui';
+import { Separator } from '@/components/ui/separator';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
+import { externalExplainer } from '@/lib/externalCopy';
+import { NEUTRAL_COLOR } from '@/lib/palette';
+import { FavouriteButton } from './FavouriteButton';
 
 /** External resources and handlers available in the resource list. */
 export interface ExternalResourceSectionProps {
@@ -18,7 +25,12 @@ export interface ExternalResourceSectionProps {
 }
 
 /** Lists external resources separately from people on the team. */
-export function ExternalResourceSection({ externals, onAdd, onEdit, onRequestArchive }: ExternalResourceSectionProps) {
+export function ExternalResourceSection({
+  externals,
+  onAdd,
+  onEdit,
+  onRequestArchive,
+}: ExternalResourceSectionProps) {
   return (
     <section aria-labelledby="external-heading">
       <Separator className="mt-8" />
@@ -27,7 +39,9 @@ export function ExternalResourceSection({ externals, onAdd, onEdit, onRequestArc
           <h2 id="external-heading" className="text-lg font-semibold">
             {m.list_resources_external_heading()}
           </h2>
-          <SectionHelp title={m.list_resources_external_heading()}>{externalExplainer()}</SectionHelp>
+          <SectionHelp title={m.list_resources_external_heading()}>
+            {externalExplainer()}
+          </SectionHelp>
         </div>
         <AddButton label={m.list_resources_add_external()} onClick={onAdd} />
       </div>

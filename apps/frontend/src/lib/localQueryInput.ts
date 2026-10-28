@@ -6,7 +6,7 @@ export function rejectOverlongQueryPaste(event: React.ClipboardEvent<HTMLInputEl
   const input = event.currentTarget;
   const selectionStart = input.selectionStart ?? input.value.length;
   const selectionEnd = input.selectionEnd ?? input.value.length;
-  const pastedLength = event.clipboardData.getData("text").length;
+  const pastedLength = event.clipboardData.getData('text').length;
   const nextLength = input.value.length - (selectionEnd - selectionStart) + pastedLength;
 
   if (nextLength <= MAX_LOCAL_QUERY_CODE_UNITS) return false;

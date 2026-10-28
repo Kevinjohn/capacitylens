@@ -1,4 +1,4 @@
-import type { ID } from "@capacitylens/shared/types/entities";
+import type { ID } from '@capacitylens/shared/types/entities';
 
 /** Schedule filters for discipline, work, search, and visibility preferences. */
 export interface Filters {
@@ -10,7 +10,7 @@ export interface Filters {
   activityId: ID | null;
   /** Activity lens: all activities of a kind ('Internal, All' / 'All projects, All'). Mutually
    * exclusive with the client/project lens and with `activityId`. */
-  activityKind: "internal" | "repeatable" | null;
+  activityKind: 'internal' | 'repeatable' | null;
   search: string;
   hideTentative: boolean;
   /** When a client/project/activity filter is active, also show resources with no work on it
@@ -26,7 +26,7 @@ export const buildEmptyFilters = (): Filters => ({
   projectId: null,
   activityId: null,
   activityKind: null,
-  search: "",
+  search: '',
   hideTentative: false,
   showUnmatched: false,
 });
@@ -48,10 +48,17 @@ export function hasProjectClientLens(filters: Filters): boolean {
 
 /** Check whether a project/client or activity lens is active for the show-unmatched view. */
 export function hasLensFilter(filters: Filters): boolean {
-  return hasProjectClientLens(filters) || filters.activityId !== null || filters.activityKind !== null;
+  return (
+    hasProjectClientLens(filters) || filters.activityId !== null || filters.activityKind !== null
+  );
 }
 
 /** Check whether any filter changes the visible schedule. */
 export function hasActiveFilters(filters: Filters): boolean {
-  return hasLensFilter(filters) || !!filters.disciplineId || filters.search.trim() !== "" || filters.hideTentative;
+  return (
+    hasLensFilter(filters) ||
+    !!filters.disciplineId ||
+    filters.search.trim() !== '' ||
+    filters.hideTentative
+  );
 }

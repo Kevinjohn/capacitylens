@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { apiRouteUrl } from "@/api/queryClient";
-import { apiFetch } from "@/data/requestTimeout";
-import { readApiError } from "@/lib/readApiError";
-import { Modal } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { m } from "@/i18n";
+import { useState } from 'react';
+import { apiRouteUrl } from '@/api/queryClient';
+import { apiFetch } from '@/data/requestTimeout';
+import { readApiError } from '@/lib/readApiError';
+import { Modal } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { m } from '@/i18n';
 
-type Action = "transfer-ownership" | "import" | "anonymise";
+type Action = 'transfer-ownership' | 'import' | 'anonymise';
 
 interface ActionProofDialogProps {
   action: Action;
@@ -19,8 +19,14 @@ interface ActionProofDialogProps {
 }
 
 /** Confirms one exact action; each dialog receives only its own proof handle. */
-export function ActionProofDialog({ action, accountId, intent, onConfirmed, onCancel }: ActionProofDialogProps) {
-  const [password, setPassword] = useState("");
+export function ActionProofDialog({
+  action,
+  accountId,
+  intent,
+  onConfirmed,
+  onCancel,
+}: ActionProofDialogProps) {
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,12 +35,12 @@ export function ActionProofDialog({ action, accountId, intent, onConfirmed, onCa
     setBusy(true);
     setError(null);
     try {
-      const url = apiRouteUrl("api.auth.action-proof.password", {});
+      const url = apiRouteUrl('api.auth.action-proof.password', {});
       const body = { action, accountId, intent, password };
       const response = await apiFetch(url, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       if (!response.ok) {
@@ -43,11 +49,16 @@ export function ActionProofDialog({ action, accountId, intent, onConfirmed, onCa
         return;
       }
       const result: unknown = await response.json();
-      if (!result || typeof result !== "object" || !("proofId" in result) || typeof result.proofId !== "string")
-        throw new Error("Action confirmation returned no proof.");
+      if (
+        !result ||
+        typeof result !== 'object' ||
+        !('proofId' in result) ||
+        typeof result.proofId !== 'string'
+      )
+        throw new Error('Action confirmation returned no proof.');
       onConfirmed(result.proofId);
     } catch (cause) {
-      console.error("Action confirmation failed", cause);
+      console.error('Action confirmation failed', cause);
       setError(m.login_network_error());
       setBusy(false);
     }

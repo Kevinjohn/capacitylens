@@ -1,20 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { isServerConfigured } from "@/data/apiConfig";
-import { useStore } from "@/store/useStore";
-import { useAuth } from "./authContext";
-import { PermissionContext } from "./permissionContext";
-import type { Role } from "@capacitylens/shared/domain/access";
-import { refreshAccountSummaries } from "./useAccountSummaries";
-import { masqueradeApi } from "./masqueradeApi";
-import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from "./accountTransition";
+import { useEffect, useMemo, useState } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
+import { isServerConfigured } from '@/data/apiConfig';
+import { useStore } from '@/store/useStore';
+import { useAuth } from './authContext';
+import { PermissionContext } from './permissionContext';
+import type { Role } from '@capacitylens/shared/domain/access';
+import { refreshAccountSummaries } from './useAccountSummaries';
+import { masqueradeApi } from './masqueradeApi';
+import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
 
-type PermissionStatus = "not-applicable" | "pending" | "resolved" | "unavailable";
+type PermissionStatus = 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
 
 interface FetchedPermission {
   accountId: string;
   membershipRevision: number;
-  status: "resolved" | "unavailable";
+  status: 'resolved' | 'unavailable';
   role?: Role;
 }
 
@@ -41,18 +41,18 @@ interface PermissionValue {
 
 function publishUnavailable(refresh: PermissionRefresh) {
   if (!refresh.isCurrent()) return;
-  refresh.setActiveRole("viewer", "unavailable");
+  refresh.setActiveRole('viewer', 'unavailable');
   refresh.setFetched({
     accountId: refresh.accountId,
     membershipRevision: refresh.membershipRevision,
-    status: "unavailable",
+    status: 'unavailable',
   });
 }
 
 async function refreshPermission(refresh: PermissionRefresh) {
   // Reset the store role before the first await so a prior tenant's role cannot leak while the new
   // fetch is in flight. The provider value is independently keyed and already projects Viewer.
-  refresh.setActiveRole("viewer", "pending");
+  refresh.setActiveRole('viewer', 'pending');
   try {
     // Adopt masquerade status before publishing an effective role so reloads never render one
     // writable frame under a masqueraded session.
@@ -75,7 +75,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
     // A malformed role remains selectable only as an unavailable Viewer summary and never grants
     // access.
     const entry = summaries.find((account) => account.id === refresh.accountId);
-    if (!entry || entry.roleStatus === "unavailable") {
+    if (!entry || entry.roleStatus === 'unavailable') {
       publishUnavailable(refresh);
       return;
     }
@@ -83,13 +83,13 @@ async function refreshPermission(refresh: PermissionRefresh) {
     refresh.setFetched({
       accountId: refresh.accountId,
       membershipRevision: refresh.membershipRevision,
-      status: "resolved",
+      status: 'resolved',
       role: entry.role,
     });
-    refresh.setActiveRole(entry.role, "resolved");
+    refresh.setActiveRole(entry.role, 'resolved');
   } catch (error) {
     // Keep the fail-closed Viewer projection until a later successful lookup.
-    console.warn("PermissionProvider: the active account role could not be resolved", error);
+    console.warn('PermissionProvider: the active account role could not be resolved', error);
     publishUnavailable(refresh);
   }
 }
@@ -97,14 +97,14 @@ async function refreshPermission(refresh: PermissionRefresh) {
 function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
   if (input.masqueradeActive) {
     return input.masqueradeRole
-      ? { role: input.masqueradeRole, status: "resolved" }
-      : { role: "viewer", status: "pending" };
+      ? { role: input.masqueradeRole, status: 'resolved' }
+      : { role: 'viewer', status: 'pending' };
   }
-  if (!input.enabled || !input.activeAccountId) return { role: null, status: "not-applicable" };
-  if (input.fetched?.status === "resolved" && input.fetched.role) {
-    return { role: input.fetched.role, status: "resolved" };
+  if (!input.enabled || !input.activeAccountId) return { role: null, status: 'not-applicable' };
+  if (input.fetched?.status === 'resolved' && input.fetched.role) {
+    return { role: input.fetched.role, status: 'resolved' };
   }
-  return { role: "viewer", status: input.fetched?.status ?? "pending" };
+  return { role: 'viewer', status: input.fetched?.status ?? 'pending' };
 }
 
 /** Publishes the active company role from the shared validated directory. Authenticated lookups project unresolved membership to Viewer; off/demo uses no membership role. The store independently applies the same read-only guard. */
@@ -117,21 +117,21 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   // Tag resolved roles with accountId and membership revision so switching company immediately discards the previous role and projects Viewer until the new lookup succeeds.
   const [fetched, setFetched] = useState<FetchedPermission | null>(null);
 
-  const enabled = authMode !== "off" && isServerConfigured();
+  const enabled = authMode !== 'off' && isServerConfigured();
 
   useEffect(() => {
-    if (masquerade.kind !== "inactive") {
+    if (masquerade.kind !== 'inactive') {
       const state = masquerade.state;
       if (state && state.accountId === activeAccountId) {
-        setActiveRole(state.effectiveRole, "resolved");
+        setActiveRole(state.effectiveRole, 'resolved');
       } else {
-        setActiveRole("viewer", "pending");
+        setActiveRole('viewer', 'pending');
       }
       return;
     }
 
     if (!enabled || !activeAccountId) {
-      setActiveRole(null, "not-applicable");
+      setActiveRole(null, 'not-applicable');
       return;
     }
     let cancelled = false;
@@ -148,14 +148,16 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   }, [enabled, activeAccountId, membershipRevision, masquerade, setActiveRole]);
 
   const currentFetched =
-    fetched?.accountId === activeAccountId && fetched.membershipRevision === membershipRevision ? fetched : null;
+    fetched?.accountId === activeAccountId && fetched.membershipRevision === membershipRevision
+      ? fetched
+      : null;
   const { role, status } = resolvePermissionValue({
     enabled,
     activeAccountId,
     fetched: currentFetched,
-    masqueradeActive: masquerade.kind !== "inactive",
+    masqueradeActive: masquerade.kind !== 'inactive',
     masqueradeRole:
-      masquerade.kind !== "inactive" && masquerade.state?.accountId === activeAccountId
+      masquerade.kind !== 'inactive' && masquerade.state?.accountId === activeAccountId
         ? masquerade.state.effectiveRole
         : null,
   });

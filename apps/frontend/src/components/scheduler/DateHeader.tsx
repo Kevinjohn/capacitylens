@@ -1,15 +1,15 @@
-import { memo, useMemo } from "react";
-import { format } from "date-fns";
-import { m } from "@/i18n";
-import { formatDayMonth, formatMonthYear } from "@/lib/dateDisplay";
-import { useDateStyle } from "@/store/useDateStyle";
-import { parseDate, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import type { WeeksZoom } from "@/lib/schedulerConfig";
-import { LAYOUT } from "./layout";
-import type { ColumnGeometry } from "./columnGeometry";
-import { buildVisibleSpanInsets } from "./visibleSpanInsets";
+import { memo, useMemo } from 'react';
+import { format } from 'date-fns';
+import { m } from '@/i18n';
+import { formatDayMonth, formatMonthYear } from '@/lib/dateDisplay';
+import { useDateStyle } from '@/store/useDateStyle';
+import { parseDate, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import type { WeeksZoom } from '@/lib/schedulerConfig';
+import { LAYOUT } from './layout';
+import type { ColumnGeometry } from './columnGeometry';
+import { buildVisibleSpanInsets } from './visibleSpanInsets';
 
-const MONTH_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--month-start)", "var(--month-width)");
+const MONTH_LABEL_INSETS = buildVisibleSpanInsets('x', 'var(--month-start)', 'var(--month-width)');
 
 interface Span {
   key: string;
@@ -46,10 +46,11 @@ function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
 
 type ResolveDayClassOptions = { weekStart: boolean; isToday: boolean; weekend: boolean };
 function resolveDayClass({ weekStart, isToday, weekend }: ResolveDayClassOptions): string {
-  let stateClass = "text-muted-foreground";
-  if (isToday) stateClass = "bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]";
-  else if (weekend) stateClass = "bg-weekend text-muted-foreground";
-  return `flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? "border-l border-line" : ""} ${stateClass}`;
+  let stateClass = 'text-muted-foreground';
+  if (isToday)
+    stateClass = 'bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]';
+  else if (weekend) stateClass = 'bg-weekend text-muted-foreground';
+  return `flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? 'border-l border-line' : ''} ${stateClass}`;
 }
 
 function DateDayTier({
@@ -80,10 +81,12 @@ function DateDayTier({
             })}
             style={{ width: geometry.widthOf(index) }}
           >
-            <span className="font-medium">{format(date, "d")}</span>
+            <span className="font-medium">{format(date, 'd')}</span>
             {geometry.showWeekdayLabels && (
               <span className="text-2xs uppercase">
-                {geometry.minimiseActive && weekend ? m.scheduler_weekday_narrow_weekend() : format(date, "EEE")}
+                {geometry.minimiseActive && weekend
+                  ? m.scheduler_weekday_narrow_weekend()
+                  : format(date, 'EEE')}
               </span>
             )}
           </div>
@@ -109,7 +112,11 @@ function DateMonthTier({ months, geometry, alignVisibleMonths }: DateMonthTierPr
           <div
             key={month.key}
             className="relative flex shrink-0 items-center border-r border-line py-0.75"
-            style={{ width, ["--month-start" as string]: `${start}px`, ["--month-width" as string]: `${width}px` }}
+            style={{
+              width,
+              ['--month-start' as string]: `${start}px`,
+              ['--month-width' as string]: `${width}px`,
+            }}
           >
             {alignVisibleMonths ? (
               <>
@@ -171,7 +178,8 @@ export const DateHeader = memo(function DateHeader({
   const alignVisibleMonths = visibleWeeks <= 2 && showWeekday;
   const totalWidth = geometry.totalWidth;
 
-  const resolveSpanWidth = (span: Span) => geometry.spanWidth(span.start, span.start + span.days - 1);
+  const resolveSpanWidth = (span: Span) =>
+    geometry.spanWidth(span.start, span.start + span.days - 1);
   // Month grouping depends on visible dates, while formatted week labels also depend on date style. The style subscription wakes this memoized header for account-format changes.
   const dateStyle = useDateStyle();
   const months = useMemo(() => buildMonthSpans(days), [days]);

@@ -1,19 +1,19 @@
-import type { AppData } from "@capacitylens/shared/types/entities";
-import { useRef } from "react";
-import type { RefObject } from "react";
-import { m } from "@/i18n";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { PersonScheduleSheet } from "@/components/person-schedule/PersonScheduleSheet";
-import { usePersonScheduleDrawer } from "@/components/person-schedule/usePersonScheduleDrawer";
-import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
-import type { CapacityDisplayMode } from "./capacityOverviewBar";
-import { CapacityTable } from "./CapacityOverviewTableGrid";
-import { OverviewLegend } from "./OverviewLegend";
-import { OverviewToolbar } from "./OverviewToolbar";
-import type { PersonScheduleTriggerHandlers } from "./CapacityOverviewTableGrid";
-import type { CapacityOverviewModel } from "./capacityOverviewModel";
-import { useResourceAvatars } from "@/account/useResourceAvatars";
-import { useStore } from "@/store/useStore";
+import type { AppData } from '@capacitylens/shared/types/entities';
+import { useRef } from 'react';
+import type { RefObject } from 'react';
+import { m } from '@/i18n';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { PersonScheduleSheet } from '@/components/person-schedule/PersonScheduleSheet';
+import { usePersonScheduleDrawer } from '@/components/person-schedule/usePersonScheduleDrawer';
+import type { CapacityOverviewHorizon } from './capacityOverviewDates';
+import type { CapacityDisplayMode } from './capacityOverviewBar';
+import { CapacityTable } from './CapacityOverviewTableGrid';
+import { OverviewLegend } from './OverviewLegend';
+import { OverviewToolbar } from './OverviewToolbar';
+import type { PersonScheduleTriggerHandlers } from './CapacityOverviewTableGrid';
+import type { CapacityOverviewModel } from './capacityOverviewModel';
+import { useResourceAvatars } from '@/account/useResourceAvatars';
+import { useStore } from '@/store/useStore';
 
 /** The prepared capacity model and schedule actions consumed by the table. */
 export interface CapacityOverviewTableProps {

@@ -1,9 +1,9 @@
-import { m } from "@/i18n";
-import { ListPage } from "@/components/common/ui";
-import { SettingsSection } from "@/components/settings/SettingsSection";
-import { Button } from "@/components/ui/button";
-import { DiagnosticsBuildDetails } from "./DiagnosticsBuildDetails";
-import { useDiagnosticsController } from "./useDiagnosticsController";
+import { m } from '@/i18n';
+import { ListPage } from '@/components/common/ui';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { Button } from '@/components/ui/button';
+import { DiagnosticsBuildDetails } from './DiagnosticsBuildDetails';
+import { useDiagnosticsController } from './useDiagnosticsController';
 
 /** Shows the privacy-safe support report exactly as it is copied, for Owners and Admins. */
 export function DiagnosticsView() {
@@ -11,7 +11,11 @@ export function DiagnosticsView() {
   return (
     <ListPage title={m.diagnostics_title()}>
       <div className="flex flex-col gap-6">
-        <SettingsSection title={m.diagnostics_report_heading()} help={m.diagnostics_help()} testId="diagnostics-report">
+        <SettingsSection
+          title={m.diagnostics_report_heading()}
+          help={m.diagnostics_help()}
+          testId="diagnostics-report"
+        >
           <p className="text-sm text-muted-foreground">{m.diagnostics_description()}</p>
           <pre
             data-testid="diagnostics-report-text"
@@ -20,12 +24,17 @@ export function DiagnosticsView() {
             {report}
           </pre>
           <div>
-            <Button size="sm" variant="outline" data-testid="copy-diagnostics" onClick={() => void copyReport()}>
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="copy-diagnostics"
+              onClick={() => void copyReport()}
+            >
               {m.diagnostics_copy()}
             </Button>
           </div>
-          {copyState === "copied" && <p role="status">{m.diagnostics_copied()}</p>}
-          {copyState === "failed" && (
+          {copyState === 'copied' && <p role="status">{m.diagnostics_copied()}</p>}
+          {copyState === 'failed' && (
             <p role="status" className="text-danger">
               {m.diagnostics_copy_failed()}
             </p>

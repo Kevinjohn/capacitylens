@@ -1,5 +1,5 @@
-import type { Activity } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
+import type { Activity } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
 import {
   Select,
   SelectContent,
@@ -8,21 +8,26 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 
 /** Selected activity and change handler for the activity filter. */
 export interface ToolbarActivityFilterProps {
   activityId: string | null;
-  activityKind: "internal" | "repeatable" | null;
+  activityKind: 'internal' | 'repeatable' | null;
   internalActivities: Activity[];
   repeatableActivities: Activity[];
-  onChange: (patch: { activityId: string | null; activityKind: "internal" | "repeatable" | null }) => void;
+  onChange: (patch: {
+    activityId: string | null;
+    activityKind: 'internal' | 'repeatable' | null;
+  }) => void;
 }
 
-function buildActivityFilterPatch(value: string): Parameters<ToolbarActivityFilterProps["onChange"]>[0] {
-  if (value === "kind:internal") return { activityKind: "internal", activityId: null };
-  if (value === "kind:repeatable") return { activityKind: "repeatable", activityId: null };
-  return { activityId: value === "all" ? null : value, activityKind: null };
+function buildActivityFilterPatch(
+  value: string,
+): Parameters<ToolbarActivityFilterProps['onChange']>[0] {
+  if (value === 'kind:internal') return { activityKind: 'internal', activityId: null };
+  if (value === 'kind:repeatable') return { activityKind: 'repeatable', activityId: null };
+  return { activityId: value === 'all' ? null : value, activityKind: null };
 }
 
 /** Selects an activity lens for the schedule. */
@@ -35,7 +40,7 @@ export function ToolbarActivityFilter({
 }: ToolbarActivityFilterProps) {
   return (
     <Select
-      value={activityKind ? `kind:${activityKind}` : (activityId ?? "all")}
+      value={activityKind ? `kind:${activityKind}` : (activityId ?? 'all')}
       onValueChange={(value) => onChange(buildActivityFilterPatch(value))}
     >
       <SelectTrigger size="sm" aria-label={m.scheduler_filter_activity_aria()} className="w-auto">

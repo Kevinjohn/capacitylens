@@ -1,59 +1,74 @@
-import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./browserTestSupport";
+import { test, expect } from './fixtures';
+import { openApp, selectShadOption } from './browserTestSupport';
 
 // Covers US-PRJ-01..03. US-PRJ-04 remains manual while phase management is hidden.
-test.describe("Projects", () => {
-  test("rejects a project without a client and adds one with a client", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/projects");
-    await page.getByRole("button", { name: "Add project" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Apollo");
+test.describe('Projects', () => {
+  test('rejects a project without a client and adds one with a client', async ({ page }) => {
+    await openApp(page, 'Wayne Enterprises', '/projects');
+    await page.getByRole('button', { name: 'Add project' }).click();
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Apollo');
 
-    await page.getByLabel("Client").click();
-    await expect(page.getByRole("option")).toHaveText(["Internal", "LexCorp", "Queen Consolidated"]);
+    await page.getByLabel('Client').click();
+    await expect(page.getByRole('option')).toHaveText([
+      'Internal',
+      'LexCorp',
+      'Queen Consolidated',
+    ]);
     const separator = page.locator('[data-slot="select-separator"]');
     await expect(separator).toHaveCount(1);
-    await expect(separator).toHaveAttribute("aria-hidden", "true");
-    await expect(separator).not.toHaveAttribute("data-value");
-    await page.keyboard.press("ArrowDown");
-    await expect(page.getByRole("option", { name: "LexCorp" })).toHaveAttribute("data-highlighted", "");
-    await page.keyboard.press("Escape");
+    await expect(separator).toHaveAttribute('aria-hidden', 'true');
+    await expect(separator).not.toHaveAttribute('data-value');
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('option', { name: 'LexCorp' })).toHaveAttribute(
+      'data-highlighted',
+      '',
+    );
+    await page.keyboard.press('Escape');
 
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByRole("alert")).toContainText(/must belong to a client/i);
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByRole('alert')).toContainText(/must belong to a client/i);
 
-    await selectShadOption(page.getByLabel("Client"), { label: "Queen Consolidated" });
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("project-row").filter({ hasText: "Apollo" })).toBeVisible();
+    await selectShadOption(page.getByLabel('Client'), { label: 'Queen Consolidated' });
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByTestId('project-row').filter({ hasText: 'Apollo' })).toBeVisible();
   });
 
-  test("edits a project name", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/projects");
+  test('edits a project name', async ({ page }) => {
+    await openApp(page, 'Wayne Enterprises', '/projects');
     await page
-      .getByTestId("project-row")
-      .filter({ hasText: "Metropolis Rebrand" })
-      .getByRole("button", { name: /^Edit / })
+      .getByTestId('project-row')
+      .filter({ hasText: 'Metropolis Rebrand' })
+      .getByRole('button', { name: /^Edit / })
       .click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Brand Refresh");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("project-row").filter({ hasText: "Brand Refresh" })).toBeVisible();
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Brand Refresh');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(
+      page.getByTestId('project-row').filter({ hasText: 'Brand Refresh' }),
+    ).toBeVisible();
   });
 
   // the per-row destructive action archives (hidden from the active list, fully retained, not
   // a hard cascade-delete). Booking-only Undo leaves the archive in place.
-  test("archiving a project hides it from the list, and undo leaves it archived", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/projects");
+  test('archiving a project hides it from the list, and undo leaves it archived', async ({
+    page,
+  }) => {
+    await openApp(page, 'Wayne Enterprises', '/projects');
     await page
-      .getByTestId("project-row")
-      .filter({ hasText: "Project Watchtower" })
-      .getByRole("button", { name: "Archive Project Watchtower" })
+      .getByTestId('project-row')
+      .filter({ hasText: 'Project Watchtower' })
+      .getByRole('button', { name: 'Archive Project Watchtower' })
       .click();
     await page
-      .getByRole("alertdialog", { name: "Archive project?" })
-      .getByRole("button", { name: "Archive", exact: true })
+      .getByRole('alertdialog', { name: 'Archive project?' })
+      .getByRole('button', { name: 'Archive', exact: true })
       .click();
-    await expect(page.getByTestId("project-row").filter({ hasText: "Project Watchtower" })).toHaveCount(0);
+    await expect(
+      page.getByTestId('project-row').filter({ hasText: 'Project Watchtower' }),
+    ).toHaveCount(0);
 
-    await page.keyboard.press("Meta+z");
-    await expect(page.getByTestId("project-row").filter({ hasText: "Project Watchtower" })).toHaveCount(0);
+    await page.keyboard.press('Meta+z');
+    await expect(
+      page.getByTestId('project-row').filter({ hasText: 'Project Watchtower' }),
+    ).toHaveCount(0);
   });
 });

@@ -2,7 +2,7 @@
 
 // All keys below carry the shared brand prefix (defined once in shared/src/brand.ts) so clearing /
 // migrating by prefix catches every one of them.
-import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
+import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand';
 
 interface ReadBooleanPreferenceInput {
   key: string;
@@ -29,8 +29,8 @@ interface WriteStoredSidebarOpenInput {
 function readBooleanPreference({ key, fallback }: ReadBooleanPreferenceInput): boolean {
   try {
     const raw = localStorage.getItem(key);
-    if (raw === "on") return true;
-    if (raw === "off") return false;
+    if (raw === 'on') return true;
+    if (raw === 'off') return false;
   } catch {
     // This device preference may use its default when browser storage or APIs are unavailable.
   }
@@ -39,24 +39,30 @@ function readBooleanPreference({ key, fallback }: ReadBooleanPreferenceInput): b
 
 function writeBooleanPreference({ key, on }: WriteBooleanPreferenceInput): void {
   try {
-    localStorage.setItem(key, on ? "on" : "off");
+    localStorage.setItem(key, on ? 'on' : 'off');
   } catch {
     // A failed device-preference write loses only this browser choice; the session keeps its in-memory value.
   }
 }
 
-function mergeBooleanRecord<T extends Record<keyof T, boolean>>(defaults: T, parsed: Partial<T>): T {
+function mergeBooleanRecord<T extends Record<keyof T, boolean>>(
+  defaults: T,
+  parsed: Partial<T>,
+): T {
   const merged = { ...defaults };
   for (const field of Object.keys(defaults) as (keyof T)[]) {
     const value = parsed[field];
-    if (typeof value === "boolean") merged[field] = value as T[keyof T];
+    if (typeof value === 'boolean') merged[field] = value as T[keyof T];
   }
   return merged;
 }
 
 // Read only declared preference fields so legacy or unknown keys cannot widen the
 // runtime shape; unavailable or malformed storage keeps the documented defaults.
-function readBooleanRecordPreference<T extends Record<keyof T, boolean>>(key: string, defaults: T): T {
+function readBooleanRecordPreference<T extends Record<keyof T, boolean>>(
+  key: string,
+  defaults: T,
+): T {
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
@@ -69,7 +75,10 @@ function readBooleanRecordPreference<T extends Record<keyof T, boolean>>(key: st
   return { ...defaults };
 }
 
-function writeBooleanRecordPreference<T extends Record<keyof T, boolean>>(key: string, preferences: T): void {
+function writeBooleanRecordPreference<T extends Record<keyof T, boolean>>(
+  key: string,
+  preferences: T,
+): void {
   try {
     localStorage.setItem(key, JSON.stringify(preferences));
   } catch {
@@ -164,8 +173,8 @@ const SMALL_VIEWPORT_QUERY = `(max-width: 1023px), (max-height: 480px)`;
 export function readStoredSidebarOpen(): boolean | null {
   try {
     const raw = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    if (raw === "open") return true;
-    if (raw === "closed") return false;
+    if (raw === 'open') return true;
+    if (raw === 'closed') return false;
   } catch {
     // This device preference may use its default when browser storage or APIs are unavailable.
   }
@@ -175,7 +184,7 @@ export function readStoredSidebarOpen(): boolean | null {
 /** Persist the sidebar choice. Best-effort, like the prefs above. */
 export function writeStoredSidebarOpen({ open }: WriteStoredSidebarOpenInput): void {
   try {
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? "open" : "closed");
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? 'open' : 'closed');
   } catch {
     // A failed device-preference write loses only this browser choice; the session keeps its in-memory value.
   }
@@ -185,7 +194,7 @@ export function writeStoredSidebarOpen({ open }: WriteStoredSidebarOpenInput): v
  * non-browser environments (jsdom has no matchMedia) where it defaults open. */
 export function readDefaultSidebarOpen(): boolean {
   try {
-    if (typeof window.matchMedia === "function") {
+    if (typeof window.matchMedia === 'function') {
       return !window.matchMedia(SMALL_VIEWPORT_QUERY).matches;
     }
   } catch {
@@ -197,7 +206,7 @@ export function readDefaultSidebarOpen(): boolean {
 // Minimise weekend columns by default to preserve schedule width. This is a device preference.
 /** Reads and writes the browser preference for minimising weekend columns. */
 export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createBooleanPreference({
-  key: "minimiseWeekends",
+  key: 'minimiseWeekends',
   fallback: true,
 });
 
@@ -207,6 +216,9 @@ export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createB
 // store "off" to hold a mid-week position across the idle re-floor (see e2e/browserTestSupport.ts).
 // Governs free scroll only; the navigation snap (zoom / Prev-Next / date-picker) is always on.
 /** Storage key for the browser-test week-snap override. */
-export const WEEK_SNAP_OVERRIDE_KEY = "snapToWeekStart";
+export const WEEK_SNAP_OVERRIDE_KEY = 'snapToWeekStart';
 /** Reads the optional browser-test override for snapping to week starts. */
-export const [readStoredWeekSnapOverride] = createBooleanPreference({ key: WEEK_SNAP_OVERRIDE_KEY, fallback: true });
+export const [readStoredWeekSnapOverride] = createBooleanPreference({
+  key: WEEK_SNAP_OVERRIDE_KEY,
+  fallback: true,
+});

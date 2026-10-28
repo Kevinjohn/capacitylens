@@ -1,9 +1,10 @@
-import { m } from "@/i18n";
-import type { MembershipStatus } from "@capacitylens/shared/account/types";
-import type { TeamMember } from "@/account/teamAccessClient";
+import { m } from '@/i18n';
+import type { MembershipStatus } from '@capacitylens/shared/account/types';
+import type { TeamMember } from '@/account/teamAccessClient';
 
 /** Member administration actions that require a confirmation message. */
-export type MemberConfirmationAction = "masquerade" | "remove" | "disable" | "enable" | "archive" | "restore";
+export type MemberConfirmationAction =
+  'masquerade' | 'remove' | 'disable' | 'enable' | 'archive' | 'restore';
 /** A pending action and its target member. */
 export type MemberConfirmation = { kind: MemberConfirmationAction; member: TeamMember };
 
@@ -23,25 +24,25 @@ export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation
   message: string;
 } {
   switch (kind) {
-    case "masquerade":
+    case 'masquerade':
       return {
         title: m.settings_masquerade_title(),
         confirmLabel: m.settings_masquerade_confirm(),
         message: m.settings_masquerade_message({ member: resolveMemberLabel(member) }),
       };
-    case "remove":
+    case 'remove':
       return {
         title: m.settings_remove_member_title(),
         confirmLabel: m.settings_member_remove(),
         message: m.settings_remove_member_message({ member: resolveMemberLabel(member) }),
       };
-    case "disable":
+    case 'disable':
       return {
         title: m.settings_disable_member_title(),
         confirmLabel: m.settings_member_disable(),
         message: m.settings_disable_member_message({ member: resolveMemberLabel(member) }),
       };
-    case "enable":
+    case 'enable':
       return {
         title: m.settings_enable_member_title(),
         confirmLabel: m.settings_member_enable(),
@@ -50,13 +51,13 @@ export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation
             ? m.settings_enable_removed_member_message({ member: resolveMemberLabel(member) })
             : m.settings_enable_member_message({ member: resolveMemberLabel(member) }),
       };
-    case "archive":
+    case 'archive':
       return {
         title: m.settings_archive_member_title(),
         confirmLabel: m.settings_member_archive(),
         message: m.settings_archive_member_message({ member: resolveMemberLabel(member) }),
       };
-    case "restore":
+    case 'restore':
       return {
         title: m.settings_restore_member_title(),
         confirmLabel: m.settings_member_restore(),
@@ -67,8 +68,10 @@ export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation
 
 /** The status a confirmed lifecycle action writes. Kept beside buildMemberConfirmationCopy so a new action
  * cannot be added to the union without deciding both its wording and its effect. */
-export const STATUS_FOR_ACTION: Readonly<Record<"disable" | "archive" | "restore", MembershipStatus>> = Object.freeze({
-  disable: "disabled",
-  archive: "archived",
-  restore: "active",
+export const STATUS_FOR_ACTION: Readonly<
+  Record<'disable' | 'archive' | 'restore', MembershipStatus>
+> = Object.freeze({
+  disable: 'disabled',
+  archive: 'archived',
+  restore: 'active',
 });

@@ -1,9 +1,9 @@
-import { useMemo } from "react";
-import { prepareBetaImport } from "@capacitylens/shared/data/betaTransfer";
-import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
+import { useMemo } from 'react';
+import { prepareBetaImport } from '@capacitylens/shared/data/betaTransfer';
+import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
 
 type ImportContext = Parameters<typeof prepareBetaImport>[1];
 type PreparedImport = ReturnType<typeof prepareBetaImport>;
@@ -20,7 +20,7 @@ export function BetaImportPreview({ document, context, onPrepared }: BetaImportP
     try {
       const prepared = prepareBetaImport(document, context);
       const company = prepared.data.accounts[0];
-      if (!company) throw new Error("The beta document must contain one company.");
+      if (!company) throw new Error('The beta document must contain one company.');
       return { prepared, company };
     } catch (error) {
       return { error: resolveErrorMessage(error) };

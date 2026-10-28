@@ -1,7 +1,7 @@
-import * as React from "react";
-import { Command as CommandPrimitive } from "cmdk";
+import * as React from 'react';
+import { Command as CommandPrimitive } from 'cmdk';
 
-import { cn } from "@/lib/cn";
+import { cn } from '@/lib/cn';
 
 /** Renders the command menu root. */
 function Command({
@@ -12,7 +12,7 @@ function Command({
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "flex h-full w-full flex-col overflow-hidden bg-elevated text-ink",
+        'flex h-full w-full flex-col overflow-hidden bg-elevated text-ink',
         className,
       )}
       {...props}
@@ -29,7 +29,7 @@ function CommandInput({
     <CommandPrimitive.Input
       data-slot="command-input"
       className={cn(
-        "min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-faint disabled:cursor-not-allowed disabled:opacity-50",
+        'min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-faint disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
       {...props}
@@ -45,7 +45,7 @@ function CommandList({
   return (
     <CommandPrimitive.List
       data-slot="command-list"
-      className={cn("overflow-x-hidden overflow-y-auto py-1", className)}
+      className={cn('overflow-x-hidden overflow-y-auto py-1', className)}
       {...props}
     />
   );
@@ -60,7 +60,7 @@ function CommandEmpty({
     <CommandPrimitive.Empty
       data-slot="command-empty"
       className={cn(
-        "py-6 text-center text-sm text-muted-foreground",
+        'py-6 text-center text-sm text-muted-foreground',
         className,
       )}
       {...props}
@@ -77,7 +77,7 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        "overflow-hidden text-ink [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:text-2xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-faint",
+        'overflow-hidden text-ink [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:text-2xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-faint',
         className,
       )}
       {...props}
@@ -95,7 +95,7 @@ function CommandItem({
       data-slot="command-item"
       className={cn(
         // Local colour deviation: selected commands use the paired brand tint and ink. Avoid a separate hover fill because cmdk already changes selection on pointer movement and its paired text colour must change together.
-        "relative flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-ink outline-none transition-colors select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-brand-soft data-[selected=true]:text-ink",
+        'relative flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-ink outline-none transition-colors select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-brand-soft data-[selected=true]:text-ink',
         className,
       )}
       {...props}

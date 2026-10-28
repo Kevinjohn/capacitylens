@@ -1,7 +1,7 @@
-import type { Closure, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { compareDisplayNames } from "@/lib/displayOrder";
-import { resolveResourceDisplayName } from "@/lib/metadata";
-import { m } from "@/i18n";
+import type { Closure, ID, ISODate, Resource, TimeOff } from '@capacitylens/shared/types/entities';
+import { compareDisplayNames } from '@/lib/displayOrder';
+import { resolveResourceDisplayName } from '@/lib/metadata';
+import { m } from '@/i18n';
 
 interface BuildTimeOffGroupsInput {
   timeOff: readonly TimeOff[];
@@ -12,8 +12,8 @@ interface BuildTimeOffGroupsInput {
 
 /** One heading and its ordered, currently relevant time-off entries. */
 export type TimeOffGroup =
-  | { kind: "resource"; resourceId: ID; name: string; entries: TimeOff[] }
-  | { kind: "unknown"; name: string; entries: TimeOff[] };
+  | { kind: 'resource'; resourceId: ID; name: string; entries: TimeOff[] }
+  | { kind: 'unknown'; name: string; entries: TimeOff[] };
 
 const compareEntries = (left: TimeOff, right: TimeOff): number =>
   left.startDate.localeCompare(right.startDate) ||
@@ -44,23 +44,28 @@ export function buildTimeOffGroups({
   placeholdersEnabled,
 }: BuildTimeOffGroupsInput): TimeOffGroup[] {
   const resourcesById = new Map(resources.map((resource) => [resource.id, resource]));
-  const byResource = new Map<ID, Extract<TimeOffGroup, { kind: "resource" }>>();
-  let unknown: Extract<TimeOffGroup, { kind: "unknown" }> | null = null;
+  const byResource = new Map<ID, Extract<TimeOffGroup, { kind: 'resource' }>>();
+  let unknown: Extract<TimeOffGroup, { kind: 'unknown' }> | null = null;
 
   for (const entry of timeOff) {
     if (entry.endDate < weekStart) continue;
     const resource = resourcesById.get(entry.resourceId);
-    if (resource?.kind === "placeholder" && !placeholdersEnabled) continue;
+    if (resource?.kind === 'placeholder' && !placeholdersEnabled) continue;
 
     if (!resource) {
-      unknown ??= { kind: "unknown", name: m.list_timeoff_unknown_resource(), entries: [] };
+      unknown ??= { kind: 'unknown', name: m.list_timeoff_unknown_resource(), entries: [] };
       unknown.entries.push(entry);
       continue;
     }
 
     let group = byResource.get(resource.id);
     if (!group) {
-      group = { kind: "resource", resourceId: resource.id, name: resolveResourceDisplayName(resource), entries: [] };
+      group = {
+        kind: 'resource',
+        resourceId: resource.id,
+        name: resolveResourceDisplayName(resource),
+        entries: [],
+      };
       byResource.set(resource.id, group);
     }
     group.entries.push(entry);

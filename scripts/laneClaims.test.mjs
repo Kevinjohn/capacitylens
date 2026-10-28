@@ -1,6 +1,6 @@
-import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
-import test from "node:test";
+import assert from 'node:assert/strict';
+import { spawn, spawnSync } from 'node:child_process';
+import test from 'node:test';
 import {
   existsSync,
   mkdirSync,
@@ -10,11 +10,15 @@ import {
   unlinkSync,
   utimesSync,
   writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { presetEnvironment, resolvePlaywrightRunMode, E2E_RUN_PRESETS } from "./playwrightRunMode.mjs";
-import { nonColourEnvironment } from "./pnpmSpawn.mjs";
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  presetEnvironment,
+  resolvePlaywrightRunMode,
+  E2E_RUN_PRESETS,
+} from './playwrightRunMode.mjs';
+import { nonColourEnvironment } from './pnpmSpawn.mjs';
 import {
   assertLaneFree,
   claimLane,
@@ -25,36 +29,36 @@ import {
   releaseMutex,
   resolveLaunchClaim,
   shareForClaims,
-} from "./laneClaims.mjs";
-import { LANE_CEILING, LANE_CLAIM_ENVIRONMENT_KEY, portsForLane } from "./ports.mjs";
+} from './laneClaims.mjs';
+import { LANE_CEILING, LANE_CLAIM_ENVIRONMENT_KEY, portsForLane } from './ports.mjs';
 
 function scratch() {
-  const cache = mkdtempSync(join(tmpdir(), "lanes-"));
+  const cache = mkdtempSync(join(tmpdir(), 'lanes-'));
   return { XDG_CACHE_HOME: cache, HOME: cache };
 }
 
-test("the first claim takes lane 0 and the next takes lane 1", () => {
+test('the first claim takes lane 0 and the next takes lane 1', () => {
   const environment = scratch();
-  const first = claimLane({ worktree: "/tmp/a", environment });
-  const second = claimLane({ worktree: "/tmp/b", environment });
+  const first = claimLane({ worktree: '/tmp/a', environment });
+  const second = claimLane({ worktree: '/tmp/b', environment });
   assert.equal(first.lane, 0);
   assert.equal(second.lane, 1);
   assert.notDeepEqual(portsForLane(first.lane), portsForLane(second.lane));
 });
 
-test("an explicitly selected lane is reserved", () => {
+test('an explicitly selected lane is reserved', () => {
   const environment = scratch();
-  const claim = claimLane({ worktree: "/tmp/pinned", environment, lane: 4 });
+  const claim = claimLane({ worktree: '/tmp/pinned', environment, lane: 4 });
   assert.equal(claim.lane, 4);
-  assert.equal(existsSync(join(laneDirectory(environment), "4.json")), true);
+  assert.equal(existsSync(join(laneDirectory(environment), '4.json')), true);
   claim.release();
 });
 
-test("an explicitly selected lane held by a live claim is refused", () => {
+test('an explicitly selected lane held by a live claim is refused', () => {
   const environment = scratch();
-  const held = claimLane({ worktree: "/tmp/holder", environment, lane: 4 });
+  const held = claimLane({ worktree: '/tmp/holder', environment, lane: 4 });
   assert.throws(
-    () => claimLane({ worktree: "/tmp/contender", environment, lane: 4 }),
+    () => claimLane({ worktree: '/tmp/contender', environment, lane: 4 }),
     new RegExp(`lane 4 is held by pid ${process.pid} in /tmp/holder`),
   );
   held.release();
@@ -64,48 +68,54 @@ test("a lane whose holder has gone is reclaimed, and a live holder's is not", ()
   const environment = scratch();
   const directory = laneDirectory(environment);
   // Lane 0 is held by this live process.
-  claimLane({ worktree: "/tmp/a", environment });
+  claimLane({ worktree: '/tmp/a', environment });
   // A claim from a pid that cannot exist: the highest pid is well below this.
-  writeFileSync(join(directory, "1.json"), JSON.stringify({ pid: 2 ** 30, worktree: "/tmp/dead", share: 4 }));
-  const next = claimLane({ worktree: "/tmp/c", environment });
+  writeFileSync(
+    join(directory, '1.json'),
+    JSON.stringify({ pid: 2 ** 30, worktree: '/tmp/dead', share: 4 }),
+  );
+  const next = claimLane({ worktree: '/tmp/c', environment });
   assert.equal(next.lane, 1, "the dead holder's lane is the first free one");
 });
 
-test("an unreadable claim surfaces its read error instead of being reclaimed", () => {
+test('an unreadable claim surfaces its read error instead of being reclaimed', () => {
   const environment = scratch();
   const directory = laneDirectory(environment);
-  claimLane({ worktree: "/tmp/initial", environment }).release();
+  claimLane({ worktree: '/tmp/initial', environment }).release();
   // A directory in place of the claim file makes the read fail with EISDIR, portably and as root.
-  mkdirSync(join(directory, "0.json"));
-  assert.throws(() => claimLane({ worktree: "/tmp/b", environment }), { code: "EISDIR" });
-  assert.throws(() => releaseLane(directory, 0, "token"), { code: "EISDIR" });
-  assert.equal(existsSync(join(directory, "0.json")), true);
+  mkdirSync(join(directory, '0.json'));
+  assert.throws(() => claimLane({ worktree: '/tmp/b', environment }), { code: 'EISDIR' });
+  assert.throws(() => releaseLane(directory, 0, 'token'), { code: 'EISDIR' });
+  assert.equal(existsSync(join(directory, '0.json')), true);
 });
 
-test("a live mutex is not reclaimed solely because its timestamp is old", () => {
+test('a live mutex is not reclaimed solely because its timestamp is old', () => {
   const environment = scratch();
   const directory = laneDirectory(environment);
   // The directory is created by an initial claim; its claim is released before the assertion.
-  claimLane({ worktree: "/tmp/a", environment }).release();
-  mkdirSync(join(directory, ".mutex"));
-  writeFileSync(join(directory, ".mutex", "owner-old.json"), JSON.stringify({ pid: process.pid, at: 0 }));
+  claimLane({ worktree: '/tmp/a', environment }).release();
+  mkdirSync(join(directory, '.mutex'));
+  writeFileSync(
+    join(directory, '.mutex', 'owner-old.json'),
+    JSON.stringify({ pid: process.pid, at: 0 }),
+  );
   const realNow = Date.now;
   let now = realNow();
   Date.now = () => (now += 31_000);
   try {
-    assert.throws(() => claimLane({ worktree: "/tmp/b", environment }), /held by pid/);
+    assert.throws(() => claimLane({ worktree: '/tmp/b', environment }), /held by pid/);
   } finally {
     Date.now = realNow;
   }
 });
 
 test(
-  "a paused real mutex publisher cannot enter the lane scan while another owner holds the lock",
+  'a paused real mutex publisher cannot enter the lane scan while another owner holds the lock',
   { timeout: 15_000 },
   async () => {
     const environment = scratch();
     const directory = laneDirectory(environment);
-    claimLane({ worktree: "/tmp/initial", environment }).release();
+    claimLane({ worktree: '/tmp/initial', environment }).release();
     const pauseAt = async (name) => {
       const path = join(directory, name);
       for (let tries = 0; tries < 500; tries += 1) {
@@ -160,81 +170,88 @@ test(
       const child = spawn(
         process.execPath,
         [
-          "--input-type=module",
-          "-e",
+          '--input-type=module',
+          '-e',
           childCode,
-          new URL("./laneClaims.mjs", import.meta.url).href,
+          new URL('./laneClaims.mjs', import.meta.url).href,
           role,
           directory,
           environment.XDG_CACHE_HOME,
         ],
-        { stdio: ["ignore", "ignore", "pipe"] },
+        { stdio: ['ignore', 'ignore', 'pipe'] },
       );
-      let stderr = "";
-      child.stderr.on("data", (chunk) => {
+      let stderr = '';
+      child.stderr.on('data', (chunk) => {
         stderr += chunk;
       });
-      const done = new Promise((resolve) => child.once("exit", (code) => resolve({ code, stderr })));
+      const done = new Promise((resolve) =>
+        child.once('exit', (code) => resolve({ code, stderr })),
+      );
       return { child, done };
     };
-    const publisher = run("publisher");
+    const publisher = run('publisher');
     let contender;
     try {
-      await pauseAt("publisher-created");
-      contender = run("contender");
-      await pauseAt("contender-locked");
-      writeFileSync(join(directory, "continue-publisher"), "go");
+      await pauseAt('publisher-created');
+      contender = run('contender');
+      await pauseAt('contender-locked');
+      writeFileSync(join(directory, 'continue-publisher'), 'go');
       await new Promise((resolve) => setTimeout(resolve, 100));
       assert.equal(
-        existsSync(join(directory, "publisher-scanned")),
+        existsSync(join(directory, 'publisher-scanned')),
         false,
         "the publisher must still wait for the contender's mutex",
       );
-      writeFileSync(join(directory, "continue-contender"), "go");
-      await pauseAt("publisher-lane");
-      await pauseAt("contender-lane");
+      writeFileSync(join(directory, 'continue-contender'), 'go');
+      await pauseAt('publisher-lane');
+      await pauseAt('contender-lane');
       assert.notEqual(
-        readFileSync(join(directory, "publisher-lane"), "utf8"),
-        readFileSync(join(directory, "contender-lane"), "utf8"),
+        readFileSync(join(directory, 'publisher-lane'), 'utf8'),
+        readFileSync(join(directory, 'contender-lane'), 'utf8'),
       );
     } finally {
-      for (const name of ["continue-publisher", "continue-contender", "release-publisher", "release-contender"])
-        writeFileSync(join(directory, name), "go");
-      publisher.child.kill("SIGKILL");
-      contender?.child.kill("SIGKILL");
+      for (const name of [
+        'continue-publisher',
+        'continue-contender',
+        'release-publisher',
+        'release-contender',
+      ])
+        writeFileSync(join(directory, name), 'go');
+      publisher.child.kill('SIGKILL');
+      contender?.child.kill('SIGKILL');
       await publisher.done;
       if (contender) await contender.done;
     }
   },
 );
 
-test("a live legacy file mutex is respected and a dead one is reclaimed", () => {
+test('a live legacy file mutex is respected and a dead one is reclaimed', () => {
   const environment = scratch();
   const directory = laneDirectory(environment);
-  claimLane({ worktree: "/tmp/initial", environment }).release();
-  const mutex = join(directory, ".mutex");
+  claimLane({ worktree: '/tmp/initial', environment }).release();
+  const mutex = join(directory, '.mutex');
   writeFileSync(mutex, JSON.stringify({ pid: process.pid, at: 0 }));
   const realNow = Date.now;
   let now = realNow();
   Date.now = () => (now += 31_000);
   try {
-    assert.throws(() => claimLane({ worktree: "/tmp/blocked", environment }), /held by pid/);
+    assert.throws(() => claimLane({ worktree: '/tmp/blocked', environment }), /held by pid/);
   } finally {
     Date.now = realNow;
   }
   unlinkSync(mutex);
   writeFileSync(mutex, JSON.stringify({ pid: 2 ** 30, at: 0 }));
-  const claim = claimLane({ worktree: "/tmp/reclaimed", environment });
+  const claim = claimLane({ worktree: '/tmp/reclaimed', environment });
   assert.equal(claim.lane, 0);
   claim.release();
 });
 
-test("a fresh empty or corrupt legacy mutex is left for its possible live publisher", () => {
-  for (const contents of ["", "not-json"]) {
+test('a fresh empty or corrupt legacy mutex is left for its possible live publisher', () => {
+  for (const contents of ['', 'not-json']) {
     const environment = scratch();
     const directory = laneDirectory(environment);
-    claimLane({ worktree: "/tmp/initial", environment }).release();
-    const mutex = join(directory, ".mutex");
+    claimLane({ worktree: '/tmp/initial', environment }).release();
+    const mutex = join(directory, '.mutex');
     writeFileSync(mutex, contents);
     const realNow = Date.now;
     let now = realNow();
@@ -243,24 +260,24 @@ test("a fresh empty or corrupt legacy mutex is left for its possible live publis
     utimesSync(mutex, future, future);
     Date.now = () => (now += 31_000);
     try {
-      assert.throws(() => claimLane({ worktree: "/tmp/blocked", environment }), /no valid owner/);
-      assert.equal(readFileSync(mutex, "utf8"), contents);
+      assert.throws(() => claimLane({ worktree: '/tmp/blocked', environment }), /no valid owner/);
+      assert.equal(readFileSync(mutex, 'utf8'), contents);
     } finally {
       Date.now = realNow;
     }
   }
 });
 
-test("an abandoned empty or corrupt legacy mutex is reaped", () => {
-  for (const contents of ["", "not-json"]) {
+test('an abandoned empty or corrupt legacy mutex is reaped', () => {
+  for (const contents of ['', 'not-json']) {
     const environment = scratch();
     const directory = laneDirectory(environment);
-    claimLane({ worktree: "/tmp/initial", environment }).release();
-    const mutex = join(directory, ".mutex");
+    claimLane({ worktree: '/tmp/initial', environment }).release();
+    const mutex = join(directory, '.mutex');
     writeFileSync(mutex, contents);
     const past = new Date(Date.now() - 60_000);
     utimesSync(mutex, past, past);
-    const claim = claimLane({ worktree: "/tmp/reclaimed", environment });
+    const claim = claimLane({ worktree: '/tmp/reclaimed', environment });
     assert.equal(claim.lane, 0);
     claim.release();
   }
@@ -269,160 +286,175 @@ test("an abandoned empty or corrupt legacy mutex is reaped", () => {
 test("racing dead-owner cleanup cannot remove a successor's mutex", () => {
   const environment = scratch();
   const directory = laneDirectory(environment);
-  claimLane({ worktree: "/tmp/initial", environment }).release();
-  const mutex = join(directory, ".mutex");
+  claimLane({ worktree: '/tmp/initial', environment }).release();
+  const mutex = join(directory, '.mutex');
   mkdirSync(mutex);
-  writeFileSync(join(mutex, "owner-dead.json"), JSON.stringify({ pid: 2 ** 30, at: 0 }));
-  const successor = claimLane({ worktree: "/tmp/successor", environment });
+  writeFileSync(join(mutex, 'owner-dead.json'), JSON.stringify({ pid: 2 ** 30, at: 0 }));
+  const successor = claimLane({ worktree: '/tmp/successor', environment });
   mkdirSync(mutex);
-  writeFileSync(join(mutex, "owner-successor.json"), JSON.stringify({ pid: process.pid, at: Date.now() }));
+  writeFileSync(
+    join(mutex, 'owner-successor.json'),
+    JSON.stringify({ pid: process.pid, at: Date.now() }),
+  );
   // A delayed reaper still holds the dead owner's filename from its earlier read.
-  releaseMutex(mutex, "owner-dead.json");
-  assert.deepEqual(readdirSync(mutex), ["owner-successor.json"]);
-  releaseMutex(mutex, "owner-successor.json");
+  releaseMutex(mutex, 'owner-dead.json');
+  assert.deepEqual(readdirSync(mutex), ['owner-successor.json']);
+  releaseMutex(mutex, 'owner-successor.json');
   assert.equal(successor.release(), true);
 });
 
-test("explicit browser presets clear conflicting inherited mode flags", () => {
+test('explicit browser presets clear conflicting inherited mode flags', () => {
   const inherited = {
-    CAPACITYLENS_WEBKIT_ONLY: "1",
-    CAPACITYLENS_FIREFOX_ONLY: "1",
-    CAPACITYLENS_REHEARSAL_URL: "https://example.invalid",
-    KEEP_THIS: "yes",
+    CAPACITYLENS_WEBKIT_ONLY: '1',
+    CAPACITYLENS_FIREFOX_ONLY: '1',
+    CAPACITYLENS_REHEARSAL_URL: 'https://example.invalid',
+    KEEP_THIS: 'yes',
   };
   for (const preset of Object.values(E2E_RUN_PRESETS)) {
     const environment = nonColourEnvironment({}, presetEnvironment(inherited, preset.environment));
-    assert.equal(environment.KEEP_THIS, "yes");
+    assert.equal(environment.KEEP_THIS, 'yes');
     const mode = resolvePlaywrightRunMode(environment, [], () => false);
     assert.deepEqual(
-      mode.projects.filter((project) => ["webkit", "firefox"].includes(project)),
-      preset.projects.filter((project) => ["webkit", "firefox"].includes(project)),
+      mode.projects.filter((project) => ['webkit', 'firefox'].includes(project)),
+      preset.projects.filter((project) => ['webkit', 'firefox'].includes(project)),
     );
   }
 });
 
-test("running out of lanes names the holders instead of failing later on a port", () => {
+test('running out of lanes names the holders instead of failing later on a port', () => {
   const environment = scratch();
-  for (let lane = 0; lane < LANE_CEILING; lane += 1) claimLane({ worktree: `/tmp/${lane}`, environment });
+  for (let lane = 0; lane < LANE_CEILING; lane += 1)
+    claimLane({ worktree: `/tmp/${lane}`, environment });
   assert.throws(
-    () => claimLane({ worktree: "/tmp/overflow", environment }),
+    () => claimLane({ worktree: '/tmp/overflow', environment }),
     (error) =>
-      error.message.includes(`All ${LANE_CEILING} port lanes are held`) && error.message.includes(`pid ${process.pid}`),
+      error.message.includes(`All ${LANE_CEILING} port lanes are held`) &&
+      error.message.includes(`pid ${process.pid}`),
   );
 });
 
-test("release removes only our own claim", () => {
+test('release removes only our own claim', () => {
   const environment = scratch();
   const directory = laneDirectory(environment);
-  const claim = claimLane({ worktree: "/tmp/a", environment });
+  const claim = claimLane({ worktree: '/tmp/a', environment });
   assert.equal(claim.release(), true);
   assert.equal(readdirSync(directory).length, 0);
-  assert.equal(claim.release(), false, "releasing twice is a no-op, not a delete of a successor's claim");
+  assert.equal(
+    claim.release(),
+    false,
+    "releasing twice is a no-op, not a delete of a successor's claim",
+  );
   writeFileSync(
-    join(directory, "0.json"),
-    JSON.stringify({ pid: process.pid + 1, worktree: "/tmp/successor", share: 1 }),
+    join(directory, '0.json'),
+    JSON.stringify({ pid: process.pid + 1, worktree: '/tmp/successor', share: 1 }),
   );
   assert.equal(releaseLane(directory, 0), false, "another process's claim survives our release");
   assert.equal(readdirSync(directory).length, 1);
 });
 
-test("a delayed release cannot delete a same-process successor", () => {
+test('a delayed release cannot delete a same-process successor', () => {
   const environment = scratch();
   const directory = laneDirectory(environment);
-  const first = claimLane({ worktree: "/tmp/a", environment });
-  const firstToken = JSON.parse(readFileSync(join(directory, "0.json"), "utf8")).token;
+  const first = claimLane({ worktree: '/tmp/a', environment });
+  const firstToken = JSON.parse(readFileSync(join(directory, '0.json'), 'utf8')).token;
   first.release();
-  const successor = claimLane({ worktree: "/tmp/b", environment });
+  const successor = claimLane({ worktree: '/tmp/b', environment });
   assert.equal(releaseLane(directory, successor.lane, firstToken), false);
   assert.equal(successor.release(), true);
 });
 
-test("a signalled launcher exits unsuccessfully even when its child exits zero", async () => {
+test('a signalled launcher exits unsuccessfully even when its child exits zero', async () => {
   const scratchEnvironment = scratch();
   const environment = {
     ...process.env,
     ...scratchEnvironment,
-    CAPACITYLENS_PORT_LANE: "0",
-    CAPACITYLENS_TEST_SHARE: "1",
-    [LANE_CLAIM_ENVIRONMENT_KEY]: "outer-claim",
+    CAPACITYLENS_PORT_LANE: '0',
+    CAPACITYLENS_TEST_SHARE: '1',
+    [LANE_CLAIM_ENVIRONMENT_KEY]: 'outer-claim',
   };
   const child = spawn(
     process.execPath,
     [
-      new URL("./with-lane.mjs", import.meta.url).pathname,
+      new URL('./with-lane.mjs', import.meta.url).pathname,
       process.execPath,
-      "-e",
+      '-e',
       "process.on('SIGTERM', () => process.exit(0)); process.stdout.write('ready\\n'); setInterval(() => {}, 1000)",
     ],
-    { env: environment, stdio: ["ignore", "pipe", "pipe"] },
+    { env: environment, stdio: ['ignore', 'pipe', 'pipe'] },
   );
   await new Promise((resolve, reject) => {
-    child.once("error", reject);
-    child.stdout.once("data", resolve);
+    child.once('error', reject);
+    child.stdout.once('data', resolve);
   });
-  child.kill("SIGTERM");
-  const outcome = await new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
+  child.kill('SIGTERM');
+  const outcome = await new Promise((resolve) =>
+    child.once('exit', (code, signal) => resolve({ code, signal })),
+  );
   assert.notEqual(outcome.code, 0);
 });
 
-test("the lane launcher reports startup failure and the backend launcher rejects an invalid flavour", () => {
+test('the lane launcher reports startup failure and the backend launcher rejects an invalid flavour', () => {
   const environment = scratch();
   const withLane = spawnSync(
     process.execPath,
-    [new URL("./with-lane.mjs", import.meta.url).pathname, "/missing-capacitylens-command"],
+    [new URL('./with-lane.mjs', import.meta.url).pathname, '/missing-capacitylens-command'],
     {
       env: {
         ...process.env,
         ...environment,
-        CAPACITYLENS_PORT_LANE: "0",
-        [LANE_CLAIM_ENVIRONMENT_KEY]: "outer-claim",
+        CAPACITYLENS_PORT_LANE: '0',
+        [LANE_CLAIM_ENVIRONMENT_KEY]: 'outer-claim',
       },
-      encoding: "utf8",
+      encoding: 'utf8',
     },
   );
   assert.equal(withLane.status, 2);
 
   const server = spawnSync(
     process.execPath,
-    [new URL("../apps/backend/scripts/e2e-server.mjs", import.meta.url).pathname, "invalid"],
+    [new URL('../apps/backend/scripts/e2e-server.mjs', import.meta.url).pathname, 'invalid'],
     {
-      env: { ...process.env, PATH: "", CAPACITYLENS_PORT_LANE: "0" },
-      encoding: "utf8",
+      env: { ...process.env, PATH: '', CAPACITYLENS_PORT_LANE: '0' },
+      encoding: 'utf8',
       timeout: 10_000,
     },
   );
   assert.equal(server.status, 2);
 });
 
-test("a hand-selected lane is claimed exactly and a marked child inherits without claiming", () => {
-  const pinnedEnvironment = { ...scratch(), CAPACITYLENS_PORT_LANE: "4" };
-  const pinned = resolveLaunchClaim({ worktree: "/tmp/pinned", environment: pinnedEnvironment });
+test('a hand-selected lane is claimed exactly and a marked child inherits without claiming', () => {
+  const pinnedEnvironment = { ...scratch(), CAPACITYLENS_PORT_LANE: '4' };
+  const pinned = resolveLaunchClaim({ worktree: '/tmp/pinned', environment: pinnedEnvironment });
   try {
     assert.equal(pinned.inherited, false);
     assert.equal(pinned.lane, 4);
-    assert.equal(existsSync(join(laneDirectory(pinnedEnvironment), "4.json")), true);
+    assert.equal(existsSync(join(laneDirectory(pinnedEnvironment), '4.json')), true);
   } finally {
     pinned.release();
   }
 
-  const inheritedEnvironment = { ...scratch(), CAPACITYLENS_PORT_LANE: "4", [LANE_CLAIM_ENVIRONMENT_KEY]: "outer" };
+  const inheritedEnvironment = {
+    ...scratch(),
+    CAPACITYLENS_PORT_LANE: '4',
+    [LANE_CLAIM_ENVIRONMENT_KEY]: 'outer',
+  };
   const inherited = resolveLaunchClaim({
-    worktree: "/tmp/nested",
+    worktree: '/tmp/nested',
     environment: inheritedEnvironment,
-    claim: () => assert.fail("a marked child must not claim a lane"),
+    claim: () => assert.fail('a marked child must not claim a lane'),
   });
   assert.deepEqual(
     { inherited: inherited.inherited, lane: inherited.lane, token: inherited.token },
     {
       inherited: true,
       lane: 4,
-      token: "outer",
+      token: 'outer',
     },
   );
   assert.equal(inherited.release(), false);
 
   const unmarked = { ...scratch() };
-  const automatic = resolveLaunchClaim({ worktree: "/tmp/automatic", environment: unmarked });
+  const automatic = resolveLaunchClaim({ worktree: '/tmp/automatic', environment: unmarked });
   try {
     assert.equal(automatic.inherited, false);
     assert.equal(existsSync(join(laneDirectory(unmarked), `${automatic.lane}.json`)), true);
@@ -431,8 +463,12 @@ test("a hand-selected lane is claimed exactly and a marked child inherits withou
   }
 });
 
-test("the reservation shrinks as the pool fills and never reaches zero", () => {
-  assert.equal(shareForClaims(new Map(), 10), 5, "a solo run is capped at half the cores, not the whole pool");
+test('the reservation shrinks as the pool fills and never reaches zero', () => {
+  assert.equal(
+    shareForClaims(new Map(), 10),
+    5,
+    'a solo run is capped at half the cores, not the whole pool',
+  );
   assert.equal(shareForClaims(new Map([[0, { share: 5 }]]), 10), 4);
   assert.equal(
     shareForClaims(
@@ -443,12 +479,12 @@ test("the reservation shrinks as the pool fills and never reaches zero", () => {
       10,
     ),
     1,
-    "an exhausted pool still admits a single worker",
+    'an exhausted pool still admits a single worker',
   );
   assert.equal(shareForClaims(new Map([[0, { share: 9 }]]), 2), 1);
 });
 
-test("an occupied port is reported without killing its same-worktree process", async () => {
+test('an occupied port is reported without killing its same-worktree process', async () => {
   const lane = 3;
   const port = portsForLane(lane).web;
   const killed = [];
@@ -456,7 +492,7 @@ test("an occupied port is reported without killing its same-worktree process", a
     assertLaneFree(lane, {
       probe: (candidate) => Promise.resolve(candidate === port),
       owner: () => 4242,
-      directoryOf: () => "/tmp/mine",
+      directoryOf: () => '/tmp/mine',
       kill: (pid) => killed.push(pid),
     }),
     /lane 3.*pid 4242.*\/tmp\/mine.*kill 4242.*CAPACITYLENS_PORT_LANE=<n>/,
@@ -464,21 +500,24 @@ test("an occupied port is reported without killing its same-worktree process", a
   assert.deepEqual(killed, []);
 });
 
-test("missing lsof is reported while an ordinary no-match exit returns null", () => {
+test('missing lsof is reported while an ordinary no-match exit returns null', () => {
   for (const inspect of [
     () =>
       listenerPid(5173, () => {
-        throw Object.assign(new Error("missing"), { code: "ENOENT" });
+        throw Object.assign(new Error('missing'), { code: 'ENOENT' });
       }),
     () =>
       listenerDirectory(4242, () => {
-        throw Object.assign(new Error("missing"), { code: "ENOENT" });
+        throw Object.assign(new Error('missing'), { code: 'ENOENT' });
       }),
   ]) {
-    assert.throws(inspect, /lane: lsof is required to inspect an occupied lane port; install lsof and retry\./);
+    assert.throws(
+      inspect,
+      /lane: lsof is required to inspect an occupied lane port; install lsof and retry\./,
+    );
   }
   const noMatch = () => {
-    throw Object.assign(new Error("no match"), { status: 1 });
+    throw Object.assign(new Error('no match'), { status: 1 });
   };
   assert.equal(listenerPid(5173, noMatch), null);
   assert.equal(listenerDirectory(4242, noMatch), null);

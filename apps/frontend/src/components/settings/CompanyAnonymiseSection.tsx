@@ -1,26 +1,26 @@
-import { useEffect, useRef, useState } from "react";
-import { m } from "@/i18n";
-import { ActionProofDialog } from "@/auth/ActionProofDialog";
-import { useCan } from "@/auth/permissionContext";
-import { useRole } from "@/auth/permissionContext";
-import { API_BASE } from "@/data/apiConfig";
-import { apiFetch, API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { readApiError } from "@/lib/readApiError";
-import { reloadPage } from "@/lib/reloadPage";
-import { useStore } from "@/store/useStore";
-import { obfuscateResource } from "@capacitylens/shared/domain/lifecycle";
-import { Modal } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
-import { SettingsSection } from "./SettingsSection";
+import { useEffect, useRef, useState } from 'react';
+import { m } from '@/i18n';
+import { ActionProofDialog } from '@/auth/ActionProofDialog';
+import { useCan } from '@/auth/permissionContext';
+import { useRole } from '@/auth/permissionContext';
+import { API_BASE } from '@/data/apiConfig';
+import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { readApiError } from '@/lib/readApiError';
+import { reloadPage } from '@/lib/reloadPage';
+import { useStore } from '@/store/useStore';
+import { obfuscateResource } from '@capacitylens/shared/domain/lifecycle';
+import { Modal } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
+import { SettingsSection } from './SettingsSection';
 
-const PENDING_PROOF_KEY = "capacitylens/company-anonymise-action-proof";
+const PENDING_PROOF_KEY = 'capacitylens/company-anonymise-action-proof';
 
 /** Confirms anonymising all people against the active native session. */
 export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean }) {
   const accountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
-  const allowed = useCan("anonymise");
+  const allowed = useCan('anonymise');
   const role = useRole();
   const [confirming, setConfirming] = useState(false);
   const [proving, setProving] = useState(false);
@@ -49,7 +49,7 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
 
   useEffect(() => {
     const saved = sessionStorage.getItem(PENDING_PROOF_KEY);
-    if (new URLSearchParams(window.location.search).get("capacitylensActionConfirmed") !== "1") {
+    if (new URLSearchParams(window.location.search).get('capacitylensActionConfirmed') !== '1') {
       if (saved) sessionStorage.removeItem(PENDING_PROOF_KEY);
       return;
     }
@@ -57,29 +57,29 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
     const timer = window.setTimeout(() => {
       sessionStorage.removeItem(PENDING_PROOF_KEY);
       const url = new URL(window.location.href);
-      url.searchParams.delete("capacitylensActionConfirmed");
-      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
+      url.searchParams.delete('capacitylensActionConfirmed');
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
       try {
         const pending: unknown = JSON.parse(saved);
         if (
           !pending ||
-          typeof pending !== "object" ||
-          !("accountId" in pending) ||
+          typeof pending !== 'object' ||
+          !('accountId' in pending) ||
           pending.accountId !== accountId ||
-          !("proofId" in pending) ||
-          typeof pending.proofId !== "string"
+          !('proofId' in pending) ||
+          typeof pending.proofId !== 'string'
         )
-          throw new Error("Company confirmation could not be resumed.");
+          throw new Error('Company confirmation could not be resumed.');
         setReadyProof(pending.proofId);
         setConfirming(true);
       } catch {
-        setNotice(m.reauth_failed(), "error");
+        setNotice(m.reauth_failed(), 'error');
       }
     }, 0);
     return () => window.clearTimeout(timer);
   }, [accountId, setNotice]);
 
-  if (!allowed || !accountId || (serverMode && role !== "owner")) return null;
+  if (!allowed || !accountId || (serverMode && role !== 'owner')) return null;
 
   const anonymiseDemo = () => {
     const state = useStore.getState();
@@ -102,11 +102,13 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
   };
 
   const submit = async (proofId: string) => {
-    if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== accountId) return;
+    if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== accountId)
+      return;
     inFlight.current = true;
     const submittedGeneration = generation.current;
     const stillCurrent = () =>
-      generation.current === submittedGeneration && useStore.getState().activeAccountId === accountId;
+      generation.current === submittedGeneration &&
+      useStore.getState().activeAccountId === accountId;
     setBusy(true);
     let resumeWrites: (() => void) | null = null;
     let committed = false;
@@ -114,12 +116,12 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
     let dispatched = false;
     try {
       if (!useStore.getState().planningReadyForReplacement()) {
-        if (stillCurrent()) setNotice(m.data_import_blocked_unsynced(), "error");
+        if (stillCurrent()) setNotice(m.data_import_blocked_unsynced(), 'error');
         return;
       }
       resumeWrites = useStore.getState().suspendPlanningCommands();
       if (!resumeWrites) {
-        if (stillCurrent()) setNotice(m.data_import_blocked_unsynced(), "error");
+        if (stillCurrent()) setNotice(m.data_import_blocked_unsynced(), 'error');
         return;
       }
       if (!stillCurrent()) return;
@@ -127,9 +129,9 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
       const response = await apiFetch(
         `${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/anonymise`,
         {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ proofId }),
         },
         API_BULK_TIMEOUT_MS,
@@ -143,14 +145,16 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
       }
       if (response.status === 408 || response.status >= 500)
         throw new Error(`HTTP ${response.status} left the operation outcome uncertain.`);
-      const message = (await readApiError(response)) ?? m.settings_archived_err_action({ status: response.status });
-      if (stillCurrent()) setNotice(message, "error");
+      const message =
+        (await readApiError(response)) ??
+        m.settings_archived_err_action({ status: response.status });
+      if (stillCurrent()) setNotice(message, 'error');
     } catch (cause) {
       // A lost response after dispatch may follow a commit. Keep the old slice blocked until a fresh load.
       mustReload = dispatched;
       if (stillCurrent()) {
         if (dispatched) setRequiresReload(true);
-        setNotice(resolveErrorMessage(cause), "error");
+        setNotice(resolveErrorMessage(cause), 'error');
       } else if (dispatched) reloadPage();
     } finally {
       if (!mustReload && !committed) {

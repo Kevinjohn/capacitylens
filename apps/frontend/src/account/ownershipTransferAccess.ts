@@ -1,7 +1,7 @@
-import { isRecord } from "@capacitylens/shared/lib/isRecord";
-import { accountClient } from "./accountClient";
-import { readCommandResult } from "./accessResult";
-import type { TeamAccessResult } from "./accessResult";
+import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { accountClient } from './accountClient';
+import { readCommandResult } from './accessResult';
+import type { TeamAccessResult } from './accessResult';
 
 /** The semantic receipt returned after the server commits the role swap. */
 export interface OwnershipTransferReceipt {
@@ -10,7 +10,12 @@ export interface OwnershipTransferReceipt {
 }
 
 function parseReceipt(value: unknown): OwnershipTransferReceipt | null {
-  if (!isRecord(value) || typeof value.fromUserId !== "string" || typeof value.toUserId !== "string") return null;
+  if (
+    !isRecord(value) ||
+    typeof value.fromUserId !== 'string' ||
+    typeof value.toUserId !== 'string'
+  )
+    return null;
   return { fromUserId: value.fromUserId, toUserId: value.toUserId };
 }
 

@@ -1,7 +1,7 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext } from 'react';
 
-export type { AccountMode } from "@capacitylens/shared/account/types";
-import type { AccountMode } from "@capacitylens/shared/account/types";
+export type { AccountMode } from '@capacitylens/shared/account/types';
+import type { AccountMode } from '@capacitylens/shared/account/types';
 
 /** Verified user identity exposed to authenticated application screens. */
 export interface AuthUser {
@@ -26,7 +26,7 @@ export interface AuthContextValue {
 
 /** Context supplying authentication state to the application. */
 export const AuthContext = createContext<AuthContextValue>({
-  authMode: "off",
+  authMode: 'off',
   user: null,
   canCreateAccount: true,
   refreshAuth: async () => {},

@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
-import type { ReactNode } from "react";
-import { m } from "@/i18n";
-import { Modal } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import { useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
+import { m } from '@/i18n';
+import { Modal } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
+import { Settings } from 'lucide-react';
 
 /** Presents the management actions available for one member. */
 export function MemberActionsDialog({

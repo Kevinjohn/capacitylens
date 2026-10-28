@@ -1,17 +1,24 @@
-import { PlanningSaveCancelledError } from "@/data/planning/PlanningSaveCancelledError";
-import { useMemo, useState } from "react";
-import { useStore } from "@/store/useStore";
-import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
-import { useFieldError } from "@/hooks/useFieldError";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { parseName } from "@/lib/validation";
-import { isStaleEdit } from "@/lib/isStaleEdit";
-import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField } from "@/components/common/ui";
-import type { Option } from "@/components/common/ui";
-import { FieldError } from "@/components/ui/field";
-import type { Activity, ActivityKind, Client, Project } from "@capacitylens/shared/types/entities";
-import { ACTIVITY_KIND_ORDER } from "./activityKinds";
+import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
+import { useMemo, useState } from 'react';
+import { useStore } from '@/store/useStore';
+import { useActiveScopedData, useScopedData } from '@/store/useScopedData';
+import { useFieldError } from '@/hooks/useFieldError';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { parseName } from '@/lib/validation';
+import { isStaleEdit } from '@/lib/isStaleEdit';
+import { m } from '@/i18n';
+import {
+  FormActions,
+  Modal,
+  RequiredLegend,
+  SegmentedField,
+  SelectField,
+  TextField,
+} from '@/components/common/ui';
+import type { Option } from '@/components/common/ui';
+import { FieldError } from '@/components/ui/field';
+import type { Activity, ActivityKind, Client, Project } from '@capacitylens/shared/types/entities';
+import { ACTIVITY_KIND_ORDER } from './activityKinds';
 
 // Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
 // switch rather than freezing to the import-time locale, per the i18n key convention (DECISIONS).
@@ -43,7 +50,8 @@ function buildProjectOptions({
     const client = clients.find((candidate) => candidate.id === project.clientId);
     return { value: project.id, label: client ? `${client.name} / ${project.name}` : project.name };
   });
-  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId)) return options;
+  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId))
+    return options;
 
   const rawProject = rawProjects.find((project) => project.id === activity.projectId);
   const rawClient = rawProject && rawClients.find((client) => client.id === rawProject.clientId);
@@ -52,7 +60,9 @@ function buildProjectOptions({
     {
       value: activity.projectId,
       label: rawProject
-        ? m.list_label_archived({ name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name })
+        ? m.list_label_archived({
+            name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name,
+          })
         : m.form_option_current_archived(),
       disabled: true,
     },
@@ -60,20 +70,20 @@ function buildProjectOptions({
 }
 
 function useActivityFields(activity?: Activity) {
-  const [name, setName] = useState(activity?.name ?? "");
-  const [kind, setKind] = useState<ActivityKind>(activity?.kind ?? "project");
-  const [projectId, setProjectId] = useState(activity?.projectId ?? "");
-  const [phaseId, setPhaseId] = useState(activity?.phaseId ?? "");
+  const [name, setName] = useState(activity?.name ?? '');
+  const [kind, setKind] = useState<ActivityKind>(activity?.kind ?? 'project');
+  const [projectId, setProjectId] = useState(activity?.projectId ?? '');
+  const [phaseId, setPhaseId] = useState(activity?.phaseId ?? '');
   const changeKind = (next: ActivityKind) => {
     setKind(next);
-    if (next !== "project") {
-      setProjectId("");
-      setPhaseId("");
+    if (next !== 'project') {
+      setProjectId('');
+      setPhaseId('');
     }
   };
   const changeProject = (value: string) => {
     setProjectId(value);
-    setPhaseId("");
+    setPhaseId('');
   };
   return { name, setName, kind, projectId, phaseId, changeKind, changeProject };
 }
@@ -100,7 +110,7 @@ function ActivityFields(props: ActivityFieldsProps) {
         onChange={props.setName}
         autoFocus
         required
-        invalid={props.errorField === "name"}
+        invalid={props.errorField === 'name'}
         describedById={props.errorId}
         layout="label-control"
       />
@@ -115,7 +125,7 @@ function ActivityFields(props: ActivityFieldsProps) {
         density="compact"
         layout="label-control"
       />
-      {props.kind === "project" && (
+      {props.kind === 'project' && (
         <SelectField
           label={m.form_activity_project_label()}
           value={props.projectId}
@@ -123,7 +133,7 @@ function ActivityFields(props: ActivityFieldsProps) {
           options={props.projectOptions}
           placeholder={m.form_activity_select_project_placeholder()}
           required
-          invalid={props.errorField === "project"}
+          invalid={props.errorField === 'project'}
           describedById={props.errorId}
           layout="label-control"
         />
@@ -137,16 +147,27 @@ function ActivityFields(props: ActivityFieldsProps) {
 function useProjectOptions(activity?: Activity) {
   const { projects, clients } = useActiveScopedData();
   const raw = useScopedData();
-  const baseOptions = useMemo(() => buildProjectOptions({ projects, clients }), [projects, clients]);
-  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId)) return baseOptions;
-  return buildProjectOptions({ projects, clients, rawProjects: raw.projects, rawClients: raw.clients, activity });
+  const baseOptions = useMemo(
+    () => buildProjectOptions({ projects, clients }),
+    [projects, clients],
+  );
+  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId))
+    return baseOptions;
+  return buildProjectOptions({
+    projects,
+    clients,
+    rawProjects: raw.projects,
+    rawClients: raw.clients,
+    activity,
+  });
 }
 
 /** Creates or edits an activity and closes after save or cancel. Only project activities carry project and phase attribution. */
 export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
   const add = useStore((state) => state.addActivity);
   const update = useStore((state) => state.updateActivity);
-  const { name, setName, kind, projectId, phaseId, changeKind, changeProject } = useActivityFields(activity);
+  const { name, setName, kind, projectId, phaseId, changeKind, changeProject } =
+    useActivityFields(activity);
   const { error, errorField, errorId, fail } = useFieldError();
   const projectOptions = useProjectOptions(activity);
 
@@ -156,15 +177,15 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     // A project-specific activity must have a project; internal/all-projects are project-less (projectId/phaseId
     // undefined). Surface the project requirement as a field error rather than relying on the
     // store throw, so the invalid control is marked.
-    if (kind === "project" && !projectId) {
-      fail("project", m.form_activity_err_project_required());
+    if (kind === 'project' && !projectId) {
+      fail('project', m.form_activity_err_project_required());
       return;
     }
     const patch = {
       name: trimmed,
       kind,
-      ...(kind === "project" && projectId ? { projectId } : {}),
-      ...(kind === "project" && phaseId ? { phaseId } : {}),
+      ...(kind === 'project' && projectId ? { projectId } : {}),
+      ...(kind === 'project' && phaseId ? { phaseId } : {}),
     };
     // Surface a store-side rejection as a form error rather than an uncaught React error, see the
     // store CRUD contract.
@@ -176,7 +197,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         }
         await update(activity.id, patch);
       } else {
-        if ((await add(patch)).kind === "blocked") return;
+        if ((await add(patch)).kind === 'blocked') return;
       }
       onClose();
     } catch (e) {

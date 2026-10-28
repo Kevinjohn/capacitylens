@@ -1,13 +1,13 @@
-import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
-import { hasActiveFilters, useStore } from "@/store/useStore";
-import { useActiveScopedData } from "@/store/useScopedData";
-import { carriesHourlyLoad, emptyAppData } from "@capacitylens/shared/types/entities";
-import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from "./layout";
-import { buildSchedulerModel, applyVisibleUtilization } from "./schedulerModel";
-import { useCalendarToday } from "./useCalendarToday";
-import { buildVisibleSpanLabels, resolveVisibleWindow } from "./visibleSpan";
-import { buildAverageUtilizationLabel } from "./schedulerGridModal";
-import type { useSchedulerViewport } from "./useSchedulerViewport";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { hasActiveFilters, useStore } from '@/store/useStore';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { carriesHourlyLoad, emptyAppData } from '@capacitylens/shared/types/entities';
+import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
+import { buildSchedulerModel, applyVisibleUtilization } from './schedulerModel';
+import { useCalendarToday } from './useCalendarToday';
+import { buildVisibleSpanLabels, resolveVisibleWindow } from './visibleSpan';
+import { buildAverageUtilizationLabel } from './schedulerGridModal';
+import type { useSchedulerViewport } from './useSchedulerViewport';
 import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
@@ -15,15 +15,18 @@ import {
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from "@/store/selectors";
-import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
-import { UTILIZATION_WINDOW_DAYS } from "@/lib/schedulerConfig";
+} from '@/store/selectors';
+import {
+  defaultAccountWorkingDays,
+  normalizeAccountWorkingDays,
+} from '@capacitylens/shared/lib/accountWorkingDays';
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
+import { UTILIZATION_WINDOW_DAYS } from '@/lib/schedulerConfig';
 
 type GridPreferences = ReturnType<typeof useSchedulerGridPreferences>;
 type GridViewport = Pick<
   ReturnType<typeof useSchedulerViewport>,
-  "days" | "leftEdgeIdx" | "start" | "end" | "geom" | "scrollRef" | "timelineWidth"
+  'days' | 'leftEdgeIdx' | 'start' | 'end' | 'geom' | 'scrollRef' | 'timelineWidth'
 >;
 
 interface SchedulerModelProjectionInput {
@@ -45,8 +48,8 @@ export function partiallyExposesNextColumn({
   timelineWidth,
   zoom,
 }: {
-  geometry: GridViewport["geom"];
-  days: GridViewport["days"];
+  geometry: GridViewport['geom'];
+  days: GridViewport['days'];
   scrollLeft: number;
   timelineWidth: number;
   zoom: number;
@@ -54,7 +57,11 @@ export function partiallyExposesNextColumn({
   const viewportWidth = timelineWidth - LAYOUT.leftColWidth;
   const leftEdgeIndex = geometry.indexAtScroll(scrollLeft);
   const endIndex = Math.min(leftEdgeIndex + zoom * 7 - 1, days.length - 1);
-  return viewportWidth > 0 && endIndex < days.length - 1 && scrollLeft + viewportWidth > geometry.x(endIndex + 1);
+  return (
+    viewportWidth > 0 &&
+    endIndex < days.length - 1 &&
+    scrollLeft + viewportWidth > geometry.x(endIndex + 1)
+  );
 }
 
 /** Tracks partial-column visibility as the grid viewport moves. */
@@ -67,8 +74,8 @@ export function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: numb
     (onStoreChange: () => void) => {
       const element = scrollRef.current;
       if (!element) return () => undefined;
-      element.addEventListener("scroll", onStoreChange);
-      return () => element.removeEventListener("scroll", onStoreChange);
+      element.addEventListener('scroll', onStoreChange);
+      return () => element.removeEventListener('scroll', onStoreChange);
     },
     [scrollRef],
   );
@@ -87,8 +94,8 @@ export function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: numb
 }
 
 function buildModelPreferences(
-  accountPrefs: GridPreferences["accountPrefs"],
-  accountWorkingDays: GridPreferences["accountWorkingDays"],
+  accountPrefs: GridPreferences['accountPrefs'],
+  accountWorkingDays: GridPreferences['accountWorkingDays'],
 ) {
   return {
     disciplinesEnabled: accountPrefs.disciplinesEnabled,
@@ -240,9 +247,18 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
 
   const overallUtil = useMemo(
     // External / 3rd-party rows are excluded inside the shared average; with none tracked, read 0%.
-    () => buildAverageUtilizationLabel(model.flatMap((group) => group.rows)) ?? "0",
+    () => buildAverageUtilizationLabel(model.flatMap((group) => group.rows)) ?? '0',
     [model],
   );
 
-  return { model, density, today, todayX, visibleWeeksLabel, visibleSpanCompact, overallUtil, filtersActive };
+  return {
+    model,
+    density,
+    today,
+    todayX,
+    visibleWeeksLabel,
+    visibleSpanCompact,
+    overallUtil,
+    filtersActive,
+  };
 }

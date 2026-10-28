@@ -1,46 +1,47 @@
-import { daysInclusive } from "@capacitylens/shared/lib/dateMath";
-import { isValidISODate, validateAllocationAssignment } from "@capacitylens/shared/lib/integrity";
-import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
-import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
-import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
-import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "@/lib/repeatingAllocations";
+import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { isValidISODate, validateAllocationAssignment } from '@capacitylens/shared/lib/integrity';
+import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
+import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
+import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from '@/lib/repeatingAllocations';
 
-import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
+import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
 
 type ProjectionInput = Pick<
   AllocationModalSnapshot,
-  | "activityId"
-  | "create"
-  | "attributedProjectId"
-  | "daysOfWork"
-  | "daysOver"
-  | "effEndDate"
-  | "effHoursPerDay"
-  | "ignoreWeekends"
-  | "isBlocks"
-  | "isDays"
-  | "isExternal"
-  | "mode"
-  | "note"
-  | "task"
-  | "repeat"
-  | "repeatUntil"
-  | "repeatUntilMaximum"
-  | "repeatUntilMinimum"
-  | "resourceId"
-  | "selectedActivity"
-  | "selectedEffectiveProjectId"
-  | "selectedResource"
-  | "selectedEffectiveWeek"
-  | "spanFitsDateDomain"
-  | "startDate"
-  | "status"
-  | "validDaysOver"
+  | 'activityId'
+  | 'create'
+  | 'attributedProjectId'
+  | 'daysOfWork'
+  | 'daysOver'
+  | 'effEndDate'
+  | 'effHoursPerDay'
+  | 'ignoreWeekends'
+  | 'isBlocks'
+  | 'isDays'
+  | 'isExternal'
+  | 'mode'
+  | 'note'
+  | 'task'
+  | 'repeat'
+  | 'repeatUntil'
+  | 'repeatUntilMaximum'
+  | 'repeatUntilMinimum'
+  | 'resourceId'
+  | 'selectedActivity'
+  | 'selectedEffectiveProjectId'
+  | 'selectedResource'
+  | 'selectedEffectiveWeek'
+  | 'spanFitsDateDomain'
+  | 'startDate'
+  | 'status'
+  | 'validDaysOver'
 >;
 
 function resolveProjectionContext(input: ProjectionInput) {
   const { activityId, create, repeat, resourceId, selectedEffectiveWeek, selectedResource } = input;
-  if (!create || repeat === "none" || !selectedResource || selectedEffectiveWeek === undefined) return null;
+  if (!create || repeat === 'none' || !selectedResource || selectedEffectiveWeek === undefined)
+    return null;
   if (!resourceId || !activityId) return null;
   return { activityId, repeat, resourceId, selectedEffectiveWeek, selectedResource };
 }
@@ -71,7 +72,10 @@ function hasValidProjectionLoad(input: ProjectionInput) {
   return Number.isFinite(hoursPerDay) && hoursPerDay > 0 && hoursPerDay <= MAX_HOURS_PER_DAY;
 }
 
-function buildProjection(input: ProjectionInput, context: NonNullable<ReturnType<typeof resolveProjectionContext>>) {
+function buildProjection(
+  input: ProjectionInput,
+  context: NonNullable<ReturnType<typeof resolveProjectionContext>>,
+) {
   const {
     attributedProjectId,
     daysOver,
@@ -88,7 +92,11 @@ function buildProjection(input: ProjectionInput, context: NonNullable<ReturnType
   } = input;
   const { activityId, repeat, resourceId, selectedEffectiveWeek, selectedResource } = context;
   try {
-    const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, resolveRepeatPattern(repeat));
+    const { startDates } = generateRepeatingStartDates(
+      startDate,
+      repeatUntil,
+      resolveRepeatPattern(repeat),
+    );
     const drafts = buildRepeatedAllocationDrafts(
       {
         resourceId,
@@ -103,7 +111,12 @@ function buildProjection(input: ProjectionInput, context: NonNullable<ReturnType
         ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
       },
       startDates,
-      { schedulingMode: mode, daysOver, resource: selectedResource, effectiveWeek: selectedEffectiveWeek },
+      {
+        schedulingMode: mode,
+        daysOver,
+        resource: selectedResource,
+        effectiveWeek: selectedEffectiveWeek,
+      },
     );
     return { drafts, startDates };
   } catch (error) {
@@ -119,7 +132,10 @@ export function buildRepeatProjection(input: ProjectionInput) {
   const { selectedActivity, selectedEffectiveProjectId } = input;
   const context = resolveProjectionContext(input);
   if (!context || !hasValidProjectionDates(input) || !hasValidProjectionLoad(input)) return null;
-  if (!selectedActivity || !validateAllocationAssignment(context.selectedResource, selectedEffectiveProjectId).ok)
+  if (
+    !selectedActivity ||
+    !validateAllocationAssignment(context.selectedResource, selectedEffectiveProjectId).ok
+  )
     return null;
   return buildProjection(input, context);
 }

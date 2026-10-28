@@ -1,11 +1,11 @@
 // Keep generated message paths behind one seam so missing keys fail during compilation
 // and account locale changes have one owner.
 
-import { m } from "@/paraglide/messages.js";
-import { baseLocale, getLocale, isLocale, setLocale } from "@/paraglide/runtime.js";
-import type { Locale } from "@/paraglide/runtime.js";
-import { enGB } from "date-fns/locale";
-import type { Locale as DateFnsLocale } from "date-fns";
+import { m } from '@/paraglide/messages.js';
+import { baseLocale, getLocale, isLocale, setLocale } from '@/paraglide/runtime.js';
+import type { Locale } from '@/paraglide/runtime.js';
+import { enGB } from 'date-fns/locale';
+import type { Locale as DateFnsLocale } from 'date-fns';
 
 /** Compiled, type-checked message functions exposed through the application i18n seam. */
 export { m };

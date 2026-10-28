@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from 'react';
 
 /** Field-scoped validation state and actions shared by a form. */
 export interface FieldError {
@@ -39,6 +39,6 @@ export function useFieldErrorFocus({ error, errorField, errorId }: FieldError): 
         ? document.getElementById(errorId)
         : document.querySelector<HTMLElement>(`[aria-describedby~="${errorId}"]`);
     target?.focus({ preventScroll: true });
-    target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [error, errorField, errorId]);
 }

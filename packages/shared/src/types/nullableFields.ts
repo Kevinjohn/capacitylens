@@ -1,4 +1,4 @@
-import type { AppData, AppDataKey } from "./entities.js";
+import type { AppData, AppDataKey } from './entities.js';
 
 type NullableProperties<T> = { [K in keyof T as null extends T[K] ? K : never]: null };
 

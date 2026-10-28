@@ -1,8 +1,8 @@
-import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { useId } from "react";
-import { useCanEdit, useRole } from "@/auth/permissionContext";
-import { isServerConfigured } from "@/data/apiConfig";
-import { resolveErrorMessage } from "@/lib/errorMessage";
+import { orderedWeekdays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { useId } from 'react';
+import { useCanEdit, useRole } from '@/auth/permissionContext';
+import { isServerConfigured } from '@/data/apiConfig';
+import { resolveErrorMessage } from '@/lib/errorMessage';
 import {
   canCreateInlineActivity,
   hasVisibleTaskFieldInSchedule,
@@ -15,9 +15,9 @@ import {
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from "@/store/selectors";
-import { useStore } from "@/store/useStore";
-import { useLocalDataActions } from "./useLocalDataActions";
+} from '@/store/selectors';
+import { useStore } from '@/store/useStore';
+import { useLocalDataActions } from './useLocalDataActions';
 
 function useDisplayPreferences() {
   return {
@@ -32,7 +32,10 @@ function useDisplayPreferences() {
   };
 }
 
-function readSchedulingSettings(data: ReturnType<(typeof useStore)["getState"]>["data"], accountId: string | null) {
+function readSchedulingSettings(
+  data: ReturnType<(typeof useStore)['getState']>['data'],
+  accountId: string | null,
+) {
   const weekStartsOn = resolveWeekStart(data, accountId);
   return {
     schedulingMode: resolveSchedulingMode(data, accountId),
@@ -70,7 +73,7 @@ export function useSettingsViewController() {
       await updateAccount(activeAccount.id, patch);
     } catch (error) {
       // Surface the rejected settings write so controls cannot imply a saved value.
-      setNotice(resolveErrorMessage(error), "error");
+      setNotice(resolveErrorMessage(error), 'error');
     }
   };
 
@@ -80,7 +83,7 @@ export function useSettingsViewController() {
     scheduling,
     workingDaysMinimumId,
     canEdit,
-    canManageCapacityOverviewAccess: role === null || role === "owner" || role === "admin",
+    canManageCapacityOverviewAccess: role === null || role === 'owner' || role === 'admin',
     updateSetting,
     serverMode,
     localData,

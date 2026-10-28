@@ -1,21 +1,21 @@
-import type { ComponentProps, Dispatch, SetStateAction } from "react";
-import { Plus } from "lucide-react";
-import { m } from "@/i18n";
-import { formatUtilizationPercent } from "@/lib/formatUtilizationPercent";
-import { UTILIZATION_WINDOW_DAYS } from "@/lib/schedulerConfig";
-import { resolveResourceDisplayName } from "@/lib/metadata";
-import type { buildSchedulerDensity } from "./layout";
-import { LAYOUT } from "./layout";
-import { ResourceLane } from "./ResourceLane";
-import { buildRowScreenReaderSummary } from "./buildRowScreenReaderSummary";
-import type { GroupModel, RowModel } from "./schedulerModel";
-import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
-import type { ISODate } from "@capacitylens/shared/types/entities";
-import { Button } from "@/components/ui/button";
-import { PersonScheduleTrigger } from "@/components/person-schedule/PersonScheduleTrigger";
-import { resolveResourceAvatarUrl } from "@/account/resolveResourceAvatarUrl";
-import type { ModalState } from "./schedulerGridModal";
-import type { SchedulerUI, StoreState } from "@/store/useStore";
+import type { ComponentProps, Dispatch, SetStateAction } from 'react';
+import { Plus } from 'lucide-react';
+import { m } from '@/i18n';
+import { formatUtilizationPercent } from '@/lib/formatUtilizationPercent';
+import { UTILIZATION_WINDOW_DAYS } from '@/lib/schedulerConfig';
+import { resolveResourceDisplayName } from '@/lib/metadata';
+import type { buildSchedulerDensity } from './layout';
+import { LAYOUT } from './layout';
+import { ResourceLane } from './ResourceLane';
+import { buildRowScreenReaderSummary } from './buildRowScreenReaderSummary';
+import type { GroupModel, RowModel } from './schedulerModel';
+import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities';
+import type { ISODate } from '@capacitylens/shared/types/entities';
+import { Button } from '@/components/ui/button';
+import { PersonScheduleTrigger } from '@/components/person-schedule/PersonScheduleTrigger';
+import { resolveResourceAvatarUrl } from '@/account/resolveResourceAvatarUrl';
+import type { ModalState } from './schedulerGridModal';
+import type { SchedulerUI, StoreState } from '@/store/useStore';
 
 type LaneProps = ComponentProps<typeof ResourceLane>;
 /** Props passed to the scheduler grid row component. */
@@ -24,18 +24,18 @@ export interface SchedulerGridRowProps {
   row: RowModel;
   rowIndex: number;
   density: ReturnType<typeof buildSchedulerDensity>;
-  utilizationPrefs: StoreState["utilizationPrefs"];
+  utilizationPrefs: StoreState['utilizationPrefs'];
   visibleWeeksLabel: string;
-  ui: Pick<SchedulerUI, "drawMode">;
+  ui: Pick<SchedulerUI, 'drawMode'>;
   canEdit: boolean;
   visibleStartDate: () => ISODate;
   setModal: Dispatch<SetStateAction<ModalState | null>>;
-  days: LaneProps["days"];
-  todayX: LaneProps["todayX"];
-  geom: LaneProps["geom"];
-  calendarWeekStartsOn: LaneProps["weekStartsOn"];
-  onEdit: LaneProps["onEdit"];
-  onDraw: LaneProps["onDraw"];
+  days: LaneProps['days'];
+  todayX: LaneProps['todayX'];
+  geom: LaneProps['geom'];
+  calendarWeekStartsOn: LaneProps['weekStartsOn'];
+  onEdit: LaneProps['onEdit'];
+  onDraw: LaneProps['onDraw'];
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
   resourceAvatars: ReadonlyMap<string, string>;
   onViewSchedule: (resourceId: string, opener: HTMLButtonElement) => void;
@@ -50,25 +50,36 @@ function ResourceIdentity({
   onViewSchedule,
 }: Pick<
   SchedulerGridRowProps,
-  "group" | "row" | "density" | "personScheduleTitlesByResourceId" | "resourceAvatars" | "onViewSchedule"
+  | 'group'
+  | 'row'
+  | 'density'
+  | 'personScheduleTitlesByResourceId'
+  | 'resourceAvatars'
+  | 'onViewSchedule'
 >) {
   const { resource } = row;
-  const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
+  const scheduleTitle =
+    personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
   const imageUrl = resolveResourceAvatarUrl(resource, resourceAvatars);
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2" style={{ height: density.identityBandHeight }}>
+    <div
+      className="flex min-w-0 flex-1 items-center gap-2"
+      style={{ height: density.identityBandHeight }}
+    >
       <PersonScheduleTrigger
         resourceId={resource.id}
         scheduleTitle={scheduleTitle}
         avatarName={resource.name ?? resource.role}
         color={group.color ?? resource.color}
-        placeholder={resource.kind === "placeholder"}
+        placeholder={resource.kind === 'placeholder'}
         {...(imageUrl ? { imageUrl } : {})}
         onViewSchedule={onViewSchedule}
       />
       <div className="ms-1.5 min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1">
-          <span className="min-w-0 truncate text-sm font-medium">{resolveResourceDisplayName(resource)}</span>
+          <span className="min-w-0 truncate text-sm font-medium">
+            {resolveResourceDisplayName(resource)}
+          </span>
         </div>
         <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
       </div>
@@ -80,7 +91,7 @@ function UtilizationCell({
   utilization,
   overSoon,
   visibleWeeksLabel,
-}: Pick<RowModel, "utilization" | "overSoon"> & { visibleWeeksLabel: string }) {
+}: Pick<RowModel, 'utilization' | 'overSoon'> & { visibleWeeksLabel: string }) {
   const title = overSoon
     ? m.scheduler_util_title_oversoon({ days: UTILIZATION_WINDOW_DAYS, span: visibleWeeksLabel })
     : m.scheduler_util_title({ span: visibleWeeksLabel });
@@ -89,7 +100,7 @@ function UtilizationCell({
       data-testid="utilization"
       title={title}
       className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
-        overSoon ? "font-semibold text-danger" : "text-faint"
+        overSoon ? 'font-semibold text-danger' : 'text-faint'
       }`}
     >
       {formatUtilizationPercent(utilization)}%
@@ -107,10 +118,16 @@ function ResourceActions({
   visibleWeeksLabel,
 }: Pick<
   SchedulerGridRowProps,
-  "row" | "ui" | "canEdit" | "visibleStartDate" | "setModal" | "utilizationPrefs" | "visibleWeeksLabel"
+  | 'row'
+  | 'ui'
+  | 'canEdit'
+  | 'visibleStartDate'
+  | 'setModal'
+  | 'utilizationPrefs'
+  | 'visibleWeeksLabel'
 >) {
   const { resource, utilization, overSoon } = row;
-  const canCreate = canEdit && (ui.drawMode !== "timeoff" || !isExternalResource(resource));
+  const canCreate = canEdit && (ui.drawMode !== 'timeoff' || !isExternalResource(resource));
   const showUtilization = utilizationPrefs.showPersonal && isCapacityTracked(resource);
   return (
     <div className="flex shrink-0 flex-col self-stretch overflow-hidden border-s border-line text-center leading-none">
@@ -121,25 +138,31 @@ function ResourceActions({
           onClick={() => {
             const day = visibleStartDate();
             setModal({
-              kind: ui.drawMode === "timeoff" ? "timeoff" : "create",
+              kind: ui.drawMode === 'timeoff' ? 'timeoff' : 'create',
               resourceId: resource.id,
               startDate: day,
               endDate: day,
             });
           }}
           aria-label={
-            ui.drawMode === "timeoff"
+            ui.drawMode === 'timeoff'
               ? m.scheduler_add_timeoff_for({ name: resolveResourceDisplayName(resource) })
               : m.scheduler_add_allocation_for({ name: resolveResourceDisplayName(resource) })
           }
-          title={ui.drawMode === "timeoff" ? m.scheduler_add_timeoff() : m.scheduler_add_allocation()}
+          title={
+            ui.drawMode === 'timeoff' ? m.scheduler_add_timeoff() : m.scheduler_add_allocation()
+          }
           className="h-auto w-11 flex-1 rounded-none text-muted-foreground"
         >
           <Plus />
         </Button>
       )}
       {showUtilization && (
-        <UtilizationCell utilization={utilization} overSoon={overSoon} visibleWeeksLabel={visibleWeeksLabel} />
+        <UtilizationCell
+          utilization={utilization}
+          overSoon={overSoon}
+          visibleWeeksLabel={visibleWeeksLabel}
+        />
       )}
     </div>
   );
@@ -147,18 +170,18 @@ function ResourceActions({
 
 type RowHeaderProps = Pick<
   SchedulerGridRowProps,
-  | "group"
-  | "row"
-  | "density"
-  | "utilizationPrefs"
-  | "visibleWeeksLabel"
-  | "ui"
-  | "canEdit"
-  | "visibleStartDate"
-  | "setModal"
-  | "personScheduleTitlesByResourceId"
-  | "resourceAvatars"
-  | "onViewSchedule"
+  | 'group'
+  | 'row'
+  | 'density'
+  | 'utilizationPrefs'
+  | 'visibleWeeksLabel'
+  | 'ui'
+  | 'canEdit'
+  | 'visibleStartDate'
+  | 'setModal'
+  | 'personScheduleTitlesByResourceId'
+  | 'resourceAvatars'
+  | 'onViewSchedule'
 >;
 
 function SchedulerGridRowHeader(props: RowHeaderProps) {
@@ -169,7 +192,7 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
       role="rowheader"
       aria-colindex={1}
       className={`sticky left-0 z-10 flex shrink-0 items-start gap-2 border-r border-line bg-scheduler-canvas ps-3 ${
-        resource.kind === "placeholder" ? "hatch-lines" : ""
+        resource.kind === 'placeholder' ? 'hatch-lines' : ''
       }`}
       style={{ width: LAYOUT.leftColWidth }}
     >
@@ -195,7 +218,18 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
 
 /** Renders one resource row in the scheduler grid. */
 export function SchedulerGridRow(props: SchedulerGridRowProps) {
-  const { row, rowIndex, density, canEdit, days, todayX, geom, calendarWeekStartsOn, onEdit, onDraw } = props;
+  const {
+    row,
+    rowIndex,
+    density,
+    canEdit,
+    days,
+    todayX,
+    geom,
+    calendarWeekStartsOn,
+    onEdit,
+    onDraw,
+  } = props;
   const { resource, rowHeight, bars, dayStates, timeOff, dimmed } = row;
   return (
     /* One scheduler-row surface on the whole row (not just the sticky header) keeps the divider
@@ -207,7 +241,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
       data-testid="scheduler-row"
       data-dimmed={dimmed || undefined}
       title={dimmed ? m.scheduler_row_dimmed_title() : undefined}
-      className={`flex border-b border-line-soft bg-scheduler-canvas ${dimmed ? "opacity-45" : ""}`}
+      className={`flex border-b border-line-soft bg-scheduler-canvas ${dimmed ? 'opacity-45' : ''}`}
       style={{ height: rowHeight }}
     >
       <SchedulerGridRowHeader
@@ -235,7 +269,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         rowHeight={rowHeight}
         barTop={density.rowPadding}
         bars={bars}
-        placeholder={resource.kind === "placeholder"}
+        placeholder={resource.kind === 'placeholder'}
         weekStartsOn={calendarWeekStartsOn}
         // Withhold edit callbacks from Viewers so the lane cannot start a gesture or show the hover add hint.
         {...(canEdit && onEdit ? { onEdit: onEdit } : {})}

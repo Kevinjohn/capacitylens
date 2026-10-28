@@ -1,145 +1,145 @@
-import { describe, it, expect, vi } from "vitest";
-import { parseName, validatePresetColor, validateWorkingDays, parseText } from "./validation";
-import { m } from "@/i18n";
-import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
+import { describe, it, expect, vi } from 'vitest';
+import { parseName, validatePresetColor, validateWorkingDays, parseText } from './validation';
+import { m } from '@/i18n';
+import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings';
 
-describe("parseName", () => {
-  it("returns the trimmed value for a clean name", () => {
+describe('parseName', () => {
+  it('returns the trimmed value for a clean name', () => {
     const fail = vi.fn();
-    expect(parseName("  Ferris  ", fail)).toBe("Ferris");
+    expect(parseName('  Ferris  ', fail)).toBe('Ferris');
     expect(fail).not.toHaveBeenCalled();
   });
-  it("normalizes composed-equivalent names and internal spacing before the length check", () => {
+  it('normalizes composed-equivalent names and internal spacing before the length check', () => {
     const fail = vi.fn();
-    expect(parseName("e\u0301".repeat(60), fail)).toBe("é".repeat(60));
-    expect(parseName("  Bruce   Wayne  ", fail)).toBe("Bruce Wayne");
-    expect(parseName("\u1100\u1161\u11a8".repeat(100), fail)).toBe("각".repeat(100));
+    expect(parseName('e\u0301'.repeat(60), fail)).toBe('é'.repeat(60));
+    expect(parseName('  Bruce   Wayne  ', fail)).toBe('Bruce Wayne');
+    expect(parseName('\u1100\u1161\u11a8'.repeat(100), fail)).toBe('각'.repeat(100));
     expect(fail).not.toHaveBeenCalled();
   });
-  it("fails an empty/whitespace name", () => {
+  it('fails an empty/whitespace name', () => {
     const fail = vi.fn();
-    expect(parseName("   ", fail)).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", m.validation_name_required());
+    expect(parseName('   ', fail)).toBeNull();
+    expect(fail).toHaveBeenCalledWith('name', m.validation_name_required());
   });
-  it("rejects emoji / control junk", () => {
+  it('rejects emoji / control junk', () => {
     const fail = vi.fn();
     expect(parseName(`Bad ${String.fromCodePoint(0x1f4a9)}`, fail)).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", m.validation_text_invalid());
+    expect(fail).toHaveBeenCalledWith('name', m.validation_text_invalid());
   });
 
   it('reports failures against the custom field name passed through, not the "name" default', () => {
     const fail = vi.fn();
-    expect(parseName("   ", fail, "discipline")).toBeNull();
-    expect(fail).toHaveBeenCalledWith("discipline", m.validation_name_required());
+    expect(parseName('   ', fail, 'discipline')).toBeNull();
+    expect(fail).toHaveBeenCalledWith('discipline', m.validation_name_required());
   });
 });
 
-describe("parseText (optional fields)", () => {
-  it("allows ordinary spaces but rejects control-only optional input before empty normalization", () => {
+describe('parseText (optional fields)', () => {
+  it('allows ordinary spaces but rejects control-only optional input before empty normalization', () => {
     const fail = vi.fn();
-    expect(parseText("   ", fail, { required: false })).toBe("");
+    expect(parseText('   ', fail, { required: false })).toBe('');
     expect(fail).not.toHaveBeenCalled();
-    expect(parseText("\v", fail, { required: false })).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", m.validation_text_invalid());
+    expect(parseText('\v', fail, { required: false })).toBeNull();
+    expect(fail).toHaveBeenCalledWith('name', m.validation_text_invalid());
     fail.mockClear();
-    expect(parseText("\t", fail, { required: false })).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", m.validation_text_invalid());
+    expect(parseText('\t', fail, { required: false })).toBeNull();
+    expect(fail).toHaveBeenCalledWith('name', m.validation_text_invalid());
   });
-  it("allows an empty value when not required", () => {
+  it('allows an empty value when not required', () => {
     const fail = vi.fn();
-    expect(parseText("", fail, { required: false })).toBe("");
+    expect(parseText('', fail, { required: false })).toBe('');
     expect(fail).not.toHaveBeenCalled();
   });
 
   it('defaults the field to "name" when no options are given', () => {
     const fail = vi.fn();
-    expect(parseText("   ", fail)).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", m.validation_name_required());
+    expect(parseText('   ', fail)).toBeNull();
+    expect(fail).toHaveBeenCalledWith('name', m.validation_name_required());
   });
 
-  it("defaults required to true when no options are given", () => {
+  it('defaults required to true when no options are given', () => {
     const fail = vi.fn();
-    expect(parseText("", fail, {})).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", m.validation_name_required());
+    expect(parseText('', fail, {})).toBeNull();
+    expect(fail).toHaveBeenCalledWith('name', m.validation_name_required());
   });
 
-  it("defaults multiline to false, so newlines are disallowed by default", () => {
+  it('defaults multiline to false, so newlines are disallowed by default', () => {
     const fail = vi.fn();
-    expect(parseText("line1\nline2", fail)).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", m.validation_text_invalid());
+    expect(parseText('line1\nline2', fail)).toBeNull();
+    expect(fail).toHaveBeenCalledWith('name', m.validation_text_invalid());
   });
 
-  it("allows newlines when multiline is explicitly true", () => {
+  it('allows newlines when multiline is explicitly true', () => {
     const fail = vi.fn();
-    expect(parseText("line1\nline2", fail, { multiline: true })).toBe("line1\nline2");
+    expect(parseText('line1\nline2', fail, { multiline: true })).toBe('line1\nline2');
     expect(fail).not.toHaveBeenCalled();
   });
 
-  it("defaults maxLength to MAX_NAME_LENGTH for single-line text", () => {
+  it('defaults maxLength to MAX_NAME_LENGTH for single-line text', () => {
     const fail = vi.fn();
-    const atLimit = "a".repeat(MAX_NAME_LENGTH);
-    const overLimit = "a".repeat(MAX_NAME_LENGTH + 1);
+    const atLimit = 'a'.repeat(MAX_NAME_LENGTH);
+    const overLimit = 'a'.repeat(MAX_NAME_LENGTH + 1);
     expect(parseText(atLimit, fail)).toBe(atLimit);
     expect(fail).not.toHaveBeenCalled();
     expect(parseText(overLimit, fail)).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", m.validation_text_too_long());
+    expect(fail).toHaveBeenCalledWith('name', m.validation_text_too_long());
   });
 
-  it("measures an astral-letter name in Unicode code points", () => {
+  it('measures an astral-letter name in Unicode code points', () => {
     const fail = vi.fn();
-    const astralLetter = "𠀀";
+    const astralLetter = '𠀀';
     const atLimit = astralLetter.repeat(MAX_NAME_LENGTH);
     expect(parseText(atLimit, fail)).toBe(atLimit);
     expect(parseText(`${atLimit}${astralLetter}`, fail)).toBeNull();
   });
 
-  it("defaults maxLength to MAX_NOTE_LENGTH when multiline", () => {
+  it('defaults maxLength to MAX_NOTE_LENGTH when multiline', () => {
     const fail = vi.fn();
-    const atLimit = "a".repeat(MAX_NOTE_LENGTH);
+    const atLimit = 'a'.repeat(MAX_NOTE_LENGTH);
     expect(parseText(atLimit, fail, { multiline: true })).toBe(atLimit);
     expect(fail).not.toHaveBeenCalled();
   });
 
   it('is not "too long" exactly AT maxLength (strict > boundary), but is one char over', () => {
     const fail = vi.fn();
-    expect(parseText("a".repeat(10), fail, { maxLength: 10 })).toBe("a".repeat(10));
+    expect(parseText('a'.repeat(10), fail, { maxLength: 10 })).toBe('a'.repeat(10));
     expect(fail).not.toHaveBeenCalled();
     fail.mockClear();
-    expect(parseText("a".repeat(11), fail, { maxLength: 10 })).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", m.validation_text_too_long());
+    expect(parseText('a'.repeat(11), fail, { maxLength: 10 })).toBeNull();
+    expect(fail).toHaveBeenCalledWith('name', m.validation_text_too_long());
   });
 });
 
-describe("validatePresetColor", () => {
-  it("accepts a canonical preset colour and rejects arbitrary hex values", () => {
+describe('validatePresetColor', () => {
+  it('accepts a canonical preset colour and rejects arbitrary hex values', () => {
     const fail = vi.fn();
-    expect(validatePresetColor("#5c34d4", fail)).toBe(true);
-    expect(validatePresetColor("#3b82f6", fail)).toBe(false);
-    expect(validatePresetColor("nope", fail)).toBe(false);
-    expect(fail).toHaveBeenCalledWith("color", m.validation_hex_invalid());
+    expect(validatePresetColor('#5c34d4', fail)).toBe(true);
+    expect(validatePresetColor('#3b82f6', fail)).toBe(false);
+    expect(validatePresetColor('nope', fail)).toBe(false);
+    expect(fail).toHaveBeenCalledWith('color', m.validation_hex_invalid());
   });
 });
 
-describe("validateWorkingDays", () => {
-  it("passes when at least one day is selected", () => {
+describe('validateWorkingDays', () => {
+  it('passes when at least one day is selected', () => {
     const fail = vi.fn();
     expect(validateWorkingDays([0, 1, 2, 3, 6], fail)).toBe(true);
     expect(fail).not.toHaveBeenCalled();
   });
-  it("fails on an empty set and reports the field", () => {
+  it('fails on an empty set and reports the field', () => {
     const fail = vi.fn();
     expect(validateWorkingDays([], fail)).toBe(false);
-    expect(fail).toHaveBeenCalledWith("workingDays", m.validation_working_days_required());
+    expect(fail).toHaveBeenCalledWith('workingDays', m.validation_working_days_required());
   });
   it.each([
-    [[1, 1], "duplicate days"],
-    [[1.5, 2], "fractional days"],
-    [[-1, 2], "negative days"],
-    [[2, 7], "days above Saturday"],
-  ] as const)("rejects %s (%s)", (days, description) => {
+    [[1, 1], 'duplicate days'],
+    [[1.5, 2], 'fractional days'],
+    [[-1, 2], 'negative days'],
+    [[2, 7], 'days above Saturday'],
+  ] as const)('rejects %s (%s)', (days, description) => {
     expect(description.length).toBeGreaterThan(0);
     const fail = vi.fn();
-    expect(validateWorkingDays([...days], fail, "availability")).toBe(false);
-    expect(fail).toHaveBeenCalledWith("availability", m.validation_working_days_required());
+    expect(validateWorkingDays([...days], fail, 'availability')).toBe(false);
+    expect(fail).toHaveBeenCalledWith('availability', m.validation_working_days_required());
   });
 });

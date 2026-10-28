@@ -1,23 +1,29 @@
-import { useActiveScopedData } from "@/store/useScopedData";
-import { useEntityListState } from "@/hooks/useEntityListState";
-import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";
-import { ActivityForm } from "./ActivityForm";
-import type { Activity, AppData } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { Fragment, useEffect, useMemo, useRef } from "react";
-import { ClipboardCheck } from "lucide-react";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
-import { buildActivityListModel } from "./activityListModel";
-import { useStore } from "@/store/useStore";
-import { isShownByPlanningState } from "@/data/planning/planningCacheController";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
-import { buildActivityArchiveImpactCopy, safeArchiveImpact } from "@/lib/archiveImpactCopy";
+import { useActiveScopedData } from '@/store/useScopedData';
+import { useEntityListState } from '@/hooks/useEntityListState';
+import {
+  ConfirmDialog,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+  ListPage,
+} from '@/components/common/ui';
+import { ActivityForm } from './ActivityForm';
+import type { Activity, AppData } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import { Fragment, useEffect, useMemo, useRef } from 'react';
+import { ClipboardCheck } from 'lucide-react';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
+import { buildActivityListModel } from './activityListModel';
+import { useStore } from '@/store/useStore';
+import { isShownByPlanningState } from '@/data/planning/planningCacheController';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
+import { buildActivityArchiveImpactCopy, safeArchiveImpact } from '@/lib/archiveImpactCopy';
 
 // Recheck archive eligibility at render time so a row that became inactive loses only its cascade warning.
 function buildActivityArchiveMessage(data: AppData, activity: Activity): string {
   const base = m.list_activities_archive_message({ name: activity.name });
-  const impact = safeArchiveImpact(data, "activities", activity.id);
+  const impact = safeArchiveImpact(data, 'activities', activity.id);
   if (!impact) return base;
   return impact.allocations > 0 ? `${base} ${buildActivityArchiveImpactCopy(impact)}` : base;
 }
@@ -37,7 +43,13 @@ interface ActivityRowProps {
   onArchive: (activity: Activity) => void;
 }
 
-function ActivityRow({ activity, selectedActivityId, selectedRowRef, onEdit, onArchive }: ActivityRowProps) {
+function ActivityRow({
+  activity,
+  selectedActivityId,
+  selectedRowRef,
+  onEdit,
+  onArchive,
+}: ActivityRowProps) {
   const selected = activity.id === selectedActivityId;
   return (
     <Item
@@ -45,7 +57,7 @@ function ActivityRow({ activity, selectedActivityId, selectedRowRef, onEdit, onA
       size="sm"
       role="listitem"
       data-testid="activity-row"
-      aria-current={selected ? "location" : undefined}
+      aria-current={selected ? 'location' : undefined}
       tabIndex={selected ? -1 : undefined}
       className="rounded-none"
     >
@@ -53,7 +65,10 @@ function ActivityRow({ activity, selectedActivityId, selectedRowRef, onEdit, onA
         <span className="font-medium">{activity.name}</span>
       </ItemContent>
       <ItemActions>
-        <EditButton label={m.list_edit_aria({ name: activity.name })} onClick={() => onEdit(activity)} />
+        <EditButton
+          label={m.list_edit_aria({ name: activity.name })}
+          onClick={() => onEdit(activity)}
+        />
         <DeleteButton
           label={m.list_activities_archive_aria({ name: activity.name })}
           onClick={() => onArchive(activity)}
@@ -93,7 +108,7 @@ function ProjectActivities({
   clients,
   renderRow,
 }: {
-  clients: ReturnType<typeof buildActivityListModel>["clients"];
+  clients: ReturnType<typeof buildActivityListModel>['clients'];
   renderRow: (activity: Activity) => React.ReactNode;
 }) {
   if (clients.length === 0) {
@@ -137,8 +152,8 @@ interface ActivitySectionsProps {
 function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
   const box = (input: BoxInput) => <ActivityBox {...input} renderRow={renderRow} />;
   return model.kindOrder.map((kind, index) => {
-    const headingClassName = `mb-4 flex items-center justify-between${index > 0 ? " mt-8" : ""}`;
-    if (kind === "internal") {
+    const headingClassName = `mb-4 flex items-center justify-between${index > 0 ? ' mt-8' : ''}`;
+    if (kind === 'internal') {
       return (
         <Fragment key={kind}>
           <div className={headingClassName}>
@@ -147,13 +162,13 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
           {box({
             rows: model.internal,
             empty: m.list_activities_internal_empty(),
-            testid: "internal-activities",
+            testid: 'internal-activities',
             description: m.list_activities_empty_desc(),
           })}
         </Fragment>
       );
     }
-    if (kind === "repeatable") {
+    if (kind === 'repeatable') {
       return (
         <Fragment key={kind}>
           <div className={headingClassName}>
@@ -162,7 +177,7 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
           {box({
             rows: model.crossProject,
             empty: m.list_activities_repeatable_empty(),
-            testid: "cross-project-activities",
+            testid: 'cross-project-activities',
             description: m.list_activities_repeatable_empty_desc(),
           })}
         </Fragment>
@@ -187,7 +202,8 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
   const clients = data.clients;
   const deleteActivity = useStore((state) => state.deleteActivity);
   const setNotice = useStore((state) => state.setNotice);
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Activity>();
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
+    useEntityListState<Activity>();
   const selectedRowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -217,7 +233,11 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
   );
 
   return (
-    <ListPage title={m.list_activities_title()} addLabel={m.list_activities_add()} onAdd={() => setCreating(true)}>
+    <ListPage
+      title={m.list_activities_title()}
+      addLabel={m.list_activities_add()}
+      onAdd={() => setCreating(true)}
+    >
       <ActivitySections model={activityList} renderRow={renderRow} />
 
       <ArchivedEntitySection entity="activities" />
@@ -231,7 +251,7 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
           confirmLabel={m.list_archive()}
           onConfirm={() => {
             void deleteActivity(confirming.id).catch((error: unknown) => {
-              if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), "error");
+              if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), 'error');
             });
             setConfirming(null);
           }}

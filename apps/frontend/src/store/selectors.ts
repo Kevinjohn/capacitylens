@@ -1,18 +1,25 @@
-import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
-import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { byAccount } from "@capacitylens/shared/domain/tenancy";
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
+import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { byAccount } from '@capacitylens/shared/domain/tenancy';
 import {
   emptyAppData,
   isCapacityTracked,
   isExternalResource,
   scopedTables,
   SCOPED_KEYS,
-} from "@capacitylens/shared/types/entities";
-import { DATE_STYLES, DEFAULT_DATE_STYLE } from "@capacitylens/shared/types/entities";
-import type { DateStyle } from "@capacitylens/shared/types/entities";
-import type { Account, AppData, Discipline, ID, Resource, Weekday } from "@capacitylens/shared/types/entities";
-import type { SchedulerUI } from "./types";
-import { DEFAULT_TIME_ZONE } from "@/lib/timezones";
+} from '@capacitylens/shared/types/entities';
+import { DATE_STYLES, DEFAULT_DATE_STYLE } from '@capacitylens/shared/types/entities';
+import type { DateStyle } from '@capacitylens/shared/types/entities';
+import type {
+  Account,
+  AppData,
+  Discipline,
+  ID,
+  Resource,
+  Weekday,
+} from '@capacitylens/shared/types/entities';
+import type { SchedulerUI } from './types';
+import { DEFAULT_TIME_ZONE } from '@/lib/timezones';
 
 const DEFAULT_CALENDAR_TIME_ZONE = DEFAULT_TIME_ZONE;
 /** Monday is the default first day for calendar weeks. */
@@ -27,7 +34,7 @@ const createAccountFieldSelector =
 // Mirror one company date convention into synchronous formatters. Unknown stored
 // styles fall back so legacy or hand-edited rows cannot break date rendering; import
 // sanitisation removes unsupported styles.
-const rawDateStyle = createAccountFieldSelector("dateStyle", DEFAULT_DATE_STYLE);
+const rawDateStyle = createAccountFieldSelector('dateStyle', DEFAULT_DATE_STYLE);
 /** Resolve the date display style for the active account. */
 export function resolveDateStyle(data: AppData, activeAccountId: ID | null): DateStyle {
   const stored = rawDateStyle(data, activeAccountId);
@@ -36,13 +43,15 @@ export function resolveDateStyle(data: AppData, activeAccountId: ID | null): Dat
 
 /** The active company's scheduling input mode. Absent on the account reads as 'hourly'.
  * Shared by the modal and bar. */
-export const resolveSchedulingMode = createAccountFieldSelector("schedulingMode", "hourly");
+export const resolveSchedulingMode = createAccountFieldSelector('schedulingMode', 'hourly');
 
 /** Whether the active company uses disciplines; every discipline surface shares this value. */
-export const hasDisciplinesEnabled = createAccountFieldSelector("disciplinesEnabled", true);
+export const hasDisciplinesEnabled = createAccountFieldSelector('disciplinesEnabled', true);
 
 function isActiveSupplementary(resource: Resource): boolean {
-  return resource.engagement === "supplementary" && isCapacityTracked(resource) && !resource.archivedAt;
+  return (
+    resource.engagement === 'supplementary' && isCapacityTracked(resource) && !resource.archivedAt
+  );
 }
 
 /** Whether people are partitioned Studio then Supplementary in Resources, the schedule and
@@ -54,35 +63,49 @@ export function hasSupplementaryResources(resources: readonly Resource[]): boole
 
 /** {@link hasSupplementaryResources} for the active company, read from the full store data. */
 export function hasResourceEngagementGrouping(data: AppData, activeAccountId: ID | null): boolean {
-  return data.resources.some((resource) => resource.accountId === activeAccountId && isActiveSupplementary(resource));
+  return data.resources.some(
+    (resource) => resource.accountId === activeAccountId && isActiveSupplementary(resource),
+  );
 }
 
 /** Whether the active company shows placeholders; an absent field defaults to false. */
-export const hasPlaceholdersEnabled = createAccountFieldSelector("placeholdersEnabled", false);
+export const hasPlaceholdersEnabled = createAccountFieldSelector('placeholdersEnabled', false);
 
 /** Whether the active company shows external resources; an absent field defaults to false. */
-export const hasExternalResourcesEnabled = createAccountFieldSelector("externalEnabled", false);
+export const hasExternalResourcesEnabled = createAccountFieldSelector('externalEnabled', false);
 
 /** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as
  * false (disabled). Single source so Settings and the modal use the same workspace value. */
-export const canCreateInlineActivity = createAccountFieldSelector("inlineActivityCreateEnabled", false);
+export const canCreateInlineActivity = createAccountFieldSelector(
+  'inlineActivityCreateEnabled',
+  false,
+);
 
 /** Whether populated allocation task text is shown in schedule details. Absent reads as false. */
-export const hasVisibleTaskFieldInSchedule = createAccountFieldSelector("showTaskFieldInSchedule", false);
+export const hasVisibleTaskFieldInSchedule = createAccountFieldSelector(
+  'showTaskFieldInSchedule',
+  false,
+);
 
 /** Who may open Overview. Absent reads as the restricted owner/admin default. */
-export const resolveCapacityOverviewAccess = createAccountFieldSelector("capacityOverviewAccess", "owner_admin");
+export const resolveCapacityOverviewAccess = createAccountFieldSelector(
+  'capacityOverviewAccess',
+  'owner_admin',
+);
 
 /** Reads the active company time zone, defaulting to DEFAULT_CALENDAR_TIME_ZONE when unavailable. */
-export const resolveTimeZone = createAccountFieldSelector("timezone", DEFAULT_CALENDAR_TIME_ZONE);
+export const resolveTimeZone = createAccountFieldSelector('timezone', DEFAULT_CALENDAR_TIME_ZONE);
 
 /** Resolve the week start day for the active account. */
-export const resolveWeekStart = createAccountFieldSelector("weekStartsOn", DEFAULT_WEEK_STARTS_ON);
+export const resolveWeekStart = createAccountFieldSelector('weekStartsOn', DEFAULT_WEEK_STARTS_ON);
 
 /** Account-wide dates on which a schedule creation gesture may start. */
 export const listAccountWorkingDays = (data: AppData, activeAccountId: ID | null): Weekday[] => {
   const account = data.accounts.find((candidate) => candidate.id === activeAccountId);
-  return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON);
+  return normalizeAccountWorkingDays(
+    account?.workingDays,
+    account?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON,
+  );
 };
 
 /** Narrow the full store data to a single account: every scoped array filtered to
@@ -114,13 +137,17 @@ export const listResourceAllocations = (data: AppData, resourceId: ID) =>
 // These helpers search only the supplied account-scoped data and can miss stale IDs. Callers must
 // narrow the result before dereferencing it.
 /** Find an activity by its stable ID. */
-export const activityById = (data: AppData, id: ID) => data.activities.find((activity) => activity.id === id);
+export const activityById = (data: AppData, id: ID) =>
+  data.activities.find((activity) => activity.id === id);
 /** Find a project by its stable ID. */
-export const projectById = (data: AppData, id: ID) => data.projects.find((project) => project.id === id);
+export const projectById = (data: AppData, id: ID) =>
+  data.projects.find((project) => project.id === id);
 /** Find a client by its stable ID. */
-export const clientById = (data: AppData, id: ID) => data.clients.find((client) => client.id === id);
+export const clientById = (data: AppData, id: ID) =>
+  data.clients.find((client) => client.id === id);
 /** Find a resource by its stable ID. */
-export const resourceById = (data: AppData, id: ID) => data.resources.find((resource) => resource.id === id);
+export const resourceById = (data: AppData, id: ID) =>
+  data.resources.find((resource) => resource.id === id);
 
 /** A discipline row and the resources displayed within its scheduler group. */
 export interface DisciplineGroup {
@@ -157,10 +184,14 @@ export function buildDisciplineGroups(data: AppData): DisciplineGroup[] {
   // not rescanned for every discipline. Unknown discipline IDs fall into the ungrouped bucket.
   const ours = data.resources.filter(isCapacityTracked);
 
-  const resourcesByDisciplineId = new Map<ID, Resource[]>(data.disciplines.map((discipline) => [discipline.id, []]));
+  const resourcesByDisciplineId = new Map<ID, Resource[]>(
+    data.disciplines.map((discipline) => [discipline.id, []]),
+  );
   const ungrouped: Resource[] = [];
   for (const resource of ours) {
-    const bucket = resource.disciplineId ? resourcesByDisciplineId.get(resource.disciplineId) : undefined;
+    const bucket = resource.disciplineId
+      ? resourcesByDisciplineId.get(resource.disciplineId)
+      : undefined;
     (bucket ?? ungrouped).push(resource);
   }
   const sorted = [...data.disciplines].sort(byDisciplineOrder);
@@ -176,5 +207,8 @@ export function buildDisciplineGroups(data: AppData): DisciplineGroup[] {
 
 /** Calculate the date range currently shown by the scheduler. */
 export function buildVisibleRange(schedulerUi: SchedulerUI): { start: string; end: string } {
-  return { start: schedulerUi.originDate, end: addDaysISO(schedulerUi.originDate, schedulerUi.rangeDays - 1) };
+  return {
+    start: schedulerUi.originDate,
+    end: addDaysISO(schedulerUi.originDate, schedulerUi.rangeDays - 1),
+  };
 }

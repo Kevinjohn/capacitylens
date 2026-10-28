@@ -83,7 +83,10 @@ export function resolveColumnFit(
   // Geometry narrows weekends only at the per-day-column threshold. Below it, use the same
   // uniform fit geometry will render; otherwise the fit assumes narrow weekends that are later
   // refused, which can overflow and even make the timeline shrink as the viewport widens.
-  const raw = weekendAwareRaw !== null && weekendAwareRaw >= DAY_COLUMN_MIN_WIDTH ? weekendAwareRaw : uniformRaw;
+  const raw =
+    weekendAwareRaw !== null && weekendAwareRaw >= DAY_COLUMN_MIN_WIDTH
+      ? weekendAwareRaw
+      : uniformRaw;
   // Do not cap wide one-week views: a maximum would deliberately under-fill the viewport and
   // reveal later dates, contradicting the selected zoom.
   return { dayWidth: Math.max(MIN_DAY_WIDTH, raw), weekWidth };

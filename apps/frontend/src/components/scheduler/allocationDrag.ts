@@ -1,11 +1,15 @@
-import { applyGesture } from "@/lib/gestureMath";
-import type { DateRange, DragMode, GestureOptions } from "@/lib/gestureMath";
-import { resolveScheduledHoursOnDay } from "@/lib/capacity";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
-import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
-import type { ISODate, Resource } from "@capacitylens/shared/types/entities";
-import type { ColumnGeometry } from "./columnGeometry";
+import { applyGesture } from '@/lib/gestureMath';
+import type { DateRange, DragMode, GestureOptions } from '@/lib/gestureMath';
+import { resolveScheduledHoursOnDay } from '@/lib/capacity';
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { spanDays } from '@capacitylens/shared/lib/schedulingDays';
+import {
+  FULL_DAY_HOURS,
+  isExternalResource,
+  MAX_HOURS_PER_DAY,
+} from '@capacitylens/shared/types/entities';
+import type { ISODate, Resource } from '@capacitylens/shared/types/entities';
+import type { ColumnGeometry } from './columnGeometry';
 
 interface ReconcileReassignedHoursInput {
   current: number;
@@ -75,7 +79,14 @@ export function resolveVolumePreservingHours({
 }
 
 /** Resolves a gesture into its dates and daily load. Moves preserve stored load; a non-zero days-mode resize preserves total volume and reports cap truncation. */
-export function resolveGesture({ mode, current, deltaDays, options, hoursPerDay, isDays }: ResolveGestureInput): {
+export function resolveGesture({
+  mode,
+  current,
+  deltaDays,
+  options,
+  hoursPerDay,
+  isDays,
+}: ResolveGestureInput): {
   dates: DateRange;
   hours: number;
   clamped: boolean;
@@ -83,10 +94,10 @@ export function resolveGesture({ mode, current, deltaDays, options, hoursPerDay,
   // A zero-column move can still be a cross-row reassign. Run move math so the unchanged start is
   // reinterpreted against the target resource's working week; resize no-ops keep their reference.
   const dates =
-    deltaDays !== 0 || mode === "move"
+    deltaDays !== 0 || mode === 'move'
       ? applyGesture({ mode: mode, range: current, deltaDays: deltaDays, options: options })
       : current;
-  if (isDays && mode !== "move" && deltaDays !== 0) {
+  if (isDays && mode !== 'move' && deltaDays !== 0) {
     const { hours, clamped } = resolveVolumePreservingHours({
       previousDate: current,
       next: dates,
@@ -106,7 +117,12 @@ export function buildSnappedBarGeometry({
   options,
   geometry,
 }: BuildSnappedBarGeometryInput): { left: number; width: number } {
-  const snapped = applyGesture({ mode: mode, range: current, deltaDays: deltaDays, options: options });
+  const snapped = applyGesture({
+    mode: mode,
+    range: current,
+    deltaDays: deltaDays,
+    options: options,
+  });
   return {
     left: geometry.xForDateInGeom(snapped.startDate),
     width: geometry.widthForDates(snapped.startDate, snapped.endDate),

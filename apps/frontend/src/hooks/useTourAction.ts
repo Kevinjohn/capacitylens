@@ -1,18 +1,18 @@
-import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { usePermissionStatus, useRole } from "@/auth/permissionContext";
-import { isDemoMode } from "@/data/apiConfig";
-import { m } from "@/i18n";
-import { startTour } from "@/lib/tour";
+import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { isDemoMode } from '@/data/apiConfig';
+import { m } from '@/i18n';
+import { startTour } from '@/lib/tour';
 
 /** Owns the permission-aware lifecycle for the role tour launcher. */
-export function useTourAction(setNotice: (message: string, tone: "error") => void) {
+export function useTourAction(setNotice: (message: string, tone: 'error') => void) {
   const navigate = useNavigate();
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const tourInFlight = useRef(false);
   const [tourBusy, setTourBusy] = useState(false);
-  const canShowTour = permissionStatus === "resolved" || permissionStatus === "not-applicable";
+  const canShowTour = permissionStatus === 'resolved' || permissionStatus === 'not-applicable';
 
   const showTour = async (): Promise<void> => {
     if (!canShowTour || tourInFlight.current) return;
@@ -28,8 +28,8 @@ export function useTourAction(setNotice: (message: string, tone: "error") => voi
       });
     } catch {
       // Surface a failed tour launch so the user receives feedback instead of an inert launcher.
-      console.error("GettingStarted: tour failed to start");
-      setNotice(m.gs_tour_failed(), "error");
+      console.error('GettingStarted: tour failed to start');
+      setNotice(m.gs_tour_failed(), 'error');
     } finally {
       tourInFlight.current = false;
       setTourBusy(false);

@@ -1,19 +1,23 @@
-import { useEffect, useId, useState } from "react";
-import type { FormEvent } from "react";
-import { useParams } from "react-router-dom";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import { isAccountRole } from "@capacitylens/shared/account/types";
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
-import { isRecord } from "@capacitylens/shared/lib/isRecord";
-import { m } from "@/i18n";
-import { accountClient } from "@/account/accountClient";
-import { isServerConfigured } from "@/data/apiConfig";
-import { resolveRoleLabel } from "@/lib/accessCopy";
-import { readApiError, readApiErrorCode } from "@/lib/readApiError";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { useEffect, useId, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useParams } from 'react-router-dom';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import { isAccountRole } from '@capacitylens/shared/account/types';
+import {
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  passwordLengthFailure,
+} from '@capacitylens/shared/domain/password';
+import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { m } from '@/i18n';
+import { accountClient } from '@/account/accountClient';
+import { isServerConfigured } from '@/data/apiConfig';
+import { resolveRoleLabel } from '@/lib/accessCopy';
+import { readApiError, readApiErrorCode } from '@/lib/readApiError';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 
 // The invitation route renders before sign-in. The server owns the token, fixes the address and
 // grants membership; an Owner or Admin still approves the new identity before it sees company data.
@@ -25,19 +29,19 @@ interface Preview {
 }
 
 type State =
-  | { kind: "checking" }
-  | { kind: "form"; preview: Preview }
-  | { kind: "working"; preview: Preview }
-  | { kind: "failed"; message: string }
+  | { kind: 'checking' }
+  | { kind: 'form'; preview: Preview }
+  | { kind: 'working'; preview: Preview }
+  | { kind: 'failed'; message: string }
   /** The sign-up answer was lost or failed after the account may have been created. */
-  | { kind: "uncertain" };
+  | { kind: 'uncertain' };
 
 function parsePreview(body: unknown): Preview | null {
-  if (!isRecord(body) || typeof body.email !== "string") return null;
+  if (!isRecord(body) || typeof body.email !== 'string') return null;
   return {
     email: body.email,
-    accountName: typeof body.accountName === "string" ? body.accountName : null,
-    role: typeof body.role === "string" ? body.role : null,
+    accountName: typeof body.accountName === 'string' ? body.accountName : null,
+    role: typeof body.role === 'string' ? body.role : null,
   };
 }
 
@@ -49,8 +53,8 @@ function roleText(role: string | null) {
 function signupValidationError(name: string, password: string): string | null {
   if (!name.trim()) return m.invite_err_name_required();
   const lengthFailure = passwordLengthFailure(password);
-  if (lengthFailure === "too-short") return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
-  if (lengthFailure === "too-long") return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
+  if (lengthFailure === 'too-short') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
+  if (lengthFailure === 'too-long') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
   return null;
 }
 
@@ -58,12 +62,13 @@ function signupValidationError(name: string, password: string): string | null {
 export function InviteAccept() {
   const { token } = useParams<{ token: string }>();
   // React Router may keep this element while only `:token` changes; never carry state across links.
-  return <InviteAcceptForToken key={token ?? ""} token={token} />;
+  return <InviteAcceptForToken key={token ?? ''} token={token} />;
 }
 
 function initialState(token: string | undefined): State {
-  if (!isServerConfigured()) return { kind: "failed", message: m.invite_local_mode({ app: APP_NAME }) };
-  return token ? { kind: "checking" } : { kind: "failed", message: m.invite_err_missing_token() };
+  if (!isServerConfigured())
+    return { kind: 'failed', message: m.invite_local_mode({ app: APP_NAME }) };
+  return token ? { kind: 'checking' } : { kind: 'failed', message: m.invite_err_missing_token() };
 }
 
 function useInvitePreview(token: string | undefined) {
@@ -76,16 +81,20 @@ function useInvitePreview(token: string | undefined) {
       .then(async (response) => {
         // Only a not-found or rejected token is an invalid invitation; anything else may pass on retry.
         if (!response.ok && response.status !== 400 && response.status !== 404) {
-          if (current) setState({ kind: "failed", message: m.invite_err_unavailable() });
+          if (current) setState({ kind: 'failed', message: m.invite_err_unavailable() });
           return;
         }
         const preview = response.ok ? parsePreview(await response.json().catch(() => null)) : null;
         if (current)
-          setState(preview ? { kind: "form", preview } : { kind: "failed", message: m.invite_err_invalid() });
+          setState(
+            preview
+              ? { kind: 'form', preview }
+              : { kind: 'failed', message: m.invite_err_invalid() },
+          );
       })
       .catch((failure: unknown) => {
-        console.warn("InviteAccept: preview failed", failure);
-        if (current) setState({ kind: "failed", message: m.invite_err_network() });
+        console.warn('InviteAccept: preview failed', failure);
+        if (current) setState({ kind: 'failed', message: m.invite_err_network() });
       });
     return () => {
       current = false;
@@ -96,8 +105,8 @@ function useInvitePreview(token: string | undefined) {
 
 function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const [state, setState] = useInvitePreview(token);
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const nameId = useId();
   const passwordId = useId();
@@ -113,35 +122,38 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
     const invalid = signupValidationError(name, password);
     setError(invalid);
     if (invalid) return;
-    setState({ kind: "working", preview });
+    setState({ kind: 'working', preview });
     try {
-      const response = await accountClient.signupWithInvitation(token, { name: name.trim(), password });
+      const response = await accountClient.signupWithInvitation(token, {
+        name: name.trim(),
+        password,
+      });
       if (response.ok) {
         // A full reload rechecks the session; after a 202 the account exists and sign-in shows.
-        window.location.assign("/");
+        window.location.assign('/');
         return;
       }
       if (response.status >= 500) {
-        setPassword("");
-        setState({ kind: "uncertain" });
+        setPassword('');
+        setState({ kind: 'uncertain' });
         return;
       }
       const code = await readApiErrorCode(response);
-      if (code === "INVALID_TOKEN") {
-        setState({ kind: "failed", message: m.invite_err_invalid() });
+      if (code === 'INVALID_TOKEN') {
+        setState({ kind: 'failed', message: m.invite_err_invalid() });
         return;
       }
       setError(
-        code === "EMAIL_REGISTERED"
+        code === 'EMAIL_REGISTERED'
           ? m.invite_err_email_registered()
           : ((await readApiError(response)) ?? m.invite_err_failed()),
       );
-      setState({ kind: "form", preview });
+      setState({ kind: 'form', preview });
     } catch (failure) {
       // The account may exist; a retry would spend nothing useful and report a misleading invalid link.
-      console.error("InviteAccept: sign-up failed", failure);
-      setPassword("");
-      setState({ kind: "uncertain" });
+      console.error('InviteAccept: sign-up failed', failure);
+      setPassword('');
+      setState({ kind: 'uncertain' });
     }
   };
 
@@ -154,12 +166,12 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
         </div>
         <Card className="gap-4 py-4">
           <CardContent className="flex flex-col gap-3 px-4">
-            {state.kind === "checking" && (
+            {state.kind === 'checking' && (
               <p role="status" className="text-sm text-muted-foreground">
                 {m.invite_checking()}
               </p>
             )}
-            {state.kind === "uncertain" && (
+            {state.kind === 'uncertain' && (
               <>
                 <p role="alert" data-testid="invite-uncertain" className="text-sm">
                   {m.invite_uncertain()}
@@ -171,7 +183,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                 </div>
               </>
             )}
-            {state.kind === "failed" && (
+            {state.kind === 'failed' && (
               <>
                 <p role="alert" data-testid="invite-error" className="text-sm">
                   {state.message}
@@ -183,7 +195,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                 </div>
               </>
             )}
-            {(state.kind === "form" || state.kind === "working") && (
+            {(state.kind === 'form' || state.kind === 'working') && (
               <form onSubmit={(event) => void submit(event, state.preview)} noValidate>
                 <FieldGroup className="gap-3">
                   <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
@@ -225,7 +237,12 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                   </Field>
                   <FieldError id={errorId}>{error}</FieldError>
                   <div className="flex justify-end">
-                    <Button size="sm" type="submit" data-testid="invite-submit" disabled={state.kind === "working"}>
+                    <Button
+                      size="sm"
+                      type="submit"
+                      data-testid="invite-submit"
+                      disabled={state.kind === 'working'}
+                    >
                       {m.invite_signup_submit()}
                     </Button>
                   </div>

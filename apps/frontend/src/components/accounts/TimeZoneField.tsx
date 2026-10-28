@@ -1,14 +1,20 @@
-import { ChevronDown } from "lucide-react";
-import { useId, useRef, useState } from "react";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Button } from "@/components/ui/button";
-import { Field, FieldError } from "@/components/ui/field";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { RequiredFieldLabel } from "@/components/common/fields/fieldLayout";
-import type { Option } from "@/components/common/ui";
-import { m } from "@/i18n";
-import { cn } from "@/lib/cn";
-import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from "@/lib/localQueryInput";
+import { ChevronDown } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Button } from '@/components/ui/button';
+import { Field, FieldError } from '@/components/ui/field';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RequiredFieldLabel } from '@/components/common/fields/fieldLayout';
+import type { Option } from '@/components/common/ui';
+import { m } from '@/i18n';
+import { cn } from '@/lib/cn';
+import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/localQueryInput';
 
 interface TimeZoneFieldProps {
   label: string;
@@ -23,11 +29,11 @@ function TimeZoneMenu({
   value,
   options,
   onSelect,
-}: Pick<TimeZoneFieldProps, "label" | "value" | "options"> & {
+}: Pick<TimeZoneFieldProps, 'label' | 'value' | 'options'> & {
   popupId: string;
   onSelect: (value: string) => void;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [queryTooLong, setQueryTooLong] = useState(false);
   const queryErrorId = useId();
 
@@ -59,7 +65,9 @@ function TimeZoneMenu({
             aria-invalid={queryTooLong || undefined}
             aria-describedby={queryTooLong ? queryErrorId : undefined}
           />
-          {queryTooLong && <FieldError id={queryErrorId}>{m.validation_text_too_long()}</FieldError>}
+          {queryTooLong && (
+            <FieldError id={queryErrorId}>{m.validation_text_too_long()}</FieldError>
+          )}
         </div>
         <CommandList
           aria-label={label}
@@ -72,7 +80,7 @@ function TimeZoneMenu({
               value={`${option.value} ${option.label}`}
               data-value={option.value}
               onSelect={() => onSelect(option.value)}
-              className={cn(option.value === value && "font-medium")}
+              className={cn(option.value === value && 'font-medium')}
             >
               {option.label}
             </CommandItem>
@@ -118,7 +126,7 @@ export function TimeZoneField({ label, value, onChange, options }: TimeZoneField
             aria-haspopup="dialog"
             className="w-full justify-between gap-2 font-normal"
             onKeyDown={(event) => {
-              if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+              if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 setOpen(true);
               }

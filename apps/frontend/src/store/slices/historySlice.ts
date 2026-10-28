@@ -1,21 +1,29 @@
-import type { StateCreator } from "zustand";
-import { m } from "@/i18n";
+import type { StateCreator } from 'zustand';
+import { m } from '@/i18n';
 import {
   buildClearedSession,
   hasSameEntityRevisions,
   HISTORY_LIMIT,
   prepareHistoryTarget,
   resetSchedulerView,
-} from "@/store/storeInternal";
-import type { StoreInternals } from "@/store/storeInternal";
-import { readCurrentWeekAnchor } from "./schedulerSlice";
-import type { StoreState } from "@/store/types";
+} from '@/store/storeInternal';
+import type { StoreInternals } from '@/store/storeInternal';
+import { readCurrentWeekAnchor } from './schedulerSlice';
+import type { StoreState } from '@/store/types';
 
-type HistorySlice = Pick<StoreState, "past" | "future" | "replaceAll" | "importData" | "undo" | "redo">;
-type HistorySliceInternals = Pick<StoreInternals, "createGuardedAction" | "importSlice" | "requireAccount">;
+type HistorySlice = Pick<
+  StoreState,
+  'past' | 'future' | 'replaceAll' | 'importData' | 'undo' | 'redo'
+>;
+type HistorySliceInternals = Pick<
+  StoreInternals,
+  'createGuardedAction' | 'importSlice' | 'requireAccount'
+>;
 
 /** Create undo and redo actions for the store. */
-export function createHistorySlice(internals: HistorySliceInternals): StateCreator<StoreState, [], [], HistorySlice> {
+export function createHistorySlice(
+  internals: HistorySliceInternals,
+): StateCreator<StoreState, [], [], HistorySlice> {
   return (set) => {
     const { createGuardedAction, importSlice, requireAccount } = internals;
     return {
@@ -57,14 +65,15 @@ export function createHistorySlice(internals: HistorySliceInternals): StateCreat
   };
 }
 
-function replaceAllState(state: StoreState, data: StoreState["data"]): Partial<StoreState> {
+function replaceAllState(state: StoreState, data: StoreState['data']): Partial<StoreState> {
   const previouslyHadActiveAccount = state.activeAccountId
     ? state.data.accounts.some((candidate) => candidate.id === state.activeAccountId)
     : false;
   const account = state.activeAccountId
     ? data.accounts.find((candidate) => candidate.id === state.activeAccountId)
     : undefined;
-  const unchangedActiveSlice = previouslyHadActiveAccount && hasSameEntityRevisions(state.data, data);
+  const unchangedActiveSlice =
+    previouslyHadActiveAccount && hasSameEntityRevisions(state.data, data);
   // A replacement is a publication boundary: never retain an active id that the newly
   // published slice does not contain. This can happen after membership revocation, a malformed
   // response, recovery, or a direct store call. Clear the selection in the same state write so
@@ -77,10 +86,10 @@ function replaceAllState(state: StoreState, data: StoreState["data"]): Partial<S
       activeAccountId: null,
       previousAccountId: null,
       activeRole: null,
-      activeRoleStatus: "not-applicable",
+      activeRoleStatus: 'not-applicable',
       notice: {
         message: m.notice_company_not_found(),
-        tone: "error" as const,
+        tone: 'error' as const,
       },
       ...buildClearedSession(),
       past: [],
@@ -98,7 +107,9 @@ function replaceAllState(state: StoreState, data: StoreState["data"]): Partial<S
     // authoritative revisions prove that no row changed. Preserve undo/redo only in that
     // exact case. Any remote addition, deletion or revision change clears history because a
     // historical whole-slice snapshot could otherwise resurrect or overwrite remote work.
-    return unchangedActiveSlice ? { data } : { data, past: [], future: [], ...clearPlanningHistory(state) };
+    return unchangedActiveSlice
+      ? { data }
+      : { data, past: [], future: [], ...clearPlanningHistory(state) };
   }
   return {
     data,
@@ -109,6 +120,6 @@ function replaceAllState(state: StoreState, data: StoreState["data"]): Partial<S
   };
 }
 
-function clearPlanningHistory(state: StoreState): Pick<StoreState, "planning"> {
+function clearPlanningHistory(state: StoreState): Pick<StoreState, 'planning'> {
   return { planning: { ...state.planning, history: { past: [], future: [], tipRevision: null } } };
 }

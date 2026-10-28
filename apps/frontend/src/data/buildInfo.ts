@@ -4,17 +4,17 @@
 // build looks otherwise identical to a real server deploy. The stamp is how the
 // post-deploy smoke test proves the deploy really is in server mode, not the demo build.
 
-import { isServerConfigured } from "./apiConfig";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import { isAccountEmail } from "@capacitylens/shared/account/validation";
-import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
-import packageJson from "../../../../package.json";
-import { isRecord } from "@capacitylens/shared/lib/isRecord";
+import { isServerConfigured } from './apiConfig';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import { isAccountEmail } from '@capacitylens/shared/account/validation';
+import { EXPORT_SCHEMA_VERSION } from '@capacitylens/shared/types/entities';
+import packageJson from '../../../../package.json';
+import { isRecord } from '@capacitylens/shared/lib/isRecord';
 
 /** Whether the observed diagnostics response was reachable; `unavailable` means no response was usable. */
-export type DiagnosticsConnectivity = "ok" | "unavailable";
+export type DiagnosticsConnectivity = 'ok' | 'unavailable';
 /** Whether the observed database schema could be read safely; `unavailable` means the value is unknown. */
-export type DiagnosticsDatabaseStatus = "ok" | "unavailable";
+export type DiagnosticsDatabaseStatus = 'ok' | 'unavailable';
 
 /** Fixed server fields allowed into a client diagnostics snapshot. */
 export interface ServerDiagnostics {
@@ -46,18 +46,18 @@ export interface DiagnosticsReport {
   observedAt: string | null;
   appVersion: string;
   buildRevision: string | null;
-  deploymentMode: "server" | "demo";
+  deploymentMode: 'server' | 'demo';
   exportSchema: number;
   server: ServerDiagnostics;
   client: ClientDiagnostics;
 }
 
-const UNKNOWN = "Unknown";
+const UNKNOWN = 'Unknown';
 
 function createUnknownServerDiagnostics(): ServerDiagnostics {
   return {
-    connectivity: "unavailable",
-    database: { status: "unavailable" },
+    connectivity: 'unavailable',
+    database: { status: 'unavailable' },
     schema: { migration: null },
     backup: { newestSnapshotAt: null },
   };
@@ -65,14 +65,17 @@ function createUnknownServerDiagnostics(): ServerDiagnostics {
 
 function readBuildRevision(): string | null {
   const revision = (
-    readOptionalEnvironmentString(import.meta.env.VITE_CAPACITYLENS_BUILD_SHA, "VITE_CAPACITYLENS_BUILD_SHA") ?? ""
+    readOptionalEnvironmentString(
+      import.meta.env.VITE_CAPACITYLENS_BUILD_SHA,
+      'VITE_CAPACITYLENS_BUILD_SHA',
+    ) ?? ''
   ).trim();
   return /^[0-9a-f]{7,64}$/i.test(revision) ? revision : null;
 }
 
 function readTimestamp(value: unknown): string | null {
   if (
-    typeof value !== "string" ||
+    typeof value !== 'string' ||
     value.length > 64 ||
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) ||
     !Number.isFinite(Date.parse(value)) ||
@@ -83,7 +86,7 @@ function readTimestamp(value: unknown): string | null {
 }
 
 const isOneOf = <T extends string>(value: unknown, values: readonly T[]): value is T =>
-  typeof value === "string" && values.includes(value as T);
+  typeof value === 'string' && values.includes(value as T);
 
 function parseServerDiagnostics(value: unknown): ServerDiagnostics {
   if (!isRecord(value)) return createUnknownServerDiagnostics();
@@ -99,22 +102,26 @@ function parseServerDiagnostics(value: unknown): ServerDiagnostics {
 }
 
 function readConnectivity(value: unknown): DiagnosticsConnectivity {
-  return value === "ok" ? "ok" : "unavailable";
+  return value === 'ok' ? 'ok' : 'unavailable';
 }
 
 function readDatabaseStatus(value: unknown): DiagnosticsDatabaseStatus {
-  return isOneOf(value, ["ok", "unavailable"] as const) ? value : "unavailable";
+  return isOneOf(value, ['ok', 'unavailable'] as const) ? value : 'unavailable';
 }
 
 function readDatabaseProjection(database: Record<string, unknown> | null) {
   return { status: readDatabaseStatus(database?.status) };
 }
 
-function readSchemaProjection(schema: Record<string, unknown> | null, databaseStatus: DiagnosticsDatabaseStatus) {
-  const migration = databaseStatus === "ok" ? schema?.migration : null;
+function readSchemaProjection(
+  schema: Record<string, unknown> | null,
+  databaseStatus: DiagnosticsDatabaseStatus,
+) {
+  const migration = databaseStatus === 'ok' ? schema?.migration : null;
   return {
     migration:
-      typeof migration === "string" && /^database\/migrations\/\d{12}_[a-z0-9_]{1,100}$/.test(migration)
+      typeof migration === 'string' &&
+      /^database\/migrations\/\d{12}_[a-z0-9_]{1,100}$/.test(migration)
         ? migration
         : null,
   };
@@ -160,7 +167,7 @@ export function readDiagnostics(
     observedAt: readTimestamp(observedAt) ?? null,
     appVersion: packageJson.version,
     buildRevision: readBuildRevision(),
-    deploymentMode: isServerConfigured() ? "server" : "demo",
+    deploymentMode: isServerConfigured() ? 'server' : 'demo',
     // The export schema is a client-side format marker; it is deliberately not presented as the
     // physical server schema, which is supplied separately by the authenticated diagnostics route.
     exportSchema: EXPORT_SCHEMA_VERSION,
@@ -188,12 +195,12 @@ export function formatDiagnostics(report: DiagnosticsReport): string {
     `Viewport: ${browser.viewport}`,
     `Time zone: ${browser.timeZone}`,
     `Language: ${browser.language}`,
-  ].join("\n");
+  ].join('\n');
 }
 
 function readOptionalEnvironmentString(value: unknown, variableName: string): string | undefined {
   if (value === undefined || value === null) return undefined;
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     throw new Error(`${variableName} must be a string.`);
   }
   return value;
@@ -204,7 +211,7 @@ function readOptionalEnvironmentString(value: unknown, variableName: string): st
 export function readBuildStamp(): string | null {
   const revision = readBuildRevision();
   if (!revision) return null;
-  return `build ${revision} · ${isServerConfigured() ? "server" : "demo"}`;
+  return `build ${revision} · ${isServerConfigured() ? 'server' : 'demo'}`;
 }
 
 /** The Diagnostics "Send feedback" mailto href (flag VITE_CAPACITYLENS_FEEDBACK_MAILTO), or
@@ -214,11 +221,11 @@ export function readFeedbackMailto(): string | null {
   const addr = (
     readOptionalEnvironmentString(
       import.meta.env.VITE_CAPACITYLENS_FEEDBACK_MAILTO,
-      "VITE_CAPACITYLENS_FEEDBACK_MAILTO",
-    ) ?? ""
+      'VITE_CAPACITYLENS_FEEDBACK_MAILTO',
+    ) ?? ''
   ).trim();
   if (!isAccountEmail(addr)) return null;
-  const atSignIndex = addr.indexOf("@");
+  const atSignIndex = addr.indexOf('@');
   const recipient = `${encodeURIComponent(addr.slice(0, atSignIndex))}@${encodeURIComponent(addr.slice(atSignIndex + 1))}`;
   const stamp = readBuildStamp();
   const subject = stamp ? `${APP_NAME} feedback — ${stamp}` : `${APP_NAME} feedback`;

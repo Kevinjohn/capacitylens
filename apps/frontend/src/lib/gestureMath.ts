@@ -4,14 +4,14 @@ import {
   endDateForWorkingDays,
   isWeekendAware,
   weekdayOf,
-} from "@capacitylens/shared/lib/dateMath";
-import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
-import type { ISODate, Weekday } from "@capacitylens/shared/types/entities";
+} from '@capacitylens/shared/lib/dateMath';
+import { spanDays } from '@capacitylens/shared/lib/schedulingDays';
+import type { ISODate, Weekday } from '@capacitylens/shared/types/entities';
 
 interface ResolveResizedEdgeInput {
   range: DateRange;
   deltaDays: number;
-  edge: "start" | "end";
+  edge: 'start' | 'end';
   weekendAwareDays: Weekday[] | null;
 }
 
@@ -33,14 +33,14 @@ interface ApplyMoveInput {
 }
 
 interface ApplyResizeInput {
-  mode: "resize-start" | "resize-end";
+  mode: 'resize-start' | 'resize-end';
   range: DateRange;
   deltaDays: number;
   weekendAwareDays: Weekday[] | null;
 }
 
 /** Pointer gesture operation applied to a schedule date range. */
-export type DragMode = "move" | "resize-start" | "resize-end";
+export type DragMode = 'move' | 'resize-start' | 'resize-end';
 
 /** Inclusive start and end dates for a schedule gesture. */
 export interface DateRange {
@@ -71,7 +71,8 @@ type Direction = 1 | -1;
 function snapToWorkingDay(date: ISODate, workingDays: Weekday[], direction: Direction): ISODate {
   let weekday = weekdayOf(date);
   for (let offset = 0; offset < 7; offset++) {
-    if (workingDays.includes(weekday)) return offset === 0 ? date : addDaysISO(date, offset * direction);
+    if (workingDays.includes(weekday))
+      return offset === 0 ? date : addDaysISO(date, offset * direction);
     weekday = ((weekday + direction + 7) % 7) as Weekday;
   }
   return addDaysISO(date, 7 * direction);
@@ -82,13 +83,18 @@ function isPast(date: ISODate, limit: ISODate, direction: Direction): boolean {
 }
 
 // Use one clamp path for both edges so weekend-aware resize behavior stays symmetric.
-function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: ResolveResizedEdgeInput): ISODate {
+function resolveResizedEdge({
+  range,
+  deltaDays,
+  edge,
+  weekendAwareDays,
+}: ResolveResizedEdgeInput): ISODate {
   // The opposite edge is the one an over-drag collapses onto; `toAnchor` is the direction it
   // lies in, `toOrigin` the way back to where this edge started.
-  const toAnchor: Direction = edge === "start" ? 1 : -1;
-  const toOrigin: Direction = edge === "start" ? -1 : 1;
-  const anchor = edge === "start" ? range.endDate : range.startDate;
-  const origin = edge === "start" ? range.startDate : range.endDate;
+  const toAnchor: Direction = edge === 'start' ? 1 : -1;
+  const toOrigin: Direction = edge === 'start' ? -1 : 1;
+  const anchor = edge === 'start' ? range.endDate : range.startDate;
+  const origin = edge === 'start' ? range.startDate : range.endDate;
   let moved = addDaysISO(origin, deltaDays);
   // Weekend-aware: keep the dragged edge off non-working days (snap in the drag's direction),
   // mirroring the move branch; otherwise a resize lands a weekend at the bar's edge and, in
@@ -108,14 +114,22 @@ function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: Resolv
 // Measure in the origin's calendar, then place in the destination's calendar. Measuring in the
 // destination's week can change the duration because the source dates may represent different
 // working-day counts there. When both calendars treat every day as a working day, the move is a calendar shift.
-function applyMove({ range, deltaDays, sourceSpan, placesIntoAnotherWeek, targetDays }: ApplyMoveInput): DateRange {
+function applyMove({
+  range,
+  deltaDays,
+  sourceSpan,
+  placesIntoAnotherWeek,
+  targetDays,
+}: ApplyMoveInput): DateRange {
   const shiftedStart = addDaysISO(range.startDate, deltaDays);
   // The destination's week decides where the range starts. An origin with nothing to carry must
   // still snap when it is being placed in a different week: a start the destination does not work
   // is refused at commit, so leaving it unsnapped turns the drop into a rejection toast. Within one
   // week there is nothing to re-place, and a range already sitting on non-working days stays put.
   const snaps = deltaDays !== 0 && targetDays && (sourceSpan > 0 || placesIntoAnotherWeek);
-  const newStart = snaps ? snapToWorkingDay(shiftedStart, targetDays, deltaDays > 0 ? 1 : -1) : shiftedStart;
+  const newStart = snaps
+    ? snapToWorkingDay(shiftedStart, targetDays, deltaDays > 0 ? 1 : -1)
+    : shiftedStart;
   // An origin with no duration to carry: its range lands entirely on days it does not work, or
   // its working week has collapsed to none at all. Preserving the raw calendar span is the only
   // non-destructive answer; re-placing a zero span would silently delete the booking.
@@ -131,15 +145,21 @@ function applyMove({ range, deltaDays, sourceSpan, placesIntoAnotherWeek, target
 }
 
 function applyResize({ mode, range, deltaDays, weekendAwareDays }: ApplyResizeInput): DateRange {
-  const edge = mode === "resize-start" ? "start" : "end";
+  const edge = mode === 'resize-start' ? 'start' : 'end';
   const moved = resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays });
-  return edge === "start"
+  return edge === 'start'
     ? { startDate: moved, endDate: range.endDate }
     : { startDate: range.startDate, endDate: moved };
 }
 
-type ResolveWeekendAwareWeekOptions = { days: Weekday[] | undefined; ignoreWeekends: boolean | undefined };
-function resolveWeekendAwareWeek({ days, ignoreWeekends }: ResolveWeekendAwareWeekOptions): Weekday[] | null {
+type ResolveWeekendAwareWeekOptions = {
+  days: Weekday[] | undefined;
+  ignoreWeekends: boolean | undefined;
+};
+function resolveWeekendAwareWeek({
+  days,
+  ignoreWeekends,
+}: ResolveWeekendAwareWeekOptions): Weekday[] | null {
   return isWeekendAware(days, ignoreWeekends) ? (days ?? null) : null;
 }
 
@@ -170,7 +190,7 @@ export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureIn
     ignoreWeekends: options?.ignoreWeekends ?? undefined,
   });
   switch (mode) {
-    case "move":
+    case 'move':
       return applyMove({
         range,
         deltaDays,
@@ -184,8 +204,8 @@ export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureIn
         ),
         targetDays: weekendAwareDays,
       });
-    case "resize-start":
-    case "resize-end":
+    case 'resize-start':
+    case 'resize-end':
       return applyResize({ mode, range, deltaDays, weekendAwareDays });
   }
 }

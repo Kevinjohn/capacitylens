@@ -1,7 +1,11 @@
-import { internalClientFor } from "@capacitylens/shared/data/internalClient";
-import { resolveBarColor } from "@capacitylens/shared/lib/color";
-import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
-import { carriesHourlyLoad, isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
+import { internalClientFor } from '@capacitylens/shared/data/internalClient';
+import { resolveBarColor } from '@capacitylens/shared/lib/color';
+import { rangesOverlap } from '@capacitylens/shared/lib/dateMath';
+import {
+  carriesHourlyLoad,
+  isCapacityTracked,
+  isExternalResource,
+} from '@capacitylens/shared/types/entities';
 import type {
   Activity,
   Allocation,
@@ -12,15 +16,15 @@ import type {
   Project,
   Resource,
   SchedulingMode,
-} from "@capacitylens/shared/types/entities";
-import { buildAllocationAttribution } from "@/components/scheduler/buildAllocationAttribution";
-import { hasRenderableDateRange } from "@/components/scheduler/schedulerModelIndexing";
+} from '@capacitylens/shared/types/entities';
+import { buildAllocationAttribution } from '@/components/scheduler/buildAllocationAttribution';
+import { hasRenderableDateRange } from '@/components/scheduler/schedulerModelIndexing';
 import type {
   PersonScheduleBuildResult,
   PersonScheduleEntry,
   PersonScheduleInvalidRecord,
   PersonScheduleWindow,
-} from "./personScheduleTypes";
+} from './personScheduleTypes';
 
 /** Scoped scheduling data and visible window needed for a person projection. */
 export interface BuildPersonScheduleInput {
@@ -86,18 +90,22 @@ function collectSeriesMetadata(
   for (const allocation of allocations) {
     if (allocation.accountId !== accountId) continue;
     if (!hasRenderableDateRange(allocation)) {
-      invalidRecords.push({ kind: "allocation", sourceId: allocation.id });
+      invalidRecords.push({ kind: 'allocation', sourceId: allocation.id });
       continue;
     }
     if (!allocation.seriesId) continue;
     const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
     const current = seriesEndByKey.get(key);
-    if (current === undefined || allocation.endDate > current) seriesEndByKey.set(key, allocation.endDate);
+    if (current === undefined || allocation.endDate > current)
+      seriesEndByKey.set(key, allocation.endDate);
   }
   return invalidRecords;
 }
 
-function overlapsWindow(row: { startDate: ISODate; endDate: ISODate }, window: PersonScheduleWindow): boolean {
+function overlapsWindow(
+  row: { startDate: ISODate; endDate: ISODate },
+  window: PersonScheduleWindow,
+): boolean {
   return rangesOverlap(row.startDate, row.endDate, window.startDate, window.endDate);
 }
 
@@ -118,7 +126,7 @@ function buildAllocationEntry(
     ? context.seriesEndByKey.get(`${allocation.accountId}\u0000${allocation.seriesId}`)
     : undefined;
   return {
-    kind: "allocation",
+    kind: 'allocation',
     key: `allocation:${allocation.id}`,
     sourceId: allocation.id,
     startDate: allocation.startDate,
@@ -137,10 +145,14 @@ function buildAllocationEntry(
   };
 }
 
-function listAllocationEntries(input: BuildPersonScheduleInput, context: ProjectionContext): PersonScheduleEntry[] {
+function listAllocationEntries(
+  input: BuildPersonScheduleInput,
+  context: ProjectionContext,
+): PersonScheduleEntry[] {
   const entries: PersonScheduleEntry[] = [];
   for (const allocation of input.data.allocations) {
-    if (allocation.accountId !== input.accountId || allocation.resourceId !== input.resource.id) continue;
+    if (allocation.accountId !== input.accountId || allocation.resourceId !== input.resource.id)
+      continue;
     if (!hasRenderableDateRange(allocation) || !overlapsWindow(allocation, input.window)) continue;
     entries.push(buildAllocationEntry(allocation, input, context));
   }
@@ -156,12 +168,12 @@ function listTimeOffEntries(input: BuildPersonScheduleInput): {
   for (const timeOff of input.data.timeOff) {
     if (timeOff.accountId !== input.accountId || timeOff.resourceId !== input.resource.id) continue;
     if (!hasRenderableDateRange(timeOff)) {
-      invalidRecords.push({ kind: "timeOff", sourceId: timeOff.id });
+      invalidRecords.push({ kind: 'timeOff', sourceId: timeOff.id });
       continue;
     }
     if (!isCapacityTracked(input.resource) || !overlapsWindow(timeOff, input.window)) continue;
     entries.push({
-      kind: "timeOff",
+      kind: 'timeOff',
       key: `timeOff:${timeOff.id}`,
       sourceId: timeOff.id,
       startDate: timeOff.startDate,
@@ -182,7 +194,9 @@ export function buildPersonSchedule(input: BuildPersonScheduleInput): PersonSche
     context.seriesEndByKey,
   );
   const timeOff = listTimeOffEntries(input);
-  const entries = [...listAllocationEntries(input, context), ...timeOff.entries].sort(compareEntries);
+  const entries = [...listAllocationEntries(input, context), ...timeOff.entries].sort(
+    compareEntries,
+  );
   return {
     model: {
       accountId: input.accountId,

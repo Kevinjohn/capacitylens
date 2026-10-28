@@ -1,18 +1,18 @@
-import { spawnPnpm } from "./pnpmSpawn.mjs";
-import { E2E_RUN_PRESETS, presetEnvironment } from "./playwrightRunMode.mjs";
+import { spawnPnpm } from './pnpmSpawn.mjs';
+import { E2E_RUN_PRESETS, presetEnvironment } from './playwrightRunMode.mjs';
 
 const [preset, ...forwardedArgs] = process.argv.slice(2);
 const presets = {
-  "dev-demo": {
-    args: ["run", "dev:web", ...forwardedArgs],
-    environment: { VITE_CAPACITYLENS_DEMO: "1" },
+  'dev-demo': {
+    args: ['run', 'dev:web', ...forwardedArgs],
+    environment: { VITE_CAPACITYLENS_DEMO: '1' },
   },
   webkit: {
-    args: ["exec", "playwright", "test", "--project=webkit", ...forwardedArgs],
+    args: ['exec', 'playwright', 'test', '--project=webkit', ...forwardedArgs],
     environment: E2E_RUN_PRESETS.webkitOnly.environment,
   },
   firefox: {
-    args: ["exec", "playwright", "test", "--project=firefox", ...forwardedArgs],
+    args: ['exec', 'playwright', 'test', '--project=firefox', ...forwardedArgs],
     environment: E2E_RUN_PRESETS.firefoxOnly.environment,
   },
 };
@@ -24,17 +24,17 @@ if (!selected) {
 }
 
 const child = spawnPnpm(selected.args, {
-  stdio: "inherit",
+  stdio: 'inherit',
   env:
-    preset === "dev-demo"
+    preset === 'dev-demo'
       ? { ...process.env, ...selected.environment }
       : presetEnvironment(process.env, selected.environment),
 });
-child.once("error", (error) => {
+child.once('error', (error) => {
   console.error(`run-preset: could not start ${preset}: ${error.message}`);
   process.exitCode = 2;
 });
-child.once("exit", (code, signal) => {
+child.once('exit', (code, signal) => {
   if (signal) {
     console.error(`run-preset: ${preset} was terminated by ${signal}`);
     process.exitCode = 2;

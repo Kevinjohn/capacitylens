@@ -1,7 +1,7 @@
-import * as React from "react";
-import { Separator as SeparatorPrimitive } from "radix-ui";
+import * as React from 'react';
+import { Separator as SeparatorPrimitive } from 'radix-ui';
 
-import { cn } from "@/lib/cn";
+import { cn } from '@/lib/cn';
 
 // Decorative separators omit the ARIA role so visual rules do not add unnecessary
 // separators to the accessibility tree.
@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 /** Renders a horizontal or vertical separator. */
 function Separator({
   className,
-  orientation = "horizontal",
+  orientation = 'horizontal',
   decorative = true,
   ...props
 }: React.ComponentProps<typeof SeparatorPrimitive.Root>) {
@@ -19,7 +19,7 @@ function Separator({
       decorative={decorative}
       orientation={orientation}
       className={cn(
-        "bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px",
+        'bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px',
         className,
       )}
       {...props}

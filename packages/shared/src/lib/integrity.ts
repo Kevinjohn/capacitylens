@@ -1,7 +1,7 @@
-import { daysInclusive } from "./dateMath.js";
-import { MAX_SPAN_DAYS } from "./schedulingDays.js";
-import type { DomainErrorCode } from "../domain/errors.js";
-import type { Activity, Allocation, AppData, ID, ISODate, Resource } from "../types/entities.js";
+import { daysInclusive } from './dateMath.js';
+import { MAX_SPAN_DAYS } from './schedulingDays.js';
+import type { DomainErrorCode } from '../domain/errors.js';
+import type { Activity, Allocation, AppData, ID, ISODate, Resource } from '../types/entities.js';
 
 // Keep referential-integrity validation and cascade transforms pure. Cascades return a new AppData.
 // FK-clearing cascades require an updatedAt revision so synchronization observes surviving relationship edits.
@@ -16,7 +16,7 @@ import type { Activity, Allocation, AppData, ID, ISODate, Resource } from "../ty
 export function daysInMonth(year: number, month: number): number {
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
-  if (days === undefined) throw new RangeError("Month must be between 1 and 12.");
+  if (days === undefined) throw new RangeError('Month must be between 1 and 12.');
   return days;
 }
 
@@ -27,7 +27,7 @@ export function daysInMonth(year: number, month: number): number {
  * so Gregorian month-length arithmetic validates it without consulting the host timezone.
  */
 export function isValidISODate(value: unknown): value is ISODate {
-  if (typeof value !== "string") return false;
+  if (typeof value !== 'string') return false;
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return false;
   const year = Number(match[1]);
@@ -37,7 +37,8 @@ export function isValidISODate(value: unknown): value is ISODate {
   return day <= daysInMonth(year, month);
 }
 
-const ISO_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;
+const ISO_TIMESTAMP_RE =
+  /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;
 
 interface TimestampOffsetParts {
   zone: string | undefined;
@@ -46,13 +47,18 @@ interface TimestampOffsetParts {
   offsetMinuteText: string | undefined;
 }
 
-function timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText }: TimestampOffsetParts): number | null {
+function timestampOffsetMinutes({
+  zone,
+  sign,
+  offsetHourText,
+  offsetMinuteText,
+}: TimestampOffsetParts): number | null {
   if (zone === undefined) return null;
-  if (zone === "Z") return 0;
+  if (zone === 'Z') return 0;
   const offsetHour = Number(offsetHourText);
   const offsetMinute = Number(offsetMinuteText);
   if (offsetHour > 23 || offsetMinute > 59) return null;
-  return (sign === "-" ? -1 : 1) * (offsetHour * 60 + offsetMinute);
+  return (sign === '-' ? -1 : 1) * (offsetHour * 60 + offsetMinute);
 }
 
 /**
@@ -61,23 +67,34 @@ function timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText }
  * required and fractional precision is capped at the millisecond precision the product stores.
  */
 export function parseISOTimestamp(value: unknown): number | null {
-  if (typeof value !== "string") return null;
+  if (typeof value !== 'string') return null;
   const match = ISO_TIMESTAMP_RE.exec(value);
   if (!match) return null;
-  const [, date, hourText, minuteText, secondText, fraction, zone, sign, offsetHourText, offsetMinuteText] = match;
+  const [
+    ,
+    date,
+    hourText,
+    minuteText,
+    secondText,
+    fraction,
+    zone,
+    sign,
+    offsetHourText,
+    offsetMinuteText,
+  ] = match;
   if (!isValidISODate(date)) return null;
 
   const hour = Number(hourText);
   const minute = Number(minuteText);
   const second = Number(secondText);
-  const milliseconds = Number((fraction ?? "").padEnd(3, "0") || "0");
+  const milliseconds = Number((fraction ?? '').padEnd(3, '0') || '0');
   if (hour > 23 || minute > 59 || second > 59) return null;
 
   const offsetMinutes = timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText });
   if (offsetMinutes === null) return null;
 
   const localAsUtc = Date.parse(
-    `${date}T${hourText}:${minuteText}:${secondText}.${String(milliseconds).padStart(3, "0")}Z`,
+    `${date}T${hourText}:${minuteText}:${secondText}.${String(milliseconds).padStart(3, '0')}Z`,
   );
   const expected = localAsUtc - offsetMinutes * 60_000;
   const parsed = Date.parse(value);
@@ -106,8 +123,8 @@ export function validateProjectClient(clientId: ID | undefined | null): Validati
       ? []
       : [
           {
-            code: "project_client_required",
-            message: "A project must belong to a client.",
+            code: 'project_client_required',
+            message: 'A project must belong to a client.',
           },
         ],
   );
@@ -124,30 +141,33 @@ export function validateProjectClient(clientId: ID | undefined | null): Validati
  * check matters most on the import / direct-store paths, which bypass the native
  * date inputs that keep the UI well-formed.
  */
-export function validateDateRange(startDate?: ISODate | null, endDate?: ISODate | null): ValidationResult {
+export function validateDateRange(
+  startDate?: ISODate | null,
+  endDate?: ISODate | null,
+): ValidationResult {
   if (!startDate || !endDate)
-    return toResult([{ code: "date_required", message: "Start and end dates are required." }]);
+    return toResult([{ code: 'date_required', message: 'Start and end dates are required.' }]);
   if (!isValidISODate(startDate) || !isValidISODate(endDate)) {
     return toResult([
       {
-        code: "date_invalid",
-        message: "Dates must be valid calendar dates (YYYY-MM-DD).",
+        code: 'date_invalid',
+        message: 'Dates must be valid calendar dates (YYYY-MM-DD).',
       },
     ]);
   }
   if (endDate < startDate)
     return toResult([
       {
-        code: "date_reversed",
-        message: "End date cannot be before the start date.",
+        code: 'date_reversed',
+        message: 'End date cannot be before the start date.',
       },
     ]);
   // Enforce the span bound before callers can allocate one entry per day.
   if (daysInclusive(startDate, endDate) > MAX_SPAN_DAYS) {
     return toResult([
       {
-        code: "date_span_too_long",
-        message: `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString("en-GB")} calendar days.`,
+        code: 'date_span_too_long',
+        message: `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString('en-GB')} calendar days.`,
       },
     ]);
   }
@@ -157,15 +177,15 @@ export function validateDateRange(startDate?: ISODate | null, endDate?: ISODate 
 /** Resolve the project a booking counts toward. Allocation attribution takes precedence over the
  * activity's project because repeatable activities are project-less and attribute each booking. */
 export function effectiveProjectId(
-  allocation: Partial<Pick<Allocation, "projectId">>,
-  activity: Partial<Pick<Activity, "projectId">>,
+  allocation: Partial<Pick<Allocation, 'projectId'>>,
+  activity: Partial<Pick<Activity, 'projectId'>>,
 ): ID | undefined {
   return allocation.projectId ?? activity.projectId ?? undefined;
 }
 
 /** Allocation-level project attribution belongs only to all-projects activities. */
 export function allocationAttributionAllowed(kind: unknown): boolean {
-  return kind === "repeatable";
+  return kind === 'repeatable';
 }
 
 /** Return a fresh row with allocation-level attribution removed and, when supplied, restamped. */
@@ -178,20 +198,23 @@ export function withoutAllocationAttribution<T extends object>(row: T, updatedAt
 
 /** Check that a project-attributed placeholder allocation matches its bound project.
  * Unattributed work is assignable to any resource; people and externals are unrestricted by this rule. Pure. */
-export function validateAllocationAssignment(resource: Resource, projectId: ID | undefined): ValidationResult {
+export function validateAllocationAssignment(
+  resource: Resource,
+  projectId: ID | undefined,
+): ValidationResult {
   const issues: ValidationIssue[] = [];
   // Only placeholders are project-restricted. `person` and `external` are intentionally
   // unrestricted (an external 3rd party can be assigned any activity), don't add a guard here.
-  if (resource.kind === "placeholder" && projectId !== undefined) {
+  if (resource.kind === 'placeholder' && projectId !== undefined) {
     if (!resource.projectId) {
       issues.push({
-        code: "placeholder_project_missing",
-        message: "This placeholder is not bound to a project yet.",
+        code: 'placeholder_project_missing',
+        message: 'This placeholder is not bound to a project yet.',
       });
     } else if (resource.projectId !== projectId) {
       issues.push({
-        code: "placeholder_project_mismatch",
-        message: "A placeholder can only be assigned to activities from its bound project.",
+        code: 'placeholder_project_mismatch',
+        message: 'A placeholder can only be assigned to activities from its bound project.',
       });
     }
   }
@@ -263,13 +286,15 @@ function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt
     allocations: data.allocations
       .filter((allocation) => !removedActivityIds.has(allocation.activityId))
       .map((allocation) => {
-        if (allocation.projectId === null || !removedProjectIds.has(allocation.projectId)) return allocation;
+        if (allocation.projectId === null || !removedProjectIds.has(allocation.projectId))
+          return allocation;
         const remaining = { ...allocation };
         remaining.projectId = null;
         return { ...remaining, updatedAt };
       }),
     resources: data.resources.map((resource) => {
-      if (resource.projectId === null || !removedProjectIds.has(resource.projectId)) return resource;
+      if (resource.projectId === null || !removedProjectIds.has(resource.projectId))
+        return resource;
       const remaining = { ...resource };
       remaining.projectId = null;
       return { ...remaining, updatedAt };
@@ -300,7 +325,11 @@ export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: stri
 }
 
 /** Deleting a discipline ungroups its resources rather than deleting them. */
-export function deleteDisciplineCascade(data: AppData, disciplineId: ID, updatedAt: string): AppData {
+export function deleteDisciplineCascade(
+  data: AppData,
+  disciplineId: ID,
+  updatedAt: string,
+): AppData {
   return {
     ...data,
     disciplines: data.disciplines.filter((discipline) => discipline.id !== disciplineId),

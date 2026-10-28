@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
-import type { RefObject } from "react";
-import type { AppData, ID } from "@capacitylens/shared/types/entities";
-import { useStore } from "@/store/useStore";
-import { resolvePersonScheduleIdentity, usePersonSchedule } from "./usePersonSchedule";
+import { useCallback, useMemo, useState } from 'react';
+import type { RefObject } from 'react';
+import type { AppData, ID } from '@capacitylens/shared/types/entities';
+import { useStore } from '@/store/useStore';
+import { resolvePersonScheduleIdentity, usePersonSchedule } from './usePersonSchedule';
 
 interface PersonScheduleSelection {
   accountId: ID;
@@ -25,7 +25,13 @@ export function usePersonScheduleDrawer({
     resourceId: selection?.resourceId ?? null,
   });
   const titlesByResourceId = useMemo(
-    () => new Map(data.resources.map((resource) => [resource.id, resolvePersonScheduleIdentity(resource, data)])),
+    () =>
+      new Map(
+        data.resources.map((resource) => [
+          resource.id,
+          resolvePersonScheduleIdentity(resource, data),
+        ]),
+      ),
     [data],
   );
   const viewSchedule = useCallback((resourceId: ID, opener: HTMLButtonElement) => {

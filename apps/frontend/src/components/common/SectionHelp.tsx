@@ -1,9 +1,9 @@
-import { useState } from "react";
-import type { ReactNode } from "react";
-import { CircleHelp } from "lucide-react";
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
-import { Modal } from "./dialogs";
+import { useState } from 'react';
+import type { ReactNode } from 'react';
+import { CircleHelp } from 'lucide-react';
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
+import { Modal } from './dialogs';
 
 /** Keeps explanatory section content collapsed until requested. */
 export function SectionHelp({ title, children }: { title: string; children: ReactNode }) {

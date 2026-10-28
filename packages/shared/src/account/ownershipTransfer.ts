@@ -1,4 +1,4 @@
-import type { IsoInstant, PrincipalId, WorkspaceId } from "./types.js";
+import type { IsoInstant, PrincipalId, WorkspaceId } from './types.js';
 
 /**
  * The durable workflow states of an ownership transfer.
@@ -15,31 +15,38 @@ import type { IsoInstant, PrincipalId, WorkspaceId } from "./types.js";
  * So a command that observes a passed deadline commits `expired` before doing anything else.
  */
 export const OWNERSHIP_TRANSFER_STATES = Object.freeze([
-  "awaiting_target",
-  "awaiting_owner",
-  "declined",
-  "cancelled",
-  "expired",
-  "invalidated",
-  "completed",
+  'awaiting_target',
+  'awaiting_owner',
+  'declined',
+  'cancelled',
+  'expired',
+  'invalidated',
+  'completed',
 ] as const);
 
 /** An ownership-transfer request state; see {@link OWNERSHIP_TRANSFER_STATES}. */
 export type OwnershipTransferState = (typeof OWNERSHIP_TRANSFER_STATES)[number];
 
 /** The two states that hold the company's single live-request slot. */
-export const LIVE_OWNERSHIP_TRANSFER_STATES = Object.freeze(["awaiting_target", "awaiting_owner"] as const);
+export const LIVE_OWNERSHIP_TRANSFER_STATES = Object.freeze([
+  'awaiting_target',
+  'awaiting_owner',
+] as const);
 
 /** A state that holds the company's single live-request slot. */
 export type LiveOwnershipTransferState = (typeof LIVE_OWNERSHIP_TRANSFER_STATES)[number];
 
 /** Narrow an untrusted value to a known {@link OwnershipTransferState}. Pure. */
 export function isOwnershipTransferState(value: unknown): value is OwnershipTransferState {
-  return typeof value === "string" && (OWNERSHIP_TRANSFER_STATES as readonly string[]).includes(value);
+  return (
+    typeof value === 'string' && (OWNERSHIP_TRANSFER_STATES as readonly string[]).includes(value)
+  );
 }
 
 /** True when the state holds the company's live-request slot. Pure. */
-export function isLiveOwnershipTransferState(state: OwnershipTransferState): state is LiveOwnershipTransferState {
+export function isLiveOwnershipTransferState(
+  state: OwnershipTransferState,
+): state is LiveOwnershipTransferState {
   return (LIVE_OWNERSHIP_TRANSFER_STATES as readonly string[]).includes(state);
 }
 
@@ -49,9 +56,12 @@ export function isLiveOwnershipTransferState(state: OwnershipTransferState): sta
  * predicate so they cannot drift, a malformed code or a live state must never match either. */
 export function isOwnershipTransferTerminalOutcomeBody(
   body: Record<string, unknown>,
-): body is Record<string, unknown> & { code: "OWNERSHIP_TRANSFER_TERMINAL"; state: OwnershipTransferState } {
+): body is Record<string, unknown> & {
+  code: 'OWNERSHIP_TRANSFER_TERMINAL';
+  state: OwnershipTransferState;
+} {
   return (
-    body.code === "OWNERSHIP_TRANSFER_TERMINAL" &&
+    body.code === 'OWNERSHIP_TRANSFER_TERMINAL' &&
     isOwnershipTransferState(body.state) &&
     !isLiveOwnershipTransferState(body.state)
   );
@@ -64,12 +74,12 @@ export function isOwnershipTransferTerminalOutcomeBody(
  * request parsing.
  */
 export const OWNERSHIP_TRANSFER_ACTIONS = Object.freeze([
-  "initiate",
-  "accept",
-  "withdraw",
-  "decline",
-  "cancel",
-  "complete",
+  'initiate',
+  'accept',
+  'withdraw',
+  'decline',
+  'cancel',
+  'complete',
 ] as const);
 
 /** A command applied to an ownership-transfer request. */
@@ -78,15 +88,15 @@ export type OwnershipTransferAction = (typeof OWNERSHIP_TRANSFER_ACTIONS)[number
 /** Why a request reached a terminal state without the roles being exchanged. Bounded on purpose:
  * it is persisted and surfaced to a participant, so it must never carry free text or identifiers. */
 export const OWNERSHIP_TRANSFER_TERMINAL_REASONS = Object.freeze([
-  "target_declined",
-  "owner_cancelled",
-  "replaced",
-  "deadline_passed",
-  "initiator_not_owner",
-  "target_not_admin",
-  "participant_membership_changed",
-  "account_erased",
-  "owner_repaired",
+  'target_declined',
+  'owner_cancelled',
+  'replaced',
+  'deadline_passed',
+  'initiator_not_owner',
+  'target_not_admin',
+  'participant_membership_changed',
+  'account_erased',
+  'owner_repaired',
 ] as const);
 
 /** A bounded reason code for a request that ended without exchanging roles. */
@@ -95,8 +105,8 @@ export type OwnershipTransferTerminalReason = (typeof OWNERSHIP_TRANSFER_TERMINA
 // Withdrawal preserves the nomination so the nominee may accept again before the deadline.
 // Commands need a monotonic revision because accept-withdraw-accept revisits the same state.
 const PERMITTED_TRANSITIONS = {
-  awaiting_target: Object.freeze(["accept", "decline", "cancel"] as const),
-  awaiting_owner: Object.freeze(["withdraw", "complete", "cancel"] as const),
+  awaiting_target: Object.freeze(['accept', 'decline', 'cancel'] as const),
+  awaiting_owner: Object.freeze(['withdraw', 'complete', 'cancel'] as const),
   declined: Object.freeze([] as const),
   cancelled: Object.freeze([] as const),
   expired: Object.freeze([] as const),
@@ -132,17 +142,17 @@ export function nextOwnershipTransferState(
 ): OwnershipTransferState | null {
   if (!canTransitionOwnershipTransfer(state, action)) return null;
   switch (action) {
-    case "accept":
-      return "awaiting_owner";
-    case "withdraw":
-      return "awaiting_target";
-    case "decline":
-      return "declined";
-    case "cancel":
-      return "cancelled";
-    case "complete":
-      return "completed";
-    case "initiate":
+    case 'accept':
+      return 'awaiting_owner';
+    case 'withdraw':
+      return 'awaiting_target';
+    case 'decline':
+      return 'declined';
+    case 'cancel':
+      return 'cancelled';
+    case 'complete':
+      return 'completed';
+    case 'initiate':
       return null;
   }
 }
@@ -193,5 +203,5 @@ export interface OwnershipTransferProjection {
  * else's request must not be able to destroy that ceremony.
  */
 export type OwnershipTransferOutcome =
-  | { kind: "applied"; request: OwnershipTransferRequest }
-  | { kind: "terminal"; state: OwnershipTransferState; reason: OwnershipTransferTerminalReason };
+  | { kind: 'applied'; request: OwnershipTransferRequest }
+  | { kind: 'terminal'; state: OwnershipTransferState; reason: OwnershipTransferTerminalReason };

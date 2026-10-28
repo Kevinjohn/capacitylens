@@ -1,46 +1,59 @@
-import { test, expect } from "./fixtures";
-import { openApp } from "./browserTestSupport";
+import { test, expect } from './fixtures';
+import { openApp } from './browserTestSupport';
 
 // Covers US-DIS-01..04.
-test.describe("Disciplines", () => {
-  test("adds a discipline and shows it in the list and as a schedule group", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/disciplines");
-    await page.getByRole("button", { name: "Add discipline" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Strategy");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("discipline-row").filter({ hasText: "Strategy" })).toBeVisible();
+test.describe('Disciplines', () => {
+  test('adds a discipline and shows it in the list and as a schedule group', async ({ page }) => {
+    await openApp(page, 'Wayne Enterprises', '/disciplines');
+    await page.getByRole('button', { name: 'Add discipline' }).click();
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Strategy');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByTestId('discipline-row').filter({ hasText: 'Strategy' })).toBeVisible();
   });
 
-  test("edits a discipline and reflects the change in the list", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/disciplines");
+  test('edits a discipline and reflects the change in the list', async ({ page }) => {
+    await openApp(page, 'Wayne Enterprises', '/disciplines');
     await page
-      .getByTestId("discipline-row")
-      .filter({ hasText: "Design" })
-      .getByRole("button", { name: /^Edit / })
+      .getByTestId('discipline-row')
+      .filter({ hasText: 'Design' })
+      .getByRole('button', { name: /^Edit / })
       .click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Product Design");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("discipline-row").filter({ hasText: "Product Design" })).toBeVisible();
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Product Design');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(
+      page.getByTestId('discipline-row').filter({ hasText: 'Product Design' }),
+    ).toBeVisible();
   });
 
-  test("deletes a discipline and ungroups its resources without deleting them", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/disciplines");
+  test('deletes a discipline and ungroups its resources without deleting them', async ({
+    page,
+  }) => {
+    await openApp(page, 'Wayne Enterprises', '/disciplines');
     await page
-      .getByTestId("discipline-row")
-      .filter({ hasText: "Design" })
-      .getByRole("button", { name: "Delete" })
+      .getByTestId('discipline-row')
+      .filter({ hasText: 'Design' })
+      .getByRole('button', { name: 'Delete' })
       .click();
-    await page.getByRole("alertdialog", { name: "Delete discipline?" }).getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByTestId("discipline-row").filter({ hasText: "Design" })).toHaveCount(0);
+    await page
+      .getByRole('alertdialog', { name: 'Delete discipline?' })
+      .getByRole('button', { name: 'Delete' })
+      .click();
+    await expect(page.getByTestId('discipline-row').filter({ hasText: 'Design' })).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Resources" }).click();
-    const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
+    await page.getByRole('link', { name: 'Resources' }).click();
+    const bruce = page.getByTestId('resource-row').filter({ hasText: 'Bruce Wayne' });
     await expect(bruce).toBeVisible();
-    await expect(bruce).toContainText("Designer");
-    await expect(bruce).not.toContainText("—");
-    await page.getByRole("link", { name: "Schedule" }).click();
-    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
-    await expect(page.getByTestId("discipline-group").filter({ hasText: "Unassigned" })).toBeVisible();
-    await expect(page.getByTestId("discipline-group").filter({ hasText: "No discipline" })).toHaveCount(0);
+    await expect(bruce).toContainText('Designer');
+    await expect(bruce).not.toContainText('—');
+    await page.getByRole('link', { name: 'Schedule' }).click();
+    await expect(
+      page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' }),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId('discipline-group').filter({ hasText: 'Unassigned' }),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId('discipline-group').filter({ hasText: 'No discipline' }),
+    ).toHaveCount(0);
   });
 });

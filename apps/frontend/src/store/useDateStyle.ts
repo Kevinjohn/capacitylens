@@ -1,6 +1,6 @@
-import { useStore } from "./useStore";
-import { resolveDateStyle } from "./selectors";
-import type { DateStyle } from "@capacitylens/shared/types/entities";
+import { useStore } from './useStore';
+import { resolveDateStyle } from './selectors';
+import type { DateStyle } from '@capacitylens/shared/types/entities';
 
 /** Subscribes to the company date style. Components caching formatted strings must
  * include this value in memo dependencies; the synchronous formatter mirror alone

@@ -1,26 +1,26 @@
-import { useId } from "react";
-import type { ReactNode } from "react";
-import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { useMarkFormDirty } from "@/components/common/formDirty";
-import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
-import type { ProductFieldLayout } from "./fieldTypes";
+import { useId } from 'react';
+import type { ReactNode } from 'react';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldContent, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { useMarkFormDirty } from '@/components/common/formDirty';
+import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps';
+import type { ProductFieldLayout } from './fieldTypes';
 
 /** Accessible on/off field shared by settings and privacy controls. */
 export function SwitchField({
   label,
   description,
-  descriptionPlacement = "label",
+  descriptionPlacement = 'label',
   checked,
   onChange,
   disabled = false,
-  layout = "stacked",
+  layout = 'stacked',
 }: {
   label: string;
   description?: string;
   /** Keep the default beside the label, or group it below the control in compact rows. */
-  descriptionPlacement?: "label" | "control";
+  descriptionPlacement?: 'label' | 'control';
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
@@ -30,7 +30,7 @@ export function SwitchField({
   const markDirty = useMarkFormDirty();
   const descriptionId = useId();
   const controlId = useId();
-  const descriptionInControl = description && descriptionPlacement === "control";
+  const descriptionInControl = description && descriptionPlacement === 'control';
   const control = (
     <Switch
       id={controlId}
@@ -45,7 +45,8 @@ export function SwitchField({
     />
   );
   let fieldContent: ReactNode = control;
-  if (layout === "label-control") fieldContent = <div className="flex min-h-9 items-center">{control}</div>;
+  if (layout === 'label-control')
+    fieldContent = <div className="flex min-h-9 items-center">{control}</div>;
   if (descriptionInControl) {
     fieldContent = (
       <FieldContent className="min-h-9 justify-center">
@@ -56,13 +57,15 @@ export function SwitchField({
   }
   return (
     <Field
-      orientation={layout === "label-control" ? "vertical" : "horizontal"}
+      orientation={layout === 'label-control' ? 'vertical' : 'horizontal'}
       data-disabled={disabled || undefined}
       {...buildProductFieldLayoutProps(layout)}
     >
       <FieldContent>
         <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
-        {description && !descriptionInControl && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+        {description && !descriptionInControl && (
+          <FieldDescription id={descriptionId}>{description}</FieldDescription>
+        )}
       </FieldContent>
       {fieldContent}
     </Field>
@@ -75,7 +78,7 @@ export function CheckboxField({
   checked,
   onChange,
   disabled = false,
-  layout = "stacked",
+  layout = 'stacked',
 }: {
   label: string;
   checked: boolean;
@@ -100,11 +103,11 @@ export function CheckboxField({
   );
   return (
     <Field
-      orientation={layout === "label-control" ? "vertical" : "horizontal"}
+      orientation={layout === 'label-control' ? 'vertical' : 'horizontal'}
       data-disabled={disabled || undefined}
       {...buildProductFieldLayoutProps(layout)}
     >
-      {layout === "label-control" ? (
+      {layout === 'label-control' ? (
         <>
           <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
           <div className="flex min-h-9 items-center">{control}</div>

@@ -1,4 +1,9 @@
-import type { AllocationStatus, ID, ISODate, TimeOffType } from "@capacitylens/shared/types/entities";
+import type {
+  AllocationStatus,
+  ID,
+  ISODate,
+  TimeOffType,
+} from '@capacitylens/shared/types/entities';
 
 /** Inclusive date bounds for a person schedule projection. */
 export interface PersonScheduleWindow {
@@ -18,7 +23,7 @@ interface PersonScheduleEntryBase {
 
 /** Allocation details presented as one dated person schedule entry. */
 export interface PersonScheduleAllocationEntry extends PersonScheduleEntryBase {
-  kind: "allocation";
+  kind: 'allocation';
   activity: string;
   color: string;
   status: AllocationStatus;
@@ -32,7 +37,7 @@ export interface PersonScheduleAllocationEntry extends PersonScheduleEntryBase {
 
 /** Time-off details presented as one dated person schedule entry. */
 export interface PersonScheduleTimeOffEntry extends PersonScheduleEntryBase {
-  kind: "timeOff";
+  kind: 'timeOff';
   type: TimeOffType;
   note?: string;
 }
@@ -51,7 +56,7 @@ export interface PersonScheduleModel {
 
 /** A rejected entry and its kind for projection diagnostics. */
 export interface PersonScheduleInvalidRecord {
-  kind: PersonScheduleEntry["kind"];
+  kind: PersonScheduleEntry['kind'];
   sourceId: ID;
 }
 
@@ -62,7 +67,8 @@ export interface PersonScheduleBuildResult {
 }
 
 /** Distinguishes an available projection from an unavailable schedule. */
-export type PersonScheduleResult = { kind: "available"; model: PersonScheduleModel } | { kind: "unavailable" };
+export type PersonScheduleResult =
+  { kind: 'available'; model: PersonScheduleModel } | { kind: 'unavailable' };
 
 /** Open state, projected schedule, and closure callbacks for the sheet. */
 export interface PersonScheduleSheetProps {

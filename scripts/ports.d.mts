@@ -2,7 +2,15 @@
  * Names a service port assigned to each lane.
  */
 export type LanePortName =
-  "web" | "dbWeb" | "authWeb" | "dbApi" | "authApi" | "testHttp" | "preview" | "docsDev" | "docsPreview";
+  | 'web'
+  | 'dbWeb'
+  | 'authWeb'
+  | 'dbApi'
+  | 'authApi'
+  | 'testHttp'
+  | 'preview'
+  | 'docsDev'
+  | 'docsPreview';
 
 /**
  * Number of concurrent port lanes.

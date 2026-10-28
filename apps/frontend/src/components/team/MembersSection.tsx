@@ -1,21 +1,26 @@
-import { m } from "@/i18n";
-import { useStore } from "@/store/useStore";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { FieldError } from "@/components/ui/field";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { InviteMemberPanel } from "./InviteMemberPanel";
-import { MemberConfirmations } from "./MemberConfirmations";
-import { MemberRow } from "./MemberRow";
-import { useMembersOrchestration } from "./useMembersOrchestration";
-import type { TeamMember } from "@/account/teamAccessClient";
+import { m } from '@/i18n';
+import { useStore } from '@/store/useStore';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { FieldError } from '@/components/ui/field';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { InviteMemberPanel } from './InviteMemberPanel';
+import { MemberConfirmations } from './MemberConfirmations';
+import { MemberRow } from './MemberRow';
+import { useMembersOrchestration } from './useMembersOrchestration';
+import type { TeamMember } from '@/account/teamAccessClient';
 
 // Member controls require an authoritative Owner/Admin directory read, while server authorization remains independent. Fresh invitation secrets are displayed once and never read back.
 
 /** Shows member administration only for authenticated server mode after the members read authorizes it. Ordinary controls exclude ownership changes, which use the transfer ceremony. */
 export function MembersSection() {
   const activeAccountId = useStore((state) => state.activeAccountId);
-  return <AccountMembersSection key={activeAccountId ?? "no-active-account"} activeAccountId={activeAccountId} />;
+  return (
+    <AccountMembersSection
+      key={activeAccountId ?? 'no-active-account'}
+      activeAccountId={activeAccountId}
+    />
+  );
 }
 
 // Remount on company changes so drafts, action locks and bearer links cannot survive across tenants.
@@ -26,10 +31,15 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   // Privileged controls stay fail-closed until the current account's members read authorizes this
   // section. A 403 remains hidden, and a switch cannot briefly expose the next account's form while
   // its authorization request is still pending.
-  if (orchestration.directory.kind === "loading" || orchestration.directory.kind === "hidden") return null;
-  if (orchestration.directory.kind === "error") {
+  if (orchestration.directory.kind === 'loading' || orchestration.directory.kind === 'hidden')
+    return null;
+  if (orchestration.directory.kind === 'error') {
     return (
-      <MembersErrorCard errorId={orchestration.errorId} error={orchestration.error} reload={orchestration.reload} />
+      <MembersErrorCard
+        errorId={orchestration.errorId}
+        error={orchestration.error}
+        reload={orchestration.reload}
+      />
     );
   }
   const { invites } = orchestration.directory.snapshot;
@@ -57,7 +67,10 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           roleOptions={orchestration.roleOptions}
         />
       )}
-      <MembersDirectorySection members={orchestration} setActionStatusElement={setActionStatusElement} />
+      <MembersDirectorySection
+        members={orchestration}
+        setActionStatusElement={setActionStatusElement}
+      />
       <MemberConfirmations
         memberConfirmation={orchestration.memberConfirmation}
         setMemberConfirmation={orchestration.setMemberConfirmation}
@@ -72,28 +85,42 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   );
 }
 
-type MembersOrchestration = Omit<ReturnType<typeof useMembersOrchestration>, "setActionStatusElement">;
+type MembersOrchestration = Omit<
+  ReturnType<typeof useMembersOrchestration>,
+  'setActionStatusElement'
+>;
 type MemberTableCapabilities = Pick<
   MembersOrchestration,
-  | "myRole"
-  | "busyAction"
-  | "openMenuFor"
-  | "setOpenMenuFor"
-  | "setRoleEdit"
-  | "chooseMemberAction"
-  | "reload"
-  | "activeAccountId"
-  | "resourceCandidates"
-  | "error"
-  | "errorField"
-  | "errorId"
+  | 'myRole'
+  | 'busyAction'
+  | 'openMenuFor'
+  | 'setOpenMenuFor'
+  | 'setRoleEdit'
+  | 'chooseMemberAction'
+  | 'reload'
+  | 'activeAccountId'
+  | 'resourceCandidates'
+  | 'error'
+  | 'errorField'
+  | 'errorId'
 >;
 type DirectoryCapabilities = MemberTableCapabilities &
-  Pick<MembersOrchestration, "activeMembers" | "inactiveMembers" | "inactiveOpen" | "setInactiveOpen">;
+  Pick<
+    MembersOrchestration,
+    'activeMembers' | 'inactiveMembers' | 'inactiveOpen' | 'setInactiveOpen'
+  >;
 type MembersDirectoryCapabilities = DirectoryCapabilities &
-  Pick<MembersOrchestration, "directory" | "mayManageSignInTracking" | "changeSignInTracking">;
+  Pick<MembersOrchestration, 'directory' | 'mayManageSignInTracking' | 'changeSignInTracking'>;
 
-function MembersErrorCard({ errorId, error, reload }: { errorId: string; error: string | null; reload(): void }) {
+function MembersErrorCard({
+  errorId,
+  error,
+  reload,
+}: {
+  errorId: string;
+  error: string | null;
+  reload(): void;
+}) {
   return (
     <Card data-testid="members-section">
       <CardHeader>
@@ -123,7 +150,9 @@ function MembersTable({
   allMembers: TeamMember[];
 }) {
   const linkedResourceIds = new Set(
-    allMembers.flatMap((candidate) => (candidate.resourceLink ? [candidate.resourceLink.resourceId] : [])),
+    allMembers.flatMap((candidate) =>
+      candidate.resourceLink ? [candidate.resourceLink.resourceId] : [],
+    ),
   );
   return (
     <div className="overflow-x-auto rounded-md border bg-card">
@@ -170,10 +199,18 @@ function MembersTable({
   );
 }
 
-function MemberDirectory({ directory, members }: { directory: DirectoryCapabilities; members: TeamMember[] }) {
+function MemberDirectory({
+  directory,
+  members,
+}: {
+  directory: DirectoryCapabilities;
+  members: TeamMember[];
+}) {
   let activeContent = null;
   if (members.length === 0)
-    activeContent = <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>;
+    activeContent = (
+      <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
+    );
   else if (directory.activeMembers)
     activeContent = (
       <MembersTable
@@ -224,19 +261,31 @@ function MembersDirectorySection({
   members: MembersDirectoryCapabilities;
   setActionStatusElement(element: HTMLParagraphElement | null): void;
 }) {
-  if (members.directory.kind !== "ready") return null;
+  if (members.directory.kind !== 'ready') return null;
   const { members: memberRows } = members.directory.snapshot;
   return (
-    <section data-testid="members-section" aria-busy={members.busyAction !== null} className="flex flex-col gap-4">
+    <section
+      data-testid="members-section"
+      aria-busy={members.busyAction !== null}
+      className="flex flex-col gap-4"
+    >
       <header className="flex flex-col gap-2">
         <h2 className="font-semibold">{m.settings_members_heading()}</h2>
         <p className="text-sm text-muted-foreground">{m.settings_members_intro()}</p>
       </header>
       <div className="flex flex-col gap-4">
-        <p ref={setActionStatusElement} role="status" aria-live="polite" tabIndex={-1} className="sr-only">
-          {members.busyAction ? m.settings_members_updating() : ""}
+        <p
+          ref={setActionStatusElement}
+          role="status"
+          aria-live="polite"
+          tabIndex={-1}
+          className="sr-only"
+        >
+          {members.busyAction ? m.settings_members_updating() : ''}
         </p>
-        <FieldError id={members.errorId}>{members.errorField === null ? members.error : null}</FieldError>
+        <FieldError id={members.errorId}>
+          {members.errorField === null ? members.error : null}
+        </FieldError>
         <MemberDirectory directory={members} members={memberRows} />
       </div>
     </section>

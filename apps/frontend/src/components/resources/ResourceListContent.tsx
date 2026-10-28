@@ -1,15 +1,21 @@
-import { Fragment } from "react";
-import { Plus, Users } from "lucide-react";
-import type { Resource, ResourceKind } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { AddButton, ColorSwatch, DeleteButton, EditButton, EmptyState } from "@/components/common/ui";
-import { Badge } from "@/components/ui/badge";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
-import { Separator } from "@/components/ui/separator";
-import { resolveResourceDisplayName } from "@/lib/metadata";
-import { FavouriteButton } from "./FavouriteButton";
-import { ExternalResourceSection } from "./ExternalResourceSection";
-import type { ResourceListModel } from "./useResourceListModel";
+import { Fragment } from 'react';
+import { Plus, Users } from 'lucide-react';
+import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import {
+  AddButton,
+  ColorSwatch,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+} from '@/components/common/ui';
+import { Badge } from '@/components/ui/badge';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
+import { Separator } from '@/components/ui/separator';
+import { resolveResourceDisplayName } from '@/lib/metadata';
+import { FavouriteButton } from './FavouriteButton';
+import { ExternalResourceSection } from './ExternalResourceSection';
+import type { ResourceListModel } from './useResourceListModel';
 
 type ResourceListContentProps = {
   model: ResourceListModel;
@@ -46,7 +52,10 @@ function PeopleSections(props: ResourceListContentProps) {
       model.visibleCount === 0
         ? {
             description: m.list_resources_empty_desc(),
-            action: { label: m.list_resources_empty_action(), onClick: () => props.onAdd("person") },
+            action: {
+              label: m.list_resources_empty_action(),
+              onClick: () => props.onAdd('person'),
+            },
           }
         : undefined;
     return (
@@ -85,9 +94,16 @@ function PlaceholderSection(props: ResourceListContentProps) {
       <Separator className="mt-8" />
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{m.list_resources_placeholders_heading()}</h2>
-        <AddButton label={m.list_resources_add_placeholder()} onClick={() => props.onAdd("placeholder")} />
+        <AddButton
+          label={m.list_resources_add_placeholder()}
+          onClick={() => props.onAdd('placeholder')}
+        />
       </div>
-      <ResourceRows rows={props.model.placeholders} empty={m.list_resources_placeholders_empty()} {...props} />
+      <ResourceRows
+        rows={props.model.placeholders}
+        empty={m.list_resources_placeholders_empty()}
+        {...props}
+      />
     </>
   );
 }
@@ -100,7 +116,14 @@ type EngagementSectionProps = ResourceListContentProps & {
   separated?: boolean;
 };
 
-function EngagementSection({ id, title, rows, empty, separated = false, ...props }: EngagementSectionProps) {
+function EngagementSection({
+  id,
+  title,
+  rows,
+  empty,
+  separated = false,
+  ...props
+}: EngagementSectionProps) {
   return (
     <section aria-labelledby={id}>
       {separated && <Separator className="mt-8" />}
@@ -151,7 +174,9 @@ function ResourceRow({
   model,
   onEdit,
   onRequestArchive,
-}: Pick<ResourceListContentProps, "model" | "onEdit" | "onRequestArchive"> & { resource: Resource }) {
+}: Pick<ResourceListContentProps, 'model' | 'onEdit' | 'onRequestArchive'> & {
+  resource: Resource;
+}) {
   const metadata = model.buildMetadata(resource);
   const displayName = resolveResourceDisplayName(resource);
   return (
@@ -159,12 +184,17 @@ function ResourceRow({
       <ItemContent className="flex-row flex-wrap items-center gap-2">
         <ColorSwatch color={model.resolveSwatchColor(resource)} />
         <span className="font-medium">{displayName}</span>
-        {resource.kind === "placeholder" && <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>}
+        {resource.kind === 'placeholder' && (
+          <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>
+        )}
         {metadata && <span className="text-sm text-muted-foreground">{` · ${metadata}`}</span>}
       </ItemContent>
       <ItemActions>
-        {resource.kind === "person" && <FavouriteButton resource={resource} />}
-        <EditButton label={m.list_edit_aria({ name: displayName })} onClick={() => onEdit(resource)} />
+        {resource.kind === 'person' && <FavouriteButton resource={resource} />}
+        <EditButton
+          label={m.list_edit_aria({ name: displayName })}
+          onClick={() => onEdit(resource)}
+        />
         <DeleteButton
           label={m.list_resources_archive_aria({ name: displayName })}
           onClick={() => onRequestArchive(resource)}

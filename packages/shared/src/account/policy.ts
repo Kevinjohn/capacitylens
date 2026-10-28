@@ -1,16 +1,16 @@
-import { isAccountRole } from "./types.js";
-import type { Role } from "./types.js";
+import { isAccountRole } from './types.js';
+import type { Role } from './types.js';
 
 /** Company administration actions the role policy authorizes. */
 export type AccountAdminAction =
-  | "list-members"
-  | "manage-members"
-  | "manage-invitations"
-  | "masquerade-member"
-  | "manage-member-sign-in-tracking"
-  | "transfer-ownership"
-  | "act-on-ownership-transfer"
-  | "erase-workspace";
+  | 'list-members'
+  | 'manage-members'
+  | 'manage-invitations'
+  | 'masquerade-member'
+  | 'manage-member-sign-in-tracking'
+  | 'transfer-ownership'
+  | 'act-on-ownership-transfer'
+  | 'erase-workspace';
 
 const ROLE_RANK: Readonly<Record<Role, number>> = {
   viewer: 0,
@@ -20,20 +20,20 @@ const ROLE_RANK: Readonly<Record<Role, number>> = {
 };
 
 const MIN_ADMIN_TIER = {
-  "list-members": "admin",
-  "manage-members": "admin",
-  "manage-invitations": "admin",
-  "masquerade-member": "admin",
-  "manage-member-sign-in-tracking": "owner",
-  "transfer-ownership": "owner",
+  'list-members': 'admin',
+  'manage-members': 'admin',
+  'manage-invitations': 'admin',
+  'masquerade-member': 'admin',
+  'manage-member-sign-in-tracking': 'owner',
+  'transfer-ownership': 'owner',
   // Admin tier, not owner: this is the gate every ceremony route shares, and the nominated Admin
   // must pass it to give or withdraw their own consent. It is deliberately the weakest necessary
   // gate: who may actually perform each ceremony action is decided by canActOnOwnershipTransfer,
   // which knows participant identity, and by the owner-only "transfer-ownership" threshold above
   // for the Owner's three actions. Making this gate owner-only would lock the nominee out of
   // consenting; making it the only check would let any Admin consent on the nominee's behalf.
-  "act-on-ownership-transfer": "admin",
-  "erase-workspace": "owner",
+  'act-on-ownership-transfer': 'admin',
+  'erase-workspace': 'owner',
 } as const satisfies Record<AccountAdminAction, Role>;
 
 /** Whether `role` ranks at or above `minimum` in the owner > admin > editor > viewer order. Pure. */
@@ -70,8 +70,9 @@ export function canAdministerAccount(role: Role, action: AccountAdminAction): bo
  * other.
  */
 export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean {
-  if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole)) return false;
-  return targetRole !== "owner";
+  if (!canAdministerAccount(actorRole, 'manage-members') || !isAccountRole(targetRole))
+    return false;
+  return targetRole !== 'owner';
 }
 
 /** Whether the actor may change the target's role to `nextRole`. Promotion to Owner is never allowed here. Pure. */
@@ -79,12 +80,16 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
   // Standing over this target first, then the destination-specific rule: promoting anyone to Owner
   // is likewise reserved to the ownership transfer.
   if (!canEditAnyMemberRole(actorRole, targetRole) || !isAccountRole(nextRole)) return false;
-  return nextRole !== "owner";
+  return nextRole !== 'owner';
 }
 
 /** Whether the actor may remove the target. An Owner cannot be removed. Pure. */
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
-  return isAccountRole(targetRole) && canAdministerAccount(actorRole, "manage-members") && targetRole !== "owner";
+  return (
+    isAccountRole(targetRole) &&
+    canAdministerAccount(actorRole, 'manage-members') &&
+    targetRole !== 'owner'
+  );
 }
 
 /**
@@ -113,8 +118,9 @@ export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf:
  * identity that spans workspaces use {@link canAdministerIdentityAcrossWorkspaces}.
  */
 export function canAdministerIdentity(actorRole: Role, targetRole: Role): boolean {
-  if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole)) return false;
-  return targetRole !== "owner" || actorRole === "owner";
+  if (!canAdministerAccount(actorRole, 'manage-members') || !isAccountRole(targetRole))
+    return false;
+  return targetRole !== 'owner' || actorRole === 'owner';
 }
 
 /**

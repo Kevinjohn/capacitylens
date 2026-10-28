@@ -1,16 +1,16 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { m } from "@/i18n";
-import { teamAccessClient } from "@/account/teamAccessClient";
-import type { TeamMember } from "@/account/teamAccessClient";
-import { resolveRejectionMessage } from "@/account/accessResult";
-import type { TeamAccessResult } from "@/account/accessResult";
-import { api, queryClient, scopeQueryKey } from "@/api/queryClient";
-import type { ApiQueryScope } from "@/api/queryClient";
-import { useAuth } from "@/auth/authContext";
-import { usePermissionStatus, useRole } from "@/auth/permissionContext";
-import { reprojectAccess } from "@/auth/reprojectAccess";
-import { useStore } from "@/store/useStore";
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { m } from '@/i18n';
+import { teamAccessClient } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessClient';
+import { resolveRejectionMessage } from '@/account/accessResult';
+import type { TeamAccessResult } from '@/account/accessResult';
+import { api, queryClient, scopeQueryKey } from '@/api/queryClient';
+import type { ApiQueryScope } from '@/api/queryClient';
+import { useAuth } from '@/auth/authContext';
+import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { reprojectAccess } from '@/auth/reprojectAccess';
+import { useStore } from '@/store/useStore';
 
 interface OwnershipTransferState {
   available: boolean;
@@ -40,21 +40,21 @@ function useOwnerDirectory({
   scope: ApiQueryScope;
   principalId: string | null;
 }) {
-  const routeKey = api.api.members.index.queryKey({ params: { accountId: accountId ?? "" } });
+  const routeKey = api.api.members.index.queryKey({ params: { accountId: accountId ?? '' } });
   const query = useQuery({
-    queryKey: scopeQueryKey(scope, ["team-members", 0, ...routeKey]),
+    queryKey: scopeQueryKey(scope, ['team-members', 0, ...routeKey]),
     enabled: available && accountId !== null,
     refetchOnWindowFocus: false,
     retry: false,
-    queryFn: ({ signal }) => teamAccessClient.listMembers(accountId ?? "", signal),
+    queryFn: ({ signal }) => teamAccessClient.listMembers(accountId ?? '', signal),
   });
-  const members = query.data?.kind === "ok" ? query.data.value.members : EMPTY_MEMBERS;
+  const members = query.data?.kind === 'ok' ? query.data.value.members : EMPTY_MEMBERS;
   const candidates = useMemo(
     () =>
       members.filter(
         (member) =>
-          member.role === "admin" &&
-          member.status === "active" &&
+          member.role === 'admin' &&
+          member.status === 'active' &&
           !member.accessDisabled &&
           member.userId !== principalId,
       ),
@@ -65,31 +65,43 @@ function useOwnerDirectory({
     await query.refetch();
   }, [query]);
 
-  return { candidates, error, loading: query.isPending, loaded: query.data?.kind === "ok", refresh };
+  return {
+    candidates,
+    error,
+    loading: query.isPending,
+    loaded: query.data?.kind === 'ok',
+    refresh,
+  };
 }
 
-function readDirectoryError(result: TeamAccessResult<unknown> | undefined, error: Error | null): string | null {
-  if (result?.kind === "ok") return null;
+function readDirectoryError(
+  result: TeamAccessResult<unknown> | undefined,
+  error: Error | null,
+): string | null {
+  if (result?.kind === 'ok') return null;
   if (result) return resolveRejectionMessage(result, m.ownership_transfer_read_failed());
   return error ? m.ownership_transfer_read_failed() : null;
 }
 
-async function reconcileCallerAccess(accountId: string, refreshAuth: () => Promise<void>): Promise<boolean> {
+async function reconcileCallerAccess(
+  accountId: string,
+  refreshAuth: () => Promise<void>,
+): Promise<boolean> {
   queryClient.clear();
   try {
     await refreshAuth();
   } catch (cause) {
-    console.error("OwnershipTransferCard: authentication refresh failed", cause);
+    console.error('OwnershipTransferCard: authentication refresh failed', cause);
   }
   if (useStore.getState().activeAccountId !== accountId) return true;
   try {
     if (await reprojectAccess(accountId)) return true;
   } catch (cause) {
-    console.error("OwnershipTransferCard: access refresh failed", cause);
+    console.error('OwnershipTransferCard: access refresh failed', cause);
   }
   if (useStore.getState().activeAccountId === accountId) {
     useStore.getState().setActiveAccount(null);
-    useStore.getState().setNotice(m.settings_members_access_refresh_failed(), "error");
+    useStore.getState().setNotice(m.settings_members_access_refresh_failed(), 'error');
   }
   return false;
 }
@@ -100,9 +112,13 @@ async function sendTransfer(
   proofId: string,
 ): Promise<OwnershipTransferResult | null> {
   try {
-    return await teamAccessClient.transferOwnership({ workspaceId: accountId, targetPrincipalId, proofId });
+    return await teamAccessClient.transferOwnership({
+      workspaceId: accountId,
+      targetPrincipalId,
+      proofId,
+    });
   } catch (cause) {
-    console.error("OwnershipTransferCard: transfer response was not received", cause);
+    console.error('OwnershipTransferCard: transfer response was not received', cause);
     return null;
   }
 }
@@ -118,13 +134,13 @@ async function settleTransfer({
   refreshAuth: () => Promise<void>;
   setError: (message: string | null) => void;
 }): Promise<void> {
-  if (result?.kind === "ok") {
+  if (result?.kind === 'ok') {
     if (await reconcileCallerAccess(accountId, refreshAuth)) {
       useStore.getState().setNotice(m.ownership_transfer_success());
     }
     return;
   }
-  if (result === null || result.kind === "unknown" || result.kind === "invalid") {
+  if (result === null || result.kind === 'unknown' || result.kind === 'invalid') {
     setError(m.ownership_transfer_uncertain());
     await reconcileCallerAccess(accountId, refreshAuth);
     return;
@@ -146,7 +162,7 @@ function useTransferCommand({
   const lock = useRef(false);
   const transfer = useCallback(
     async (targetPrincipalId: string, proofId: string): Promise<void> => {
-      if (!available || accountId === null || targetPrincipalId === "" || lock.current) return;
+      if (!available || accountId === null || targetPrincipalId === '' || lock.current) return;
       lock.current = true;
       setBusy(true);
       setError(null);
@@ -175,15 +191,20 @@ export function useOwnershipTransfer(
   const scope: ApiQueryScope = {
     principalId: user?.id ?? null,
     accountId,
-    masqueradeGeneration: masquerade.kind === "inactive" ? 0 : masquerade.generation,
+    masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
   };
   const available =
-    authMode !== "off" &&
+    authMode !== 'off' &&
     user !== null &&
-    role === "owner" &&
-    permissionStatus === "resolved" &&
-    masquerade.kind === "inactive";
-  const directory = useOwnerDirectory({ accountId, available, scope, principalId: user?.id ?? null });
+    role === 'owner' &&
+    permissionStatus === 'resolved' &&
+    masquerade.kind === 'inactive';
+  const directory = useOwnerDirectory({
+    accountId,
+    available,
+    scope,
+    principalId: user?.id ?? null,
+  });
   const command = useTransferCommand({ accountId, available, refreshAuth });
 
   return {

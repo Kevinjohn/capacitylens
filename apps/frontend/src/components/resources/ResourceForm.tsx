@@ -1,20 +1,33 @@
-import { useMemo } from "react";
-import { useStore } from "@/store/useStore";
-import { hasDisciplinesEnabled } from "@/store/selectors";
-import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
-import { useFieldError } from "@/hooks/useFieldError";
-import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField } from "@/components/common/ui";
-import type { Option } from "@/components/common/ui";
-import { FieldError, FieldGroup } from "@/components/ui/field";
-import { buildResourceEngagementOptions } from "@/lib/metadata";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { useResourceFormState } from "./useResourceFormState";
-import type { ResourceFormState } from "./useResourceFormState";
-import { useResourceSubmit } from "./useResourceSubmit";
-import type { ResourceSubmitDraft } from "./useResourceSubmit";
-import { ResourceAvailabilityFields } from "./ResourceAvailabilityFields";
-import type { Client, Discipline, Project, Resource, ResourceKind } from "@capacitylens/shared/types/entities";
+import { useMemo } from 'react';
+import { useStore } from '@/store/useStore';
+import { hasDisciplinesEnabled } from '@/store/selectors';
+import { useActiveScopedData, useScopedData } from '@/store/useScopedData';
+import { useFieldError } from '@/hooks/useFieldError';
+import { m } from '@/i18n';
+import {
+  FormActions,
+  Modal,
+  RequiredLegend,
+  SegmentedField,
+  SelectField,
+  TextField,
+} from '@/components/common/ui';
+import type { Option } from '@/components/common/ui';
+import { FieldError, FieldGroup } from '@/components/ui/field';
+import { buildResourceEngagementOptions } from '@/lib/metadata';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { useResourceFormState } from './useResourceFormState';
+import type { ResourceFormState } from './useResourceFormState';
+import { useResourceSubmit } from './useResourceSubmit';
+import type { ResourceSubmitDraft } from './useResourceSubmit';
+import { ResourceAvailabilityFields } from './ResourceAvailabilityFields';
+import type {
+  Client,
+  Discipline,
+  Project,
+  Resource,
+  ResourceKind,
+} from '@capacitylens/shared/types/entities';
 
 type ResourceFormProps = { resource?: Resource; kind?: ResourceKind; onClose: () => void };
 type ProjectOptionsInput = {
@@ -25,33 +38,50 @@ type ProjectOptionsInput = {
   rawClients: Client[];
 };
 
-function useProjectOptions({ resource, projects, clients, rawProjects, rawClients }: ProjectOptionsInput) {
+function useProjectOptions({
+  resource,
+  projects,
+  clients,
+  rawProjects,
+  rawClients,
+}: ProjectOptionsInput) {
   const baseOptions: Option[] = useMemo(
     () =>
       projects.map((project) => {
         const client = clients.find((candidate) => candidate.id === project.clientId);
-        return { value: project.id, label: client ? `${client.name} / ${project.name}` : project.name };
+        return {
+          value: project.id,
+          label: client ? `${client.name} / ${project.name}` : project.name,
+        };
       }),
     [projects, clients],
   );
-  if (!resource?.projectId || projects.some((project) => project.id === resource.projectId)) return baseOptions;
+  if (!resource?.projectId || projects.some((project) => project.id === resource.projectId))
+    return baseOptions;
   const rawProject = rawProjects.find((project) => project.id === resource.projectId);
   const rawClient = rawProject && rawClients.find((client) => client.id === rawProject.clientId);
   const label = rawProject
-    ? m.list_label_archived({ name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name })
+    ? m.list_label_archived({
+        name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name,
+      })
     : m.form_option_current_archived();
   return [...baseOptions, { value: resource.projectId, label, disabled: true }];
 }
 
 type ResolveFormTitleOptions = { resource: Resource | undefined; isPlaceholder: boolean };
 function resolveFormTitle({ resource, isPlaceholder }: ResolveFormTitleOptions) {
-  if (resource) return isPlaceholder ? m.form_resource_edit_placeholder_title() : m.form_resource_edit_resource_title();
-  return isPlaceholder ? m.form_resource_add_placeholder_title() : m.form_resource_add_resource_title();
+  if (resource)
+    return isPlaceholder
+      ? m.form_resource_edit_placeholder_title()
+      : m.form_resource_edit_resource_title();
+  return isPlaceholder
+    ? m.form_resource_add_placeholder_title()
+    : m.form_resource_add_resource_title();
 }
 
-type ResourceFieldsState = Pick<ResourceFormState, "name" | "setName" | "role" | "setRole"> &
-  Pick<ResourceFormState, "disciplineId" | "setDisciplineId" | "engagement" | "setEngagement"> &
-  Pick<ResourceFormState, "projectId" | "setProjectId">;
+type ResourceFieldsState = Pick<ResourceFormState, 'name' | 'setName' | 'role' | 'setRole'> &
+  Pick<ResourceFormState, 'disciplineId' | 'setDisciplineId' | 'engagement' | 'setEngagement'> &
+  Pick<ResourceFormState, 'projectId' | 'setProjectId'>;
 
 type ResourceFieldsProps = {
   form: ResourceFieldsState;
@@ -65,17 +95,31 @@ type ResourceFieldsProps = {
 };
 
 function ResourceFields(props: ResourceFieldsProps) {
-  const { form, isPlaceholder, disabled, disciplinesEnabled, disciplines, projectOptions, errorField, errorId } = props;
-  const disciplineOptions = disciplines.map((discipline) => ({ value: discipline.id, label: discipline.name }));
+  const {
+    form,
+    isPlaceholder,
+    disabled,
+    disciplinesEnabled,
+    disciplines,
+    projectOptions,
+    errorField,
+    errorId,
+  } = props;
+  const disciplineOptions = disciplines.map((discipline) => ({
+    value: discipline.id,
+    label: discipline.name,
+  }));
   return (
     <fieldset disabled={disabled} className="min-w-0">
       <FieldGroup className="gap-3">
         <TextField
-          label={isPlaceholder ? m.form_resource_name_optional_label() : m.form_resource_name_label()}
+          label={
+            isPlaceholder ? m.form_resource_name_optional_label() : m.form_resource_name_label()
+          }
           value={form.name}
           onChange={form.setName}
           required={!isPlaceholder}
-          invalid={errorField === "name"}
+          invalid={errorField === 'name'}
           describedById={errorId}
           layout="label-control"
         />
@@ -84,7 +128,7 @@ function ResourceFields(props: ResourceFieldsProps) {
           value={form.role}
           onChange={form.setRole}
           placeholder={m.form_resource_role_placeholder()}
-          invalid={errorField === "role"}
+          invalid={errorField === 'role'}
           describedById={errorId}
           layout="label-control"
         />
@@ -116,7 +160,7 @@ function ResourceFields(props: ResourceFieldsProps) {
             options={projectOptions}
             placeholder={m.form_resource_select_project_placeholder()}
             required
-            invalid={errorField === "projectId"}
+            invalid={errorField === 'projectId'}
             describedById={errorId}
             layout="label-control"
           />
@@ -194,12 +238,14 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
   const update = useStore((state) => state.updateResource);
   const data = useActiveScopedData();
   const raw = useScopedData();
-  const kind = resource?.kind ?? kindProp ?? "person";
-  const isPlaceholder = kind === "placeholder";
-  const isPerson = kind === "person";
+  const kind = resource?.kind ?? kindProp ?? 'person';
+  const isPlaceholder = kind === 'placeholder';
+  const isPerson = kind === 'person';
   const form = useResourceFormState(resource);
   const { error, errorField, errorId, fail } = useFieldError();
-  const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
+  const disciplinesEnabled = useStore((state) =>
+    hasDisciplinesEnabled(state.data, state.activeAccountId),
+  );
   const projectOptions = useProjectOptions({
     resource,
     projects: data.projects,

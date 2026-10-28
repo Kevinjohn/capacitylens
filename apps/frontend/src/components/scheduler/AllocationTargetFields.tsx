@@ -1,17 +1,19 @@
-import { Plus } from "lucide-react";
-import { m } from "@/i18n";
-import { SelectField } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { AllocationControlColumn } from "./AllocationModalFieldLayout";
-import type { AllocationModalState } from "./useAllocationModalState";
+import { Plus } from 'lucide-react';
+import { m } from '@/i18n';
+import { SelectField } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { AllocationControlColumn } from './AllocationModalFieldLayout';
+import type { AllocationModalState } from './useAllocationModalState';
 
-type AllocationTargetFieldsProps = AllocationModalState["targetFields"];
+type AllocationTargetFieldsProps = AllocationModalState['targetFields'];
 
-function newActivityPlaceholder(kind: AllocationTargetFieldsProps["activityScope"]["kind"]): string {
-  if (kind === "internal") return m.form_allocation_new_internal_activity_placeholder();
-  if (kind === "repeatable") return m.form_allocation_new_repeatable_activity_placeholder();
+function newActivityPlaceholder(
+  kind: AllocationTargetFieldsProps['activityScope']['kind'],
+): string {
+  if (kind === 'internal') return m.form_allocation_new_internal_activity_placeholder();
+  if (kind === 'repeatable') return m.form_allocation_new_repeatable_activity_placeholder();
   return m.form_allocation_new_activity_placeholder();
 }
 
@@ -24,7 +26,12 @@ function InlineActivityField({
   onAddActivity,
 }: Pick<
   AllocationTargetFieldsProps,
-  "newActivityName" | "setNewActivityName" | "activityScope" | "errorField" | "errorId" | "onAddActivity"
+  | 'newActivityName'
+  | 'setNewActivityName'
+  | 'activityScope'
+  | 'errorField'
+  | 'errorId'
+  | 'onAddActivity'
 >) {
   return (
     <AllocationControlColumn>
@@ -33,11 +40,11 @@ function InlineActivityField({
           value={newActivityName}
           placeholder={newActivityPlaceholder(activityScope.kind)}
           aria-label={m.form_allocation_new_activity_aria()}
-          aria-invalid={errorField === "newactivity" || undefined}
-          aria-describedby={errorField === "newactivity" ? errorId : undefined}
+          aria-invalid={errorField === 'newactivity' || undefined}
+          aria-describedby={errorField === 'newactivity' ? errorId : undefined}
           onChange={(event) => setNewActivityName(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
+            if (event.key === 'Enter') {
               event.preventDefault();
               void onAddActivity();
             }
@@ -62,7 +69,13 @@ function AssigneeFields({
   errorId,
 }: Pick<
   AllocationTargetFieldsProps,
-  "create" | "resourceId" | "onAssigneeChange" | "resourceOptions" | "isPlaceholder" | "errorField" | "errorId"
+  | 'create'
+  | 'resourceId'
+  | 'onAssigneeChange'
+  | 'resourceOptions'
+  | 'isPlaceholder'
+  | 'errorField'
+  | 'errorId'
 >) {
   return (
     <>
@@ -74,7 +87,7 @@ function AssigneeFields({
           options={resourceOptions}
           placeholder={m.form_allocation_select_resource_placeholder()}
           required
-          invalid={errorField === "resource"}
+          invalid={errorField === 'resource'}
           describedById={errorId}
           layout="label-control"
         />
@@ -99,14 +112,14 @@ function ActivitySelectionFields({
   errorId,
 }: Pick<
   AllocationTargetFieldsProps,
-  | "projectSelection"
-  | "onProjectChange"
-  | "projectOptions"
-  | "activityId"
-  | "setActivityId"
-  | "activityOptions"
-  | "errorField"
-  | "errorId"
+  | 'projectSelection'
+  | 'onProjectChange'
+  | 'projectOptions'
+  | 'activityId'
+  | 'setActivityId'
+  | 'activityOptions'
+  | 'errorField'
+  | 'errorId'
 >) {
   return (
     <>
@@ -124,7 +137,7 @@ function ActivitySelectionFields({
         options={activityOptions}
         placeholder={m.form_allocation_select_activity_placeholder()}
         required
-        invalid={errorField === "activity"}
+        invalid={errorField === 'activity'}
         describedById={errorId}
         layout="label-control"
       />

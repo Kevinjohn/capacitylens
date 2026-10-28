@@ -1,30 +1,38 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
-import type { buildSchedulerDensity } from "./layout";
-import { LAYOUT } from "./layout";
-import type { GroupModel } from "./schedulerModel";
-import type { SchedulerUI, StoreState } from "@/store/useStore";
-import type { ColumnGeometry } from "./columnGeometry";
-import { buildAverageUtilizationLabel } from "./schedulerGridModal";
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
+import type { buildSchedulerDensity } from './layout';
+import { LAYOUT } from './layout';
+import type { GroupModel } from './schedulerModel';
+import type { SchedulerUI, StoreState } from '@/store/useStore';
+import type { ColumnGeometry } from './columnGeometry';
+import { buildAverageUtilizationLabel } from './schedulerGridModal';
 
 interface SchedulerGridGroupHeaderProps {
   group: GroupModel;
   rowIndex: number;
-  ui: Pick<SchedulerUI, "collapsedGroups">;
+  ui: Pick<SchedulerUI, 'collapsedGroups'>;
   density: ReturnType<typeof buildSchedulerDensity>;
   toggleGroup: (key: string) => void;
   geom: ColumnGeometry;
-  utilizationPrefs: StoreState["utilizationPrefs"];
+  utilizationPrefs: StoreState['utilizationPrefs'];
 }
 
-type ResolveGroupSummaryOptions = { group: GroupModel; collapsed: boolean; showDisciplineUtilization: boolean };
-function resolveGroupSummary({ group, collapsed, showDisciplineUtilization }: ResolveGroupSummaryOptions): string {
+type ResolveGroupSummaryOptions = {
+  group: GroupModel;
+  collapsed: boolean;
+  showDisciplineUtilization: boolean;
+};
+function resolveGroupSummary({
+  group,
+  collapsed,
+  showDisciplineUtilization,
+}: ResolveGroupSummaryOptions): string {
   if (collapsed) return m.scheduler_group_hidden({ count: group.rows.length });
-  if (group.external || !showDisciplineUtilization) return "";
+  if (group.external || !showDisciplineUtilization) return '';
   // A group with no capacity-tracked row shows no average rather than 0%.
   const percent = buildAverageUtilizationLabel(group.rows);
-  return percent === null ? "" : m.scheduler_group_avg_utilisation({ percent });
+  return percent === null ? '' : m.scheduler_group_avg_utilisation({ percent });
 }
 
 /** Labels one grouped section of schedule rows. */
@@ -58,10 +66,14 @@ export function SchedulerGridGroupHeader({
           aria-expanded={!collapsed}
           className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
         >
-          {collapsed ? <ChevronRight data-icon="inline-start" /> : <ChevronDown data-icon="inline-start" />}
+          {collapsed ? (
+            <ChevronRight data-icon="inline-start" />
+          ) : (
+            <ChevronDown data-icon="inline-start" />
+          )}
           <span
             className="inline-block size-2.5 rounded-full ring-1 ring-inset ring-black/10"
-            style={{ backgroundColor: group.color ?? "var(--color-faint)" }}
+            style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
           />
           <span className="truncate text-ink">{group.title}</span>
         </Button>

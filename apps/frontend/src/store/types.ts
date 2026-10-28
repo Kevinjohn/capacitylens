@@ -1,28 +1,28 @@
-import type { Draft, Patch } from "./entityDrafts";
-import type { Filters } from "./filters";
-import type { StoreEntityActions } from "./StoreEntityActions";
-export * from "./entityDrafts";
-export * from "./filters";
-export * from "./StoreEntityActions";
-import type { WeeksZoom } from "@/lib/schedulerConfig";
-import type { BarLabelPreferences, UtilizationPreferences } from "@/lib/displayPrefs";
-import type { ThemePreference } from "@/lib/theme";
-import type { Role } from "@capacitylens/shared/domain/access";
-import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
-import type { Account, AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
-import type { PlanningControllerMetadata } from "@/data/planning/planningCacheController";
-import type { PlanningCommand } from "@/data/planning/planningCommands";
+import type { Draft, Patch } from './entityDrafts';
+import type { Filters } from './filters';
+import type { StoreEntityActions } from './StoreEntityActions';
+export * from './entityDrafts';
+export * from './filters';
+export * from './StoreEntityActions';
+import type { WeeksZoom } from '@/lib/schedulerConfig';
+import type { BarLabelPreferences, UtilizationPreferences } from '@/lib/displayPrefs';
+import type { ThemePreference } from '@/lib/theme';
+import type { Role } from '@capacitylens/shared/domain/access';
+import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
+import type { Account, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
+import type { PlanningControllerMetadata } from '@/data/planning/planningCacheController';
+import type { PlanningCommand } from '@/data/planning/planningCommands';
 
 /** Runtime state for the current masquerade session. */
 export type MasqueradeRuntimeState =
-  | { kind: "inactive" }
+  | { kind: 'inactive' }
   | {
-      kind: "starting";
+      kind: 'starting';
       pending: { accountId: string; targetUserId: string };
       state?: MasqueradeState;
       generation: number;
     }
-  | { kind: "active" | "ending"; state: MasqueradeState; generation: number };
+  | { kind: 'active' | 'ending'; state: MasqueradeState; generation: number };
 
 /** A user notice and severity. Info auto-dismisses; warnings and errors remain until
  * dismissed so consequential advisories and failures can be read. Warnings use the
@@ -30,7 +30,7 @@ export type MasqueradeRuntimeState =
  */
 export interface Notice {
   message: string;
-  tone: "info" | "warning" | "error";
+  tone: 'info' | 'warning' | 'error';
 }
 
 /** A directory entry for a company the current identity may open. Server entries stay
@@ -41,7 +41,7 @@ export interface AccountSummary {
   id: ID;
   name: string;
   role: Role;
-  roleStatus?: "resolved" | "unavailable";
+  roleStatus?: 'resolved' | 'unavailable';
 }
 
 /** Outcome of an import: how many records landed vs. were dropped as invalid
@@ -54,7 +54,7 @@ export interface ImportSummary {
 export type { WeeksZoom };
 
 /** What a draw-on-a-lane gesture creates. */
-export type DrawMode = "work" | "timeoff";
+export type DrawMode = 'work' | 'timeoff';
 
 /** UI state that controls scheduler zoom, range, and interaction modes. */
 export interface SchedulerUI {
@@ -180,7 +180,7 @@ export interface StoreState extends StoreEntityActions {
   activeRole: Role | null;
   /** Why a fail-closed Viewer projection is active. Keeps mutation notices factual while role
    * resolution is pending/unavailable; transient and never persisted. */
-  activeRoleStatus: "not-applicable" | "pending" | "resolved" | "unavailable";
+  activeRoleStatus: 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
   /** Monotonic invalidation token for server-owned membership state. Member mutations bump it so
    * the current directory-request owner re-reads the caller's effective role/list without an
    * account switch or page reload. Transient: never persisted or included in undo history. */
@@ -220,7 +220,7 @@ export interface StoreState extends StoreEntityActions {
   /** Record whether the server could not be reached. */
   setConnectionError: (value: boolean) => void;
   /** Show a notice with the given tone (default `info`), or clear it with null. */
-  setNotice: (message: string | null, tone?: "info" | "warning" | "error") => void;
+  setNotice: (message: string | null, tone?: 'info' | 'warning' | 'error') => void;
   /** Announce a capacity outcome to the grid's polite aria-live region (WCAG 4.1.3). Bumps `seq`
    * so the same text re-announces (an aria-live region re-reads only on a content change). Call
    * only after a successful keyboard-committed allocation edit, pointer drags give sighted
@@ -245,7 +245,10 @@ export interface StoreState extends StoreEntityActions {
   /** Publishes the current role or fail-closed Viewer projection and its resolution status.
    * Transient and excluded from persistence and undo history.
    */
-  setActiveRole: (role: Role | null, status?: "not-applicable" | "pending" | "resolved" | "unavailable") => void;
+  setActiveRole: (
+    role: Role | null,
+    status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable',
+  ) => void;
   /** Invalidate all client projections derived from account membership. */
   invalidateMemberships: () => void;
   /** Replace the view-as-member runtime state. */

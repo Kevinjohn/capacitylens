@@ -6,12 +6,12 @@ on:
   workflow_call:
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ['v*']
   # Monthly run on the default branch: tag runs never feed the README's unqualified badge
   # (it reflects default-branch runs only), so without this the badge reads "no status"
   # between releases. Also doubles as a bit-rot canary for the toolchain.
   schedule:
-    - cron: "17 6 3 * *"
+    - cron: '17 6 3 * *'
 
 concurrency:
   group: gate-${{ github.workflow }}-${{ github.ref }}
@@ -74,7 +74,7 @@ jobs:
           CAPACITYLENS_SECRET: capacitylens-build-secret-0123456789abcdef
           CAPACITYLENS_PUBLIC_URL: https://127.0.0.1
           HOST: 127.0.0.1
-          PORT: "0"
+          PORT: '0'
           LOG_LEVEL: error
           APP_KEY: capacitylens-build-key-0123456789abcdef
           APP_URL: http://127.0.0.1
@@ -90,7 +90,7 @@ jobs:
         env:
           NODE_ENV: test
           HOST: 127.0.0.1
-          PORT: "0"
+          PORT: '0'
           LOG_LEVEL: error
           APP_KEY: capacitylens-build-key-0123456789abcdef
           APP_URL: http://127.0.0.1
@@ -103,7 +103,7 @@ jobs:
           CAPACITYLENS_SECRET: capacitylens-build-secret-0123456789abcdef
           CAPACITYLENS_PUBLIC_URL: https://127.0.0.1
           HOST: 127.0.0.1
-          PORT: "0"
+          PORT: '0'
           LOG_LEVEL: error
           APP_KEY: capacitylens-test-key-0123456789abcdef
           APP_URL: http://127.0.0.1
@@ -152,7 +152,7 @@ jobs:
           CAPACITYLENS_SECRET: capacitylens-build-secret-0123456789abcdef
           CAPACITYLENS_PUBLIC_URL: https://127.0.0.1
           HOST: 127.0.0.1
-          PORT: "0"
+          PORT: '0'
           LOG_LEVEL: error
           APP_KEY: capacitylens-test-key-0123456789abcdef
           APP_URL: http://127.0.0.1

@@ -1,8 +1,8 @@
-import { format } from "date-fns";
-import { daysInclusive, parseDate } from "@capacitylens/shared/lib/dateMath";
-import { readActiveDateLocale, m } from "@/i18n";
-import { DATE_STYLES, DEFAULT_DATE_STYLE } from "@capacitylens/shared/types/entities";
-import type { DateStyle, ISODate } from "@capacitylens/shared/types/entities";
+import { format } from 'date-fns';
+import { daysInclusive, parseDate } from '@capacitylens/shared/lib/dateMath';
+import { readActiveDateLocale, m } from '@/i18n';
+import { DATE_STYLES, DEFAULT_DATE_STYLE } from '@capacitylens/shared/types/entities';
+import type { DateStyle, ISODate } from '@capacitylens/shared/types/entities';
 
 // Pure presentation formatting keeps human date strings separate from scheduler geometry.
 // Valid ISO dates are a caller precondition, so formatting errors propagate as validation faults.
@@ -18,10 +18,10 @@ interface DateStyleDescriptor {
 }
 
 const DATE_STYLE_DESCRIPTORS: Record<DateStyle, DateStyleDescriptor> = {
-  "day-month": { monthFirst: false, ordinal: false },
-  "day-ordinal-month": { monthFirst: false, ordinal: true },
-  "month-day": { monthFirst: true, ordinal: false },
-  "month-day-ordinal": { monthFirst: true, ordinal: true },
+  'day-month': { monthFirst: false, ordinal: false },
+  'day-ordinal-month': { monthFirst: false, ordinal: true },
+  'month-day': { monthFirst: true, ordinal: false },
+  'month-day-ordinal': { monthFirst: true, ordinal: true },
 };
 
 // Mirror date style before notifying subscribers so synchronous formatters agree
@@ -54,8 +54,8 @@ interface DateParts {
 }
 
 function buildPattern(descriptor: DateStyleDescriptor, parts: DateParts): string {
-  const weekday = parts.weekday ? "EEE " : "";
-  const day = parts.ordinal ? "do" : "d";
+  const weekday = parts.weekday ? 'EEE ' : '';
+  const day = parts.ordinal ? 'do' : 'd';
   if (!parts.month) return `${weekday}${day}`;
   const core = descriptor.monthFirst ? `${weekday}MMM ${day}` : `${weekday}${day} MMM`;
   if (!parts.year) return core;
@@ -106,14 +106,20 @@ function formatRange({ startDate, endDate, partsFor, options = {} }: RangeInput)
   // put it (leading for a month-first style, trailing otherwise).
   const sameMonth = start.getMonth() === end.getMonth();
   const leading = { ...parts, year: false };
-  const startPattern = buildPattern(descriptor, { ...leading, month: !(sameMonth && !descriptor.monthFirst) });
+  const startPattern = buildPattern(descriptor, {
+    ...leading,
+    month: !(sameMonth && !descriptor.monthFirst),
+  });
   const endCarriesMonth = !(sameMonth && descriptor.monthFirst);
-  const endPattern = buildPattern(descriptor, { ...(endCarriesMonth ? parts : leading), month: endCarriesMonth });
+  const endPattern = buildPattern(descriptor, {
+    ...(endCarriesMonth ? parts : leading),
+    month: endCarriesMonth,
+  });
   const rendered = `${render(start, startPattern)} – ${render(end, endPattern)}`;
 
   // A collapsed month-first end ("Sep 9 – 14") has no month left to hang the year on, so the year
   // joins the range itself rather than an endpoint.
-  if (parts.year && !endCarriesMonth) return `${rendered}, ${render(end, "yyyy")}`;
+  if (parts.year && !endCarriesMonth) return `${rendered}, ${render(end, 'yyyy')}`;
   return rendered;
 }
 
@@ -191,7 +197,10 @@ export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): str
  * {@link formatDayMonth}.
  */
 export function formatDayMonthEndpoint(date: ISODate, counterpart: ISODate): string {
-  return formatSingle(date, (descriptor) => ({ ...dayMonthParts(descriptor), year: crossesYear(date, counterpart) }));
+  return formatSingle(date, (descriptor) => ({
+    ...dayMonthParts(descriptor),
+    year: crossesYear(date, counterpart),
+  }));
 }
 
 /** The {@link formatShortDate} counterpart to {@link formatDayMonthEndpoint}: weekday, and the year only across one. */
@@ -204,7 +213,8 @@ function crossesYear(date: ISODate, counterpart: ISODate): boolean {
   // `date` itself reaches date-fns `format`, which surfaces an invalid one as a RangeError. The
   // counterpart never does, so an unvalidated one would silently decide "different year" through a
   // NaN comparison and print a year nobody asked for, the same upstream bug, made invisible.
-  if (!Number.isFinite(counterpartYear)) throw new RangeError(`Invalid counterpart date: ${counterpart}`);
+  if (!Number.isFinite(counterpartYear))
+    throw new RangeError(`Invalid counterpart date: ${counterpart}`);
   return parseDate(date).getFullYear() !== counterpartYear;
 }
 
@@ -231,7 +241,7 @@ export function formatScheduleDateRange(startDate: ISODate, endDate: ISODate): s
 
 /** A month and year with no day, no style: "Sep 2026". Used for calendar-header-style context. */
 export function formatMonthYear(date: ISODate): string {
-  return format(parseDate(date), "MMM yyyy", { locale: readActiveDateLocale() });
+  return format(parseDate(date), 'MMM yyyy', { locale: readActiveDateLocale() });
 }
 
 /**
@@ -247,9 +257,11 @@ export function formatWeekdayScheduleDate(date: ISODate): string {
 /** Formats the inclusive date count, clamped at zero for an empty or reversed range. */
 export function formatDayCount(start: ISODate, end: ISODate): string {
   const inclusiveDays = daysInclusive(start, end);
-  if (!Number.isFinite(inclusiveDays)) throw new RangeError("Invalid time-off date range");
+  if (!Number.isFinite(inclusiveDays)) throw new RangeError('Invalid time-off date range');
   const dayCount = Math.max(0, inclusiveDays);
-  return dayCount === 1 ? m.list_timeoff_days_one({ count: dayCount }) : m.list_timeoff_days_other({ count: dayCount });
+  return dayCount === 1
+    ? m.list_timeoff_days_one({ count: dayCount })
+    : m.list_timeoff_days_other({ count: dayCount });
 }
 
 // Render server instants on the viewer’s wall clock with the browser’s locale.

@@ -1,20 +1,24 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { MasqueradeBootstrapStatus } from "./masqueradeApi";
-import { AUTH_INVALIDATION_STORAGE_KEY } from "./signOut";
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { MasqueradeBootstrapStatus } from './masqueradeApi';
+import { AUTH_INVALIDATION_STORAGE_KEY } from './signOut';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: "idle",
+    contextToken: 'idle',
   })),
 }));
-vi.mock("./masqueradeApi", () => ({ masqueradeApi: { status: authBootstrapMocks.masqueradeStatus } }));
+vi.mock('./masqueradeApi', () => ({
+  masqueradeApi: { status: authBootstrapMocks.masqueradeStatus },
+}));
 
 // The API base captures build settings at module load, so each test creates a fresh module graph for its configured deployment. Auth context must come from that same graph.
 
 afterEach(() => {
-  authBootstrapMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false, contextToken: "idle" });
+  authBootstrapMocks.masqueradeStatus
+    .mockReset()
+    .mockResolvedValue({ active: false, contextToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -31,23 +35,25 @@ const admittedGates = {
 const me = (status: number, body: unknown) =>
   new Response(
     JSON.stringify(
-      status === 200 && body && typeof body === "object" && !Array.isArray(body) ? { ...admittedGates, ...body } : body,
+      status === 200 && body && typeof body === 'object' && !Array.isArray(body)
+        ? { ...admittedGates, ...body }
+        : body,
     ),
     {
       status,
-      headers: { "content-type": "application/json" },
+      headers: { 'content-type': 'application/json' },
     },
   );
 
 async function freshProvider() {
   vi.resetModules();
-  const { AuthProvider } = await import("./AuthProvider");
-  const { useStore } = await import("@/store/useStore");
-  const { resetStoreWithAccount } = await import("@/test/fixtures");
+  const { AuthProvider } = await import('./AuthProvider');
+  const { useStore } = await import('@/store/useStore');
+  const { resetStoreWithAccount } = await import('@/test/fixtures');
   // authContext must come from the same fresh module graph as AuthProvider (which imports it
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's default value, not whatever this AuthProvider instance provides.
-  const { useAuth } = await import("./authContext");
+  const { useAuth } = await import('./authContext');
   return {
     AuthProvider,
     useStore,
@@ -80,9 +86,13 @@ function RefreshProbe({
 }
 
 // Pass the hook as a prop so session assertions observe the same context instance.
-function SessionProbe({ useAuth }: { useAuth: () => { authMode: string; user: { id: string } | null } }) {
+function SessionProbe({
+  useAuth,
+}: {
+  useAuth: () => { authMode: string; user: { id: string } | null };
+}) {
   const { authMode, user } = useAuth();
-  return <div>{`authMode:${authMode} user:${user?.id ?? "none"}`}</div>;
+  return <div>{`authMode:${authMode} user:${user?.id ?? 'none'}`}</div>;
 }
 
 function deferred<T>() {
@@ -93,12 +103,12 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-describe("AuthProvider — demo mode (VITE_CAPACITYLENS_DEMO=1)", () => {
+describe('AuthProvider — demo mode (VITE_CAPACITYLENS_DEMO=1)', () => {
   // Full coverage instruments the cold application graph on this first import; DOM waits retain their normal bounds.
-  it("renders children and performs no fetch at all", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
+  it('renders children and performs no fetch at all', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal('fetch', fetchSpy);
     const onTenantAccessReady = vi.fn();
     const { AuthProvider } = await freshProvider();
     render(
@@ -106,18 +116,18 @@ describe("AuthProvider — demo mode (VITE_CAPACITYLENS_DEMO=1)", () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(screen.getByText("app-content")).toBeInTheDocument();
+    expect(screen.getByText('app-content')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
     await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledTimes(1));
   }, 10_000);
 });
 
 function registerServerModeTest01() {
-  it("signals tenant-data access only after a successful auth check", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('signals tenant-data access only after a successful auth check', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const auth = deferred<Response>();
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn(() => auth.promise),
     );
     const onTenantAccessReady = vi.fn();
@@ -129,54 +139,54 @@ function registerServerModeTest01() {
     );
 
     expect(onTenantAccessReady).not.toHaveBeenCalled();
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Checking your session…");
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Checking your session…');
 
     await act(async () => {
       auth.resolve(
         me(200, {
-          authMode: "password-only",
+          authMode: 'password-only',
           user: {
-            id: "authenticated-user",
-            name: "Authenticated user",
-            email: "authenticated@example.test",
+            id: 'authenticated-user',
+            name: 'Authenticated user',
+            email: 'authenticated@example.test',
           },
         }),
       );
     });
 
-    expect(await screen.findByText("app-content")).toBeInTheDocument();
-    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledWith("live"));
+    expect(await screen.findByText('app-content')).toBeInTheDocument();
+    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledWith('live'));
   });
 }
 
 function registerServerModeTest02() {
-  it("hides tenant data immediately when a sibling tab signs out, then rechecks the session", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('hides tenant data immediately when a sibling tab signs out, then rechecks the session', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password-only",
-          user: { id: "u1", email: "a@b.test" },
+          authMode: 'password-only',
+          user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password-only" }));
-    vi.stubGlobal("fetch", fetchSpy);
+      .mockResolvedValue(me(401, { authMode: 'password-only' }));
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore } = await freshProvider();
-    const { queryClient } = await import("@/api/queryClient");
+    const { queryClient } = await import('@/api/queryClient');
     render(
       <AuthProvider>
         <div>tenant-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByText("tenant-content")).toBeInTheDocument();
-    queryClient.setQueryData(["private-account"], "sensitive data");
-    useStore.setState({ activeAccountId: "a-studio" });
+    expect(await screen.findByText('tenant-content')).toBeInTheDocument();
+    queryClient.setQueryData(['private-account'], 'sensitive data');
+    useStore.setState({ activeAccountId: 'a-studio' });
 
     act(() => {
       window.dispatchEvent(
-        new StorageEvent("storage", {
+        new StorageEvent('storage', {
           key: AUTH_INVALIDATION_STORAGE_KEY,
           newValue: crypto.randomUUID(),
         }),
@@ -184,19 +194,19 @@ function registerServerModeTest02() {
     });
 
     expect(useStore.getState().activeAccountId).toBeNull();
-    expect(queryClient.getQueryData(["private-account"])).toBeUndefined();
-    expect(screen.getByRole("status")).toHaveTextContent("Checking your session…");
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(queryClient.getQueryData(['private-account'])).toBeUndefined();
+    expect(screen.getByRole('status')).toHaveTextContent('Checking your session…');
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 }
 
 function registerServerModeTest03() {
-  it("does not signal tenant-data access for a signed-out boot", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('does not signal tenant-data access for a signed-out boot', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(401, { authMode: "password-only" })),
+      'fetch',
+      vi.fn(async () => me(401, { authMode: 'password-only' })),
     );
     const onTenantAccessReady = vi.fn();
     const { AuthProvider } = await freshProvider();
@@ -206,85 +216,89 @@ function registerServerModeTest03() {
       </AuthProvider>,
     );
 
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(onTenantAccessReady).not.toHaveBeenCalled();
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });
 }
 
 function registerServerModeTest05() {
-  it("a TRULY empty env (no demo flag, no API origin) is server mode: same-origin /api/auth/me, NOT a pass-through", async () => {
+  it('a TRULY empty env (no demo flag, no API origin) is server mode: same-origin /api/auth/me, NOT a pass-through', async () => {
     // Guards the production same-origin deploy: an empty env must drive the credentialed auth check,
     // never the demo pass-through (which would silently bypass auth). API_BASE='' → relative /api/auth/me.
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
-      return me(200, { authMode: "off", user: { id: "demo", name: "Demo" } });
+      return me(200, { authMode: 'off', user: { id: 'demo', name: 'Demo' } });
     });
-    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider } = await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Unable to verify your session' }),
+    ).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const call = fetchSpy.mock.calls.at(0);
     expect(call).toBeDefined();
-    if (!call) throw new Error("Expected the auth status request");
+    if (!call) throw new Error('Expected the auth status request');
     const [request, init] = call;
-    expect(request).toBe("/api/auth/me");
-    expect(init?.credentials).toBe("include");
+    expect(request).toBe('/api/auth/me');
+    expect(init?.credentials).toBe('include');
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 }
 
 function registerServerModeTest06() {
   it("rejects authMode 'off' from a credentialed /api/auth/me check", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
-      return me(200, { authMode: "off", user: null });
+      return me(200, { authMode: 'off', user: null });
     });
-    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider } = await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Unable to verify your session' }),
+    ).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const call = fetchSpy.mock.calls.at(0);
     expect(call).toBeDefined();
-    if (!call) throw new Error("Expected the auth status request");
+    if (!call) throw new Error('Expected the auth status request');
     const [request, init] = call;
-    expect(request).toBe("http://api.test/api/auth/me");
-    expect(init?.credentials).toBe("include");
+    expect(request).toBe('http://api.test/api/auth/me');
+    expect(init?.credentials).toBe('include');
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("bootstraps an active masquerade from its validated real principal without calling auth/me", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('bootstraps an active masquerade from its validated real principal without calling auth/me', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
-      accountId: "a-studio",
-      targetUserId: "target-user",
-      targetName: "Selina Kyle",
-      effectiveRole: "viewer",
-      startedAt: "2026-09-01T10:00:00.000Z",
-      expiresAt: "2026-09-01T10:15:00.000Z",
-      token: "session-token",
-      contextToken: "session-token",
-      principal: { id: "real-principal", name: "Bruce Wayne", email: "bruce@example.test" },
-      authMode: "password-only",
+      accountId: 'a-studio',
+      targetUserId: 'target-user',
+      targetName: 'Selina Kyle',
+      effectiveRole: 'viewer',
+      startedAt: '2026-09-01T10:00:00.000Z',
+      expiresAt: '2026-09-01T10:15:00.000Z',
+      token: 'session-token',
+      contextToken: 'session-token',
+      principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      authMode: 'password-only',
     });
     const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useAuth, useStore, resetStoreWithAccount } = await freshProvider();
-    await resetStoreWithAccount("a-studio");
+    await resetStoreWithAccount('a-studio');
 
     render(
       <AuthProvider>
@@ -292,47 +306,52 @@ function registerServerModeTest06() {
       </AuthProvider>,
     );
 
-    expect(await screen.findByText("authMode:password-only user:real-principal")).toBeInTheDocument();
+    expect(
+      await screen.findByText('authMode:password-only user:real-principal'),
+    ).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(useStore.getState().activeAccountId).toBe("a-studio");
-    expect(useStore.getState().masquerade.kind).toBe("active");
+    expect(useStore.getState().activeAccountId).toBe('a-studio');
+    expect(useStore.getState().masquerade.kind).toBe('active');
   });
 
-  it("bootstraps a cold active member view only after its scoped canonical company read", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('bootstraps a cold active member view only after its scoped canonical company read', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
-      accountId: "a-studio",
-      targetUserId: "target-user",
-      targetName: "Selina Kyle",
-      effectiveRole: "viewer",
-      startedAt: "2026-09-01T10:00:00.000Z",
-      expiresAt: "2026-09-01T10:15:00.000Z",
-      token: "session-token",
-      contextToken: "session-token",
-      principal: { id: "real-principal", name: "Bruce Wayne", email: "bruce@example.test" },
-      authMode: "password-only",
+      accountId: 'a-studio',
+      targetUserId: 'target-user',
+      targetName: 'Selina Kyle',
+      effectiveRole: 'viewer',
+      startedAt: '2026-09-01T10:00:00.000Z',
+      expiresAt: '2026-09-01T10:15:00.000Z',
+      token: 'session-token',
+      contextToken: 'session-token',
+      principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      authMode: 'password-only',
     });
     const { AuthProvider, useStore } = await freshProvider();
-    const { makeAccount, makeAppData } = await import("@/test/fixtures");
+    const { makeAccount, makeAppData } = await import('@/test/fixtures');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (!url.includes("/api/accounts/a-studio/planning")) throw new Error(`Unexpected read: ${url}`);
+      if (!url.includes('/api/accounts/a-studio/planning'))
+        throw new Error(`Unexpected read: ${url}`);
       return me(200, {
-        accountId: "a-studio",
+        accountId: 'a-studio',
         revision: 1,
         authority: {
-          actorId: "real-principal",
-          effectiveActorId: "target-user",
-          role: "viewer",
+          actorId: 'real-principal',
+          effectiveActorId: 'target-user',
+          role: 'viewer',
           canWrite: false,
           canSeePrivateNames: false,
           canSeeTimeOffNote: false,
         },
-        data: makeAppData({ accounts: [makeAccount({ id: "a-studio", name: "Wayne Enterprises" })] }),
+        data: makeAppData({
+          accounts: [makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' })],
+        }),
       });
     });
-    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal('fetch', fetchSpy);
     expect(useStore.getState().activeAccountId).toBeNull();
     expect(useStore.getState().accountSummaries).toEqual([]);
 
@@ -342,33 +361,33 @@ function registerServerModeTest06() {
       </AuthProvider>,
     );
 
-    expect(await screen.findByText("member-content")).toBeInTheDocument();
-    expect(useStore.getState().activeAccountId).toBe("a-studio");
+    expect(await screen.findByText('member-content')).toBeInTheDocument();
+    expect(useStore.getState().activeAccountId).toBe('a-studio');
     expect(useStore.getState().accountSummaries).toEqual([
-      { id: "a-studio", name: "Wayne Enterprises", role: "viewer" },
+      { id: 'a-studio', name: 'Wayne Enterprises', role: 'viewer' },
     ]);
-    expect(useStore.getState().masquerade.kind).toBe("active");
+    expect(useStore.getState().masquerade.kind).toBe('active');
     expect(authBootstrapMocks.masqueradeStatus).toHaveBeenCalledWith(undefined);
     expect(fetchSpy).toHaveBeenCalled();
   });
 
-  it("rejects an active masquerade whose auth mode is off", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('rejects an active masquerade whose auth mode is off', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
-      accountId: "a-studio",
-      targetUserId: "target-user",
-      targetName: "Selina Kyle",
-      effectiveRole: "viewer",
-      startedAt: "2026-09-01T10:00:00.000Z",
-      expiresAt: "2026-09-01T10:15:00.000Z",
-      token: "session-token",
-      contextToken: "session-token",
-      principal: { id: "real-principal", name: "Bruce Wayne", email: "bruce@example.test" },
-      authMode: "off",
+      accountId: 'a-studio',
+      targetUserId: 'target-user',
+      targetName: 'Selina Kyle',
+      effectiveRole: 'viewer',
+      startedAt: '2026-09-01T10:00:00.000Z',
+      expiresAt: '2026-09-01T10:15:00.000Z',
+      token: 'session-token',
+      contextToken: 'session-token',
+      principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      authMode: 'off',
     });
     const { AuthProvider, useStore, resetStoreWithAccount } = await freshProvider();
-    await resetStoreWithAccount("a-studio");
+    await resetStoreWithAccount('a-studio');
 
     render(
       <AuthProvider>
@@ -376,20 +395,22 @@ function registerServerModeTest06() {
       </AuthProvider>,
     );
 
-    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    expect(useStore.getState().masquerade.kind).not.toBe("active");
+    expect(
+      await screen.findByRole('heading', { name: 'Unable to verify your session' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
+    expect(useStore.getState().masquerade.kind).not.toBe('active');
   });
 }
 
 function registerServerModeTest07() {}
 
 function registerServerModeTest09() {
-  it("a 401 replaces the app with the login screen (password form)", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('a 401 replaces the app with the login screen (password form)', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(401, { authMode: "password-only" })),
+      'fetch',
+      vi.fn(async () => me(401, { authMode: 'password-only' })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -397,12 +418,14 @@ function registerServerModeTest09() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
 
-    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/sign-in configuration could not be loaded/i),
+    ).not.toBeInTheDocument();
   });
 }
 
@@ -411,12 +434,12 @@ function registerServerModeTest10() {}
 function registerServerModeTest12() {}
 
 function registerServerModeTest13() {
-  it("DEFECT A — a password-only 401 lands on the sign-in wall without a degraded notice", async () => {
+  it('DEFECT A — a password-only 401 lands on the sign-in wall without a degraded notice', async () => {
     // A 401 always offers a way in, never a terminal 'invalid configuration' screen.
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(401, { authMode: "password-only" })),
+      'fetch',
+      vi.fn(async () => me(401, { authMode: 'password-only' })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -424,23 +447,27 @@ function registerServerModeTest13() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    expect(screen.queryByText("The authentication service returned an invalid configuration.")).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
+    expect(
+      screen.queryByText('The authentication service returned an invalid configuration.'),
+    ).not.toBeInTheDocument();
     // The explicit authMode is a trustworthy signal, so no degraded notice.
-    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/sign-in configuration could not be loaded/i),
+    ).not.toBeInTheDocument();
   });
 }
 
 function registerServerModeTest14() {
-  it("DEFECT A — a 401 with an empty / HTML / non-JSON body falls back to the password sign-in wall (proxy)", async () => {
+  it('DEFECT A — a 401 with an empty / HTML / non-JSON body falls back to the password sign-in wall (proxy)', async () => {
     // A proxy returning a plain-HTML 401 (or an empty body) must land on a usable sign-in form, not a
     // dead-end error screen with no way to authenticate.
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("<html>401</html>", { status: 401 })),
+      'fetch',
+      vi.fn(async () => new Response('<html>401</html>', { status: 401 })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -448,22 +475,22 @@ function registerServerModeTest14() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
     // The body couldn't be trusted at all, so the login wall says its configuration is a guess.
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
 }
 
 function registerServerModeTest15() {
-  it("DEFECT A — a 401 with a junk authMode value falls back to the password sign-in wall WITH the degraded notice", async () => {
+  it('DEFECT A — a 401 with a junk authMode value falls back to the password sign-in wall WITH the degraded notice', async () => {
     // Distinct from an omitted authMode (old-server compat, no notice): here the field is present
     // but neither 'password' nor 'sso', a genuinely untrustworthy body, not a version-skew case.
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(401, { authMode: "bogus" })),
+      'fetch',
+      vi.fn(async () => me(401, { authMode: 'bogus' })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -471,18 +498,18 @@ function registerServerModeTest15() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
 }
 
 function registerServerModeTest16() {
-  it("DEFECT A — a NON-401 failure is unchanged: it still renders the retryable auth error boundary", async () => {
+  it('DEFECT A — a NON-401 failure is unchanged: it still renders the retryable auth error boundary', async () => {
     // The lenient 401 handling is scoped to 401 only. A genuinely unexpected status stays fail-closed.
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(500, { error: "boom" })),
+      'fetch',
+      vi.fn(async () => me(500, { error: 'boom' })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -491,20 +518,20 @@ function registerServerModeTest16() {
       </AuthProvider>,
     );
     expect(
-      await screen.findByRole("heading", {
-        name: "Unable to verify your session",
+      await screen.findByRole('heading', {
+        name: 'Unable to verify your session',
       }),
     ).toBeInTheDocument();
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });
 }
 
 function registerServerModeTest17() {
   it("surfaces the authentication service's temporary-unavailability message", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(503, { error: "Sign-in is temporarily unavailable." })),
+      'fetch',
+      vi.fn(async () => me(503, { error: 'Sign-in is temporarily unavailable.' })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -512,18 +539,18 @@ function registerServerModeTest17() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByText("Sign-in is temporarily unavailable.")).toBeInTheDocument();
+    expect(await screen.findByText('Sign-in is temporarily unavailable.')).toBeInTheDocument();
   });
 }
 
 function registerServerModeTest18() {
-  it("password invite routes render before sign-in so the token can onboard a new identity", async () => {
-    window.history.pushState({}, "", "/invite/invite-token");
+  it('password invite routes render before sign-in so the token can onboard a new identity', async () => {
+    window.history.pushState({}, '', '/invite/invite-token');
     try {
-      vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+      vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
       vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => me(401, { authMode: "password-only" })),
+        'fetch',
+        vi.fn(async () => me(401, { authMode: 'password-only' })),
       );
       const { AuthProvider } = await freshProvider();
       render(
@@ -531,22 +558,22 @@ function registerServerModeTest18() {
           <div>invite-page</div>
         </AuthProvider>,
       );
-      expect(await screen.findByText("invite-page")).toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: "Sign in" })).not.toBeInTheDocument();
+      expect(await screen.findByText('invite-page')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Sign in' })).not.toBeInTheDocument();
     } finally {
-      window.history.pushState({}, "", "/");
+      window.history.pushState({}, '', '/');
     }
   });
 }
 
 function registerServerModeTest19() {
-  it("invite routes render before sign-in so the acceptance form keeps the token", async () => {
-    window.history.pushState({}, "", "/invite/invite-token");
+  it('invite routes render before sign-in so the acceptance form keeps the token', async () => {
+    window.history.pushState({}, '', '/invite/invite-token');
     try {
-      vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+      vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
       vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => me(401, { authMode: "password-only" })),
+        'fetch',
+        vi.fn(async () => me(401, { authMode: 'password-only' })),
       );
       const { AuthProvider } = await freshProvider();
       render(
@@ -554,20 +581,20 @@ function registerServerModeTest19() {
           <div>invite-page</div>
         </AuthProvider>,
       );
-      expect(await screen.findByText("invite-page")).toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: "Sign in" })).not.toBeInTheDocument();
+      expect(await screen.findByText('invite-page')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Sign in' })).not.toBeInTheDocument();
     } finally {
-      window.history.pushState({}, "", "/");
+      window.history.pushState({}, '', '/');
     }
   });
 }
 
 function registerServerModeTest20() {
-  it("a 401 with needsSetup:true explains the setup link above the sign-in form", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('a 401 with needsSetup:true explains the setup link above the sign-in form', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(401, { authMode: "password-only", needsSetup: true })),
+      'fetch',
+      vi.fn(async () => me(401, { authMode: 'password-only', needsSetup: true })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -575,20 +602,20 @@ function registerServerModeTest20() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByTestId("login-setup-needed")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+    expect(await screen.findByTestId('login-setup-needed')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });
 }
 
 function registerServerModeTest21() {
-  it("fail-closed: junk/non-boolean needsSetup on the 401 body shows the ORDINARY sign-in form", async () => {
+  it('fail-closed: junk/non-boolean needsSetup on the 401 body shows the ORDINARY sign-in form', async () => {
     // A proxy page or an off-spec server must never conjure a create-account form on a populated
     // instance: only a literal `true` counts.
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(401, { authMode: "password-only", needsSetup: "yes" })),
+      'fetch',
+      vi.fn(async () => me(401, { authMode: 'password-only', needsSetup: 'yes' })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -596,17 +623,17 @@ function registerServerModeTest21() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
   });
 }
 
 function registerServerModeTest22() {
-  it("an unreachable auth server renders a retryable auth error boundary", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('an unreachable auth server renders a retryable auth error boundary', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => Promise.reject(new Error("ECONNREFUSED"))),
+      'fetch',
+      vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -615,20 +642,26 @@ function registerServerModeTest22() {
       </AuthProvider>,
     );
     expect(
-      await screen.findByRole("heading", {
-        name: "Unable to verify your session",
+      await screen.findByRole('heading', {
+        name: 'Unable to verify your session',
       }),
     ).toBeInTheDocument();
   });
 }
 
 function registerServerModeTest24() {
-  it("keeps an auth timeout behind the error boundary even when browser storage has identity data", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    localStorage.setItem("capacitylens/offlineRead", "on");
-    localStorage.setItem("capacitylens/authSnapshot", JSON.stringify({ user: { id: "stored-user" } }));
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError")));
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+  it('keeps an auth timeout behind the error boundary even when browser storage has identity data', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
+    localStorage.setItem('capacitylens/offlineRead', 'on');
+    localStorage.setItem(
+      'capacitylens/authSnapshot',
+      JSON.stringify({ user: { id: 'stored-user' } }),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new DOMException('signal timed out', 'TimeoutError')),
+    );
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { AuthProvider } = await freshProvider();
     const onTenantAccessReady = vi.fn();
 
@@ -639,13 +672,17 @@ function registerServerModeTest24() {
     );
 
     expect(
-      await screen.findByRole("heading", {
-        name: "Unable to verify your session",
+      await screen.findByRole('heading', {
+        name: 'Unable to verify your session',
       }),
     ).toBeInTheDocument();
-    expect(document.title).toBe("Unable to verify your session · CapacityLens");
-    expect(screen.getByRole("alert")).toHaveTextContent("The authentication service could not be reached.");
-    expect(screen.getByText("The authentication service could not be reached.")).toBeInTheDocument();
+    expect(document.title).toBe('Unable to verify your session · CapacityLens');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The authentication service could not be reached.',
+    );
+    expect(
+      screen.getByText('The authentication service could not be reached.'),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/stored-user/)).not.toBeInTheDocument();
     expect(onTenantAccessReady).not.toHaveBeenCalled();
   });
@@ -653,34 +690,15 @@ function registerServerModeTest24() {
 
 function registerServerModeTest25() {
   it.each([
-    ["no user", null],
-    ["no email", { id: "u1" }],
-    ["an empty email", { id: "u1", email: "   " }],
-  ])("fails closed when an auth-on 200 response has %s", async (_case, user) => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    ['no user', null],
+    ['no email', { id: 'u1' }],
+    ['an empty email', { id: 'u1', email: '   ' }],
+  ])('fails closed when an auth-on 200 response has %s', async (_case, user) => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(200, { authMode: "password-only", user })),
-    );
-    const { AuthProvider } = await freshProvider();
-    render(
-      <AuthProvider>
-        <div>app-content</div>
-      </AuthProvider>,
-    );
-    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("auth-on without a valid user"));
-  });
-}
-
-function registerServerModeTest26() {
-  it("treats malformed JSON from a reachable auth service as invalid, not offline", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("<html>", { status: 200 })),
+      'fetch',
+      vi.fn(async () => me(200, { authMode: 'password-only', user })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -689,55 +707,78 @@ function registerServerModeTest26() {
       </AuthProvider>,
     );
     expect(
-      await screen.findByRole("heading", {
-        name: "Unable to verify your session",
+      await screen.findByRole('heading', { name: 'Unable to verify your session' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('auth-on without a valid user'));
+  });
+}
+
+function registerServerModeTest26() {
+  it('treats malformed JSON from a reachable auth service as invalid, not offline', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('<html>', { status: 200 })),
+    );
+    const { AuthProvider } = await freshProvider();
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    );
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Unable to verify your session',
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("The authentication service returned an invalid response.")).toBeInTheDocument();
+    expect(
+      screen.getByText('The authentication service returned an invalid response.'),
+    ).toBeInTheDocument();
   });
 }
 
 function registerServerModeTest27() {
-  it("refreshes a visible selected company every minute and stops after unmount", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('refreshes a visible selected company every minute and stops after unmount', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi.fn(async () =>
       me(200, {
-        authMode: "password-only",
-        user: { id: "u1", email: "a@b.test" },
+        authMode: 'password-only',
+        user: { id: 'u1', email: 'a@b.test' },
       }),
     );
-    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore } = await freshProvider();
     const refreshPlanning = vi.fn(async () => true);
     let tick: () => void = () => {
-      throw new Error("Expected a visible-session refresh timer.");
+      throw new Error('Expected a visible-session refresh timer.');
     };
-    const setInterval = vi.spyOn(window, "setInterval").mockImplementation((handler, delay) => {
-      if (delay === 60_000 && typeof handler === "function") tick = handler as () => void;
+    const setInterval = vi.spyOn(window, 'setInterval').mockImplementation((handler, delay) => {
+      if (delay === 60_000 && typeof handler === 'function') tick = handler as () => void;
       return 123 as unknown as ReturnType<typeof window.setInterval>;
     });
-    const clearInterval = vi.spyOn(window, "clearInterval").mockImplementation(() => {});
+    const clearInterval = vi.spyOn(window, 'clearInterval').mockImplementation(() => {});
     const mounted = render(
       <AuthProvider>
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByText("app-content")).toBeInTheDocument();
+    expect(await screen.findByText('app-content')).toBeInTheDocument();
     expect(setInterval).toHaveBeenCalledWith(expect.any(Function), 60_000);
-    useStore.setState({ activeAccountId: "a-studio", refreshPlanning });
+    useStore.setState({ activeAccountId: 'a-studio', refreshPlanning });
     refreshPlanning.mockClear();
-    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
     try {
       await act(async () => {
         tick();
       });
       expect(refreshPlanning).toHaveBeenCalledOnce();
-      visibility.mockReturnValue("hidden");
+      visibility.mockReturnValue('hidden');
       await act(async () => {
         tick();
       });
       expect(refreshPlanning).toHaveBeenCalledOnce();
-      visibility.mockReturnValue("visible");
+      visibility.mockReturnValue('visible');
       useStore.setState({ activeAccountId: null });
       refreshPlanning.mockClear();
       await act(async () => {
@@ -752,172 +793,202 @@ function registerServerModeTest27() {
     }
   });
 
-  it("re-checks on planning 401 and swaps to the login screen when the session is gone", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('re-checks on planning 401 and swaps to the login screen when the session is gone', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password-only",
-          user: { id: "u1", email: "a@b.test" },
+          authMode: 'password-only',
+          user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password-only" }));
-    vi.stubGlobal("fetch", fetchSpy);
+      .mockResolvedValue(me(401, { authMode: 'password-only' }));
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore } = await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByText("app-content")).toBeInTheDocument();
+    expect(await screen.findByText('app-content')).toBeInTheDocument();
 
-    act(() => useStore.setState((state) => ({ planningAuthLossVersion: state.planningAuthLossVersion + 1 })));
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    act(() =>
+      useStore.setState((state) => ({
+        planningAuthLossVersion: state.planningAuthLossVersion + 1,
+      })),
+    );
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
   });
 }
 
 function registerServerModeTest28() {
   it.each([
-    [{ emailVerified: false, admission: { admitted: false, requirements: {} } }, "access-verify-email"],
-    [{ emailVerified: true, admission: { admitted: false, requirements: {} } }, "access-admission"],
     [
-      { emailVerified: true, admission: { admitted: true, requirements: {} }, membershipRequired: true },
-      "access-membership",
+      { emailVerified: false, admission: { admitted: false, requirements: {} } },
+      'access-verify-email',
     ],
-  ])("holds a signed-in identity on its limited screen until every gate passes (%o)", async (gates, screenId) => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const onTenantAccessReady = vi.fn();
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(me(200, { authMode: "password-only", user: { id: "u1", email: "a@b.test" }, ...gates })),
-    );
-    const { AuthProvider } = await freshProvider();
-    render(
-      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
-        <div>app-content</div>
-      </AuthProvider>,
-    );
-    expect(await screen.findByTestId(screenId)).toBeInTheDocument();
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    expect(onTenantAccessReady).not.toHaveBeenCalled();
-  });
+    [{ emailVerified: true, admission: { admitted: false, requirements: {} } }, 'access-admission'],
+    [
+      {
+        emailVerified: true,
+        admission: { admitted: true, requirements: {} },
+        membershipRequired: true,
+      },
+      'access-membership',
+    ],
+  ])(
+    'holds a signed-in identity on its limited screen until every gate passes (%o)',
+    async (gates, screenId) => {
+      vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
+      const onTenantAccessReady = vi.fn();
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            me(200, { authMode: 'password-only', user: { id: 'u1', email: 'a@b.test' }, ...gates }),
+          ),
+      );
+      const { AuthProvider } = await freshProvider();
+      render(
+        <AuthProvider onTenantAccessReady={onTenantAccessReady}>
+          <div>app-content</div>
+        </AuthProvider>,
+      );
+      expect(await screen.findByTestId(screenId)).toBeInTheDocument();
+      expect(screen.queryByText('app-content')).not.toBeInTheDocument();
+      expect(onTenantAccessReady).not.toHaveBeenCalled();
+    },
+  );
 }
 
 function registerServerModeTest29() {
-  it("warns on the login screen when a mid-session 401 strands unsaved writes", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('warns on the login screen when a mid-session 401 strands unsaved writes', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password-only",
-          user: { id: "u1", email: "a@b.test" },
+          authMode: 'password-only',
+          user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password-only" }));
-    vi.stubGlobal("fetch", fetchSpy);
+      .mockResolvedValue(me(401, { authMode: 'password-only' }));
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore, resetStoreWithAccount } = await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByText("app-content")).toBeInTheDocument();
+    expect(await screen.findByText('app-content')).toBeInTheDocument();
 
     await resetStoreWithAccount();
     useStore.setState((state) => ({
       planning: { ...state.planning, pending: {} as NonNullable<typeof state.planning.pending> },
     }));
 
-    act(() => useStore.setState((state) => ({ planningAuthLossVersion: state.planningAuthLossVersion + 1 })));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Some changes could not be saved before your session expired. They will not be restored after you sign in again.",
+    act(() =>
+      useStore.setState((state) => ({
+        planningAuthLossVersion: state.planningAuthLossVersion + 1,
+      })),
     );
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Some changes could not be saved before your session expired. They will not be restored after you sign in again.',
+    );
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });
 }
 
 function registerServerModeTest30() {
-  it("planning 401 re-check that CANNOT resolve /me keeps the live authenticated snapshot (warns, no flip to auth-off)", async () => {
+  it('planning 401 re-check that CANNOT resolve /me keeps the live authenticated snapshot (warns, no flip to auth-off)', async () => {
     // An unresolved auth re-check must preserve the current session snapshot so an outage cannot remove sign-out controls or change membership affordances.
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password-only",
-          user: { id: "u1", email: "a@b.test" },
+          authMode: 'password-only',
+          user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockRejectedValue(new Error("ECONNREFUSED"));
-    vi.stubGlobal("fetch", fetchSpy);
+      .mockRejectedValue(new Error('ECONNREFUSED'));
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore, useAuth } = await freshProvider();
     render(
       <AuthProvider>
         <SessionProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("authMode:password-only user:u1")).toBeInTheDocument();
-    act(() => useStore.setState((state) => ({ planningAuthLossVersion: state.planningAuthLossVersion + 1 })));
+    expect(await screen.findByText('authMode:password-only user:u1')).toBeInTheDocument();
+    act(() =>
+      useStore.setState((state) => ({
+        planningAuthLossVersion: state.planningAuthLossVersion + 1,
+      })),
+    );
     await waitFor(() =>
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining("refresh failed; keeping the previous auth snapshot")),
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('refresh failed; keeping the previous auth snapshot'),
+      ),
     );
 
-    expect(screen.getByText("authMode:password-only user:u1")).toBeInTheDocument();
+    expect(screen.getByText('authMode:password-only user:u1')).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 }
 
 function registerServerModeTest31() {
-  it("a STALE refreshAuth resolving after a newer 401 does not overwrite the login status", async () => {
+  it('a STALE refreshAuth resolving after a newer 401 does not overwrite the login status', async () => {
     // A newer confirmed sign-out must win over an earlier authenticated response, or stale credentials would reopen the protected app.
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const slow = deferred<Response>();
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password-only",
-          user: { id: "u1", email: "a@b.test" },
+          authMode: 'password-only',
+          user: { id: 'u1', email: 'a@b.test' },
         }),
       )
       .mockImplementationOnce(() => slow.promise)
-      .mockResolvedValue(me(401, { authMode: "password-only" }));
-    vi.stubGlobal("fetch", fetchSpy);
+      .mockResolvedValue(me(401, { authMode: 'password-only' }));
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore, useAuth } = await freshProvider();
     render(
       <AuthProvider>
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByRole("button", { name: /refresh/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /refresh/ })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /refresh/ }));
+    fireEvent.click(screen.getByRole('button', { name: /refresh/ }));
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
-    act(() => useStore.setState((state) => ({ planningAuthLossVersion: state.planningAuthLossVersion + 1 })));
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    act(() =>
+      useStore.setState((state) => ({
+        planningAuthLossVersion: state.planningAuthLossVersion + 1,
+      })),
+    );
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
 
     await act(async () => {
       slow.resolve(
         me(200, {
-          authMode: "password-only",
-          user: { id: "u1", email: "a@b.test" },
+          authMode: 'password-only',
+          user: { id: 'u1', email: 'a@b.test' },
         }),
       );
       await slow.promise;
     });
 
-    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /refresh/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /refresh/ })).not.toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 }
-describe("AuthProvider — server mode", () => {
+describe('AuthProvider — server mode', () => {
   registerServerModeTest01();
   registerServerModeTest02();
   registerServerModeTest03();
@@ -949,14 +1020,14 @@ describe("AuthProvider — server mode", () => {
 
 // Only the volatile demo may create a company from this client.
 function registerAccountPolicyTest01() {
-  it("parses canCreateAccount:false from a mocked /api/auth/me", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('parses canCreateAccount:false from a mocked /api/auth/me', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn(async () =>
         me(200, {
-          authMode: "password-only",
-          user: { id: "setup-owner", email: "owner@example.test" },
+          authMode: 'password-only',
+          user: { id: 'setup-owner', email: 'owner@example.test' },
           canCreateAccount: false,
         }),
       ),
@@ -967,19 +1038,19 @@ function registerAccountPolicyTest01() {
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:false")).toBeInTheDocument();
+    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
   });
 }
 
 function registerAccountPolicyTest02() {
-  it("refuses persisted company creation even if a server claims canCreateAccount:true", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('refuses persisted company creation even if a server claims canCreateAccount:true', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn(async () =>
         me(200, {
-          authMode: "password-only",
-          user: { id: "setup-owner", email: "owner@example.test" },
+          authMode: 'password-only',
+          user: { id: 'setup-owner', email: 'owner@example.test' },
           canCreateAccount: true,
         }),
       ),
@@ -990,17 +1061,20 @@ function registerAccountPolicyTest02() {
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:false")).toBeInTheDocument();
+    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
   });
 }
 
 function registerAccountPolicyTest03() {
-  it("keeps persisted company creation unavailable when the server omits its old flag", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('keeps persisted company creation unavailable when the server omits its old flag', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn(async () =>
-        me(200, { authMode: "password-only", user: { id: "setup-owner", email: "owner@example.test" } }),
+        me(200, {
+          authMode: 'password-only',
+          user: { id: 'setup-owner', email: 'owner@example.test' },
+        }),
       ),
     );
     const { AuthProvider, useAuth } = await freshProvider();
@@ -1009,16 +1083,16 @@ function registerAccountPolicyTest03() {
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:false")).toBeInTheDocument();
+    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
   });
 }
 
 function registerAccountPolicyTest04() {
-  it("fails closed on a boot-time auth fetch failure", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('fails closed on a boot-time auth fetch failure', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => Promise.reject(new Error("ECONNREFUSED"))),
+      'fetch',
+      vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))),
     );
     const { AuthProvider, useAuth } = await freshProvider();
     render(
@@ -1027,20 +1101,20 @@ function registerAccountPolicyTest04() {
       </AuthProvider>,
     );
     expect(
-      await screen.findByRole("heading", {
-        name: "Unable to verify your session",
+      await screen.findByRole('heading', {
+        name: 'Unable to verify your session',
       }),
     ).toBeInTheDocument();
   });
 }
 
 function registerAccountPolicyTest05() {
-  it("fails closed on a 200 response with an off-spec authMode", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it('fails closed on a 200 response with an off-spec authMode', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(200, { authMode: "bogus", privateValue: "SENTINEL_AUTH_PAYLOAD" })),
+      'fetch',
+      vi.fn(async () => me(200, { authMode: 'bogus', privateValue: 'SENTINEL_AUTH_PAYLOAD' })),
     );
     const { AuthProvider, useAuth } = await freshProvider();
     render(
@@ -1048,19 +1122,21 @@ function registerAccountPolicyTest05() {
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected body"));
+    expect(
+      await screen.findByRole('heading', { name: 'Unable to verify your session' }),
+    ).toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('unexpected body'));
   });
 }
 
 function registerAccountPolicyTest09() {
   it("fails closed on authMode 'off' with either a missing or present user", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    for (const user of [null, { id: "unexpected", email: "unexpected@example.test" }]) {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    for (const user of [null, { id: 'unexpected', email: 'unexpected@example.test' }]) {
       vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => me(200, { authMode: "off", user })),
+        'fetch',
+        vi.fn(async () => me(200, { authMode: 'off', user })),
       );
       const { AuthProvider } = await freshProvider();
       const view = render(
@@ -1068,96 +1144,100 @@ function registerAccountPolicyTest09() {
           <div>app-content</div>
         </AuthProvider>,
       );
-      expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
-      expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: 'Unable to verify your session' }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('app-content')).not.toBeInTheDocument();
       view.unmount();
     }
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected body"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('unexpected body'));
   });
 }
 
 function registerAccountPolicyTest06() {
-  it("refreshAuth re-asks /api/auth/me without enabling retired server company creation", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+  it('refreshAuth re-asks /api/auth/me without enabling retired server company creation', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password-only",
-          user: { id: "setup-owner", email: "owner@example.test" },
+          authMode: 'password-only',
+          user: { id: 'setup-owner', email: 'owner@example.test' },
           canCreateAccount: false,
         }),
       )
       .mockResolvedValue(
         me(200, {
-          authMode: "password-only",
-          user: { id: "setup-owner", email: "owner@example.test" },
+          authMode: 'password-only',
+          user: { id: 'setup-owner', email: 'owner@example.test' },
           canCreateAccount: true,
         }),
       );
-    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useAuth } = await freshProvider();
     render(
       <AuthProvider>
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:false")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /refresh/ }));
+    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /refresh/ }));
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
-    expect(screen.getByText("canCreateAccount:false")).toBeInTheDocument();
+    expect(screen.getByText('canCreateAccount:false')).toBeInTheDocument();
   });
 }
 
 function registerAccountPolicyTest07() {
-  it("a FAILED refresh keeps the previous (stale) snapshot with a warn breadcrumb — no crash, no reset", async () => {
+  it('a FAILED refresh keeps the previous (stale) snapshot with a warn breadcrumb — no crash, no reset', async () => {
     // An unresolved refresh must preserve the last verified session snapshot.
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password-only",
-          user: { id: "setup-owner", email: "owner@example.test" },
+          authMode: 'password-only',
+          user: { id: 'setup-owner', email: 'owner@example.test' },
           canCreateAccount: false,
         }),
       )
-      .mockRejectedValue(new Error("ECONNREFUSED"));
-    vi.stubGlobal("fetch", fetchSpy);
+      .mockRejectedValue(new Error('ECONNREFUSED'));
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useAuth } = await freshProvider();
     render(
       <AuthProvider>
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:false")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /refresh/ }));
+    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /refresh/ }));
     await waitFor(() =>
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining("refresh failed; keeping the previous auth snapshot")),
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('refresh failed; keeping the previous auth snapshot'),
+      ),
     );
 
-    expect(screen.getByText("canCreateAccount:false")).toBeInTheDocument();
+    expect(screen.getByText('canCreateAccount:false')).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 }
 
 function registerAccountPolicyTest08() {
-  it("defaults to true in the demo build (no fetch at all)", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
+  it('defaults to true in the demo build (no fetch at all)', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useAuth } = await freshProvider();
     render(
       <AuthProvider>
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:true")).toBeInTheDocument();
+    expect(await screen.findByText('canCreateAccount:true')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 }
-describe("AuthProvider — first-company setup policy", () => {
+describe('AuthProvider — first-company setup policy', () => {
   registerAccountPolicyTest01();
   registerAccountPolicyTest02();
   registerAccountPolicyTest03();
@@ -1169,21 +1249,21 @@ describe("AuthProvider — first-company setup policy", () => {
   registerAccountPolicyTest09();
 });
 
-it("gates tenant hydration behind authenticated company setup and opens scheduling after confirmation", async () => {
-  vi.stubEnv("VITE_CAPACITYLENS_DEMO", "0");
+it('gates tenant hydration behind authenticated company setup and opens scheduling after confirmation', async () => {
+  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '0');
   let created = false;
   const fetch = vi.fn(async (_url: unknown, options?: RequestInit) => {
-    if (options?.method === "POST") {
+    if (options?.method === 'POST') {
       created = true;
-      return me(201, { accountId: "wayne" });
+      return me(201, { accountId: 'wayne' });
     }
     return me(200, {
-      authMode: "password-only",
-      user: { id: "bruce", email: "bruce@wayne.example", name: "Bruce Wayne" },
+      authMode: 'password-only',
+      user: { id: 'bruce', email: 'bruce@wayne.example', name: 'Bruce Wayne' },
       companySetupRequired: !created,
     });
   });
-  vi.stubGlobal("fetch", fetch);
+  vi.stubGlobal('fetch', fetch);
   const { AuthProvider } = await freshProvider();
   const ready = vi.fn();
   render(
@@ -1191,31 +1271,33 @@ it("gates tenant hydration behind authenticated company setup and opens scheduli
       <div>schedule-ready</div>
     </AuthProvider>,
   );
-  await screen.findByRole("heading", { name: "Set up your company" });
+  await screen.findByRole('heading', { name: 'Set up your company' });
   expect(ready).not.toHaveBeenCalled();
-  expect(screen.queryByText("schedule-ready")).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Company name"), { target: { value: "Wayne Enterprises" } });
-  fireEvent.click(screen.getByRole("button", { name: "Create company" }));
-  await screen.findByText("schedule-ready");
+  expect(screen.queryByText('schedule-ready')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Company name'), {
+    target: { value: 'Wayne Enterprises' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Create company' }));
+  await screen.findByText('schedule-ready');
   await waitFor(() => expect(ready).toHaveBeenCalledOnce());
 });
 
-it("adopts a same-principal company created in another browser only after confirming Owner access", async () => {
-  vi.stubEnv("VITE_CAPACITYLENS_DEMO", "0");
+it('adopts a same-principal company created in another browser only after confirming Owner access', async () => {
+  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '0');
   let createdElsewhere = false;
   const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
-    if (options?.method === "POST") {
+    if (options?.method === 'POST') {
       createdElsewhere = true;
-      return me(409, { error: "First company setup is unavailable for this installation." });
+      return me(409, { error: 'First company setup is unavailable for this installation.' });
     }
-    if (String(url).endsWith("/api/accounts")) return me(200, [{ id: "wayne", role: "owner" }]);
+    if (String(url).endsWith('/api/accounts')) return me(200, [{ id: 'wayne', role: 'owner' }]);
     return me(200, {
-      authMode: "password-only",
-      user: { id: "bruce", email: "bruce@wayne.example" },
+      authMode: 'password-only',
+      user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: !createdElsewhere,
     });
   });
-  vi.stubGlobal("fetch", fetch);
+  vi.stubGlobal('fetch', fetch);
   const { AuthProvider } = await freshProvider();
   const ready = vi.fn();
   render(
@@ -1223,27 +1305,29 @@ it("adopts a same-principal company created in another browser only after confir
       <div>schedule-ready</div>
     </AuthProvider>,
   );
-  await screen.findByRole("heading", { name: "Set up your company" });
-  fireEvent.change(screen.getByLabelText("Company name"), { target: { value: "Wayne Enterprises" } });
-  fireEvent.click(screen.getByRole("button", { name: "Create company" }));
-  await screen.findByText("schedule-ready");
+  await screen.findByRole('heading', { name: 'Set up your company' });
+  fireEvent.change(screen.getByLabelText('Company name'), {
+    target: { value: 'Wayne Enterprises' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Create company' }));
+  await screen.findByText('schedule-ready');
   await waitFor(() => expect(ready).toHaveBeenCalledOnce());
-  expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1);
 });
 
-it("keeps a conflicting setup refusal visible when the principal has no company access", async () => {
-  vi.stubEnv("VITE_CAPACITYLENS_DEMO", "0");
+it('keeps a conflicting setup refusal visible when the principal has no company access', async () => {
+  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '0');
   const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
-    if (options?.method === "POST")
-      return me(409, { error: "First company setup is unavailable for this installation." });
-    if (String(url).endsWith("/api/accounts")) return me(200, []);
+    if (options?.method === 'POST')
+      return me(409, { error: 'First company setup is unavailable for this installation.' });
+    if (String(url).endsWith('/api/accounts')) return me(200, []);
     return me(200, {
-      authMode: "password-only",
-      user: { id: "bruce", email: "bruce@wayne.example" },
+      authMode: 'password-only',
+      user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: true,
     });
   });
-  vi.stubGlobal("fetch", fetch);
+  vi.stubGlobal('fetch', fetch);
   const { AuthProvider } = await freshProvider();
   const ready = vi.fn();
   render(
@@ -1251,11 +1335,13 @@ it("keeps a conflicting setup refusal visible when the principal has no company 
       <div>schedule-ready</div>
     </AuthProvider>,
   );
-  await screen.findByRole("heading", { name: "Set up your company" });
-  fireEvent.change(screen.getByLabelText("Company name"), { target: { value: "Wayne Enterprises" } });
-  fireEvent.click(screen.getByRole("button", { name: "Create company" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("First company setup is unavailable");
+  await screen.findByRole('heading', { name: 'Set up your company' });
+  fireEvent.change(screen.getByLabelText('Company name'), {
+    target: { value: 'Wayne Enterprises' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Create company' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('First company setup is unavailable');
   expect(ready).not.toHaveBeenCalled();
-  expect(screen.queryByText("schedule-ready")).not.toBeInTheDocument();
-  expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
+  expect(screen.queryByText('schedule-ready')).not.toBeInTheDocument();
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1);
 });

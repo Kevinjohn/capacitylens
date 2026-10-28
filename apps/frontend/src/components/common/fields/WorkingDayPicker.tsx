@@ -1,26 +1,30 @@
-import { useId } from "react";
-import { FieldLegend, FieldSet } from "@/components/ui/field";
-import { Label } from "@/components/ui/label";
-import { m } from "@/i18n";
-import type { Weekday } from "@capacitylens/shared/types/entities";
-import { resolveWeekdayLabel } from "@/lib/weekdays";
-import { useMarkFormDirty } from "@/components/common/formDirty";
-import type { WorkingDayOption } from "./fieldTypes";
+import { useId } from 'react';
+import { FieldLegend, FieldSet } from '@/components/ui/field';
+import { Label } from '@/components/ui/label';
+import { m } from '@/i18n';
+import type { Weekday } from '@capacitylens/shared/types/entities';
+import { resolveWeekdayLabel } from '@/lib/weekdays';
+import { useMarkFormDirty } from '@/components/common/formDirty';
+import type { WorkingDayOption } from './fieldTypes';
 
 // Resolve weekday labels at render time so they follow account locale changes. The picker's Monday-first order is independent of numeric weekday order.
 const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 
 function buildWorkingDayOptions(): Array<{ value: WorkingDayOption; label: string }> {
   return [
-    { value: "full", label: m.form_resource_working_day_full() },
-    { value: "half", label: m.form_resource_working_day_half() },
-    { value: "off", label: m.form_resource_working_day_off() },
+    { value: 'full', label: m.form_resource_working_day_full() },
+    { value: 'half', label: m.form_resource_working_day_half() },
+    { value: 'off', label: m.form_resource_working_day_off() },
   ];
 }
 
-function resolveWorkingDayOption(day: Weekday, workingDays: Weekday[], halfDays: Weekday[]): WorkingDayOption {
-  if (!workingDays.includes(day)) return "off";
-  return halfDays.includes(day) ? "half" : "full";
+function resolveWorkingDayOption(
+  day: Weekday,
+  workingDays: Weekday[],
+  halfDays: Weekday[],
+): WorkingDayOption {
+  if (!workingDays.includes(day)) return 'off';
+  return halfDays.includes(day) ? 'half' : 'full';
 }
 
 function applyWorkingDayOption({
@@ -35,11 +39,11 @@ function applyWorkingDayOption({
   halfDays: Weekday[];
 }): { workingDays: Weekday[]; halfDays: Weekday[] } {
   const nextWorkingDays =
-    option === "off"
+    option === 'off'
       ? workingDays.filter((candidate) => candidate !== day)
       : [...new Set([...workingDays, day])].sort((a, b) => a - b);
   const nextHalfDays =
-    option === "half"
+    option === 'half'
       ? [...new Set([...halfDays, day])]
           .filter((candidate) => nextWorkingDays.includes(candidate))
           .sort((a, b) => a - b)
@@ -75,13 +79,23 @@ function chooseWorkingDay({
   onChange(next.workingDays, next.halfDays);
 }
 
-function WorkingDayRows({ groupId, workingDays, halfDays, onChoose, options }: WorkingDayRowsProps) {
+function WorkingDayRows({
+  groupId,
+  workingDays,
+  halfDays,
+  onChoose,
+  options,
+}: WorkingDayRowsProps) {
   return WEEKDAY_ORDER.map((day) => {
     const dayLabel = resolveWeekdayLabel(day);
     const rowHeadingId = `${groupId}-${day}-heading`;
     return (
       <tr key={day} className="border-b last:border-b-0">
-        <th id={rowHeadingId} scope="row" className="min-w-24 whitespace-nowrap px-3 py-2 text-left font-medium">
+        <th
+          id={rowHeadingId}
+          scope="row"
+          className="min-w-24 whitespace-nowrap px-3 py-2 text-left font-medium"
+        >
           {dayLabel}
         </th>
         {options.map((option) => {
@@ -161,7 +175,9 @@ export function WorkingDayPicker({
               groupId={groupId}
               workingDays={workingDays}
               halfDays={halfDays}
-              onChoose={(day, option) => chooseWorkingDay({ day, option, workingDays, halfDays, markDirty, onChange })}
+              onChoose={(day, option) =>
+                chooseWorkingDay({ day, option, workingDays, halfDays, markDirty, onChange })
+              }
               options={options}
             />
           </tbody>

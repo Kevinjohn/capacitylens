@@ -1,15 +1,15 @@
-import { CalendarOff } from "lucide-react";
+import { CalendarOff } from 'lucide-react';
 
-import { m } from "@/i18n";
-import { formatDayMonthRange } from "@/lib/dateDisplay";
-import { resolveTimeOffTypeLabel } from "@/lib/metadata";
+import { m } from '@/i18n';
+import { formatDayMonthRange } from '@/lib/dateDisplay';
+import { resolveTimeOffTypeLabel } from '@/lib/metadata';
 
 import type {
   PersonScheduleAllocationEntry,
   PersonScheduleEntry as PersonScheduleEntryModel,
   PersonScheduleTimeOffEntry,
-} from "./personScheduleTypes";
-import { roundToHundredths } from "@/lib/roundToHundredths";
+} from './personScheduleTypes';
+import { roundToHundredths } from '@/lib/roundToHundredths';
 
 interface PersonScheduleEntryProps {
   entry: PersonScheduleEntryModel;
@@ -24,7 +24,7 @@ function EntryNote({ note }: { note: string }) {
 }
 
 function AllocationEntry({ entry }: { entry: PersonScheduleAllocationEntry }) {
-  const attribution = [entry.project, entry.client].filter(Boolean).join(" · ");
+  const attribution = [entry.project, entry.client].filter(Boolean).join(' · ');
   return (
     <>
       <div className="flex min-w-0 items-start gap-2">
@@ -36,13 +36,15 @@ function AllocationEntry({ entry }: { entry: PersonScheduleAllocationEntry }) {
         />
         <div className="min-w-0">
           <h3 className="break-words font-semibold text-foreground">{entry.activity}</h3>
-          {attribution && <p className="break-words text-sm text-muted-foreground">{attribution}</p>}
+          {attribution && (
+            <p className="break-words text-sm text-muted-foreground">{attribution}</p>
+          )}
         </div>
       </div>
       <p className="mt-2 break-words text-sm text-muted-foreground">
         {formatDayMonthRange(entry.startDate, entry.endDate)}
         {entry.hoursPerDay === undefined
-          ? ""
+          ? ''
           : m.scheduler_bar_pop_hours({ hours: roundToHundredths(entry.hoursPerDay) })}
       </p>
       {entry.task && <p className="mt-3 break-words text-sm text-muted-foreground">{entry.task}</p>}
@@ -75,7 +77,11 @@ export function PersonScheduleEntry({ entry }: PersonScheduleEntryProps) {
       data-entry-kind={entry.kind}
       className="rounded-md border bg-card p-4"
     >
-      {entry.kind === "allocation" ? <AllocationEntry entry={entry} /> : <TimeOffEntry entry={entry} />}
+      {entry.kind === 'allocation' ? (
+        <AllocationEntry entry={entry} />
+      ) : (
+        <TimeOffEntry entry={entry} />
+      )}
     </li>
   );
 }

@@ -1,14 +1,22 @@
-import { isWithin, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { effectiveWeekIncludes } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import { isWithin, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { effectiveWeekIncludes } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import {
   FULL_DAY_HOURS,
   HALF_DAY_HOURS,
   hasPersonalWorkingPattern,
   isExternalResource,
-} from "@capacitylens/shared/types/entities";
-import type { Allocation, Closure, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
-import { hasAllocationLoadOnDay, warnOnNonFiniteCapacity } from "./primitives";
+} from '@capacitylens/shared/types/entities';
+import type {
+  Allocation,
+  Closure,
+  ID,
+  ISODate,
+  Resource,
+  TimeOff,
+  Weekday,
+} from '@capacitylens/shared/types/entities';
+import { hasAllocationLoadOnDay, warnOnNonFiniteCapacity } from './primitives';
 
 /** Checks whether a date belongs to the effective working week. */
 export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate): boolean {
@@ -37,8 +45,14 @@ export function resolveScheduledHoursOnDay(
   date: ISODate,
   effectiveWeek: EffectiveWorkingWeek,
 ): number {
-  if (resource.kind === "person" && resource.firstAvailableDate && date < resource.firstAvailableDate) return 0;
-  if (resource.kind === "person" && resource.lastAvailableDate && date > resource.lastAvailableDate) return 0;
+  if (
+    resource.kind === 'person' &&
+    resource.firstAvailableDate &&
+    date < resource.firstAvailableDate
+  )
+    return 0;
+  if (resource.kind === 'person' && resource.lastAvailableDate && date > resource.lastAvailableDate)
+    return 0;
   return resolveScheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
@@ -55,14 +69,16 @@ export function listTimeOffApplyingTo(resourceId: ID, timeOff: TimeOff[]): TimeO
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
   return timeOff.some(
     (timeOffEntry) =>
-      isApplicableToResource(resourceId, timeOffEntry) && isWithin(date, timeOffEntry.startDate, timeOffEntry.endDate),
+      isApplicableToResource(resourceId, timeOffEntry) &&
+      isWithin(date, timeOffEntry.startDate, timeOffEntry.endDate),
   );
 }
 
 /** Whether a company closure covers this resource and date. The literal span includes weekends. */
 export function isOnClosure(resource: Resource, date: ISODate, closures: Closure[]): boolean {
   return (
-    !isExternalResource(resource) && closures.some((closure) => isWithin(date, closure.startDate, closure.endDate))
+    !isExternalResource(resource) &&
+    closures.some((closure) => isWithin(date, closure.startDate, closure.endDate))
   );
 }
 
@@ -96,10 +112,17 @@ export function resolveAvailableHoursForWeekday({
   weekday,
   effectiveWeek,
 }: ResolveAvailableHoursForWeekdayInput): number {
-  if (resource.kind === "person" && resource.firstAvailableDate && date < resource.firstAvailableDate) return 0;
-  if (resource.kind === "person" && resource.lastAvailableDate && date > resource.lastAvailableDate) return 0;
+  if (
+    resource.kind === 'person' &&
+    resource.firstAvailableDate &&
+    date < resource.firstAvailableDate
+  )
+    return 0;
+  if (resource.kind === 'person' && resource.lastAvailableDate && date > resource.lastAvailableDate)
+    return 0;
   if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
-  if (isUnavailable({ resource: resource, date: date, timeOff: timeOff, closures: closures })) return 0;
+  if (isUnavailable({ resource: resource, date: date, timeOff: timeOff, closures: closures }))
+    return 0;
   return resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek);
 }
 
@@ -175,7 +198,11 @@ export function resolveAllocatedHoursForWeekday({
   const dayIsWorking = effectiveWeekIncludes(effectiveWeek, weekday);
   let sum = 0;
   for (const allocation of allocations) {
-    if (allocation.resourceId !== resource.id || !isWithin(date, allocation.startDate, allocation.endDate)) continue;
+    if (
+      allocation.resourceId !== resource.id ||
+      !isWithin(date, allocation.startDate, allocation.endDate)
+    )
+      continue;
     // `none` must stay explicit: passing [] to allocationWorksOnDay would mean calendar-day load.
     // Ignore working days bypasses both calendars; a normal allocation with no effective days
     // loads nothing anywhere.

@@ -1,16 +1,16 @@
-import { requireCreated } from "@/test/requireCreated";
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { AllocationModal } from "./AllocationModal";
-import { useStore } from "@/store/useStore";
-import { makeResourceDraft } from "@/test/fixtures";
-import { chooseOption } from "./__tests__/schedulerTestKit";
-import { required, person, resetAllocationModalStore } from "./__tests__/allocationModalTestKit";
+import { requireCreated } from '@/test/requireCreated';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AllocationModal } from './AllocationModal';
+import { useStore } from '@/store/useStore';
+import { makeResourceDraft } from '@/test/fixtures';
+import { chooseOption } from './__tests__/schedulerTestKit';
+import { required, person, resetAllocationModalStore } from './__tests__/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
-  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisory>[0]
-  | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisoryFromLoad>[0];
+  | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
+  | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisoryFromLoad>[0];
 const capacityAdvisoryMock = vi.hoisted(() =>
   vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
     overDays: 0,
@@ -19,8 +19,8 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 );
 const lastAdvisoryProposal = () => capacityAdvisoryMock.mock.calls.at(-1)?.[0]?.proposal;
 // Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
-vi.mock("@/lib/capacity", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/capacity")>()),
+vi.mock('@/lib/capacity', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/capacity')>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
@@ -31,19 +31,21 @@ beforeEach(async () => {
   capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
 
-describe("AllocationModal create", () => {
-  it("orders project scopes and activities, and exposes status as a labelled radiogroup", async () => {
-    await useStore.getState().addClient({ name: "Zeta", color: "#123456" });
+describe('AllocationModal create', () => {
+  it('orders project scopes and activities, and exposes status as a labelled radiogroup', async () => {
+    await useStore.getState().addClient({ name: 'Zeta', color: '#123456' });
     const zetaClient = required(
-      useStore.getState().data.clients.find((client) => client.name === "Zeta"),
-      "Expected the newly added Zeta client.",
+      useStore.getState().data.clients.find((client) => client.name === 'Zeta'),
+      'Expected the newly added Zeta client.',
     );
-    await useStore.getState().addProject({ name: "Alpha", clientId: zetaClient.id, color: "#123456" });
-    await useStore.getState().addActivity({ name: "Support", kind: "internal" });
-    await useStore.getState().addActivity({ name: "Admin", kind: "internal" });
-    await useStore.getState().addActivity({ name: "Strategy", kind: "repeatable" });
-    await useStore.getState().addActivity({ name: "Retrospective", kind: "repeatable" });
-    const barbara = person("Barbara");
+    await useStore
+      .getState()
+      .addProject({ name: 'Alpha', clientId: zetaClient.id, color: '#123456' });
+    await useStore.getState().addActivity({ name: 'Support', kind: 'internal' });
+    await useStore.getState().addActivity({ name: 'Admin', kind: 'internal' });
+    await useStore.getState().addActivity({ name: 'Strategy', kind: 'repeatable' });
+    await useStore.getState().addActivity({ name: 'Retrospective', kind: 'repeatable' });
+    const barbara = person('Barbara');
     const resource = await requireCreated(
       useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] }),
     );
@@ -51,64 +53,80 @@ describe("AllocationModal create", () => {
     render(
       <AllocationModal
         kind="create"
-        create={{ resourceId: resource.id, startDate: "2026-06-02", endDate: "2026-06-02" }}
+        create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
         onClose={vi.fn()}
       />,
     );
 
-    const project = screen.getByRole("combobox", { name: "Project" });
-    expect(project).toHaveTextContent("Internal");
-    fireEvent.keyDown(project, { key: "ArrowDown" });
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Internal",
-      "No specific project",
-      "Ferris / Lightning",
-      "Ferris / Other",
-      "Zeta / Alpha",
+    const project = screen.getByRole('combobox', { name: 'Project' });
+    expect(project).toHaveTextContent('Internal');
+    fireEvent.keyDown(project, { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Internal',
+      'No specific project',
+      'Ferris / Lightning',
+      'Ferris / Other',
+      'Zeta / Alpha',
     ]);
-    fireEvent.click(screen.getByRole("option", { name: "Internal" }));
+    fireEvent.click(screen.getByRole('option', { name: 'Internal' }));
 
-    const activity = screen.getByRole("combobox", { name: "Activity" });
-    fireEvent.keyDown(activity, { key: "ArrowDown" });
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Admin", "Support"]);
-    fireEvent.click(screen.getByRole("option", { name: "Admin" }));
+    const activity = screen.getByRole('combobox', { name: 'Activity' });
+    fireEvent.keyDown(activity, { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Admin',
+      'Support',
+    ]);
+    fireEvent.click(screen.getByRole('option', { name: 'Admin' }));
 
-    await chooseOption(user, "Project", "No specific project");
-    fireEvent.keyDown(activity, { key: "ArrowDown" });
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Retrospective", "Strategy"]);
-    await user.keyboard("{Escape}");
+    await chooseOption(user, 'Project', 'No specific project');
+    fireEvent.keyDown(activity, { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Retrospective',
+      'Strategy',
+    ]);
+    await user.keyboard('{Escape}');
 
-    const status = screen.getByRole("radiogroup", { name: "Status" });
+    const status = screen.getByRole('radiogroup', { name: 'Status' });
     expect(
       within(status)
-        .getAllByRole("radio")
+        .getAllByRole('radio')
         .map((radio) => radio.textContent),
-    ).toEqual(["Confirmed", "Tentative", "Completed"]);
-    expect(within(status).getByRole("radio", { name: "Confirmed" })).toHaveAttribute("aria-checked", "true");
-    await user.click(within(status).getByRole("radio", { name: "Tentative" }));
-    expect(within(status).getByRole("radio", { name: "Tentative" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByLabelText("Note").tagName).toBe("INPUT");
+    ).toEqual(['Confirmed', 'Tentative', 'Completed']);
+    expect(within(status).getByRole('radio', { name: 'Confirmed' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await user.click(within(status).getByRole('radio', { name: 'Tentative' }));
+    expect(within(status).getByRole('radio', { name: 'Tentative' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(screen.getByLabelText('Note').tagName).toBe('INPUT');
   });
 
-  it("defaults hourly load to four hours when creation starts on a half day", async () => {
+  it('defaults hourly load to four hours when creation starts on a half day', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
+      useStore
+        .getState()
+        .addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
     );
     render(
       <AllocationModal
         kind="create"
-        create={{ resourceId: resource.id, startDate: "2026-06-02", endDate: "2026-06-02" }}
+        create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
         onClose={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("combobox", { name: "Hours / day" })).toHaveTextContent("4 h - half day");
+    expect(screen.getByRole('combobox', { name: 'Hours / day' })).toHaveTextContent(
+      '4 h - half day',
+    );
   });
 
-  it("gives same-named activity options distinct accessible labels", async () => {
-    await useStore.getState().addActivity({ name: "Wireframes", kind: "project", projectId: "p1" });
+  it('gives same-named activity options distinct accessible labels', async () => {
+    await useStore.getState().addActivity({ name: 'Wireframes', kind: 'project', projectId: 'p1' });
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
     );
     const user = userEvent.setup();
     render(
@@ -116,23 +134,23 @@ describe("AllocationModal create", () => {
         kind="create"
         create={{
           resourceId: resource.id,
-          startDate: "2026-06-01",
-          endDate: "2026-06-03",
+          startDate: '2026-06-01',
+          endDate: '2026-06-03',
         }}
         onClose={vi.fn()}
       />,
     );
 
-    await chooseOption(user, "Project", "Ferris / Lightning");
-    const activity = screen.getByRole("combobox", { name: "Activity" });
-    fireEvent.keyDown(activity, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Wireframes / Lightning (1)" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Wireframes / Lightning (2)" })).toBeInTheDocument();
+    await chooseOption(user, 'Project', 'Ferris / Lightning');
+    const activity = screen.getByRole('combobox', { name: 'Activity' });
+    fireEvent.keyDown(activity, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Wireframes / Lightning (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Wireframes / Lightning (2)' })).toBeInTheDocument();
   });
 
-  it("creates an allocation for a person after picking project + activity", async () => {
+  it('creates an allocation for a person after picking project + activity', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
     );
     const resourceId = resource.id;
     const onClose = vi.fn();
@@ -140,129 +158,135 @@ describe("AllocationModal create", () => {
     render(
       <AllocationModal
         kind="create"
-        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={onClose}
       />,
     );
 
-    await chooseOption(user, "Project", "Ferris / Lightning");
-    await chooseOption(user, "Activity", "Wireframes");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await chooseOption(user, 'Project', 'Ferris / Lightning');
+    await chooseOption(user, 'Activity', 'Wireframes');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onClose).toHaveBeenCalled();
     const allocs = useStore.getState().data.allocations;
     expect(allocs).toHaveLength(1);
     expect(allocs[0]).toMatchObject({
       resourceId,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
+      activityId: 't1',
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
     });
-    expect(allocs[0]).toHaveProperty("projectId", null);
+    expect(allocs[0]).toHaveProperty('projectId', null);
   });
 
   it.each([
-    ["Internal", "Operations", undefined],
-    ["No specific project", "Planning", undefined],
-    ["Ferris / Lightning", "Planning", "p1"],
-  ] as const)("derives create attribution for the %s scope", async (scope, activityName, expectedProjectId) => {
-    await useStore.getState().addActivity({ name: "Operations", kind: "internal" });
-    await useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
-    );
-    const user = userEvent.setup();
-    render(
-      <AllocationModal
-        kind="create"
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
-        onClose={vi.fn()}
-      />,
-    );
+    ['Internal', 'Operations', undefined],
+    ['No specific project', 'Planning', undefined],
+    ['Ferris / Lightning', 'Planning', 'p1'],
+  ] as const)(
+    'derives create attribution for the %s scope',
+    async (scope, activityName, expectedProjectId) => {
+      await useStore.getState().addActivity({ name: 'Operations', kind: 'internal' });
+      await useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' });
+      const resource = await requireCreated(
+        useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
+      );
+      const user = userEvent.setup();
+      render(
+        <AllocationModal
+          kind="create"
+          create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
+          onClose={vi.fn()}
+        />,
+      );
 
-    await chooseOption(user, "Project", scope);
-    await chooseOption(user, "Activity", activityName);
-    if (scope === "Ferris / Lightning") {
-      expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(scope);
-    }
-    if (expectedProjectId) expect(lastAdvisoryProposal()).toHaveProperty("projectId", expectedProjectId);
-    else expect(lastAdvisoryProposal()).not.toHaveProperty("projectId");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+      await chooseOption(user, 'Project', scope);
+      await chooseOption(user, 'Activity', activityName);
+      if (scope === 'Ferris / Lightning') {
+        expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent(scope);
+      }
+      if (expectedProjectId)
+        expect(lastAdvisoryProposal()).toHaveProperty('projectId', expectedProjectId);
+      else expect(lastAdvisoryProposal()).not.toHaveProperty('projectId');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    const allocation = useStore.getState().data.allocations[0];
-    if (expectedProjectId) expect(allocation).toHaveProperty("projectId", expectedProjectId);
-    else expect(allocation).toHaveProperty("projectId", null);
-  });
+      const allocation = useStore.getState().data.allocations[0];
+      if (expectedProjectId) expect(allocation).toHaveProperty('projectId', expectedProjectId);
+      else expect(allocation).toHaveProperty('projectId', null);
+    },
+  );
 
   it.each([
-    ["1 h", 1],
-    ["2 h - quarter day", 2],
-    ["4 h - half day", 4],
-    ["8 h - full day", 8],
-  ] as const)("creates an allocation with the %s hours option", async (option, expectedHours) => {
+    ['1 h', 1],
+    ['2 h - quarter day', 2],
+    ['4 h - half day', 4],
+    ['8 h - full day', 8],
+  ] as const)('creates an allocation with the %s hours option', async (option, expectedHours) => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
     );
     const resourceId = resource.id;
     const user = userEvent.setup();
     render(
       <AllocationModal
         kind="create"
-        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
       />,
     );
 
-    await chooseOption(user, "Project", "Ferris / Lightning");
-    await chooseOption(user, "Activity", "Wireframes");
-    await chooseOption(user, "Hours / day", option);
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await chooseOption(user, 'Project', 'Ferris / Lightning');
+    await chooseOption(user, 'Activity', 'Wireframes');
+    await chooseOption(user, 'Hours / day', option);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(useStore.getState().data.allocations).toHaveLength(1);
     expect(useStore.getState().data.allocations[0]).toMatchObject({ hoursPerDay: expectedHours });
   });
 
-  it("rejects an empty date instead of saving a broken allocation", async () => {
+  it('rejects an empty date instead of saving a broken allocation', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
     );
     const resourceId = resource.id;
     const user = userEvent.setup();
     render(
       <AllocationModal
         kind="create"
-        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
       />,
     );
 
-    await chooseOption(user, "Project", "Ferris / Lightning");
-    await chooseOption(user, "Activity", "Wireframes");
+    await chooseOption(user, 'Project', 'Ferris / Lightning');
+    await chooseOption(user, 'Activity', 'Wireframes');
 
     // Clearing a date must not produce a NaN-geometry allocation.
-    fireEvent.change(screen.getByLabelText("Start Date"), {
-      target: { value: "" },
+    fireEvent.change(screen.getByLabelText('Start Date'), {
+      target: { value: '' },
     });
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(/start and end dates are required/i);
-    expect(screen.getByLabelText("Start Date")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByLabelText("Start Date")).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/start and end dates are required/i);
+    expect(screen.getByLabelText('Start Date')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Start Date')).toHaveFocus();
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
-  it("books an All-projects activity for a bound placeholder under its locked project", async () => {
-    const planning = await requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
+  it('books an All-projects activity for a bound placeholder under its locked project', async () => {
+    const planning = await requireCreated(
+      useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' }),
+    );
     const ph = await requireCreated(
       useStore.getState().addResource({
-        kind: "placeholder",
-        role: "Senior Designer",
-        employmentType: "permanent",
-        engagement: "studio" as const,
+        kind: 'placeholder',
+        role: 'Senior Designer',
+        employmentType: 'permanent',
+        engagement: 'studio' as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
-        color: "#a855f7",
-        projectId: "p1",
+        color: '#a855f7',
+        projectId: 'p1',
       }),
     );
     const onClose = vi.fn();
@@ -272,91 +296,101 @@ describe("AllocationModal create", () => {
         kind="create"
         create={{
           resourceId: ph.id,
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
+          startDate: '2026-06-01',
+          endDate: '2026-06-02',
         }}
         onClose={onClose}
       />,
     );
 
-    const projectSelect = screen.getByRole("combobox", { name: "Project" });
-    expect(projectSelect).toHaveTextContent("Ferris / Lightning");
+    const projectSelect = screen.getByRole('combobox', { name: 'Project' });
+    expect(projectSelect).toHaveTextContent('Ferris / Lightning');
     // Invalid scopes remain visible so the lock is explicit, but cannot be selected.
-    fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Internal" })).toHaveAttribute("data-disabled");
-    expect(screen.getByRole("option", { name: "No specific project" })).toHaveAttribute("data-disabled");
-    expect(screen.queryByRole("option", { name: "Ferris / Other" })).not.toBeInTheDocument();
-    await user.keyboard("{Escape}");
+    fireEvent.keyDown(projectSelect, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Internal' })).toHaveAttribute('data-disabled');
+    expect(screen.getByRole('option', { name: 'No specific project' })).toHaveAttribute(
+      'data-disabled',
+    );
+    expect(screen.queryByRole('option', { name: 'Ferris / Other' })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
 
-    const activitySelect = screen.getByRole("combobox", { name: "Activity" });
-    fireEvent.keyDown(activitySelect, { key: "ArrowDown" });
-    const allProjectsGroup = screen.getByRole("group", { name: "All projects" });
-    const projectGroup = screen.getByRole("group", { name: "Project-specific" });
-    expect(allProjectsGroup.compareDocumentPosition(projectGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(allProjectsGroup).getByRole("option", { name: "Planning" })).toBeInTheDocument();
-    expect(within(projectGroup).getByRole("option", { name: "Wireframes" })).toBeInTheDocument();
-    fireEvent.click(within(allProjectsGroup).getByRole("option", { name: "Planning" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    const activitySelect = screen.getByRole('combobox', { name: 'Activity' });
+    fireEvent.keyDown(activitySelect, { key: 'ArrowDown' });
+    const allProjectsGroup = screen.getByRole('group', { name: 'All projects' });
+    const projectGroup = screen.getByRole('group', { name: 'Project-specific' });
+    expect(
+      allProjectsGroup.compareDocumentPosition(projectGroup) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(within(allProjectsGroup).getByRole('option', { name: 'Planning' })).toBeInTheDocument();
+    expect(within(projectGroup).getByRole('option', { name: 'Wireframes' })).toBeInTheDocument();
+    fireEvent.click(within(allProjectsGroup).getByRole('option', { name: 'Planning' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       resourceId: ph.id,
       activityId: planning.id,
-      projectId: "p1",
+      projectId: 'p1',
     });
   });
 
-  it("cannot attribute an All-projects activity for an unbound placeholder", async () => {
-    await useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+  it('cannot attribute an All-projects activity for an unbound placeholder', async () => {
+    await useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' });
     const placeholder = await requireCreated(
       useStore.getState().addResource({
-        kind: "placeholder",
-        role: "Senior Designer",
-        employmentType: "permanent",
-        engagement: "studio" as const,
+        kind: 'placeholder',
+        role: 'Senior Designer',
+        employmentType: 'permanent',
+        engagement: 'studio' as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
-        color: "#a855f7",
+        color: '#a855f7',
       }),
     );
     const user = userEvent.setup();
     render(
       <AllocationModal
         kind="create"
-        create={{ resourceId: placeholder.id, startDate: "2026-06-01", endDate: "2026-06-02" }}
+        create={{ resourceId: placeholder.id, startDate: '2026-06-01', endDate: '2026-06-02' }}
         onClose={vi.fn()}
       />,
     );
 
-    const projectSelect = screen.getByRole("combobox", { name: "Project" });
-    fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Internal" })).not.toHaveAttribute("data-disabled");
-    expect(screen.getByRole("option", { name: "No specific project" })).not.toHaveAttribute("data-disabled");
-    expect(screen.getByRole("option", { name: "Ferris / Lightning" })).not.toHaveAttribute("data-disabled");
-    await user.keyboard("{Escape}");
+    const projectSelect = screen.getByRole('combobox', { name: 'Project' });
+    fireEvent.keyDown(projectSelect, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Internal' })).not.toHaveAttribute('data-disabled');
+    expect(screen.getByRole('option', { name: 'No specific project' })).not.toHaveAttribute(
+      'data-disabled',
+    );
+    expect(screen.getByRole('option', { name: 'Ferris / Lightning' })).not.toHaveAttribute(
+      'data-disabled',
+    );
+    await user.keyboard('{Escape}');
 
-    await chooseOption(user, "Project", "Ferris / Lightning");
-    await chooseOption(user, "Activity", "Planning");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await chooseOption(user, 'Project', 'Ferris / Lightning');
+    await chooseOption(user, 'Activity', 'Planning');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("This placeholder is not bound to a project yet.");
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'This placeholder is not bound to a project yet.',
+    );
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 });
 
-describe("AllocationModal advisory work bounds", () => {
-  it("does not recompute the advisory when only the note changes", async () => {
+describe('AllocationModal advisory work bounds', () => {
+  it('does not recompute the advisory when only the note changes', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
     );
     render(
       <AllocationModal
         kind="create"
         create={{
           resourceId: resource.id,
-          startDate: "2026-06-01",
-          endDate: "2026-06-03",
+          startDate: '2026-06-01',
+          endDate: '2026-06-03',
         }}
         onClose={vi.fn()}
       />,
@@ -364,16 +398,16 @@ describe("AllocationModal advisory work bounds", () => {
     expect(capacityAdvisoryMock).toHaveBeenCalledTimes(1);
 
     capacityAdvisoryMock.mockClear();
-    fireEvent.change(screen.getByLabelText("Note"), {
-      target: { value: "Unrelated edit" },
+    fireEvent.change(screen.getByLabelText('Note'), {
+      target: { value: 'Unrelated edit' },
     });
 
     expect(capacityAdvisoryMock).not.toHaveBeenCalled();
   });
 
-  it("skips the advisory and rejects an over-limit Hours-mode date span", async () => {
+  it('skips the advisory and rejects an over-limit Hours-mode date span', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
@@ -382,42 +416,44 @@ describe("AllocationModal advisory work bounds", () => {
         kind="create"
         create={{
           resourceId: resource.id,
-          startDate: "2026-06-01",
-          endDate: "2026-06-03",
+          startDate: '2026-06-01',
+          endDate: '2026-06-03',
         }}
         onClose={onClose}
       />,
     );
-    await chooseOption(user, "Project", "Ferris / Lightning");
-    await chooseOption(user, "Activity", "Wireframes");
+    await chooseOption(user, 'Project', 'Ferris / Lightning');
+    await chooseOption(user, 'Activity', 'Wireframes');
     capacityAdvisoryMock.mockClear();
 
-    fireEvent.change(screen.getByLabelText("End"), {
-      target: { value: "9999-12-31" },
+    fireEvent.change(screen.getByLabelText('End'), {
+      target: { value: '9999-12-31' },
     });
-    fireEvent.change(screen.getByLabelText("Note"), {
-      target: { value: "Still responsive" },
+    fireEvent.change(screen.getByLabelText('Note'), {
+      target: { value: 'Still responsive' },
     });
     expect(capacityAdvisoryMock).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent("Date span cannot exceed 36,500 calendar days.");
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Date span cannot exceed 36,500 calendar days.',
+    );
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
-  it("rejects the same over-limit date span for an External resource", async () => {
+  it('rejects the same over-limit date span for an External resource', async () => {
     const resource = await requireCreated(
       useStore.getState().addResource({
-        kind: "external",
-        name: "Kord Industries",
-        role: "Partner studio",
-        employmentType: "permanent",
-        engagement: "studio" as const,
+        kind: 'external',
+        name: 'Kord Industries',
+        role: 'Partner studio',
+        employmentType: 'permanent',
+        engagement: 'studio' as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
-        color: "#9ca3af",
+        color: '#9ca3af',
       }),
     );
     const onClose = vi.fn();
@@ -427,56 +463,58 @@ describe("AllocationModal advisory work bounds", () => {
         kind="create"
         create={{
           resourceId: resource.id,
-          startDate: "2026-06-01",
-          endDate: "2026-06-03",
+          startDate: '2026-06-01',
+          endDate: '2026-06-03',
         }}
         onClose={onClose}
       />,
     );
-    await chooseOption(user, "Project", "Ferris / Lightning");
-    await chooseOption(user, "Activity", "Wireframes");
+    await chooseOption(user, 'Project', 'Ferris / Lightning');
+    await chooseOption(user, 'Activity', 'Wireframes');
 
-    fireEvent.change(screen.getByLabelText("End"), {
-      target: { value: "9999-12-31" },
+    fireEvent.change(screen.getByLabelText('End'), {
+      target: { value: '9999-12-31' },
     });
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent("Date span cannot exceed 36,500 calendar days.");
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Date span cannot exceed 36,500 calendar days.',
+    );
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
-  it("keeps Ignore working days hidden for an External while preserving its literal calendar span", async () => {
+  it('keeps Ignore working days hidden for an External while preserving its literal calendar span', async () => {
     const resource = await requireCreated(
       useStore.getState().addResource({
-        kind: "external",
-        name: "Kord Industries",
-        role: "Partner studio",
-        employmentType: "permanent",
-        engagement: "studio" as const,
+        kind: 'external',
+        name: 'Kord Industries',
+        role: 'Partner studio',
+        employmentType: 'permanent',
+        engagement: 'studio' as const,
         workingHoursPerDay: 8,
         workingDays: [1, 3, 5],
         halfDays: [],
-        color: "#9ca3af",
+        color: '#9ca3af',
       }),
     );
     const user = userEvent.setup();
     render(
       <AllocationModal
         kind="create"
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-04" }}
+        create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-04' }}
         onClose={vi.fn()}
       />,
     );
 
-    expect(screen.queryByRole("checkbox", { name: "Ignore working days" })).not.toBeInTheDocument();
-    await chooseOption(user, "Project", "Ferris / Lightning");
-    await chooseOption(user, "Activity", "Wireframes");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.queryByRole('checkbox', { name: 'Ignore working days' })).not.toBeInTheDocument();
+    await chooseOption(user, 'Project', 'Ferris / Lightning');
+    await chooseOption(user, 'Activity', 'Wireframes');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({
-      startDate: "2026-06-01",
-      endDate: "2026-06-04",
+      startDate: '2026-06-01',
+      endDate: '2026-06-04',
       hoursPerDay: 0,
       ignoreWeekends: true,
     });

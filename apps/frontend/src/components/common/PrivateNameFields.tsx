@@ -1,14 +1,14 @@
-import { m } from "@/i18n";
-import { SwitchField, TextField } from "./ui";
-import type { ProductFieldLayout } from "./ui";
-import type { PrivateNameFieldsState } from "./usePrivateNameFields";
+import { m } from '@/i18n';
+import { SwitchField, TextField } from './ui';
+import type { ProductFieldLayout } from './ui';
+import type { PrivateNameFieldsState } from './usePrivateNameFields';
 
 /** Edits private name fields only when the current role may view them. */
 export function PrivateNameFields({
   fields,
   errorField,
   errorId,
-  layout = "stacked",
+  layout = 'stacked',
 }: {
   fields: PrivateNameFieldsState;
   errorField: string | null;
@@ -37,7 +37,7 @@ export function PrivateNameFields({
           placeholder={m.form_private_code_name_placeholder()}
           description={m.form_private_code_name_hint()}
           required
-          invalid={errorField === "codeName"}
+          invalid={errorField === 'codeName'}
           describedById={errorId}
           layout={layout}
         />

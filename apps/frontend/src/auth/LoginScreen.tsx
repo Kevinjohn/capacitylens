@@ -1,12 +1,12 @@
-import { ForgotPassword } from "./ForgotPassword";
-import { m } from "@/i18n";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import { useEffect, useId, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
-import { LoginForm } from "./LoginForm";
-import { usePasswordSignIn } from "./usePasswordSignIn";
+import { ForgotPassword } from './ForgotPassword';
+import { m } from '@/i18n';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import { useEffect, useId, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent } from '@/components/ui/card';
+import { LoginForm } from './LoginForm';
+import { usePasswordSignIn } from './usePasswordSignIn';
 
 type LoginScreenProps = {
   needsSetup?: boolean;

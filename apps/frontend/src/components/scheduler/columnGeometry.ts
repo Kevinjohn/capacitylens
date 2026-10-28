@@ -1,6 +1,6 @@
-import { dayIndex, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from "@/lib/schedulerConfig";
-import type { ISODate } from "@capacitylens/shared/types/entities";
+import { dayIndex, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '@/lib/schedulerConfig';
+import type { ISODate } from '@capacitylens/shared/types/entities';
 
 // Shared pure geometry keeps bars, headers, pointer mapping and drag previews on the same pixel/date boundaries, including narrowed weekends. Unexpected math errors must remain visible rather than be caught here.
 
@@ -75,11 +75,17 @@ interface ColumnWidthInput {
   minimiseActive: boolean;
 }
 
-function resolveExtraPixels(dayWidth: number, narrowWidth: number, options: ColumnGeometryOptions): number {
+function resolveExtraPixels(
+  dayWidth: number,
+  narrowWidth: number,
+  options: ColumnGeometryOptions,
+): number {
   const minimiseActive = options.minimiseWeekends && dayWidth >= DAY_COLUMN_MIN_WIDTH;
   const baseWeekWidth = minimiseActive ? 5 * dayWidth + 2 * narrowWidth : 7 * dayWidth;
   const requestedWeekWidth = Math.round(options.targetWeekWidth ?? baseWeekWidth);
-  const availableExtra = Number.isFinite(requestedWeekWidth) ? requestedWeekWidth - baseWeekWidth : 0;
+  const availableExtra = Number.isFinite(requestedWeekWidth)
+    ? requestedWeekWidth - baseWeekWidth
+    : 0;
   const maximumExtra = minimiseActive ? 5 : 7;
   return Math.min(maximumExtra, Math.max(0, availableExtra));
 }
@@ -88,7 +94,8 @@ function resolveColumnWidth(input: ColumnWidthInput): number {
   const isWeekend = input.weekday === 0 || input.weekday === 6;
   if (input.minimiseActive && isWeekend) return input.narrowWidth;
   let receivesExtra = input.weekday < input.extraPixels;
-  if (input.minimiseActive) receivesExtra = input.weekday > 0 && input.weekday - 1 < input.extraPixels;
+  if (input.minimiseActive)
+    receivesExtra = input.weekday > 0 && input.weekday - 1 < input.extraPixels;
   return input.dayWidth + (receivesExtra ? 1 : 0);
 }
 
@@ -108,15 +115,26 @@ function buildColumnMeasurements(
   offsets[0] = 0;
 
   for (let index = 0; index < dayCount; index++) {
-    const day = requireDenseValue(days, index, "Column geometry day window must be dense.");
+    const day = requireDenseValue(days, index, 'Column geometry day window must be dense.');
     const weekday = weekdayOf(day);
-    const width = resolveColumnWidth({ weekday, dayWidth, narrowWidth, extraPixels, minimiseActive });
+    const width = resolveColumnWidth({
+      weekday,
+      dayWidth,
+      narrowWidth,
+      extraPixels,
+      minimiseActive,
+    });
     weekdays[index] = weekday;
     widths[index] = width;
-    offsets[index + 1] = requireDenseValue(offsets, index, "Column geometry offsets must be dense.") + width;
+    offsets[index + 1] =
+      requireDenseValue(offsets, index, 'Column geometry offsets must be dense.') + width;
   }
 
-  const totalWidth = requireDenseValue(offsets, dayCount, "Column geometry offsets must align with the day window.");
+  const totalWidth = requireDenseValue(
+    offsets,
+    dayCount,
+    'Column geometry offsets must align with the day window.',
+  );
   return { widths, offsets, weekdays, totalWidth };
 }
 
@@ -130,7 +148,7 @@ function createGeometryAccessors(
   input: GeometryAccessorsInput,
 ): Pick<
   ColumnGeometry,
-  "indexAt" | "indexAtScroll" | "spanWidth" | "widthForDates" | "widthOf" | "x" | "xForDateInGeom"
+  'indexAt' | 'indexAtScroll' | 'spanWidth' | 'widthForDates' | 'widthOf' | 'x' | 'xForDateInGeom'
 > {
   const clampEdge = (index: number): number => {
     if (index < 0) return 0;
@@ -140,7 +158,11 @@ function createGeometryAccessors(
   const xForDayIndex = (index: number): number => {
     if (index < 0) return index * input.dayWidth;
     if (index > input.dayCount) return input.totalWidth + (index - input.dayCount) * input.dayWidth;
-    return requireDenseValue(input.offsets, index, "Column geometry offsets must align with the day window.");
+    return requireDenseValue(
+      input.offsets,
+      index,
+      'Column geometry offsets must align with the day window.',
+    );
   };
   const indexAt = (px: number): number => {
     if (input.dayCount === 0 || px <= 0) return 0;
@@ -149,7 +171,10 @@ function createGeometryAccessors(
     let upperIndex = input.dayCount - 1;
     while (lowerIndex < upperIndex) {
       const middleIndex = (lowerIndex + upperIndex + 1) >> 1;
-      if (requireDenseValue(input.offsets, middleIndex, "Column geometry offsets must be dense.") <= px)
+      if (
+        requireDenseValue(input.offsets, middleIndex, 'Column geometry offsets must be dense.') <=
+        px
+      )
         lowerIndex = middleIndex;
       else upperIndex = middleIndex - 1;
     }
@@ -169,16 +194,29 @@ function createGeometryAccessors(
   };
 
   return {
-    x: (index) => requireDenseValue(input.offsets, clampEdge(index), "Column geometry offsets must be dense."),
+    x: (index) =>
+      requireDenseValue(input.offsets, clampEdge(index), 'Column geometry offsets must be dense.'),
     widthOf: (index) => {
       if (index < 0 || index >= input.dayCount) return 0;
-      return requireDenseValue(input.widths, index, "Column geometry widths must align with the day window.");
+      return requireDenseValue(
+        input.widths,
+        index,
+        'Column geometry widths must align with the day window.',
+      );
     },
     spanWidth: (startIndex, endIndex) =>
       Math.max(
         0,
-        requireDenseValue(input.offsets, clampEdge(endIndex + 1), "Column geometry offsets must be dense.") -
-          requireDenseValue(input.offsets, clampEdge(startIndex), "Column geometry offsets must be dense."),
+        requireDenseValue(
+          input.offsets,
+          clampEdge(endIndex + 1),
+          'Column geometry offsets must be dense.',
+        ) -
+          requireDenseValue(
+            input.offsets,
+            clampEdge(startIndex),
+            'Column geometry offsets must be dense.',
+          ),
       ),
     indexAt,
     indexAtScroll: (scrollLeft) => indexAt(Math.round(scrollLeft)),
@@ -196,7 +234,11 @@ function createGeometryAccessors(
  * A non-finite / non-positive `weekendWidth` degrades to no narrowing (full-width weekends), so
  * an unmeasured font size can never inject a NaN width into the prefix sum.
  */
-export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: ColumnGeometryOptions): ColumnGeometry {
+export function buildColumnGeometry(
+  days: ISODate[],
+  dayWidth: number,
+  options: ColumnGeometryOptions,
+): ColumnGeometry {
   const dayCount = days.length;
   const perDayColumns = dayWidth >= DAY_COLUMN_MIN_WIDTH;
   const minimiseActive = options.minimiseWeekends && perDayColumns;
@@ -227,6 +269,6 @@ export function resolveLeftEdgeDate(
 ): ISODate | undefined {
   if (days.length === 0) return undefined;
   const day = days[geometry.indexAtScroll(scrollLeft)];
-  if (day === undefined) throw new Error("Column geometry index is outside the day window.");
+  if (day === undefined) throw new Error('Column geometry index is outside the day window.');
   return day;
 }

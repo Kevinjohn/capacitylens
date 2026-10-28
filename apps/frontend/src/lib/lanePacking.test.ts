@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from "./lanePacking";
-import type { Interval } from "./lanePacking";
+import { describe, it, expect } from 'vitest';
+import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from './lanePacking';
+import type { Interval } from './lanePacking';
 
-const iv = (id: string, startDate: string, endDate: string): Interval => ({ id, startDate, endDate });
+const iv = (id: string, startDate: string, endDate: string): Interval => ({
+  id,
+  startDate,
+  endDate,
+});
 
 function laneOf(result: ReturnType<typeof packLanes>, id: string): number {
   const lane = result.lanes.find((entry) => entry.id === id);
@@ -10,173 +14,177 @@ function laneOf(result: ReturnType<typeof packLanes>, id: string): number {
   return lane.lane;
 }
 
-describe("packLanes", () => {
-  it("returns no lanes for an empty list", () => {
+describe('packLanes', () => {
+  it('returns no lanes for an empty list', () => {
     expect(packLanes([])).toEqual({ lanes: [], laneCount: 0 });
   });
 
-  it("puts a single item in lane 0", () => {
-    const r = packLanes([iv("a", "2026-05-01", "2026-05-05")]);
+  it('puts a single item in lane 0', () => {
+    const r = packLanes([iv('a', '2026-05-01', '2026-05-05')]);
     expect(r.laneCount).toBe(1);
-    expect(laneOf(r, "a")).toBe(0);
+    expect(laneOf(r, 'a')).toBe(0);
   });
 
-  it("reuses lane 0 for non-overlapping items with a gap", () => {
-    const r = packLanes([iv("a", "2026-05-01", "2026-05-03"), iv("b", "2026-05-05", "2026-05-08")]);
+  it('reuses lane 0 for non-overlapping items with a gap', () => {
+    const r = packLanes([iv('a', '2026-05-01', '2026-05-03'), iv('b', '2026-05-05', '2026-05-08')]);
     expect(r.laneCount).toBe(1);
-    expect(laneOf(r, "a")).toBe(0);
-    expect(laneOf(r, "b")).toBe(0);
+    expect(laneOf(r, 'a')).toBe(0);
+    expect(laneOf(r, 'b')).toBe(0);
   });
 
-  it("treats touching inclusive ends as overlapping (separate lanes)", () => {
-    const r = packLanes([iv("a", "2026-05-01", "2026-05-03"), iv("b", "2026-05-03", "2026-05-05")]);
+  it('treats touching inclusive ends as overlapping (separate lanes)', () => {
+    const r = packLanes([iv('a', '2026-05-01', '2026-05-03'), iv('b', '2026-05-03', '2026-05-05')]);
     expect(r.laneCount).toBe(2);
-    expect(laneOf(r, "a")).toBe(0);
-    expect(laneOf(r, "b")).toBe(1);
+    expect(laneOf(r, 'a')).toBe(0);
+    expect(laneOf(r, 'b')).toBe(1);
   });
 
-  it("reuses a lane when the next item starts the day after (no overlap)", () => {
-    const r = packLanes([iv("a", "2026-05-01", "2026-05-03"), iv("b", "2026-05-04", "2026-05-06")]);
+  it('reuses a lane when the next item starts the day after (no overlap)', () => {
+    const r = packLanes([iv('a', '2026-05-01', '2026-05-03'), iv('b', '2026-05-04', '2026-05-06')]);
     expect(r.laneCount).toBe(1);
   });
 
-  it("stacks three mutually-overlapping items into three lanes", () => {
+  it('stacks three mutually-overlapping items into three lanes', () => {
     const r = packLanes([
-      iv("a", "2026-05-01", "2026-05-10"),
-      iv("b", "2026-05-02", "2026-05-11"),
-      iv("c", "2026-05-03", "2026-05-12"),
+      iv('a', '2026-05-01', '2026-05-10'),
+      iv('b', '2026-05-02', '2026-05-11'),
+      iv('c', '2026-05-03', '2026-05-12'),
     ]);
     expect(r.laneCount).toBe(3);
-    expect(new Set([laneOf(r, "a"), laneOf(r, "b"), laneOf(r, "c")])).toEqual(new Set([0, 1, 2]));
+    expect(new Set([laneOf(r, 'a'), laneOf(r, 'b'), laneOf(r, 'c')])).toEqual(new Set([0, 1, 2]));
   });
 
-  it("an empty-date record does not poison packing for the valid items", () => {
+  it('an empty-date record does not poison packing for the valid items', () => {
     // A bad/empty record sorts first; it must not become the origin and NaN-out
     // every other item's day-index. Valid items still pack correctly.
-    const r = packLanes([iv("bad", "", ""), iv("a", "2026-05-01", "2026-05-03"), iv("b", "2026-05-05", "2026-05-08")]);
-    expect(laneOf(r, "a")).toBe(0);
+    const r = packLanes([
+      iv('bad', '', ''),
+      iv('a', '2026-05-01', '2026-05-03'),
+      iv('b', '2026-05-05', '2026-05-08'),
+    ]);
+    expect(laneOf(r, 'a')).toBe(0);
     // Invalid dates must not establish the packing origin or suppress valid intervals.
-    expect(laneOf(r, "b")).toBe(0);
-    expect(laneOf(r, "bad")).toBe(0);
+    expect(laneOf(r, 'b')).toBe(0);
+    expect(laneOf(r, 'bad')).toBe(0);
 
     expect(r.laneCount).toBe(1);
   });
 
-  it("a truthy invalid startDate does not become the origin or poison valid items", () => {
+  it('a truthy invalid startDate does not become the origin or poison valid items', () => {
     const result = packLanes([
-      iv("bad", "0001-13-45", "0001-13-46"),
-      iv("a", "2026-05-01", "2026-05-03"),
-      iv("b", "2026-05-05", "2026-05-08"),
+      iv('bad', '0001-13-45', '0001-13-46'),
+      iv('a', '2026-05-01', '2026-05-03'),
+      iv('b', '2026-05-05', '2026-05-08'),
     ]);
 
-    expect(laneOf(result, "bad")).toBe(0);
-    expect(laneOf(result, "a")).toBe(0);
-    expect(laneOf(result, "b")).toBe(0);
+    expect(laneOf(result, 'bad')).toBe(0);
+    expect(laneOf(result, 'a')).toBe(0);
+    expect(laneOf(result, 'b')).toBe(0);
     expect(result.laneCount).toBe(1);
   });
 
-  it("does not crash when every record has an empty startDate (origin fallback)", () => {
-    const r = packLanes([iv("a", "", ""), iv("b", "", "")]);
+  it('does not crash when every record has an empty startDate (origin fallback)', () => {
+    const r = packLanes([iv('a', '', ''), iv('b', '', '')]);
     expect(r.lanes).toHaveLength(2);
-    expect(laneOf(r, "a")).toBe(0);
-    expect(laneOf(r, "b")).toBe(0);
+    expect(laneOf(r, 'a')).toBe(0);
+    expect(laneOf(r, 'b')).toBe(0);
     expect(r.laneCount).toBe(0);
   });
 });
 
-describe("packLanes — ordering and reuse", () => {
-  it("sorts unsorted input by startDate before packing (not insertion order)", () => {
+describe('packLanes — ordering and reuse', () => {
+  it('sorts unsorted input by startDate before packing (not insertion order)', () => {
     // p/q/r overlap in a staircase; fed in scrambled order. If the array weren't actually
     // sorted ascending by startDate first, the greedy packer would produce a different
     // lane layout (and a different lane count) than processing them p, q, r in order.
-    const p = iv("p", "2026-05-01", "2026-05-05");
-    const q = iv("q", "2026-05-03", "2026-05-08");
-    const r = iv("r", "2026-05-06", "2026-05-10");
+    const p = iv('p', '2026-05-01', '2026-05-05');
+    const q = iv('q', '2026-05-03', '2026-05-08');
+    const r = iv('r', '2026-05-06', '2026-05-10');
     const result = packLanes([r, q, p]);
-    expect(laneOf(result, "p")).toBe(0);
-    expect(laneOf(result, "q")).toBe(1);
-    expect(laneOf(result, "r")).toBe(0);
+    expect(laneOf(result, 'p')).toBe(0);
+    expect(laneOf(result, 'q')).toBe(1);
+    expect(laneOf(result, 'r')).toBe(0);
     expect(result.laneCount).toBe(2);
   });
 
-  it("breaks a startDate tie by endDate ascending", () => {
+  it('breaks a startDate tie by endDate ascending', () => {
     // Equal starts need a deterministic shorter-end tie-break before greedy packing.
 
-    const a = iv("a", "2026-05-01", "2026-05-10");
-    const b = iv("b", "2026-05-01", "2026-05-03");
-    const c = iv("c", "2026-05-04", "2026-05-12");
+    const a = iv('a', '2026-05-01', '2026-05-10');
+    const b = iv('b', '2026-05-01', '2026-05-03');
+    const c = iv('c', '2026-05-04', '2026-05-12');
     const result = packLanes([a, b, c]);
 
-    expect(laneOf(result, "b")).toBe(0);
-    expect(laneOf(result, "a")).toBe(1);
-    expect(laneOf(result, "c")).toBe(0);
+    expect(laneOf(result, 'b')).toBe(0);
+    expect(laneOf(result, 'a')).toBe(1);
+    expect(laneOf(result, 'c')).toBe(0);
     expect(result.laneCount).toBe(2);
   });
 
-  it("breaks a startDate+endDate tie by id ascending", () => {
+  it('breaks a startDate+endDate tie by id ascending', () => {
     // All three share identical start/end, so they must all overlap and each need a
     // distinct lane, ordered by id ascending regardless of input order.
     const items = [
-      iv("z", "2026-05-01", "2026-05-05"),
-      iv("x", "2026-05-01", "2026-05-05"),
-      iv("y", "2026-05-01", "2026-05-05"),
+      iv('z', '2026-05-01', '2026-05-05'),
+      iv('x', '2026-05-01', '2026-05-05'),
+      iv('y', '2026-05-01', '2026-05-05'),
     ];
     const result = packLanes(items);
-    expect(laneOf(result, "x")).toBe(0);
-    expect(laneOf(result, "y")).toBe(1);
-    expect(laneOf(result, "z")).toBe(2);
+    expect(laneOf(result, 'x')).toBe(0);
+    expect(laneOf(result, 'y')).toBe(1);
+    expect(laneOf(result, 'z')).toBe(2);
     expect(result.laneCount).toBe(3);
   });
 });
 
-describe("packLanes — invalid records and updates", () => {
-  it("parks a record with an unparseable endDate without corrupting laneEnds", () => {
+describe('packLanes — invalid records and updates', () => {
+  it('parks a record with an unparseable endDate without corrupting laneEnds', () => {
     // Validate both endpoints; a valid start cannot make an invalid end positionable.
-    const r = packLanes([iv("a", "2026-05-01", "")]);
-    expect(laneOf(r, "a")).toBe(0);
+    const r = packLanes([iv('a', '2026-05-01', '')]);
+    expect(laneOf(r, 'a')).toBe(0);
     expect(r.laneCount).toBe(0);
   });
 
-  it("updates laneEnds when reusing a lane, so a later item sees the new end", () => {
-    const a = iv("a", "2026-05-01", "2026-05-03");
-    const b = iv("b", "2026-05-05", "2026-05-10");
-    const c = iv("c", "2026-05-06", "2026-05-12");
+  it('updates laneEnds when reusing a lane, so a later item sees the new end', () => {
+    const a = iv('a', '2026-05-01', '2026-05-03');
+    const b = iv('b', '2026-05-05', '2026-05-10');
+    const c = iv('c', '2026-05-06', '2026-05-12');
     const result = packLanes([a, b, c]);
-    expect(laneOf(result, "a")).toBe(0);
-    expect(laneOf(result, "b")).toBe(0);
-    expect(laneOf(result, "c")).toBe(1);
+    expect(laneOf(result, 'a')).toBe(0);
+    expect(laneOf(result, 'b')).toBe(0);
+    expect(laneOf(result, 'c')).toBe(1);
     expect(result.laneCount).toBe(2);
   });
 
-  it("returns exactly one lane entry per input item (no phantom entries)", () => {
-    const items = [iv("a", "2026-05-01", "2026-05-03"), iv("b", "2026-05-05", "2026-05-08")];
+  it('returns exactly one lane entry per input item (no phantom entries)', () => {
+    const items = [iv('a', '2026-05-01', '2026-05-03'), iv('b', '2026-05-05', '2026-05-08')];
     const result = packLanes(items);
     expect(result.lanes).toHaveLength(items.length);
   });
 
-  it("packs a staircase back down to 2 lanes", () => {
+  it('packs a staircase back down to 2 lanes', () => {
     const r = packLanes([
-      iv("a", "2026-05-01", "2026-05-05"),
-      iv("b", "2026-05-02", "2026-05-06"),
-      iv("c", "2026-05-06", "2026-05-09"),
+      iv('a', '2026-05-01', '2026-05-05'),
+      iv('b', '2026-05-02', '2026-05-06'),
+      iv('c', '2026-05-06', '2026-05-09'),
     ]);
     expect(r.laneCount).toBe(2);
-    expect(laneOf(r, "a")).toBe(0);
-    expect(laneOf(r, "b")).toBe(1);
-    expect(laneOf(r, "c")).toBe(0);
+    expect(laneOf(r, 'a')).toBe(0);
+    expect(laneOf(r, 'b')).toBe(1);
+    expect(laneOf(r, 'c')).toBe(0);
   });
 });
 
-describe("row geometry", () => {
+describe('row geometry', () => {
   const layout = { barHeight: 24, laneGap: 4, rowPadding: 6 };
 
-  it("rowHeightForLanes is at least one lane tall", () => {
+  it('rowHeightForLanes is at least one lane tall', () => {
     expect(resolveRowHeightForLanes(0, layout)).toBe(24 + 12);
     expect(resolveRowHeightForLanes(1, layout)).toBe(24 + 12);
     expect(resolveRowHeightForLanes(2, layout)).toBe(48 + 4 + 12);
   });
 
-  it("laneTop offsets each lane by bar height + gap", () => {
+  it('laneTop offsets each lane by bar height + gap', () => {
     expect(resolveLaneTop(0, layout)).toBe(6);
     expect(resolveLaneTop(1, layout)).toBe(6 + 28);
     expect(resolveLaneTop(2, layout)).toBe(6 + 56);

@@ -1,8 +1,8 @@
-import { m } from "@/i18n";
-import { buildTentativeHatch } from "./capacityOverviewBar";
+import { m } from '@/i18n';
+import { buildTentativeHatch } from './capacityOverviewBar';
 
 /** Group rows and the legend strip sit a step below the card surface in both themes. */
-export const SURFACE_2_CLASS = "bg-[color-mix(in_oklab,var(--color-ink)_4%,var(--color-surface))]";
+export const SURFACE_2_CLASS = 'bg-[color-mix(in_oklab,var(--color-ink)_4%,var(--color-surface))]';
 
 const SWATCH_HATCH = buildTentativeHatch(2);
 
@@ -36,10 +36,15 @@ export function OverviewLegend() {
       <LegendItem swatch={<span aria-hidden="true" className="size-2 rounded-[2px] bg-brand" />}>
         {m.capacity_overview_legend_committed()}
       </LegendItem>
-      <LegendItem swatch={<TentativeSwatch size={8} />}>{m.capacity_overview_legend_tentative()}</LegendItem>
+      <LegendItem swatch={<TentativeSwatch size={8} />}>
+        {m.capacity_overview_legend_tentative()}
+      </LegendItem>
       <LegendItem
         swatch={
-          <span aria-hidden="true" className="size-2 rounded-[2px] bg-line-soft outline outline-1 outline-line" />
+          <span
+            aria-hidden="true"
+            className="size-2 rounded-[2px] bg-line-soft outline outline-1 outline-line"
+          />
         }
       >
         {m.capacity_overview_legend_free()}

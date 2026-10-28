@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
 // Clamp distant deadlines because browser timeout delays above the signed 32-bit
 // ceiling overflow into immediate callbacks. A clamped wake must re-arm without

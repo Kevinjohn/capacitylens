@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from 'react';
 
 // The synchronous ref rejects another action before React can disable controls.
 // State communicates the same lock through the rendered busy state.
@@ -52,7 +52,7 @@ export function useExclusiveAction(): ExclusiveAction {
       try {
         onError(error);
       } catch (reportingError) {
-        console.error("Exclusive action error handler failed", reportingError);
+        console.error('Exclusive action error handler failed', reportingError);
       }
     };
     try {

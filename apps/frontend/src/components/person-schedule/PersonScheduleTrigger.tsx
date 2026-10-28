@@ -1,9 +1,9 @@
-import { Eye } from "lucide-react";
-import type { ID } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { Avatar } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
-import { resolveAvatarInitials } from "@/lib/metadata";
+import { Eye } from 'lucide-react';
+import type { ID } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import { Avatar } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
+import { resolveAvatarInitials } from '@/lib/metadata';
 
 /** Resource identity, title, and open action for a person schedule trigger. */
 export interface PersonScheduleTriggerProps {
@@ -45,7 +45,12 @@ export function PersonScheduleTrigger({
         data-testid="person-schedule-avatar"
         className="transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
       >
-        <Avatar name={avatarName} color={color} placeholder={placeholder} {...(imageUrl ? { imageUrl } : {})} />
+        <Avatar
+          name={avatarName}
+          color={color}
+          placeholder={placeholder}
+          {...(imageUrl ? { imageUrl } : {})}
+        />
       </span>
       <Eye
         aria-hidden

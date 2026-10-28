@@ -1,6 +1,6 @@
-import type { ReactElement } from "react";
-import { render as renderTestingLibrary } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from 'react';
+import { render as renderTestingLibrary } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 /** Renders a test tree with an isolated TanStack Query cache. */
 export function renderWithQueryClient(ui: ReactElement) {
@@ -12,6 +12,8 @@ export function renderWithQueryClient(ui: ReactElement) {
   });
 
   return renderTestingLibrary(ui, {
-    wrapper: ({ children }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>,
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
   });
 }

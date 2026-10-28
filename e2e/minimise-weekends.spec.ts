@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect } from './fixtures';
 import {
   boundingBoxOrThrow as box,
   disableWeekSnap,
@@ -8,14 +8,14 @@ import {
   settledSchedulerLeftDate as settledLeftDate,
   setZoom,
   waitForWeekSnap,
-} from "./browserTestSupport";
+} from './browserTestSupport';
 
-test.use({ contextOptions: { reducedMotion: "reduce" } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // Turn the free-scroll week snap off (a test-only override) and land on the Schedule at 1w. With the
 // free-scroll snap off, a mid-week nudge sticks, so any later left-edge move is attributable to the
 // thing under test (a resize / a minimise toggle), and we can prove that thing does not snap.
-async function openWithFreeScrollSnapOff(page: import("@playwright/test").Page) {
+async function openWithFreeScrollSnapOff(page: import('@playwright/test').Page) {
   await page.setViewportSize({ width: 1440, height: 800 });
   await disableWeekSnap(page);
   await openApp(page);
@@ -30,15 +30,15 @@ function registerDefaultWeekendColumnsNarrowLabelledTest() {
   test('ON by default: weekend columns are narrow and labelled "S"', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 1);
-    const header = page.getByRole("columnheader", { name: "Dates" });
+    const header = page.getByRole('columnheader', { name: 'Dates' });
 
-    expect(await header.getByText("Wed", { exact: true }).count()).toBeGreaterThan(0);
-    expect(await header.getByText("S", { exact: true }).count()).toBeGreaterThanOrEqual(2);
-    await expect(header.getByText("Sat", { exact: true })).toHaveCount(0);
-    await expect(header.getByText("Sun", { exact: true })).toHaveCount(0);
+    expect(await header.getByText('Wed', { exact: true }).count()).toBeGreaterThan(0);
+    expect(await header.getByText('S', { exact: true }).count()).toBeGreaterThanOrEqual(2);
+    await expect(header.getByText('Sat', { exact: true })).toHaveCount(0);
+    await expect(header.getByText('Sun', { exact: true })).toHaveCount(0);
 
-    const weekend = await box(header.getByText("S", { exact: true }).first().locator(".."));
-    const weekday = await box(header.getByText("Wed", { exact: true }).first().locator(".."));
+    const weekend = await box(header.getByText('S', { exact: true }).first().locator('..'));
+    const weekday = await box(header.getByText('Wed', { exact: true }).first().locator('..'));
     expect(weekend.width).toBeLessThan(weekday.width);
   });
 }
@@ -47,9 +47,11 @@ function registerDefaultWeekendColumnsNarrowLabelledTest() {
 // SettingsView.test.tsx can only assert the h-6 class (jsdom runs no layout), so this measures the
 // real rendered geometry the build ships, a class rename that drops below 24px is caught here.
 function registerPreferenceSwitchRendersLeast24pxTest() {
-  test("the preference switch renders at least 24px tall (WCAG 2.5.8 target size)", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
-    const sw = page.getByRole("switch", { name: "Minimise weekends" });
+  test('the preference switch renders at least 24px tall (WCAG 2.5.8 target size)', async ({
+    page,
+  }) => {
+    await openApp(page, 'Wayne Enterprises', '/settings');
+    const sw = page.getByRole('switch', { name: 'Minimise weekends' });
     const b = await box(sw);
     expect(b.height).toBeGreaterThanOrEqual(24);
     expect(b.width).toBeGreaterThanOrEqual(24);
@@ -57,42 +59,45 @@ function registerPreferenceSwitchRendersLeast24pxTest() {
 }
 
 function registerTogglingOffSettingsRestoresFullTest() {
-  test("toggling it off in Settings restores full-width Sat/Sun columns", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
-    const toggle = page.getByRole("switch", { name: "Minimise weekends" });
-    await expect(toggle).toHaveAttribute("aria-checked", "true");
+  test('toggling it off in Settings restores full-width Sat/Sun columns', async ({ page }) => {
+    await openApp(page, 'Wayne Enterprises', '/settings');
+    const toggle = page.getByRole('switch', { name: 'Minimise weekends' });
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
 
     await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
 
-    await page.getByRole("link", { name: "Schedule" }).click();
+    await page.getByRole('link', { name: 'Schedule' }).click();
     await setZoom(page, 1);
-    const header = page.getByRole("columnheader", { name: "Dates" });
+    const header = page.getByRole('columnheader', { name: 'Dates' });
 
-    await expect(header.getByText("Sat", { exact: true }).first()).toBeVisible();
-    await expect(header.getByText("Sun", { exact: true }).first()).toBeVisible();
-    await expect(header.getByText("S", { exact: true })).toHaveCount(0);
+    await expect(header.getByText('Sat', { exact: true }).first()).toBeVisible();
+    await expect(header.getByText('Sun', { exact: true }).first()).toBeVisible();
+    await expect(header.getByText('S', { exact: true })).toHaveCount(0);
 
-    const weekend = await box(header.getByText("Sat", { exact: true }).first().locator(".."));
-    const weekday = await box(header.getByText("Wed", { exact: true }).first().locator(".."));
+    const weekend = await box(header.getByText('Sat', { exact: true }).first().locator('..'));
+    const weekday = await box(header.getByText('Wed', { exact: true }).first().locator('..'));
     expect(Math.abs(weekend.width - weekday.width)).toBeLessThan(2);
   });
 }
 
 function registerChoiceSurvivesReloadDeviceGlobalTest() {
-  test("the choice survives a reload (device-global pref)", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
-    await page.getByRole("switch", { name: "Minimise weekends" }).click();
+  test('the choice survives a reload (device-global pref)', async ({ page }) => {
+    await openApp(page, 'Wayne Enterprises', '/settings');
+    await page.getByRole('switch', { name: 'Minimise weekends' }).click();
     await page.reload();
     // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
-    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await expect(page.getByRole("switch", { name: "Minimise weekends" })).toHaveAttribute("aria-checked", "false");
+    await page.getByRole('button', { name: 'Wayne Enterprises', exact: true }).click();
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    await expect(page.getByRole('switch', { name: 'Minimise weekends' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
   });
 }
 
 function registerZoomFitsSelectedWeeksExposingTest() {
-  test("every zoom fits its selected weeks without exposing a trailing day", async ({ page }) => {
+  test('every zoom fits its selected weeks without exposing a trailing day', async ({ page }) => {
     // Keep even the 8-week zoom above the per-day-column threshold so the probe can count the
     // same date cells shown in the wide-screen reproduction screenshots.
     await page.setViewportSize({ width: 1920, height: 800 });
@@ -106,7 +111,7 @@ function registerZoomFitsSelectedWeeksExposingTest() {
 }
 
 function registerZoomFlipsPreserveLeftEdgeTest() {
-  test("zoom flips preserve the left-edge date (no drift onto the weekend)", async ({ page }) => {
+  test('zoom flips preserve the left-edge date (no drift onto the weekend)', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 1);
     // Read `before` only once the 1w zoom-click scroll has come to rest, so it's the real settled
@@ -123,15 +128,17 @@ function registerZoomFlipsPreserveLeftEdgeTest() {
 }
 
 function registerBarDraggedAcrossNarrowedWeekendTest() {
-  test("a bar dragged across the narrowed weekend commits a later date (no crash)", async ({ page }) => {
+  test('a bar dragged across the narrowed weekend commits a later date (no crash)', async ({
+    page,
+  }) => {
     await openApp(page);
     await setZoom(page, 1);
 
-    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
+    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' });
     await bar.click();
-    let dialog = page.getByRole("dialog", { name: "Edit allocation" });
+    let dialog = page.getByRole('dialog', { name: 'Edit allocation' });
     const startBefore = await dialog.getByLabel(/^Start Date/).inputValue();
-    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
 
     const b0 = await box(bar);
     const cy = b0.y + b0.height / 2;
@@ -141,7 +148,7 @@ function registerBarDraggedAcrossNarrowedWeekendTest() {
     await page.mouse.up();
 
     await bar.click();
-    dialog = page.getByRole("dialog", { name: "Edit allocation" });
+    dialog = page.getByRole('dialog', { name: 'Edit allocation' });
     const startAfter = await dialog.getByLabel(/^Start Date/).inputValue();
     expect(startAfter > startBefore).toBe(true);
   });
@@ -149,7 +156,9 @@ function registerBarDraggedAcrossNarrowedWeekendTest() {
 
 // Resize and weekend minimisation must preserve the exact left-edge date. Disable idle snapping so it cannot mask navigation snapping.
 function registerPureResizePreservesMidWeekTest() {
-  test("a pure resize preserves the mid-week left-edge date (no navigation snap)", async ({ page }) => {
+  test('a pure resize preserves the mid-week left-edge date (no navigation snap)', async ({
+    page,
+  }) => {
     await openWithFreeScrollSnapOff(page);
 
     await nudge(page, 2.5);
@@ -172,12 +181,14 @@ function registerPureResizePreservesMidWeekTest() {
 // behaviour, separate from the snap branch under test), then nudge to a mid-week weekday and do a
 // pure in-component resize: a refit that is neither a zoom nor a pan must preserve the exact date.
 function registerMinimiseOFFPureResizeStillTests() {
-  test("with minimise OFF, a pure resize still preserves the mid-week left-edge date (no snap)", async ({ page }) => {
+  test('with minimise OFF, a pure resize still preserves the mid-week left-edge date (no snap)', async ({
+    page,
+  }) => {
     await openWithFreeScrollSnapOff(page);
 
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await page.getByRole("switch", { name: "Minimise weekends" }).click();
-    await page.getByRole("link", { name: "Schedule" }).click();
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    await page.getByRole('switch', { name: 'Minimise weekends' }).click();
+    await page.getByRole('link', { name: 'Schedule' }).click();
     await setZoom(page, 1);
 
     await nudge(page, 2.5);
@@ -194,7 +205,7 @@ function registerMinimiseOFFPureResizeStillTests() {
   });
 }
 
-test.describe("Minimise weekends", () => {
+test.describe('Minimise weekends', () => {
   registerDefaultWeekendColumnsNarrowLabelledTest();
   registerPreferenceSwitchRendersLeast24pxTest();
   registerTogglingOffSettingsRestoresFullTest();

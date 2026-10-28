@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { cn } from "@/lib/cn";
-import { SectionHelp } from "@/components/common/ui";
+import type { ReactNode } from 'react';
+import { cn } from '@/lib/cn';
+import { SectionHelp } from '@/components/common/ui';
 
 /** Compact presentation of an existing section inside a Settings group. */
 export function SettingsRow({
@@ -39,11 +39,15 @@ export function SettingsRow({
       className="min-w-0 scroll-mt-4 px-4 py-4 sm:px-6"
     >
       <div
-        className={cn("grid min-w-0 gap-3", { "lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-6": !collapsible })}
+        className={cn('grid min-w-0 gap-3', {
+          'lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-6': !collapsible,
+        })}
       >
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className={cn("min-w-0 flex-1 text-sm font-medium", { "text-danger": danger })}>{titleContent}</h3>
+            <h3 className={cn('min-w-0 flex-1 text-sm font-medium', { 'text-danger': danger })}>
+              {titleContent}
+            </h3>
             <SectionHelp title={title}>{help}</SectionHelp>
           </div>
           {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
@@ -52,7 +56,7 @@ export function SettingsRow({
           <div
             id={contentId}
             className={cn(
-              "flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere] [&_[data-segmented-control]]:max-w-full [&_[data-segmented-control]]:flex-wrap [&_[role=radio]]:h-auto [&_[role=radio]]:min-h-7 [&_[role=radio]]:whitespace-normal [&_[role=radio]]:overflow-visible",
+              'flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere] [&_[data-segmented-control]]:max-w-full [&_[data-segmented-control]]:flex-wrap [&_[role=radio]]:h-auto [&_[role=radio]]:min-h-7 [&_[role=radio]]:whitespace-normal [&_[role=radio]]:overflow-visible',
               contentClassName,
             )}
           >

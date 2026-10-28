@@ -1,10 +1,13 @@
-import type { ClientMasqueradeEndReason, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
-import { isServerConfigured } from "@/data/apiConfig";
-import { useStore } from "@/store/useStore";
-import { masqueradeApi } from "./masqueradeApi";
+import type {
+  ClientMasqueradeEndReason,
+  MasqueradeStatus,
+} from '@capacitylens/shared/domain/masquerade';
+import { isServerConfigured } from '@/data/apiConfig';
+import { useStore } from '@/store/useStore';
+import { masqueradeApi } from './masqueradeApi';
 
 async function loadMasqueradeController() {
-  const { masqueradeController } = await import("./masqueradeController");
+  const { masqueradeController } = await import('./masqueradeController');
   return masqueradeController;
 }
 
@@ -56,7 +59,7 @@ export async function retryMasqueradeProjection(): Promise<boolean> {
 
 /** End the active projection through the lazily loaded transition owner. */
 export async function endMasquerade(
-  reason: ClientMasqueradeEndReason = "explicit",
+  reason: ClientMasqueradeEndReason = 'explicit',
   navigate?: (to: string) => void,
 ): Promise<boolean> {
   return (await loadMasqueradeController()).end(reason, navigate);

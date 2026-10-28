@@ -1,32 +1,38 @@
-import { cleanText } from "../strings.js";
-import { isValidISODate, parseISOTimestamp } from "../integrity.js";
-import { normalizeCodeName, privateCodeNameFallback } from "../../domain/privateNames.js";
-import { canonicalWeekdaySet, defaultAccountWorkingDays, isWeekday } from "../accountWorkingDays.js";
-import { clampHoursPerDay, clampWorkingHoursPerDay, FULL_DAY_HOURS } from "../../types/entities.js";
-import type { Weekday } from "../../types/entities.js";
+import { cleanText } from '../strings.js';
+import { isValidISODate, parseISOTimestamp } from '../integrity.js';
+import { normalizeCodeName, privateCodeNameFallback } from '../../domain/privateNames.js';
+import {
+  canonicalWeekdaySet,
+  defaultAccountWorkingDays,
+  isWeekday,
+} from '../accountWorkingDays.js';
+import { clampHoursPerDay, clampWorkingHoursPerDay, FULL_DAY_HOURS } from '../../types/entities.js';
+import type { Weekday } from '../../types/entities.js';
 
 /** Allocation statuses import accepts. */
-export const VALID_STATUS = ["confirmed", "tentative", "completed"] as const;
+export const VALID_STATUS = ['confirmed', 'tentative', 'completed'] as const;
 /** Resource kinds import accepts. */
-export const VALID_KIND = ["person", "placeholder", "external"] as const;
+export const VALID_KIND = ['person', 'placeholder', 'external'] as const;
 /** Activity kinds import accepts. */
-export const VALID_ACTIVITY_KIND = ["project", "internal", "repeatable"] as const;
+export const VALID_ACTIVITY_KIND = ['project', 'internal', 'repeatable'] as const;
 /** Employment types import accepts. */
-export const VALID_EMPLOYMENT = ["permanent", "freelancer", "contractor"] as const;
+export const VALID_EMPLOYMENT = ['permanent', 'freelancer', 'contractor'] as const;
 /** Resource engagements import accepts. */
-export const VALID_ENGAGEMENT = ["studio", "supplementary"] as const;
+export const VALID_ENGAGEMENT = ['studio', 'supplementary'] as const;
 /** Time-off types import accepts. */
-export const VALID_TIMEOFF = ["holiday", "sick", "unpaid", "other"] as const;
+export const VALID_TIMEOFF = ['holiday', 'sick', 'unpaid', 'other'] as const;
 
 /** The value when it is one of `allowed`, otherwise `fallback`. Pure. */
 export const oneOf = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
-  typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
+  typeof value === 'string' && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : fallback;
 
 /** A resource's working day must be positive (a 0-hour working day has no capacity), route
  * it through the shared clampWorkingHoursPerDay so import and the store resource path agree
  * (a finite value clamps to (0,24]; junk / <= 0 / a non-number falls back to a normal 8h day). */
 export const clampHours = (value: unknown): number =>
-  typeof value === "number" ? clampWorkingHoursPerDay(value) : FULL_DAY_HOURS;
+  typeof value === 'number' ? clampWorkingHoursPerDay(value) : FULL_DAY_HOURS;
 
 /** Allocation hours/day, unlike a resource's working day, may legitimately be 0 (a
  * "blocks"-mode booking persists hoursPerDay: 0, the span counts but the load doesn't).
@@ -34,11 +40,11 @@ export const clampHours = (value: unknown): number =>
  * boundary can never drift (a negative clamps to 0, not the fallback); only a missing /
  * non-numeric / NaN value falls back to a normal 8h day. */
 export const clampAllocHours = (value: unknown, fallback: number): number =>
-  typeof value === "number" && Number.isFinite(value) ? clampHoursPerDay(value) : fallback;
+  typeof value === 'number' && Number.isFinite(value) ? clampHoursPerDay(value) : fallback;
 
 /** The value when it is a safe integer, otherwise `fallback`. Pure. */
 export const safeInt = (value: unknown, fallback: number): number =>
-  typeof value === "number" && Number.isSafeInteger(value) ? value : fallback;
+  typeof value === 'number' && Number.isSafeInteger(value) ? value : fallback;
 
 /** Repair a sloppily-formatted date to the canonical zero-padded "YYYY-MM-DD". The whole
  * app relies on dates being zero-padded so they sort chronologically as strings (see
@@ -47,29 +53,29 @@ export const safeInt = (value: unknown, fallback: number): number =>
  * it, silently loses real data). A value that isn't a recognizable Y-M-D is left as-is
  * for validateDateRange to reject. Real-calendar validity (e.g. month 13) is still its job. */
 export const normalizeISODate = (value: unknown): unknown => {
-  if (typeof value !== "string") return value;
+  if (typeof value !== 'string') return value;
   const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value.trim());
   if (!match) return value;
   const [, year, month, day] = match;
   if (year === undefined || month === undefined || day === undefined) return value;
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
 /** Repair optional person availability boundaries; malformed or reversed pairs are unbounded. */
 export const repairResourceAvailability = (record: Record<string, unknown>): void => {
-  if (record.kind !== "person") {
+  if (record.kind !== 'person') {
     delete record.firstAvailableDate;
     delete record.lastAvailableDate;
     return;
   }
-  for (const field of ["firstAvailableDate", "lastAvailableDate"] as const) {
+  for (const field of ['firstAvailableDate', 'lastAvailableDate'] as const) {
     const normalized = normalizeISODate(record[field]);
-    if (typeof normalized === "string" && isValidISODate(normalized)) record[field] = normalized;
+    if (typeof normalized === 'string' && isValidISODate(normalized)) record[field] = normalized;
     else delete record[field];
   }
   if (
-    typeof record.firstAvailableDate === "string" &&
-    typeof record.lastAvailableDate === "string" &&
+    typeof record.firstAvailableDate === 'string' &&
+    typeof record.lastAvailableDate === 'string' &&
     record.firstAvailableDate > record.lastAvailableDate
   ) {
     delete record.firstAvailableDate;
@@ -89,7 +95,9 @@ export const safeWorkingDays = (value: unknown): Weekday[] => {
 export const safeHalfDays = (value: unknown, workingDays: Weekday[]): Weekday[] => {
   if (!Array.isArray(value)) return [];
   const working = new Set(workingDays);
-  return canonicalWeekdaySet(value.filter((day): day is Weekday => isWeekday(day) && working.has(day)));
+  return canonicalWeekdaySet(
+    value.filter((day): day is Weekday => isWeekday(day) && working.has(day)),
+  );
 };
 
 interface CleanFieldOptions {
@@ -102,7 +110,7 @@ interface CleanFieldOptions {
  * reject it; import can't, so it repairs). Leave undefined fields unchanged; delete non-string fields. */
 export const cleanField = ({ record, field, multiline = false }: CleanFieldOptions): void => {
   if (record[field] === undefined) return;
-  if (typeof record[field] !== "string") {
+  if (typeof record[field] !== 'string') {
     delete record[field];
     return;
   }
@@ -111,8 +119,12 @@ export const cleanField = ({ record, field, multiline = false }: CleanFieldOptio
 
 /** Repair required text, using a caller-supplied nonempty fallback when cleaning leaves no characters.
  * Mutates record. The fallback must be nonempty so demo and server imports preserve the same required-text contract. */
-export const cleanRequiredField = (record: Record<string, unknown>, field: string, fallback: string): void => {
-  const cleaned = typeof record[field] === "string" ? cleanText(record[field]) : "";
+export const cleanRequiredField = (
+  record: Record<string, unknown>,
+  field: string,
+  fallback: string,
+): void => {
+  const cleaned = typeof record[field] === 'string' ? cleanText(record[field]) : '';
   record[field] = cleaned.length > 0 ? cleaned : fallback;
 };
 
@@ -124,7 +136,8 @@ export const repairPrivateNameFieldsInPlace = (record: Record<string, unknown>):
     delete record.codeName;
     return;
   }
-  const cleaned = typeof record.codeName === "string" ? normalizeCodeName(cleanText(record.codeName)) : "";
+  const cleaned =
+    typeof record.codeName === 'string' ? normalizeCodeName(cleanText(record.codeName)) : '';
   record.codeName = cleaned || privateCodeNameFallback(record.id);
 };
 
@@ -134,9 +147,9 @@ export const repairPrivateNameFieldsInPlace = (record: Record<string, unknown>):
  * the purge clock. */
 export const repairLifecycleFieldsInPlace = (record: Record<string, unknown>): void => {
   const timestamp = (value: unknown): string | null => {
-    if (typeof value !== "string") return null;
+    if (typeof value !== 'string') return null;
     const text = value.trim();
-    if (text === "") return null;
+    if (text === '') return null;
     const milliseconds = parseISOTimestamp(text);
     return milliseconds === null ? null : new Date(milliseconds).toISOString();
   };

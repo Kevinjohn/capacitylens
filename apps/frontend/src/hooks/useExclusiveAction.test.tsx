@@ -1,6 +1,6 @@
-import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { useExclusiveAction } from "./useExclusiveAction";
+import { act, renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { useExclusiveAction } from './useExclusiveAction';
 
 // The load-bearing property is the same-render one: the ref must already refuse a second action
 // inside the very click that started the first, before React has committed `busy = true` and had a
@@ -18,13 +18,13 @@ function deferred() {
 }
 
 function registerExclusiveActionScenarios(): void {
-  it("starts idle", () => {
+  it('starts idle', () => {
     const { result } = renderHook(() => useExclusiveAction());
     expect(result.current.busy).toBe(false);
     expect(result.current.locked()).toBe(false);
   });
 
-  it("locks synchronously, before React has committed the busy flag", () => {
+  it('locks synchronously, before React has committed the busy flag', () => {
     const pending = deferred();
     const { result } = renderHook(() => useExclusiveAction());
     const gate = result.current;
@@ -41,7 +41,7 @@ function registerExclusiveActionScenarios(): void {
 }
 
 function registerExclusiveActionConcurrencyScenarios(): void {
-  it("discards a second action started while one is in flight", async () => {
+  it('discards a second action started while one is in flight', async () => {
     const pending = deferred();
     const second = vi.fn(() => Promise.resolve());
     const { result } = renderHook(() => useExclusiveAction());
@@ -61,7 +61,7 @@ function registerExclusiveActionConcurrencyScenarios(): void {
     expect(second).not.toHaveBeenCalled();
   });
 
-  it("reopens the gate once the action settles", async () => {
+  it('reopens the gate once the action settles', async () => {
     const pending = deferred();
     const { result } = renderHook(() => useExclusiveAction());
 
@@ -81,10 +81,10 @@ function registerExclusiveActionConcurrencyScenarios(): void {
 }
 
 function registerExclusiveActionErrorScenarios(): void {
-  it("surfaces a rejection to onError and still reopens the gate", async () => {
+  it('surfaces a rejection to onError and still reopens the gate', async () => {
     const pending = deferred();
     const onError = vi.fn();
-    const failure = new Error("the server refused");
+    const failure = new Error('the server refused');
     const { result } = renderHook(() => useExclusiveAction());
 
     act(() => result.current.run(() => pending.promise, onError));
@@ -101,9 +101,9 @@ function registerExclusiveActionErrorScenarios(): void {
 }
 
 function registerExclusiveActionThrowScenarios(): void {
-  it("surfaces a synchronous action throw and still reopens the gate", async () => {
+  it('surfaces a synchronous action throw and still reopens the gate', async () => {
     const onError = vi.fn();
-    const failure = new Error("the action threw before returning a promise");
+    const failure = new Error('the action threw before returning a promise');
     const { result } = renderHook(() => useExclusiveAction());
 
     expect(() =>
@@ -120,10 +120,10 @@ function registerExclusiveActionThrowScenarios(): void {
     expect(result.current.locked()).toBe(false);
   });
 
-  it("reports a throwing error handler and still reopens the gate", async () => {
-    const actionFailure = new Error("the action failed");
-    const handlerFailure = new Error("the error surface failed");
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  it('reports a throwing error handler and still reopens the gate', async () => {
+    const actionFailure = new Error('the action failed');
+    const handlerFailure = new Error('the error surface failed');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { result } = renderHook(() => useExclusiveAction());
 
     act(() =>
@@ -136,12 +136,15 @@ function registerExclusiveActionThrowScenarios(): void {
     );
     await act(async () => Promise.resolve());
 
-    expect(consoleError).toHaveBeenCalledWith("Exclusive action error handler failed", handlerFailure);
+    expect(consoleError).toHaveBeenCalledWith(
+      'Exclusive action error handler failed',
+      handlerFailure,
+    );
     expect(result.current.busy).toBe(false);
     expect(result.current.locked()).toBe(false);
   });
 
-  it("keeps run and locked stable across renders so they are safe effect/callback dependencies", () => {
+  it('keeps run and locked stable across renders so they are safe effect/callback dependencies', () => {
     const { result, rerender } = renderHook(() => useExclusiveAction());
     const { run, locked } = result.current;
 
@@ -151,7 +154,7 @@ function registerExclusiveActionThrowScenarios(): void {
   });
 }
 
-describe("useExclusiveAction", () => {
+describe('useExclusiveAction', () => {
   registerExclusiveActionScenarios();
   registerExclusiveActionConcurrencyScenarios();
   registerExclusiveActionErrorScenarios();

@@ -1,15 +1,15 @@
-import { useState } from "react";
-import { useStore } from "@/store/useStore";
-import { useFieldError } from "@/hooks/useFieldError";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { parseText } from "@/lib/validation";
-import { isStaleEdit } from "@/lib/isStaleEdit";
-import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
-import { FieldError } from "@/components/ui/field";
-import { NEUTRAL_COLOR } from "@/lib/palette";
-import { externalCapacityDefaults } from "@capacitylens/shared/types/entities";
-import type { Resource } from "@capacitylens/shared/types/entities";
+import { useState } from 'react';
+import { useStore } from '@/store/useStore';
+import { useFieldError } from '@/hooks/useFieldError';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { parseText } from '@/lib/validation';
+import { isStaleEdit } from '@/lib/isStaleEdit';
+import { m } from '@/i18n';
+import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { FieldError } from '@/components/ui/field';
+import { NEUTRAL_COLOR } from '@/lib/palette';
+import { externalCapacityDefaults } from '@capacitylens/shared/types/entities';
+import type { Resource } from '@capacitylens/shared/types/entities';
 
 type ExternalFormFieldsProps = {
   name: string;
@@ -29,7 +29,7 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
         value={props.name}
         onChange={props.onNameChange}
         required
-        invalid={props.errorField === "name"}
+        invalid={props.errorField === 'name'}
         describedById={props.errorId}
         layout="label-control"
       />
@@ -38,7 +38,7 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
         value={props.role}
         onChange={props.onRoleChange}
         placeholder={m.form_external_descriptor_placeholder()}
-        invalid={props.errorField === "role"}
+        invalid={props.errorField === 'role'}
         describedById={props.errorId}
         layout="label-control"
       />
@@ -52,21 +52,21 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
 export function ExternalForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
   const add = useStore((state) => state.addResource);
   const update = useStore((state) => state.updateResource);
-  const [name, setName] = useState(resource?.name ?? "");
-  const [role, setRole] = useState(resource?.role ?? "");
+  const [name, setName] = useState(resource?.name ?? '');
+  const [role, setRole] = useState(resource?.role ?? '');
   const { error, errorField, errorId, fail } = useFieldError();
 
   const submit = async () => {
     const cleanName = parseText(name, fail, {
-      field: "name",
+      field: 'name',
       required: true,
       requiredMessage: m.form_external_err_company_required(),
     });
     if (cleanName === null) return;
-    const cleanRole = parseText(role, fail, { field: "role", required: false });
+    const cleanRole = parseText(role, fail, { field: 'role', required: false });
     if (cleanRole === null) return;
     const patch = {
-      kind: "external" as const,
+      kind: 'external' as const,
       name: cleanName,
       role: cleanRole,
       // External capacity defaults satisfy the shared Resource validation contract even though capacity views exclude external load.
@@ -80,7 +80,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
           return;
         }
         await update(resource.id, patch);
-      } else if ((await add(patch)).kind === "blocked") return;
+      } else if ((await add(patch)).kind === 'blocked') return;
       onClose();
     } catch (e) {
       // Surface store rejection inside the external-resource form so invalid writes cannot fail silently.

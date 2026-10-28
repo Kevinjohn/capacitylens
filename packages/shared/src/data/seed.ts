@@ -1,12 +1,12 @@
-import type { AppData } from "../types/entities.js";
-import { addDaysISO, dayIndex, startOfWeekISO, todayISO } from "../lib/dateMath.js";
-import { isValidISODate } from "../lib/integrity.js";
-import { SEED_WEEK } from "./seed/constants.js";
-import { createOrgTables } from "./seed/orgTables.js";
-import { createResources } from "./seed/resources.js";
-import { createActivities } from "./seed/activities.js";
-import { createAllocations } from "./seed/allocations.js";
-import { createSchedule } from "./seed/schedule.js";
+import type { AppData } from '../types/entities.js';
+import { addDaysISO, dayIndex, startOfWeekISO, todayISO } from '../lib/dateMath.js';
+import { isValidISODate } from '../lib/integrity.js';
+import { SEED_WEEK } from './seed/constants.js';
+import { createOrgTables } from './seed/orgTables.js';
+import { createResources } from './seed/resources.js';
+import { createActivities } from './seed/activities.js';
+import { createAllocations } from './seed/allocations.js';
+import { createSchedule } from './seed/schedule.js';
 
 // Two demo companies, loaded on first run so the account picker isn't empty.
 // "Wayne Enterprises" is the rich dataset (stacked/overlapping allocations, an
@@ -40,7 +40,8 @@ export function seedForCurrentWeek(referenceDate = todayISO()): AppData {
   const week = startOfWeekISO(referenceDate);
   const shift = (date: string) => {
     const shifted = addDaysISO(week, dayIndex(date, SEED_WEEK));
-    if (!isValidISODate(shifted)) throw new RangeError("The demo week cannot extend beyond the supported date range.");
+    if (!isValidISODate(shifted))
+      throw new RangeError('The demo week cannot extend beyond the supported date range.');
     return shifted;
   };
   const data = seed();

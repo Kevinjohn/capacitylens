@@ -1,39 +1,39 @@
 const structuralChecks = [
-  "policy:gate-runner:test",
-  "policy:check-changed:test",
-  "policy:ports",
-  "policy:ports:test",
-  "policy:sonner-csp:test",
-  "package:managed-release:test",
-  "security:screenshot-publication",
-  "security:screenshot-publication:test",
-].map((name) => ["run", name]);
+  'policy:gate-runner:test',
+  'policy:check-changed:test',
+  'policy:ports',
+  'policy:ports:test',
+  'policy:sonner-csp:test',
+  'package:managed-release:test',
+  'security:screenshot-publication',
+  'security:screenshot-publication:test',
+].map((name) => ['run', name]);
 
 const commands = {
   app: [
-    ["run", "gate:deps"],
-    ["run", "policy:dependabot"],
-    ["run", "policy:dependabot:test"],
-    ["run", "dependency:major-report:test"],
-    ["run", "security:gitleaks-config"],
-    ["run", "policy:dco:test"],
+    ['run', 'gate:deps'],
+    ['run', 'policy:dependabot'],
+    ['run', 'policy:dependabot:test'],
+    ['run', 'dependency:major-report:test'],
+    ['run', 'security:gitleaks-config'],
+    ['run', 'policy:dco:test'],
     ...structuralChecks,
-    ["run", "policy:workflow-report:test"],
-    ["run", "ui:check"],
-    ["run", "format:check"],
-    ["run", "typecheck"],
-    ["run", "lint"],
-    ["--dir", "apps/frontend", "exec", "vitest", "run", "--coverage"],
-    ["run", "build"],
-    ["run", "bundle:check"],
+    ['run', 'policy:workflow-report:test'],
+    ['run', 'ui:check'],
+    ['run', 'format:check'],
+    ['run', 'typecheck'],
+    ['run', 'lint'],
+    ['--dir', 'apps/frontend', 'exec', 'vitest', 'run', '--coverage'],
+    ['run', 'build'],
+    ['run', 'bundle:check'],
   ],
   backend: [
     ...structuralChecks,
-    ["--dir", "apps/backend", "typecheck"],
-    ["run", "build"],
-    ["run", "policy:node-runtime:test"],
-    ["--dir", "apps/backend", "test"],
-    ["--dir", "apps/backend", "lint"],
+    ['--dir', 'apps/backend', 'typecheck'],
+    ['run', 'build'],
+    ['run', 'policy:node-runtime:test'],
+    ['--dir', 'apps/backend', 'test'],
+    ['--dir', 'apps/backend', 'lint'],
   ],
 };
 
@@ -48,6 +48,7 @@ commands.all = [...sharedCommands, ...appOnlyCommands, ...serverOnlyCommands];
 
 /** Return independent, ordered pnpm argument arrays for a known repository gate. */
 export function gateCommands(mode) {
-  if (!Object.hasOwn(commands, mode)) throw new Error("Expected app, backend, or all with no extra arguments.");
+  if (!Object.hasOwn(commands, mode))
+    throw new Error('Expected app, backend, or all with no extra arguments.');
   return commands[mode].map((args) => [...args]);
 }

@@ -1,13 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { useDragResize } from "./useDragResize";
-import type { DragResizePreviewInput } from "./useDragResize";
-import type { DragMode } from "@/lib/gestureMath";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { useDragResize } from './useDragResize';
+import type { DragResizePreviewInput } from './useDragResize';
+import type { DragMode } from '@/lib/gestureMath';
 
 interface HarnessProps {
   indexAtClientX?: (clientX: number) => number;
   onPreview?: (input: DragResizePreviewInput) => void;
-  onCommit: (mode: DragMode, deltaDays: number, pointer: { clientX: number; clientY: number }) => void;
+  onCommit: (
+    mode: DragMode,
+    deltaDays: number,
+    pointer: { clientX: number; clientY: number },
+  ) => void;
   onClick?: () => void;
   onCancel?: () => void;
 }
@@ -50,7 +54,10 @@ beforeEach(() => {
   HTMLElement.prototype.hasPointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
     return capturedPointers.get(this)?.has(pointerId) ?? false;
   });
-  HTMLElement.prototype.releasePointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
+  HTMLElement.prototype.releasePointerCapture = vi.fn(function (
+    this: HTMLElement,
+    pointerId: number,
+  ) {
     capturedPointers.get(this)?.delete(pointerId);
   });
 });
@@ -62,41 +69,49 @@ function registerDragResizeScenarios(): void {
     const onPreview = vi.fn();
     render(<Harness onCommit={onCommit} onClick={onClick} onPreview={onPreview} />);
 
-    const body = screen.getByTestId("body");
-    const dragTarget = screen.getByTestId("drag-target");
+    const body = screen.getByTestId('body');
+    const dragTarget = screen.getByTestId('drag-target');
 
     fireEvent.pointerDown(body, { clientX: 0, clientY: 10, button: 0, pointerId: 1 });
     expect(dragTarget.hasPointerCapture(1)).toBe(true);
 
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 3, clientY: 12, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 3, clientY: 12, pointerId: 1, bubbles: true }),
+    );
     expect(onPreview).not.toHaveBeenCalled();
 
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }),
+    );
     expect(onPreview).toHaveBeenCalledTimes(1);
     expect(onPreview).toHaveBeenCalledWith({
-      mode: "move",
+      mode: 'move',
       deltaDays: 1,
       deltaY: 15,
       pointer: { clientX: 48, clientY: 25 },
     });
 
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }),
+    );
 
-    expect(onCommit).toHaveBeenCalledWith("move", 1, expect.objectContaining({ clientX: 48 }));
+    expect(onCommit).toHaveBeenCalledWith('move', 1, expect.objectContaining({ clientX: 48 }));
     expect(onClick).not.toHaveBeenCalled();
     expect(dragTarget.hasPointerCapture(1)).toBe(false);
   });
 
-  it("(b) pointerDown then pointerup with no move calls onClick", () => {
+  it('(b) pointerDown then pointerup with no move calls onClick', () => {
     const onCommit = vi.fn();
     const onClick = vi.fn();
     render(<Harness onCommit={onCommit} onClick={onClick} />);
 
-    const body = screen.getByTestId("body");
+    const body = screen.getByTestId('body');
 
     fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
 
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 100, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 100, pointerId: 1, bubbles: true }),
+    );
 
     expect(onClick).toHaveBeenCalledTimes(1);
     expect(onCommit).not.toHaveBeenCalled();
@@ -109,45 +124,59 @@ function registerDragResizeHandleScenario(): void {
     const onClick = vi.fn();
     render(<Harness onCommit={onCommit} onClick={onClick} />);
 
-    const endHandle = screen.getByTestId("handle-end");
+    const endHandle = screen.getByTestId('handle-end');
 
     fireEvent.pointerDown(endHandle, { clientX: 0, button: 0, pointerId: 1 });
 
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 48, pointerId: 1, bubbles: true }),
+    );
 
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 48, pointerId: 1, bubbles: true }),
+    );
 
-    expect(onCommit).toHaveBeenCalledWith("resize-end", 1, expect.objectContaining({ clientX: 48 }));
+    expect(onCommit).toHaveBeenCalledWith(
+      'resize-end',
+      1,
+      expect.objectContaining({ clientX: 48 }),
+    );
     expect(onClick).not.toHaveBeenCalled();
   });
 }
 
 function registerDragResizeCancellationScenarios(): void {
-  it("(d) a SUB-THRESHOLD pointercancel still calls onCancel so consumers can tear down side effects", () => {
+  it('(d) a SUB-THRESHOLD pointercancel still calls onCancel so consumers can tear down side effects', () => {
     const onCommit = vi.fn();
     const onClick = vi.fn();
     const onCancel = vi.fn();
     render(<Harness onCommit={onCommit} onClick={onClick} onCancel={onCancel} />);
 
-    const body = screen.getByTestId("body");
+    const body = screen.getByTestId('body');
     fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
 
-    document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 101, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointercancel', { clientX: 101, pointerId: 1, bubbles: true }),
+    );
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onClick).not.toHaveBeenCalled();
     expect(onCommit).not.toHaveBeenCalled();
   });
 
-  it("(e) an above-threshold pointercancel also calls onCancel", () => {
+  it('(e) an above-threshold pointercancel also calls onCancel', () => {
     const onCommit = vi.fn();
     const onCancel = vi.fn();
     render(<Harness onCommit={onCommit} onCancel={onCancel} />);
 
-    const body = screen.getByTestId("body");
+    const body = screen.getByTestId('body');
     fireEvent.pointerDown(body, { clientX: 0, button: 0, pointerId: 1 });
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 48, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 48, pointerId: 1, bubbles: true }),
+    );
+    document.dispatchEvent(
+      new PointerEvent('pointercancel', { clientX: 48, pointerId: 1, bubbles: true }),
+    );
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onCommit).not.toHaveBeenCalled();
@@ -155,41 +184,53 @@ function registerDragResizeCancellationScenarios(): void {
 }
 
 function registerDragResizeButtonScenarios(): void {
-  it("ignores non-primary mouse buttons", () => {
+  it('ignores non-primary mouse buttons', () => {
     const onCommit = vi.fn();
     const onClick = vi.fn();
     render(<Harness onCommit={onCommit} onClick={onClick} />);
 
-    const body = screen.getByTestId("body");
+    const body = screen.getByTestId('body');
 
     fireEvent.pointerDown(body, { clientX: 0, button: 2, pointerId: 1 });
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, pointerId: 1, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 96, pointerId: 1, bubbles: true }),
+    );
+    document.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 96, pointerId: 1, bubbles: true }),
+    );
 
     expect(onCommit).not.toHaveBeenCalled();
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("ignores a secondary-button release while the primary drag remains armed", () => {
+  it('ignores a secondary-button release while the primary drag remains armed', () => {
     const onCommit = vi.fn();
     const onCancel = vi.fn();
     render(<Harness onCommit={onCommit} onCancel={onCancel} />);
 
-    const body = screen.getByTestId("body");
+    const body = screen.getByTestId('body');
     fireEvent.pointerDown(body, { clientX: 0, button: 0, pointerId: 1 });
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, button: 2, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 48, pointerId: 1, bubbles: true }),
+    );
+    document.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 48, button: 2, pointerId: 1, bubbles: true }),
+    );
 
     expect(onCommit).not.toHaveBeenCalled();
     expect(onCancel).not.toHaveBeenCalled();
 
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, pointerId: 1, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, button: 0, pointerId: 1, bubbles: true }));
-    expect(onCommit).toHaveBeenCalledWith("move", 2, expect.objectContaining({ clientX: 96 }));
+    document.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 96, pointerId: 1, bubbles: true }),
+    );
+    document.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: 96, button: 0, pointerId: 1, bubbles: true }),
+    );
+    expect(onCommit).toHaveBeenCalledWith('move', 2, expect.objectContaining({ clientX: 96 }));
   });
 }
 
-describe("useDragResize", () => {
+describe('useDragResize', () => {
   registerDragResizeScenarios();
   registerDragResizeHandleScenario();
   registerDragResizeCancellationScenarios();

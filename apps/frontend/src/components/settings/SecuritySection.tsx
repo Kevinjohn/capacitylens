@@ -1,9 +1,9 @@
-import { MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
-import { useAuth } from "@/auth/authContext";
-import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
-import { FieldError } from "@/components/ui/field";
-import { useSecurityController } from "./useSecurityController";
+import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password';
+import { useAuth } from '@/auth/authContext';
+import { m } from '@/i18n';
+import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { FieldError } from '@/components/ui/field';
+import { useSecurityController } from './useSecurityController';
 
 type Controller = ReturnType<typeof useSecurityController>;
 
@@ -21,7 +21,7 @@ function PasswordForm({ controller }: { controller: Controller }) {
         layout="label-control"
         value={password.currentPassword}
         onChange={password.setCurrentPassword}
-        invalid={fieldError.errorField === "current"}
+        invalid={fieldError.errorField === 'current'}
         describedById={fieldError.errorId}
       />
       <TextField
@@ -34,7 +34,7 @@ function PasswordForm({ controller }: { controller: Controller }) {
         minLength={MIN_PASSWORD_LENGTH}
         value={password.newPassword}
         onChange={password.setNewPassword}
-        invalid={fieldError.errorField === "new"}
+        invalid={fieldError.errorField === 'new'}
         describedById={fieldError.errorId}
       />
       <TextField
@@ -46,7 +46,7 @@ function PasswordForm({ controller }: { controller: Controller }) {
         layout="label-control"
         value={password.confirmPassword}
         onChange={password.setConfirmPassword}
-        invalid={fieldError.errorField === "confirm"}
+        invalid={fieldError.errorField === 'confirm'}
         describedById={fieldError.errorId}
       />
       <FieldError id={fieldError.errorId}>{fieldError.error}</FieldError>
@@ -83,7 +83,10 @@ function PasswordDialog({
             onCancel={close}
             submitLabel={m.settings_security_change_password()}
             disabled={
-              controller.busy || !password.currentPassword || !password.newPassword || !password.confirmPassword
+              controller.busy ||
+              !password.currentPassword ||
+              !password.newPassword ||
+              !password.confirmPassword
             }
           />
         }
@@ -104,7 +107,7 @@ export function SecuritySection({
 }) {
   const auth = useAuth();
   const controller = useSecurityController();
-  const showPassword = auth.authMode !== "off";
+  const showPassword = auth.authMode !== 'off';
   const changePasswordOpen = (open: boolean) => {
     if (!open) controller.password.reset();
     onPasswordOpenChange(open);

@@ -1,4 +1,4 @@
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type {
   Activity,
   Allocation,
@@ -7,15 +7,15 @@ import type {
   ISODate,
   Resource,
   SchedulingMode,
-} from "@capacitylens/shared/types/entities";
-import type { RepeatSelection } from "@/lib/repeatingAllocations";
-import type { AllocationModalProps } from "./allocationModalTypes";
+} from '@capacitylens/shared/types/entities';
+import type { RepeatSelection } from '@/lib/repeatingAllocations';
+import type { AllocationModalProps } from './allocationModalTypes';
 
 /** Current form values consumed by pure projections and the command factory. */
 export interface AllocationModalSnapshot {
   /** Only the tables the seed, advisory and submit projections read. */
-  data: Pick<AppData, "activities" | "allocations" | "closures" | "timeOff">;
-  create: Extract<AllocationModalProps, { create: unknown }>["create"] | undefined;
+  data: Pick<AppData, 'activities' | 'allocations' | 'closures' | 'timeOff'>;
+  create: Extract<AllocationModalProps, { create: unknown }>['create'] | undefined;
   editing: Allocation | undefined;
   editId: string | undefined;
   mode: SchedulingMode;

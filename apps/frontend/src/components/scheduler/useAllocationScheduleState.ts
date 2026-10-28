@@ -1,16 +1,31 @@
-import type { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { daysInclusive, todayISO } from "@capacitylens/shared/lib/dateMath";
-import { effectiveWorkingWeek, lacksEffectiveWorkingDays } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { defaultRepeatUntilDate, maximumRepeatUntilDate } from "@capacitylens/shared/lib/repeatingDates";
-import { daysOfWorkFor, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
-import type { AllocationStatus, ISODate, Resource, SchedulingMode } from "@capacitylens/shared/types/entities";
-import { carriesHourlyLoad, FULL_DAY_HOURS } from "@capacitylens/shared/types/entities";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { RepeatSelection } from "@/lib/repeatingAllocations";
+import type { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { daysInclusive, todayISO } from '@capacitylens/shared/lib/dateMath';
+import {
+  effectiveWorkingWeek,
+  lacksEffectiveWorkingDays,
+} from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import {
+  defaultRepeatUntilDate,
+  maximumRepeatUntilDate,
+} from '@capacitylens/shared/lib/repeatingDates';
+import { daysOfWorkFor, MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
+import type {
+  AllocationStatus,
+  ISODate,
+  Resource,
+  SchedulingMode,
+} from '@capacitylens/shared/types/entities';
+import { carriesHourlyLoad, FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { RepeatSelection } from '@/lib/repeatingAllocations';
 
-import type { AllocationModalSeed } from "./buildAllocationModalSeed";
-import { buildEffectiveAllocationValues, roundDays, hasWorkingSpan } from "./allocationModalSelection";
+import type { AllocationModalSeed } from './buildAllocationModalSeed';
+import {
+  buildEffectiveAllocationValues,
+  roundDays,
+  hasWorkingSpan,
+} from './allocationModalSelection';
 interface ScheduleInput {
   selectedResource: Resource | undefined;
   mode: SchedulingMode;
@@ -28,7 +43,8 @@ function useEffectiveSchedule(input: {
   const { selectedResource, accountWorkingDays, mode, fields } = input;
   const { startDate, endDate, hoursPerDay, ignoreWeekends, daysOver, daysOfWork } = fields;
   const selectedEffectiveWeek = useMemo(
-    () => (selectedResource ? effectiveWorkingWeek(selectedResource, accountWorkingDays) : undefined),
+    () =>
+      selectedResource ? effectiveWorkingWeek(selectedResource, accountWorkingDays) : undefined,
     [accountWorkingDays, selectedResource],
   );
   const values = useMemo(
@@ -63,15 +79,19 @@ function resolveRepeatRange(startDate: ISODate, calendarTimeZone: string) {
   const repeatToday = todayISO(calendarTimeZone);
   return {
     repeatToday,
-    repeatUntilMinimum: isValidISODate(startDate) && startDate > repeatToday ? startDate : repeatToday,
+    repeatUntilMinimum:
+      isValidISODate(startDate) && startDate > repeatToday ? startDate : repeatToday,
     repeatUntilMaximum: isValidISODate(startDate) ? maximumRepeatUntilDate(startDate) : undefined,
   };
 }
 
 function resolveInitialDaysOfWork(seed: AllocationModalSeed): number {
   const { editing, initialCapacityHours, initialDaysOver } = seed;
-  if (editing) return roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, FULL_DAY_HOURS));
-  return roundDays(initialCapacityHours > 0 ? initialCapacityHours / FULL_DAY_HOURS : initialDaysOver);
+  if (editing)
+    return roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, FULL_DAY_HOURS));
+  return roundDays(
+    initialCapacityHours > 0 ? initialCapacityHours / FULL_DAY_HOURS : initialDaysOver,
+  );
 }
 
 function resolveInitialDates(seed: AllocationModalSeed, calendarTimeZone: string) {
@@ -84,30 +104,30 @@ function resolveInitialDates(seed: AllocationModalSeed, calendarTimeZone: string
 function resolveInitialDetails(seed: AllocationModalSeed) {
   return {
     hoursPerDay: seed.editing?.hoursPerDay ?? (seed.initialScheduledHours || FULL_DAY_HOURS),
-    status: seed.editing?.status ?? "confirmed",
-    note: seed.editing?.note ?? "",
-    task: seed.editing?.task ?? "",
+    status: seed.editing?.status ?? 'confirmed',
+    note: seed.editing?.note ?? '',
+    task: seed.editing?.task ?? '',
     ignoreWeekends: seed.editing?.ignoreWeekends ?? false,
   };
 }
 
 function useRepeatSchedule(startDate: ISODate) {
-  const [repeat, setRepeat] = useState<RepeatSelection>("none");
-  const [repeatUntil, setRepeatUntil] = useState("");
+  const [repeat, setRepeat] = useState<RepeatSelection>('none');
+  const [repeatUntil, setRepeatUntil] = useState('');
   const repeatUntilIsSuggested = useRef(false);
   useEffect(() => {
-    if (repeat !== "none" && repeatUntilIsSuggested.current && isValidISODate(startDate)) {
+    if (repeat !== 'none' && repeatUntilIsSuggested.current && isValidISODate(startDate)) {
       setRepeatUntil(defaultRepeatUntilDate(startDate));
     }
   }, [repeat, startDate]);
   const changeRepeat = (value: string) => {
     const next = value as RepeatSelection;
-    if (repeat === "none" && next !== "none" && isValidISODate(startDate)) {
+    if (repeat === 'none' && next !== 'none' && isValidISODate(startDate)) {
       repeatUntilIsSuggested.current = true;
       setRepeatUntil(defaultRepeatUntilDate(startDate));
-    } else if (next === "none") {
+    } else if (next === 'none') {
       repeatUntilIsSuggested.current = false;
-      setRepeatUntil("");
+      setRepeatUntil('');
     }
     setRepeat(next);
   };
@@ -163,7 +183,7 @@ export function useAllocationScheduleState({
   calendarTimeZone,
   seed,
 }: ScheduleInput) {
-  const isDays = mode === "days";
+  const isDays = mode === 'days';
   const isBlocks = !carriesHourlyLoad(mode);
   const fields = useScheduleFields(seed, calendarTimeZone);
   const { noteEdited, ...scheduleFields } = fields;
@@ -188,10 +208,14 @@ export function useAllocationScheduleState({
   // Validate typed ranges in O(1); expanding an untrusted range can freeze rendering.
   const typedDateSpanDays = startDate && endDate ? daysInclusive(startDate, endDate) : 0;
   const typedDateSpanTooLong = typedDateSpanDays > MAX_SPAN_DAYS;
-  const { repeatToday, repeatUntilMinimum, repeatUntilMaximum } = resolveRepeatRange(startDate, calendarTimeZone);
+  const { repeatToday, repeatUntilMinimum, repeatUntilMaximum } = resolveRepeatRange(
+    startDate,
+    calendarTimeZone,
+  );
 
   const daysOverDisabled =
-    hasWorkingSpan(selectedResource, mode) && lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWeekends);
+    hasWorkingSpan(selectedResource, mode) &&
+    lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWeekends);
 
   return {
     selectedEffectiveWeek,

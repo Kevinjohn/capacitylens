@@ -8,7 +8,7 @@
 //   2. A release never deletes someone else's claim. Release re-reads the file and unlinks only
 //      when the recorded token is still ours; otherwise a slow releaser would delete the lock a
 //      successor had just created.
-import { execFileSync } from "node:child_process";
+import { execFileSync } from 'node:child_process';
 import {
   mkdirSync,
   openSync,
@@ -20,9 +20,9 @@ import {
   renameSync,
   rmdirSync,
   statSync,
-} from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+} from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import {
   LANE_CEILING,
   LANE_CLAIM_ENVIRONMENT_KEY,
@@ -32,8 +32,8 @@ import {
   resolveLane,
   soloShare,
   testShare,
-} from "./ports.mjs";
-import { portInUse } from "./devProcesses.mjs";
+} from './ports.mjs';
+import { portInUse } from './devProcesses.mjs';
 
 const MUTEX_STALE_MS = 30_000;
 // File-format mutexes need a grace period because the owner can be written after the path becomes visible.
@@ -43,8 +43,8 @@ let claimSequence = 0;
 
 /** Returns the shared lane-claim directory selected by XDG_CACHE_HOME or the user’s cache directory, without creating it. */
 export function laneDirectory(environment = process.env) {
-  const cacheHome = environment.XDG_CACHE_HOME || join(environment.HOME || homedir(), ".cache");
-  return join(cacheHome, "capacitylens", "lanes");
+  const cacheHome = environment.XDG_CACHE_HOME || join(environment.HOME || homedir(), '.cache');
+  return join(cacheHome, 'capacitylens', 'lanes');
 }
 
 function processAlive(pid) {
@@ -54,16 +54,16 @@ function processAlive(pid) {
     return true;
   } catch (error) {
     // EPERM means the process exists but belongs to another user, which still makes the lane taken.
-    return error.code === "EPERM";
+    return error.code === 'EPERM';
   }
 }
 
 function readClaim(path) {
   let text;
   try {
-    text = readFileSync(path, "utf8");
+    text = readFileSync(path, 'utf8');
   } catch (error) {
-    if (error.code === "ENOENT") return null;
+    if (error.code === 'ENOENT') return null;
     // Any other read failure says nothing about the holder, so reaping the lane would break
     // invariant 1.
     throw error;
@@ -78,16 +78,20 @@ function readClaim(path) {
 
 // Hold the mutex only across scan and publication. A live owner must never be reaped by age; the timeout limits contenders’ waiting.
 function withMutex(directory, body) {
-  const path = join(directory, ".mutex");
+  const path = join(directory, '.mutex');
   const deadline = Date.now() + MUTEX_STALE_MS;
   for (;;) {
     const ownerName = `owner-${process.pid}-${Date.now()}-${++claimSequence}.json`;
     const temporary = join(directory, `.mutex-${ownerName}`);
     mkdirSync(temporary, { mode: 0o700 });
-    writeFileSync(join(temporary, ownerName), JSON.stringify({ pid: process.pid, at: Date.now() }), {
-      flag: "wx",
-      mode: 0o600,
-    });
+    writeFileSync(
+      join(temporary, ownerName),
+      JSON.stringify({ pid: process.pid, at: Date.now() }),
+      {
+        flag: 'wx',
+        mode: 0o600,
+      },
+    );
     try {
       // A populated directory cannot replace another populated directory. Publish only after
       // its owner file is complete, so contenders never observe a half-written owner.
@@ -95,7 +99,7 @@ function withMutex(directory, body) {
     } catch (error) {
       // Discard our unpublished mutex candidate; retry only ownership races and rethrow other publication failures.
       releaseMutex(temporary, ownerName);
-      if (!["EEXIST", "ENOTEMPTY", "EISDIR", "ENOTDIR"].includes(error.code)) throw error;
+      if (!['EEXIST', 'ENOTEMPTY', 'EISDIR', 'ENOTDIR'].includes(error.code)) throw error;
       const holder = readMutexOwner(path);
       // An empty file-format mutex may still belong to a paused publisher; allow the publication grace period before reaping it.
       if (holder?.legacy && (holder.corrupt || !Number.isInteger(holder.pid) || holder.pid <= 0)) {
@@ -104,7 +108,9 @@ function withMutex(directory, body) {
           continue;
         }
         if (Date.now() > deadline)
-          throw new Error(`lane: the legacy claim mutex at ${path} has no valid owner.`, { cause: error });
+          throw new Error(`lane: the legacy claim mutex at ${path} has no valid owner.`, {
+            cause: error,
+          });
         Atomics.wait(MUTEX_WAIT_ARRAY, 0, 0, 10);
         continue;
       }
@@ -120,7 +126,7 @@ function withMutex(directory, body) {
       }
       if (Date.now() > deadline) {
         throw new Error(
-          `lane: the claim mutex at ${path} is held by pid ${holder?.pid ?? "unknown"} and did not clear.`,
+          `lane: the claim mutex at ${path} is held by pid ${holder?.pid ?? 'unknown'} and did not clear.`,
           {
             cause: error,
           },
@@ -143,7 +149,7 @@ function legacyMutexAbandoned(path) {
     return Date.now() - statSync(path).mtimeMs > LEGACY_PUBLISH_GRACE_MS;
   } catch (error) {
     // A vanished mutex is no longer reapable; rethrow other stat failures because owner safety remains unknown.
-    if (error.code === "ENOENT") return false;
+    if (error.code === 'ENOENT') return false;
     throw error;
   }
 }
@@ -155,7 +161,7 @@ function removeLegacyMutex(path) {
   } catch (error) {
     // Ignore missing paths and directory-unlink errors; other failures surface.
     // EPERM is accepted because platforms may use it for directory unlink.
-    if (!["ENOENT", "EISDIR", "EPERM"].includes(error.code)) throw error;
+    if (!['ENOENT', 'EISDIR', 'EPERM'].includes(error.code)) throw error;
   }
 }
 
@@ -167,8 +173,8 @@ function readMutexOwner(path) {
     return claim ? { ...claim, name } : null;
   } catch (error) {
     // A disappeared path is unowned; inspect regular-file claims for compatibility and rethrow every other directory-read failure.
-    if (error.code === "ENOENT") return null;
-    if (error.code === "ENOTDIR") {
+    if (error.code === 'ENOENT') return null;
+    if (error.code === 'ENOTDIR') {
       const claim = readClaim(path);
       return claim ? { ...claim, legacy: true } : null;
     }
@@ -183,7 +189,7 @@ export function releaseMutex(path, ownerName) {
     rmdirSync(path);
   } catch (error) {
     // A successor can keep the directory nonempty; tolerate that ownership race and report other removal failures.
-    if (error.code !== "ENOENT" && error.code !== "ENOTEMPTY")
+    if (error.code !== 'ENOENT' && error.code !== 'ENOTEMPTY')
       console.error(`lane: could not remove ${path}: ${error.message}`);
   }
 }
@@ -193,7 +199,7 @@ function removeQuietly(path) {
   try {
     unlinkSync(path);
   } catch (error) {
-    if (error.code === "ENOENT") return;
+    if (error.code === 'ENOENT') return;
     console.error(`lane: could not remove ${path}: ${error.message}`);
   }
 }
@@ -213,7 +219,7 @@ export function readLiveClaims(directory) {
     names = readdirSync(directory);
   } catch (error) {
     // A missing claim directory means no claims exist; unreadable claims must surface because reaping would be unsafe.
-    if (error.code === "ENOENT") return claims;
+    if (error.code === 'ENOENT') return claims;
     throw error;
   }
   for (const name of names) {
@@ -250,20 +256,28 @@ function collectLiveClaimsAndPruneStaleFiles(directory) {
  */
 export function shareForClaims(claims, cores) {
   const reserved = [...claims.values()].reduce((total, claim) => total + (claim.share ?? 1), 0);
-  return Math.max(1, Math.min(soloShare(cores), reservationCeiling(cores), soloShare(cores) - reserved));
+  return Math.max(
+    1,
+    Math.min(soloShare(cores), reservationCeiling(cores), soloShare(cores) - reserved),
+  );
 }
 
 /** The pid listening on a port, or null. Unix-only; the repository's supported development host. */
 export function listenerPid(port, run = execFileSync) {
   try {
-    const output = String(run("lsof", ["-ti", `tcp:${port}`, "-sTCP:LISTEN"], { stdio: ["ignore", "pipe", "ignore"] }));
+    const output = String(
+      run('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], { stdio: ['ignore', 'pipe', 'ignore'] }),
+    );
     const pid = Number(output.trim().split(/\s+/)[0]);
     return Number.isInteger(pid) ? pid : null;
   } catch (error) {
-    if (error.code === "ENOENT")
-      throw new Error("lane: lsof is required to inspect an occupied lane port; install lsof and retry.", {
-        cause: error,
-      });
+    if (error.code === 'ENOENT')
+      throw new Error(
+        'lane: lsof is required to inspect an occupied lane port; install lsof and retry.',
+        {
+          cause: error,
+        },
+      );
     // A non-zero exit means nothing is listening; lsof reports no match that way.
     return null;
   }
@@ -273,16 +287,21 @@ export function listenerPid(port, run = execFileSync) {
 export function listenerDirectory(pid, run = execFileSync) {
   try {
     const output = String(
-      run("lsof", ["-a", "-p", String(pid), "-d", "cwd", "-Fn"], { stdio: ["ignore", "pipe", "ignore"] }),
+      run('lsof', ['-a', '-p', String(pid), '-d', 'cwd', '-Fn'], {
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }),
     );
-    const line = output.split("\n").find((entry) => entry.startsWith("n"));
+    const line = output.split('\n').find((entry) => entry.startsWith('n'));
     return line ? line.slice(1) : null;
   } catch (error) {
     // Working-directory details are diagnostic; a failed lookup returns unknown, while missing lsof must still surface.
-    if (error.code === "ENOENT")
-      throw new Error("lane: lsof is required to inspect an occupied lane port; install lsof and retry.", {
-        cause: error,
-      });
+    if (error.code === 'ENOENT')
+      throw new Error(
+        'lane: lsof is required to inspect an occupied lane port; install lsof and retry.',
+        {
+          cause: error,
+        },
+      );
     return null;
   }
 }
@@ -306,7 +325,7 @@ export async function assertLaneFree(
       );
     const directory = directoryOf(pid);
     throw new Error(
-      `lane ${lane}: port ${port} (${service}) is held by pid ${pid} running in ${directory ?? "an unknown directory"}. ` +
+      `lane ${lane}: port ${port} (${service}) is held by pid ${pid} running in ${directory ?? 'an unknown directory'}. ` +
         `Stop it with kill ${pid}, or choose another lane with CAPACITYLENS_PORT_LANE=<n>.`,
     );
   }
@@ -318,18 +337,27 @@ export async function assertLaneFree(
  * Creates a filesystem reservation; releasing the returned claim is idempotent.
  * @throws When no lane is available, mutex acquisition times out or filesystem operations fail.
  */
-export function claimLane({ worktree, environment = process.env, cores, lane: requestedLane } = {}) {
+export function claimLane({
+  worktree,
+  environment = process.env,
+  cores,
+  lane: requestedLane,
+} = {}) {
   const directory = laneDirectory(environment);
   mkdirSync(directory, { recursive: true });
   return withMutex(directory, () => {
     const claims = collectLiveClaimsAndPruneStaleFiles(directory);
     const heldClaim = requestedLane === undefined ? undefined : claims.get(requestedLane);
-    if (heldClaim) throw new Error(`lane ${requestedLane} is held by pid ${heldClaim.pid} in ${heldClaim.worktree}`);
-    const lane = requestedLane ?? [...Array(LANE_CEILING).keys()].find((candidate) => !claims.has(candidate));
+    if (heldClaim)
+      throw new Error(
+        `lane ${requestedLane} is held by pid ${heldClaim.pid} in ${heldClaim.worktree}`,
+      );
+    const lane =
+      requestedLane ?? [...Array(LANE_CEILING).keys()].find((candidate) => !claims.has(candidate));
     if (lane === undefined) {
       const holders = [...claims.entries()]
         .map(([held, claim]) => `  lane ${held}: pid ${claim.pid} in ${claim.worktree}`)
-        .join("\n");
+        .join('\n');
       throw new Error(
         `All ${LANE_CEILING} port lanes are held:\n${holders}\nWait for one to finish, or stop one of those runs.`,
       );
@@ -337,9 +365,12 @@ export function claimLane({ worktree, environment = process.env, cores, lane: re
     const share = shareForClaims(claims, cores);
     const path = claimPath(directory, lane);
     const token = `${process.pid}-${Date.now()}-${++claimSequence}`;
-    const descriptor = openSync(path, "wx", 0o600);
+    const descriptor = openSync(path, 'wx', 0o600);
     try {
-      writeFileSync(descriptor, JSON.stringify({ pid: process.pid, worktree, share, token }, null, 2));
+      writeFileSync(
+        descriptor,
+        JSON.stringify({ pid: process.pid, worktree, share, token }, null, 2),
+      );
     } finally {
       closeSync(descriptor);
     }
@@ -361,7 +392,11 @@ export function releaseLane(directory, lane, token) {
  * and claim marker; that claim is never released here. Otherwise this launch claims its own lane,
  * the one selected by hand when the lane variable is set, else the lowest free one.
  */
-export function resolveLaunchClaim({ worktree, environment = process.env, claim = claimLane } = {}) {
+export function resolveLaunchClaim({
+  worktree,
+  environment = process.env,
+  claim = claimLane,
+} = {}) {
   const selected = Boolean(environment[LANE_ENVIRONMENT_KEY]);
   if (selected && environment[LANE_CLAIM_ENVIRONMENT_KEY]) {
     return {
@@ -372,6 +407,10 @@ export function resolveLaunchClaim({ worktree, environment = process.env, claim 
       release: () => false,
     };
   }
-  const claimed = claim({ worktree, environment, ...(selected ? { lane: resolveLane(environment) } : {}) });
+  const claimed = claim({
+    worktree,
+    environment,
+    ...(selected ? { lane: resolveLane(environment) } : {}),
+  });
   return { inherited: false, ...claimed };
 }

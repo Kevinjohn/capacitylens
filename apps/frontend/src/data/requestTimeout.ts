@@ -1,8 +1,8 @@
-import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
-import type { MasqueradeErrorCode } from "@capacitylens/shared/domain/masquerade";
-import { noteAuditWarning } from "@/lib/auditWarning";
-import { readApiErrorCode } from "@/lib/readApiError";
-import { getMasqueradeContextToken } from "@/auth/masqueradeContext";
+import { MASQUERADE_ERROR_CODES } from '@capacitylens/shared/domain/masquerade';
+import type { MasqueradeErrorCode } from '@capacitylens/shared/domain/masquerade';
+import { noteAuditWarning } from '@/lib/auditWarning';
+import { readApiErrorCode } from '@/lib/readApiError';
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 
 let masqueradeEndedHandler: (() => void) | null = null;
 
@@ -23,9 +23,9 @@ export const API_BULK_TIMEOUT_MS = 120_000;
 export function isTransportFailure(error: unknown): boolean {
   return (
     error instanceof TypeError ||
-    (typeof DOMException !== "undefined" &&
+    (typeof DOMException !== 'undefined' &&
       error instanceof DOMException &&
-      (error.name === "AbortError" || error.name === "TimeoutError"))
+      (error.name === 'AbortError' || error.name === 'TimeoutError'))
   );
 }
 
@@ -46,7 +46,9 @@ export function createRequestSignal(
 }
 
 /** Read a recognized masquerade failure code without consuming the caller's response body. */
-export async function readMasqueradeErrorCode(response: Response): Promise<MasqueradeErrorCode | null> {
+export async function readMasqueradeErrorCode(
+  response: Response,
+): Promise<MasqueradeErrorCode | null> {
   const code = await readApiErrorCode(response);
   return Object.values(MASQUERADE_ERROR_CODES).some((candidate) => candidate === code)
     ? (code as MasqueradeErrorCode)
@@ -81,12 +83,18 @@ export async function apiFetch(
   return response;
 }
 
-function headersWithMasqueradeContext(input: RequestInfo | URL, requestOptions: RequestInit): HeadersInit | undefined {
-  const method = (requestOptions.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-  if (method === "OPTIONS") return requestOptions.headers;
+function headersWithMasqueradeContext(
+  input: RequestInfo | URL,
+  requestOptions: RequestInit,
+): HeadersInit | undefined {
+  const method = (
+    requestOptions.method ?? (input instanceof Request ? input.method : 'GET')
+  ).toUpperCase();
+  if (method === 'OPTIONS') return requestOptions.headers;
   const token = getMasqueradeContextToken();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(requestOptions.headers).forEach((value, name) => headers.set(name, value));
-  if (!headers.has("X-Masquerade-Context") && token !== null) headers.set("X-Masquerade-Context", token);
+  if (!headers.has('X-Masquerade-Context') && token !== null)
+    headers.set('X-Masquerade-Context', token);
   return headers;
 }

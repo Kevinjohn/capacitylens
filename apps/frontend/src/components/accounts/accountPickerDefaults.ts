@@ -1,5 +1,5 @@
-import { m } from "@/i18n";
-import { DEFAULT_TIME_ZONE } from "@/lib/timezones";
+import { m } from '@/i18n';
+import { DEFAULT_TIME_ZONE } from '@/lib/timezones';
 
 // The create-company form sets the language, week start, and time zone fields that the server
 // freezes after creation. Defaults are always concrete, and Settings does not edit them. Company
@@ -15,4 +15,4 @@ export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 /** Default timezone for a newly created account. */
 export const DEFAULT_TIMEZONE = DEFAULT_TIME_ZONE;
 /** Default language for a newly created account. */
-export const DEFAULT_LANGUAGE = "en";
+export const DEFAULT_LANGUAGE = 'en';

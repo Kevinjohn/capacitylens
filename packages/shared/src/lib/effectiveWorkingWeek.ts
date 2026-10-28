@@ -1,15 +1,18 @@
-import { canonicalWeekdaySet } from "./accountWorkingDays.js";
-import { hasPersonalWorkingPattern } from "../types/entities.js";
-import type { Resource, Weekday } from "../types/entities.js";
+import { canonicalWeekdaySet } from './accountWorkingDays.js';
+import { hasPersonalWorkingPattern } from '../types/entities.js';
+import type { Resource, Weekday } from '../types/entities.js';
 
 /** The recurring weekdays effective for a resource. The `days` variant is guaranteed to contain
  * at least one weekday, with duplicates removed and values stored in ascending order. */
-export type EffectiveWorkingWeek = { kind: "none" } | { kind: "days"; days: Weekday[] };
+export type EffectiveWorkingWeek = { kind: 'none' } | { kind: 'days'; days: Weekday[] };
 
 /** The membership test for an effective week: false for `none`, so every consumer that asks
  * "is this weekday effective?" shares one definition instead of re-deriving the discriminant. */
-export function effectiveWeekIncludes(effectiveWeek: EffectiveWorkingWeek, weekday: Weekday): boolean {
-  return effectiveWeek.kind === "days" && effectiveWeek.days.includes(weekday);
+export function effectiveWeekIncludes(
+  effectiveWeek: EffectiveWorkingWeek,
+  weekday: Weekday,
+): boolean {
+  return effectiveWeek.kind === 'days' && effectiveWeek.days.includes(weekday);
 }
 
 /** Whether a normal (calendar-respecting) record placed at `weekday` starts outside the effective
@@ -31,13 +34,13 @@ export function lacksEffectiveWorkingDays(
   effectiveWeek: EffectiveWorkingWeek | null | undefined,
   ignoreWorkingDays: boolean | undefined,
 ): boolean {
-  return effectiveWeek?.kind !== "days" && !ignoreWorkingDays;
+  return effectiveWeek?.kind !== 'days' && !ignoreWorkingDays;
 }
 
 /** Derives the company/personal calendar intersection for people. Placeholders and externals have
  * no personal capacity pattern, so their effective calendar is the complete company set. */
 export function effectiveWorkingWeek(
-  resource: Pick<Resource, "kind" | "workingDays">,
+  resource: Pick<Resource, 'kind' | 'workingDays'>,
   accountWorkingDays: Weekday[],
 ): EffectiveWorkingWeek {
   const companyWorkingDays = canonicalWeekdaySet(accountWorkingDays);
@@ -47,5 +50,5 @@ export function effectiveWorkingWeek(
     days = companyWorkingDays.filter((weekday) => personalWorkingDays.has(weekday));
   }
 
-  return days.length === 0 ? { kind: "none" } : { kind: "days", days };
+  return days.length === 0 ? { kind: 'none' } : { kind: 'days', days };
 }

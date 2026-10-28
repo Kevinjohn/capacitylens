@@ -25,24 +25,24 @@
 // cancellation. GitHub gives remaining jobs only a short grace window once a run is cancelled,
 // and that is a property of the platform, not of this file.
 
-import { execFileSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 /** Label used to find and deduplicate the unattended security-workflow failure report. */
-export const ISSUE_LABEL = "security-scan-failure";
+export const ISSUE_LABEL = 'security-scan-failure';
 /** Title used when opening the unattended security-workflow failure report. */
-export const ISSUE_TITLE = "Security workflow is failing";
+export const ISSUE_TITLE = 'Security workflow is failing';
 
 /** Selects open, comment, close or none from workflow results and branch state without changing inputs or performing I/O. */
 export function decide({ results, headSha, branchTip, existingIssue }) {
-  const failed = results.filter((entry) => entry.result === "failure");
-  const cancelled = results.filter((entry) => entry.result === "cancelled");
+  const failed = results.filter((entry) => entry.result === 'failure');
+  const cancelled = results.filter((entry) => entry.result === 'cancelled');
 
   // "skipped" is not a problem. Most jobs here are conditional on the event.
   if (failed.length === 0 && cancelled.length === 0) {
     return existingIssue
-      ? { action: "close", jobs: [], reason: "the workflow is healthy again" }
-      : { action: "none", jobs: [], reason: "the workflow succeeded and no report is open" };
+      ? { action: 'close', jobs: [], reason: 'the workflow is healthy again' }
+      : { action: 'none', jobs: [], reason: 'the workflow succeeded and no report is open' };
   }
 
   // A cancellation on a commit that is no longer the branch tip is `cancel-in-progress` doing its
@@ -50,16 +50,16 @@ export function decide({ results, headSha, branchTip, existingIssue }) {
   // rather than assume, because a missed outage costs more than a redundant issue.
   if (failed.length === 0 && branchTip && branchTip !== headSha) {
     return {
-      action: "none",
+      action: 'none',
       jobs: [],
       reason: `cancelled by a newer push (${branchTip.slice(0, 7)}), which is not a failure`,
     };
   }
 
   const jobs = failed.length > 0 ? failed : cancelled;
-  const kind = failed.length > 0 ? "failed" : "was cancelled without completing";
+  const kind = failed.length > 0 ? 'failed' : 'was cancelled without completing';
   return {
-    action: existingIssue ? "comment" : "open",
+    action: existingIssue ? 'comment' : 'open',
     jobs: jobs.map((entry) => entry.job),
     reason: `the workflow ${kind}`,
   };
@@ -69,12 +69,12 @@ export function decide({ results, headSha, branchTip, existingIssue }) {
 // it is assembled from `needs.*.result` expressions in YAML, where quoting JSON is a trap.
 /** Parses newline-separated job=result records, dropping blank lines and records whose parsed job or result is empty. */
 export function parseResults(raw) {
-  return (raw ?? "")
-    .split("\n")
+  return (raw ?? '')
+    .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const separator = line.indexOf("=");
+      const separator = line.indexOf('=');
       return { job: line.slice(0, separator), result: line.slice(separator + 1) };
     })
     .filter((entry) => entry.job && entry.result);
@@ -84,86 +84,88 @@ export function parseResults(raw) {
 export function buildBody({ decision, context }) {
   const lines = [
     `The \`${context.workflow}\` workflow ${decision.reason}, on a run nobody is watching.`,
-    "",
+    '',
     `- Trigger: \`${context.eventName}\` on \`${context.ref}\``,
     `- Commit: ${context.headSha}`,
-    `- Jobs: ${decision.jobs.length > 0 ? decision.jobs.join(", ") : "none reported — the run failed outside the jobs this check covers"}`,
+    `- Jobs: ${decision.jobs.length > 0 ? decision.jobs.join(', ') : 'none reported — the run failed outside the jobs this check covers'}`,
     `- Run: ${context.runUrl}`,
-    "",
-    "This issue closes itself when the workflow next completes cleanly, so an open report means something still needs attention.",
+    '',
+    'This issue closes itself when the workflow next completes cleanly, so an open report means something still needs attention.',
   ];
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 function gh(args) {
-  return execFileSync("gh", args, { encoding: "utf8" }).trim();
+  return execFileSync('gh', args, { encoding: 'utf8' }).trim();
 }
 
 // Reading the branch tip is best-effort: the API call can fail during the very outage this report
 // exists to surface. A null tip means "unknown", which `decide` treats as "report it".
 function readBranchTip({ refName, eventName }) {
   // Only a branch can be superseded by a newer push. A tag always resolves to its own commit.
-  if (eventName !== "push" && eventName !== "schedule") return null;
+  if (eventName !== 'push' && eventName !== 'schedule') return null;
   try {
-    return gh(["api", `repos/${process.env.GH_REPO}/commits/${refName}`, "--jq", ".sha"]);
+    return gh(['api', `repos/${process.env.GH_REPO}/commits/${refName}`, '--jq', '.sha']);
   } catch (cause) {
-    console.warn(`Could not read the tip of ${refName}, so a cancellation will be reported: ${cause.message}`);
+    console.warn(
+      `Could not read the tip of ${refName}, so a cancellation will be reported: ${cause.message}`,
+    );
     return null;
   }
 }
 
 function readOpenWorkflowIssueNumber() {
   const found = gh([
-    "issue",
-    "list",
-    "--state",
-    "open",
-    "--label",
+    'issue',
+    'list',
+    '--state',
+    'open',
+    '--label',
     ISSUE_LABEL,
-    "--limit",
-    "1",
-    "--json",
-    "number",
-    "--jq",
-    ".[0].number // empty",
+    '--limit',
+    '1',
+    '--json',
+    'number',
+    '--jq',
+    '.[0].number // empty',
   ]);
-  return found === "" ? null : found;
+  return found === '' ? null : found;
 }
 
 function main() {
   const context = {
-    workflow: process.env.GITHUB_WORKFLOW ?? "unknown",
-    eventName: process.env.GITHUB_EVENT_NAME ?? "unknown",
-    ref: process.env.GITHUB_REF ?? "unknown",
-    refName: process.env.GITHUB_REF_NAME ?? "main",
-    headSha: process.env.GITHUB_SHA ?? "unknown",
-    runUrl: process.env.RUN_URL ?? "unknown",
+    workflow: process.env.GITHUB_WORKFLOW ?? 'unknown',
+    eventName: process.env.GITHUB_EVENT_NAME ?? 'unknown',
+    ref: process.env.GITHUB_REF ?? 'unknown',
+    refName: process.env.GITHUB_REF_NAME ?? 'main',
+    headSha: process.env.GITHUB_SHA ?? 'unknown',
+    runUrl: process.env.RUN_URL ?? 'unknown',
   };
   const results = parseResults(process.env.RESULTS);
   if (results.length === 0) {
-    console.error("No job results were passed in; refusing to guess whether the run was healthy.");
+    console.error('No job results were passed in; refusing to guess whether the run was healthy.');
     process.exit(1);
   }
 
   const existingIssue = readOpenWorkflowIssueNumber();
-  const needsTip = results.some((entry) => entry.result === "cancelled");
+  const needsTip = results.some((entry) => entry.result === 'cancelled');
   const branchTip = needsTip ? readBranchTip(context) : null;
   const decision = decide({ results, headSha: context.headSha, branchTip, existingIssue });
 
-  if (decision.action === "none") {
+  if (decision.action === 'none') {
     console.log(`No report filed: ${decision.reason}.`);
     return;
   }
 
-  if (decision.action === "close") {
+  if (decision.action === 'close') {
     gh([
-      "issue",
-      "comment",
+      'issue',
+      'comment',
       existingIssue,
-      "--body",
+      '--body',
       `Closing: ${context.workflow} completed cleanly on ${context.headSha}.\n\nRun: ${context.runUrl}`,
     ]);
-    gh(["issue", "close", existingIssue]);
+    gh(['issue', 'close', existingIssue]);
     console.log(`Closed #${existingIssue}: ${decision.reason}.`);
     return;
   }
@@ -171,23 +173,23 @@ function main() {
   const body = buildBody({ decision, context });
   // The label doubles as the deduplication key, so it has to exist before anything is filed.
   gh([
-    "label",
-    "create",
+    'label',
+    'create',
     ISSUE_LABEL,
-    "--color",
-    "b60205",
-    "--description",
-    "An unattended workflow run failed or was cancelled",
-    "--force",
+    '--color',
+    'b60205',
+    '--description',
+    'An unattended workflow run failed or was cancelled',
+    '--force',
   ]);
 
-  if (decision.action === "comment") {
-    gh(["issue", "comment", existingIssue, "--body", body]);
+  if (decision.action === 'comment') {
+    gh(['issue', 'comment', existingIssue, '--body', body]);
     console.log(`Commented on #${existingIssue}: ${decision.reason}.`);
     return;
   }
 
-  gh(["issue", "create", "--title", ISSUE_TITLE, "--label", ISSUE_LABEL, "--body", body]);
+  gh(['issue', 'create', '--title', ISSUE_TITLE, '--label', ISSUE_LABEL, '--body', body]);
   console.log(`Opened a report: ${decision.reason}.`);
 }
 

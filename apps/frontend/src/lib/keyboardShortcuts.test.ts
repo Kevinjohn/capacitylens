@@ -1,46 +1,50 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildPrimaryShortcut, buildRedoShortcut, buildUndoShortcut } from "./keyboardShortcuts";
-import { m } from "@/i18n";
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildPrimaryShortcut, buildRedoShortcut, buildUndoShortcut } from './keyboardShortcuts';
+import { m } from '@/i18n';
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("primaryShortcut", () => {
-  it.each(["Macintosh", "iPhone", "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)"])(
-    "uses Apple glyphs for %s",
+describe('primaryShortcut', () => {
+  it.each(['Macintosh', 'iPhone', 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)'])(
+    'uses Apple glyphs for %s',
     (userAgent) => {
-      expect(buildPrimaryShortcut({ key: "z", shift: false, userAgent: userAgent })).toBe("⌘Z");
-      expect(buildPrimaryShortcut({ key: "z", shift: true, userAgent: userAgent })).toBe("⌘⇧Z");
+      expect(buildPrimaryShortcut({ key: 'z', shift: false, userAgent: userAgent })).toBe('⌘Z');
+      expect(buildPrimaryShortcut({ key: 'z', shift: true, userAgent: userAgent })).toBe('⌘⇧Z');
     },
   );
 
-  it.each(["Windows NT 10.0", "X11; Linux x86_64", ""])("uses Ctrl labels for %s", (userAgent) => {
-    expect(buildPrimaryShortcut({ key: "z", shift: false, userAgent: userAgent })).toBe("Ctrl+Z");
-    expect(buildPrimaryShortcut({ key: "z", shift: true, userAgent: userAgent })).toBe("Ctrl+Shift+Z");
+  it.each(['Windows NT 10.0', 'X11; Linux x86_64', ''])('uses Ctrl labels for %s', (userAgent) => {
+    expect(buildPrimaryShortcut({ key: 'z', shift: false, userAgent: userAgent })).toBe('Ctrl+Z');
+    expect(buildPrimaryShortcut({ key: 'z', shift: true, userAgent: userAgent })).toBe(
+      'Ctrl+Shift+Z',
+    );
   });
 
-  it("defaults shift to false when the caller omits it", () => {
-    expect(buildPrimaryShortcut({ key: "z", shift: undefined, userAgent: "Windows NT 10.0" })).toBe("Ctrl+Z");
+  it('defaults shift to false when the caller omits it', () => {
+    expect(buildPrimaryShortcut({ key: 'z', shift: undefined, userAgent: 'Windows NT 10.0' })).toBe(
+      'Ctrl+Z',
+    );
   });
 
   it("resolves the current browser's user agent when none is supplied", () => {
-    vi.stubGlobal("navigator", { userAgent: "Macintosh; Intel Mac OS X" });
-    expect(buildPrimaryShortcut({ key: "z" })).toBe("⌘Z");
+    vi.stubGlobal('navigator', { userAgent: 'Macintosh; Intel Mac OS X' });
+    expect(buildPrimaryShortcut({ key: 'z' })).toBe('⌘Z');
 
-    vi.stubGlobal("navigator", { userAgent: "Windows NT 10.0" });
-    expect(buildPrimaryShortcut({ key: "z" })).toBe("Ctrl+Z");
+    vi.stubGlobal('navigator', { userAgent: 'Windows NT 10.0' });
+    expect(buildPrimaryShortcut({ key: 'z' })).toBe('Ctrl+Z');
   });
 
-  it("falls back to Ctrl labels when no navigator is present at all", () => {
-    vi.stubGlobal("navigator", undefined);
-    expect(buildPrimaryShortcut({ key: "z" })).toBe("Ctrl+Z");
+  it('falls back to Ctrl labels when no navigator is present at all', () => {
+    vi.stubGlobal('navigator', undefined);
+    expect(buildPrimaryShortcut({ key: 'z' })).toBe('Ctrl+Z');
   });
 
   it.each([
-    ["macOS", "⌘Z"],
-    ["Windows/Linux", "Ctrl+Z"],
-  ])("passes the %s label through every undo-bearing English message", (_platform, shortcut) => {
+    ['macOS', '⌘Z'],
+    ['Windows/Linux', 'Ctrl+Z'],
+  ])('passes the %s label through every undo-bearing English message', (_platform, shortcut) => {
     const messages = [
       m.scheduler_undo_title({ shortcut }),
       m.scheduler_redo_title({ shortcut }),
@@ -54,20 +58,20 @@ describe("primaryShortcut", () => {
   });
 });
 
-describe("undoShortcut / redoShortcut", () => {
-  it("undoShortcut resolves the plain primary shortcut for the current platform", () => {
-    vi.stubGlobal("navigator", { userAgent: "Windows NT 10.0" });
-    expect(buildUndoShortcut()).toBe("Ctrl+Z");
+describe('undoShortcut / redoShortcut', () => {
+  it('undoShortcut resolves the plain primary shortcut for the current platform', () => {
+    vi.stubGlobal('navigator', { userAgent: 'Windows NT 10.0' });
+    expect(buildUndoShortcut()).toBe('Ctrl+Z');
 
-    vi.stubGlobal("navigator", { userAgent: "Macintosh; Intel Mac OS X" });
-    expect(buildUndoShortcut()).toBe("⌘Z");
+    vi.stubGlobal('navigator', { userAgent: 'Macintosh; Intel Mac OS X' });
+    expect(buildUndoShortcut()).toBe('⌘Z');
   });
 
-  it("redoShortcut resolves the shifted primary shortcut for the current platform", () => {
-    vi.stubGlobal("navigator", { userAgent: "Windows NT 10.0" });
-    expect(buildRedoShortcut()).toBe("Ctrl+Shift+Z");
+  it('redoShortcut resolves the shifted primary shortcut for the current platform', () => {
+    vi.stubGlobal('navigator', { userAgent: 'Windows NT 10.0' });
+    expect(buildRedoShortcut()).toBe('Ctrl+Shift+Z');
 
-    vi.stubGlobal("navigator", { userAgent: "Macintosh; Intel Mac OS X" });
-    expect(buildRedoShortcut()).toBe("⌘⇧Z");
+    vi.stubGlobal('navigator', { userAgent: 'Macintosh; Intel Mac OS X' });
+    expect(buildRedoShortcut()).toBe('⌘⇧Z');
   });
 });

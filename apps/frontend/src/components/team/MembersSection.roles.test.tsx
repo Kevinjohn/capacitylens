@@ -1,11 +1,11 @@
-import { requireCreated } from "@/test/requireCreated";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { requireCreated } from '@/test/requireCreated';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "@/test/fixtures";
-import { useStore } from "@/store/useStore";
-import { m } from "@/i18n";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from '@/test/fixtures';
+import { useStore } from '@/store/useStore';
+import { m } from '@/i18n';
 import {
   accessibleMemberNames,
   accessibleNameMembers,
@@ -16,19 +16,19 @@ import {
   renderSection,
   saveRoleVia,
   soleOwnerAndEditor,
-} from "./MembersSection.testSupport";
-import type { RawMember } from "./MembersSection.testSupport";
+} from './MembersSection.testSupport';
+import type { RawMember } from './MembersSection.testSupport';
 
 const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock("@/auth/accountTransition", () => ({
+vi.mock('@/auth/accountTransition', () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-vi.mock("@/data/apiConfig", () => ({
-  API_BASE: "http://api.test",
+vi.mock('@/data/apiConfig', () => ({
+  API_BASE: 'http://api.test',
   isServerConfigured: () => true,
 }));
 
@@ -43,16 +43,16 @@ afterEach(() => {
 });
 
 async function openInviteDialog(): Promise<void> {
-  await screen.findByTestId("invite-open");
-  fireEvent.click(screen.getByTestId("invite-open"));
-  await screen.findByRole("dialog", { name: "Invite someone" });
+  await screen.findByTestId('invite-open');
+  fireEvent.click(screen.getByTestId('invite-open'));
+  await screen.findByRole('dialog', { name: 'Invite someone' });
 }
 
-describe("MembersSection — admin affordances", () => {
+describe('MembersSection — admin affordances', () => {
   const members: RawMember[] = [
-    { userId: "me", role: "admin", isSelf: true },
-    { userId: "theowner", role: "owner" },
-    { userId: "theeditor", role: "editor" },
+    { userId: 'me', role: 'admin', isSelf: true },
+    { userId: 'theowner', role: 'owner' },
+    { userId: 'theeditor', role: 'editor' },
   ];
 
   registerAdminInviteTests(members);
@@ -63,143 +63,155 @@ describe("MembersSection — admin affordances", () => {
 });
 
 function registerAdminInviteTests(members: RawMember[]): void {
-  it("does NOT offer the owner option in the invite role picker", async () => {
-    vi.stubGlobal("fetch", mockApi(members));
+  it('does NOT offer the owner option in the invite role picker', async () => {
+    vi.stubGlobal('fetch', mockApi(members));
     renderSection();
-    await screen.findByTestId("members-section");
+    await screen.findByTestId('members-section');
     await openInviteDialog();
 
-    fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Admin" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Editor" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
-    expect(screen.queryByTestId("member-sign-in-tracking")).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByTestId('invite-role'), { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Admin' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Editor' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Owner' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('member-sign-in-tracking')).not.toBeInTheDocument();
   });
 
-  it("marks and describes an invalid invitation pre-authorisation email", async () => {
+  it('marks and describes an invalid invitation pre-authorisation email', async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal('fetch', mockApi(members));
     renderSection();
     await openInviteDialog();
-    const email = await screen.findByTestId("invite-preauth");
+    const email = await screen.findByTestId('invite-preauth');
 
-    await user.type(email, "not-an-email");
-    await user.click(screen.getByTestId("invite-submit"));
+    await user.type(email, 'not-an-email');
+    await user.click(screen.getByTestId('invite-submit'));
 
-    const error = await screen.findByRole("alert");
-    expect(email).toHaveAttribute("aria-invalid", "true");
-    expect(email.getAttribute("aria-describedby")?.split(" ")).toContain(error.id);
+    const error = await screen.findByRole('alert');
+    expect(email).toHaveAttribute('aria-invalid', 'true');
+    expect(email.getAttribute('aria-describedby')?.split(' ')).toContain(error.id);
     expect(error).toHaveTextContent(m.identity_err_email());
   });
 
-  it("rejects an invitation pre-authorisation email containing disallowed characters", async () => {
+  it('rejects an invitation pre-authorisation email containing disallowed characters', async () => {
     // Email validation must reject disallowed characters independently of the length cap.
     const user = userEvent.setup();
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal('fetch', mockApi(members));
     renderSection();
     await openInviteDialog();
-    const email = await screen.findByTestId("invite-preauth");
+    const email = await screen.findByTestId('invite-preauth');
 
-    await user.type(email, "a​🙂@example.com");
-    await user.click(screen.getByTestId("invite-submit"));
+    await user.type(email, 'a​🙂@example.com');
+    await user.click(screen.getByTestId('invite-submit'));
 
-    const error = await screen.findByRole("alert");
-    expect(email).toHaveAttribute("aria-invalid", "true");
+    const error = await screen.findByRole('alert');
+    expect(email).toHaveAttribute('aria-invalid', 'true');
     expect(error).toHaveTextContent(m.identity_err_email());
   });
 }
 
 function registerAdminMemberControlTests(members: RawMember[]): void {
   it("shows no role control + no Remove on an OWNER row (admin can't touch an owner)", async () => {
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal('fetch', mockApi(members));
     renderSection();
-    await screen.findByTestId("members-section");
+    await screen.findByTestId('members-section');
 
     const ownerRow = await waitForMemberRow(/theowner@x\.io/);
     expect(ownerRow).toBeTruthy();
 
-    expect(within(ownerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
-    expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
+    expect(within(ownerRow).queryByTestId('member-edit')).not.toBeInTheDocument();
+    expect(within(ownerRow).queryByTestId('member-menu')).not.toBeInTheDocument();
 
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
-    expect(within(editorRow).getByTestId("member-edit")).toBeInTheDocument();
-    await chooseMemberAction(userEvent.setup(), editorRow, "member-remove");
-    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(within(editorRow).getByTestId('member-edit')).toBeInTheDocument();
+    await chooseMemberAction(userEvent.setup(), editorRow, 'member-remove');
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
   });
 
-  it("offers masquerade for every other active member, including an owner, and confirms by name", async () => {
+  it('offers masquerade for every other active member, including an owner, and confirms by name', async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal('fetch', mockApi(members));
     renderSection();
     const selfRow = await waitForMemberRow(/me@x\.io/);
     const ownerRow = await waitForMemberRow(/theowner@x\.io/);
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
-    expect(within(selfRow).queryByTestId("member-masquerade")).not.toBeInTheDocument();
-    expect(within(ownerRow).getByTestId("member-masquerade")).toBeInTheDocument();
-    expect(within(editorRow).getByTestId("member-masquerade")).toBeInTheDocument();
+    expect(within(selfRow).queryByTestId('member-masquerade')).not.toBeInTheDocument();
+    expect(within(ownerRow).getByTestId('member-masquerade')).toBeInTheDocument();
+    expect(within(editorRow).getByTestId('member-masquerade')).toBeInTheDocument();
 
-    await user.click(within(ownerRow).getByTestId("member-masquerade"));
-    const dialog = screen.getByRole("alertdialog");
-    expect(dialog).toHaveTextContent("Confirm you would like to masquerade as theowner@x.io");
-    await user.click(within(dialog).getByRole("button", { name: "Start masquerade" }));
-    expect(accountTransitionMocks.startMasquerade).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID, "theowner");
+    await user.click(within(ownerRow).getByTestId('member-masquerade'));
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Confirm you would like to masquerade as theowner@x.io');
+    await user.click(within(dialog).getByRole('button', { name: 'Start masquerade' }));
+    expect(accountTransitionMocks.startMasquerade).toHaveBeenCalledWith(
+      DEFAULT_ACCOUNT_ID,
+      'theowner',
+    );
   });
 }
 
 function registerAdminConfirmationTests(members: RawMember[]): void {
-  it("names the member and waits for confirmation before sending removal", async () => {
+  it('names the member and waits for confirmation before sending removal', async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi(members);
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
     renderSection();
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
-    await chooseMemberAction(user, editorRow, "member-remove");
+    await chooseMemberAction(user, editorRow, 'member-remove');
 
-    const dialog = screen.getByRole("alertdialog");
-    expect(within(dialog).getByText(/theeditor@x\.io will immediately lose access/)).toBeInTheDocument();
+    const dialog = screen.getByRole('alertdialog');
+    expect(
+      within(dialog).getByText(/theeditor@x\.io will immediately lose access/),
+    ).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(
-      expect.stringContaining("/members/theeditor"),
-      expect.objectContaining({ method: "DELETE" }),
+      expect.stringContaining('/members/theeditor'),
+      expect.objectContaining({ method: 'DELETE' }),
     );
-    await user.click(within(dialog).getByRole("button", { name: "Remove" }));
+    await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor`,
-        expect.objectContaining({ method: "DELETE" }),
+        expect.objectContaining({ method: 'DELETE' }),
       ),
     );
   });
 }
 
 function registerAdminRoleChangeTests(members: RawMember[]): void {
-  it("explains and confirms a role change before sending it", async () => {
+  it('explains and confirms a role change before sending it', async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi(members);
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection();
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
-    await user.click(within(editorRow).getByTestId("member-edit"));
-    const dialog = await screen.findByRole("dialog");
+    await user.click(within(editorRow).getByTestId('member-edit'));
+    const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/theeditor@x\.io/)).toBeInTheDocument();
     expect(
-      within(dialog).getByTestId("member-role-select").querySelector('[data-product-layout="label-control"]'),
+      within(dialog)
+        .getByTestId('member-role-select')
+        .querySelector('[data-product-layout="label-control"]'),
     ).toBeInTheDocument();
-    fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
+    fireEvent.keyDown(within(dialog).getByRole('combobox'), { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('option', { name: 'Viewer' }));
 
-    expect(within(dialog).getByTestId("member-role-summary")).toHaveTextContent(/Read-only schedule access/);
-    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/members/theeditor"), expect.anything());
+    expect(within(dialog).getByTestId('member-role-summary')).toHaveTextContent(
+      /Read-only schedule access/,
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/members/theeditor'),
+      expect.anything(),
+    );
 
-    await user.click(within(dialog).getByTestId("member-role-save"));
+    await user.click(within(dialog).getByTestId('member-role-save'));
     expect(fetchMock).toHaveBeenCalledWith(
       `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor`,
       expect.objectContaining({
-        method: "PATCH",
-        body: JSON.stringify({ role: "viewer" }),
+        method: 'PATCH',
+        body: JSON.stringify({ role: 'viewer' }),
       }),
     );
     expect(useStore.getState().membershipRevision).toBe(revisionBefore);
@@ -207,41 +219,45 @@ function registerAdminRoleChangeTests(members: RawMember[]): void {
 }
 
 function registerAdminProjectionTests(members: RawMember[]): void {
-  it("announces and marks the section busy while a member action is in flight", async () => {
+  it('announces and marks the section busy while a member action is in flight', async () => {
     const user = userEvent.setup();
     let releasePatch!: () => void;
     const patchResponse = new Promise<Response>((resolve) => {
       releasePatch = () => resolve(new Response(null, { status: 204 }));
     });
-    vi.stubGlobal("fetch", mockApi(members, { "PATCH /members/theeditor": () => patchResponse }));
+    vi.stubGlobal('fetch', mockApi(members, { 'PATCH /members/theeditor': () => patchResponse }));
     renderSection();
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
-    await saveRoleVia(user, editorRow, "Viewer");
+    await saveRoleVia(user, editorRow, 'Viewer');
 
-    await waitFor(() => expect(screen.getByTestId("members-section")).toHaveAttribute("aria-busy", "true"));
-    const status = screen.getByRole("status");
+    await waitFor(() =>
+      expect(screen.getByTestId('members-section')).toHaveAttribute('aria-busy', 'true'),
+    );
+    const status = screen.getByRole('status');
     expect(status).toHaveTextContent(m.settings_members_updating());
     expect(status).toHaveFocus();
 
     releasePatch();
-    await waitFor(() => expect(screen.getByTestId("members-section")).toHaveAttribute("aria-busy", "false"));
-    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    await waitFor(() =>
+      expect(screen.getByTestId('members-section')).toHaveAttribute('aria-busy', 'false'),
+    );
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 
-  it("invalidates membership projections when an Admin changes their own role", async () => {
+  it('invalidates membership projections when an Admin changes their own role', async () => {
     const user = userEvent.setup();
     const refreshAuth = vi.fn(async () => {});
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal('fetch', mockApi(members));
     const revisionBefore = useStore.getState().membershipRevision;
     let sawPlanningRead = false;
     const unsubscribe = useStore.subscribe((state) => {
-      if (state.planning.status === "loading") sawPlanningRead = true;
+      if (state.planning.status === 'loading') sawPlanningRead = true;
     });
     renderSection({ refreshAuth });
 
     const selfRow = await waitForMemberRow(/me@x\.io/);
-    await saveRoleVia(user, selfRow, "Editor");
+    await saveRoleVia(user, selfRow, 'Editor');
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
@@ -250,113 +266,136 @@ function registerAdminProjectionTests(members: RawMember[]): void {
   });
 }
 
-describe("MembersSection — owner affordances", () => {
-  it("gives every member-row control a unique member-scoped accessible name", async () => {
-    vi.stubGlobal("fetch", mockApi(accessibleNameMembers));
+describe('MembersSection — owner affordances', () => {
+  it('gives every member-row control a unique member-scoped accessible name', async () => {
+    vi.stubGlobal('fetch', mockApi(accessibleNameMembers));
     renderSection();
-    await screen.findByTestId("members-section");
+    await screen.findByTestId('members-section');
 
     const user = userEvent.setup();
-    const rows = screen.getAllByTestId("member-row");
+    const rows = screen.getAllByTestId('member-row');
     for (const [name, member] of accessibleMemberNames) {
       await expectAccessibleMemberControls({ user, rows, name, member });
     }
-    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
   });
 
-  it("never offers Owner as an ordinary role, even to the Owner", async () => {
+  it('never offers Owner as an ordinary role, even to the Owner', async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("fetch", mockApi(soleOwnerAndEditor));
+    vi.stubGlobal('fetch', mockApi(soleOwnerAndEditor));
     renderSection();
-    await screen.findByTestId("members-section");
+    await screen.findByTestId('members-section');
     await openInviteDialog();
 
-    fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
-    expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
-    await user.keyboard("{Escape}");
+    fireEvent.keyDown(screen.getByTestId('invite-role'), { key: 'ArrowDown' });
+    expect(screen.queryByRole('option', { name: 'Owner' })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
     fireEvent.click(
-      within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Cancel" }),
+      within(screen.getByRole('dialog', { name: 'Invite someone' })).getByRole('button', {
+        name: 'Cancel',
+      }),
     );
 
     const editorRow = await waitForMemberRow(/ed@x\.io/);
-    await user.click(within(editorRow).getByTestId("member-edit"));
-    const dialog = await screen.findByRole("dialog");
-    fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
-    expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
+    await user.click(within(editorRow).getByTestId('member-edit'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.keyDown(within(dialog).getByRole('combobox'), { key: 'ArrowDown' });
+    expect(screen.queryByRole('option', { name: 'Owner' })).not.toBeInTheDocument();
   });
 
-  it("keeps the single Owner outside ordinary role and removal controls", async () => {
-    vi.stubGlobal("fetch", mockApi(soleOwnerAndEditor));
+  it('keeps the single Owner outside ordinary role and removal controls', async () => {
+    vi.stubGlobal('fetch', mockApi(soleOwnerAndEditor));
     renderSection();
-    await screen.findByTestId("members-section");
+    await screen.findByTestId('members-section');
 
     const soleOwnerRow = await waitForMemberRow(/me@x\.io/);
-    expect(within(soleOwnerRow).getByTestId("member-role")).toHaveTextContent(m.settings_member_sole_owner_protected());
+    expect(within(soleOwnerRow).getByTestId('member-role')).toHaveTextContent(
+      m.settings_member_sole_owner_protected(),
+    );
 
-    expect(within(soleOwnerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
-    expect(within(soleOwnerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
+    expect(within(soleOwnerRow).queryByTestId('member-edit')).not.toBeInTheDocument();
+    expect(within(soleOwnerRow).queryByTestId('member-menu')).not.toBeInTheDocument();
   });
 
-  it("opens member actions in a centered dialog that names the selected member", async () => {
+  it('opens member actions in a centered dialog that names the selected member', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       mockApi([
-        { userId: "me", role: "owner", isSelf: true },
-        { userId: "ed", role: "editor" },
+        { userId: 'me', role: 'owner', isSelf: true },
+        { userId: 'ed', role: 'editor' },
       ]),
     );
     renderSection();
 
     const editorRow = await waitForMemberRow(/ed@x\.io/);
-    await user.click(within(editorRow).getByTestId("member-menu"));
+    await user.click(within(editorRow).getByTestId('member-menu'));
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveAccessibleName(m.settings_member_settings_heading());
     // The description, not merely the presence of the address somewhere in the dialog: the
     // labeled action buttons satisfy a text-content assertion on their own.
-    expect(dialog).toHaveAccessibleDescription("ed@x.io");
-    expect(within(dialog).getByTestId("member-actions-list")).toHaveAttribute("role", "group");
-    expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass("border-b");
-    expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
-    expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
-    expect(within(dialog).getByRole("button", { name: "Close" })).toBeInTheDocument();
-    const disable = within(dialog).getByTestId("member-disable");
-    expect(disable).toHaveAttribute("data-slot", "button");
-    expect(disable).toHaveAttribute("data-variant", "outline");
-    expect(disable).toHaveClass("w-full", "justify-start");
+    expect(dialog).toHaveAccessibleDescription('ed@x.io');
+    expect(within(dialog).getByTestId('member-actions-list')).toHaveAttribute('role', 'group');
+    expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass('border-b');
+    expect(dialog.querySelector('form > div.p-4')).toBeInTheDocument();
+    expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass('border-t');
+    expect(within(dialog).getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    const disable = within(dialog).getByTestId('member-disable');
+    expect(disable).toHaveAttribute('data-slot', 'button');
+    expect(disable).toHaveAttribute('data-variant', 'outline');
+    expect(disable).toHaveClass('w-full', 'justify-start');
     expect(dialog.querySelector('[data-slot="dropdown-menu-content"]')).not.toBeInTheDocument();
   });
 
-  it("exposes the current Resource link and eligible choices from its resource dialog", async () => {
+  it('exposes the current Resource link and eligible choices from its resource dialog', async () => {
     const user = userEvent.setup();
-    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    const resource = await requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce Wayne' })),
+    );
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       mockApi([
-        { userId: "me", role: "owner", isSelf: true },
-        { userId: "ed", role: "editor", resourceLink: { resourceId: resource.id, revision: "rev-1" } },
+        { userId: 'me', role: 'owner', isSelf: true },
+        {
+          userId: 'ed',
+          role: 'editor',
+          resourceLink: { resourceId: resource.id, revision: 'rev-1' },
+        },
       ]),
     );
     renderSection();
 
     const editorRow = await waitForMemberRow(/ed@x\.io/);
-    expect(within(editorRow).queryByRole("button", { name: /change Resource/i })).not.toBeInTheDocument();
-    expect(within(editorRow).queryByRole("button", { name: /remove Resource link/i })).not.toBeInTheDocument();
-    expect(within(editorRow).queryByRole("combobox", { name: /choose Resource/i })).not.toBeInTheDocument();
-    await user.click(within(editorRow).getByTestId("member-resource-menu"));
-
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).queryByTestId("member-resource-status")).not.toBeInTheDocument();
-    expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass("border-b");
-    expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
-    expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
     expect(
-      within(dialog).getByTestId("member-resource-link").closest('[data-product-layout="label-control"]'),
+      within(editorRow).queryByRole('button', { name: /change Resource/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(editorRow).queryByRole('button', { name: /remove Resource link/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(editorRow).queryByRole('combobox', { name: /choose Resource/i }),
+    ).not.toBeInTheDocument();
+    await user.click(within(editorRow).getByTestId('member-resource-menu'));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByTestId('member-resource-status')).not.toBeInTheDocument();
+    expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass('border-b');
+    expect(dialog.querySelector('form > div.p-4')).toBeInTheDocument();
+    expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass('border-t');
+    expect(
+      within(dialog)
+        .getByTestId('member-resource-link')
+        .closest('[data-product-layout="label-control"]'),
     ).toBeInTheDocument();
-    expect(within(dialog).getByTestId("member-resource-link")).toHaveAttribute("data-slot", "select-trigger");
-    expect(within(dialog).getByRole("combobox", { name: /choose Resource/i })).toHaveTextContent("Bruce Wayne");
-    const removeLink = within(dialog).getByRole("button", { name: /remove Resource link/i });
-    expect(removeLink).toHaveTextContent("Remove link to resource");
+    expect(within(dialog).getByTestId('member-resource-link')).toHaveAttribute(
+      'data-slot',
+      'select-trigger',
+    );
+    expect(within(dialog).getByRole('combobox', { name: /choose Resource/i })).toHaveTextContent(
+      'Bruce Wayne',
+    );
+    const removeLink = within(dialog).getByRole('button', { name: /remove Resource link/i });
+    expect(removeLink).toHaveTextContent('Remove link to resource');
   });
 });

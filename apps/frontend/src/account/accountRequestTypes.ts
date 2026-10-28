@@ -1,4 +1,4 @@
-import type { InvitationRole } from "@capacitylens/shared/account/types";
+import type { InvitationRole } from '@capacitylens/shared/account/types';
 
 /** Fields sent when creating a workspace invitation. */
 export interface CreateInvitationBody {

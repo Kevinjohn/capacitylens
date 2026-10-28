@@ -1,64 +1,64 @@
-import { describe, it, expect } from "vitest";
-import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
-import { eachDayISO, addDaysISO } from "@capacitylens/shared/lib/dateMath";
-import { resolveColumnFit } from "@/lib/schedulerConfig";
+import { describe, it, expect } from 'vitest';
+import { buildColumnGeometry, resolveLeftEdgeDate } from './columnGeometry';
+import { eachDayISO, addDaysISO } from '@capacitylens/shared/lib/dateMath';
+import { resolveColumnFit } from '@/lib/schedulerConfig';
 
-const WEEK = eachDayISO("2026-06-01", "2026-06-07");
+const WEEK = eachDayISO('2026-06-01', '2026-06-07');
 const OFF = { minimiseWeekends: false, weekendWidth: 20 };
 const ON = { minimiseWeekends: true, weekendWidth: 20 };
 
-describe("resolveLeftEdgeDate", () => {
+describe('resolveLeftEdgeDate', () => {
   const geom = buildColumnGeometry(WEEK, 48, OFF);
 
-  it("returns undefined for an empty day window", () => {
+  it('returns undefined for an empty day window', () => {
     expect(resolveLeftEdgeDate(buildColumnGeometry([], 48, OFF), [], 0)).toBeUndefined();
   });
 
-  it("rejects a custom geometry index beyond the day window", () => {
+  it('rejects a custom geometry index beyond the day window', () => {
     const customGeom = { ...geom, indexAtScroll: () => WEEK.length };
-    expect(() => resolveLeftEdgeDate(customGeom, WEEK, 0)).toThrow("outside the day window");
+    expect(() => resolveLeftEdgeDate(customGeom, WEEK, 0)).toThrow('outside the day window');
   });
 
-  it("uses the rounded column for a fractional position below a valid boundary", () => {
+  it('uses the rounded column for a fractional position below a valid boundary', () => {
     expect(resolveLeftEdgeDate(geom, WEEK, 47.6)).toBe(WEEK[1]);
   });
 });
 
-describe("buildColumnGeometry — minimise OFF reproduces the uniform index*dayWidth grid", () => {
+describe('buildColumnGeometry — minimise OFF reproduces the uniform index*dayWidth grid', () => {
   const geom = buildColumnGeometry(WEEK, 48, OFF);
 
-  it("every column is dayWidth wide and offsets are the running multiples", () => {
+  it('every column is dayWidth wide and offsets are the running multiples', () => {
     expect(geom.widths).toEqual([48, 48, 48, 48, 48, 48, 48]);
     expect(geom.offsets).toEqual([0, 48, 96, 144, 192, 240, 288, 336]);
     expect(geom.totalWidth).toBe(336);
     expect(geom.minimiseActive).toBe(false);
   });
 
-  it("x(i) === i * dayWidth and widthOf(i) === dayWidth", () => {
+  it('x(i) === i * dayWidth and widthOf(i) === dayWidth', () => {
     for (let i = 0; i < WEEK.length; i++) {
       expect(geom.x(i)).toBe(i * 48);
       expect(geom.widthOf(i)).toBe(48);
     }
   });
 
-  it("xForDateInGeom / widthForDates reproduce the uniform index*dayWidth pixel values", () => {
+  it('xForDateInGeom / widthForDates reproduce the uniform index*dayWidth pixel values', () => {
     for (let i = 0; i < WEEK.length; i++) {
       const day = WEEK[i];
       expect(day).toBeDefined();
-      if (!day) throw new Error("Expected a date for every week index.");
+      if (!day) throw new Error('Expected a date for every week index.');
       expect(geom.xForDateInGeom(day)).toBe(i * 48);
     }
 
-    expect(geom.widthForDates("2026-06-01", "2026-06-02")).toBe(2 * 48);
-    expect(geom.widthForDates("2026-06-05", "2026-06-07")).toBe(3 * 48);
+    expect(geom.widthForDates('2026-06-01', '2026-06-02')).toBe(2 * 48);
+    expect(geom.widthForDates('2026-06-05', '2026-06-07')).toBe(3 * 48);
   });
 
-  it("xForDateInGeom extrapolates off-window dates at full dayWidth (overflow geometry preserved)", () => {
-    expect(geom.xForDateInGeom("2026-05-30")).toBe(-2 * 48);
-    expect(geom.xForDateInGeom("2026-06-09")).toBe(8 * 48);
+  it('xForDateInGeom extrapolates off-window dates at full dayWidth (overflow geometry preserved)', () => {
+    expect(geom.xForDateInGeom('2026-05-30')).toBe(-2 * 48);
+    expect(geom.xForDateInGeom('2026-06-09')).toBe(8 * 48);
   });
 
-  it("indexAt reduces to the old floor(px / dayWidth), clamped to [0, n-1]", () => {
+  it('indexAt reduces to the old floor(px / dayWidth), clamped to [0, n-1]', () => {
     expect(geom.indexAt(-10)).toBe(0);
     expect(geom.indexAt(0)).toBe(0);
     expect(geom.indexAt(47)).toBe(0);
@@ -71,10 +71,10 @@ describe("buildColumnGeometry — minimise OFF reproduces the uniform index*dayW
   });
 });
 
-describe("buildColumnGeometry — minimise ON narrows the weekend columns", () => {
+describe('buildColumnGeometry — minimise ON narrows the weekend columns', () => {
   const geom = buildColumnGeometry(WEEK, 48, ON);
 
-  it("Sat and Sun take weekendWidth; weekdays keep dayWidth", () => {
+  it('Sat and Sun take weekendWidth; weekdays keep dayWidth', () => {
     expect(geom.widths).toEqual([48, 48, 48, 48, 48, 20, 20]);
     expect(geom.offsets).toEqual([0, 48, 96, 144, 192, 240, 260, 280]);
 
@@ -82,18 +82,18 @@ describe("buildColumnGeometry — minimise ON narrows the weekend columns", () =
     expect(geom.minimiseActive).toBe(true);
   });
 
-  it("spanWidth across the narrow weekend sums the real (mixed) widths", () => {
+  it('spanWidth across the narrow weekend sums the real (mixed) widths', () => {
     expect(geom.spanWidth(4, 6)).toBe(88);
 
-    expect(geom.widthForDates("2026-06-05", "2026-06-07")).toBe(88);
+    expect(geom.widthForDates('2026-06-05', '2026-06-07')).toBe(88);
 
-    expect(geom.widthForDates("2026-06-01", "2026-06-02")).toBe(96);
+    expect(geom.widthForDates('2026-06-01', '2026-06-02')).toBe(96);
   });
 
-  it("a bar starting on a narrow weekend lands at the summed offset", () => {
-    expect(geom.xForDateInGeom("2026-06-06")).toBe(240);
+  it('a bar starting on a narrow weekend lands at the summed offset', () => {
+    expect(geom.xForDateInGeom('2026-06-06')).toBe(240);
 
-    expect(geom.xForDateInGeom("2026-06-07")).toBe(260);
+    expect(geom.xForDateInGeom('2026-06-07')).toBe(260);
   });
 
   it('caps weekendWidth at dayWidth (a "narrow" column can never be wider than a normal one)', () => {
@@ -102,7 +102,7 @@ describe("buildColumnGeometry — minimise ON narrows the weekend columns", () =
     expect(wide.widths).toEqual([18, 18, 18, 18, 18, 18, 18]);
   });
 
-  it("degrades to full-width weekends when weekendWidth is unmeasured (NaN / 0)", () => {
+  it('degrades to full-width weekends when weekendWidth is unmeasured (NaN / 0)', () => {
     for (const bad of [NaN, 0, -5]) {
       const geomBad = buildColumnGeometry(WEEK, 48, { minimiseWeekends: true, weekendWidth: bad });
       expect(geomBad.widths.every((w) => w === 48)).toBe(true);
@@ -111,9 +111,9 @@ describe("buildColumnGeometry — minimise ON narrows the weekend columns", () =
   });
 });
 
-describe("buildColumnGeometry — viewport fit remainder", () => {
-  it("distributes spare pixels within each week instead of exposing the following date", () => {
-    const twoWeeks = eachDayISO("2026-06-01", "2026-06-14");
+describe('buildColumnGeometry — viewport fit remainder', () => {
+  it('distributes spare pixels within each week instead of exposing the following date', () => {
+    const twoWeeks = eachDayISO('2026-06-01', '2026-06-14');
     const geom = buildColumnGeometry(twoWeeks, 97, {
       minimiseWeekends: true,
       weekendWidth: 22,
@@ -128,9 +128,9 @@ describe("buildColumnGeometry — viewport fit remainder", () => {
   });
 });
 
-describe("buildColumnGeometry — indexAt is the exact inverse of x() at every boundary", () => {
+describe('buildColumnGeometry — indexAt is the exact inverse of x() at every boundary', () => {
   for (const opts of [OFF, ON]) {
-    const label = opts.minimiseWeekends ? "minimise ON" : "minimise OFF";
+    const label = opts.minimiseWeekends ? 'minimise ON' : 'minimise OFF';
     const geom = buildColumnGeometry(WEEK, 48, opts);
 
     it(`${label}: indexAt(x(i)) === i, and indexAt(x(i) - 1) === i - 1`, () => {
@@ -142,81 +142,81 @@ describe("buildColumnGeometry — indexAt is the exact inverse of x() at every b
   }
 });
 
-describe("buildColumnGeometry — malformed windows", () => {
-  it("rejects a sparse day window instead of collapsing the missing column", () => {
+describe('buildColumnGeometry — malformed windows', () => {
+  it('rejects a sparse day window instead of collapsing the missing column', () => {
     const sparseDays = [...WEEK];
     delete sparseDays[3];
 
-    expect(() => buildColumnGeometry(sparseDays, 48, OFF)).toThrow("day window must be dense");
+    expect(() => buildColumnGeometry(sparseDays, 48, OFF)).toThrow('day window must be dense');
   });
 
-  it("rejects a missing width instead of treating a misaligned column as zero-width", () => {
+  it('rejects a missing width instead of treating a misaligned column as zero-width', () => {
     const geom = buildColumnGeometry(WEEK, 48, OFF);
     delete geom.widths[3];
 
-    expect(() => geom.widthOf(3)).toThrow("widths must align with the day window");
+    expect(() => geom.widthOf(3)).toThrow('widths must align with the day window');
   });
 
-  it("rejects a missing offset instead of treating a misaligned edge as zero", () => {
+  it('rejects a missing offset instead of treating a misaligned edge as zero', () => {
     const geom = buildColumnGeometry(WEEK, 48, OFF);
     delete geom.offsets[3];
 
-    expect(() => geom.x(3)).toThrow("offsets must be dense");
+    expect(() => geom.x(3)).toThrow('offsets must be dense');
   });
 });
 
-describe("buildColumnGeometry — gating + degenerate windows", () => {
-  it("does NOT narrow below the per-day-column threshold (header shows week blocks there)", () => {
+describe('buildColumnGeometry — gating + degenerate windows', () => {
+  it('does NOT narrow below the per-day-column threshold (header shows week blocks there)', () => {
     const geom = buildColumnGeometry(WEEK, 12, ON);
     expect(geom.minimiseActive).toBe(false);
     expect(geom.widths).toEqual([12, 12, 12, 12, 12, 12, 12]);
   });
 
-  it("handles an empty window without throwing or producing NaN", () => {
+  it('handles an empty window without throwing or producing NaN', () => {
     const geom = buildColumnGeometry([], 48, ON);
     expect(geom.totalWidth).toBe(0);
     expect(geom.offsets).toEqual([0]);
     expect(geom.indexAt(0)).toBe(0);
     expect(geom.x(3)).toBe(0);
     expect(geom.widthOf(0)).toBe(0);
-    expect(geom.xForDateInGeom("2026-06-01")).toBe(0);
-    expect(geom.widthForDates("2026-06-01", "2026-06-02")).toBe(0);
+    expect(geom.xForDateInGeom('2026-06-01')).toBe(0);
+    expect(geom.widthForDates('2026-06-01', '2026-06-02')).toBe(0);
   });
 
-  it("widthForDates clamps a reversed range to 0 (never negative)", () => {
+  it('widthForDates clamps a reversed range to 0 (never negative)', () => {
     const geom = buildColumnGeometry(WEEK, 48, OFF);
-    expect(geom.widthForDates("2026-06-05", "2026-06-01")).toBe(0);
+    expect(geom.widthForDates('2026-06-05', '2026-06-01')).toBe(0);
   });
 
-  it("x() clamps a negative index to the left edge (0), not offsets[negativeIndex]", () => {
+  it('x() clamps a negative index to the left edge (0), not offsets[negativeIndex]', () => {
     const geom = buildColumnGeometry(WEEK, 48, OFF);
     expect(geom.x(-1)).toBe(0);
     expect(geom.x(-99)).toBe(0);
   });
 
-  it("widthOf is 0 for an out-of-range NEGATIVE index (not widths[negativeIndex])", () => {
+  it('widthOf is 0 for an out-of-range NEGATIVE index (not widths[negativeIndex])', () => {
     const geom = buildColumnGeometry(WEEK, 48, OFF);
     expect(geom.widthOf(-1)).toBe(0);
   });
 
-  it("indexAt on an empty geometry returns 0 even for a large positive px (never n-1 = -1)", () => {
+  it('indexAt on an empty geometry returns 0 even for a large positive px (never n-1 = -1)', () => {
     const geom = buildColumnGeometry([], 48, OFF);
     expect(geom.indexAt(5)).toBe(0);
   });
 
-  it("widthForDates returns 0 (not NaN) when only ONE side of the range is unparseable", () => {
+  it('widthForDates returns 0 (not NaN) when only ONE side of the range is unparseable', () => {
     const geom = buildColumnGeometry(WEEK, 48, OFF);
-    expect(geom.widthForDates("not-a-date", "2026-06-02")).toBe(0);
-    expect(geom.widthForDates("2026-06-02", "not-a-date")).toBe(0);
+    expect(geom.widthForDates('not-a-date', '2026-06-02')).toBe(0);
+    expect(geom.widthForDates('2026-06-02', 'not-a-date')).toBe(0);
   });
 
-  it("narrows weekends exactly AT the DAY_COLUMN_MIN_WIDTH threshold (>=, not >)", () => {
+  it('narrows weekends exactly AT the DAY_COLUMN_MIN_WIDTH threshold (>=, not >)', () => {
     const geom = buildColumnGeometry(WEEK, 18, { minimiseWeekends: true, weekendWidth: 10 });
     expect(geom.minimiseActive).toBe(true);
     expect(geom.widths).toEqual([18, 18, 18, 18, 18, 10, 10]);
   });
 
-  it("keeps the complete fit monotonic when weekend-aware width crosses the narrowing threshold", () => {
+  it('keeps the complete fit monotonic when weekend-aware width crosses the narrowing threshold', () => {
     const totalWidths = [110, 112, 114, 116, 118, 120].map((availableWidth) => {
       const fit = resolveColumnFit(availableWidth, 1, 13);
       return buildColumnGeometry(WEEK, fit.dayWidth, {
@@ -227,20 +227,22 @@ describe("buildColumnGeometry — gating + degenerate windows", () => {
     });
 
     expect(totalWidths).toEqual([110, 112, 114, 116, 118, 120]);
-    expect(totalWidths.every((width, index) => index === 0 || width >= (totalWidths[index - 1] ?? 0))).toBe(true);
+    expect(
+      totalWidths.every((width, index) => index === 0 || width >= (totalWidths[index - 1] ?? 0)),
+    ).toBe(true);
   });
 });
 
 // A whole-week pan changes dates but preserves weekday widths and scroll offsets, so the visible-start date must advance by the same number of days.
-describe("pan invariant: a +7-day Back/Forward pan moves the visible-window start by exactly +7", () => {
-  const daysOld = eachDayISO("2026-06-01", "2026-07-12");
+describe('pan invariant: a +7-day Back/Forward pan moves the visible-window start by exactly +7', () => {
+  const daysOld = eachDayISO('2026-06-01', '2026-07-12');
   const daysNew = daysOld.map((d) => addDaysISO(d, 7));
 
   for (const opts of [
     { minimiseWeekends: false, weekendWidth: 22 },
     { minimiseWeekends: true, weekendWidth: 22 },
   ]) {
-    const label = opts.minimiseWeekends ? "minimise ON" : "minimise OFF";
+    const label = opts.minimiseWeekends ? 'minimise ON' : 'minimise OFF';
     const geomOld = buildColumnGeometry(daysOld, 48, opts);
     const geomNew = buildColumnGeometry(daysNew, 48, opts);
 
@@ -257,7 +259,7 @@ describe("pan invariant: a +7-day Back/Forward pan moves the visible-window star
 
         const oldDay = daysOld[idxOld];
         expect(oldDay).toBeDefined();
-        if (!oldDay) throw new Error("Expected the old visible date.");
+        if (!oldDay) throw new Error('Expected the old visible date.');
         expect(daysNew[idxNew]).toBe(addDaysISO(oldDay, 7));
       }
     });

@@ -1,26 +1,26 @@
-import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
-import type { Mock } from "vitest";
-import { screen, act, fireEvent, waitFor, within } from "@testing-library/react";
-import { PlanningControllerError } from "@/data/planning/planningCacheController";
-import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { AppShell } from "./AppShell";
-import { useStore } from "@/store/useStore";
-import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
-import { stubMatchMedia } from "@/test/stubMatchMedia";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import * as accountTransition from "@/auth/accountTransition";
-import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
+import { screen, act, fireEvent, waitFor, within } from '@testing-library/react';
+import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { AppShell } from './AppShell';
+import { useStore } from '@/store/useStore';
+import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { stubMatchMedia } from '@/test/stubMatchMedia';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import * as accountTransition from '@/auth/accountTransition';
+import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 const runtimeFlags = vi.hoisted(() => ({ serverMode: false }));
-vi.mock("@/i18n", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/i18n")>()),
+vi.mock('@/i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/i18n')>()),
   syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
 }));
 
-vi.mock("@/data/apiConfig", () => ({
-  API_BASE: "",
+vi.mock('@/data/apiConfig', () => ({
+  API_BASE: '',
   isDemoMode: () => !runtimeFlags.serverMode,
   isServerConfigured: () => runtimeFlags.serverMode,
 }));
@@ -34,20 +34,23 @@ beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
   runtimeFlags.serverMode = false;
   // Seed an active account so these tests exercise the shell.
-  localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
+  localStorage.setItem('capacitylens/productOrientation/v1/demo/acct-test', 'dismissed');
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().clearFilters();
   // Clear any leftover transient notice so a prior test's Sonner toast can't bleed in (the
   // toast layer is module-global; the store notice is the source of truth the bridge reads).
   useStore.getState().setNotice(null);
-  useStore.getState().setMasquerade({ kind: "inactive" });
+  useStore.getState().setMasquerade({ kind: 'inactive' });
   // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
   useStore.getState().setHydrated(true);
 });
 
 type RenderAppShellOptions = { initialEntries?: string[]; includeLocationProbe?: boolean };
-function renderAppShell({ initialEntries = ["/"], includeLocationProbe = false }: RenderAppShellOptions = {}) {
+function renderAppShell({
+  initialEntries = ['/'],
+  includeLocationProbe = false,
+}: RenderAppShellOptions = {}) {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <AppShell />
@@ -57,8 +60,10 @@ function renderAppShell({ initialEntries = ["/"], includeLocationProbe = false }
 }
 
 function mockNavigationType(type: NavigationTimingType) {
-  vi.spyOn(performance, "getEntriesByType").mockImplementation((entryType) =>
-    entryType === "navigation" ? ([{ type } as PerformanceNavigationTiming] satisfies PerformanceEntry[]) : [],
+  vi.spyOn(performance, 'getEntriesByType').mockImplementation((entryType) =>
+    entryType === 'navigation'
+      ? ([{ type } as PerformanceNavigationTiming] satisfies PerformanceEntry[])
+      : [],
   );
 }
 
@@ -66,7 +71,11 @@ function LocationProbe() {
   const location = useLocation();
   const navigate = useNavigate();
   return (
-    <button type="button" data-testid="location-probe" onClick={() => void navigate("/settings?tab=security")}>
+    <button
+      type="button"
+      data-testid="location-probe"
+      onClick={() => void navigate('/settings?tab=security')}
+    >
       {location.pathname}
       {location.search}
       {location.hash}
@@ -74,61 +83,61 @@ function LocationProbe() {
   );
 }
 
-it("shows a fail-closed banner while a member view is starting", () => {
+it('shows a fail-closed banner while a member view is starting', () => {
   useStore.getState().setMasquerade({
-    kind: "starting",
+    kind: 'starting',
     generation: 1,
-    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
   });
 
   renderAppShell({});
 
-  const banner = screen.getByTestId("masquerade-banner");
-  expect(banner).toHaveTextContent("Starting member view…");
-  expect(within(banner).queryByRole("button")).not.toBeInTheDocument();
+  const banner = screen.getByTestId('masquerade-banner');
+  expect(banner).toHaveTextContent('Starting member view…');
+  expect(within(banner).queryByRole('button')).not.toBeInTheDocument();
 });
 
-it("offers projection recovery after the server has prepared a starting member view", () => {
+it('offers projection recovery after the server has prepared a starting member view', () => {
   useStore.getState().setMasquerade({
-    kind: "starting",
+    kind: 'starting',
     generation: 1,
-    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
     state: {
       accountId: DEFAULT_ACCOUNT_ID,
-      targetUserId: "u-viewer",
-      targetName: "Selina Kyle",
-      effectiveRole: "viewer",
-      startedAt: "2026-09-01T10:00:00.000Z",
-      expiresAt: "2999-09-01T10:15:00.000Z",
-      token: "token-1",
+      targetUserId: 'u-viewer',
+      targetName: 'Selina Kyle',
+      effectiveRole: 'viewer',
+      startedAt: '2026-09-01T10:00:00.000Z',
+      expiresAt: '2999-09-01T10:15:00.000Z',
+      token: 'token-1',
     },
   });
 
   renderAppShell({});
 
-  const banner = screen.getByTestId("masquerade-banner");
-  expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
-  expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
+  const banner = screen.getByTestId('masquerade-banner');
+  expect(within(banner).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  expect(within(banner).getByRole('button', { name: 'End now' })).toBeInTheDocument();
 });
 
-it("hides old actor route data during a member-view projection while keeping recovery controls", () => {
+it('hides old actor route data during a member-view projection while keeping recovery controls', () => {
   useStore.getState().setMasquerade({
-    kind: "starting",
+    kind: 'starting',
     generation: 1,
-    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
     state: {
       accountId: DEFAULT_ACCOUNT_ID,
-      targetUserId: "u-viewer",
-      targetName: "Selina Kyle",
-      effectiveRole: "viewer",
-      startedAt: "2026-09-01T10:00:00.000Z",
-      expiresAt: "2999-09-01T10:15:00.000Z",
-      token: "token-1",
+      targetUserId: 'u-viewer',
+      targetName: 'Selina Kyle',
+      effectiveRole: 'viewer',
+      startedAt: '2026-09-01T10:00:00.000Z',
+      expiresAt: '2999-09-01T10:15:00.000Z',
+      token: 'token-1',
     },
   });
 
   render(
-    <MemoryRouter initialEntries={["/"]}>
+    <MemoryRouter initialEntries={['/']}>
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<div>old actor private row</div>} />
@@ -137,62 +146,73 @@ it("hides old actor route data during a member-view projection while keeping rec
     </MemoryRouter>,
   );
 
-  expect(screen.getByTestId("masquerade-banner")).toHaveTextContent("Starting member view…");
-  expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "End now" })).toBeInTheDocument();
-  expect(screen.queryByText("old actor private row")).not.toBeInTheDocument();
-  expect(screen.getAllByRole("status").some((element) => element.textContent.includes("Loading"))).toBe(true);
+  expect(screen.getByTestId('masquerade-banner')).toHaveTextContent('Starting member view…');
+  expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'End now' })).toBeInTheDocument();
+  expect(screen.queryByText('old actor private row')).not.toBeInTheDocument();
+  expect(
+    screen.getAllByRole('status').some((element) => element.textContent.includes('Loading')),
+  ).toBe(true);
 });
 
-it("offers Retry and End when an authenticated cold member view has no selected company", () => {
+it('offers Retry and End when an authenticated cold member view has no selected company', () => {
   useStore.getState().clearPlanning();
   useStore.getState().setMasquerade({
-    kind: "starting",
+    kind: 'starting',
     generation: 1,
-    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
     state: {
       accountId: DEFAULT_ACCOUNT_ID,
-      targetUserId: "u-viewer",
-      targetName: "Selina Kyle",
-      effectiveRole: "viewer",
-      startedAt: "2026-09-01T10:00:00.000Z",
-      expiresAt: "2999-09-01T10:15:00.000Z",
-      token: "token-1",
+      targetUserId: 'u-viewer',
+      targetName: 'Selina Kyle',
+      effectiveRole: 'viewer',
+      startedAt: '2026-09-01T10:00:00.000Z',
+      expiresAt: '2999-09-01T10:15:00.000Z',
+      token: 'token-1',
     },
   });
   renderAppShell();
-  const banner = screen.getByTestId("masquerade-banner");
-  expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
-  expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
+  const banner = screen.getByTestId('masquerade-banner');
+  expect(within(banner).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  expect(within(banner).getByRole('button', { name: 'End now' })).toBeInTheDocument();
 });
 
-it("consumes a joined-account query only once and preserves later route queries", async () => {
-  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`], includeLocationProbe: true });
+it('consumes a joined-account query only once and preserves later route queries', async () => {
+  renderAppShell({
+    initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`],
+    includeLocationProbe: true,
+  });
 
-  await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent(/^\/$/));
-  fireEvent.click(screen.getByTestId("location-probe"));
-  await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent("/settings?tab=security"));
+  await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent(/^\/$/));
+  fireEvent.click(screen.getByTestId('location-probe'));
+  await waitFor(() =>
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings?tab=security'),
+  );
 });
 
-it("removes only the joined-account handoff from the entry query", async () => {
+it('removes only the joined-account handoff from the entry query', async () => {
   renderAppShell({
     initialEntries: [`/?tab=security&joinedAccount=${DEFAULT_ACCOUNT_ID}&view=archived#members`],
     includeLocationProbe: true,
   });
 
   await waitFor(() =>
-    expect(screen.getByTestId("location-probe")).toHaveTextContent("/?tab=security&view=archived#members"),
+    expect(screen.getByTestId('location-probe')).toHaveTextContent(
+      '/?tab=security&view=archived#members',
+    ),
   );
 });
 
-it("waits for initial hydration before consuming a joined-account handoff", async () => {
+it('waits for initial hydration before consuming a joined-account handoff', async () => {
   useStore.getState().setActiveAccount(null);
   useStore.getState().setHydrated(false);
 
   renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`] });
 
   await waitFor(() =>
-    expect(useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID)).toBe(true),
+    expect(
+      useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID),
+    ).toBe(true),
   );
   expect(useStore.getState().activeAccountId).toBeNull();
 
@@ -200,11 +220,13 @@ it("waits for initial hydration before consuming a joined-account handoff", asyn
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
 });
 
-it("does not reactivate a consumed joined-account handoff after a later account-list refresh", async () => {
-  const otherAccountId = "acct-other";
-  const accounts = [makeAccount(), makeAccount({ id: otherAccountId, name: "Other Co" })];
+it('does not reactivate a consumed joined-account handoff after a later account-list refresh', async () => {
+  const otherAccountId = 'acct-other';
+  const accounts = [makeAccount(), makeAccount({ id: otherAccountId, name: 'Other Co' })];
   useStore.getState().replaceAll(makeAppData({ accounts }));
-  useStore.getState().setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: "owner" })) });
+  useStore
+    .getState()
+    .setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: 'owner' })) });
   useStore.getState().setActiveAccount(otherAccountId);
 
   renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`] });
@@ -213,139 +235,155 @@ it("does not reactivate a consumed joined-account handoff after a later account-
 
   act(() => {
     useStore.getState().setActiveAccount(otherAccountId);
-    useStore.getState().setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: "owner" })) });
+    useStore
+      .getState()
+      .setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: 'owner' })) });
   });
 
   expect(useStore.getState().activeAccountId).toBe(otherAccountId);
 });
 
-it("does not apply a late joined-account handoff after an explicit company choice", async () => {
-  const lateAccountId = "acct-late";
+it('does not apply a late joined-account handoff after an explicit company choice', async () => {
+  const lateAccountId = 'acct-late';
   useStore.getState().setActiveAccount(null);
 
   renderAppShell({ initialEntries: [`/?joinedAccount=${lateAccountId}`] });
   await waitFor(() =>
-    expect(useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID)).toBe(true),
+    expect(
+      useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID),
+    ).toBe(true),
   );
 
   act(() => useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID));
   act(() => {
     useStore.getState().setAccountSummaries({
-      list: [...useStore.getState().accountSummaries, { id: lateAccountId, name: "Late Co", role: "owner" }],
+      list: [
+        ...useStore.getState().accountSummaries,
+        { id: lateAccountId, name: 'Late Co', role: 'owner' },
+      ],
     });
   });
 
   expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
 });
 
-it("keeps the company picker on first entry even when exactly one company is available", async () => {
-  mockNavigationType("navigate");
+it('keeps the company picker on first entry even when exactly one company is available', async () => {
+  mockNavigationType('navigate');
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell({ initialEntries: ["/clients"], includeLocationProbe: true });
+  renderAppShell({ initialEntries: ['/clients'], includeLocationProbe: true });
 
-  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Choose a company' })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
-  expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients");
+  expect(screen.getByTestId('location-probe')).toHaveTextContent('/clients');
 });
 
-it("reopens the sole valid company on reload without changing the requested route", async () => {
-  mockNavigationType("reload");
+it('reopens the sole valid company on reload without changing the requested route', async () => {
+  mockNavigationType('reload');
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell({ initialEntries: ["/clients?view=archived#client-list"], includeLocationProbe: true });
+  renderAppShell({
+    initialEntries: ['/clients?view=archived#client-list'],
+    includeLocationProbe: true,
+  });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
-  expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients?view=archived#client-list");
-  expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+  expect(screen.getByTestId('location-probe')).toHaveTextContent(
+    '/clients?view=archived#client-list',
+  );
+  expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
 });
 
-it("keeps the picker on a multi-company reload", async () => {
-  mockNavigationType("reload");
-  const accounts = [makeAccount(), makeAccount({ id: "acct-other", name: "Other Co" })];
+it('keeps the picker on a multi-company reload', async () => {
+  mockNavigationType('reload');
+  const accounts = [makeAccount(), makeAccount({ id: 'acct-other', name: 'Other Co' })];
   useStore.getState().replaceAll(makeAppData({ accounts }));
   useStore.setState({
     activeAccountId: null,
     previousAccountId: null,
-    accountSummaries: accounts.map(({ id, name }) => ({ id, name, role: "owner" as const })),
+    accountSummaries: accounts.map(({ id, name }) => ({ id, name, role: 'owner' as const })),
   });
 
   renderAppShell({});
 
-  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Choose a company' })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
 });
 
-it("keeps the picker when one valid company came from an incomplete directory", async () => {
-  mockNavigationType("reload");
+it('keeps the picker when one valid company came from an incomplete directory', async () => {
+  mockNavigationType('reload');
   useStore.getState().replaceAll(emptyAppData());
   useStore.setState({
     activeAccountId: null,
     previousAccountId: null,
-    accountSummaries: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+    accountSummaries: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
     accountSummariesComplete: false,
   });
 
   renderAppShell({});
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Set up your company' })).toBeInTheDocument();
 
   act(() => {
     void useStore.getState().setAccountSummaries({
-      list: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+      list: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
       complete: true,
     });
   });
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe("only-valid-row"));
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe('only-valid-row'));
 });
 
-it("opens the completed sole server company after an incomplete read, ignoring stale picker history", async () => {
+it('opens the completed sole server company after an incomplete read, ignoring stale picker history', async () => {
   runtimeFlags.serverMode = true;
-  mockNavigationType("navigate");
+  mockNavigationType('navigate');
   vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => new Response("{}", { status: 503 })),
+    'fetch',
+    vi.fn(async () => new Response('{}', { status: 503 })),
   );
   useStore.setState({
     activeAccountId: null,
-    previousAccountId: "stale-company-id",
-    accountSummaries: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+    previousAccountId: 'stale-company-id',
+    accountSummaries: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
     accountSummariesComplete: false,
   });
-  const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
-    useStore.getState().setActiveAccount(accountId);
-    return true;
-  });
+  const transition = vi
+    .spyOn(accountTransition, 'transitionAccount')
+    .mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
 
   renderAppShell({});
   expect(useStore.getState().activeAccountId).toBeNull();
-  expect(screen.getByRole("status")).toHaveTextContent("Loading");
+  expect(screen.getByRole('status')).toHaveTextContent('Loading');
 
   act(() => {
     void useStore.getState().setAccountSummaries({
-      list: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+      list: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
       complete: true,
     });
   });
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe("only-valid-row"));
-  expect(transition).toHaveBeenCalledWith("only-valid-row");
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe('only-valid-row'));
+  expect(transition).toHaveBeenCalledWith('only-valid-row');
 });
 
-it("re-enters the sole server company after it is closed without a reload", async () => {
+it('re-enters the sole server company after it is closed without a reload', async () => {
   runtimeFlags.serverMode = true;
-  mockNavigationType("navigate");
-  const summary = { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" as const };
+  mockNavigationType('navigate');
+  const summary = { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' as const };
   useStore.setState({
     activeAccountId: null,
     previousAccountId: null,
     accountSummaries: [summary],
     accountSummariesComplete: true,
   });
-  const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
-    useStore.getState().setActiveAccount(accountId);
-    return true;
-  });
+  const transition = vi
+    .spyOn(accountTransition, 'transitionAccount')
+    .mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
 
   renderAppShell({});
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
@@ -358,66 +396,75 @@ it("re-enters the sole server company after it is closed without a reload", asyn
   expect(transition).toHaveBeenCalledTimes(2);
 });
 
-it("keeps the picker when the browser cannot classify the navigation", async () => {
-  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  vi.spyOn(performance, "getEntriesByType").mockImplementation(() => {
-    throw new DOMException("Performance unavailable");
+it('keeps the picker when the browser cannot classify the navigation', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(performance, 'getEntriesByType').mockImplementation(() => {
+    throw new DOMException('Performance unavailable');
   });
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
   renderAppShell({});
 
-  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Choose a company' })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
   expect(warn).toHaveBeenCalledWith(
-    expect.stringContaining("navigation type could not be read"),
+    expect.stringContaining('navigation type could not be read'),
     expect.any(DOMException),
   );
 });
 
-it("keeps an explicit Switch company action on the picker after a reload", async () => {
-  mockNavigationType("reload");
+it('keeps an explicit Switch company action on the picker after a reload', async () => {
+  mockNavigationType('reload');
   renderAppShell({});
-  expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+  fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
 
-  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Choose a company' })).toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
   expect(useStore.getState().previousAccountId).toBe(DEFAULT_ACCOUNT_ID);
 });
 
-it("does not mistake an unavailable sole membership for a valid reload destination", async () => {
-  mockNavigationType("reload");
+it('does not mistake an unavailable sole membership for a valid reload destination', async () => {
+  mockNavigationType('reload');
   useStore.getState().replaceAll(emptyAppData());
   useStore.setState({
     activeAccountId: null,
     previousAccountId: null,
     accountSummaries: [
-      { id: "unavailable-account", name: "Unavailable Co", role: "viewer", roleStatus: "unavailable" },
+      {
+        id: 'unavailable-account',
+        name: 'Unavailable Co',
+        role: 'viewer',
+        roleStatus: 'unavailable',
+      },
     ],
   });
 
   renderAppShell({});
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Set up your company' })).toBeInTheDocument();
 });
 
-it("opens the sole server-selected company after a reload even when an invite handoff is present", async () => {
-  mockNavigationType("reload");
+it('opens the sole server-selected company after a reload even when an invite handoff is present', async () => {
+  mockNavigationType('reload');
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
-  renderAppShell({ initialEntries: ["/clients?joinedAccount=not-yet-authorized"] });
+  renderAppShell({ initialEntries: ['/clients?joinedAccount=not-yet-authorized'] });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
-  expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
 });
 
-it("does not reactivate a sole company after its loaded slice proves missing", async () => {
-  mockNavigationType("reload");
-  const summary = { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" as const };
-  useStore.setState({ activeAccountId: null, previousAccountId: null, accountSummaries: [summary] });
+it('does not reactivate a sole company after its loaded slice proves missing', async () => {
+  mockNavigationType('reload');
+  const summary = { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' as const };
+  useStore.setState({
+    activeAccountId: null,
+    previousAccountId: null,
+    accountSummaries: [summary],
+  });
   renderAppShell({});
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
 
@@ -427,13 +474,13 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
   });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
-  expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Set up your company' })).toBeInTheDocument();
+  expect(screen.getByText('Create your company to start planning.')).toBeInTheDocument();
   expect(screen.queryByText(/Ask an admin for an invite/)).not.toBeInTheDocument();
-  expect(useStore.getState().notice?.message).toBe("That company no longer exists.");
+  expect(useStore.getState().notice?.message).toBe('That company no longer exists.');
 });
 
-it("guards navigation while a typed planning write is unacknowledged", () => {
+it('guards navigation while a typed planning write is unacknowledged', () => {
   const { unmount } = renderAppShell({});
   act(() => {
     useStore.setState((state) => ({
@@ -441,7 +488,7 @@ it("guards navigation while a typed planning write is unacknowledged", () => {
     }));
   });
 
-  const event = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
+  const event = new Event('beforeunload', { cancelable: true }) as BeforeUnloadEvent;
   window.dispatchEvent(event);
 
   expect(useStore.getState().dirtyForm).toBe(false);
@@ -450,55 +497,61 @@ it("guards navigation while a typed planning write is unacknowledged", () => {
 });
 
 function registerSkipLinkLayerTest(): void {
-  it("places the focused skip link on its dedicated accessibility layer", () => {
+  it('places the focused skip link on its dedicated accessibility layer', () => {
     renderAppShell({});
 
-    expect(screen.getByRole("link", { name: "Skip to content" })).toHaveClass("focus:z-(--z-index-skip-link)");
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveClass(
+      'focus:z-(--z-index-skip-link)',
+    );
   });
 }
 
 function registerTrailingSlashTitleTest(): void {
-  it("keeps a descriptive title on an accepted trailing-slash route", async () => {
-    renderAppShell({ initialEntries: ["/resources/"] });
+  it('keeps a descriptive title on an accepted trailing-slash route', async () => {
+    renderAppShell({ initialEntries: ['/resources/'] });
 
-    await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
+    await waitFor(() => expect(document.title).toBe('Resources · CapacityLens'));
   });
 
-  it("keeps Account active on its accepted trailing-slash route", () => {
-    renderAppShell({ initialEntries: ["/account/"] });
+  it('keeps Account active on its accepted trailing-slash route', () => {
+    renderAppShell({ initialEntries: ['/account/'] });
 
-    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'page');
   });
 }
 
 function registerLocaleChangeNavigationTest(): void {
-  it("resolves navigation labels again after the account locale changes", async () => {
+  it('resolves navigation labels again after the account locale changes', async () => {
     let secondLocale = false;
-    vi.spyOn(m, "nav_resources").mockImplementation(
-      () => (secondLocale ? "Ressources" : "Resources") as ReturnType<typeof m.nav_resources>,
+    vi.spyOn(m, 'nav_resources').mockImplementation(
+      () => (secondLocale ? 'Ressources' : 'Resources') as ReturnType<typeof m.nav_resources>,
     );
 
-    renderAppShell({ initialEntries: ["/resources"] });
-    await waitFor(() => expect(screen.getByRole("link", { name: "Resources" })).toBeInTheDocument());
-    expect(document.title).toBe("Resources · CapacityLens");
+    renderAppShell({ initialEntries: ['/resources'] });
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Resources' })).toBeInTheDocument(),
+    );
+    expect(document.title).toBe('Resources · CapacityLens');
 
     secondLocale = true;
     act(() => {
-      useStore.setState({ data: makeAppData({ accounts: [makeAccount({ language: "fr" })] }) });
+      useStore.setState({ data: makeAppData({ accounts: [makeAccount({ language: 'fr' })] }) });
     });
 
-    await waitFor(() => expect(screen.getByRole("link", { name: "Ressources" })).toBeInTheDocument());
-    expect(document.title).toBe("Ressources · CapacityLens");
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Ressources' })).toBeInTheDocument(),
+    );
+    expect(document.title).toBe('Ressources · CapacityLens');
   });
 }
 
 function registerLoadingAccountLocaleTest(): void {
   it("preserves the last locale while a selected company's slice is still loading", async () => {
-    const currentAccount = makeAccount({ language: "en" });
-    const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co" });
+    const currentAccount = makeAccount({ language: 'en' });
+    const destinationAccount = makeAccount({ id: 'acct-other', name: 'Other Co' });
     useStore.getState().replaceAll(makeAppData({ accounts: [currentAccount] }));
     renderAppShell({});
-    await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith("en"));
+    await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith('en'));
     i18nMocks.syncLocaleFromAccount.mockClear();
 
     // Model the ordinary server switch gap directly: the directory authorizes the destination,
@@ -506,7 +559,9 @@ function registerLoadingAccountLocaleTest(): void {
     act(() => {
       useStore.setState({
         activeAccountId: destinationAccount.id,
-        accountSummaries: [{ id: destinationAccount.id, name: destinationAccount.name, role: "owner" }],
+        accountSummaries: [
+          { id: destinationAccount.id, name: destinationAccount.name, role: 'owner' },
+        ],
       });
     });
     expect(i18nMocks.syncLocaleFromAccount).not.toHaveBeenCalled();
@@ -517,267 +572,296 @@ function registerLoadingAccountLocaleTest(): void {
 }
 
 function registerExpectedNavigationLinksTest(): void {
-  it("renders all expected nav links", () => {
+  it('renders all expected nav links', () => {
     renderAppShell({});
 
-    expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Resources" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Team & access" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Disciplines" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Clients" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Projects" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Activities" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Time off" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Help" })).toHaveAttribute("href", "/help");
-    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
-    const footerHrefs = screen.getByTestId("app-sidebar").querySelectorAll("a");
-    expect(Array.from(footerHrefs, (link) => link.getAttribute("href")).slice(-2)).toEqual(["/help", "/account"]);
+    expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Resources' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Team & access' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Disciplines' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Clients' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Projects' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Activities' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Time off' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
+    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account');
+    const footerHrefs = screen.getByTestId('app-sidebar').querySelectorAll('a');
+    expect(Array.from(footerHrefs, (link) => link.getAttribute('href')).slice(-2)).toEqual([
+      '/help',
+      '/account',
+    ]);
   });
 
-  it("marks Help active and sets its page title on direct navigation", async () => {
-    renderAppShell({ initialEntries: ["/help"] });
+  it('marks Help active and sets its page title on direct navigation', async () => {
+    renderAppShell({ initialEntries: ['/help'] });
 
-    expect(screen.getByRole("link", { name: "Help" })).toHaveAttribute("aria-current", "page");
-    await waitFor(() => expect(document.title).toBe("Help · CapacityLens"));
+    expect(screen.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page');
+    await waitFor(() => expect(document.title).toBe('Help · CapacityLens'));
   });
 }
 
 function registerAccountNavigationStateTest(): void {
-  it("marks the personal Account destination active and gives it a descriptive page title", async () => {
-    renderAppShell({ initialEntries: ["/account"] });
-    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
-    await waitFor(() => expect(document.title).toBe("Account · CapacityLens"));
+  it('marks the personal Account destination active and gives it a descriptive page title', async () => {
+    renderAppShell({ initialEntries: ['/account'] });
+    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'page');
+    await waitFor(() => expect(document.title).toBe('Account · CapacityLens'));
   });
 
-  it("keeps the personal Account route available before a company is selected", () => {
+  it('keeps the personal Account route available before a company is selected', () => {
     useStore.setState({ activeAccountId: null, accountSummaries: [] });
-    renderAppShell({ initialEntries: ["/account"] });
+    renderAppShell({ initialEntries: ['/account'] });
 
-    expect(screen.getByRole("main")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
-    expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+    expect(screen.getByRole('main')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account');
+    expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
   });
 
-  it("returns to the company picker from Account only after a successful switch", async () => {
-    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
-      useStore.getState().setActiveAccount(accountId);
-      return true;
-    });
+  it('returns to the company picker from Account only after a successful switch', async () => {
+    const transition = vi
+      .spyOn(accountTransition, 'transitionAccount')
+      .mockImplementation(async (accountId) => {
+        useStore.getState().setActiveAccount(accountId);
+        return true;
+      });
     render(
-      <MemoryRouter initialEntries={["/account"]}>
+      <MemoryRouter initialEntries={['/account']}>
         <AppShell />
         <LocationProbe />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
-    expect(screen.getByTestId("location-probe")).toHaveTextContent("/");
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Choose a company' })).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/');
     expect(transition).toHaveBeenCalledWith(null);
   });
 
-  it("keeps Account in place when a company switch is cancelled or fails", async () => {
-    const transition = vi.spyOn(accountTransition, "transitionAccount").mockResolvedValue(false);
+  it('keeps Account in place when a company switch is cancelled or fails', async () => {
+    const transition = vi.spyOn(accountTransition, 'transitionAccount').mockResolvedValue(false);
     render(
-      <MemoryRouter initialEntries={["/account"]}>
+      <MemoryRouter initialEntries={['/account']}>
         <AppShell />
         <LocationProbe />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
     await waitFor(() => expect(transition).toHaveBeenCalledWith(null));
 
-    expect(screen.getByTestId("location-probe")).toHaveTextContent("/account");
-    expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/account');
+    expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
   });
 }
 
 function registerAccountSwitchRouteTest(): void {
-  it("keeps the current non-Account route after a successful switch", async () => {
-    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
-      useStore.getState().setActiveAccount(accountId);
-      return true;
-    });
+  it('keeps the current non-Account route after a successful switch', async () => {
+    const transition = vi
+      .spyOn(accountTransition, 'transitionAccount')
+      .mockImplementation(async (accountId) => {
+        useStore.getState().setActiveAccount(accountId);
+        return true;
+      });
     render(
-      <MemoryRouter initialEntries={["/clients"]}>
+      <MemoryRouter initialEntries={['/clients']}>
         <AppShell />
         <LocationProbe />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
-    expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients");
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Choose a company' })).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/clients');
     expect(transition).toHaveBeenCalledWith(null);
   });
 
-  it("returns to the company picker from an Account route with a trailing slash", async () => {
-    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
-      useStore.getState().setActiveAccount(accountId);
-      return true;
-    });
+  it('returns to the company picker from an Account route with a trailing slash', async () => {
+    const transition = vi
+      .spyOn(accountTransition, 'transitionAccount')
+      .mockImplementation(async (accountId) => {
+        useStore.getState().setActiveAccount(accountId);
+        return true;
+      });
     render(
-      <MemoryRouter initialEntries={["/account/"]}>
+      <MemoryRouter initialEntries={['/account/']}>
         <AppShell />
         <LocationProbe />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
-    expect(screen.getByTestId("location-probe")).toHaveTextContent("/");
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Choose a company' })).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/');
     expect(transition).toHaveBeenCalledWith(null);
   });
 }
 
 function registerNavigationBrandNameTest(): void {
-  it("renders the CapacityLens brand name in the nav", () => {
+  it('renders the CapacityLens brand name in the nav', () => {
     renderAppShell({});
-    expect(screen.getByText("CapacityLens")).toBeInTheDocument();
+    expect(screen.getByText('CapacityLens')).toBeInTheDocument();
   });
 }
 
 function registerImportExportAbsenceTest(): void {
-  it("does NOT render the import/export tools in the sidebar", () => {
+  it('does NOT render the import/export tools in the sidebar', () => {
     renderAppShell({});
 
-    expect(screen.queryByTestId("settings-data-tools")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("export-data")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("import-data")).not.toBeInTheDocument();
+    expect(screen.queryByTestId('settings-data-tools')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('export-data')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('import-data')).not.toBeInTheDocument();
   });
 }
 
 function registerSidebarSignOutTest(): void {
-  it("keeps the avatar-led Account row as the only sidebar session control", () => {
+  it('keeps the avatar-led Account row as the only sidebar session control', () => {
     renderAppShell({});
 
-    expect(screen.getByText("Test Co")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch company" })).toBeInTheDocument();
-    const account = screen.getByRole("link", { name: "Account" });
+    expect(screen.getByText('Test Co')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Switch company' })).toBeInTheDocument();
+    const account = screen.getByRole('link', { name: 'Account' });
     expect(account.querySelector("[data-slot='avatar']")).not.toBeNull();
-    expect(screen.queryByTestId("nav-sign-out")).not.toBeInTheDocument();
+    expect(screen.queryByTestId('nav-sign-out')).not.toBeInTheDocument();
   });
 }
 
 function registerPinnedNavigationOrderTest(): void {
-  it("pins Team & access, Settings and Diagnostics, in that order, after every other destination", () => {
+  it('pins Team & access, Settings and Diagnostics, in that order, after every other destination', () => {
     renderAppShell({});
 
     // Scoped to the nav landmark so the skip-to-content link above the sidebar stays out of it.
-    const order = within(screen.getByRole("navigation"))
-      .getAllByRole("link")
-      .map((link) => link.getAttribute("href"));
+    const order = within(screen.getByRole('navigation'))
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('href'));
     expect(order).toEqual([
-      "/overview",
-      "/",
-      "/resources",
-      "/disciplines",
-      "/clients",
-      "/projects",
-      "/activities",
-      "/timeoff",
-      "/team",
-      "/settings",
-      "/diagnostics",
+      '/overview',
+      '/',
+      '/resources',
+      '/disciplines',
+      '/clients',
+      '/projects',
+      '/activities',
+      '/timeoff',
+      '/team',
+      '/settings',
+      '/diagnostics',
     ]);
   });
 }
 
 function registerNavigationRoutesTest(): void {
-  it("nav links point to correct routes", () => {
+  it('nav links point to correct routes', () => {
     renderAppShell({});
 
-    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("href", "/overview");
-    expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Resources" })).toHaveAttribute("href", "/resources");
-    expect(screen.getByRole("link", { name: "Team & access" })).toHaveAttribute("href", "/team");
-    expect(screen.getByRole("link", { name: "Disciplines" })).toHaveAttribute("href", "/disciplines");
-    expect(screen.getByRole("link", { name: "Clients" })).toHaveAttribute("href", "/clients");
-    expect(screen.getByRole("link", { name: "Projects" })).toHaveAttribute("href", "/projects");
-    expect(screen.getByRole("link", { name: "Activities" })).toHaveAttribute("href", "/activities");
-    expect(screen.getByRole("link", { name: "Time off" })).toHaveAttribute("href", "/timeoff");
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
-    expect(screen.getByRole("link", { name: "Diagnostics" })).toHaveAttribute("href", "/diagnostics");
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/overview');
+    expect(screen.getByRole('link', { name: 'Schedule' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Resources' })).toHaveAttribute('href', '/resources');
+    expect(screen.getByRole('link', { name: 'Team & access' })).toHaveAttribute('href', '/team');
+    expect(screen.getByRole('link', { name: 'Disciplines' })).toHaveAttribute(
+      'href',
+      '/disciplines',
+    );
+    expect(screen.getByRole('link', { name: 'Clients' })).toHaveAttribute('href', '/clients');
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
+    expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute('href', '/activities');
+    expect(screen.getByRole('link', { name: 'Time off' })).toHaveAttribute('href', '/timeoff');
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings');
+    expect(screen.getByRole('link', { name: 'Diagnostics' })).toHaveAttribute(
+      'href',
+      '/diagnostics',
+    );
   });
 }
 
 function registerDefaultSidebarStateTest(): void {
-  it("defaults open (jsdom has no matchMedia → large-screen default): links + collapse toggle", () => {
+  it('defaults open (jsdom has no matchMedia → large-screen default): links + collapse toggle', () => {
     renderAppShell({});
 
-    expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
-    const toggle = within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Collapse menu" });
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
+    const toggle = within(screen.getByTestId('app-sidebar')).getByRole('button', {
+      name: 'Collapse menu',
+    });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
   });
 }
 
 function registerMobileSidebarTriggerTest(): void {
-  it("reports the mobile sheet state and next action from the top-bar trigger", () => {
+  it('reports the mobile sheet state and next action from the top-bar trigger', () => {
     stubMatchMedia(() => true);
-    sessionStorage.setItem("capacitylens/rotateHintDismissed", "1");
+    sessionStorage.setItem('capacitylens/rotateHintDismissed', '1');
     renderAppShell({});
 
-    const trigger = within(screen.getByRole("main")).getByRole("button", { name: "Expand menu" });
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    const trigger = within(screen.getByRole('main')).getByRole('button', { name: 'Expand menu' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(trigger);
 
-    expect(trigger).toHaveAccessibleName("Collapse menu");
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(trigger).toHaveAccessibleName('Collapse menu');
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
   });
 }
 
 function registerPersistedSidebarCollapseTest(): void {
-  it("collapsing keeps the navigation links usable and persists the choice", () => {
+  it('collapsing keeps the navigation links usable and persists the choice', () => {
     renderAppShell({});
 
     act(() => {
-      within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Collapse menu" }).click();
+      within(screen.getByTestId('app-sidebar'))
+        .getByRole('button', { name: 'Collapse menu' })
+        .click();
     });
 
-    expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
-    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
-    expect(screen.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
-    expect(within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Expand menu" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
-    expect(localStorage.getItem("capacitylens/sidebar")).toBe("closed");
+    expect(screen.getByRole('link', { name: 'Schedule' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings');
+    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account');
+    expect(screen.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed');
+    expect(
+      within(screen.getByTestId('app-sidebar')).getByRole('button', { name: 'Expand menu' }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(localStorage.getItem('capacitylens/sidebar')).toBe('closed');
   });
 }
 
 function registerCollapsedNavigationLinksTest(): void {
-  it("collapsed destinations remain real links instead of reopening the menu", () => {
+  it('collapsed destinations remain real links instead of reopening the menu', () => {
     renderAppShell({});
     act(() => {
       useStore.getState().setSidebarOpen(false);
     });
 
-    expect(screen.getByRole("link", { name: "Projects" })).toHaveAttribute("href", "/projects");
-    expect(screen.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
-    expect(localStorage.getItem("capacitylens/sidebar")).toBe("closed");
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
+    expect(screen.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed');
+    expect(localStorage.getItem('capacitylens/sidebar')).toBe('closed');
   });
 }
 
 function registerNavigationLinkIconsTest(): void {
-  it("nav links carry icons without changing their accessible names", () => {
+  it('nav links carry icons without changing their accessible names', () => {
     renderAppShell({});
-    const link = screen.getByRole("link", { name: "Projects" });
-    expect(link.querySelector("svg")).not.toBeNull();
-    expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    const link = screen.getByRole('link', { name: 'Projects' });
+    expect(link.querySelector('svg')).not.toBeNull();
+    expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
 }
 
 function registerSidebarKeyboardShortcutTest(): void {
-  it("toggles with Cmd/Ctrl+B and prevents the browser shortcut outside guarded contexts", () => {
+  it('toggles with Cmd/Ctrl+B and prevents the browser shortcut outside guarded contexts', () => {
     renderAppShell({});
-    const event = new KeyboardEvent("keydown", { key: "b", metaKey: true, bubbles: true, cancelable: true });
+    const event = new KeyboardEvent('keydown', {
+      key: 'b',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
 
     act(() => {
       window.dispatchEvent(event);
@@ -790,17 +874,22 @@ function registerSidebarKeyboardShortcutTest(): void {
 
 function registerEditableControlShortcutTest(): void {
   it.each([
-    ["input", "input"],
-    ["textarea", "textarea"],
-    ["select", "select"],
-    ["editable content", "div"],
-  ] as const)("leaves Cmd/Ctrl+B to %s", (_label, tagName) => {
+    ['input', 'input'],
+    ['textarea', 'textarea'],
+    ['select', 'select'],
+    ['editable content', 'div'],
+  ] as const)('leaves Cmd/Ctrl+B to %s', (_label, tagName) => {
     renderAppShell({});
     const target = document.createElement(tagName);
-    if (tagName === "div") target.setAttribute("contenteditable", "true");
+    if (tagName === 'div') target.setAttribute('contenteditable', 'true');
     document.body.append(target);
     try {
-      const event = new KeyboardEvent("keydown", { key: "b", ctrlKey: true, bubbles: true, cancelable: true });
+      const event = new KeyboardEvent('keydown', {
+        key: 'b',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
 
       act(() => {
         target.dispatchEvent(event);
@@ -815,10 +904,10 @@ function registerEditableControlShortcutTest(): void {
 }
 
 function registerComposingShortcutTest(): void {
-  it("ignores Cmd/Ctrl+B during IME composition", () => {
+  it('ignores Cmd/Ctrl+B during IME composition', () => {
     renderAppShell({});
-    const event = new KeyboardEvent("keydown", {
-      key: "b",
+    const event = new KeyboardEvent('keydown', {
+      key: 'b',
       metaKey: true,
       isComposing: true,
       bubbles: true,
@@ -835,14 +924,19 @@ function registerComposingShortcutTest(): void {
 }
 
 function registerModalShortcutTest(): void {
-  it("ignores Cmd/Ctrl+B while a modal is open", () => {
+  it('ignores Cmd/Ctrl+B while a modal is open', () => {
     renderAppShell({});
-    const modal = document.createElement("div");
-    modal.setAttribute("role", "dialog");
-    modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("data-state", "open");
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('data-state', 'open');
     document.body.append(modal);
-    const event = new KeyboardEvent("keydown", { key: "b", metaKey: true, bubbles: true, cancelable: true });
+    const event = new KeyboardEvent('keydown', {
+      key: 'b',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
 
     try {
       act(() => {
@@ -858,7 +952,7 @@ function registerModalShortcutTest(): void {
 }
 
 function registerDirtyFormPaletteGuardTest(): void {
-  it("Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette", async () => {
+  it('Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette', async () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
@@ -866,19 +960,21 @@ function registerDirtyFormPaletteGuardTest(): void {
       useStore.getState().setDirtyForm(true);
     });
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     });
 
-    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
     // Sonner mounts notices through its portal asynchronously, so wait for the rendered message.
     expect(
-      await screen.findByText("You have unsaved changes — use Cancel or Save to close this dialog."),
+      await screen.findByText(
+        'You have unsaved changes — use Cancel or Save to close this dialog.',
+      ),
     ).toBeInTheDocument();
   });
 }
 
 function registerCleanFormPaletteShortcutTest(): void {
-  it("Ctrl+K with dirtyForm=false opens the palette", () => {
+  it('Ctrl+K with dirtyForm=false opens the palette', () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
@@ -886,28 +982,28 @@ function registerCleanFormPaletteShortcutTest(): void {
       useStore.getState().setDirtyForm(false);
     });
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     });
 
-    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
   });
 }
 
 function registerModalPaletteShortcutTest(): void {
-  it("leaves Cmd/Ctrl+K to an existing modal", () => {
+  it('leaves Cmd/Ctrl+K to an existing modal', () => {
     renderAppShell({});
-    const modal = document.createElement("div");
-    modal.setAttribute("role", "dialog");
-    modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("data-state", "open");
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('data-state', 'open');
     document.body.appendChild(modal);
-    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true });
+    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
     try {
       act(() => {
         window.dispatchEvent(event);
       });
       expect(event.defaultPrevented).toBe(false);
-      expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
     } finally {
       modal.remove();
     }
@@ -915,66 +1011,71 @@ function registerModalPaletteShortcutTest(): void {
 }
 
 function registerComposingPaletteShortcutTest(): void {
-  it("ignores Cmd/Ctrl+K during IME composition", () => {
+  it('ignores Cmd/Ctrl+K during IME composition', () => {
     renderAppShell({});
-    const event = new KeyboardEvent("keydown", { key: "k", metaKey: true, isComposing: true, cancelable: true });
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      metaKey: true,
+      isComposing: true,
+      cancelable: true,
+    });
     act(() => {
       window.dispatchEvent(event);
     });
     expect(event.defaultPrevented).toBe(false);
-    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
   });
 }
 
 function registerRepeatedPaletteShortcutTest(): void {
-  it("keeps the palette open when the Ctrl+K keydown repeats", () => {
+  it('keeps the palette open when the Ctrl+K keydown repeats', () => {
     renderAppShell({});
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, repeat: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, repeat: true }));
     });
 
-    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
   });
 }
 
 function registerPaletteToggleShortcutTest(): void {
-  it("closes the open palette with a second Ctrl+K", () => {
+  it('closes the open palette with a second Ctrl+K', () => {
     renderAppShell({});
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     });
-    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     });
-    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
   });
 }
 
 function registerLaterModalPaletteShortcutTest(): void {
-  it("leaves Ctrl+K to a later modal even while the palette is open", () => {
+  it('leaves Ctrl+K to a later modal even while the palette is open', () => {
     renderAppShell({});
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     });
-    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
 
-    const modal = document.createElement("div");
-    modal.setAttribute("role", "dialog");
-    modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("data-state", "open");
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('data-state', 'open');
     document.body.appendChild(modal);
-    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true });
+    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
     try {
       act(() => {
         window.dispatchEvent(event);
       });
       expect(event.defaultPrevented).toBe(false);
-      expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+      expect(screen.getByTestId('command-palette')).toBeInTheDocument();
     } finally {
       modal.remove();
     }
@@ -982,20 +1083,20 @@ function registerLaterModalPaletteShortcutTest(): void {
 }
 
 function registerInfoNoticeDismissalTest(): void {
-  it("renders a Sonner toast for an info store notice and clears it on dismiss", async () => {
+  it('renders a Sonner toast for an info store notice and clears it on dismiss', async () => {
     renderAppShell({});
     expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument();
 
     act(() => {
-      useStore.getState().setNotice("That allocation could not be moved there.");
+      useStore.getState().setNotice('That allocation could not be moved there.');
     });
     // Wait for Sonner's portal before asserting the notification live region.
     const message = await screen.findByText(/could not be moved/);
-    expect(message.closest("[data-sonner-toast]")).not.toBeNull();
+    expect(message.closest('[data-sonner-toast]')).not.toBeNull();
     expect(message.closest('[aria-live="polite"]')).not.toBeNull();
 
     act(() => {
-      screen.getByRole("button", { name: "Close toast" }).click();
+      screen.getByRole('button', { name: 'Close toast' }).click();
     });
     await waitFor(() => expect(useStore.getState().notice).toBeNull());
     await waitFor(() => expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument());
@@ -1003,7 +1104,7 @@ function registerInfoNoticeDismissalTest(): void {
 }
 
 function registerPersistentErrorNoticeTest(): void {
-  it("keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info", async () => {
+  it('keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info', async () => {
     // Fake timers exercise auto-dismiss and exit animations without real waits. Read synchronously after advancing timers so polling cannot stall while the clock is paused.
     vi.useFakeTimers();
     try {
@@ -1012,7 +1113,7 @@ function registerPersistentErrorNoticeTest(): void {
       // Baseline: an info notice must auto-dismiss once the 4000ms window elapses. Prove the
       // window actually closes (so the error assertion below isn't vacuously true).
       act(() => {
-        useStore.getState().setNotice("Info that should auto-dismiss.");
+        useStore.getState().setNotice('Info that should auto-dismiss.');
       });
       await act(async () => {
         // Sonner needs a tick to mount the toast portal.
@@ -1028,24 +1129,24 @@ function registerPersistentErrorNoticeTest(): void {
 
       // Error: created with duration: Infinity, so the same 4500ms advance must not dismiss it.
       act(() => {
-        useStore.getState().setNotice("That allocation could not be moved.", "error");
+        useStore.getState().setNotice('That allocation could not be moved.', 'error');
       });
       await act(async () => {
         await vi.advanceTimersByTimeAsync(50);
       });
       const message = screen.getByText(/could not be moved/);
-      expect(message.closest("[data-sonner-toast]")).not.toBeNull();
+      expect(message.closest('[data-sonner-toast]')).not.toBeNull();
 
-      expect(message.closest("[data-sonner-toast]")).toHaveClass("toast-error");
+      expect(message.closest('[data-sonner-toast]')).toHaveClass('toast-error');
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(4500);
       });
       expect(screen.getByText(/could not be moved/)).toBeInTheDocument();
-      expect(useStore.getState().notice?.tone).toBe("error");
+      expect(useStore.getState().notice?.tone).toBe('error');
 
       act(() => {
-        screen.getByRole("button", { name: "Close toast" }).click();
+        screen.getByRole('button', { name: 'Close toast' }).click();
       });
       await act(async () => {
         // Let the exit animation finish so onDismiss can clear the notice.
@@ -1059,32 +1160,32 @@ function registerPersistentErrorNoticeTest(): void {
 }
 
 function registerPersistentWarningNoticeTest(): void {
-  it("keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)", async () => {
+  it('keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)', async () => {
     // A truncation warning must persist until dismissed because it is the only signal that committed work was reduced. It uses neutral styling because the edit succeeded.
     vi.useFakeTimers();
     try {
       renderAppShell({});
 
       act(() => {
-        useStore.getState().setNotice("Work volume was capped at 24h/day.", "warning");
+        useStore.getState().setNotice('Work volume was capped at 24h/day.', 'warning');
       });
       await act(async () => {
         await vi.advanceTimersByTimeAsync(50);
       });
       const message = screen.getByText(/capped at 24h\/day/);
-      const toastEl = message.closest("[data-sonner-toast]");
+      const toastEl = message.closest('[data-sonner-toast]');
       expect(toastEl).not.toBeNull();
 
-      expect(toastEl).not.toHaveClass("toast-error");
+      expect(toastEl).not.toHaveClass('toast-error');
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(4500);
       });
       expect(screen.getByText(/capped at 24h\/day/)).toBeInTheDocument();
-      expect(useStore.getState().notice?.tone).toBe("warning");
+      expect(useStore.getState().notice?.tone).toBe('warning');
 
       act(() => {
-        screen.getByRole("button", { name: "Close toast" }).click();
+        screen.getByRole('button', { name: 'Close toast' }).click();
       });
       await act(async () => {
         await vi.advanceTimersByTimeAsync(500);
@@ -1097,7 +1198,7 @@ function registerPersistentWarningNoticeTest(): void {
 }
 
 function registerNoticeReplacementRaceTest(): void {
-  it("rapidly replacing notice A with B leaves B intact (no stale-clear race)", async () => {
+  it('rapidly replacing notice A with B leaves B intact (no stale-clear race)', async () => {
     // Dismissing an old Sonner toast can invoke its callback after the replacement is shown. The callback must clear only its own notice; fake timers exercise that ordering before the new notice auto-dismisses.
     vi.useFakeTimers();
     try {
@@ -1106,16 +1207,16 @@ function registerNoticeReplacementRaceTest(): void {
       // A mounts first (its bridge effect runs, Sonner portals toast A). The swap must dismiss a
       // *real* live toast for the race to exist at all.
       act(() => {
-        useStore.getState().setNotice("First notice");
+        useStore.getState().setNotice('First notice');
       });
       await act(async () => {
         // Sonner needs a tick to mount the first toast portal.
         await vi.advanceTimersByTimeAsync(50);
       });
-      expect(screen.getByText("First notice")).toBeInTheDocument();
+      expect(screen.getByText('First notice')).toBeInTheDocument();
 
       act(() => {
-        useStore.getState().setNotice("Second notice");
+        useStore.getState().setNotice('Second notice');
       });
       // Pump A's deferred dismiss rAF, then its exit-animation removal, in two steps, Sonner
       // chains those across rAF/flush boundaries, so a single big advance can leave A's node
@@ -1129,18 +1230,18 @@ function registerNoticeReplacementRaceTest(): void {
       });
 
       // Use synchronous queries after advancing the fake clock; polling queries can stall under paused timers.
-      expect(useStore.getState().notice?.message).toBe("Second notice");
+      expect(useStore.getState().notice?.message).toBe('Second notice');
 
-      const message = screen.getByText("Second notice");
-      expect(message.closest("[data-sonner-toast]")).not.toBeNull();
-      expect(screen.queryByText("First notice")).not.toBeInTheDocument();
+      const message = screen.getByText('Second notice');
+      expect(message.closest('[data-sonner-toast]')).not.toBeNull();
+      expect(screen.queryByText('First notice')).not.toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
   });
 }
 
-describe("AppShell navigation links", () => {
+describe('AppShell navigation links', () => {
   registerSkipLinkLayerTest();
   registerTrailingSlashTitleTest();
   registerLocaleChangeNavigationTest();
@@ -1155,12 +1256,12 @@ describe("AppShell navigation links", () => {
   registerNavigationRoutesTest();
 });
 
-describe("AppShell sidebar collapse", () => {
+describe('AppShell sidebar collapse', () => {
   beforeEach(() => {
     act(() => {
       useStore.getState().setSidebarOpen(true);
     });
-    localStorage.removeItem("capacitylens/sidebar");
+    localStorage.removeItem('capacitylens/sidebar');
   });
 
   registerDefaultSidebarStateTest();
@@ -1174,64 +1275,73 @@ describe("AppShell sidebar collapse", () => {
   registerModalShortcutTest();
 });
 
-describe("AppShell hydration gate", () => {
+describe('AppShell hydration gate', () => {
   beforeEach(() => useStore.getState().setHydrated(false));
 
   it('shows "Loading…" when the store is not hydrated', () => {
     renderAppShell({});
 
-    expect(screen.getByText("Loading…")).toBeInTheDocument();
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
   });
 
-  it("does not render the outlet area when not hydrated", () => {
+  it('does not render the outlet area when not hydrated', () => {
     renderAppShell({});
 
-    expect(screen.getByText("Loading…")).toBeInTheDocument();
-    expect(screen.queryByRole("main")?.textContent).toContain("Loading");
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByRole('main')?.textContent).toContain('Loading');
   });
 
   it('hides "Loading…" and renders outlet area after setHydrated(true)', () => {
     renderAppShell({});
 
-    expect(screen.getByText("Loading…")).toBeInTheDocument();
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
 
     act(() => {
       useStore.getState().setHydrated(true);
     });
 
-    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
   });
 
-  it("renders outlet area immediately when hydrated is already true", () => {
+  it('renders outlet area immediately when hydrated is already true', () => {
     useStore.getState().setHydrated(true);
 
     renderAppShell({});
 
-    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
   });
 });
 
-describe("AppShell planning problems", () => {
+describe('AppShell planning problems', () => {
   it.each([
-    ["refused", new PlanningControllerError("Refused.", "ACCOUNT_MEMBERSHIP_LOST", 403), m.app_planning_refused()],
-    ["error", new Error("Network down"), m.app_planning_unavailable()],
-  ] as const)("shows a visible alert for a %s planning state", (status, error, text) => {
+    [
+      'refused',
+      new PlanningControllerError('Refused.', 'ACCOUNT_MEMBERSHIP_LOST', 403),
+      m.app_planning_refused(),
+    ],
+    ['error', new Error('Network down'), m.app_planning_unavailable()],
+  ] as const)('shows a visible alert for a %s planning state', (status, error, text) => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
     act(() => useStore.setState((state) => ({ planning: { ...state.planning, status, error } })));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(text);
+    expect(screen.getByRole('alert')).toHaveTextContent(text);
   });
 });
 
-describe("AppShell undo/redo keyboard", () => {
+describe('AppShell undo/redo keyboard', () => {
   // The shortcuts drive the planning controller's typed history, never the legacy snapshot stack.
   function withPlanningHistorySpies(run: (spies: { undo: Mock; redo: Mock }) => void) {
     const { undoPlanning, redoPlanning, undo, redo } = useStore.getState();
     const spies = { undo: vi.fn(async () => true), redo: vi.fn(async () => true) };
     const legacy = vi.fn();
-    useStore.setState({ undoPlanning: spies.undo, redoPlanning: spies.redo, undo: legacy, redo: legacy });
+    useStore.setState({
+      undoPlanning: spies.undo,
+      redoPlanning: spies.redo,
+      undo: legacy,
+      redo: legacy,
+    });
     try {
       run(spies);
       expect(legacy).not.toHaveBeenCalled();
@@ -1240,7 +1350,7 @@ describe("AppShell undo/redo keyboard", () => {
     }
   }
 
-  it("⌘Z undoes through planning history, but is IGNORED while a form is dirty", () => {
+  it('⌘Z undoes through planning history, but is IGNORED while a form is dirty', () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
@@ -1251,7 +1361,7 @@ describe("AppShell undo/redo keyboard", () => {
         useStore.getState().setDirtyForm(true);
       });
       act(() => {
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }));
       });
       expect(spies.undo).not.toHaveBeenCalled();
 
@@ -1259,39 +1369,50 @@ describe("AppShell undo/redo keyboard", () => {
         useStore.getState().setDirtyForm(false);
       });
       act(() => {
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }));
       });
       expect(spies.undo).toHaveBeenCalledOnce();
 
       act(() => {
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey: true }));
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'z', metaKey: true, shiftKey: true }),
+        );
       });
       expect(spies.redo).toHaveBeenCalledOnce();
     });
   });
 
-  it("surfaces a rejected shortcut as an error notice unless planning state already shows it", async () => {
+  it('surfaces a rejected shortcut as an error notice unless planning state already shows it', async () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
     const { undoPlanning } = useStore.getState();
     try {
       // Swap the action inside act so the shortcut listener re-binds before the key press.
-      act(() => useStore.setState({ undoPlanning: () => Promise.reject(new Error("History is corrupt")) }));
+      act(() =>
+        useStore.setState({ undoPlanning: () => Promise.reject(new Error('History is corrupt')) }),
+      );
       act(() => {
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }));
       });
-      await waitFor(() => expect(useStore.getState().notice).toEqual({ message: "History is corrupt", tone: "error" }));
+      await waitFor(() =>
+        expect(useStore.getState().notice).toEqual({
+          message: 'History is corrupt',
+          tone: 'error',
+        }),
+      );
 
       act(() => useStore.getState().setNotice(null));
       // A stale revision is shown by refetching server state, so it must not also raise a toast.
       act(() =>
         useStore.setState({
           undoPlanning: () =>
-            Promise.reject(new PlanningControllerError("The schedule changed.", "STALE_REVISION", 409)),
+            Promise.reject(
+              new PlanningControllerError('The schedule changed.', 'STALE_REVISION', 409),
+            ),
         }),
       );
       await act(async () => {
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }));
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
       expect(useStore.getState().notice).toBeNull();
@@ -1300,27 +1421,29 @@ describe("AppShell undo/redo keyboard", () => {
     }
   });
 
-  it("ignores undo and redo while a clean modal has focus on a non-text control", () => {
+  it('ignores undo and redo while a clean modal has focus on a non-text control', () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
-    const modal = document.createElement("div");
-    modal.setAttribute("role", "dialog");
-    modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("data-state", "open");
-    const button = document.createElement("button");
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('data-state', 'open');
+    const button = document.createElement('button');
     modal.append(button);
     document.body.append(modal);
 
     try {
       withPlanningHistorySpies((spies) => {
         act(() => {
-          button.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, bubbles: true }));
+          button.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true }),
+          );
         });
         act(() => {
           button.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: "z",
+            new KeyboardEvent('keydown', {
+              key: 'z',
               metaKey: true,
               shiftKey: true,
               bubbles: true,
@@ -1336,7 +1459,7 @@ describe("AppShell undo/redo keyboard", () => {
   });
 });
 
-describe("AppShell command palette dirty-form guard", () => {
+describe('AppShell command palette dirty-form guard', () => {
   registerDirtyFormPaletteGuardTest();
   registerCleanFormPaletteShortcutTest();
   registerModalPaletteShortcutTest();
@@ -1346,7 +1469,7 @@ describe("AppShell command palette dirty-form guard", () => {
   registerLaterModalPaletteShortcutTest();
 });
 
-describe("AppShell transient notice", () => {
+describe('AppShell transient notice', () => {
   // Sonner renders notices asynchronously in its own polite live region, so this suite awaits its portal markup.
   registerInfoNoticeDismissalTest();
   registerPersistentErrorNoticeTest();
@@ -1354,13 +1477,13 @@ describe("AppShell transient notice", () => {
   registerNoticeReplacementRaceTest();
 });
 
-describe("AppShell demo entry", () => {
-  it("opens the demo on the company picker without a sign-in step", () => {
+describe('AppShell demo entry', () => {
+  it('opens the demo on the company picker without a sign-in step', () => {
     useStore.getState().setActiveAccount(null);
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
-    expect(screen.getByText("Choose a company")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Choose an account" })).not.toBeInTheDocument();
+    expect(screen.getByText('Choose a company')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Choose an account' })).not.toBeInTheDocument();
   });
 });

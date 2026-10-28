@@ -1,21 +1,23 @@
-import { addDaysISO, daysInclusive, MAX_ISO_DATE, weekdayOf } from "./dateMath.js";
-import { daysInMonth as daysInGregorianMonth, isValidISODate } from "./integrity.js";
-import type { ISODate } from "../types/entities.js";
+import { addDaysISO, daysInclusive, MAX_ISO_DATE, weekdayOf } from './dateMath.js';
+import { daysInMonth as daysInGregorianMonth, isValidISODate } from './integrity.js';
+import type { ISODate } from '../types/entities.js';
 
 /** A supported repeat cadence for transient dated-entry creation. */
 export type RepeatPattern =
-  { kind: "weeks"; interval: 1 | 2 | 3 | 4 } | { kind: "monthly-date" } | { kind: "monthly-last-weekday" };
+  | { kind: 'weeks'; interval: 1 | 2 | 3 | 4 }
+  | { kind: 'monthly-date' }
+  | { kind: 'monthly-last-weekday' };
 
 /** Caller-owned limits for the common date generation rules. */
 export interface RepeatingDatePolicy {
   /** Calendar months after the start that the inclusive cutoff may reach. */
   maximumCalendarMonths: number;
   /** Whether the maximum cutoff preserves the anchor day or ends its target month. */
-  maximumCutoff: "anchor-day" | "month-end";
+  maximumCutoff: 'anchor-day' | 'month-end';
   /** Calendar months after the start used for a newly enabled repeat suggestion. */
   defaultCalendarMonths: number;
   /** Whether the suggested cutoff preserves the anchor day or ends its target month. */
-  defaultCutoff: "anchor-day" | "month-end";
+  defaultCutoff: 'anchor-day' | 'month-end';
   /** Inclusive maximum number of generated entries, including the original anchor. */
   maxOccurrences: number;
   /** Stable noun used in the defensive occurrence-limit message. */
@@ -40,32 +42,32 @@ const DEFAULT_REPEAT_MONTHS = 2;
 /** Existing allocation behavior, kept as the default for every public helper. */
 export const ALLOCATION_REPEAT_POLICY: RepeatingDatePolicy = {
   maximumCalendarMonths: MAX_REPEAT_MONTHS,
-  maximumCutoff: "anchor-day",
+  maximumCutoff: 'anchor-day',
   defaultCalendarMonths: DEFAULT_REPEAT_MONTHS,
-  defaultCutoff: "month-end",
+  defaultCutoff: 'month-end',
   maxOccurrences: GENERATED_ALLOCATION_LIMIT,
-  occurrenceNoun: "allocation",
+  occurrenceNoun: 'allocation',
 };
 
 /** Personal time-off behavior: the initial month plus eleven following calendar months. */
 export const TIME_OFF_REPEAT_POLICY: RepeatingDatePolicy = {
   maximumCalendarMonths: 11,
-  maximumCutoff: "month-end",
+  maximumCutoff: 'month-end',
   defaultCalendarMonths: 11,
-  defaultCutoff: "month-end",
+  defaultCutoff: 'month-end',
   maxOccurrences: 54,
-  occurrenceNoun: "entry",
+  occurrenceNoun: 'entry',
 };
 
 /** Why a repeating-date request cannot produce dates. */
 export type RepeatingDateErrorCode =
-  | "invalid-date"
-  | "cutoff-before-start"
-  | "cutoff-after-limit"
-  | "unsupported-pattern"
-  | "occurrence-limit"
-  | "no-repeat"
-  | "invalid-last-weekday-start";
+  | 'invalid-date'
+  | 'cutoff-before-start'
+  | 'cutoff-after-limit'
+  | 'unsupported-pattern'
+  | 'occurrence-limit'
+  | 'no-repeat'
+  | 'invalid-last-weekday-start';
 
 /** Stable error classification for form validation without matching human-readable messages. */
 export class RepeatingDateError extends RangeError {
@@ -74,7 +76,7 @@ export class RepeatingDateError extends RangeError {
   constructor(code: RepeatingDateErrorCode, message: string) {
     super(message);
     this.code = code;
-    this.name = "RepeatingDateError";
+    this.name = 'RepeatingDateError';
   }
 }
 
@@ -82,21 +84,24 @@ export class RepeatingDateError extends RangeError {
 // RangeErrors instead of emitting dates outside the supported domain. Share the Gregorian rule with integrity.ts.
 function countDaysInMonth(year: number, month: number): number {
   if (!Number.isSafeInteger(year) || year < FIRST_SUPPORTED_YEAR || year > LAST_SUPPORTED_YEAR) {
-    throw new RangeError("Date falls outside the supported four-digit ISO year range.");
+    throw new RangeError('Date falls outside the supported four-digit ISO year range.');
   }
   if (!Number.isSafeInteger(month) || month < 1 || month > MONTHS_PER_YEAR) {
-    throw new RangeError("Month must be a whole number from 1 through 12.");
+    throw new RangeError('Month must be a whole number from 1 through 12.');
   }
   return daysInGregorianMonth(year, month);
 }
 
 function buildIsoDate(year: number, month: number, day: number): ISODate {
-  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 function parseDateParts(date: ISODate): { year: number; month: number; day: number } {
   if (!isValidISODate(date)) {
-    throw new RepeatingDateError("invalid-date", "Repeat dates must be valid zero-padded ISO dates.");
+    throw new RepeatingDateError(
+      'invalid-date',
+      'Repeat dates must be valid zero-padded ISO dates.',
+    );
   }
   return {
     year: Number(date.slice(0, 4)),
@@ -115,7 +120,7 @@ export function maximumRepeatUntilDate(
   parseDateParts(startDate);
   try {
     const target = addCalendarMonthsClamped(startDate, policy.maximumCalendarMonths);
-    return policy.maximumCutoff === "month-end" ? endOfCalendarMonth(target) : target;
+    return policy.maximumCutoff === 'month-end' ? endOfCalendarMonth(target) : target;
     // Clamp a range beyond the supported calendar to its final date; rethrow unrelated failures.
   } catch (error) {
     if (error instanceof RangeError) return MAX_ISO_DATE;
@@ -135,7 +140,7 @@ export function defaultRepeatUntilDate(
   try {
     // Resolve the target month before applying the selected anchor-day or month-end cutoff policy.
     const target = addCalendarMonthsClamped(startDate, policy.defaultCalendarMonths);
-    suggested = policy.defaultCutoff === "month-end" ? endOfCalendarMonth(target) : target;
+    suggested = policy.defaultCutoff === 'month-end' ? endOfCalendarMonth(target) : target;
   } catch (error) {
     // Clamp an out-of-domain suggestion to the last supported date so enabling repeat never creates an invalid date; rethrow unrelated failures.
     if (error instanceof RangeError) suggested = MAX_ISO_DATE;
@@ -159,16 +164,21 @@ export function defaultTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
 }
 
 function addCalendarMonthsClamped(date: ISODate, months: number): ISODate {
-  if (!Number.isSafeInteger(months)) throw new RangeError("Calendar-month offset must be a safe integer.");
+  if (!Number.isSafeInteger(months))
+    throw new RangeError('Calendar-month offset must be a safe integer.');
   const { year, month, day } = parseDateParts(date);
   const absoluteMonth = (year - 1) * MONTHS_PER_YEAR + (month - 1) + months;
   const lastAbsoluteMonth = LAST_SUPPORTED_YEAR * MONTHS_PER_YEAR - 1;
   if (absoluteMonth < 0 || absoluteMonth > lastAbsoluteMonth) {
-    throw new RangeError("Repeating dates extend beyond the supported four-digit ISO year range.");
+    throw new RangeError('Repeating dates extend beyond the supported four-digit ISO year range.');
   }
   const targetYear = Math.floor(absoluteMonth / MONTHS_PER_YEAR) + 1;
   const targetMonth = (absoluteMonth % MONTHS_PER_YEAR) + 1;
-  return buildIsoDate(targetYear, targetMonth, Math.min(day, countDaysInMonth(targetYear, targetMonth)));
+  return buildIsoDate(
+    targetYear,
+    targetMonth,
+    Math.min(day, countDaysInMonth(targetYear, targetMonth)),
+  );
 }
 
 function endOfCalendarMonth(date: ISODate): ISODate {
@@ -176,23 +186,31 @@ function endOfCalendarMonth(date: ISODate): ISODate {
   return buildIsoDate(year, month, countDaysInMonth(year, month));
 }
 
-function applyRepeatingStartDate(startDates: ISODate[], candidate: ISODate, policy: RepeatingDatePolicy): ISODate[] {
+function applyRepeatingStartDate(
+  startDates: ISODate[],
+  candidate: ISODate,
+  policy: RepeatingDatePolicy,
+): ISODate[] {
   const previous = startDates.at(-1);
   if (previous !== undefined && candidate <= previous) {
-    throw new Error("Repeating allocation dates must be strictly increasing.");
+    throw new Error('Repeating allocation dates must be strictly increasing.');
   }
   if (startDates.length >= policy.maxOccurrences) {
     throw new RepeatingDateError(
-      "occurrence-limit",
+      'occurrence-limit',
       `Repeating ${policy.occurrenceNoun} generation exceeds its ${policy.maxOccurrences}-${policy.occurrenceNoun} limit.`,
     );
   }
   return [...startDates, candidate];
 }
 
-function buildWeeklyStartDates(startDate: ISODate, repeatUntil: ISODate, interval: number): ISODate[] {
+function buildWeeklyStartDates(
+  startDate: ISODate,
+  repeatUntil: ISODate,
+  interval: number,
+): ISODate[] {
   if (![1, 2, 3, 4].includes(interval)) {
-    throw new RepeatingDateError("unsupported-pattern", "Repeat week interval is not supported.");
+    throw new RepeatingDateError('unsupported-pattern', 'Repeat week interval is not supported.');
   }
   const startDates: ISODate[] = [];
   const intervalDays = interval * 7;
@@ -213,7 +231,11 @@ function buildMonthlyCandidate(startDate: ISODate, monthOffset: number): ISODate
   }
 }
 
-function buildMonthlyStartDates(startDate: ISODate, repeatUntil: ISODate, policy: RepeatingDatePolicy): ISODate[] {
+function buildMonthlyStartDates(
+  startDate: ISODate,
+  repeatUntil: ISODate,
+  policy: RepeatingDatePolicy,
+): ISODate[] {
   const startDates: ISODate[] = [];
   for (let monthOffset = 1; monthOffset <= policy.maximumCalendarMonths; monthOffset += 1) {
     const candidate = buildMonthlyCandidate(startDate, monthOffset);
@@ -239,8 +261,8 @@ function buildMonthlyLastWeekdayStartDates(
   const weekday = weekdayOf(startDate);
   if (lastMatchingWeekdayOfMonth(year, month, weekday) !== startDate) {
     throw new RepeatingDateError(
-      "invalid-last-weekday-start",
-      "Monthly last-weekday repeats must start on the last matching weekday of the month.",
+      'invalid-last-weekday-start',
+      'Monthly last-weekday repeats must start on the last matching weekday of the month.',
     );
   }
 
@@ -275,26 +297,29 @@ export function generateRepeatingStartDates(
   parseDateParts(startDate);
   parseDateParts(repeatUntil);
   if (repeatUntil < startDate) {
-    throw new RepeatingDateError("cutoff-before-start", "Repeat until cannot be before the allocation start.");
+    throw new RepeatingDateError(
+      'cutoff-before-start',
+      'Repeat until cannot be before the allocation start.',
+    );
   }
   if (repeatUntil > maximumRepeatUntilDate(startDate, policy)) {
     throw new RepeatingDateError(
-      "cutoff-after-limit",
+      'cutoff-after-limit',
       `Repeat until cannot be more than ${policy.maximumCalendarMonths} calendar months after the allocation start.`,
     );
   }
   let startDates = applyRepeatingStartDate([], startDate, policy);
   const repeatedStartDates = (() => {
     switch (pattern.kind) {
-      case "weeks":
+      case 'weeks':
         return buildWeeklyStartDates(startDate, repeatUntil, pattern.interval);
-      case "monthly-date":
+      case 'monthly-date':
         return buildMonthlyStartDates(startDate, repeatUntil, policy);
-      case "monthly-last-weekday":
+      case 'monthly-last-weekday':
         return buildMonthlyLastWeekdayStartDates(startDate, repeatUntil, policy);
       default:
         throw new RepeatingDateError(
-          "unsupported-pattern",
+          'unsupported-pattern',
           `Repeat pattern is not supported: ${JSON.stringify(pattern)}`,
         );
     }
@@ -304,7 +329,10 @@ export function generateRepeatingStartDates(
   }
 
   if (startDates.length < 2) {
-    throw new RepeatingDateError("no-repeat", "Repeat until must include at least one repeated occurrence.");
+    throw new RepeatingDateError(
+      'no-repeat',
+      'Repeat until must include at least one repeated occurrence.',
+    );
   }
   return { repeatUntil, startDates };
 }

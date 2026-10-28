@@ -1,16 +1,31 @@
-import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "@/lib/capacity";
-import type { DayCapacity } from "@/lib/capacity";
-import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { isExternalResource } from "@capacitylens/shared/types/entities";
-import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { bucketByCoveredDate, NO_ALLOCATIONS, NO_TIME_OFF, NO_CLOSURES } from "./schedulerModelIndexing";
-import type { CapacitySource, SchedulerModelOptions } from "./schedulerModelTypes";
+import {
+  applyCapacityMode,
+  buildDayCapacity,
+  resolveUtilizationFromCapacity,
+} from '@/lib/capacity';
+import type { DayCapacity } from '@/lib/capacity';
+import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { isExternalResource } from '@capacitylens/shared/types/entities';
+import type {
+  Allocation,
+  Closure,
+  ISODate,
+  Resource,
+  TimeOff,
+} from '@capacitylens/shared/types/entities';
+import {
+  bucketByCoveredDate,
+  NO_ALLOCATIONS,
+  NO_TIME_OFF,
+  NO_CLOSURES,
+} from './schedulerModelIndexing';
+import type { CapacitySource, SchedulerModelOptions } from './schedulerModelTypes';
 
 interface CreateCapacitySourceInput {
   days: ISODate[];
-  visibleWindow: SchedulerModelOptions["visibleWindow"];
-  overSoonWindow: SchedulerModelOptions["overSoonWindow"];
+  visibleWindow: SchedulerModelOptions['visibleWindow'];
+  overSoonWindow: SchedulerModelOptions['overSoonWindow'];
   closures: Closure[];
   blocksMode: boolean;
 }
@@ -30,7 +45,12 @@ interface CapacityContext {
   blocksMode: boolean;
 }
 
-const buildEmptyDayCapacity = (date: ISODate): DayCapacity => ({ date, allocated: 0, available: 0, over: false });
+const buildEmptyDayCapacity = (date: ISODate): DayCapacity => ({
+  date,
+  allocated: 0,
+  available: 0,
+  over: false,
+});
 
 function createUntrackedCapacitySource(): CapacitySource {
   return {
@@ -44,7 +64,10 @@ function createUntrackedCapacitySource(): CapacitySource {
   };
 }
 
-function createTrackedCapacitySource(input: ResourceCapacitySourceInput, context: CapacityContext): CapacitySource {
+function createTrackedCapacitySource(
+  input: ResourceCapacitySourceInput,
+  context: CapacityContext,
+): CapacitySource {
   const { resource, allocations, resourceTimeOff, effectiveWeek } = input;
   const { capacityDates, capacityDateSet, closures, closuresByDate, blocksMode } = context;
   const capacityAllocations = applyCapacityMode({ allocations, blocksMode });
@@ -57,8 +80,12 @@ function createTrackedCapacitySource(input: ResourceCapacitySourceInput, context
     const computed = buildDayCapacity({
       resource,
       date,
-      allocations: capacityDateSet.has(date) ? (allocationsByDate.get(date) ?? NO_ALLOCATIONS) : capacityAllocations,
-      timeOff: capacityDateSet.has(date) ? (personalTimeOffByDate.get(date) ?? NO_TIME_OFF) : resourceTimeOff,
+      allocations: capacityDateSet.has(date)
+        ? (allocationsByDate.get(date) ?? NO_ALLOCATIONS)
+        : capacityAllocations,
+      timeOff: capacityDateSet.has(date)
+        ? (personalTimeOffByDate.get(date) ?? NO_TIME_OFF)
+        : resourceTimeOff,
       effectiveWeek,
       closures: capacityDateSet.has(date) ? (closuresByDate.get(date) ?? NO_CLOSURES) : closures,
     });
@@ -79,7 +106,8 @@ function createTrackedCapacitySource(input: ResourceCapacitySourceInput, context
     resolveCapacityOnDay,
     countAllocationsOn: (date) => allocationsByDate.get(date)?.length ?? 0,
     countTimeOffOn,
-    resolveUtilizationOver: (dates) => resolveUtilizationFromCapacity(dates.map(resolveCapacityOnDay)),
+    resolveUtilizationOver: (dates) =>
+      resolveUtilizationFromCapacity(dates.map(resolveCapacityOnDay)),
     isOverOn: (dates) => dates.some((date) => resolveCapacityOnDay(date).over),
   };
 }
@@ -109,7 +137,10 @@ export function createCapacitySource({
   }: ResourceCapacitySourceInput): CapacitySource => {
     if (isExternalResource(resource)) return createUntrackedCapacitySource();
     // Capacity reads the resource's complete load even when filters hide work. Per-date buckets avoid repeated scans while preserving that truthful load.
-    return createTrackedCapacitySource({ resource, allocations, resourceTimeOff, effectiveWeek }, context);
+    return createTrackedCapacitySource(
+      { resource, allocations, resourceTimeOff, effectiveWeek },
+      context,
+    );
   };
 
   return { capacitySourceFor: createResourceCapacitySource, visDays: visibleDays, overDays };

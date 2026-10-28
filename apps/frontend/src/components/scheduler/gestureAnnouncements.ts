@@ -1,21 +1,29 @@
-import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
-import type { DateRange } from "@/lib/gestureMath";
-import type { BarLayout } from "./schedulerModel";
-import { m } from "@/i18n";
+import { blockHoursPerDay } from '@capacitylens/shared/lib/schedulingDays';
+import type { DateRange } from '@/lib/gestureMath';
+import type { BarLayout } from './schedulerModel';
+import { m } from '@/i18n';
 import {
   buildCapacityAdvisory,
   formatCapacityAdvisory,
   applyCapacityMode,
   buildCapacityWindow,
   listTimeOffApplyingTo,
-} from "@/lib/capacity";
-import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { carriesHourlyLoad, FULL_DAY_HOURS, isCapacityTracked } from "@capacitylens/shared/types/entities";
-import type { ID } from "@capacitylens/shared/types/entities";
-import { resolveResourceDisplayName } from "@/lib/metadata";
-import { listAccountWorkingDays, resolveSchedulingMode, buildVisibleRange } from "@/store/selectors";
-import { useStore } from "@/store/useStore";
-import { buildActiveGestureData } from "./gestureLanes";
+} from '@/lib/capacity';
+import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import {
+  carriesHourlyLoad,
+  FULL_DAY_HOURS,
+  isCapacityTracked,
+} from '@capacitylens/shared/types/entities';
+import type { ID } from '@capacitylens/shared/types/entities';
+import { resolveResourceDisplayName } from '@/lib/metadata';
+import {
+  listAccountWorkingDays,
+  resolveSchedulingMode,
+  buildVisibleRange,
+} from '@/store/selectors';
+import { useStore } from '@/store/useStore';
+import { buildActiveGestureData } from './gestureLanes';
 
 interface ReadCapacityGestureAdvisoryInput {
   bar: BarLayout;
@@ -37,7 +45,7 @@ export function readCapacityAnnouncement(resourceId: ID): string {
   const { data: storedData, ui, activeAccountId } = useStore.getState();
   const data = buildActiveGestureData(storedData, activeAccountId);
   const resource = data.resources.find((candidate) => candidate.id === resourceId);
-  if (!resource || !isCapacityTracked(resource)) return "";
+  if (!resource || !isCapacityTracked(resource)) return '';
 
   const name = resolveResourceDisplayName(resource);
   const blocksMode = !carriesHourlyLoad(resolveSchedulingMode(storedData, activeAccountId));
@@ -61,7 +69,10 @@ export function readCapacityAnnouncement(resourceId: ID): string {
   if (start > end) return m.scheduler_sr_announce_clear({ name });
 
   const timeOff = listTimeOffApplyingTo(resourceId, data.timeOff);
-  const effectiveWeek = effectiveWorkingWeek(resource, listAccountWorkingDays(storedData, activeAccountId));
+  const effectiveWeek = effectiveWorkingWeek(
+    resource,
+    listAccountWorkingDays(storedData, activeAccountId),
+  );
   const overDays = buildCapacityWindow({
     resource: resource,
     allocations: allocations,
@@ -85,11 +96,12 @@ export function readCapacityGestureAdvisory({
   const { data: storedData, activeAccountId } = useStore.getState();
   const data = buildActiveGestureData(storedData, activeAccountId);
   const resource = data.resources.find((candidate) => candidate.id === effectiveResourceId);
-  let advisory = "";
+  let advisory = '';
   if (resource && isCapacityTracked(resource)) {
     const others = applyCapacityMode({
       allocations: data.allocations.filter(
-        (allocation) => allocation.resourceId === effectiveResourceId && allocation.id !== bar.allocation.id,
+        (allocation) =>
+          allocation.resourceId === effectiveResourceId && allocation.id !== bar.allocation.id,
       ),
       blocksMode: isBlocks,
     });
@@ -106,10 +118,13 @@ export function readCapacityGestureAdvisory({
       },
       otherAllocations: others,
       timeOff: timeOff,
-      effectiveWeek: effectiveWorkingWeek(resource, listAccountWorkingDays(storedData, activeAccountId)),
+      effectiveWeek: effectiveWorkingWeek(
+        resource,
+        listAccountWorkingDays(storedData, activeAccountId),
+      ),
       closures: data.closures,
     });
-    advisory = formatCapacityAdvisory(result, "toast");
+    advisory = formatCapacityAdvisory(result, 'toast');
   }
   return advisory;
 }

@@ -1,7 +1,7 @@
 /**
  * Names a supported Playwright project.
  */
-export type PlaywrightProjectName = "chromium" | "db-backed" | "auth-backed" | "webkit" | "firefox";
+export type PlaywrightProjectName = 'chromium' | 'db-backed' | 'auth-backed' | 'webkit' | 'firefox';
 
 /**
  * Defines the environment flags and projects for a preset E2E run.
@@ -15,7 +15,7 @@ export interface E2ERunPreset {
  * Preconfigured multi-browser E2E run modes.
  */
 export const E2E_RUN_PRESETS: Readonly<
-  Record<"chromiumWebkit" | "firefoxOnly" | "standard" | "webkitOnly", E2ERunPreset>
+  Record<'chromiumWebkit' | 'firefoxOnly' | 'standard' | 'webkitOnly', E2ERunPreset>
 >;
 
 /**
@@ -36,5 +36,5 @@ export function resolvePlaywrightRunMode(
   selectsOnlyExplicitCoreSpecs: (argv: readonly string[]) => boolean,
 ): {
   projects: readonly PlaywrightProjectName[];
-  serverProfile: "vite" | "standard";
+  serverProfile: 'vite' | 'standard';
 };

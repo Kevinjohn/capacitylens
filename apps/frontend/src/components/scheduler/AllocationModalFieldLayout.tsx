@@ -1,12 +1,15 @@
-import type { ReactNode } from "react";
-import type { ISODate } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { DateField } from "@/components/common/ui";
+import type { ReactNode } from 'react';
+import type { ISODate } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import { DateField } from '@/components/common/ui';
 
 /** Keeps compound controls and their supporting text inside the shared 75% control column. */
 export function AllocationControlColumn({ children }: { children: ReactNode }) {
   return (
-    <div data-allocation-control-column className="min-w-0 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:gap-3">
+    <div
+      data-allocation-control-column
+      className="min-w-0 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:gap-3"
+    >
       <span aria-hidden="true" className="hidden sm:block" />
       <div className="flex min-w-0 flex-col gap-1.5">{children}</div>
     </div>
@@ -27,7 +30,7 @@ export function AllocationSpanRow({
     <div data-allocation-span-row className="flex min-w-0 flex-col gap-1.5">
       <div
         data-allocation-span-controls
-        className={`grid min-w-0 grid-cols-1 gap-2 ${columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+        className={`grid min-w-0 grid-cols-1 gap-2 ${columns === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}
       >
         {children}
       </div>

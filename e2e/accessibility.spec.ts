@@ -1,109 +1,115 @@
-import { test, expect } from "./fixtures";
-import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
+import { test, expect } from './fixtures';
+import { openApp, resetSchedulerScroll, setZoom } from './browserTestSupport';
 
 // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
 function registerAllocationBarFocusableEnterOpensTest() {
-  test("an allocation bar is focusable and Enter opens the editor", async ({ page }) => {
+  test('an allocation bar is focusable and Enter opens the editor', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
-    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
+    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' });
     await bar.focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("dialog", { name: "Edit allocation" })).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Edit allocation' })).toBeVisible();
   });
 }
 
 function registerArrowKeysMoveFocusedBarTest() {
-  test("arrow keys move a focused bar by a day", async ({ page }) => {
+  test('arrow keys move a focused bar by a day', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
-    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
+    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' });
     await bar.focus();
-    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press('ArrowRight');
     await expect(bar).toHaveAccessibleName(/2 Jun to 5 Jun/);
     await expect(bar).toBeFocused();
   });
 }
 
 function registerModalTrapsFocusClosesEscapeTest() {
-  test("a modal traps focus, closes on Escape, and restores its trigger", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/resources");
-    const trigger = page.getByRole("button", { name: "Add resource" });
+  test('a modal traps focus, closes on Escape, and restores its trigger', async ({ page }) => {
+    await openApp(page, 'Wayne Enterprises', '/resources');
+    const trigger = page.getByRole('button', { name: 'Add resource' });
     await trigger.focus();
-    await page.keyboard.press("Enter");
+    await page.keyboard.press('Enter');
 
-    const dialog = page.getByRole("dialog", { name: "Add resource" });
+    const dialog = page.getByRole('dialog', { name: 'Add resource' });
     await expect(dialog).toBeVisible();
-    await expect(dialog).toHaveAttribute("aria-modal", "true");
+    await expect(dialog).toHaveAttribute('aria-modal', 'true');
 
-    const name = page.getByRole("textbox", { name: "Name", exact: true });
-    const save = page.getByRole("button", { name: "Save", exact: true });
+    const name = page.getByRole('textbox', { name: 'Name', exact: true });
+    const save = page.getByRole('button', { name: 'Save', exact: true });
     await expect(name).toBeFocused();
 
     await save.focus();
-    await page.keyboard.press("Tab");
+    await page.keyboard.press('Tab');
     await expect(name).toBeFocused();
 
-    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press('Shift+Tab');
     await expect(save).toBeFocused();
 
-    await page.keyboard.press("Escape");
+    await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(trigger).toBeFocused();
   });
 }
 
 function registerSchedulerExposesGridRolesSrTest() {
-  test("the scheduler exposes grid roles and an sr-only per-row capacity summary", async ({ page }) => {
+  test('the scheduler exposes grid roles and an sr-only per-row capacity summary', async ({
+    page,
+  }) => {
     await openApp(page);
-    const grid = page.getByRole("grid", { name: "Resource schedule" });
+    const grid = page.getByRole('grid', { name: 'Resource schedule' });
     await expect(grid).toBeVisible();
-    await expect(grid).toHaveAttribute("aria-colcount", "2");
-    await expect(page.getByRole("rowheader", { name: /Bruce Wayne/ })).toBeVisible();
-    const bruceRow = page.getByRole("row").filter({ has: page.getByRole("rowheader", { name: /Bruce Wayne/ }) });
-    const lane = bruceRow.getByRole("gridcell");
+    await expect(grid).toHaveAttribute('aria-colcount', '2');
+    await expect(page.getByRole('rowheader', { name: /Bruce Wayne/ })).toBeVisible();
+    const bruceRow = page
+      .getByRole('row')
+      .filter({ has: page.getByRole('rowheader', { name: /Bruce Wayne/ }) });
+    const lane = bruceRow.getByRole('gridcell');
     await expect(lane).toBeVisible();
     await expect(lane).toHaveAccessibleName(/./);
-    await expect(lane).toHaveAttribute("aria-colindex", "2");
+    await expect(lane).toHaveAttribute('aria-colindex', '2');
     await expect(page.getByText(/\d+ allocation/).first()).toBeAttached();
   });
 }
 
 function registerInvalidFieldMarkedAriaInvalidTests() {
-  test("an invalid field is marked aria-invalid and described by the error", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/resources");
-    await page.getByRole("button", { name: "Add resource" }).click();
-    await page.getByRole("button", { name: "Save" }).click();
+  test('an invalid field is marked aria-invalid and described by the error', async ({ page }) => {
+    await openApp(page, 'Wayne Enterprises', '/resources');
+    await page.getByRole('button', { name: 'Add resource' }).click();
+    await page.getByRole('button', { name: 'Save' }).click();
 
-    const name = page.getByRole("textbox", { name: "Name", exact: true });
-    await expect(name).toHaveAttribute("aria-invalid", "true");
-    const describedBy = await name.getAttribute("aria-describedby");
+    const name = page.getByRole('textbox', { name: 'Name', exact: true });
+    await expect(name).toHaveAttribute('aria-invalid', 'true');
+    const describedBy = await name.getAttribute('aria-describedby');
     expect(describedBy).toBeTruthy();
-    await expect(page.getByRole("alert")).toHaveAttribute("id", describedBy!);
+    await expect(page.getByRole('alert')).toHaveAttribute('id', describedBy!);
 
-    await name.fill("Accessible resource");
-    const workingDays = page.getByRole("group", { name: "Working days" });
-    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
-      await page.getByRole("radio", { name: `${day} Not working` }).click();
+    await name.fill('Accessible resource');
+    const workingDays = page.getByRole('group', { name: 'Working days' });
+    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) {
+      await page.getByRole('radio', { name: `${day} Not working` }).click();
     }
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole('button', { name: 'Save' }).click();
 
-    await expect(name).not.toHaveAttribute("aria-invalid", "true");
-    await expect(name).not.toHaveAttribute("aria-describedby");
-    await expect(workingDays).toHaveAttribute("aria-invalid", "true");
-    const workingDaysDescribedBy = await workingDays.getAttribute("aria-describedby");
+    await expect(name).not.toHaveAttribute('aria-invalid', 'true');
+    await expect(name).not.toHaveAttribute('aria-describedby');
+    await expect(workingDays).toHaveAttribute('aria-invalid', 'true');
+    const workingDaysDescribedBy = await workingDays.getAttribute('aria-describedby');
     expect(workingDaysDescribedBy).toBeTruthy();
-    await expect(page.getByRole("alert")).toHaveAttribute("id", workingDaysDescribedBy!);
+    await expect(page.getByRole('alert')).toHaveAttribute('id', workingDaysDescribedBy!);
 
-    await page.getByRole("radio", { name: "Monday Full day" }).click();
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("resource-row").filter({ hasText: "Accessible resource" })).toBeVisible();
+    await page.getByRole('radio', { name: 'Monday Full day' }).click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(
+      page.getByTestId('resource-row').filter({ hasText: 'Accessible resource' }),
+    ).toBeVisible();
   });
 }
 
-test.describe("Keyboard & accessibility", () => {
+test.describe('Keyboard & accessibility', () => {
   registerAllocationBarFocusableEnterOpensTest();
   registerArrowKeysMoveFocusedBarTest();
   registerModalTrapsFocusClosesEscapeTest();

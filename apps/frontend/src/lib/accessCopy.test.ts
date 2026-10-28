@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
-import type { Role } from "@capacitylens/shared/domain/access";
-import { m } from "@/i18n";
-import { resolveAccessLabel, resolveAccessSummary, resolveRoleLabel, resolveRoleSummary } from "./accessCopy";
+import { describe, expect, it } from 'vitest';
+import type { Role } from '@capacitylens/shared/domain/access';
+import { m } from '@/i18n';
+import {
+  resolveAccessLabel,
+  resolveAccessSummary,
+  resolveRoleLabel,
+  resolveRoleSummary,
+} from './accessCopy';
 
-const roles: Role[] = ["owner", "admin", "editor", "viewer"];
+const roles: Role[] = ['owner', 'admin', 'editor', 'viewer'];
 
 const localizedRoleCopy = (role: Role) => ({
   label: {
@@ -22,37 +27,41 @@ const localizedRoleCopy = (role: Role) => ({
 
 const accessPrecedenceCases = () =>
   [
-    [{ experience: "demo", permissionStatus: "pending", role: null }, m.access_demo_label(), m.access_demo_summary()],
     [
-      { experience: "authenticated", permissionStatus: "pending", role: null },
+      { experience: 'demo', permissionStatus: 'pending', role: null },
+      m.access_demo_label(),
+      m.access_demo_summary(),
+    ],
+    [
+      { experience: 'authenticated', permissionStatus: 'pending', role: null },
       m.access_checking_label(),
       m.access_checking_summary(),
     ],
     [
-      { experience: "authenticated", permissionStatus: "not-applicable", role: null },
+      { experience: 'authenticated', permissionStatus: 'not-applicable', role: null },
       m.access_not_applicable_label(),
       m.access_not_applicable_summary(),
     ],
     [
-      { experience: "authenticated", permissionStatus: "unavailable", role: "owner" },
+      { experience: 'authenticated', permissionStatus: 'unavailable', role: 'owner' },
       m.access_unavailable_label(),
       m.access_unavailable_summary(),
     ],
     [
-      { experience: "authenticated", permissionStatus: "resolved", role: "viewer" },
+      { experience: 'authenticated', permissionStatus: 'resolved', role: 'viewer' },
       m.settings_role_viewer(),
       m.access_role_viewer_summary(),
     ],
   ] as const;
 
-describe("access copy", () => {
-  it.each(roles)("maps the %s role to its localized label and summary", (role) => {
+describe('access copy', () => {
+  it.each(roles)('maps the %s role to its localized label and summary', (role) => {
     const copy = localizedRoleCopy(role);
     expect(resolveRoleLabel(role)).toBe(copy.label);
     expect(resolveRoleSummary(role)).toBe(copy.summary);
   });
 
-  it("applies demo, pending, unavailable and role precedence consistently", () => {
+  it('applies demo, pending, unavailable and role precedence consistently', () => {
     for (const [input, label, summary] of accessPrecedenceCases()) {
       expect(resolveAccessLabel(input)).toBe(label);
       expect(resolveAccessSummary(input)).toBe(summary);

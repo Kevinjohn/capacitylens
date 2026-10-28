@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 /** Keep create mode and the selected edit or delete-confirmation row for an entity list. */
 export function useEntityListState<T>() {

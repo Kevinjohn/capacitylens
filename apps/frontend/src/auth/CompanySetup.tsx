@@ -1,11 +1,11 @@
-import { useId, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { apiRouteUrl } from "@/api/queryClient";
-import { apiFetch } from "@/data/requestTimeout";
-import { readApiError } from "@/lib/readApiError";
-import { MAX_NAME_LENGTH } from "@capacitylens/shared/lib/strings";
+import { useId, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { apiRouteUrl } from '@/api/queryClient';
+import { apiFetch } from '@/data/requestTimeout';
+import { readApiError } from '@/lib/readApiError';
+import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings';
 
 /** Collects the only company setup choice after native identity authentication. */
 export function CompanySetup({
@@ -18,7 +18,7 @@ export function CompanySetup({
   onSignOut: () => Promise<void> | void;
 }) {
   const id = useId();
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submit = async () => {
@@ -26,17 +26,18 @@ export function CompanySetup({
     setBusy(true);
     setError(null);
     try {
-      const response = await apiFetch(apiRouteUrl("api.installation.company", {}), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+      const response = await apiFetch(apiRouteUrl('api.installation.company', {}), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
       if (response.status === 409 && (await onConflict())) return;
-      if (!response.ok) throw new Error((await readApiError(response)) ?? "Company setup failed. Try again.");
+      if (!response.ok)
+        throw new Error((await readApiError(response)) ?? 'Company setup failed. Try again.');
       await onCreated();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Company setup failed. Try again.");
+      setError(failure instanceof Error ? failure.message : 'Company setup failed. Try again.');
     } finally {
       setBusy(false);
     }
@@ -51,7 +52,9 @@ export function CompanySetup({
         }}
       >
         <h1 className="text-2xl font-semibold">Set up your company</h1>
-        <p className="text-sm text-muted-foreground">Create your company to start scheduling. You will be its Owner.</p>
+        <p className="text-sm text-muted-foreground">
+          Create your company to start scheduling. You will be its Owner.
+        </p>
         <div className="space-y-2">
           <Label htmlFor={id}>Company name</Label>
           <Input
@@ -70,10 +73,21 @@ export function CompanySetup({
             {error}
           </p>
         )}
-        <Button data-testid="company-setup-submit" type="submit" disabled={busy || !name.trim()} className="w-full">
-          {busy ? "Creating company…" : "Create company"}
+        <Button
+          data-testid="company-setup-submit"
+          type="submit"
+          disabled={busy || !name.trim()}
+          className="w-full"
+        >
+          {busy ? 'Creating company…' : 'Create company'}
         </Button>
-        <Button type="button" variant="link" disabled={busy} onClick={() => void onSignOut()} className="w-full">
+        <Button
+          type="button"
+          variant="link"
+          disabled={busy}
+          onClick={() => void onSignOut()}
+          className="w-full"
+        >
           Sign out
         </Button>
       </form>

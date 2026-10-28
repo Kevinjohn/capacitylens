@@ -1,5 +1,5 @@
-import type { RequestListener } from "node:http";
-import type { Readable } from "node:stream";
+import type { RequestListener } from 'node:http';
+import type { Readable } from 'node:stream';
 
 /**
  * Timeout in milliseconds for upstream API requests in the rehearsal server.
@@ -21,4 +21,6 @@ export interface RehearsalRequestHandlerOptions {
 /**
  * Creates a handler that serves the built app and proxies API requests.
  */
-export function createRehearsalRequestHandler(options?: RehearsalRequestHandlerOptions): RequestListener;
+export function createRehearsalRequestHandler(
+  options?: RehearsalRequestHandlerOptions,
+): RequestListener;

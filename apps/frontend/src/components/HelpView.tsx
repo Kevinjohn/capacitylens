@@ -1,8 +1,8 @@
-import { useTourAction } from "@/hooks/useTourAction";
-import { m } from "@/i18n";
-import { useStore } from "@/store/useStore";
-import { Button } from "./ui/button";
-import { ListPage } from "./common/ListPage";
+import { useTourAction } from '@/hooks/useTourAction';
+import { m } from '@/i18n';
+import { useStore } from '@/store/useStore';
+import { Button } from './ui/button';
+import { ListPage } from './common/ListPage';
 
 /** Shared guidance and a role-aware route to the existing schedule tour. */
 export function HelpView() {

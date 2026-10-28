@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   status: vi.fn<() => Promise<Response>>(),
@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   end: vi.fn<() => Promise<Response>>(),
 }));
 
-vi.mock("@/account/accountClient", () => ({
+vi.mock('@/account/accountClient', () => ({
   accountClient: {
     masqueradeStatus: mocks.status,
     startMasquerade: mocks.start,
@@ -14,29 +14,29 @@ vi.mock("@/account/accountClient", () => ({
   },
 }));
 
-import { masqueradeApi } from "./masqueradeApi";
+import { masqueradeApi } from './masqueradeApi';
 
 const state = {
-  accountId: "a-studio",
-  targetUserId: "u-viewer",
-  targetName: "Selina Kyle",
-  effectiveRole: "viewer",
-  startedAt: "2026-09-01T10:00:00.000Z",
-  expiresAt: "2026-09-01T10:15:00.000Z",
-  token: "token-1",
+  accountId: 'a-studio',
+  targetUserId: 'u-viewer',
+  targetName: 'Selina Kyle',
+  effectiveRole: 'viewer',
+  startedAt: '2026-09-01T10:00:00.000Z',
+  expiresAt: '2026-09-01T10:15:00.000Z',
+  token: 'token-1',
 };
 const activeStatus = {
   active: true,
   ...state,
   contextToken: state.token,
-  principal: { id: "u-actor", email: "actor@example.test" },
-  authMode: "password-only",
+  principal: { id: 'u-actor', email: 'actor@example.test' },
+  authMode: 'password-only',
 };
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { 'Content-Type': 'application/json' },
   });
 }
 
@@ -46,96 +46,118 @@ beforeEach(() => {
   mocks.end.mockReset();
 });
 
-describe("masqueradeApi", () => {
-  it("decodes status transported by the account client", async () => {
+describe('masqueradeApi', () => {
+  it('decodes status transported by the account client', async () => {
     mocks.status.mockResolvedValue(json(activeStatus));
 
-    await expect(masqueradeApi.status("a-studio")).resolves.toEqual(activeStatus);
-    expect(mocks.status).toHaveBeenCalledWith("a-studio");
+    await expect(masqueradeApi.status('a-studio')).resolves.toEqual(activeStatus);
+    expect(mocks.status).toHaveBeenCalledWith('a-studio');
   });
 
-  it("accepts the backend-selected company when a cold status request has no local account", async () => {
+  it('accepts the backend-selected company when a cold status request has no local account', async () => {
     mocks.status.mockResolvedValue(json(activeStatus));
     await expect(masqueradeApi.status()).resolves.toEqual(activeStatus);
     expect(mocks.status).toHaveBeenCalledWith(undefined);
   });
 
-  it("surfaces server-authored errors for start, status, and end", async () => {
-    mocks.start.mockResolvedValue(json({ error: "Start denied." }, 403));
-    mocks.status.mockResolvedValue(json({ error: "Status unavailable." }, 503));
-    mocks.end.mockResolvedValue(json({ error: "End denied." }, 403));
+  it('surfaces server-authored errors for start, status, and end', async () => {
+    mocks.start.mockResolvedValue(json({ error: 'Start denied.' }, 403));
+    mocks.status.mockResolvedValue(json({ error: 'Status unavailable.' }, 503));
+    mocks.end.mockResolvedValue(json({ error: 'End denied.' }, 403));
 
-    await expect(masqueradeApi.start("a-studio", "u-viewer")).rejects.toThrow("Start denied.");
-    await expect(masqueradeApi.status()).rejects.toThrow("Status unavailable.");
-    await expect(masqueradeApi.end("token-1", "explicit")).rejects.toThrow("End denied.");
+    await expect(masqueradeApi.start('a-studio', 'u-viewer')).rejects.toThrow('Start denied.');
+    await expect(masqueradeApi.status()).rejects.toThrow('Status unavailable.');
+    await expect(masqueradeApi.end('token-1', 'explicit')).rejects.toThrow('End denied.');
   });
 
-  it("retains the existing fallback when the server error body is unusable", async () => {
+  it('retains the existing fallback when the server error body is unusable', async () => {
     mocks.status.mockResolvedValue(new Response(null, { status: 503 }));
 
-    await expect(masqueradeApi.status()).rejects.toThrow("Masquerade status could not be read (503).");
+    await expect(masqueradeApi.status()).rejects.toThrow(
+      'Masquerade status could not be read (503).',
+    );
   });
 
-  it("surfaces a decoded error when a successful response has no valid masquerade state", async () => {
-    mocks.start.mockResolvedValue(json({ error: "Start state unavailable." }));
-    mocks.status.mockResolvedValue(json({ error: "Status state unavailable." }));
+  it('surfaces a decoded error when a successful response has no valid masquerade state', async () => {
+    mocks.start.mockResolvedValue(json({ error: 'Start state unavailable.' }));
+    mocks.status.mockResolvedValue(json({ error: 'Status state unavailable.' }));
 
-    await expect(masqueradeApi.start("a-studio", "u-viewer")).rejects.toThrow("Start state unavailable.");
-    await expect(masqueradeApi.status()).rejects.toThrow("Status state unavailable.");
+    await expect(masqueradeApi.start('a-studio', 'u-viewer')).rejects.toThrow(
+      'Start state unavailable.',
+    );
+    await expect(masqueradeApi.status()).rejects.toThrow('Status state unavailable.');
   });
 
   it.each([
-    ["an empty account id", { accountId: "" }],
-    ["an empty target user id", { targetUserId: "" }],
-    ["an empty token", { token: "" }],
-    ["an invalid timestamp", { startedAt: "2026-02-30T10:00:00.000Z" }],
-  ])("rejects active state with %s", async (_description, change) => {
+    ['an empty account id', { accountId: '' }],
+    ['an empty target user id', { targetUserId: '' }],
+    ['an empty token', { token: '' }],
+    ['an invalid timestamp', { startedAt: '2026-02-30T10:00:00.000Z' }],
+  ])('rejects active state with %s', async (_description, change) => {
     mocks.status.mockResolvedValue(json({ ...activeStatus, ...change }));
 
-    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
+    await expect(masqueradeApi.status()).rejects.toThrow(
+      'The server returned an invalid masquerade status.',
+    );
   });
 
   it.each([
-    ["missing state fields", {}],
-    ["a non-string account id", { ...state, accountId: 1 }],
-    ["an unsupported role", { ...state, effectiveRole: "auditor" }],
-  ])("rejects active state with %s", async (_description, malformedState) => {
+    ['missing state fields', {}],
+    ['a non-string account id', { ...state, accountId: 1 }],
+    ['an unsupported role', { ...state, effectiveRole: 'auditor' }],
+  ])('rejects active state with %s', async (_description, malformedState) => {
     mocks.status.mockResolvedValue(
-      json({ active: true, ...malformedState, principal: activeStatus.principal, authMode: activeStatus.authMode }),
+      json({
+        active: true,
+        ...malformedState,
+        principal: activeStatus.principal,
+        authMode: activeStatus.authMode,
+      }),
     );
 
-    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
+    await expect(masqueradeApi.status()).rejects.toThrow(
+      'The server returned an invalid masquerade status.',
+    );
   });
 
-  it("rejects array response bodies for status and start", async () => {
+  it('rejects array response bodies for status and start', async () => {
     mocks.status.mockResolvedValue(json([]));
     mocks.start.mockResolvedValue(json([]));
 
-    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
-    await expect(masqueradeApi.start("a-studio", "u-viewer")).rejects.toThrow(
-      "The server returned an invalid masquerade state.",
+    await expect(masqueradeApi.status()).rejects.toThrow(
+      'The server returned an invalid masquerade status.',
+    );
+    await expect(masqueradeApi.start('a-studio', 'u-viewer')).rejects.toThrow(
+      'The server returned an invalid masquerade state.',
     );
   });
 
-  it("preserves an empty target name", async () => {
-    mocks.status.mockResolvedValue(json({ ...activeStatus, targetName: "" }));
+  it('preserves an empty target name', async () => {
+    mocks.status.mockResolvedValue(json({ ...activeStatus, targetName: '' }));
 
-    await expect(masqueradeApi.status()).resolves.toEqual({ ...activeStatus, targetName: "" });
+    await expect(masqueradeApi.status()).resolves.toEqual({ ...activeStatus, targetName: '' });
   });
 
-  it("requires a current idle context token from inactive status", async () => {
-    mocks.status.mockResolvedValue(json({ active: false, contextToken: "idle-context" }));
-    await expect(masqueradeApi.status()).resolves.toEqual({ active: false, contextToken: "idle-context" });
+  it('requires a current idle context token from inactive status', async () => {
+    mocks.status.mockResolvedValue(json({ active: false, contextToken: 'idle-context' }));
+    await expect(masqueradeApi.status()).resolves.toEqual({
+      active: false,
+      contextToken: 'idle-context',
+    });
 
     mocks.status.mockResolvedValue(json({ active: false, contextToken: null }));
     await expect(masqueradeApi.status()).resolves.toEqual({ active: false, contextToken: null });
 
     mocks.status.mockResolvedValue(json({ active: false }));
-    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
+    await expect(masqueradeApi.status()).rejects.toThrow(
+      'The server returned an invalid masquerade status.',
+    );
   });
 
-  it("rejects a status whose active context proof differs from the active mode token", async () => {
-    mocks.status.mockResolvedValue(json({ ...activeStatus, contextToken: "stale-context" }));
-    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
+  it('rejects a status whose active context proof differs from the active mode token', async () => {
+    mocks.status.mockResolvedValue(json({ ...activeStatus, contextToken: 'stale-context' }));
+    await expect(masqueradeApi.status()).rejects.toThrow(
+      'The server returned an invalid masquerade status.',
+    );
   });
 });

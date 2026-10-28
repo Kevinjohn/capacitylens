@@ -1,6 +1,6 @@
-import { test, expect } from "./fixtures";
-import type { Page } from "./fixtures";
-import AxeBuilder from "@axe-core/playwright";
+import { test, expect } from './fixtures';
+import type { Page } from './fixtures';
+import AxeBuilder from '@axe-core/playwright';
 import {
   computedStyles,
   disableCssMotion,
@@ -9,15 +9,17 @@ import {
   setTheme,
   setZoom,
   showScheduleFilters,
-} from "./browserTestSupport";
+} from './browserTestSupport';
 
-const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
 // Keep every axe scan on the same serious/critical filter and diagnostics so severity handling cannot drift.
 async function settledAxe(page: Page): Promise<void> {
   await disableCssMotion(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+  const blocking = results.violations.filter(
+    (v) => v.impact === 'serious' || v.impact === 'critical',
+  );
   expect(
     blocking,
     JSON.stringify(
@@ -30,70 +32,79 @@ async function settledAxe(page: Page): Promise<void> {
 
 // Disable entrance animations so axe samples settled colours (mid-fade reads as
 // false low-contrast). The app honours prefers-reduced-motion.
-test.use({ contextOptions: { reducedMotion: "reduce" } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // Axe is the a11y oracle: getByRole proves an attribute exists, not that the
 // structure/contrast is valid. This guards the whole a11y pass against regressions.
-test("scheduler has no serious or critical accessibility violations", async ({ page }) => {
+test('scheduler has no serious or critical accessibility violations', async ({ page }) => {
   await openApp(page);
-  await expect(page.getByTestId("scheduler-grid")).toBeVisible();
+  await expect(page.getByTestId('scheduler-grid')).toBeVisible();
   await setZoom(page, 4);
   await resetSchedulerScroll(page);
   const scheduleTrigger = page
-    .getByTestId("scheduler-row")
-    .filter({ hasText: "Bruce Wayne" })
-    .getByTestId("person-schedule-trigger");
-  await expect(scheduleTrigger).toHaveAttribute("aria-label", /BW$/);
-  const wireframesLane = page.getByTestId("resource-lane").filter({ has: page.getByText("Wireframes") });
+    .getByTestId('scheduler-row')
+    .filter({ hasText: 'Bruce Wayne' })
+    .getByTestId('person-schedule-trigger');
+  await expect(scheduleTrigger).toHaveAttribute('aria-label', /BW$/);
+  const wireframesLane = page
+    .getByTestId('resource-lane')
+    .filter({ has: page.getByText('Wireframes') });
   await expect(wireframesLane).toHaveAccessibleName(/Wireframes/);
   await settledAxe(page);
 });
 
-test("scheduler in dark mode has no serious or critical violations", async ({ page }) => {
+test('scheduler in dark mode has no serious or critical violations', async ({ page }) => {
   // Seed an explicit dark preference because the default light preference ignores the OS scheme.
-  await setTheme(page, "dark");
+  await setTheme(page, 'dark');
   await openApp(page);
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByTestId("scheduler-grid")).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByTestId('scheduler-grid')).toBeVisible();
   await settledAxe(page);
 });
 
 // A four-week view includes the seeded holiday and work bars, so axe checks both treatments together.
-async function openDrawMode(page: import("@playwright/test").Page): Promise<void> {
+async function openDrawMode(page: import('@playwright/test').Page): Promise<void> {
   await openApp(page);
   await showScheduleFilters(page);
-  await expect(page.getByTestId("scheduler-grid")).toBeVisible();
+  await expect(page.getByTestId('scheduler-grid')).toBeVisible();
   await setZoom(page, 4);
   await resetSchedulerScroll(page);
-  await page.getByRole("radio", { name: "Time off", exact: true }).click();
-  await expect(page.getByTestId("scheduler-grid")).toHaveAttribute("data-draw-mode", "timeoff");
+  await page.getByRole('radio', { name: 'Time off', exact: true }).click();
+  await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'timeoff');
   // Settle the 0.15s colour transitions before inspecting the time-off treatment as well as
   // before axe runs; an immediate style read can otherwise sample the transparent starting fill.
   await disableCssMotion(page);
-  await expect(page.getByTestId("allocation-bar").first()).toBeVisible();
-  const timeOffBlock = page.locator('[data-resource-id="r-tyler"]').getByTestId("timeoff-block");
+  await expect(page.getByTestId('allocation-bar').first()).toBeVisible();
+  const timeOffBlock = page.locator('[data-resource-id="r-tyler"]').getByTestId('timeoff-block');
   await expect(timeOffBlock).toBeVisible();
-  const treatment = await computedStyles(timeOffBlock, ["background-color", "background-image", "box-shadow", "color"]);
-  expect(treatment["background-color"]).toBe("rgb(250, 204, 21)");
-  expect(treatment["background-image"]).toContain("repeating-linear-gradient");
-  expect(treatment["box-shadow"]).toContain("6px 1px");
-  expect(treatment.color).toBe("rgb(28, 34, 48)");
+  const treatment = await computedStyles(timeOffBlock, [
+    'background-color',
+    'background-image',
+    'box-shadow',
+    'color',
+  ]);
+  expect(treatment['background-color']).toBe('rgb(250, 204, 21)');
+  expect(treatment['background-image']).toContain('repeating-linear-gradient');
+  expect(treatment['box-shadow']).toContain('6px 1px');
+  expect(treatment.color).toBe('rgb(28, 34, 48)');
 }
 
-test("scheduler in time-off draw mode has no serious or critical violations", async ({ page }) => {
+test('scheduler in time-off draw mode has no serious or critical violations', async ({ page }) => {
   await openDrawMode(page);
   await settledAxe(page);
 });
 
-test("scheduler in time-off draw mode (dark) has no serious or critical violations", async ({ page }) => {
-  await setTheme(page, "dark");
+test('scheduler in time-off draw mode (dark) has no serious or critical violations', async ({
+  page,
+}) => {
+  await setTheme(page, 'dark');
   await openDrawMode(page);
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await settledAxe(page);
 });
 
 // The allocation dialog must be portalled outside the grid, whose owned children may only be rows or rowgroups.
-async function openAllocationEditor(page: import("@playwright/test").Page): Promise<void> {
+async function openAllocationEditor(page: import('@playwright/test').Page): Promise<void> {
   await openApp(page);
   await disableCssMotion(page);
   await setZoom(page, 4);
@@ -101,85 +112,92 @@ async function openAllocationEditor(page: import("@playwright/test").Page): Prom
   // Wait for the bar to be present and visible, then use a normal actionable click. This setup is
   // also the pointer-interaction assertion: an overlay or disabled bar must fail the test rather
   // than being bypassed before axe scans the resulting dialog.
-  const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).first();
+  const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).first();
   await expect(bar).toBeVisible();
   await bar.scrollIntoViewIfNeeded();
   await bar.click();
-  await expect(page.getByRole("dialog", { name: "Edit allocation" })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Edit allocation' })).toBeVisible();
 }
 
-test("the allocation editor modal has no serious or critical violations", async ({ page }) => {
+test('the allocation editor modal has no serious or critical violations', async ({ page }) => {
   await openAllocationEditor(page);
   await settledAxe(page);
 });
 
-test("the allocation editor modal (dark) has no serious or critical violations", async ({ page }) => {
-  await setTheme(page, "dark");
+test('the allocation editor modal (dark) has no serious or critical violations', async ({
+  page,
+}) => {
+  await setTheme(page, 'dark');
   await openAllocationEditor(page);
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await settledAxe(page);
 });
 
-test("a resource form modal has no serious or critical violations", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/resources");
-  await page.getByRole("button", { name: "Add resource" }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+test('a resource form modal has no serious or critical violations', async ({ page }) => {
+  await openApp(page, 'Wayne Enterprises', '/resources');
+  await page.getByRole('button', { name: 'Add resource' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
   await settledAxe(page);
 });
 
 // Destructive confirmation buttons must maintain AA text contrast in the dark theme.
-test("a confirm dialog (dark) danger button has no serious or critical violations", async ({ page }) => {
-  await setTheme(page, "dark");
-  await openApp(page, "Wayne Enterprises", "/clients");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+test('a confirm dialog (dark) danger button has no serious or critical violations', async ({
+  page,
+}) => {
+  await setTheme(page, 'dark');
+  await openApp(page, 'Wayne Enterprises', '/clients');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page
-    .getByTestId("client-row")
-    .filter({ hasText: "Queen Consolidated" })
-    .getByRole("button", { name: "Archive Queen Consolidated" })
+    .getByTestId('client-row')
+    .filter({ hasText: 'Queen Consolidated' })
+    .getByRole('button', { name: 'Archive Queen Consolidated' })
     .click();
-  const dialog = page.getByRole("alertdialog", { name: "Archive client?" });
+  const dialog = page.getByRole('alertdialog', { name: 'Archive client?' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Archive", exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Archive', exact: true })).toBeVisible();
   await settledAxe(page);
 });
 
 // The empty state must preserve grid > row > gridcell semantics and readable contrast in both themes.
-test("the empty schedule has no serious or critical violations", async ({ page }) => {
+test('the empty schedule has no serious or critical violations', async ({ page }) => {
   await openApp(page);
   await showScheduleFilters(page);
-  await page.getByLabel("Search people").fill("zzznobody");
-  await expect(page.getByTestId("scheduler-empty")).toBeVisible();
+  await page.getByLabel('Search people').fill('zzznobody');
+  await expect(page.getByTestId('scheduler-empty')).toBeVisible();
   await settledAxe(page);
 });
 
-test("the empty schedule (dark) has no serious or critical violations", async ({ page }) => {
-  await setTheme(page, "dark");
+test('the empty schedule (dark) has no serious or critical violations', async ({ page }) => {
+  await setTheme(page, 'dark');
   await openApp(page);
   await showScheduleFilters(page);
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByLabel("Search people").fill("zzznobody");
-  await expect(page.getByTestId("scheduler-empty")).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByLabel('Search people').fill('zzznobody');
+  await expect(page.getByTestId('scheduler-empty')).toBeVisible();
   await settledAxe(page);
 });
 
-test("the diagnostics page has no serious or critical violations", async ({ page }) => {
-  await openApp(page, "Wayne Enterprises", "/diagnostics");
-  await expect(page.getByTestId("diagnostics-report-text")).toContainText("Snapshot observed:");
+test('the diagnostics page has no serious or critical violations', async ({ page }) => {
+  await openApp(page, 'Wayne Enterprises', '/diagnostics');
+  await expect(page.getByTestId('diagnostics-report-text')).toContainText('Snapshot observed:');
   await settledAxe(page);
 });
 
 // WCAG 1.4.10 requires the toolbar to reflow at 320 CSS pixels. The two-dimensional timeline is exempt.
-test("the scheduler toolbar reflows without horizontal scroll at 320px", async ({ page }) => {
+test('the scheduler toolbar reflows without horizontal scroll at 320px', async ({ page }) => {
   // 320×480 is the WCAG reflow target (320 CSS px wide). The 480 height keeps it portrait, so
   // pre-dismiss the session-scoped rotate hint (it covers the app on portrait phones) rather than
   // dodging it with a contrived landscape height. The test needs the real narrow-viewport toolbar.
-  await page.addInitScript(() => sessionStorage.setItem("capacitylens/rotateHintDismissed", "1"));
+  await page.addInitScript(() => sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'));
   await page.setViewportSize({ width: 320, height: 480 });
   await openApp(page);
   await showScheduleFilters(page);
-  const toolbar = page.getByTestId("scheduler-toolbar");
+  const toolbar = page.getByTestId('scheduler-toolbar');
   await expect(toolbar).toBeVisible();
-  const overflow = await toolbar.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
+  const overflow = await toolbar.evaluate((el) => ({
+    scrollWidth: el.scrollWidth,
+    clientWidth: el.clientWidth,
+  }));
   expect(
     overflow.scrollWidth,
     `toolbar overflows by ${overflow.scrollWidth - overflow.clientWidth}px at 320 CSS px`,
@@ -188,17 +206,19 @@ test("the scheduler toolbar reflows without horizontal scroll at 320px", async (
 
 // Focused bars must clear the sticky header and resource column.
 // Start fully obscured and require scroll movement so an already-visible bar cannot make the test pass.
-test("a focused allocation bar is not obscured by the sticky header or left column", async ({ page }) => {
+test('a focused allocation bar is not obscured by the sticky header or left column', async ({
+  page,
+}) => {
   // The Wayne Enterprises seed has only a handful of rows, so at a tall desktop viewport the grid never
   // overflows vertically (maxScrollTop ≈ 0) and the header-obscured case can't be reached. A short
   // viewport forces vertical scroll range. 480px height keeps it portrait, so pre-dismiss the
   // session rotate hint (it would otherwise cover the grid). Width stays wide so the timeline still
   // scrolls horizontally past the bar.
-  await page.addInitScript(() => sessionStorage.setItem("capacitylens/rotateHintDismissed", "1"));
+  await page.addInitScript(() => sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'));
   await page.setViewportSize({ width: 1000, height: 420 });
   await openApp(page);
   await setZoom(page, 4);
-  const grid = page.getByTestId("scheduler-grid");
+  const grid = page.getByTestId('scheduler-grid');
   await expect(grid).toBeVisible();
 
   // The top-left seed bar: Bruce Wayne's first allocation (a-tyler-1, the Wireframes bar) is in the
@@ -218,12 +238,13 @@ test("a focused allocation bar is not obscured by the sticky header or left colu
   // Let the row virtualisation window settle after the jump.
   await page.waitForTimeout(150);
   // Sanity: the grid actually has scroll range on both axes (else the obscured case isn't set up).
-  expect(before.scrollTop, "grid must have vertical scroll range to obscure the bar behind the header").toBeGreaterThan(
-    0,
-  );
+  expect(
+    before.scrollTop,
+    'grid must have vertical scroll range to obscure the bar behind the header',
+  ).toBeGreaterThan(0);
   expect(
     before.scrollLeft,
-    "grid must have horizontal scroll range to obscure the bar behind the column",
+    'grid must have horizontal scroll range to obscure the bar behind the column',
   ).toBeGreaterThan(0);
 
   // Focus the bar through the keyboard path. The browser scrolls it into view, honouring its
@@ -256,10 +277,12 @@ test("a focused allocation bar is not obscured by the sticky header or left colu
   // The focused bar's top edge must clear the sticky header's bottom, and its left edge the sticky
   // column's right (1px subpixel tolerance). If either check fails, the bar scrolled in behind the chrome,
   // which is exactly what happens if scroll-margin-top under-reserves the two-tier header's height.
-  expect(barBox.y, `bar top ${barBox.y} is behind sticky header bottom ${headerBottom}`).toBeGreaterThanOrEqual(
-    headerBottom - 1,
-  );
-  expect(barBox.x, `bar left ${barBox.x} is behind sticky column right ${leftColRight}`).toBeGreaterThanOrEqual(
-    leftColRight - 1,
-  );
+  expect(
+    barBox.y,
+    `bar top ${barBox.y} is behind sticky header bottom ${headerBottom}`,
+  ).toBeGreaterThanOrEqual(headerBottom - 1);
+  expect(
+    barBox.x,
+    `bar left ${barBox.x} is behind sticky column right ${leftColRight}`,
+  ).toBeGreaterThanOrEqual(leftColRight - 1);
 });

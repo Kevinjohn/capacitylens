@@ -1,10 +1,16 @@
-import { daysInclusive, eachDayISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
-import { effectiveWeekIncludes } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { hasAllocationLoadOnDay, hasOverCapacity } from "./primitives";
-import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from "./availability";
+import { daysInclusive, eachDayISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
+import { effectiveWeekIncludes } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import type {
+  Allocation,
+  Closure,
+  ISODate,
+  Resource,
+  TimeOff,
+} from '@capacitylens/shared/types/entities';
+import { hasAllocationLoadOnDay, hasOverCapacity } from './primitives';
+import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from './availability';
 
 /** Capacity impact summary for a proposed allocation. */
 export interface CapacityAdvisory {
@@ -17,8 +23,11 @@ export interface CapacityAdvisory {
 }
 
 /** Allocation fields read by the capacity advisory, accepting persisted rows or transient drafts. */
-export type CapacityAllocationInput = Pick<Allocation, "resourceId" | "startDate" | "endDate" | "hoursPerDay"> &
-  Partial<Pick<Allocation, "ignoreWeekends">>;
+export type CapacityAllocationInput = Pick<
+  Allocation,
+  'resourceId' | 'startDate' | 'endDate' | 'hoursPerDay'
+> &
+  Partial<Pick<Allocation, 'ignoreWeekends'>>;
 
 /** Existing load in hours, keyed by the ISO day it lands on, for one resource. Building this once
  * is what makes an advisory O(window + load) instead of O(windowDays × allocations), and lets a
@@ -132,7 +141,8 @@ function tallyAdvisory({
     const working = effectiveWeekIncludes(effectiveWeek, weekday);
     const scheduledCapacity = resolveScheduledHoursOnDay(resource, day, effectiveWeek);
     const onTimeOff =
-      scheduledCapacity > 0 && isUnavailable({ resource: resource, date: day, timeOff: timeOff, closures: closures });
+      scheduledCapacity > 0 &&
+      isUnavailable({ resource: resource, date: day, timeOff: timeOff, closures: closures });
     // Time off is its own category (counted, surfaced separately) and never folded into overDays,
     // a holiday only costs capacity on a day the resource would have worked, and it reads as "on
     // time off", not "over". `continue` so it can't also be tallied as over below.

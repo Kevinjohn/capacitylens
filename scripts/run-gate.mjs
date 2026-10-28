@@ -1,26 +1,26 @@
-import { fileURLToPath } from "node:url";
-import { gateCommands } from "./gateCommands.mjs";
-import { spawnPnpmSync, reportSpawnFailureAndResolveExitStatus } from "./pnpmSpawn.mjs";
+import { fileURLToPath } from 'node:url';
+import { gateCommands } from './gateCommands.mjs';
+import { spawnPnpmSync, reportSpawnFailureAndResolveExitStatus } from './pnpmSpawn.mjs';
 
-const root = fileURLToPath(new URL("../", import.meta.url));
+const root = fileURLToPath(new URL('../', import.meta.url));
 
 function main() {
   try {
     const [mode, ...extra] = process.argv.slice(2);
-    if (extra.length) throw new Error("Expected app, backend, or all with no extra arguments.");
+    if (extra.length) throw new Error('Expected app, backend, or all with no extra arguments.');
     for (const args of gateCommands(mode)) {
-      const label = `gate (${mode}): pnpm ${args.join(" ")}`;
+      const label = `gate (${mode}): pnpm ${args.join(' ')}`;
       console.log(label);
       const env =
-        args[0] === "run" && args[1] === "build"
+        args[0] === 'run' && args[1] === 'build'
           ? {
               ...process.env,
-              NODE_ENV: "production",
-              CAPACITYLENS_SECRET: "capacitylens-build-secret-0123456789abcdef",
-              CAPACITYLENS_PUBLIC_URL: "https://127.0.0.1",
+              NODE_ENV: 'production',
+              CAPACITYLENS_SECRET: 'capacitylens-build-secret-0123456789abcdef',
+              CAPACITYLENS_PUBLIC_URL: 'https://127.0.0.1',
             }
           : process.env;
-      const result = spawnPnpmSync(args, { cwd: root, stdio: "inherit", env });
+      const result = spawnPnpmSync(args, { cwd: root, stdio: 'inherit', env });
       const status = reportSpawnFailureAndResolveExitStatus(label, result);
       if (status !== 0) {
         process.exitCode = status;

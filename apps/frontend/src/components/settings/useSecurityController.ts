@@ -1,15 +1,15 @@
-import { useRef, useState } from "react";
+import { useRef, useState } from 'react';
 import {
   MAX_PASSWORD_INPUT_CODE_UNITS,
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
   passwordLengthFailure,
-} from "@capacitylens/shared/domain/password";
-import { authClient } from "@/auth/authClient";
-import { useFieldError } from "@/hooks/useFieldError";
-import { m } from "@/i18n";
+} from '@capacitylens/shared/domain/password';
+import { authClient } from '@/auth/authClient';
+import { useFieldError } from '@/hooks/useFieldError';
+import { m } from '@/i18n';
 
-type Fail = ReturnType<typeof useFieldError>["fail"];
+type Fail = ReturnType<typeof useFieldError>['fail'];
 
 interface PasswordChangeInput {
   fail: Fail;
@@ -19,16 +19,16 @@ interface PasswordChangeInput {
 }
 
 function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeInput) {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const generation = useRef(0);
 
   const reset = () => {
     generation.current += 1;
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
     clear();
     setMessage(null);
   };
@@ -37,38 +37,54 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
     clear();
     setMessage(null);
     if (currentPassword.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
-      fail("current", m.login_password_input_too_long());
+      fail('current', m.login_password_input_too_long());
       return;
     }
     if (passwordLengthFailure(newPassword)) {
-      fail("new", m.settings_security_err_password_length({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH }));
+      fail(
+        'new',
+        m.settings_security_err_password_length({
+          min: MIN_PASSWORD_LENGTH,
+          max: MAX_PASSWORD_LENGTH,
+        }),
+      );
       return;
     }
-    if (passwordLengthFailure(confirmPassword) === "too-long") {
-      fail("confirm", m.settings_security_err_password_length({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH }));
+    if (passwordLengthFailure(confirmPassword) === 'too-long') {
+      fail(
+        'confirm',
+        m.settings_security_err_password_length({
+          min: MIN_PASSWORD_LENGTH,
+          max: MAX_PASSWORD_LENGTH,
+        }),
+      );
       return;
     }
-    if (newPassword !== confirmPassword) return fail("confirm", m.settings_security_err_password_mismatch());
+    if (newPassword !== confirmPassword)
+      return fail('confirm', m.settings_security_err_password_mismatch());
     const requestGeneration = ++generation.current;
     setBusy(true);
     try {
       const result = await authClient.changePassword({ currentPassword, newPassword });
       if (requestGeneration !== generation.current) return;
       // A committed update whose follow-up failed still changed the password, so the old inputs are obsolete.
-      const committedWithWarning = result.error?.code === "CREDENTIAL_UPDATE_COMMITTED";
-      if (result.error && !committedWithWarning) return fail("current", result.error.message);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+      const committedWithWarning = result.error?.code === 'CREDENTIAL_UPDATE_COMMITTED';
+      if (result.error && !committedWithWarning) return fail('current', result.error.message);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
       setMessage(
-        committedWithWarning ? m.settings_security_password_changed_warning() : m.settings_security_password_changed(),
+        committedWithWarning
+          ? m.settings_security_password_changed_warning()
+          : m.settings_security_password_changed(),
       );
       // The change ended every sign-in, this one included; reload to sign in with the new password.
-      window.location.assign("/");
+      window.location.assign('/');
     } catch (cause) {
       // Log authentication-service failure, but publish it only while the password-change request owns the form.
-      console.error("SecuritySection: password change failed", cause);
-      if (requestGeneration === generation.current) fail("current", m.settings_security_err_password_outcome_unknown());
+      console.error('SecuritySection: password change failed', cause);
+      if (requestGeneration === generation.current)
+        fail('current', m.settings_security_err_password_outcome_unknown());
     } finally {
       setBusy(false);
     }

@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { m } from "@/i18n";
-import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamMember } from "@/account/teamAccessClient";
-import { Modal, SelectField } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
-import { Link as LinkIcon } from "lucide-react";
-import { useMemberResourceLinkRequest } from "./useMemberResourceLinkRequest";
+import { useEffect, useRef, useState } from 'react';
+import { m } from '@/i18n';
+import type { Role } from '@capacitylens/shared/domain/access';
+import type { TeamMember } from '@/account/teamAccessClient';
+import { Modal, SelectField } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
+import { Link as LinkIcon } from 'lucide-react';
+import { useMemberResourceLinkRequest } from './useMemberResourceLinkRequest';
 
 interface MemberResourceLinkProps {
   member: TeamMember;
@@ -21,25 +21,27 @@ interface MemberResourceLinkProps {
 type MemberResourceView = ReturnType<typeof buildMemberResourceView>;
 
 // Retain missing, archived or disabled person links as inactive instead of silently unlinking the member.
-type IsLinkedPersonInactiveOptions = { link: TeamMember["resourceLink"]; listed: boolean };
+type IsLinkedPersonInactiveOptions = { link: TeamMember['resourceLink']; listed: boolean };
 function isLinkedPersonInactive({ link, listed }: IsLinkedPersonInactiveOptions): boolean {
   if (!link) return false;
-  return !listed || link.resourceStatus === "archived" || link.resourceStatus === "disabled";
+  return !listed || link.resourceStatus === 'archived' || link.resourceStatus === 'disabled';
 }
 
 function isMemberLinkEditable(member: TeamMember): boolean {
-  return member.status === "active" && !member.accessDisabled && member.membershipPresent !== false;
+  return member.status === 'active' && !member.accessDisabled && member.membershipPresent !== false;
 }
 
 function buildMemberResourceView(
   member: TeamMember,
   linkedResourceIds: ReadonlySet<string>,
-  resourceCandidates: MemberResourceLinkProps["resourceCandidates"],
+  resourceCandidates: MemberResourceLinkProps['resourceCandidates'],
 ) {
   const linkedId = member.resourceLink?.resourceId;
   const currentPerson = resourceCandidates.find((resource) => resource.resourceId === linkedId);
   const people = resourceCandidates
-    .filter((resource) => !linkedResourceIds.has(resource.resourceId) || resource.resourceId === linkedId)
+    .filter(
+      (resource) => !linkedResourceIds.has(resource.resourceId) || resource.resourceId === linkedId,
+    )
     .map((resource) => ({ id: resource.resourceId, name: resource.label }));
   const currentPersonInactive = isLinkedPersonInactive({
     link: member.resourceLink,
@@ -49,7 +51,9 @@ function buildMemberResourceView(
     people,
     memberLabel: member.name ?? member.email ?? member.userId,
     currentPersonLabel:
-      currentPerson?.label ?? member.resourceLink?.resourceName ?? m.settings_member_resource_default_person(),
+      currentPerson?.label ??
+      member.resourceLink?.resourceName ??
+      m.settings_member_resource_default_person(),
     // A retained link to an archived or disabled person is shown, never offered as a choice.
     showInactive: currentPersonInactive,
     canEdit: isMemberLinkEditable(member) && !currentPersonInactive && people.length > 0,
@@ -59,7 +63,8 @@ function buildMemberResourceView(
 /** Account-admin control linking a login member to one eligible person Resource. */
 export function MemberResourceLink(props: MemberResourceLinkProps) {
   const { member, myRole, linkedResourceIds, resourceCandidates, dialog = false } = props;
-  if (myRole !== "owner" && myRole !== "admin") return dialog ? <div /> : <td className="py-2 px-4" />;
+  if (myRole !== 'owner' && myRole !== 'admin')
+    return dialog ? <div /> : <td className="py-2 px-4" />;
   const view = buildMemberResourceView(member, linkedResourceIds, resourceCandidates);
 
   if (!dialog) return <MemberResourceCell linked={Boolean(member.resourceLink)} view={view} />;
@@ -70,7 +75,11 @@ function MemberResourceCell({ linked, view }: { linked: boolean; view: MemberRes
   return (
     <td className="py-2 px-4" data-testid="member-resource-cell">
       <div className="flex flex-col items-start gap-1">
-        <span className="text-xs text-muted-foreground" aria-live="polite" data-testid="member-resource-status">
+        <span
+          className="text-xs text-muted-foreground"
+          aria-live="polite"
+          data-testid="member-resource-status"
+        >
           {linked ? view.currentPersonLabel : m.settings_member_resource_not_linked()}
         </span>
         {view.showInactive && (
@@ -110,9 +119,9 @@ function MemberResourceEditor({
           autoFocus
           layout="label-control"
           disabled={disabled}
-          value={member.resourceLink?.resourceId ?? ""}
+          value={member.resourceLink?.resourceId ?? ''}
           options={[
-            { value: "", label: m.settings_member_resource_unlinked() },
+            { value: '', label: m.settings_member_resource_unlinked() },
             ...view.people.map((person) => ({ value: person.id, label: person.name })),
           ]}
           onChange={(resourceId) => {
@@ -128,7 +137,7 @@ function MemberResourceEditor({
             variant="danger-soft"
             disabled={disabled}
             aria-label={m.settings_member_resource_remove_aria({ member: view.memberLabel })}
-            onClick={() => change("")}
+            onClick={() => change('')}
           >
             {m.settings_member_resource_remove()}
           </Button>
@@ -171,7 +180,7 @@ export function MemberResourceDialog({
     if (wasOpen.current && !open) requestAnimationFrame(() => triggerRef.current?.focus());
     wasOpen.current = open;
   }, [open]);
-  if (member.membershipPresent === false || (myRole !== "owner" && myRole !== "admin")) return null;
+  if (member.membershipPresent === false || (myRole !== 'owner' && myRole !== 'admin')) return null;
   const memberLabel = member.name ?? member.email ?? member.userId;
   return (
     <>

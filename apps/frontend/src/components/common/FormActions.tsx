@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
+import type { ReactNode } from 'react';
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
 
 /** The standard Cancel/submit actions shared by simple editor forms. */
 export function FormActions({

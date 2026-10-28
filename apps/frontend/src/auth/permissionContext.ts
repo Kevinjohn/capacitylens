@@ -1,7 +1,7 @@
-import { createContext, useContext } from "react";
-import { can } from "@capacitylens/shared/domain/access";
-import type { Action, Role } from "@capacitylens/shared/domain/access";
-import { useStore } from "@/store/useStore";
+import { createContext, useContext } from 'react';
+import { can } from '@capacitylens/shared/domain/access';
+import type { Action, Role } from '@capacitylens/shared/domain/access';
+import { useStore } from '@/store/useStore';
 
 // A null role means no membership role applies in off mode, demo mode, or providerless contexts.
 // Authenticated server lookups project unresolved memberships to Viewer; masquerading independently
@@ -13,11 +13,14 @@ export interface PermissionContextValue {
   /** Resolution state is separate from the fail-closed role projection. During a pending or failed
    * authenticated lookup `role` remains Viewer for affordance safety, while explanatory UI can say
    * that access is being checked or is unavailable instead of claiming Viewer is authoritative. */
-  status?: "not-applicable" | "pending" | "resolved" | "unavailable";
+  status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
 }
 
 /** Context for the active account role and permission-check status. */
-export const PermissionContext = createContext<PermissionContextValue>({ role: null, status: "not-applicable" });
+export const PermissionContext = createContext<PermissionContextValue>({
+  role: null,
+  status: 'not-applicable',
+});
 
 /**
  * The caller's resolved {@link Role} for the active account, or `null`.
@@ -31,9 +34,9 @@ export function useRole(): Role | null {
 }
 
 /** Status of the active membership lookup. Providerless contexts infer status from the supplied role. */
-export function usePermissionStatus(): NonNullable<PermissionContextValue["status"]> {
+export function usePermissionStatus(): NonNullable<PermissionContextValue['status']> {
   const value = useContext(PermissionContext);
-  return value.status ?? (value.role === null ? "not-applicable" : "resolved");
+  return value.status ?? (value.role === null ? 'not-applicable' : 'resolved');
 }
 
 /**
@@ -54,7 +57,7 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue["statu
 export function useCan(action: Action): boolean {
   const masqueradeKind = useStore((state) => state.masquerade.kind);
   const role = useRole();
-  if (action !== "read" && masqueradeKind !== "inactive") return false;
+  if (action !== 'read' && masqueradeKind !== 'inactive') return false;
   return role === null ? true : can(role, action);
 }
 
@@ -65,5 +68,5 @@ export function useCan(action: Action): boolean {
  * @returns `true` when the effective role permits editing and masquerading is inactive.
  */
 export function useCanEdit(): boolean {
-  return useCan("write");
+  return useCan('write');
 }

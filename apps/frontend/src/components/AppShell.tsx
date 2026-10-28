@@ -1,41 +1,48 @@
-import { Suspense, useEffect } from "react";
-import type { CSSProperties } from "react";
-import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { GettingStarted } from "./GettingStarted";
-import { Toaster } from "sonner";
-import { useStore } from "@/store/useStore";
-import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from "@/store/selectors";
-import { usePermissionStatus, useRole } from "@/auth/permissionContext";
-import { resolveCapacityOverviewAccessDecision } from "@/auth/capacityOverviewAccess";
-import { useDemoAuthActive } from "@/lib/fakeAuth";
-import { CommandPalette } from "./CommandPalette";
-import { PermissionProvider } from "@/auth/PermissionProvider";
-import { RotateHint } from "./RotateHint";
-import { Spinner } from "./ui/spinner";
-import { Alert, AlertDescription } from "./ui/alert";
-import { m } from "@/i18n";
-import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "@/lib/navLinks";
-import { AppEntryGate } from "./AppEntryGate";
-import { useAppShellController } from "./useAppShellController";
-import { AppSidebar } from "./AppSidebar";
-import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
-import { endMasquerade, reconcileMasqueradeStatus, retryMasqueradeProjection } from "@/auth/accountTransition";
-import { Button } from "./ui/button";
-import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "@/lib/tourAnchors";
-import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
-import { readPlanningProblem } from "@/data/planning/planningCacheController";
-import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
-import { useAuth } from "@/auth/authContext";
-import { ProductOrientation } from "./ProductOrientation";
-import { useProductOrientation } from "./useProductOrientation";
+import { Suspense, useEffect } from 'react';
+import type { CSSProperties } from 'react';
+import { matchPath, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { GettingStarted } from './GettingStarted';
+import { Toaster } from 'sonner';
+import { useStore } from '@/store/useStore';
+import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from '@/store/selectors';
+import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { resolveCapacityOverviewAccessDecision } from '@/auth/capacityOverviewAccess';
+import { useDemoAuthActive } from '@/lib/fakeAuth';
+import { CommandPalette } from './CommandPalette';
+import { PermissionProvider } from '@/auth/PermissionProvider';
+import { RotateHint } from './RotateHint';
+import { Spinner } from './ui/spinner';
+import { Alert, AlertDescription } from './ui/alert';
+import { m } from '@/i18n';
+import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from '@/lib/navLinks';
+import { AppEntryGate } from './AppEntryGate';
+import { useAppShellController } from './useAppShellController';
+import { AppSidebar } from './AppSidebar';
+import { SidebarProvider, SidebarTrigger, useSidebar } from './ui/sidebar';
+import {
+  endMasquerade,
+  reconcileMasqueradeStatus,
+  retryMasqueradeProjection,
+} from '@/auth/accountTransition';
+import { Button } from './ui/button';
+import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors';
+import { useDiagnosticsAccessDecision } from './diagnostics/useDiagnosticsAccessDecision';
+import { readPlanningProblem } from '@/data/planning/planningCacheController';
+import { chooseAnotherAccountAfterLoadFailure } from './accountLoadRecoveryActions';
+import { useAuth } from '@/auth/authContext';
+import { ProductOrientation } from './ProductOrientation';
+import { useProductOrientation } from './useProductOrientation';
 
-const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
+const masqueradeButtonClassName =
+  'border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white';
 
-function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.getState>["masquerade"]) {
+function buildMasqueradeBannerContent(
+  masquerade: ReturnType<typeof useStore.getState>['masquerade'],
+) {
   switch (masquerade.kind) {
-    case "inactive":
+    case 'inactive':
       return null;
-    case "starting":
+    case 'starting':
       return {
         label: m.app_masquerade_starting(),
         deadline: masquerade.state?.expiresAt,
@@ -43,7 +50,7 @@ function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.get
         showRetryProjection: true,
         endLabel: m.app_masquerade_end_now(),
       };
-    case "active":
+    case 'active':
       return {
         label: m.app_masquerading_as({ name: masquerade.state.targetName }),
         deadline: masquerade.state.expiresAt,
@@ -51,7 +58,7 @@ function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.get
         showRetryProjection: false,
         endLabel: m.app_masquerade_end_now(),
       };
-    case "ending":
+    case 'ending':
       return {
         label: m.app_masquerade_ending(),
         deadline: masquerade.state.expiresAt,
@@ -65,31 +72,37 @@ function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.get
 function MobileSidebarTrigger() {
   const { openMobile } = useSidebar();
   return (
-    <SidebarTrigger aria-expanded={openMobile} aria-label={openMobile ? m.nav_collapse_menu() : m.nav_expand_menu()} />
+    <SidebarTrigger
+      aria-expanded={openMobile}
+      aria-label={openMobile ? m.nav_collapse_menu() : m.nav_expand_menu()}
+    />
   );
 }
 
 function AppShellLoader() {
   return (
-    <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
+    <div
+      className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground"
+      role="status"
+    >
       <Spinner role="presentation" aria-label={undefined} />
       {m.app_loading()}
     </div>
   );
 }
 
-function AppShellToaster({ theme }: { theme: ReturnType<typeof useStore.getState>["theme"] }) {
+function AppShellToaster({ theme }: { theme: ReturnType<typeof useStore.getState>['theme'] }) {
   return (
     <Toaster
-      theme={theme === "system" ? "system" : theme}
+      theme={theme === 'system' ? 'system' : theme}
       position="bottom-center"
       closeButton
-      toastOptions={{ classNames: { error: "toast-error" } }}
+      toastOptions={{ classNames: { error: 'toast-error' } }}
       style={
         {
-          "--normal-bg": "var(--color-elevated)",
-          "--normal-text": "var(--color-ink)",
-          "--normal-border": "var(--color-line)",
+          '--normal-bg': 'var(--color-elevated)',
+          '--normal-text': 'var(--color-ink)',
+          '--normal-border': 'var(--color-line)',
         } as CSSProperties
       }
     />
@@ -98,24 +111,24 @@ function AppShellToaster({ theme }: { theme: ReturnType<typeof useStore.getState
 
 type GatedAppProps = {
   hydrated: boolean;
-  connectionError: ReturnType<typeof useStore.getState>["connectionError"];
-  loadError: ReturnType<typeof useStore.getState>["loadError"];
+  connectionError: ReturnType<typeof useStore.getState>['connectionError'];
+  loadError: ReturnType<typeof useStore.getState>['loadError'];
   demoAuthActive: boolean;
   hasActiveAccount: boolean;
   allowWithoutActiveAccount: boolean;
-  activeAccountId: ReturnType<typeof useStore.getState>["activeAccountId"];
-  activeAccountLoadFailed: ReturnType<typeof useStore.getState>["activeAccountLoadFailed"];
+  activeAccountId: ReturnType<typeof useStore.getState>['activeAccountId'];
+  activeAccountLoadFailed: ReturnType<typeof useStore.getState>['activeAccountLoadFailed'];
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   activeAccount:
-    | ReturnType<typeof useStore.getState>["data"]["accounts"][number]
-    | ReturnType<typeof useStore.getState>["accountSummaries"][number]
+    | ReturnType<typeof useStore.getState>['data']['accounts'][number]
+    | ReturnType<typeof useStore.getState>['accountSummaries'][number]
     | undefined;
   navLinks: typeof LINKS;
   dirtyForm: boolean;
   paletteOpen: boolean;
   closePalette: () => void;
-  persistError: ReturnType<typeof useStore.getState>["persistError"];
+  persistError: ReturnType<typeof useStore.getState>['persistError'];
   masqueradeBanner: ReturnType<typeof buildMasqueradeBannerContent>;
   navigate: ReturnType<typeof useNavigate>;
 };
@@ -162,7 +175,10 @@ function GatedApp({
         activeAccountId ? useStore.getState().refreshPlanning() : Promise.resolve(false)
       }
       onChooseAnotherAccount={() =>
-        void chooseAnotherAccountAfterLoadFailure({ accountRoute: allowWithoutActiveAccount, navigate: navigate })
+        void chooseAnotherAccountAfterLoadFailure({
+          accountRoute: allowWithoutActiveAccount,
+          navigate: navigate,
+        })
       }
     >
       <PermissionProvider>
@@ -170,7 +186,7 @@ function GatedApp({
           open={sidebarOpen}
           onOpenChange={setSidebarOpen}
           className="h-full min-h-0"
-          style={{ "--sidebar-width": "12rem", "--sidebar-width-icon": "3.5rem" } as CSSProperties}
+          style={{ '--sidebar-width': '12rem', '--sidebar-width-icon': '3.5rem' } as CSSProperties}
         >
           <GatedSidebar
             activeAccount={activeAccount}
@@ -193,19 +209,25 @@ function GatedSidebar({
   navLinks,
   demoAuthActive,
   sidebarOpen,
-}: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "sidebarOpen">) {
+}: Pick<GatedAppProps, 'activeAccount' | 'navLinks' | 'demoAuthActive' | 'sidebarOpen'>) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
+  const overviewAccess = useStore((state) =>
+    resolveCapacityOverviewAccess(state.data, state.activeAccountId),
+  );
   const visibleNavLinks =
-    resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed"
+    resolveCapacityOverviewAccessDecision({
+      role,
+      status: permissionStatus,
+      access: overviewAccess,
+    }) === 'allowed'
       ? navLinks
       : navLinks.filter(({ to }) => to !== ROUTE_CAPACITY_OVERVIEW);
   const adminLinks =
-    useDiagnosticsAccessDecision() === "allowed"
+    useDiagnosticsAccessDecision() === 'allowed'
       ? ADMIN_LINKS
       : ADMIN_LINKS.filter(({ to }) => to !== ROUTE_DIAGNOSTICS);
   return (
@@ -222,7 +244,10 @@ function GatedSidebar({
         demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}
         onSwitchAccount={() =>
-          void chooseAnotherAccountAfterLoadFailure({ accountRoute: accountRoute, navigate: navigate })
+          void chooseAnotherAccountAfterLoadFailure({
+            accountRoute: accountRoute,
+            navigate: navigate,
+          })
         }
         open={sidebarOpen}
       />
@@ -236,12 +261,12 @@ function GatedMain({
   masqueradeBanner,
   navigate,
   orientation,
-}: Pick<GatedAppProps, "hydrated" | "persistError" | "masqueradeBanner" | "navigate"> & {
+}: Pick<GatedAppProps, 'hydrated' | 'persistError' | 'masqueradeBanner' | 'navigate'> & {
   orientation: ReturnType<typeof useProductOrientation>;
 }) {
   const loader = <AppShellLoader />;
   const projectionChanging = useStore(
-    (state) => state.masquerade.kind === "starting" || state.masquerade.kind === "ending",
+    (state) => state.masquerade.kind === 'starting' || state.masquerade.kind === 'ending',
   );
   const planningProblem = useStore((state) => readPlanningProblem(state.planning));
   return (
@@ -258,7 +283,9 @@ function GatedMain({
       {planningProblem && (
         <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
           <AlertDescription>
-            {planningProblem === "refused" ? m.app_planning_refused() : m.app_planning_unavailable()}
+            {planningProblem === 'refused'
+              ? m.app_planning_refused()
+              : m.app_planning_unavailable()}
           </AlertDescription>
         </Alert>
       )}
@@ -299,7 +326,7 @@ function MasqueradeBanner({
         return;
       }
       void reconcileMasqueradeStatus().catch((error) => {
-        console.warn("Masquerade expiry status could not be refreshed", error);
+        console.warn('Masquerade expiry status could not be refreshed', error);
       });
     };
     checkDeadline();
@@ -320,7 +347,9 @@ function MasqueradeBanner({
           {banner.deadline && (
             <span className="ml-2 font-normal">
               {m.app_masquerade_expires({
-                time: new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date(banner.deadline)),
+                time: new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(
+                  new Date(banner.deadline),
+                ),
               })}
             </span>
           )}
@@ -341,7 +370,7 @@ function MasqueradeBanner({
               size="sm"
               variant="outline"
               className={masqueradeButtonClassName}
-              onClick={() => void endMasquerade("explicit", (to) => void navigate(to))}
+              onClick={() => void endMasquerade('explicit', (to) => void navigate(to))}
             >
               {banner.endLabel}
             </Button>
@@ -374,9 +403,12 @@ export function AppShell() {
     accounts.find((account) => account.id === activeAccountId) ??
     accountSummaries.find((a) => a.id === activeAccountId);
   const demoAuthActive = useDemoAuthActive();
-  const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
-  const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== "/disciplines");
-  const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
+  const disciplinesEnabled = useStore((state) =>
+    hasDisciplinesEnabled(state.data, state.activeAccountId),
+  );
+  const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== '/disciplines');
+  const accountRoute =
+    matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
 
   const dirtyForm = useStore((state) => state.dirtyForm);
   const sidebarOpen = useStore((state) => state.sidebarOpen);
@@ -391,7 +423,9 @@ export function AppShell() {
         loadError={loadError}
         demoAuthActive={demoAuthActive}
         hasActiveAccount={activeAccount !== undefined}
-        allowWithoutActiveAccount={accountRoute || (masquerade.kind !== "inactive" && masquerade.state !== undefined)}
+        allowWithoutActiveAccount={
+          accountRoute || (masquerade.kind !== 'inactive' && masquerade.state !== undefined)
+        }
         activeAccountId={activeAccountId}
         activeAccountLoadFailed={activeAccountLoadFailed}
         sidebarOpen={sidebarOpen}

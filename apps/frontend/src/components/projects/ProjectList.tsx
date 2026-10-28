@@ -1,26 +1,35 @@
-import { useActiveScopedData } from "@/store/useScopedData";
-import { useEntityListState } from "@/hooks/useEntityListState";
-import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";
-import { ProjectForm } from "./ProjectForm";
-import type { AppData, Client, ID, Project } from "@capacitylens/shared/types/entities";
-import { useLifecycleActions } from "@/hooks/useLifecycleActions";
-import { m } from "@/i18n";
-import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
-import { resolveProjectColor } from "@capacitylens/shared/lib/color";
-import { Fragment, useMemo } from "react";
-import { Folder, Plus } from "lucide-react";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
-import { buildProjectArchiveImpactCopy, safeArchiveImpact } from "@/lib/archiveImpactCopy";
-import { createClientProjectDisplayNameComparator } from "@/lib/displayOrder";
-import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
+import { useActiveScopedData } from '@/store/useScopedData';
+import { useEntityListState } from '@/hooks/useEntityListState';
+import {
+  ColorSwatch,
+  ConfirmDialog,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+  ListPage,
+} from '@/components/common/ui';
+import { ProjectForm } from './ProjectForm';
+import type { AppData, Client, ID, Project } from '@capacitylens/shared/types/entities';
+import { useLifecycleActions } from '@/hooks/useLifecycleActions';
+import { m } from '@/i18n';
+import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames';
+import { resolveProjectColor } from '@capacitylens/shared/lib/color';
+import { Fragment, useMemo } from 'react';
+import { Folder, Plus } from 'lucide-react';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
+import { buildProjectArchiveImpactCopy, safeArchiveImpact } from '@/lib/archiveImpactCopy';
+import { createClientProjectDisplayNameComparator } from '@/lib/displayOrder';
+import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
 
 // A concurrently inactive project must render the base confirmation message instead of throwing, so use safeArchiveImpact.
 function buildProjectArchiveMessage(data: AppData, project: Project): string {
   const name = project.isPrivate === true ? nameForQuotedContext(project.name) : project.name;
   const base = m.list_projects_archive_message({ name });
-  const impact = safeArchiveImpact(data, "projects", project.id);
+  const impact = safeArchiveImpact(data, 'projects', project.id);
   if (!impact) return base;
-  return impact.phases + impact.allocations > 0 ? `${base} ${buildProjectArchiveImpactCopy(impact)}` : base;
+  return impact.phases + impact.allocations > 0
+    ? `${base} ${buildProjectArchiveImpactCopy(impact)}`
+    : base;
 }
 
 interface ProjectItemsProps {
@@ -38,14 +47,19 @@ function ProjectItems({ projects, clientsById, onEdit, onArchive }: ProjectItems
           {index > 0 && <ItemSeparator />}
           <Item size="sm" role="listitem" data-testid="project-row" className="rounded-none">
             <ItemContent className="flex-row items-center gap-2">
-              <ColorSwatch color={resolveProjectColor(project, clientsById.get(project.clientId))} />
+              <ColorSwatch
+                color={resolveProjectColor(project, clientsById.get(project.clientId))}
+              />
               <span className="font-medium">{project.name}</span>
               <span className="text-sm text-muted-foreground">
                 · {clientsById.get(project.clientId)?.name ?? m.list_projects_no_client()}
               </span>
             </ItemContent>
             <ItemActions>
-              <EditButton label={m.list_edit_aria({ name: project.name })} onClick={() => onEdit(project)} />
+              <EditButton
+                label={m.list_edit_aria({ name: project.name })}
+                onClick={() => onEdit(project)}
+              />
               <DeleteButton
                 label={m.list_projects_archive_aria({ name: project.name })}
                 onClick={() => onArchive(project)}
@@ -66,13 +80,21 @@ export function ProjectList() {
     () => [...data.projects].sort(createClientProjectDisplayNameComparator(clients)),
     [clients, data.projects],
   );
-  const clientsById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
+  const clientsById = useMemo(
+    () => new Map(clients.map((client) => [client.id, client])),
+    [clients],
+  );
 
   const { archive } = useLifecycleActions();
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Project>();
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
+    useEntityListState<Project>();
 
   return (
-    <ListPage title={m.list_projects_title()} addLabel={m.list_projects_add()} onAdd={() => setCreating(true)}>
+    <ListPage
+      title={m.list_projects_title()}
+      addLabel={m.list_projects_add()}
+      onAdd={() => setCreating(true)}
+    >
       {projects.length === 0 ? (
         <EmptyState
           icon={Folder}
@@ -87,7 +109,12 @@ export function ProjectList() {
           {m.list_projects_empty()}
         </EmptyState>
       ) : (
-        <ProjectItems projects={projects} clientsById={clientsById} onEdit={setEditing} onArchive={setConfirming} />
+        <ProjectItems
+          projects={projects}
+          clientsById={clientsById}
+          onEdit={setEditing}
+          onArchive={setConfirming}
+        />
       )}
 
       <ArchivedEntitySection entity="projects" />
@@ -100,7 +127,7 @@ export function ProjectList() {
           message={buildProjectArchiveMessage(data, confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
-            void archive("projects", confirming.id);
+            void archive('projects', confirming.id);
             setConfirming(null);
           }}
           onCancel={() => setConfirming(null)}

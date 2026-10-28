@@ -1,7 +1,7 @@
-import { test as base, expect } from "./fixtures";
-import { API, ensureDbFixtureAdministrator } from "./serverTestState";
+import { test as base, expect } from './fixtures';
+import { API, ensureDbFixtureAdministrator } from './serverTestState';
 
-const admin = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
+const admin = { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' };
 
 /** Signs both the API client and browser into the disposable SQLite server. */
 export const test = base.extend<{ dbAuthentication: void }>({
@@ -19,4 +19,4 @@ export const test = base.extend<{ dbAuthentication: void }>({
 });
 
 export { expect };
-export type { APIRequestContext, Page } from "./fixtures";
+export type { APIRequestContext, Page } from './fixtures';

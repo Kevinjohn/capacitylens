@@ -13,5 +13,5 @@ export const FROZEN_REPLY_MESSAGES = {
    * sync (`src/data/sync/lifecycleOps.ts`) treats a 404 carrying exactly this text as "already
    * gone" rather than as a failure.
    */
-  notFound: "Not found",
+  notFound: 'Not found',
 } as const;

@@ -1,5 +1,5 @@
-import { NULLABLE_FIELDS } from "../types/nullableFields.js";
-import { describe, it, expect } from "vitest";
+import { NULLABLE_FIELDS } from '../types/nullableFields.js';
+import { describe, it, expect } from 'vitest';
 import {
   assertActivityProjectAllowsDependents,
   assertAllocationRefs,
@@ -10,11 +10,11 @@ import {
   assertScopedRefs,
   getOwned,
   remapAndValidateImport,
-} from "./mutations.js";
-import { emptyAppData, SCOPED_KEYS } from "../types/entities.js";
-import { addDaysISO } from "../lib/dateMath.js";
-import { MAX_SPAN_DAYS } from "../lib/schedulingDays.js";
-import { DomainError } from "./errors.js";
+} from './mutations.js';
+import { emptyAppData, SCOPED_KEYS } from '../types/entities.js';
+import { addDaysISO } from '../lib/dateMath.js';
+import { MAX_SPAN_DAYS } from '../lib/schedulingDays.js';
+import { DomainError } from './errors.js';
 import type {
   Account,
   Allocation,
@@ -28,7 +28,7 @@ import type {
   Activity,
   TimeOff,
   Weekday,
-} from "../types/entities.js";
+} from '../types/entities.js';
 
 interface ActivityOptions {
   id: ID;
@@ -55,7 +55,7 @@ interface TimeOffOptions {
 // These specs exercise the shared mutations without the store or React. The server uses
 // the same module, so these assertions pin the validation rules for both callers.
 
-const TS = "2026-01-01T00:00:00.000Z";
+const TS = '2026-01-01T00:00:00.000Z';
 const meta = (id: ID, accountId: ID) => ({
   id,
   accountId,
@@ -63,203 +63,239 @@ const meta = (id: ID, accountId: ID) => ({
   updatedAt: TS,
 });
 
-const account = (id: ID, name = "Co"): Account => ({
+const account = (id: ID, name = 'Co'): Account => ({
   ...NULLABLE_FIELDS.accounts,
   id,
   name,
-  color: "#3b82f6",
+  color: '#3b82f6',
   createdAt: TS,
   updatedAt: TS,
 });
-const client = (id: ID, accountId: ID, name = "Ferris"): Client => ({
+const client = (id: ID, accountId: ID, name = 'Ferris'): Client => ({
   ...NULLABLE_FIELDS.clients,
   ...meta(id, accountId),
   name,
-  color: "#3b82f6",
+  color: '#3b82f6',
 });
 const project = (id: ID, accountId: ID, clientId: ID): Project => ({
   ...NULLABLE_FIELDS.projects,
   ...meta(id, accountId),
-  name: "Web",
+  name: 'Web',
   clientId,
-  color: "#3b82f6",
+  color: '#3b82f6',
 });
 const phase = (id: ID, accountId: ID, projectId: ID): Phase => ({
   ...meta(id, accountId),
-  name: "Discovery",
+  name: 'Discovery',
   projectId,
 });
 const activity = ({ id, accountId, projectId, phaseId }: ActivityOptions): Activity => ({
   ...NULLABLE_FIELDS.activities,
   ...meta(id, accountId),
-  name: "Activity",
-  kind: "project",
+  name: 'Activity',
+  kind: 'project',
   projectId,
   ...(phaseId === undefined ? {} : { phaseId }),
 });
 const person = (id: ID, accountId: ID): Resource => ({
   ...NULLABLE_FIELDS.resources,
   ...meta(id, accountId),
-  kind: "person",
-  role: "Designer",
-  employmentType: "permanent",
-  engagement: "studio" as const,
+  kind: 'person',
+  role: 'Designer',
+  employmentType: 'permanent',
+  engagement: 'studio' as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],
-  color: "#3b82f6",
+  color: '#3b82f6',
 });
 const discipline = (id: ID, accountId: ID): Discipline => ({
   ...NULLABLE_FIELDS.disciplines,
   ...meta(id, accountId),
-  name: "Design",
+  name: 'Design',
   sortOrder: 0,
 });
 const placeholder = (id: ID, accountId: ID, projectId?: ID): Resource => ({
   ...person(id, accountId),
-  kind: "placeholder",
+  kind: 'placeholder',
   ...(projectId === undefined ? {} : { projectId }),
 });
 const external = (id: ID, accountId: ID): Resource => ({
   ...person(id, accountId),
-  kind: "external",
+  kind: 'external',
 });
-const allocation = ({ id, accountId, resourceId, activityId, overrides: o = {} }: AllocationOptions): Allocation => ({
+const allocation = ({
+  id,
+  accountId,
+  resourceId,
+  activityId,
+  overrides: o = {},
+}: AllocationOptions): Allocation => ({
   ...NULLABLE_FIELDS.allocations,
   ...meta(id, accountId),
   resourceId,
   activityId,
-  startDate: "2026-01-01",
-  endDate: "2026-01-05",
+  startDate: '2026-01-01',
+  endDate: '2026-01-05',
   hoursPerDay: 8,
-  status: "confirmed",
+  status: 'confirmed',
   ...o,
 });
 const timeOff = ({ id, accountId, resourceId, overrides: o = {} }: TimeOffOptions): TimeOff => ({
   ...NULLABLE_FIELDS.timeOff,
   ...meta(id, accountId),
   resourceId,
-  startDate: "2026-01-01",
-  endDate: "2026-01-03",
-  type: "holiday",
+  startDate: '2026-01-01',
+  endDate: '2026-01-03',
+  type: 'holiday',
   ...o,
 });
 
-const A1 = "acct-1";
-const A2 = "acct-2";
+const A1 = 'acct-1';
+const A2 = 'acct-2';
 const base = (): AppData => ({
   ...emptyAppData(),
   accounts: [account(A1), account(A2)],
 });
 
-describe("getOwned", () => {
-  it("returns the row when it belongs to the active account", () => {
-    const data = { ...base(), clients: [client("c1", A1)] };
-    expect(getOwned(data, A1, "clients", "c1")?.id).toBe("c1");
+describe('getOwned', () => {
+  it('returns the row when it belongs to the active account', () => {
+    const data = { ...base(), clients: [client('c1', A1)] };
+    expect(getOwned(data, A1, 'clients', 'c1')?.id).toBe('c1');
   });
 
-  it("returns null for an absent id (stale-id no-op contract)", () => {
-    expect(getOwned(base(), A1, "clients", "missing")).toBeNull();
+  it('returns null for an absent id (stale-id no-op contract)', () => {
+    expect(getOwned(base(), A1, 'clients', 'missing')).toBeNull();
   });
 
-  it("throws when the row belongs to another account", () => {
-    const data = { ...base(), clients: [client("c1", A2)] };
-    expect(() => getOwned(data, A1, "clients", "c1")).toThrow("That record does not belong to the active company.");
+  it('throws when the row belongs to another account', () => {
+    const data = { ...base(), clients: [client('c1', A2)] };
+    expect(() => getOwned(data, A1, 'clients', 'c1')).toThrow(
+      'That record does not belong to the active company.',
+    );
   });
 
-  it("carries a stable code independently from its display message", () => {
-    const data = { ...base(), clients: [client("c1", A2)] };
+  it('carries a stable code independently from its display message', () => {
+    const data = { ...base(), clients: [client('c1', A2)] };
     let error: unknown;
     try {
-      getOwned(data, A1, "clients", "c1");
+      getOwned(data, A1, 'clients', 'c1');
       // Capture the failure so the test can assert its domain code.
     } catch (caught) {
       error = caught;
     }
     expect(error).toBeInstanceOf(DomainError);
-    expect((error as DomainError).code).toBe("record_wrong_account");
+    expect((error as DomainError).code).toBe('record_wrong_account');
   });
 });
 
 const registerUnchangedParentIdOnUpdatePart1 = () => {
-  it("passes an UNCHANGED clientId even when the client is absent from data (archived parent)", () => {
-    const existing = project("p1", A1, "c-archived");
+  it('passes an UNCHANGED clientId even when the client is absent from data (archived parent)', () => {
+    const existing = project('p1', A1, 'c-archived');
     // No clients at all. The archived parent was stripped from the slice.
     expect(() =>
-      assertScopedRefs(base(), A1, "projects", { name: "Renamed", clientId: "c-archived" }, existing),
+      assertScopedRefs(
+        base(),
+        A1,
+        'projects',
+        { name: 'Renamed', clientId: 'c-archived' },
+        existing,
+      ),
     ).not.toThrow();
   });
 };
 const registerUnchangedParentIdOnUpdatePart2 = () => {
-  it("rejects an unchanged legacy reference when the resolved parent belongs to another account", () => {
-    const existing = project("p1", A1, "cross-account-client");
+  it('rejects an unchanged legacy reference when the resolved parent belongs to another account', () => {
+    const existing = project('p1', A1, 'cross-account-client');
     const data: AppData = {
       ...base(),
-      clients: [client("cross-account-client", A2)],
+      clients: [client('cross-account-client', A2)],
       projects: [existing],
     };
 
     expect(() =>
-      assertScopedRefs(data, A1, "projects", { name: "Unrelated rename", clientId: existing.clientId }, existing),
-    ).toThrow("Project must reference a client in this company.");
+      assertScopedRefs(
+        data,
+        A1,
+        'projects',
+        { name: 'Unrelated rename', clientId: existing.clientId },
+        existing,
+      ),
+    ).toThrow('Project must reference a client in this company.');
   });
 };
 const registerUnchangedParentIdOnUpdatePart3 = () => {
-  it("still rejects a CHANGED clientId that is absent from data", () => {
-    const existing = project("p1", A1, "c-archived");
-    expect(() => assertScopedRefs(base(), A1, "projects", { clientId: "c-other" }, existing)).toThrow(
-      "Project must reference a client in this company.",
-    );
+  it('still rejects a CHANGED clientId that is absent from data', () => {
+    const existing = project('p1', A1, 'c-archived');
+    expect(() =>
+      assertScopedRefs(base(), A1, 'projects', { clientId: 'c-other' }, existing),
+    ).toThrow('Project must reference a client in this company.');
   });
 };
 const registerUnchangedParentIdOnUpdatePart4 = () => {
-  it("passes an UNCHANGED projectId+phaseId pair even when both are absent from data", () => {
-    const existing = activity({ id: "t1", accountId: A1, projectId: "p-archived", phaseId: "ph-archived" });
-    const merged = { ...existing, name: "Renamed" };
-    expect(() => assertScopedRefs(base(), A1, "activities", merged, existing)).not.toThrow();
+  it('passes an UNCHANGED projectId+phaseId pair even when both are absent from data', () => {
+    const existing = activity({
+      id: 't1',
+      accountId: A1,
+      projectId: 'p-archived',
+      phaseId: 'ph-archived',
+    });
+    const merged = { ...existing, name: 'Renamed' };
+    expect(() => assertScopedRefs(base(), A1, 'activities', merged, existing)).not.toThrow();
   });
 };
 const registerUnchangedParentIdOnUpdatePart5 = () => {
-  it("rejects an unchanged phaseId when the resolved legacy phase belongs to another account", () => {
-    const existing = activity({ id: "t1", accountId: A1, projectId: "p1", phaseId: "cross-account-phase" });
+  it('rejects an unchanged phaseId when the resolved legacy phase belongs to another account', () => {
+    const existing = activity({
+      id: 't1',
+      accountId: A1,
+      projectId: 'p1',
+      phaseId: 'cross-account-phase',
+    });
     const data: AppData = {
       ...base(),
-      projects: [project("p1", A1, "c1")],
-      phases: [phase("cross-account-phase", A2, "p2")],
+      projects: [project('p1', A1, 'c1')],
+      phases: [phase('cross-account-phase', A2, 'p2')],
       activities: [existing],
     };
 
-    expect(() => assertScopedRefs(data, A1, "activities", { ...existing, name: "Unrelated rename" }, existing)).toThrow(
-      "Activity phase must belong to this company.",
-    );
+    expect(() =>
+      assertScopedRefs(data, A1, 'activities', { ...existing, name: 'Unrelated rename' }, existing),
+    ).toThrow('Activity phase must belong to this company.');
   });
 };
 const registerUnchangedParentIdOnUpdatePart6 = () => {
-  it("re-runs the full phase coherence check when the phaseId CHANGES", () => {
+  it('re-runs the full phase coherence check when the phaseId CHANGES', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
     };
-    const existing = activity({ id: "t1", accountId: A1, projectId: "p1", phaseId: "ph-old" });
-    const merged = { ...existing, phaseId: "ph-new" };
-    expect(() => assertScopedRefs(data, A1, "activities", merged, existing)).toThrow(
-      "Activity phase must belong to this company.",
+    const existing = activity({ id: 't1', accountId: A1, projectId: 'p1', phaseId: 'ph-old' });
+    const merged = { ...existing, phaseId: 'ph-new' };
+    expect(() => assertScopedRefs(data, A1, 'activities', merged, existing)).toThrow(
+      'Activity phase must belong to this company.',
     );
   });
 };
 const registerUnchangedParentIdOnUpdatePart7 = () => {
-  it("passes an UNCHANGED placeholder projectId even when the project is absent from data", () => {
-    const existing = placeholder("r1", A1, "p-archived");
+  it('passes an UNCHANGED placeholder projectId even when the project is absent from data', () => {
+    const existing = placeholder('r1', A1, 'p-archived');
     expect(() =>
-      assertScopedRefs(base(), A1, "resources", { name: "Renamed", projectId: "p-archived" }, existing),
+      assertScopedRefs(
+        base(),
+        A1,
+        'resources',
+        { name: 'Renamed', projectId: 'p-archived' },
+        existing,
+      ),
     ).not.toThrow();
   });
 };
 const registerUnchangedParentIdOnUpdatePart8 = () => {
-  it("without `existing` (an ADD) the check stays strict", () => {
-    expect(() => assertScopedRefs(base(), A1, "projects", { clientId: "c-archived" })).toThrow(
-      "Project must reference a client in this company.",
+  it('without `existing` (an ADD) the check stays strict', () => {
+    expect(() => assertScopedRefs(base(), A1, 'projects', { clientId: 'c-archived' })).toThrow(
+      'Project must reference a client in this company.',
     );
   });
 };
@@ -274,349 +310,359 @@ const registerUnchangedParentIdOnUpdate = () => {
   registerUnchangedParentIdOnUpdatePart8();
 };
 const registerAssertScopedRefsPart1 = () => {
-  it.each(["clients", "disciplines", "allocations", "timeOff"] as const)(
-    "leaves %s validation to its dedicated boundary",
+  it.each(['clients', 'disciplines', 'allocations', 'timeOff'] as const)(
+    'leaves %s validation to its dedicated boundary',
     (table) => {
       expect(() => assertScopedRefs(base(), A1, table, {})).not.toThrow();
     },
   );
 
-  it("passes when a project references a client in the same account", () => {
-    const data = { ...base(), clients: [client("c1", A1)] };
-    expect(() => assertScopedRefs(data, A1, "projects", { clientId: "c1" })).not.toThrow();
+  it('passes when a project references a client in the same account', () => {
+    const data = { ...base(), clients: [client('c1', A1)] };
+    expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'c1' })).not.toThrow();
   });
 
-  it("throws when a project references a client in another account", () => {
-    const data = { ...base(), clients: [client("c1", A2)] };
-    expect(() => assertScopedRefs(data, A1, "projects", { clientId: "c1" })).toThrow(
-      "Project must reference a client in this company.",
+  it('throws when a project references a client in another account', () => {
+    const data = { ...base(), clients: [client('c1', A2)] };
+    expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'c1' })).toThrow(
+      'Project must reference a client in this company.',
     );
   });
 
-  it("rejects a non-string reference id", () => {
-    const data = { ...base(), clients: [client("c1", A1)] };
-    expect(() => assertScopedRefs(data, A1, "projects", { clientId: 1 })).toThrow(
-      "Project must reference a client in this company.",
+  it('rejects a non-string reference id', () => {
+    const data = { ...base(), clients: [client('c1', A1)] };
+    expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 1 })).toThrow(
+      'Project must reference a client in this company.',
     );
   });
 };
 
 const registerAssertScopedRefsPart2 = () => {
-  it("rejects a new reference to an archived parent at the generic scoped write boundary", () => {
-    const archivedClient = { ...client("c1", A1), archivedAt: TS };
+  it('rejects a new reference to an archived parent at the generic scoped write boundary', () => {
+    const archivedClient = { ...client('c1', A1), archivedAt: TS };
     const data = { ...base(), clients: [archivedClient] };
-    expect(() => assertScopedRefs(data, A1, "projects", { clientId: "c1" })).toThrow(
-      "Project must reference a client in this company.",
+    expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'c1' })).toThrow(
+      'Project must reference a client in this company.',
     );
   });
 
   it.each([
-    ["archived", { archivedAt: TS }],
-    ["soft-deleted", { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" }],
-  ] as const)("rejects new descendants beneath an active project with an %s client ancestor", (_state, lifecycle) => {
-    const existingPhase = phase("ph-existing", A1, "p1");
-    const data: AppData = {
-      ...base(),
-      clients: [{ ...client("c1", A1), ...lifecycle }],
-      projects: [project("p1", A1, "c1")],
-      phases: [existingPhase],
-    };
+    ['archived', { archivedAt: TS }],
+    ['soft-deleted', { archivedAt: TS, deletedAt: '2026-01-02T00:00:00.000Z' }],
+  ] as const)(
+    'rejects new descendants beneath an active project with an %s client ancestor',
+    (_state, lifecycle) => {
+      const existingPhase = phase('ph-existing', A1, 'p1');
+      const data: AppData = {
+        ...base(),
+        clients: [{ ...client('c1', A1), ...lifecycle }],
+        projects: [project('p1', A1, 'c1')],
+        phases: [existingPhase],
+      };
 
-    expect(() => assertScopedRefs(data, A1, "phases", { projectId: "p1" })).toThrow(
-      "Phase must reference a project in this company.",
-    );
-    expect(() =>
-      assertScopedRefs(data, A1, "activities", {
-        kind: "project",
-        projectId: "p1",
-        name: "New activity",
-      }),
-    ).toThrow("Activity must reference a project in this company.");
-    expect(() =>
-      assertScopedRefs(data, A1, "resources", {
-        kind: "placeholder",
-        projectId: "p1",
-        role: "Slot",
-      }),
-    ).toThrow("Placeholder project must belong to this company.");
+      expect(() => assertScopedRefs(data, A1, 'phases', { projectId: 'p1' })).toThrow(
+        'Phase must reference a project in this company.',
+      );
+      expect(() =>
+        assertScopedRefs(data, A1, 'activities', {
+          kind: 'project',
+          projectId: 'p1',
+          name: 'New activity',
+        }),
+      ).toThrow('Activity must reference a project in this company.');
+      expect(() =>
+        assertScopedRefs(data, A1, 'resources', {
+          kind: 'placeholder',
+          projectId: 'p1',
+          role: 'Slot',
+        }),
+      ).toThrow('Placeholder project must belong to this company.');
 
-    // The existing row already owns this reference. Preserve the established relaxation for an
-    // unrelated edit while refusing every create/reparent onto the hidden subtree.
-    expect(() =>
-      assertScopedRefs(data, A1, "phases", { ...existingPhase, name: "Renamed" }, existingPhase),
-    ).not.toThrow();
-  });
+      // The existing row already owns this reference. Preserve the established relaxation for an
+      // unrelated edit while refusing every create/reparent onto the hidden subtree.
+      expect(() =>
+        assertScopedRefs(data, A1, 'phases', { ...existingPhase, name: 'Renamed' }, existingPhase),
+      ).not.toThrow();
+    },
+  );
 };
 
 const registerAssertScopedRefsPart3 = () => {
-  it("only checks FK fields actually present (partial patch)", () => {
+  it('only checks FK fields actually present (partial patch)', () => {
     // A patch with no clientId must not be rejected for omitting it.
-    const existing = project("p1", A1, "c1");
-    expect(() => assertScopedRefs(base(), A1, "projects", { name: "Renamed" }, existing)).not.toThrow();
+    const existing = project('p1', A1, 'c1');
+    expect(() =>
+      assertScopedRefs(base(), A1, 'projects', { name: 'Renamed' }, existing),
+    ).not.toThrow();
   });
 
-  it("throws when an activity phase belongs to another account", () => {
+  it('throws when an activity phase belongs to another account', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
-      phases: [phase("ph1", A2, "p1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
+      phases: [phase('ph1', A2, 'p1')],
     };
     expect(() =>
-      assertScopedRefs(data, A1, "activities", {
-        projectId: "p1",
-        phaseId: "ph1",
+      assertScopedRefs(data, A1, 'activities', {
+        projectId: 'p1',
+        phaseId: 'ph1',
       }),
-    ).toThrow("Activity phase must belong to this company.");
+    ).toThrow('Activity phase must belong to this company.');
   });
 
-  it("throws when an activity phase belongs to a DIFFERENT project than the activity", () => {
+  it('throws when an activity phase belongs to a DIFFERENT project than the activity', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
-      phases: [phase("ph1", A1, "p1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
+      phases: [phase('ph1', A1, 'p1')],
     };
     // Activity is bound to p2 but references p1's phase, double-bound to two projects.
     expect(() =>
-      assertScopedRefs(data, A1, "activities", {
-        projectId: "p2",
-        phaseId: "ph1",
+      assertScopedRefs(data, A1, 'activities', {
+        projectId: 'p2',
+        phaseId: 'ph1',
       }),
-    ).toThrow("Activity phase must belong to the activity’s project.");
+    ).toThrow('Activity phase must belong to the activity’s project.');
   });
 };
 
 const registerAssertScopedRefsPart4 = () => {
-  it("throws when an activity carries a phase but no project", () => {
+  it('throws when an activity carries a phase but no project', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
-      phases: [phase("ph1", A1, "p1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
+      phases: [phase('ph1', A1, 'p1')],
     };
-    expect(() => assertScopedRefs(data, A1, "activities", { phaseId: "ph1" })).toThrow(
-      "An activity with a phase must also belong to that phase’s project.",
+    expect(() => assertScopedRefs(data, A1, 'activities', { phaseId: 'ph1' })).toThrow(
+      'An activity with a phase must also belong to that phase’s project.',
     );
   });
 
-  it("passes when an activity phase belongs to the activity’s own project", () => {
+  it('passes when an activity phase belongs to the activity’s own project', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
-      phases: [phase("ph1", A1, "p1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
+      phases: [phase('ph1', A1, 'p1')],
     };
     expect(() =>
-      assertScopedRefs(data, A1, "activities", {
-        projectId: "p1",
-        phaseId: "ph1",
+      assertScopedRefs(data, A1, 'activities', {
+        projectId: 'p1',
+        phaseId: 'ph1',
       }),
     ).not.toThrow();
   });
 
-  it("throws when a project activity carries no project (kind coherence)", () => {
+  it('throws when a project activity carries no project (kind coherence)', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
     };
-    expect(() => assertScopedRefs(data, A1, "activities", { kind: "project", name: "T" })).toThrow(
-      "A project-specific activity must be assigned to a project.",
+    expect(() => assertScopedRefs(data, A1, 'activities', { kind: 'project', name: 'T' })).toThrow(
+      'A project-specific activity must be assigned to a project.',
     );
   });
 };
 
 const registerAssertScopedRefsPart5 = () => {
-  it("throws when an internal/repeatable activity carries a project or phase (kind coherence)", () => {
+  it('throws when an internal/repeatable activity carries a project or phase (kind coherence)', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
-      phases: [phase("ph1", A1, "p1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
+      phases: [phase('ph1', A1, 'p1')],
     };
     expect(() =>
-      assertScopedRefs(data, A1, "activities", {
-        kind: "internal",
-        projectId: "p1",
+      assertScopedRefs(data, A1, 'activities', {
+        kind: 'internal',
+        projectId: 'p1',
       }),
-    ).toThrow("cannot belong to a project");
+    ).toThrow('cannot belong to a project');
     expect(() =>
-      assertScopedRefs(data, A1, "activities", {
-        kind: "repeatable",
-        phaseId: "ph1",
+      assertScopedRefs(data, A1, 'activities', {
+        kind: 'repeatable',
+        phaseId: 'ph1',
       }),
-    ).toThrow("cannot belong to a phase");
+    ).toThrow('cannot belong to a phase');
   });
 
-  it("passes for a valid project-less internal activity", () => {
+  it('passes for a valid project-less internal activity', () => {
     expect(() =>
-      assertScopedRefs(base(), A1, "activities", {
-        kind: "internal",
-        name: "Admin",
+      assertScopedRefs(base(), A1, 'activities', {
+        kind: 'internal',
+        name: 'Admin',
       }),
     ).not.toThrow();
   });
 
-  it("throws when a placeholder is bound to a project in another account", () => {
+  it('throws when a placeholder is bound to a project in another account', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A2)],
-      projects: [project("p1", A2, "c1")],
+      clients: [client('c1', A2)],
+      projects: [project('p1', A2, 'c1')],
     };
-    expect(() => assertScopedRefs(data, A1, "resources", { projectId: "p1" })).toThrow(
-      "Placeholder project must belong to this company.",
+    expect(() => assertScopedRefs(data, A1, 'resources', { projectId: 'p1' })).toThrow(
+      'Placeholder project must belong to this company.',
     );
   });
 };
 
 const registerAssertScopedRefsPart6 = () => {
-  it("rejects project bindings on people and externals at the shared write boundary", () => {
+  it('rejects project bindings on people and externals at the shared write boundary', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
     };
 
-    expect(() => assertScopedRefs(data, A1, "resources", { kind: "person", projectId: "p1" })).toThrow(
-      "Only a placeholder can be assigned to a project.",
-    );
-    expect(() => assertScopedRefs(data, A1, "resources", { kind: "external", projectId: "p1" })).toThrow(
-      "Only a placeholder can be assigned to a project.",
-    );
+    expect(() =>
+      assertScopedRefs(data, A1, 'resources', { kind: 'person', projectId: 'p1' }),
+    ).toThrow('Only a placeholder can be assigned to a project.');
+    expect(() =>
+      assertScopedRefs(data, A1, 'resources', { kind: 'external', projectId: 'p1' }),
+    ).toThrow('Only a placeholder can be assigned to a project.');
   });
 
-  it("rejects converting a bound placeholder without clearing its project", () => {
+  it('rejects converting a bound placeholder without clearing its project', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
     };
-    const existing = placeholder("r1", A1, "p1");
+    const existing = placeholder('r1', A1, 'p1');
 
-    expect(() => assertScopedRefs(data, A1, "resources", { kind: "person" }, existing)).toThrow(
-      "A resource’s kind cannot change after creation.",
+    expect(() => assertScopedRefs(data, A1, 'resources', { kind: 'person' }, existing)).toThrow(
+      'A resource’s kind cannot change after creation.',
     );
-    expect(() => assertScopedRefs(data, A1, "resources", { kind: "person", projectId: undefined }, existing)).toThrow(
-      "A resource’s kind cannot change after creation.",
-    );
+    expect(() =>
+      assertScopedRefs(data, A1, 'resources', { kind: 'person', projectId: undefined }, existing),
+    ).toThrow('A resource’s kind cannot change after creation.');
   });
 
-  it("does not make an unrelated edit fail solely because of a legacy non-placeholder binding", () => {
-    const existing = { ...person("r1", A1), projectId: "legacy-project" };
-    expect(() => assertScopedRefs(base(), A1, "resources", { name: "Renamed" }, existing)).not.toThrow();
+  it('does not make an unrelated edit fail solely because of a legacy non-placeholder binding', () => {
+    const existing = { ...person('r1', A1), projectId: 'legacy-project' };
+    expect(() =>
+      assertScopedRefs(base(), A1, 'resources', { name: 'Renamed' }, existing),
+    ).not.toThrow();
   });
 };
 
 const registerAssertScopedRefsPart7 = () => {
-  it("rejects absent or null required parents on project and phase creates", () => {
-    expect(() => assertScopedRefs(base(), A1, "projects", { name: "No parent" })).toThrow(
-      "Project must reference a client in this company.",
+  it('rejects absent or null required parents on project and phase creates', () => {
+    expect(() => assertScopedRefs(base(), A1, 'projects', { name: 'No parent' })).toThrow(
+      'Project must reference a client in this company.',
     );
-    expect(() => assertScopedRefs(base(), A1, "projects", { clientId: null })).toThrow(
-      "Project must reference a client in this company.",
+    expect(() => assertScopedRefs(base(), A1, 'projects', { clientId: null })).toThrow(
+      'Project must reference a client in this company.',
     );
-    expect(() => assertScopedRefs(base(), A1, "phases", { name: "No parent" })).toThrow(
-      "Phase must reference a project in this company.",
+    expect(() => assertScopedRefs(base(), A1, 'phases', { name: 'No parent' })).toThrow(
+      'Phase must reference a project in this company.',
     );
-    expect(() => assertScopedRefs(base(), A1, "phases", { projectId: null })).toThrow(
-      "Phase must reference a project in this company.",
-    );
-  });
-
-  it("rejects an explicitly cleared required parent on a partial patch", () => {
-    expect(() => assertScopedRefs(base(), A1, "projects", { clientId: null }, project("p1", A1, "c1"))).toThrow(
-      "Project must reference a client in this company.",
-    );
-    expect(() => assertScopedRefs(base(), A1, "phases", { projectId: undefined }, phase("ph1", A1, "p1"))).toThrow(
-      "Phase must reference a project in this company.",
+    expect(() => assertScopedRefs(base(), A1, 'phases', { projectId: null })).toThrow(
+      'Phase must reference a project in this company.',
     );
   });
 
-  it("rejects a project whose client id is ABSENT even though ANOTHER client belongs to the account", () => {
+  it('rejects an explicitly cleared required parent on a partial patch', () => {
+    expect(() =>
+      assertScopedRefs(base(), A1, 'projects', { clientId: null }, project('p1', A1, 'c1')),
+    ).toThrow('Project must reference a client in this company.');
+    expect(() =>
+      assertScopedRefs(base(), A1, 'phases', { projectId: undefined }, phase('ph1', A1, 'p1')),
+    ).toThrow('Phase must reference a project in this company.');
+  });
+
+  it('rejects a project whose client id is ABSENT even though ANOTHER client belongs to the account', () => {
     // The in-account check must match the referenced id, not merely "does any row belong here": with a
     // valid A1 client present but a dangling reference, the FK is still unsatisfied and must throw.
-    const data = { ...base(), clients: [client("c1", A1)] };
-    expect(() => assertScopedRefs(data, A1, "projects", { clientId: "ghost" })).toThrow(
-      "Project must reference a client in this company.",
+    const data = { ...base(), clients: [client('c1', A1)] };
+    expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'ghost' })).toThrow(
+      'Project must reference a client in this company.',
     );
   });
 };
 
 const registerAssertScopedRefsPart8 = () => {
-  it("validates a phase’s projectId FK (throws cross-account, passes in-account)", () => {
+  it('validates a phase’s projectId FK (throws cross-account, passes in-account)', () => {
     const cross = {
       ...base(),
-      clients: [client("c1", A2)],
-      projects: [project("p1", A2, "c1")],
+      clients: [client('c1', A2)],
+      projects: [project('p1', A2, 'c1')],
     };
-    expect(() => assertScopedRefs(cross, A1, "phases", { projectId: "p1" })).toThrow(
-      "Phase must reference a project in this company.",
+    expect(() => assertScopedRefs(cross, A1, 'phases', { projectId: 'p1' })).toThrow(
+      'Phase must reference a project in this company.',
     );
     const ok = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
     };
-    expect(() => assertScopedRefs(ok, A1, "phases", { projectId: "p1" })).not.toThrow();
+    expect(() => assertScopedRefs(ok, A1, 'phases', { projectId: 'p1' })).not.toThrow();
   });
 
-  it("validates an activity’s projectId FK with its OWN message when a dangling project is referenced", () => {
-    const data = { ...base(), clients: [client("c1", A1)] };
-    expect(() => assertScopedRefs(data, A1, "activities", { projectId: "ghost" })).toThrow(
-      "Activity must reference a project in this company.",
+  it('validates an activity’s projectId FK with its OWN message when a dangling project is referenced', () => {
+    const data = { ...base(), clients: [client('c1', A1)] };
+    expect(() => assertScopedRefs(data, A1, 'activities', { projectId: 'ghost' })).toThrow(
+      'Activity must reference a project in this company.',
     );
   });
 
-  it("rejects an activity whose phase id is ABSENT even though ANOTHER phase belongs to the account", () => {
+  it('rejects an activity whose phase id is ABSENT even though ANOTHER phase belongs to the account', () => {
     // The phase lookup must match the referenced id, not "any account phase": a dangling phaseId must
     // fail with the belong-to-company message even when a real phase exists in the account.
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
-      phases: [phase("ph1", A1, "p1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
+      phases: [phase('ph1', A1, 'p1')],
     };
     expect(() =>
-      assertScopedRefs(data, A1, "activities", {
-        projectId: "p1",
-        phaseId: "ph-absent",
+      assertScopedRefs(data, A1, 'activities', {
+        projectId: 'p1',
+        phaseId: 'ph-absent',
       }),
-    ).toThrow("Activity phase must belong to this company.");
+    ).toThrow('Activity phase must belong to this company.');
   });
 };
 
 const registerAssertScopedRefsPart9 = () => {
-  it("an UNRECOGNISED activity kind is not treated as internal/repeatable (no false project rejection)", () => {
+  it('an UNRECOGNISED activity kind is not treated as internal/repeatable (no false project rejection)', () => {
     // assertScopedRefs checks refs + coherence for the known kinds only; it does not police the kind
     // enum itself (sanitize does). An unknown kind carrying a valid project must pass the ref checks.
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
     };
     expect(() =>
-      assertScopedRefs(data, A1, "activities", {
-        kind: "bogus",
-        projectId: "p1",
+      assertScopedRefs(data, A1, 'activities', {
+        kind: 'bogus',
+        projectId: 'p1',
       }),
     ).not.toThrow();
   });
 
-  it("validates a resource’s disciplineId FK with its own message (dangling discipline throws)", () => {
-    const data = { ...base(), disciplines: [discipline("d1", A2)] };
-    expect(() => assertScopedRefs(data, A1, "resources", { disciplineId: "d1" })).toThrow(
-      "Resource discipline must belong to this company.",
+  it('validates a resource’s disciplineId FK with its own message (dangling discipline throws)', () => {
+    const data = { ...base(), disciplines: [discipline('d1', A2)] };
+    expect(() => assertScopedRefs(data, A1, 'resources', { disciplineId: 'd1' })).toThrow(
+      'Resource discipline must belong to this company.',
     );
   });
 
   // The unchanged-on-update relaxation (5th arg `existing`): in server mode the client's hydrated
   // slice is active-only, so an unchanged parent id pointing at an archived parent (absent from
   // `data`) must not block an unrelated edit. A changed id is still validated strictly.
-  describe("unchanged parent id on update (existing row passed)", registerUnchangedParentIdOnUpdate);
+  describe(
+    'unchanged parent id on update (existing row passed)',
+    registerUnchangedParentIdOnUpdate,
+  );
 };
 
-describe("assertScopedRefs", () => {
+describe('assertScopedRefs', () => {
   registerAssertScopedRefsPart1();
   registerAssertScopedRefsPart2();
   registerAssertScopedRefsPart3();
@@ -629,177 +675,195 @@ describe("assertScopedRefs", () => {
 });
 
 const registerAssertAllocationRefsPart1 = (world: () => AppData) => {
-  it("passes for a real resource + activity in the account", () => {
-    expect(() => assertAllocationRefs(world(), A1, "r1", "t1", 8)).not.toThrow();
+  it('passes for a real resource + activity in the account', () => {
+    expect(() => assertAllocationRefs(world(), A1, 'r1', 't1', 8)).not.toThrow();
   });
 
-  it("throws when the resource or activity is missing / cross-account", () => {
-    expect(() => assertAllocationRefs(world(), A1, "missing", "t1", 8)).toThrow(
-      "Allocation must reference an existing resource and activity in this company.",
+  it('throws when the resource or activity is missing / cross-account', () => {
+    expect(() => assertAllocationRefs(world(), A1, 'missing', 't1', 8)).toThrow(
+      'Allocation must reference an existing resource and activity in this company.',
     );
   });
 };
 
 const registerAssertAllocationRefsPart2 = (world: () => AppData) => {
-  it("rejects new allocations to archived resources and archived projects", () => {
+  it('rejects new allocations to archived resources and archived projects', () => {
     const archivedResource: AppData = {
       ...world(),
-      resources: [{ ...person("r1", A1), archivedAt: TS }],
+      resources: [{ ...person('r1', A1), archivedAt: TS }],
     };
-    expect(() => assertAllocationRefs(archivedResource, A1, "r1", "t1", 8)).toThrow(
-      "Allocation must reference an active resource in this company.",
+    expect(() => assertAllocationRefs(archivedResource, A1, 'r1', 't1', 8)).toThrow(
+      'Allocation must reference an active resource in this company.',
     );
 
     const archivedProject: AppData = {
       ...world(),
-      projects: [{ ...project("p1", A1, "c1"), archivedAt: TS }],
+      projects: [{ ...project('p1', A1, 'c1'), archivedAt: TS }],
     };
-    expect(() => assertAllocationRefs(archivedProject, A1, "r1", "t1", 8)).toThrow(
-      "Allocation must reference an activity under an active project.",
+    expect(() => assertAllocationRefs(archivedProject, A1, 'r1', 't1', 8)).toThrow(
+      'Allocation must reference an activity under an active project.',
     );
   });
 
   it.each([
-    ["archived", { archivedAt: TS }],
-    ["soft-deleted", { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" }],
-  ] as const)("rejects new allocations beneath an active project with an %s client ancestor", (_state, lifecycle) => {
-    const data: AppData = {
-      ...world(),
-      clients: [{ ...client("c1", A1), ...lifecycle }],
-    };
+    ['archived', { archivedAt: TS }],
+    ['soft-deleted', { archivedAt: TS, deletedAt: '2026-01-02T00:00:00.000Z' }],
+  ] as const)(
+    'rejects new allocations beneath an active project with an %s client ancestor',
+    (_state, lifecycle) => {
+      const data: AppData = {
+        ...world(),
+        clients: [{ ...client('c1', A1), ...lifecycle }],
+      };
 
-    expect(() => assertAllocationRefs(data, A1, "r1", "t1", 8)).toThrow(
-      "Allocation must reference an activity under an active project.",
-    );
-    expect(() =>
-      assertAllocationRefs(data, A1, "r1", "t1", 8, undefined, {
-        resourceId: "r1",
-        activityId: "t1",
-      }),
-    ).not.toThrow();
-  });
+      expect(() => assertAllocationRefs(data, A1, 'r1', 't1', 8)).toThrow(
+        'Allocation must reference an activity under an active project.',
+      );
+      expect(() =>
+        assertAllocationRefs(data, A1, 'r1', 't1', 8, undefined, {
+          resourceId: 'r1',
+          activityId: 't1',
+        }),
+      ).not.toThrow();
+    },
+  );
 };
 
 const registerAssertAllocationRefsPart3 = (world: () => AppData) => {
-  it("rejects a project-bound activity whose project is missing or belongs to another account", () => {
+  it('rejects a project-bound activity whose project is missing or belongs to another account', () => {
     const missingProject = { ...world(), projects: [] };
-    expect(() => assertAllocationRefs(missingProject, A1, "r1", "t1", 8)).toThrow(
-      "Allocation must reference an activity under an active project in this company.",
+    expect(() => assertAllocationRefs(missingProject, A1, 'r1', 't1', 8)).toThrow(
+      'Allocation must reference an activity under an active project in this company.',
     );
 
     const crossAccountProject = {
       ...world(),
-      projects: [project("p1", A2, "c1")],
+      projects: [project('p1', A2, 'c1')],
     };
-    expect(() => assertAllocationRefs(crossAccountProject, A1, "r1", "t1", 8)).toThrow(
-      "Allocation must reference an activity under an active project in this company.",
+    expect(() => assertAllocationRefs(crossAccountProject, A1, 'r1', 't1', 8)).toThrow(
+      'Allocation must reference an activity under an active project in this company.',
     );
   });
 
-  it("allows unchanged archived references but rejects switching an existing allocation to them", () => {
+  it('allows unchanged archived references but rejects switching an existing allocation to them', () => {
     const data: AppData = {
       ...world(),
-      projects: [project("p1", A1, "c1"), { ...project("p2", A1, "c1"), archivedAt: TS }],
+      projects: [project('p1', A1, 'c1'), { ...project('p2', A1, 'c1'), archivedAt: TS }],
       activities: [
-        activity({ id: "t1", accountId: A1, projectId: "p1" }),
-        activity({ id: "t2", accountId: A1, projectId: "p2" }),
+        activity({ id: 't1', accountId: A1, projectId: 'p1' }),
+        activity({ id: 't2', accountId: A1, projectId: 'p2' }),
       ],
-      resources: [person("r1", A1), { ...person("r2", A1), archivedAt: TS }],
+      resources: [person('r1', A1), { ...person('r2', A1), archivedAt: TS }],
     };
 
     expect(() =>
-      assertAllocationRefs(data, A1, "r2", "t2", 8, undefined, {
-        resourceId: "r2",
-        activityId: "t2",
+      assertAllocationRefs(data, A1, 'r2', 't2', 8, undefined, {
+        resourceId: 'r2',
+        activityId: 't2',
       }),
     ).not.toThrow();
     expect(() =>
-      assertAllocationRefs(data, A1, "r2", "t1", 8, undefined, {
-        resourceId: "r1",
-        activityId: "t1",
+      assertAllocationRefs(data, A1, 'r2', 't1', 8, undefined, {
+        resourceId: 'r1',
+        activityId: 't1',
       }),
-    ).toThrow("Allocation must reference an active resource in this company.");
+    ).toThrow('Allocation must reference an active resource in this company.');
     expect(() =>
-      assertAllocationRefs(data, A1, "r1", "t2", 8, undefined, {
-        resourceId: "r1",
-        activityId: "t1",
+      assertAllocationRefs(data, A1, 'r1', 't2', 8, undefined, {
+        resourceId: 'r1',
+        activityId: 't1',
       }),
-    ).toThrow("Allocation must reference an activity under an active project.");
+    ).toThrow('Allocation must reference an activity under an active project.');
   });
 };
 
 const registerAssertAllocationRefsPart4 = (world: () => AppData) => {
-  it("throws when a placeholder is assigned outside its bound project", () => {
+  it('throws when a placeholder is assigned outside its bound project', () => {
     const data: AppData = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
-      activities: [activity({ id: "t2", accountId: A1, projectId: "p2" })],
-      resources: [placeholder("ph", A1, "p1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
+      activities: [activity({ id: 't2', accountId: A1, projectId: 'p2' })],
+      resources: [placeholder('ph', A1, 'p1')],
     };
-    expect(() => assertAllocationRefs(data, A1, "ph", "t2", 8)).toThrow(
-      "A placeholder can only be assigned to activities from its bound project.",
+    expect(() => assertAllocationRefs(data, A1, 'ph', 't2', 8)).toThrow(
+      'A placeholder can only be assigned to activities from its bound project.',
     );
   });
 
-  it("rejects a non-zero load on an external / 3rd-party resource (no capacity)", () => {
-    const data: AppData = { ...world(), resources: [external("ext", A1)] };
-    expect(() => assertAllocationRefs(data, A1, "ext", "t1", 8)).toThrow("can’t carry hours");
+  it('rejects a non-zero load on an external / 3rd-party resource (no capacity)', () => {
+    const data: AppData = { ...world(), resources: [external('ext', A1)] };
+    expect(() => assertAllocationRefs(data, A1, 'ext', 't1', 8)).toThrow('can’t carry hours');
   });
 
-  it("allows a zero load on an external resource (the external rule is always enforced)", () => {
-    const data: AppData = { ...world(), resources: [external("ext", A1)] };
-    expect(() => assertAllocationRefs(data, A1, "ext", "t1", 0)).not.toThrow();
+  it('allows a zero load on an external resource (the external rule is always enforced)', () => {
+    const data: AppData = { ...world(), resources: [external('ext', A1)] };
+    expect(() => assertAllocationRefs(data, A1, 'ext', 't1', 0)).not.toThrow();
   });
 
-  it("allows a non-zero load on a normal resource", () => {
-    expect(() => assertAllocationRefs(world(), A1, "r1", "t1", 8)).not.toThrow();
+  it('allows a non-zero load on a normal resource', () => {
+    expect(() => assertAllocationRefs(world(), A1, 'r1', 't1', 8)).not.toThrow();
   });
 };
 
 const registerAssertAllocationRefsPart5 = (world: () => AppData) => {
-  it("enforces repeatable-only attribution, project ownership/liveness and placeholder scope", () => {
+  it('enforces repeatable-only attribution, project ownership/liveness and placeholder scope', () => {
     const repeatable: Activity = {
-      ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
-      kind: "repeatable" as const,
+      ...activity({ id: 'repeatable', accountId: A1, projectId: 'p1' }),
+      kind: 'repeatable' as const,
     };
     repeatable.projectId = null;
     const projectActivity = world().activities[0];
-    if (projectActivity === undefined) throw new Error("World fixture must include a project activity.");
+    if (projectActivity === undefined)
+      throw new Error('World fixture must include a project activity.');
     const data: AppData = {
       ...world(),
-      projects: [project("p1", A1, "c1"), project("p2", A1, "c1"), project("foreign", A2, "c2")],
+      projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1'), project('foreign', A2, 'c2')],
       activities: [projectActivity, repeatable],
-      resources: [person("r1", A1), placeholder("bound", A1, "p1"), placeholder("unbound", A1, undefined)],
+      resources: [
+        person('r1', A1),
+        placeholder('bound', A1, 'p1'),
+        placeholder('unbound', A1, undefined),
+      ],
     };
 
-    expect(() => assertAllocationRefs(data, A1, "r1", "repeatable", 8, "p1")).not.toThrow();
-    expect(() => assertAllocationRefs(data, A1, "r1", "t1", 8, "p1")).toThrowError(
-      expect.objectContaining({ code: "allocation_project_forbidden" }),
+    expect(() => assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'p1')).not.toThrow();
+    expect(() => assertAllocationRefs(data, A1, 'r1', 't1', 8, 'p1')).toThrowError(
+      expect.objectContaining({ code: 'allocation_project_forbidden' }),
     );
-    expect(() => assertAllocationRefs(data, A1, "r1", "repeatable", 8, "missing")).toThrow(/active project/i);
-    expect(() => assertAllocationRefs(data, A1, "r1", "repeatable", 8, "foreign")).toThrow(/active project/i);
-    expect(() => assertAllocationRefs(data, A1, "bound", "repeatable", 8, "p1")).not.toThrow();
-    expect(() => assertAllocationRefs(data, A1, "bound", "repeatable", 8, "p2")).toThrow(/bound project/i);
-    expect(() => assertAllocationRefs(data, A1, "unbound", "repeatable", 8, "p1")).toThrow(/not bound/i);
+    expect(() => assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'missing')).toThrow(
+      /active project/i,
+    );
+    expect(() => assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'foreign')).toThrow(
+      /active project/i,
+    );
+    expect(() => assertAllocationRefs(data, A1, 'bound', 'repeatable', 8, 'p1')).not.toThrow();
+    expect(() => assertAllocationRefs(data, A1, 'bound', 'repeatable', 8, 'p2')).toThrow(
+      /bound project/i,
+    );
+    expect(() => assertAllocationRefs(data, A1, 'unbound', 'repeatable', 8, 'p1')).toThrow(
+      /not bound/i,
+    );
   });
 
-  it("allows an unchanged archived allocation attribution but rejects changing to it", () => {
+  it('allows an unchanged archived allocation attribution but rejects changing to it', () => {
     const repeatable: Activity = {
-      ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
-      kind: "repeatable" as const,
+      ...activity({ id: 'repeatable', accountId: A1, projectId: 'p1' }),
+      kind: 'repeatable' as const,
     };
     repeatable.projectId = null;
     const data: AppData = {
       ...world(),
-      projects: [{ ...project("p1", A1, "c1"), archivedAt: TS }],
+      projects: [{ ...project('p1', A1, 'c1'), archivedAt: TS }],
       activities: [repeatable],
     };
-    const existing = { resourceId: "r1", activityId: "repeatable", projectId: "p1" };
+    const existing = { resourceId: 'r1', activityId: 'repeatable', projectId: 'p1' };
 
-    expect(() => assertAllocationRefs(data, A1, "r1", "repeatable", 8, "p1", existing)).not.toThrow();
     expect(() =>
-      assertAllocationRefs(data, A1, "r1", "repeatable", 8, "p1", {
+      assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'p1', existing),
+    ).not.toThrow();
+    expect(() =>
+      assertAllocationRefs(data, A1, 'r1', 'repeatable', 8, 'p1', {
         resourceId: existing.resourceId,
         activityId: existing.activityId,
       }),
@@ -807,13 +871,13 @@ const registerAssertAllocationRefsPart5 = (world: () => AppData) => {
   });
 };
 
-describe("assertAllocationRefs", () => {
+describe('assertAllocationRefs', () => {
   const world = (): AppData => ({
     ...base(),
-    clients: [client("c1", A1)],
-    projects: [project("p1", A1, "c1")],
-    activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
-    resources: [person("r1", A1)],
+    clients: [client('c1', A1)],
+    projects: [project('p1', A1, 'c1')],
+    activities: [activity({ id: 't1', accountId: A1, projectId: 'p1' })],
+    resources: [person('r1', A1)],
   });
   registerAssertAllocationRefsPart1(world);
   registerAssertAllocationRefsPart2(world);
@@ -822,64 +886,68 @@ describe("assertAllocationRefs", () => {
   registerAssertAllocationRefsPart5(world);
 });
 
-describe("assertDateRange", () => {
-  it("passes for a valid forward range", () => {
-    expect(() => assertDateRange("2026-01-01", "2026-01-05")).not.toThrow();
+describe('assertDateRange', () => {
+  it('passes for a valid forward range', () => {
+    expect(() => assertDateRange('2026-01-01', '2026-01-05')).not.toThrow();
   });
-  it("throws for a reversed range", () => {
-    expect(() => assertDateRange("2026-01-05", "2026-01-01")).toThrow("End date cannot be before the start date.");
+  it('throws for a reversed range', () => {
+    expect(() => assertDateRange('2026-01-05', '2026-01-01')).toThrow(
+      'End date cannot be before the start date.',
+    );
   });
-  it("throws when an end is missing", () => {
-    expect(() => assertDateRange("2026-01-01", undefined)).toThrow("Start and end dates are required.");
+  it('throws when an end is missing', () => {
+    expect(() => assertDateRange('2026-01-01', undefined)).toThrow(
+      'Start and end dates are required.',
+    );
   });
-  it("throws before a range can exceed the shared calendar-span bound", () => {
-    const start = "2026-01-01";
+  it('throws before a range can exceed the shared calendar-span bound', () => {
+    const start = '2026-01-01';
     expect(() => assertDateRange(start, addDaysISO(start, MAX_SPAN_DAYS - 1))).not.toThrow();
     expect(() => assertDateRange(start, addDaysISO(start, MAX_SPAN_DAYS))).toThrow(
-      "Date span cannot exceed 36,500 calendar days.",
+      'Date span cannot exceed 36,500 calendar days.',
     );
   });
 });
 
-describe("assertResourceExists", () => {
-  it("passes when the resource is in the account", () => {
-    const data = { ...base(), resources: [person("r1", A1)] };
-    expect(() => assertResourceExists(data, A1, "r1")).not.toThrow();
+describe('assertResourceExists', () => {
+  it('passes when the resource is in the account', () => {
+    const data = { ...base(), resources: [person('r1', A1)] };
+    expect(() => assertResourceExists(data, A1, 'r1')).not.toThrow();
   });
-  it("throws for a missing / cross-account resource", () => {
-    const data = { ...base(), resources: [person("r1", A2)] };
-    expect(() => assertResourceExists(data, A1, "r1")).toThrow(
-      "Time off must reference an existing resource in this company.",
+  it('throws for a missing / cross-account resource', () => {
+    const data = { ...base(), resources: [person('r1', A2)] };
+    expect(() => assertResourceExists(data, A1, 'r1')).toThrow(
+      'Time off must reference an existing resource in this company.',
     );
   });
-  it("rejects a new reference to an archived resource but permits an unchanged archived reference", () => {
+  it('rejects a new reference to an archived resource but permits an unchanged archived reference', () => {
     const data = {
       ...base(),
-      resources: [{ ...person("r1", A1), archivedAt: TS }],
+      resources: [{ ...person('r1', A1), archivedAt: TS }],
     };
-    expect(() => assertResourceExists(data, A1, "r1")).toThrow(
-      "Time off must reference an active resource in this company.",
+    expect(() => assertResourceExists(data, A1, 'r1')).toThrow(
+      'Time off must reference an active resource in this company.',
     );
-    expect(() => assertResourceExists(data, A1, "r1", { resourceId: "r1" })).not.toThrow();
-    expect(() => assertResourceExists(data, A1, "r1", { resourceId: "other" })).toThrow(
-      "Time off must reference an active resource in this company.",
+    expect(() => assertResourceExists(data, A1, 'r1', { resourceId: 'r1' })).not.toThrow();
+    expect(() => assertResourceExists(data, A1, 'r1', { resourceId: 'other' })).toThrow(
+      'Time off must reference an active resource in this company.',
     );
   });
-  it("rejects a resource hidden by an inactive project ancestor", () => {
+  it('rejects a resource hidden by an inactive project ancestor', () => {
     const data = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [{ ...project("p1", A1, "c1"), archivedAt: TS }],
-      resources: [{ ...person("r1", A1), kind: "placeholder" as const, projectId: "p1" }],
+      clients: [client('c1', A1)],
+      projects: [{ ...project('p1', A1, 'c1'), archivedAt: TS }],
+      resources: [{ ...person('r1', A1), kind: 'placeholder' as const, projectId: 'p1' }],
     };
-    expect(() => assertResourceExists(data, A1, "r1")).toThrow(
-      "Time off must reference an active resource in this company.",
+    expect(() => assertResourceExists(data, A1, 'r1')).toThrow(
+      'Time off must reference an active resource in this company.',
     );
   });
-  it("throws for an external / 3rd-party resource (no capacity → no time off)", () => {
-    const data = { ...base(), resources: [external("ext", A1)] };
-    expect(() => assertResourceExists(data, A1, "ext")).toThrow(
-      "Time off can’t be recorded for an external / 3rd-party resource.",
+  it('throws for an external / 3rd-party resource (no capacity → no time off)', () => {
+    const data = { ...base(), resources: [external('ext', A1)] };
+    expect(() => assertResourceExists(data, A1, 'ext')).toThrow(
+      'Time off can’t be recorded for an external / 3rd-party resource.',
     );
   });
 });
@@ -887,231 +955,235 @@ describe("assertResourceExists", () => {
 const registerAssertResourceKindAllowsDependentsPart1 = () => {
   const reject = /reassign or remove this resource’s work and time off/i;
 
-  it("is a no-op when the merged kind is not external", () => {
+  it('is a no-op when the merged kind is not external', () => {
     const data: AppData = {
       ...base(),
-      resources: [person("r1", A1)],
-      activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
+      resources: [person('r1', A1)],
+      activities: [activity({ id: 't1', accountId: A1, projectId: 'p1' })],
       allocations: [
-        allocation({ id: "al", accountId: A1, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }),
+        allocation({
+          id: 'al',
+          accountId: A1,
+          resourceId: 'r1',
+          activityId: 't1',
+          overrides: { hoursPerDay: 8 },
+        }),
       ],
-      timeOff: [timeOff({ id: "to", accountId: A1, resourceId: "r1" })],
+      timeOff: [timeOff({ id: 'to', accountId: A1, resourceId: 'r1' })],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "person")).not.toThrow();
-    expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "placeholder")).not.toThrow();
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'person')).not.toThrow();
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'placeholder')).not.toThrow();
   });
 
-  it("rejects making external a resource that still owns a loaded allocation", () => {
+  it('rejects making external a resource that still owns a loaded allocation', () => {
     const data: AppData = {
       ...base(),
-      resources: [person("r1", A1)],
+      resources: [person('r1', A1)],
       allocations: [
-        allocation({ id: "al", accountId: A1, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }),
+        allocation({
+          id: 'al',
+          accountId: A1,
+          resourceId: 'r1',
+          activityId: 't1',
+          overrides: { hoursPerDay: 8 },
+        }),
       ],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).toThrow(reject);
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).toThrow(reject);
   });
 
-  it("rejects making external a resource that still owns time off", () => {
+  it('rejects making external a resource that still owns time off', () => {
     const data: AppData = {
       ...base(),
-      resources: [person("r1", A1)],
-      timeOff: [timeOff({ id: "to", accountId: A1, resourceId: "r1" })],
+      resources: [person('r1', A1)],
+      timeOff: [timeOff({ id: 'to', accountId: A1, resourceId: 'r1' })],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).toThrow(reject);
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).toThrow(reject);
   });
 };
 
 const registerAssertResourceKindAllowsDependentsPart2 = () => {
-  it("ignores company closures when making a resource external", () => {
+  it('ignores company closures when making a resource external', () => {
     const data: AppData = {
       ...base(),
-      resources: [person("r1", A1)],
+      resources: [person('r1', A1)],
       closures: [
         {
-          ...meta("closure", A1),
-          name: "Company shutdown",
-          startDate: "2026-01-01",
-          endDate: "2026-01-03",
+          ...meta('closure', A1),
+          name: 'Company shutdown',
+          startDate: '2026-01-01',
+          endDate: '2026-01-03',
         },
       ],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow();
   });
 
-  it("allows making external a resource whose only allocation carries a zero load (already valid for an external)", () => {
+  it('allows making external a resource whose only allocation carries a zero load (already valid for an external)', () => {
     const data: AppData = {
       ...base(),
-      resources: [person("r1", A1)],
+      resources: [person('r1', A1)],
       allocations: [
-        allocation({ id: "al", accountId: A1, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 0 } }),
+        allocation({
+          id: 'al',
+          accountId: A1,
+          resourceId: 'r1',
+          activityId: 't1',
+          overrides: { hoursPerDay: 0 },
+        }),
       ],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow();
   });
 
-  it("allows making external a resource with no dependents", () => {
-    const data: AppData = { ...base(), resources: [person("r1", A1)] };
-    expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
+  it('allows making external a resource with no dependents', () => {
+    const data: AppData = { ...base(), resources: [person('r1', A1)] };
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow();
   });
 
-  it("only considers THIS resource’s dependents in THIS account", () => {
+  it('only considers THIS resource’s dependents in THIS account', () => {
     // Another resource's loaded allocation + a same-id dependent in a different account must not block.
     const data: AppData = {
       ...base(),
-      resources: [person("r1", A1), person("other", A1)],
+      resources: [person('r1', A1), person('other', A1)],
       allocations: [
-        allocation({ id: "al", accountId: A1, resourceId: "other", activityId: "t1", overrides: { hoursPerDay: 8 } }),
-        allocation({ id: "al2", accountId: A2, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }),
+        allocation({
+          id: 'al',
+          accountId: A1,
+          resourceId: 'other',
+          activityId: 't1',
+          overrides: { hoursPerDay: 8 },
+        }),
+        allocation({
+          id: 'al2',
+          accountId: A2,
+          resourceId: 'r1',
+          activityId: 't1',
+          overrides: { hoursPerDay: 8 },
+        }),
       ],
-      timeOff: [timeOff({ id: "to", accountId: A2, resourceId: "r1" })],
+      timeOff: [timeOff({ id: 'to', accountId: A2, resourceId: 'r1' })],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow();
   });
 };
 
-describe("assertResourceKindAllowsDependents", () => {
+describe('assertResourceKindAllowsDependents', () => {
   registerAssertResourceKindAllowsDependentsPart1();
   registerAssertResourceKindAllowsDependentsPart2();
 });
 
 const registerParentProjectEditsPart1 = (rejectResource: RegExp) => {
-  it("rejects rebinding a placeholder while it owns work under its previous project", () => {
-    const existing = placeholder("ph", A1, "p1");
+  it('rejects rebinding a placeholder while it owns work under its previous project', () => {
+    const existing = placeholder('ph', A1, 'p1');
     const data: AppData = {
       ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
       resources: [existing],
-      activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
-      allocations: [allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "t1" })],
-    };
-
-    expect(() =>
-      assertResourceProjectAllowsDependents(data, A1, "ph", { ...existing, projectId: "p2" }, existing),
-    ).toThrow(rejectResource);
-  });
-
-  it("allows a rebind when the placeholder only owns project-less work", () => {
-    const existing = placeholder("ph", A1, "p1");
-    const data: AppData = {
-      ...base(),
-      resources: [existing],
-      activities: [{ ...NULLABLE_FIELDS.activities, ...meta("general", A1), name: "Admin", kind: "repeatable" }],
-      allocations: [allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "general" })],
-    };
-
-    expect(() =>
-      assertResourceProjectAllowsDependents(data, A1, "ph", { ...existing, projectId: "p2" }, existing),
-    ).not.toThrow();
-  });
-};
-
-const registerParentProjectEditsPart2 = (rejectResource: RegExp, rejectActivity: RegExp) => {
-  it("rejects rebinding a placeholder with repeatable work attributed to its bound project", () => {
-    const existing = placeholder("ph", A1, "p1");
-    const repeatable: Activity = {
-      ...NULLABLE_FIELDS.activities,
-      ...meta("shared", A1),
-      name: "Shared",
-      kind: "repeatable",
-    };
-    const data: AppData = {
-      ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
-      resources: [existing],
-      activities: [repeatable],
-      allocations: [
-        allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "shared", overrides: { projectId: "p1" } }),
-      ],
-    };
-
-    expect(() =>
-      assertResourceProjectAllowsDependents(data, A1, "ph", { ...existing, projectId: "p2" }, existing),
-    ).toThrow(rejectResource);
-  });
-
-  it("validates the post-clear effective project when repeatable work becomes project-specific", () => {
-    const existing: Activity = {
-      ...NULLABLE_FIELDS.activities,
-      ...meta("shared", A1),
-      name: "Shared",
-      kind: "repeatable",
-    };
-    const data: AppData = {
-      ...base(),
-      clients: [client("c1", A1)],
-      projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
-      resources: [placeholder("ph", A1, "p1")],
-      activities: [existing],
-      allocations: [
-        allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "shared", overrides: { projectId: "p1" } }),
-      ],
-    };
-
-    expect(() =>
-      assertActivityProjectAllowsDependents(
-        data,
-        A1,
-        "shared",
-        { ...existing, kind: "project", projectId: "p2" },
-        existing,
-      ),
-    ).toThrow(rejectActivity);
-    expect(() =>
-      assertActivityProjectAllowsDependents(data, A1, "shared", { ...existing, kind: "internal" }, existing),
-    ).not.toThrow();
-  });
-};
-
-const registerParentProjectEditsPart3 = (rejectResource: RegExp, rejectActivity: RegExp) => {
-  it("rejects converting a person with all-projects work into a bound placeholder", () => {
-    const existing = person("r1", A1);
-    const data: AppData = {
-      ...base(),
-      resources: [existing],
-      activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
-      allocations: [allocation({ id: "al", accountId: A1, resourceId: "r1", activityId: "t1" })],
+      activities: [activity({ id: 't1', accountId: A1, projectId: 'p1' })],
+      allocations: [allocation({ id: 'al', accountId: A1, resourceId: 'ph', activityId: 't1' })],
     };
 
     expect(() =>
       assertResourceProjectAllowsDependents(
         data,
         A1,
-        "r1",
-        { ...existing, kind: "placeholder", projectId: "p2" },
+        'ph',
+        { ...existing, projectId: 'p2' },
         existing,
       ),
     ).toThrow(rejectResource);
   });
 
-  it("rejects moving an activity while a placeholder bound to its previous project owns it", () => {
-    const existing = activity({ id: "t1", accountId: A1, projectId: "p1" });
+  it('allows a rebind when the placeholder only owns project-less work', () => {
+    const existing = placeholder('ph', A1, 'p1');
     const data: AppData = {
       ...base(),
-      resources: [placeholder("ph", A1, "p1")],
-      activities: [existing],
-      allocations: [allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "t1" })],
+      resources: [existing],
+      activities: [
+        {
+          ...NULLABLE_FIELDS.activities,
+          ...meta('general', A1),
+          name: 'Admin',
+          kind: 'repeatable',
+        },
+      ],
+      allocations: [
+        allocation({ id: 'al', accountId: A1, resourceId: 'ph', activityId: 'general' }),
+      ],
     };
 
     expect(() =>
-      assertActivityProjectAllowsDependents(data, A1, "t1", { ...existing, projectId: "p2" }, existing),
-    ).toThrow(rejectActivity);
+      assertResourceProjectAllowsDependents(
+        data,
+        A1,
+        'ph',
+        { ...existing, projectId: 'p2' },
+        existing,
+      ),
+    ).not.toThrow();
   });
 };
 
-const registerParentProjectEditsPart4 = () => {
-  it("allows moving an activity owned only by people and allows making placeholder work project-less", () => {
-    const projectActivity = activity({ id: "project-work", accountId: A1, projectId: "p1" });
-    const placeholderActivity = activity({ id: "placeholder-work", accountId: A1, projectId: "p1" });
+const registerParentProjectEditsPart2 = (rejectResource: RegExp, rejectActivity: RegExp) => {
+  it('rejects rebinding a placeholder with repeatable work attributed to its bound project', () => {
+    const existing = placeholder('ph', A1, 'p1');
+    const repeatable: Activity = {
+      ...NULLABLE_FIELDS.activities,
+      ...meta('shared', A1),
+      name: 'Shared',
+      kind: 'repeatable',
+    };
     const data: AppData = {
       ...base(),
-      resources: [person("person", A1), placeholder("ph", A1, "p1")],
-      activities: [projectActivity, placeholderActivity],
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
+      resources: [existing],
+      activities: [repeatable],
       allocations: [
-        allocation({ id: "person-al", accountId: A1, resourceId: "person", activityId: "project-work" }),
-        allocation({ id: "placeholder-al", accountId: A1, resourceId: "ph", activityId: "placeholder-work" }),
+        allocation({
+          id: 'al',
+          accountId: A1,
+          resourceId: 'ph',
+          activityId: 'shared',
+          overrides: { projectId: 'p1' },
+        }),
+      ],
+    };
+
+    expect(() =>
+      assertResourceProjectAllowsDependents(
+        data,
+        A1,
+        'ph',
+        { ...existing, projectId: 'p2' },
+        existing,
+      ),
+    ).toThrow(rejectResource);
+  });
+
+  it('validates the post-clear effective project when repeatable work becomes project-specific', () => {
+    const existing: Activity = {
+      ...NULLABLE_FIELDS.activities,
+      ...meta('shared', A1),
+      name: 'Shared',
+      kind: 'repeatable',
+    };
+    const data: AppData = {
+      ...base(),
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
+      resources: [placeholder('ph', A1, 'p1')],
+      activities: [existing],
+      allocations: [
+        allocation({
+          id: 'al',
+          accountId: A1,
+          resourceId: 'ph',
+          activityId: 'shared',
+          overrides: { projectId: 'p1' },
+        }),
       ],
     };
 
@@ -1119,8 +1191,99 @@ const registerParentProjectEditsPart4 = () => {
       assertActivityProjectAllowsDependents(
         data,
         A1,
-        "project-work",
-        { ...projectActivity, projectId: "p2" },
+        'shared',
+        { ...existing, kind: 'project', projectId: 'p2' },
+        existing,
+      ),
+    ).toThrow(rejectActivity);
+    expect(() =>
+      assertActivityProjectAllowsDependents(
+        data,
+        A1,
+        'shared',
+        { ...existing, kind: 'internal' },
+        existing,
+      ),
+    ).not.toThrow();
+  });
+};
+
+const registerParentProjectEditsPart3 = (rejectResource: RegExp, rejectActivity: RegExp) => {
+  it('rejects converting a person with all-projects work into a bound placeholder', () => {
+    const existing = person('r1', A1);
+    const data: AppData = {
+      ...base(),
+      resources: [existing],
+      activities: [activity({ id: 't1', accountId: A1, projectId: 'p1' })],
+      allocations: [allocation({ id: 'al', accountId: A1, resourceId: 'r1', activityId: 't1' })],
+    };
+
+    expect(() =>
+      assertResourceProjectAllowsDependents(
+        data,
+        A1,
+        'r1',
+        { ...existing, kind: 'placeholder', projectId: 'p2' },
+        existing,
+      ),
+    ).toThrow(rejectResource);
+  });
+
+  it('rejects moving an activity while a placeholder bound to its previous project owns it', () => {
+    const existing = activity({ id: 't1', accountId: A1, projectId: 'p1' });
+    const data: AppData = {
+      ...base(),
+      resources: [placeholder('ph', A1, 'p1')],
+      activities: [existing],
+      allocations: [allocation({ id: 'al', accountId: A1, resourceId: 'ph', activityId: 't1' })],
+    };
+
+    expect(() =>
+      assertActivityProjectAllowsDependents(
+        data,
+        A1,
+        't1',
+        { ...existing, projectId: 'p2' },
+        existing,
+      ),
+    ).toThrow(rejectActivity);
+  });
+};
+
+const registerParentProjectEditsPart4 = () => {
+  it('allows moving an activity owned only by people and allows making placeholder work project-less', () => {
+    const projectActivity = activity({ id: 'project-work', accountId: A1, projectId: 'p1' });
+    const placeholderActivity = activity({
+      id: 'placeholder-work',
+      accountId: A1,
+      projectId: 'p1',
+    });
+    const data: AppData = {
+      ...base(),
+      resources: [person('person', A1), placeholder('ph', A1, 'p1')],
+      activities: [projectActivity, placeholderActivity],
+      allocations: [
+        allocation({
+          id: 'person-al',
+          accountId: A1,
+          resourceId: 'person',
+          activityId: 'project-work',
+        }),
+        allocation({
+          id: 'placeholder-al',
+          accountId: A1,
+          resourceId: 'ph',
+          activityId: 'placeholder-work',
+        }),
+      ],
+    };
+
+    expect(() =>
+      assertActivityProjectAllowsDependents(
+        data,
+        A1,
+        'project-work',
+        { ...projectActivity, projectId: 'p2' },
         projectActivity,
       ),
     ).not.toThrow();
@@ -1128,9 +1291,9 @@ const registerParentProjectEditsPart4 = () => {
       assertActivityProjectAllowsDependents(
         data,
         A1,
-        "placeholder-work",
+        'placeholder-work',
         (() => {
-          const changed = { ...placeholderActivity, kind: "repeatable" as const };
+          const changed = { ...placeholderActivity, kind: 'repeatable' as const };
           changed.projectId = null;
           return changed;
         })(),
@@ -1141,23 +1304,28 @@ const registerParentProjectEditsPart4 = () => {
 };
 
 const registerParentProjectEditsPart5 = () => {
-  it("does not make an unrelated edit the repair boundary for already-corrupt assignments", () => {
-    const resource = placeholder("ph", A1, "p2");
-    const activityRow = activity({ id: "t1", accountId: A1, projectId: "p1" });
+  it('does not make an unrelated edit the repair boundary for already-corrupt assignments', () => {
+    const resource = placeholder('ph', A1, 'p2');
+    const activityRow = activity({ id: 't1', accountId: A1, projectId: 'p1' });
     const data: AppData = {
       ...base(),
       resources: [resource],
       activities: [activityRow],
-      allocations: [allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "t1" })],
+      allocations: [allocation({ id: 'al', accountId: A1, resourceId: 'ph', activityId: 't1' })],
     };
 
-    expect(() => assertResourceProjectAllowsDependents(data, A1, "ph", resource, resource)).not.toThrow();
-    expect(() => assertActivityProjectAllowsDependents(data, A1, "t1", activityRow, activityRow)).not.toThrow();
+    expect(() =>
+      assertResourceProjectAllowsDependents(data, A1, 'ph', resource, resource),
+    ).not.toThrow();
+    expect(() =>
+      assertActivityProjectAllowsDependents(data, A1, 't1', activityRow, activityRow),
+    ).not.toThrow();
   });
 };
 
-describe("parent project edits preserve placeholder allocation assignments", () => {
-  const rejectResource = /reassign or remove this placeholder’s work before changing its bound project/i;
+describe('parent project edits preserve placeholder allocation assignments', () => {
+  const rejectResource =
+    /reassign or remove this placeholder’s work before changing its bound project/i;
   const rejectActivity = /reassign placeholder work before changing this activity’s project/i;
   registerParentProjectEditsPart1(rejectResource);
   registerParentProjectEditsPart2(rejectResource, rejectActivity);
@@ -1167,65 +1335,75 @@ describe("parent project edits preserve placeholder allocation assignments", () 
 });
 
 const registerRemapAndValidateImportPart1 = (incoming: () => AppData) => {
-  it("imports into the active account with FRESH ids and remapped foreign keys", () => {
+  it('imports into the active account with FRESH ids and remapped foreign keys', () => {
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, incoming(), TS);
     expect(imported).toBe(3);
     expect(skipped).toBe(0);
     const p = data.projects[0];
     const t = data.activities[0];
-    if (p === undefined || t === undefined) throw new Error("Import must retain the project and activity.");
-    expect(p.id).not.toBe("src-p");
+    if (p === undefined || t === undefined)
+      throw new Error('Import must retain the project and activity.');
+    expect(p.id).not.toBe('src-p');
     expect(p.accountId).toBe(A1);
     expect(t.projectId).toBe(p.id);
-    expect(data.clients[0]?.id).not.toBe("src-c");
+    expect(data.clients[0]?.id).not.toBe('src-c');
   });
 
-  it("does not retain properties outside the declared entity schema", () => {
+  it('does not retain properties outside the declared entity schema', () => {
     const handEdited = incoming();
     const sourceClient = handEdited.clients[0];
-    if (sourceClient === undefined) throw new Error("Fixture must include a client.");
+    if (sourceClient === undefined) throw new Error('Fixture must include a client.');
     Object.assign(sourceClient, {
-      opaquePrivateField: "must not persist",
+      opaquePrivateField: 'must not persist',
     });
 
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
 
-    expect(data.clients.find(({ builtin }) => builtin !== true)).not.toHaveProperty("opaquePrivateField");
+    expect(data.clients.find(({ builtin }) => builtin !== true)).not.toHaveProperty(
+      'opaquePrivateField',
+    );
   });
 };
 
 const registerRemapAndValidateImportPart3 = (incoming: () => AppData) => {
-  it("replaces only the active account slice; other accounts are untouched", () => {
-    const start: AppData = { ...base(), clients: [client("keep", A2)] };
+  it('replaces only the active account slice; other accounts are untouched', () => {
+    const start: AppData = { ...base(), clients: [client('keep', A2)] };
     const { data } = remapAndValidateImport(start, A1, incoming(), TS);
-    expect(data.clients.some((c) => c.id === "keep" && c.accountId === A2)).toBe(true);
+    expect(data.clients.some((c) => c.id === 'keep' && c.accountId === A2)).toBe(true);
     // The imported (non-builtin) client lands; import also guarantees one built-in Internal for A1.
     expect(data.clients.filter((c) => c.accountId === A1 && !c.builtin)).toHaveLength(1);
     expect(data.clients.filter((c) => c.accountId === A1 && c.builtin)).toHaveLength(1);
   });
 
-  it("drops invalid allocations / time-off and reports the skipped count", () => {
+  it('drops invalid allocations / time-off and reports the skipped count', () => {
     const bad: AppData = {
       ...emptyAppData(),
-      clients: [client("src-c", "src-acct")],
-      projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
-      resources: [person("src-r", "src-acct")],
+      clients: [client('src-c', 'src-acct')],
+      projects: [project('src-p', 'src-acct', 'src-c')],
+      activities: [activity({ id: 'src-t', accountId: 'src-acct', projectId: 'src-p' })],
+      resources: [person('src-r', 'src-acct')],
       allocations: [
-        allocation({ id: "ok", accountId: "src-acct", resourceId: "src-r", activityId: "src-t" }),
+        allocation({ id: 'ok', accountId: 'src-acct', resourceId: 'src-r', activityId: 'src-t' }),
         allocation({
-          id: "reversed",
-          accountId: "src-acct",
-          resourceId: "src-r",
-          activityId: "src-t",
+          id: 'reversed',
+          accountId: 'src-acct',
+          resourceId: 'src-r',
+          activityId: 'src-t',
           overrides: {
-            startDate: "2026-02-10",
-            endDate: "2026-02-01",
+            startDate: '2026-02-10',
+            endDate: '2026-02-01',
           },
         }),
-        allocation({ id: "dangling", accountId: "src-acct", resourceId: "src-r", activityId: "no-such-activity" }),
+        allocation({
+          id: 'dangling',
+          accountId: 'src-acct',
+          resourceId: 'src-r',
+          activityId: 'no-such-activity',
+        }),
       ],
-      timeOff: [timeOff({ id: "to-dangling", accountId: "src-acct", resourceId: "no-such-resource" })],
+      timeOff: [
+        timeOff({ id: 'to-dangling', accountId: 'src-acct', resourceId: 'no-such-resource' }),
+      ],
     };
     const { data, skipped } = remapAndValidateImport(base(), A1, bad, TS);
     expect(data.allocations).toHaveLength(1);
@@ -1234,12 +1412,12 @@ const registerRemapAndValidateImportPart3 = (incoming: () => AppData) => {
 };
 
 const registerRemapAndValidateImportPart5 = () => {
-  it("keeps a company closure when the import has no resources", () => {
+  it('keeps a company closure when the import has no resources', () => {
     const closure = {
-      ...meta("closure", "src-acct"),
-      name: "Christmas shutdown",
-      startDate: "2026-12-24",
-      endDate: "2026-12-25",
+      ...meta('closure', 'src-acct'),
+      name: 'Christmas shutdown',
+      startDate: '2026-12-24',
+      endDate: '2026-12-25',
     };
     const { data, imported, skipped } = remapAndValidateImport(
       base(),
@@ -1251,9 +1429,9 @@ const registerRemapAndValidateImportPart5 = () => {
     expect(data.closures).toHaveLength(1);
     expect(data.closures[0]).toMatchObject({
       accountId: A1,
-      name: "Christmas shutdown",
-      startDate: "2026-12-24",
-      endDate: "2026-12-25",
+      name: 'Christmas shutdown',
+      startDate: '2026-12-24',
+      endDate: '2026-12-25',
     });
     expect(imported).toBe(1);
     expect(skipped).toBe(0);
@@ -1261,32 +1439,32 @@ const registerRemapAndValidateImportPart5 = () => {
 };
 
 const registerRemapAndValidateImportPart6 = () => {
-  it("drops imported allocation and time-off ranges beyond the calendar-span bound", () => {
-    const start = "2026-01-01";
+  it('drops imported allocation and time-off ranges beyond the calendar-span bound', () => {
+    const start = '2026-01-01';
     const atLimit = addDaysISO(start, MAX_SPAN_DAYS - 1);
     const overLimit = addDaysISO(start, MAX_SPAN_DAYS);
     const incomingData: AppData = {
       ...emptyAppData(),
-      clients: [client("src-c", "src-acct")],
-      projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
-      resources: [person("src-r", "src-acct")],
+      clients: [client('src-c', 'src-acct')],
+      projects: [project('src-p', 'src-acct', 'src-c')],
+      activities: [activity({ id: 'src-t', accountId: 'src-acct', projectId: 'src-p' })],
+      resources: [person('src-r', 'src-acct')],
       allocations: [
         allocation({
-          id: "at-limit",
-          accountId: "src-acct",
-          resourceId: "src-r",
-          activityId: "src-t",
+          id: 'at-limit',
+          accountId: 'src-acct',
+          resourceId: 'src-r',
+          activityId: 'src-t',
           overrides: {
             startDate: start,
             endDate: atLimit,
           },
         }),
         allocation({
-          id: "over-limit",
-          accountId: "src-acct",
-          resourceId: "src-r",
-          activityId: "src-t",
+          id: 'over-limit',
+          accountId: 'src-acct',
+          resourceId: 'src-r',
+          activityId: 'src-t',
           overrides: {
             startDate: start,
             endDate: overLimit,
@@ -1295,18 +1473,18 @@ const registerRemapAndValidateImportPart6 = () => {
       ],
       timeOff: [
         timeOff({
-          id: "to-at-limit",
-          accountId: "src-acct",
-          resourceId: "src-r",
+          id: 'to-at-limit',
+          accountId: 'src-acct',
+          resourceId: 'src-r',
           overrides: {
             startDate: start,
             endDate: atLimit,
           },
         }),
         timeOff({
-          id: "to-over-limit",
-          accountId: "src-acct",
-          resourceId: "src-r",
+          id: 'to-over-limit',
+          accountId: 'src-acct',
+          resourceId: 'src-r',
           overrides: {
             startDate: start,
             endDate: overLimit,
@@ -1324,52 +1502,56 @@ const registerRemapAndValidateImportPart6 = () => {
 };
 
 const registerRemapAndValidateImportPart7 = () => {
-  it("skips null and primitive import rows instead of dereferencing them", () => {
+  it('skips null and primitive import rows instead of dereferencing them', () => {
     const malformed = {
       ...emptyAppData(),
-      clients: [null, 42, client("src-c", "src-acct")],
+      clients: [null, 42, client('src-c', 'src-acct')],
     } as unknown as AppData;
 
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, malformed, TS);
 
     expect(imported).toBe(1);
     expect(skipped).toBe(2);
-    expect(data.clients.some((candidate) => !candidate.builtin && candidate.name === "Ferris")).toBe(true);
+    expect(
+      data.clients.some((candidate) => !candidate.builtin && candidate.name === 'Ferris'),
+    ).toBe(true);
   });
 
-  it("fails loudly when a direct caller bypasses parsing with a non-array table", () => {
+  it('fails loudly when a direct caller bypasses parsing with a non-array table', () => {
     const malformed = {
       ...emptyAppData(),
-      clients: { id: "not-a-row-list" },
+      clients: { id: 'not-a-row-list' },
     } as unknown as AppData;
 
-    expect(() => remapAndValidateImport(base(), A1, malformed, TS)).toThrow("Imported clients table must be a list.");
+    expect(() => remapAndValidateImport(base(), A1, malformed, TS)).toThrow(
+      'Imported clients table must be a list.',
+    );
   });
 };
 
 const registerRemapAndValidateImportPart8 = () => {
-  it("coerces an external resource’s allocation load to 0 and drops external time-off", () => {
+  it('coerces an external resource’s allocation load to 0 and drops external time-off', () => {
     // A hand-edited file: an external resource carries a non-zero allocation load (impossible via the
     // form) and a time-off entry (meaningless, externals have no capacity). Import keeps the booking
     // but zeroes its load, and drops the time-off entirely (the same rule the write boundary rejects).
     const handEdited: AppData = {
       ...emptyAppData(),
-      clients: [client("src-c", "src-acct")],
-      projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
-      resources: [external("src-ext", "src-acct")],
+      clients: [client('src-c', 'src-acct')],
+      projects: [project('src-p', 'src-acct', 'src-c')],
+      activities: [activity({ id: 'src-t', accountId: 'src-acct', projectId: 'src-p' })],
+      resources: [external('src-ext', 'src-acct')],
       allocations: [
         allocation({
-          id: "al-ext",
-          accountId: "src-acct",
-          resourceId: "src-ext",
-          activityId: "src-t",
+          id: 'al-ext',
+          accountId: 'src-acct',
+          resourceId: 'src-ext',
+          activityId: 'src-t',
           overrides: {
             hoursPerDay: 8,
           },
         }),
       ],
-      timeOff: [timeOff({ id: "to-ext", accountId: "src-acct", resourceId: "src-ext" })],
+      timeOff: [timeOff({ id: 'to-ext', accountId: 'src-acct', resourceId: 'src-ext' })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.allocations).toHaveLength(1);
@@ -1377,105 +1559,124 @@ const registerRemapAndValidateImportPart8 = () => {
     expect(data.timeOff).toHaveLength(0);
   });
 
-  it("obfuscates personal data on an imported deleted resource", () => {
+  it('obfuscates personal data on an imported deleted resource', () => {
     const deleted = {
-      ...person("src-r", "src-acct"),
-      name: "Named Person",
-      role: "Sensitive role",
-      archivedAt: "2026-01-02T00:00:00.000Z",
-      deletedAt: "2026-01-03T00:00:00.000Z",
+      ...person('src-r', 'src-acct'),
+      name: 'Named Person',
+      role: 'Sensitive role',
+      archivedAt: '2026-01-02T00:00:00.000Z',
+      deletedAt: '2026-01-03T00:00:00.000Z',
     };
-    const { data } = remapAndValidateImport(base(), A1, { ...emptyAppData(), resources: [deleted] }, TS);
+    const { data } = remapAndValidateImport(
+      base(),
+      A1,
+      { ...emptyAppData(), resources: [deleted] },
+      TS,
+    );
     expect(data.resources).toHaveLength(1);
     expect(data.resources[0]).toMatchObject({
-      role: "Removed resource",
+      role: 'Removed resource',
       deletedAt: deleted.deletedAt,
     });
     expect(data.resources[0]?.name).toMatch(/^Removed person #[a-zA-Z0-9]{12}$/);
-    expect(data.resources[0]?.name).not.toContain("Named Person");
+    expect(data.resources[0]?.name).not.toContain('Named Person');
   });
 };
 
 const deletedResourceImportFixture = (): AppData => {
   const deleted = {
-    ...person("src-r", "src-acct"),
-    name: "Named Person",
-    archivedAt: "2026-01-02T00:00:00.000Z",
-    deletedAt: "2026-01-03T00:00:00.000Z",
+    ...person('src-r', 'src-acct'),
+    name: 'Named Person',
+    archivedAt: '2026-01-02T00:00:00.000Z',
+    deletedAt: '2026-01-03T00:00:00.000Z',
   };
   return {
     ...emptyAppData(),
-    clients: [client("src-c", "src-acct")],
-    projects: [project("src-p", "src-acct", "src-c")],
-    activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
-    resources: [deleted, person("active-r", "src-acct")],
+    clients: [client('src-c', 'src-acct')],
+    projects: [project('src-p', 'src-acct', 'src-c')],
+    activities: [activity({ id: 'src-t', accountId: 'src-acct', projectId: 'src-p' })],
+    resources: [deleted, person('active-r', 'src-acct')],
     allocations: [
       allocation({
-        id: "deleted-al",
-        accountId: "src-acct",
-        resourceId: "src-r",
-        activityId: "src-t",
-        overrides: { note: "Private project context" },
+        id: 'deleted-al',
+        accountId: 'src-acct',
+        resourceId: 'src-r',
+        activityId: 'src-t',
+        overrides: { note: 'Private project context' },
       }),
       allocation({
-        id: "active-al",
-        accountId: "src-acct",
-        resourceId: "active-r",
-        activityId: "src-t",
-        overrides: { note: "Keep this context" },
+        id: 'active-al',
+        accountId: 'src-acct',
+        resourceId: 'active-r',
+        activityId: 'src-t',
+        overrides: { note: 'Keep this context' },
       }),
     ],
     timeOff: [
       timeOff({
-        id: "deleted-to",
-        accountId: "src-acct",
-        resourceId: "src-r",
-        overrides: { note: "Private medical detail" },
+        id: 'deleted-to',
+        accountId: 'src-acct',
+        resourceId: 'src-r',
+        overrides: { note: 'Private medical detail' },
       }),
       timeOff({
-        id: "active-to",
-        accountId: "src-acct",
-        resourceId: "active-r",
-        overrides: { note: "Keep this absence detail" },
+        id: 'active-to',
+        accountId: 'src-acct',
+        resourceId: 'active-r',
+        overrides: { note: 'Keep this absence detail' },
       }),
     ],
   };
 };
 
 const registerRemapAndValidateImportPart9 = () => {
-  it("scrubs dependent allocation and time-off notes for an imported deleted resource", () => {
+  it('scrubs dependent allocation and time-off notes for an imported deleted resource', () => {
     const handEdited = deletedResourceImportFixture();
 
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited, TS);
 
-    expect(data.allocations.find((entry) => entry.note === "Private project context")).toBeUndefined();
-    expect(data.timeOff.find((entry) => entry.note === "Private medical detail")).toBeUndefined();
-    expect(data.allocations.find((entry) => entry.note === "Keep this context")).toBeDefined();
-    expect(data.timeOff.find((entry) => entry.note === "Keep this absence detail")).toBeDefined();
+    expect(
+      data.allocations.find((entry) => entry.note === 'Private project context'),
+    ).toBeUndefined();
+    expect(data.timeOff.find((entry) => entry.note === 'Private medical detail')).toBeUndefined();
+    expect(data.allocations.find((entry) => entry.note === 'Keep this context')).toBeDefined();
+    expect(data.timeOff.find((entry) => entry.note === 'Keep this absence detail')).toBeDefined();
     expect(imported).toBe(9);
     expect(skipped).toBe(0);
   });
 };
 
 const registerRemapAndValidateImportPart10 = () => {
-  it("does not obfuscate personal data on an active imported resource", () => {
-    const active = { ...person("src-r", "src-acct"), name: "Named Person" };
-    const { data } = remapAndValidateImport(base(), A1, { ...emptyAppData(), resources: [active] }, TS);
+  it('does not obfuscate personal data on an active imported resource', () => {
+    const active = { ...person('src-r', 'src-acct'), name: 'Named Person' };
+    const { data } = remapAndValidateImport(
+      base(),
+      A1,
+      { ...emptyAppData(), resources: [active] },
+      TS,
+    );
     expect(data.resources).toHaveLength(1);
-    expect(data.resources[0]?.name).toBe("Named Person");
+    expect(data.resources[0]?.name).toBe('Named Person');
   });
 
-  it("drops records with a dangling REQUIRED ref and unbinds a dangling OPTIONAL ref", () => {
+  it('drops records with a dangling REQUIRED ref and unbinds a dangling OPTIONAL ref', () => {
     // A hand-edited file: a project/phase whose required parent is absent, and a
     // activity/resource pointing at an absent optional parent. The required-FK records
     // must be dropped (else they would hit the server DB's FK and fail the import);
     // the optional-FK records survive, unbound.
     const handEdited: AppData = {
       ...emptyAppData(),
-      projects: [project("p-orphan", "src", "ghost-client")],
-      phases: [phase("ph-orphan", "src", "ghost-project")],
-      resources: [{ ...person("r1", "src"), disciplineId: "ghost-disc" }],
-      activities: [activity({ id: "t1", accountId: "src", projectId: "ghost-project", phaseId: "ghost-phase" })],
+      projects: [project('p-orphan', 'src', 'ghost-client')],
+      phases: [phase('ph-orphan', 'src', 'ghost-project')],
+      resources: [{ ...person('r1', 'src'), disciplineId: 'ghost-disc' }],
+      activities: [
+        activity({
+          id: 't1',
+          accountId: 'src',
+          projectId: 'ghost-project',
+          phaseId: 'ghost-phase',
+        }),
+      ],
     };
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.projects).toHaveLength(0);
@@ -1485,20 +1686,22 @@ const registerRemapAndValidateImportPart10 = () => {
     expect(data.activities).toHaveLength(1);
     expect(data.activities[0]?.projectId).toBeNull();
     expect(data.activities[0]?.phaseId).toBeNull();
-    expect(data.activities[0]?.kind).toBe("repeatable");
+    expect(data.activities[0]?.kind).toBe('repeatable');
     expect(imported).toBe(2); // The imported rows are the repaired resource and activity.
     expect(skipped).toBe(2); // Missing required parents drop the project and phase.
   });
 
-  it("keeps an allocation to an unbound placeholder when its activity is general", () => {
+  it('keeps an allocation to an unbound placeholder when its activity is general', () => {
     // The placeholder's bound project is absent, so it unbinds. An allocation of it to
     // a (general) activity whose own project is also absent survives. A general activity is
     // allocatable to anyone, placeholders included.
     const handEdited: AppData = {
       ...emptyAppData(),
-      resources: [placeholder("ph", "src", "ghost-project")],
-      activities: [activity({ id: "t-general", accountId: "src", projectId: "ghost-project" })],
-      allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-general" })],
+      resources: [placeholder('ph', 'src', 'ghost-project')],
+      activities: [activity({ id: 't-general', accountId: 'src', projectId: 'ghost-project' })],
+      allocations: [
+        allocation({ id: 'al', accountId: 'src', resourceId: 'ph', activityId: 't-general' }),
+      ],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.resources[0]?.projectId).toBeNull();
@@ -1508,16 +1711,18 @@ const registerRemapAndValidateImportPart10 = () => {
 };
 
 const registerRemapAndValidateImportPart11 = () => {
-  it("drops an allocation to an unbound placeholder when its activity is project-bound", () => {
+  it('drops an allocation to an unbound placeholder when its activity is project-bound', () => {
     // Same unbinding, but the activity keeps a surviving project, so the placeholder rule
     // bites: an unbound placeholder may not take a project activity → the allocation drops.
     const handEdited: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      projects: [project("p", "src", "c")],
-      activities: [activity({ id: "t-proj", accountId: "src", projectId: "p" })],
-      resources: [placeholder("ph", "src", "ghost-project")],
-      allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-proj" })],
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      activities: [activity({ id: 't-proj', accountId: 'src', projectId: 'p' })],
+      resources: [placeholder('ph', 'src', 'ghost-project')],
+      allocations: [
+        allocation({ id: 'al', accountId: 'src', resourceId: 'ph', activityId: 't-proj' }),
+      ],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.resources[0]?.projectId).toBeNull();
@@ -1525,12 +1730,12 @@ const registerRemapAndValidateImportPart11 = () => {
     expect(data.allocations).toHaveLength(0);
   });
 
-  it("gives duplicate source ids DISTINCT fresh ids (no primary-key collision)", () => {
+  it('gives duplicate source ids DISTINCT fresh ids (no primary-key collision)', () => {
     const dup: AppData = {
       ...emptyAppData(),
       clients: [
-        { ...client("dup", "src"), name: "First" },
-        { ...client("dup", "src"), name: "Second" },
+        { ...client('dup', 'src'), name: 'First' },
+        { ...client('dup', 'src'), name: 'Second' },
       ],
     };
     const { data, imported } = remapAndValidateImport(base(), A1, dup, TS);
@@ -1538,26 +1743,26 @@ const registerRemapAndValidateImportPart11 = () => {
     const brought = data.clients.filter((c) => c.accountId === A1 && !c.builtin);
     expect(brought).toHaveLength(2);
     expect(new Set(brought.map((c) => c.id)).size).toBe(2);
-    expect(brought.map((c) => c.name).sort()).toEqual(["First", "Second"]);
+    expect(brought.map((c) => c.name).sort()).toEqual(['First', 'Second']);
   });
 };
 
 const registerRemapAndValidateImportPart12 = () => {
-  it("does not count an auto-added built-in Internal that the file already carries (no N+1 over-report)", () => {
+  it('does not count an auto-added built-in Internal that the file already carries (no N+1 over-report)', () => {
     // A full import may already carry its built-in Internal. It must be kept (every account needs
     // exactly one) but not counted; `imported` reflects only genuine non-builtin records.
     const withBuiltin: AppData = {
       ...emptyAppData(),
       clients: [
         {
-          ...client("src-internal", "src"),
-          name: "Internal",
-          color: "#9c3ace",
+          ...client('src-internal', 'src'),
+          name: 'Internal',
+          color: '#9c3ace',
           builtin: true,
         },
-        { ...client("src-c", "src"), name: "Ferris" },
+        { ...client('src-c', 'src'), name: 'Ferris' },
       ],
-      projects: [project("src-p", "src", "src-c")],
+      projects: [project('src-p', 'src', 'src-c')],
     };
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, withBuiltin, TS);
     expect(imported).toBe(2); // Only the regular client and project contribute to the import count.
@@ -1569,35 +1774,40 @@ const registerRemapAndValidateImportPart12 = () => {
   });
 
   it.each([
-    ["archived", { archivedAt: TS }],
-    ["deleted", { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" }],
-  ] as const)("imports a %s built-in Internal as the active protected singleton", (_state, tombstones) => {
-    const incomingData: AppData = {
-      ...emptyAppData(),
-      clients: [
-        {
-          ...client("src-internal", "src", "Internal"),
-          color: "#2d75da",
-          builtin: true,
-          ...tombstones,
-        },
-      ],
-      disciplines: [discipline("src-discipline", "src")],
-    };
+    ['archived', { archivedAt: TS }],
+    ['deleted', { archivedAt: TS, deletedAt: '2026-01-02T00:00:00.000Z' }],
+  ] as const)(
+    'imports a %s built-in Internal as the active protected singleton',
+    (_state, tombstones) => {
+      const incomingData: AppData = {
+        ...emptyAppData(),
+        clients: [
+          {
+            ...client('src-internal', 'src', 'Internal'),
+            color: '#2d75da',
+            builtin: true,
+            ...tombstones,
+          },
+        ],
+        disciplines: [discipline('src-discipline', 'src')],
+      };
 
-    const { data, imported, skipped } = remapAndValidateImport(base(), A1, incomingData, TS);
-    const internal = data.clients.find((candidate) => candidate.accountId === A1 && candidate.builtin);
+      const { data, imported, skipped } = remapAndValidateImport(base(), A1, incomingData, TS);
+      const internal = data.clients.find(
+        (candidate) => candidate.accountId === A1 && candidate.builtin,
+      );
 
-    expect(imported).toBe(1);
-    expect(skipped).toBe(0);
-    expect(internal).toBeDefined();
-    expect(internal?.archivedAt).toBeNull();
-    expect(internal?.deletedAt).toBeNull();
-  });
+      expect(imported).toBe(1);
+      expect(skipped).toBe(0);
+      expect(internal).toBeDefined();
+      expect(internal?.archivedAt).toBeNull();
+      expect(internal?.deletedAt).toBeNull();
+    },
+  );
 };
 
 const registerRemapAndValidateImportPart13 = () => {
-  it("resolves a foreign key against its OWN table when a source id collides across tables", () => {
+  it('resolves a foreign key against its OWN table when a source id collides across tables', () => {
     // Corrupt file: a discipline and a client share source id 'X', and a project points at
     // clientId 'X'. A single global id map would resolve 'X' to whichever table is processed
     // first (disciplines) and misroute the project's clientId to a non-client id, dropping
@@ -1605,9 +1815,11 @@ const registerRemapAndValidateImportPart13 = () => {
     // clients map, so the project survives and re-links to the imported client.
     const collide: AppData = {
       ...emptyAppData(),
-      disciplines: [{ ...NULLABLE_FIELDS.disciplines, ...meta("X", "src"), name: "Design", sortOrder: 0 }],
-      clients: [{ ...client("X", "src"), name: "Ferris" }],
-      projects: [project("src-p", "src", "X")],
+      disciplines: [
+        { ...NULLABLE_FIELDS.disciplines, ...meta('X', 'src'), name: 'Design', sortOrder: 0 },
+      ],
+      clients: [{ ...client('X', 'src'), name: 'Ferris' }],
+      projects: [project('src-p', 'src', 'X')],
     };
     const { data } = remapAndValidateImport(base(), A1, collide, TS);
     const proj = data.projects.find((p) => p.accountId === A1);
@@ -1617,15 +1829,15 @@ const registerRemapAndValidateImportPart13 = () => {
     expect(proj?.clientId).toBe(cli?.id);
   });
 
-  it("stamps fresh createdAt/updatedAt on imported records (the store/server owns the clock)", () => {
-    const NOW = "2030-06-15T12:00:00.000Z";
+  it('stamps fresh createdAt/updatedAt on imported records (the store/server owns the clock)', () => {
+    const NOW = '2030-06-15T12:00:00.000Z';
     const withOldTs: AppData = {
       ...emptyAppData(),
       clients: [
         {
-          ...client("src-c", "src"),
-          createdAt: "2000-01-01T00:00:00.000Z",
-          updatedAt: "2000-01-01T00:00:00.000Z",
+          ...client('src-c', 'src'),
+          createdAt: '2000-01-01T00:00:00.000Z',
+          updatedAt: '2000-01-01T00:00:00.000Z',
         },
       ],
     };
@@ -1637,13 +1849,13 @@ const registerRemapAndValidateImportPart13 = () => {
 };
 
 const registerRemapAndValidateImportPart14 = () => {
-  it("unbinds an activity’s phase that belongs to a different project", () => {
+  it('unbinds an activity’s phase that belongs to a different project', () => {
     const handEdited: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      projects: [project("p1", "src", "c"), project("p2", "src", "c")],
-      phases: [phase("ph1", "src", "p1")],
-      activities: [activity({ id: "t", accountId: "src", projectId: "p2", phaseId: "ph1" })], // The activity’s phase belongs to a different project, so import must unbind it.
+      clients: [client('c', 'src')],
+      projects: [project('p1', 'src', 'c'), project('p2', 'src', 'c')],
+      phases: [phase('ph1', 'src', 'p1')],
+      activities: [activity({ id: 't', accountId: 'src', projectId: 'p2', phaseId: 'ph1' })], // The activity’s phase belongs to a different project, so import must unbind it.
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     const t = data.activities.find((x) => x.accountId === A1);
@@ -1651,7 +1863,7 @@ const registerRemapAndValidateImportPart14 = () => {
     expect(t?.phaseId).toBeNull();
   });
 
-  it("imports zero records for an empty dataset (caller refuses the wipe)", () => {
+  it('imports zero records for an empty dataset (caller refuses the wipe)', () => {
     const { imported, skipped } = remapAndValidateImport(base(), A1, emptyAppData(), TS);
     expect(imported).toBe(0);
     expect(skipped).toBe(0);
@@ -1659,7 +1871,7 @@ const registerRemapAndValidateImportPart14 = () => {
 };
 
 const registerRemapAndValidateImportPart15 = () => {
-  it("exhaustiveness: remapAndValidateImport output covers every scoped key (repair order completeness)", () => {
+  it('exhaustiveness: remapAndValidateImport output covers every scoped key (repair order completeness)', () => {
     // If a new scoped entity is added to SCOPED_KEYS but the import repair block inside
     // remapAndValidateImport is not updated, the new table's rows would be brought in
     // without referential repair. This test ensures the import survives and preserves
@@ -1667,20 +1879,20 @@ const registerRemapAndValidateImportPart15 = () => {
     // in the affected table, causing this test to fail.
     const incoming: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      disciplines: [discipline("d", "src")],
-      projects: [project("p", "src", "c")],
-      phases: [phase("ph", "src", "p")],
-      resources: [{ ...person("r", "src"), disciplineId: "d", projectId: "p" }],
-      activities: [activity({ id: "t", accountId: "src", projectId: "p", phaseId: "ph" })],
-      allocations: [allocation({ id: "al", accountId: "src", resourceId: "r", activityId: "t" })],
-      timeOff: [timeOff({ id: "to", accountId: "src", resourceId: "r" })],
+      clients: [client('c', 'src')],
+      disciplines: [discipline('d', 'src')],
+      projects: [project('p', 'src', 'c')],
+      phases: [phase('ph', 'src', 'p')],
+      resources: [{ ...person('r', 'src'), disciplineId: 'd', projectId: 'p' }],
+      activities: [activity({ id: 't', accountId: 'src', projectId: 'p', phaseId: 'ph' })],
+      allocations: [allocation({ id: 'al', accountId: 'src', resourceId: 'r', activityId: 't' })],
+      timeOff: [timeOff({ id: 'to', accountId: 'src', resourceId: 'r' })],
       closures: [
         {
-          ...meta("closure", "src"),
-          name: "Company shutdown",
-          startDate: "2026-12-24",
-          endDate: "2026-12-27",
+          ...meta('closure', 'src'),
+          name: 'Company shutdown',
+          startDate: '2026-12-24',
+          endDate: '2026-12-27',
         },
       ],
     };
@@ -1688,7 +1900,7 @@ const registerRemapAndValidateImportPart15 = () => {
     // Every SCOPED_KEY must be present in the output and non-empty. `clients` carries two rows: the
     // imported client plus the guaranteed built-in Internal (synthesised, the file had none).
     for (const key of SCOPED_KEYS) {
-      const expectedLen = key === "clients" ? 2 : 1;
+      const expectedLen = key === 'clients' ? 2 : 1;
       expect(data[key], `key "${key}" must be non-empty after import`).toHaveLength(expectedLen);
     }
     // The synthesised Internal is bookkeeping, so the file's record count is still SCOPED_KEYS.length.
@@ -1697,31 +1909,31 @@ const registerRemapAndValidateImportPart15 = () => {
 };
 
 const registerRemapAndValidateImportPart16 = () => {
-  it("assigns a FRESH id to a record that arrives WITHOUT one (never leaves id undefined)", () => {
+  it('assigns a FRESH id to a record that arrives WITHOUT one (never leaves id undefined)', () => {
     // A hand-edited file can carry a record missing its id. It must still get a fresh newId(), not
     // land with an undefined primary key (which SQLite's NOT NULL would reject).
     const noId = {
-      name: "NoId",
-      color: "#3b82f6",
+      name: 'NoId',
+      color: '#3b82f6',
       createdAt: TS,
       updatedAt: TS,
     } as unknown as Client;
     const incoming: AppData = { ...emptyAppData(), clients: [noId] };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
-    const brought = data.clients.find((c) => c.accountId === A1 && c.name === "NoId");
+    const brought = data.clients.find((c) => c.accountId === A1 && c.name === 'NoId');
     expect(brought).toBeDefined();
     expect(brought?.id).toBeTruthy();
   });
 
-  it("KEEPS a resource’s valid discipline and a placeholder’s valid project (does not over-unbind)", () => {
+  it('KEEPS a resource’s valid discipline and a placeholder’s valid project (does not over-unbind)', () => {
     // The optional-FK repair must only unbind a dangling ref. A surviving discipline/project must be
     // retained (and remapped), not nuked to undefined.
     const incoming: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      projects: [project("p", "src", "c")],
-      disciplines: [discipline("d", "src")],
-      resources: [{ ...placeholder("ph", "src", "p"), disciplineId: "d" }],
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      disciplines: [discipline('d', 'src')],
+      resources: [{ ...placeholder('ph', 'src', 'p'), disciplineId: 'd' }],
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const r = data.resources.find((x) => x.accountId === A1);
@@ -1734,12 +1946,12 @@ const registerRemapAndValidateImportPart16 = () => {
 };
 
 const registerRemapAndValidateImportPart17 = () => {
-  it("normalizes imported placeholder working patterns independently of the target account", () => {
+  it('normalizes imported placeholder working patterns independently of the target account', () => {
     const incoming: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      projects: [project("p", "src", "c")],
-      resources: [{ ...placeholder("ph", "src", "p"), workingDays: [0, 6], halfDays: [6] }],
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      resources: [{ ...placeholder('ph', 'src', 'p'), workingDays: [0, 6], halfDays: [6] }],
     };
     const target = { ...base(), accounts: [{ ...account(A1), workingDays: [2, 4] as Weekday[] }] };
     const { data } = remapAndValidateImport(target, A1, incoming, TS);
@@ -1750,60 +1962,70 @@ const registerRemapAndValidateImportPart17 = () => {
     });
   });
 
-  it("KEEPS a project activity’s valid phase and its kind (no over-unbind, no re-classify)", () => {
+  it('KEEPS a project activity’s valid phase and its kind (no over-unbind, no re-classify)', () => {
     // A project activity whose phase belongs to its own project is coherent. The phase must stay, the
     // kind must remain 'project', and the projectId must be retained.
     const incoming: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      projects: [project("p", "src", "c")],
-      phases: [phase("ph", "src", "p")],
-      activities: [activity({ id: "t", accountId: "src", projectId: "p", phaseId: "ph" })],
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      phases: [phase('ph', 'src', 'p')],
+      activities: [activity({ id: 't', accountId: 'src', projectId: 'p', phaseId: 'ph' })],
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
     const proj = data.projects.find((x) => x.accountId === A1);
     const ph = data.phases.find((x) => x.accountId === A1);
-    expect(t?.kind).toBe("project");
+    expect(t?.kind).toBe('project');
     expect(t?.projectId).toBe(proj?.id);
     expect(t?.phaseId).toBe(ph?.id);
   });
 };
 
 const registerRemapAndValidateImportPart18 = () => {
-  it("STRIPS project + phase from an INTERNAL activity that carries them (kind coherence)", () => {
+  it('STRIPS project + phase from an INTERNAL activity that carries them (kind coherence)', () => {
     const incoming: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      projects: [project("p", "src", "c")],
-      phases: [phase("ph", "src", "p")],
-      activities: [{ ...activity({ id: "t", accountId: "src", projectId: "p", phaseId: "ph" }), kind: "internal" }],
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      phases: [phase('ph', 'src', 'p')],
+      activities: [
+        {
+          ...activity({ id: 't', accountId: 'src', projectId: 'p', phaseId: 'ph' }),
+          kind: 'internal',
+        },
+      ],
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
-    expect(t?.kind).toBe("internal");
+    expect(t?.kind).toBe('internal');
     expect(t?.projectId).toBeNull();
     expect(t?.phaseId).toBeNull();
   });
 
-  it("STRIPS project + phase from a REPEATABLE activity that carries them (kind coherence)", () => {
+  it('STRIPS project + phase from a REPEATABLE activity that carries them (kind coherence)', () => {
     const incoming: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      projects: [project("p", "src", "c")],
-      phases: [phase("ph", "src", "p")],
-      activities: [{ ...activity({ id: "t", accountId: "src", projectId: "p", phaseId: "ph" }), kind: "repeatable" }],
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      phases: [phase('ph', 'src', 'p')],
+      activities: [
+        {
+          ...activity({ id: 't', accountId: 'src', projectId: 'p', phaseId: 'ph' }),
+          kind: 'repeatable',
+        },
+      ],
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
-    expect(t?.kind).toBe("repeatable");
+    expect(t?.kind).toBe('repeatable');
     expect(t?.projectId).toBeNull();
     expect(t?.phaseId).toBeNull();
   });
 };
 
 const registerRemapAndValidateImportPart19 = () => {
-  it("FOLDS duplicate imported built-in Internal clients into ONE and rewires their projects to it", () => {
+  it('FOLDS duplicate imported built-in Internal clients into ONE and rewires their projects to it', () => {
     // A hand-edited / re-imported file with two builtins must be normalised to exactly one Internal;
     // anything that pointed at a folded-away builtin must be re-pointed at the kept one so it survives
     // the required-FK drop.
@@ -1811,19 +2033,19 @@ const registerRemapAndValidateImportPart19 = () => {
       ...emptyAppData(),
       clients: [
         {
-          ...client("b1", "src"),
-          name: "Internal",
-          color: "#9c3ace",
+          ...client('b1', 'src'),
+          name: 'Internal',
+          color: '#9c3ace',
           builtin: true,
         },
         {
-          ...client("b2", "src"),
-          name: "Internal",
-          color: "#9c3ace",
+          ...client('b2', 'src'),
+          name: 'Internal',
+          color: '#9c3ace',
           builtin: true,
         },
       ],
-      projects: [project("p", "src", "b2")], // The project references the duplicate built-in client that import folds away.
+      projects: [project('p', 'src', 'b2')], // The project references the duplicate built-in client that import folds away.
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const builtins = data.clients.filter((c) => c.accountId === A1 && c.builtin);
@@ -1835,23 +2057,23 @@ const registerRemapAndValidateImportPart19 = () => {
 };
 
 const registerRemapAndValidateImportPart20 = () => {
-  it("repairs an imported allocation’s unpadded dates instead of dropping it", () => {
+  it('repairs an imported allocation’s unpadded dates instead of dropping it', () => {
     const handEdited: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      projects: [project("p", "src", "c")],
-      activities: [activity({ id: "t", accountId: "src", projectId: "p" })],
-      resources: [person("r", "src")],
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      activities: [activity({ id: 't', accountId: 'src', projectId: 'p' })],
+      resources: [person('r', 'src')],
       // single-digit month/day, would fail the YYYY-MM-DD range check if not normalized.
       allocations: [
         allocation({
-          id: "al",
-          accountId: "src",
-          resourceId: "r",
-          activityId: "t",
+          id: 'al',
+          accountId: 'src',
+          resourceId: 'r',
+          activityId: 't',
           overrides: {
-            startDate: "2026-6-1",
-            endDate: "2026-6-5",
+            startDate: '2026-6-1',
+            endDate: '2026-6-5',
           },
         }),
       ],
@@ -1859,72 +2081,72 @@ const registerRemapAndValidateImportPart20 = () => {
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     const a = data.allocations.find((x) => x.accountId === A1);
     expect(a).toBeDefined();
-    expect(a?.startDate).toBe("2026-06-01");
-    expect(a?.endDate).toBe("2026-06-05");
+    expect(a?.startDate).toBe('2026-06-01');
+    expect(a?.endDate).toBe('2026-06-05');
   });
 };
 
 const registerRemapAndValidateImportPart21 = () => {
-  it("clears invalid allocation attribution before placeholder validation without dropping bookings", () => {
+  it('clears invalid allocation attribution before placeholder validation without dropping bookings', () => {
     const repeatable: Activity = {
       ...NULLABLE_FIELDS.activities,
-      ...meta("repeatable", "src"),
-      name: "Shared",
-      kind: "repeatable",
+      ...meta('repeatable', 'src'),
+      name: 'Shared',
+      kind: 'repeatable',
     };
     const incoming: AppData = {
       ...emptyAppData(),
-      clients: [client("c", "src")],
-      projects: [project("p1", "src", "c"), project("p2", "src", "c")],
-      activities: [repeatable, activity({ id: "project", accountId: "src", projectId: "p1" })],
-      resources: [person("person", "src"), placeholder("placeholder", "src", "p1")],
+      clients: [client('c', 'src')],
+      projects: [project('p1', 'src', 'c'), project('p2', 'src', 'c')],
+      activities: [repeatable, activity({ id: 'project', accountId: 'src', projectId: 'p1' })],
+      resources: [person('person', 'src'), placeholder('placeholder', 'src', 'p1')],
       allocations: [
         allocation({
-          id: "valid",
-          accountId: "src",
-          resourceId: "person",
-          activityId: "repeatable",
-          overrides: { projectId: "p1", note: "valid" },
+          id: 'valid',
+          accountId: 'src',
+          resourceId: 'person',
+          activityId: 'repeatable',
+          overrides: { projectId: 'p1', note: 'valid' },
         }),
         allocation({
-          id: "dangling",
-          accountId: "src",
-          resourceId: "person",
-          activityId: "repeatable",
-          overrides: { projectId: "missing", note: "dangling" },
+          id: 'dangling',
+          accountId: 'src',
+          resourceId: 'person',
+          activityId: 'repeatable',
+          overrides: { projectId: 'missing', note: 'dangling' },
         }),
         allocation({
-          id: "forbidden",
-          accountId: "src",
-          resourceId: "person",
-          activityId: "project",
-          overrides: { projectId: "p1", note: "forbidden" },
+          id: 'forbidden',
+          accountId: 'src',
+          resourceId: 'person',
+          activityId: 'project',
+          overrides: { projectId: 'p1', note: 'forbidden' },
         }),
         allocation({
-          id: "mismatch",
-          accountId: "src",
-          resourceId: "placeholder",
-          activityId: "repeatable",
-          overrides: { projectId: "p2", note: "mismatch" },
+          id: 'mismatch',
+          accountId: 'src',
+          resourceId: 'placeholder',
+          activityId: 'repeatable',
+          overrides: { projectId: 'p2', note: 'mismatch' },
         }),
       ],
     };
 
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     expect(data.allocations).toHaveLength(4);
-    expect(data.allocations.find((row) => row.note === "valid")?.projectId).toBeDefined();
-    for (const note of ["dangling", "forbidden", "mismatch"]) {
+    expect(data.allocations.find((row) => row.note === 'valid')?.projectId).toBeDefined();
+    for (const note of ['dangling', 'forbidden', 'mismatch']) {
       expect(data.allocations.find((row) => row.note === note)?.projectId).toBeNull();
     }
   });
 };
 
-describe("remapAndValidateImport", () => {
+describe('remapAndValidateImport', () => {
   const incoming = (): AppData => ({
     ...emptyAppData(),
-    clients: [client("src-c", "src-acct")],
-    projects: [project("src-p", "src-acct", "src-c")],
-    activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
+    clients: [client('src-c', 'src-acct')],
+    projects: [project('src-p', 'src-acct', 'src-c')],
+    activities: [activity({ id: 'src-t', accountId: 'src-acct', projectId: 'src-p' })],
   });
   registerRemapAndValidateImportPart1(incoming);
   registerRemapAndValidateImportPart3(incoming);
@@ -1951,21 +2173,21 @@ describe("remapAndValidateImport", () => {
       ...emptyAppData(),
       resources: [
         {
-          ...person("src-r", "src-acct"),
-          firstAvailableDate: "2026-02-01",
-          lastAvailableDate: "2026-02-28",
+          ...person('src-r', 'src-acct'),
+          firstAvailableDate: '2026-02-01',
+          lastAvailableDate: '2026-02-28',
         },
       ],
-      clients: [client("src-c", "src-acct")],
-      projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
+      clients: [client('src-c', 'src-acct')],
+      projects: [project('src-p', 'src-acct', 'src-c')],
+      activities: [activity({ id: 'src-t', accountId: 'src-acct', projectId: 'src-p' })],
       allocations: [
         allocation({
-          id: "src-al",
-          accountId: "src-acct",
-          resourceId: "src-r",
-          activityId: "src-t",
-          overrides: { startDate: "2026-01-26", endDate: "2026-02-06" },
+          id: 'src-al',
+          accountId: 'src-acct',
+          resourceId: 'src-r',
+          activityId: 'src-t',
+          overrides: { startDate: '2026-01-26', endDate: '2026-02-06' },
         }),
       ],
     };
@@ -1973,6 +2195,9 @@ describe("remapAndValidateImport", () => {
     const { data } = remapAndValidateImport(base(), A1, incomingData, TS);
     expect(data.resources).toHaveLength(1);
     expect(data.allocations).toHaveLength(1);
-    expect(data.resources[0]).toMatchObject({ firstAvailableDate: "2026-02-01", lastAvailableDate: "2026-02-28" });
+    expect(data.resources[0]).toMatchObject({
+      firstAvailableDate: '2026-02-01',
+      lastAvailableDate: '2026-02-28',
+    });
   });
 });

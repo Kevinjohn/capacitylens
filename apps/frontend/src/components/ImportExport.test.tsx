@@ -1,41 +1,45 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
-import { buildBetaExport, parseBetaExport, serializeBetaExport } from "@capacitylens/shared/data/betaTransfer";
-import type { BetaExportDocument } from "@capacitylens/shared/data/betaTransfer";
-import { seed } from "@capacitylens/shared/data/seed";
-import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
-import { AuthContext } from "@/auth/authContext";
-import { PermissionContext } from "@/auth/permissionContext";
-import { useStore } from "@/store/useStore";
-import { resetStoreWithAccount } from "@/test/fixtures";
-import { ImportExport } from "./ImportExport";
-import { useServerImport } from "./import-export/useServerImport";
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import {
+  buildBetaExport,
+  parseBetaExport,
+  serializeBetaExport,
+} from '@capacitylens/shared/data/betaTransfer';
+import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
+import { seed } from '@capacitylens/shared/data/seed';
+import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
+import { AuthContext } from '@/auth/authContext';
+import { PermissionContext } from '@/auth/permissionContext';
+import { useStore } from '@/store/useStore';
+import { resetStoreWithAccount } from '@/test/fixtures';
+import { ImportExport } from './ImportExport';
+import { useServerImport } from './import-export/useServerImport';
 
 const serverFlag = { on: false };
-const refreshOverride = vi.hoisted(() => ({ result: { kind: "reloaded" } as { kind: string } }));
+const refreshOverride = vi.hoisted(() => ({ result: { kind: 'reloaded' } as { kind: string } }));
 const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
 const originalPlanning = {
   refreshPlanning: useStore.getState().refreshPlanning,
   planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
   suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
 };
-vi.mock("@/data/apiConfig", () => ({
-  API_BASE: "",
+vi.mock('@/data/apiConfig', () => ({
+  API_BASE: '',
   isServerConfigured: () => serverFlag.on,
   isDemoMode: () => !serverFlag.on,
 }));
 
-const accountId = "a-studio";
+const accountId = 'a-studio';
 
 function document(): BetaExportDocument {
-  return buildBetaExport(seed(), { accountId, completeness: "full" });
+  return buildBetaExport(seed(), { accountId, completeness: 'full' });
 }
 
 function renderTools(server = false) {
   serverFlag.on = server;
   if (server) {
     useStore.setState({
-      refreshPlanning: async () => refreshOverride.result.kind === "reloaded",
+      refreshPlanning: async () => refreshOverride.result.kind === 'reloaded',
       planningReadyForReplacement: () => true,
       suspendPlanningCommands: () => {
         planningProbe.suspends += 1;
@@ -48,14 +52,14 @@ function renderTools(server = false) {
   return render(
     <AuthContext.Provider
       value={{
-        authMode: server ? "password-only" : "off",
-        user: server ? { id: "bruce", email: "bruce@wayne.example" } : null,
+        authMode: server ? 'password-only' : 'off',
+        user: server ? { id: 'bruce', email: 'bruce@wayne.example' } : null,
         canCreateAccount: false,
         refreshAuth: async () => {},
         signOut: async () => {},
       }}
     >
-      <PermissionContext.Provider value={{ role: server ? "owner" : null, status: "resolved" }}>
+      <PermissionContext.Provider value={{ role: server ? 'owner' : null, status: 'resolved' }}>
         <ImportExport />
       </PermissionContext.Provider>
     </AuthContext.Provider>,
@@ -63,49 +67,50 @@ function renderTools(server = false) {
 }
 
 async function selectFile(file: BetaExportDocument) {
-  const input = screen.getByTestId("import-input");
-  Object.defineProperty(input, "files", {
-    value: [new File([serializeBetaExport(file)], "transfer.json", { type: "application/json" })],
+  const input = screen.getByTestId('import-input');
+  Object.defineProperty(input, 'files', {
+    value: [new File([serializeBetaExport(file)], 'transfer.json', { type: 'application/json' })],
     configurable: true,
   });
   fireEvent.change(input);
-  await screen.findByRole("button", { name: "Continue" });
+  await screen.findByRole('button', { name: 'Continue' });
 }
 
 async function previewFile(file: BetaExportDocument) {
   await selectFile(file);
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  await screen.findByRole("button", { name: "Replace data" });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await screen.findByRole('button', { name: 'Replace data' });
 }
 
 async function submitServerImport(applyResponse: Response): Promise<void> {
   vi.stubGlobal(
-    "fetch",
+    'fetch',
     vi.fn(async (url: string) => {
-      if (String(url).endsWith("/api/transfer/preview"))
+      if (String(url).endsWith('/api/transfer/preview'))
         return Response.json({ baseRevision: 7, imported: 5, changed: true });
-      if (String(url).endsWith("/api/auth/action-proof/password")) return Response.json({ proofId: "proof-7" });
-      if (String(url).endsWith("/api/transfer/apply")) return applyResponse;
+      if (String(url).endsWith('/api/auth/action-proof/password'))
+        return Response.json({ proofId: 'proof-7' });
+      if (String(url).endsWith('/api/transfer/apply')) return applyResponse;
       throw new Error(`Unexpected request: ${url}`);
     }),
   );
   renderTools(true);
   await previewFile(document());
-  fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "current-password" } });
-  fireEvent.click(screen.getByTestId("action-proof-confirm"));
+  fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
+  fireEvent.click(screen.getByTestId('action-proof-confirm'));
   await waitFor(() => expect(planningProbe.suspends).toBe(1));
 }
 
 beforeEach(async () => {
   serverFlag.on = false;
-  refreshOverride.result = { kind: "reloaded" };
+  refreshOverride.result = { kind: 'reloaded' };
   planningProbe.suspends = 0;
   planningProbe.releases = 0;
   await resetStoreWithAccount(accountId);
   useStore.getState().replaceAll(seed());
   sessionStorage.clear();
-  window.history.replaceState(null, "", "/settings");
+  window.history.replaceState(null, '', '/settings');
 });
 
 afterEach(() => {
@@ -114,8 +119,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("beta import and export", () => {
-  it("dispatches one replacement when confirmation is pressed twice before a response", async () => {
+describe('beta import and export', () => {
+  it('dispatches one replacement when confirmation is pressed twice before a response', async () => {
     let finish!: (response: Response) => void;
     const fetchMock = vi.fn(
       () =>
@@ -123,37 +128,40 @@ describe("beta import and export", () => {
           finish = resolve;
         }),
     );
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
     const { result } = renderHook(() => useServerImport());
     let first!: Promise<void>;
     let second!: Promise<void>;
 
     act(() => {
-      first = result.current.confirm(document(), 1, "proof-1");
-      second = result.current.confirm(document(), 1, "proof-1");
+      first = result.current.confirm(document(), 1, 'proof-1');
+      second = result.current.confirm(document(), 1, 'proof-1');
     });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    finish(Response.json({ error: "Import refused." }, { status: 403 }));
+    finish(Response.json({ error: 'Import refused.' }, { status: 403 }));
     await Promise.all([first, second]);
   });
 
-  it("does not dispatch an ordinary import from an unsettled recovery-readable context", async () => {
-    useStore.setState((state) => ({ planning: { ...state.planning, status: "error", revision: null } }));
+  it('does not dispatch an ordinary import from an unsettled recovery-readable context', async () => {
+    useStore.setState((state) => ({
+      planning: { ...state.planning, status: 'error', revision: null },
+    }));
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
     const { result } = renderHook(() => useServerImport());
 
-    await result.current.confirm(document(), 1, "proof-1");
+    await result.current.confirm(document(), 1, 'proof-1');
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(useStore.getState().notice?.tone).toBe('error');
     const releaseRecovery = useStore.getState().suspendPlanningCommands();
-    if (!releaseRecovery) throw new Error("The selected context was not available for authority recovery.");
+    if (!releaseRecovery)
+      throw new Error('The selected context was not available for authority recovery.');
     releaseRecovery();
   });
 
   it.each([false, true])(
-    "does not recover an old import into a successor context (return to A: %s)",
+    'does not recover an old import into a successor context (return to A: %s)',
     async (returnToA) => {
       let finish!: (response: Response) => void;
       const fetchMock = vi.fn(
@@ -162,27 +170,27 @@ describe("beta import and export", () => {
             finish = resolve;
           }),
       );
-      vi.stubGlobal("fetch", fetchMock);
+      vi.stubGlobal('fetch', fetchMock);
       const first = renderHook(() => useServerImport());
       const second = renderHook(() => useServerImport());
-      const oldOperation = first.result.current.confirm(document(), 1, "proof-old");
+      const oldOperation = first.result.current.confirm(document(), 1, 'proof-old');
       await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-      await second.result.current.confirm(document(), 1, "proof-second");
+      await second.result.current.confirm(document(), 1, 'proof-second');
       expect(fetchMock).toHaveBeenCalledOnce();
 
-      useStore.getState().setActiveAccount("a-loft");
+      useStore.getState().setActiveAccount('a-loft');
       await useStore.getState().refreshPlanning();
       if (returnToA) {
         useStore.getState().setActiveAccount(accountId);
         await useStore.getState().refreshPlanning();
       }
       const successorRelease = useStore.getState().suspendPlanningCommands();
-      if (!successorRelease) throw new Error("The successor planning context was not ready.");
+      if (!successorRelease) throw new Error('The successor planning context was not ready.');
       const successorNotice = useStore.getState().notice;
       const refresh = vi.fn(async () => true);
       useStore.setState({ refreshPlanning: refresh });
 
-      finish(Response.json({ error: "Outcome unavailable" }, { status: 503 }));
+      finish(Response.json({ error: 'Outcome unavailable' }, { status: 503 }));
       await oldOperation;
       expect(refresh).not.toHaveBeenCalled();
       expect(useStore.getState().notice).toBe(successorNotice);
@@ -193,106 +201,113 @@ describe("beta import and export", () => {
 
   it("exports the selected company's full beta document", async () => {
     let downloaded: Blob | undefined;
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-    vi.stubGlobal("URL", {
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    vi.stubGlobal('URL', {
       ...URL,
       createObjectURL: vi.fn((blob: Blob) => {
         downloaded = blob;
-        return "blob:transfer";
+        return 'blob:transfer';
       }),
       revokeObjectURL: vi.fn(),
     });
     renderTools();
-    fireEvent.click(screen.getByTestId("export-data"));
+    fireEvent.click(screen.getByTestId('export-data'));
     await waitFor(() => {
       expect(useStore.getState().notice).toBeNull();
       expect(downloaded).toBeDefined();
     });
-    if (!downloaded) throw new Error("The export was not downloaded.");
+    if (!downloaded) throw new Error('The export was not downloaded.');
     const exported = parseBetaExport(await downloaded.text());
-    expect(exported.format).toBe("capacitylens-beta");
-    expect(exported.completeness).toBe("full");
+    expect(exported.format).toBe('capacitylens-beta');
+    expect(exported.completeness).toBe('full');
     expect(exported.data.accounts.map((row) => row.id)).toEqual([accountId]);
     expect(exported.data.resources[0]?.id).toBeDefined();
   });
 
-  it("refuses a malformed inactive server slice instead of downloading a repaired backup", async () => {
-    const bad = buildBetaExport(seed(), { accountId, completeness: "full" }).data;
+  it('refuses a malformed inactive server slice instead of downloading a repaired backup', async () => {
+    const bad = buildBetaExport(seed(), { accountId, completeness: 'full' }).data;
     const client = bad.clients[0];
-    if (!client) throw new Error("The export fixture has no client.");
-    Object.assign(client, { archivedAt: "yesterday" });
+    if (!client) throw new Error('The export fixture has no client.');
+    Object.assign(client, { archivedAt: 'yesterday' });
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn(async () => Response.json(bad)),
     );
-    const download = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     renderTools(true);
-    fireEvent.click(screen.getByTestId("export-data"));
-    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
+    fireEvent.click(screen.getByTestId('export-data'));
+    await waitFor(() => expect(useStore.getState().notice?.tone).toBe('error'));
     expect(download).not.toHaveBeenCalled();
   });
 
-  it("previews without writing, cancels, then replaces only the selected demo company with stable IDs", async () => {
+  it('previews without writing, cancels, then replaces only the selected demo company with stable IDs', async () => {
     const before = structuredClone(useStore.getState().data);
     const incoming = document();
     const incomingAccount = incoming.data.accounts[0];
-    if (!incomingAccount) throw new Error("The import fixture has no company.");
-    incomingAccount.name = "Wayne Enterprises restored";
+    if (!incomingAccount) throw new Error('The import fixture has no company.');
+    incomingAccount.name = 'Wayne Enterprises restored';
     renderTools();
     await selectFile(incoming);
     expect(useStore.getState().data).toEqual(before);
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(useStore.getState().data).toEqual(before);
 
     await previewFile(incoming);
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
     await waitFor(() =>
       expect(useStore.getState().data.accounts.find((row) => row.id === accountId)?.name).toBe(
-        "Wayne Enterprises restored",
+        'Wayne Enterprises restored',
       ),
     );
     const after = useStore.getState().data;
-    expect(after.accounts.find((row) => row.id === "a-loft")).toEqual(
-      before.accounts.find((row) => row.id === "a-loft"),
+    expect(after.accounts.find((row) => row.id === 'a-loft')).toEqual(
+      before.accounts.find((row) => row.id === 'a-loft'),
     );
     for (const key of SCOPED_KEYS)
-      expect(after[key].filter((row) => row.accountId === "a-loft")).toEqual(
-        before[key].filter((row) => row.accountId === "a-loft"),
+      expect(after[key].filter((row) => row.accountId === 'a-loft')).toEqual(
+        before[key].filter((row) => row.accountId === 'a-loft'),
       );
-    expect(after.resources.filter((row) => row.accountId === accountId).map((row) => row.id)).toEqual(
-      incoming.data.resources.map((row) => row.id),
-    );
+    expect(
+      after.resources.filter((row) => row.accountId === accountId).map((row) => row.id),
+    ).toEqual(incoming.data.resources.map((row) => row.id));
     expect(useStore.getState().past).toEqual([]);
   });
 
-  it("invalidates typed Undo and old restoration handles in the same demo import publication", async () => {
+  it('invalidates typed Undo and old restoration handles in the same demo import publication', async () => {
     await useStore.getState().refreshPlanning();
-    const allocation = useStore.getState().data.allocations.find((row) => row.accountId === accountId);
-    if (!allocation) throw new Error("The demo allocation fixture is missing.");
+    const allocation = useStore
+      .getState()
+      .data.allocations.find((row) => row.accountId === accountId);
+    if (!allocation) throw new Error('The demo allocation fixture is missing.');
     await useStore.getState().deleteAllocation(allocation.id);
     const history = useStore.getState().planning.history.past;
     const inverse = history.at(-1)?.inverse;
-    if (inverse?.operation !== "planning.restoreGroup") throw new Error("The delete has no restoration handle.");
+    if (inverse?.operation !== 'planning.restoreGroup')
+      throw new Error('The delete has no restoration handle.');
 
     const incoming = document();
     incoming.data.allocations = incoming.data.allocations.filter((row) => row.id !== allocation.id);
     const account = incoming.data.accounts[0];
-    if (!account) throw new Error("The imported company is missing.");
-    account.name = "Wayne Enterprises after import";
+    if (!account) throw new Error('The imported company is missing.');
+    account.name = 'Wayne Enterprises after import';
     const publications: Array<{ imported: boolean; typedHistory: number }> = [];
     const unsubscribe = useStore.subscribe((state) => {
       publications.push({
-        imported: state.data.accounts.some((row) => row.id === accountId && row.name === account.name),
+        imported: state.data.accounts.some(
+          (row) => row.id === accountId && row.name === account.name,
+        ),
         typedHistory: state.planning.history.past.length,
       });
     });
     try {
       renderTools();
       await previewFile(incoming);
-      fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+      fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
       await waitFor(() =>
-        expect(useStore.getState().data.accounts.find((row) => row.id === accountId)?.name).toBe(account.name),
+        expect(useStore.getState().data.accounts.find((row) => row.id === accountId)?.name).toBe(
+          account.name,
+        ),
       );
       expect(
         publications
@@ -300,263 +315,294 @@ describe("beta import and export", () => {
           .every((publication) => publication.typedHistory === 0),
       ).toBe(true);
       expect(await useStore.getState().undoPlanning()).toBe(false);
-      await expect(useStore.getState().sendPlanningCommand({ intent: inverse, inverse: null })).rejects.toThrow();
-      expect(useStore.getState().data.allocations.some((row) => row.id === allocation.id)).toBe(false);
+      await expect(
+        useStore.getState().sendPlanningCommand({ intent: inverse, inverse: null }),
+      ).rejects.toThrow();
+      expect(useStore.getState().data.allocations.some((row) => row.id === allocation.id)).toBe(
+        false,
+      );
     } finally {
       unsubscribe();
     }
   });
 
-  it("refuses a redacted document before showing replacement confirmation", async () => {
+  it('refuses a redacted document before showing replacement confirmation', async () => {
     const before = structuredClone(useStore.getState().data);
-    const redacted = buildBetaExport(seed(), { accountId, completeness: "redacted" });
+    const redacted = buildBetaExport(seed(), { accountId, completeness: 'redacted' });
     renderTools();
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", {
-      value: [new File([serializeBetaExport(redacted)], "redacted.json", { type: "application/json" })],
+    const input = screen.getByTestId('import-input');
+    Object.defineProperty(input, 'files', {
+      value: [
+        new File([serializeBetaExport(redacted)], 'redacted.json', { type: 'application/json' }),
+      ],
       configurable: true,
     });
     fireEvent.change(input);
-    await screen.findByRole("alert");
-    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
-    expect(screen.getByRole("alert")).toHaveTextContent(/full|redacted/i);
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent(/full|redacted/i);
     expect(useStore.getState().data).toEqual(before);
   });
 
   it.each([
-    ["invalid JSON", '{ "format":', /valid JSON/i],
-    ["unrelated JSON", '{ "hello": "world" }', /beta-native CapacityLens export/i],
-    ["unsupported version", JSON.stringify({ ...document(), schemaVersion: 2 }), /unsupported/i],
-  ])("refuses %s without changing demo data", async (_case, contents, message) => {
+    ['invalid JSON', '{ "format":', /valid JSON/i],
+    ['unrelated JSON', '{ "hello": "world" }', /beta-native CapacityLens export/i],
+    ['unsupported version', JSON.stringify({ ...document(), schemaVersion: 2 }), /unsupported/i],
+  ])('refuses %s without changing demo data', async (_case, contents, message) => {
     const before = structuredClone(useStore.getState().data);
     renderTools();
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", {
-      value: [new File([contents], "invalid.json", { type: "application/json" })],
+    const input = screen.getByTestId('import-input');
+    Object.defineProperty(input, 'files', {
+      value: [new File([contents], 'invalid.json', { type: 'application/json' })],
       configurable: true,
     });
     fireEvent.change(input);
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(message));
-    expect(screen.queryByRole("button", { name: "Replace data" })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull();
     expect(useStore.getState().data).toEqual(before);
   });
 
-  it("refuses a full document with a name over the beta field limit", async () => {
+  it('refuses a full document with a name over the beta field limit', async () => {
     const before = structuredClone(useStore.getState().data);
     const oversized = document();
     const oversizedAccount = oversized.data.accounts[0];
-    if (!oversizedAccount) throw new Error("The import fixture has no company.");
-    oversizedAccount.name = "W".repeat(1000);
+    if (!oversizedAccount) throw new Error('The import fixture has no company.');
+    oversizedAccount.name = 'W'.repeat(1000);
     renderTools();
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", {
-      value: [new File([JSON.stringify(oversized)], "oversized.json", { type: "application/json" })],
+    const input = screen.getByTestId('import-input');
+    Object.defineProperty(input, 'files', {
+      value: [
+        new File([JSON.stringify(oversized)], 'oversized.json', { type: 'application/json' }),
+      ],
       configurable: true,
     });
     fireEvent.change(input);
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/too long|length|characters/i));
+    await waitFor(() =>
+      expect(useStore.getState().notice?.message).toMatch(/too long|length|characters/i),
+    );
     expect(useStore.getState().data).toEqual(before);
   });
 
-  it("binds server preview, password proof and apply to one document and revision", async () => {
+  it('binds server preview, password proof and apply to one document and revision', async () => {
     const incoming = document();
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn(async (url: string, init?: RequestInit) => {
         const path = String(url);
         const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
         requests.push({ url: path, body });
-        if (path.endsWith("/api/transfer/preview"))
+        if (path.endsWith('/api/transfer/preview'))
           return Response.json({ baseRevision: 7, imported: 5, changed: true });
-        if (path.endsWith("/api/auth/action-proof/password")) return Response.json({ proofId: "proof-7" });
-        if (path.endsWith("/api/transfer/apply")) return Response.json({ imported: 5, changed: true, revision: 8 });
+        if (path.endsWith('/api/auth/action-proof/password'))
+          return Response.json({ proofId: 'proof-7' });
+        if (path.endsWith('/api/transfer/apply'))
+          return Response.json({ imported: 5, changed: true, revision: 8 });
         throw new Error(`Unexpected request: ${path}`);
       }),
     );
     renderTools(true);
     await previewFile(incoming);
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-    expect(requests.map((request) => request.url)).toEqual(["/api/transfer/preview"]);
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "current-password" } });
-    fireEvent.click(screen.getByTestId("action-proof-confirm"));
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
+    expect(requests.map((request) => request.url)).toEqual(['/api/transfer/preview']);
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
+    fireEvent.click(screen.getByTestId('action-proof-confirm'));
     await waitFor(() =>
       expect(requests.map((request) => request.url)).toEqual([
-        "/api/transfer/preview",
-        "/api/auth/action-proof/password",
-        "/api/transfer/apply",
+        '/api/transfer/preview',
+        '/api/auth/action-proof/password',
+        '/api/transfer/apply',
       ]),
     );
     expect(requests[1]?.body).toMatchObject({
-      action: "import",
+      action: 'import',
       accountId,
       intent: { baseRevision: 7, document: incoming },
     });
-    expect(requests[2]?.body).toMatchObject({ accountId, baseRevision: 7, document: incoming, proofId: "proof-7" });
+    expect(requests[2]?.body).toMatchObject({
+      accountId,
+      baseRevision: 7,
+      document: incoming,
+      proofId: 'proof-7',
+    });
   });
 
-  it.each([403, 409])("releases planning commands after a refused %i import", async (status) => {
-    await submitServerImport(Response.json({ error: "Import refused." }, { status }));
+  it.each([403, 409])('releases planning commands after a refused %i import', async (status) => {
+    await submitServerImport(Response.json({ error: 'Import refused.' }, { status }));
     await waitFor(() => expect(planningProbe.releases).toBe(1));
-    expect(useStore.getState().notice).toMatchObject({ tone: "error", message: "Import refused." });
+    expect(useStore.getState().notice).toMatchObject({ tone: 'error', message: 'Import refused.' });
   });
 
-  it("reloads the authoritative slice after an uncertain import response", async () => {
-    await submitServerImport(Response.json({ error: "Unknown outcome." }, { status: 503 }));
+  it('reloads the authoritative slice after an uncertain import response', async () => {
+    await submitServerImport(Response.json({ error: 'Unknown outcome.' }, { status: 503 }));
     await waitFor(() => expect(planningProbe.releases).toBe(1));
-    expect(useStore.getState().notice?.tone).toBe("warning");
+    expect(useStore.getState().notice?.tone).toBe('warning');
   });
 
-  it("keeps commands suspended and requires reload when a committed import refresh fails", async () => {
-    refreshOverride.result = { kind: "failed" };
+  it('keeps commands suspended and requires reload when a committed import refresh fails', async () => {
+    refreshOverride.result = { kind: 'failed' };
     await submitServerImport(Response.json({ imported: 5, changed: true, revision: 8 }));
-    await screen.findByTestId("import-reload-required");
+    await screen.findByTestId('import-reload-required');
     expect(planningProbe.releases).toBe(0);
-    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(useStore.getState().notice?.tone).toBe('error');
   });
 
   it("ignores a cancelled file's late preview before confirming a newer selection", async () => {
     const first = document();
     const second = document();
     const secondAccount = second.data.accounts[0];
-    if (!secondAccount) throw new Error("The second import fixture has no company.");
-    secondAccount.name = "Wayne Enterprises replacement";
+    if (!secondAccount) throw new Error('The second import fixture has no company.');
+    secondAccount.name = 'Wayne Enterprises replacement';
     const previews: Array<(response: Response) => void> = [];
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn((url: string, init?: RequestInit) => {
         const path = String(url);
         const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
         requests.push({ url: path, body });
-        if (path.endsWith("/api/transfer/preview")) return new Promise<Response>((resolve) => previews.push(resolve));
-        if (path.endsWith("/api/auth/action-proof/password"))
-          return Promise.resolve(Response.json({ proofId: "proof-b" }));
-        if (path.endsWith("/api/transfer/apply"))
+        if (path.endsWith('/api/transfer/preview'))
+          return new Promise<Response>((resolve) => previews.push(resolve));
+        if (path.endsWith('/api/auth/action-proof/password'))
+          return Promise.resolve(Response.json({ proofId: 'proof-b' }));
+        if (path.endsWith('/api/transfer/apply'))
           return Promise.resolve(Response.json({ imported: 5, changed: true, revision: 23 }));
         throw new Error(`Unexpected request: ${path}`);
       }),
     );
     renderTools(true);
     await selectFile(first);
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(previews).toHaveLength(1));
-    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await selectFile(second);
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(previews).toHaveLength(2));
     previews[0]?.(Response.json({ baseRevision: 11, imported: 5, changed: true }));
-    expect(screen.queryByRole("button", { name: "Replace data" })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull();
     previews[1]?.(Response.json({ baseRevision: 22, imported: 5, changed: true }));
-    await screen.findByRole("button", { name: "Replace data" });
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "current-password" } });
-    fireEvent.click(screen.getByTestId("action-proof-confirm"));
-    await waitFor(() => expect(requests.some((request) => request.url.endsWith("/api/transfer/apply"))).toBe(true));
-    const proof = requests.find((request) => request.url.endsWith("/api/auth/action-proof/password"));
+    await screen.findByRole('button', { name: 'Replace data' });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
+    fireEvent.click(screen.getByTestId('action-proof-confirm'));
+    await waitFor(() =>
+      expect(requests.some((request) => request.url.endsWith('/api/transfer/apply'))).toBe(true),
+    );
+    const proof = requests.find((request) =>
+      request.url.endsWith('/api/auth/action-proof/password'),
+    );
     expect(proof?.body.intent).toEqual({ baseRevision: 22, document: second });
-    const apply = requests.find((request) => request.url.endsWith("/api/transfer/apply"));
-    expect(apply?.body).toMatchObject({ baseRevision: 22, document: second, proofId: "proof-b" });
+    const apply = requests.find((request) => request.url.endsWith('/api/transfer/apply'));
+    expect(apply?.body).toMatchObject({ baseRevision: 22, document: second, proofId: 'proof-b' });
   });
 
-  it("resumes only its own returned provider proof and still needs an explicit apply click", async () => {
+  it('resumes only its own returned provider proof and still needs an explicit apply click', async () => {
     const incoming = document();
     sessionStorage.setItem(
-      "capacitylens/import-action-proof",
-      JSON.stringify({ accountId, baseRevision: 7, proofId: "proof-google" }),
+      'capacitylens/import-action-proof',
+      JSON.stringify({ accountId, baseRevision: 7, proofId: 'proof-google' }),
     );
-    window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
+    window.history.replaceState(null, '', '/settings?capacitylensActionConfirmed=1');
     const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
       void _init;
-      if (String(url).endsWith("/api/transfer/preview"))
+      if (String(url).endsWith('/api/transfer/preview'))
         return Response.json({ baseRevision: 7, imported: 5, changed: false });
       return Response.json({ imported: 5, changed: false, revision: 7 });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
     renderTools(true);
     await screen.findByText(/Choose the same import file again/);
     expect(fetchMock).not.toHaveBeenCalled();
     await previewFile(incoming);
     expect(fetchMock).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as Record<string, unknown>;
-    expect(body.proofId).toBe("proof-google");
+    expect(body.proofId).toBe('proof-google');
     expect(body.document).toEqual(incoming);
-    expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull();
+    expect(sessionStorage.getItem('capacitylens/import-action-proof')).toBeNull();
   });
 
-  it("surfaces refusal when the file reselected after Google differs from the proved import", async () => {
+  it('surfaces refusal when the file reselected after Google differs from the proved import', async () => {
     const different = document();
     const account = different.data.accounts[0];
-    if (!account) throw new Error("The replacement fixture has no company.");
-    account.name = "Different Wayne company";
+    if (!account) throw new Error('The replacement fixture has no company.');
+    account.name = 'Different Wayne company';
     const before = structuredClone(useStore.getState().data);
     sessionStorage.setItem(
-      "capacitylens/import-action-proof",
-      JSON.stringify({ accountId, baseRevision: 7, proofId: "proof-original" }),
+      'capacitylens/import-action-proof',
+      JSON.stringify({ accountId, baseRevision: 7, proofId: 'proof-original' }),
     );
-    window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
+    window.history.replaceState(null, '', '/settings?capacitylensActionConfirmed=1');
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn(async (url: string) =>
-        String(url).endsWith("/api/transfer/preview")
+        String(url).endsWith('/api/transfer/preview')
           ? Response.json({ baseRevision: 7, imported: 5, changed: true })
-          : Response.json({ error: "The confirmation does not match this import." }, { status: 403 }),
+          : Response.json(
+              { error: 'The confirmation does not match this import.' },
+              { status: 403 },
+            ),
       ),
     );
     renderTools(true);
     await screen.findByText(/Choose the same import file again/);
     await previewFile(different);
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/does not match this import/i));
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
+    await waitFor(() =>
+      expect(useStore.getState().notice?.message).toMatch(/does not match this import/i),
+    );
     expect(useStore.getState().data).toEqual(before);
     expect(planningProbe.releases).toBe(1);
   });
 
-  it("waits for the selected company to hydrate before reading a returned provider proof", async () => {
-    const saved = JSON.stringify({ accountId, baseRevision: 7, proofId: "proof-hydrating" });
+  it('waits for the selected company to hydrate before reading a returned provider proof', async () => {
+    const saved = JSON.stringify({ accountId, baseRevision: 7, proofId: 'proof-hydrating' });
     useStore.getState().setActiveAccount(null);
-    sessionStorage.setItem("capacitylens/import-action-proof", saved);
-    window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
+    sessionStorage.setItem('capacitylens/import-action-proof', saved);
+    window.history.replaceState(null, '', '/settings?capacitylensActionConfirmed=1');
     renderTools(true);
-    expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBe(saved);
+    expect(sessionStorage.getItem('capacitylens/import-action-proof')).toBe(saved);
     useStore.getState().setActiveAccount(accountId);
     await screen.findByText(/Choose the same import file again/);
-    expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull();
+    expect(sessionStorage.getItem('capacitylens/import-action-proof')).toBeNull();
   });
 
-  it("discards a failed provider return marker without retaining the import file", async () => {
+  it('discards a failed provider return marker without retaining the import file', async () => {
     sessionStorage.setItem(
-      "capacitylens/import-action-proof",
-      JSON.stringify({ accountId, baseRevision: 7, proofId: "proof-cancelled" }),
+      'capacitylens/import-action-proof',
+      JSON.stringify({ accountId, baseRevision: 7, proofId: 'proof-cancelled' }),
     );
     renderTools(true);
-    await waitFor(() => expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull());
+    await waitFor(() =>
+      expect(sessionStorage.getItem('capacitylens/import-action-proof')).toBeNull(),
+    );
     expect(screen.queryByText(/Choose the same import file again/)).toBeNull();
   });
 
-  it("refuses a returned import proof for another selected company", async () => {
+  it('refuses a returned import proof for another selected company', async () => {
     sessionStorage.setItem(
-      "capacitylens/import-action-proof",
-      JSON.stringify({ accountId: "a-loft", baseRevision: 7, proofId: "proof-other" }),
+      'capacitylens/import-action-proof',
+      JSON.stringify({ accountId: 'a-loft', baseRevision: 7, proofId: 'proof-other' }),
     );
-    window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
+    window.history.replaceState(null, '', '/settings?capacitylensActionConfirmed=1');
     renderTools(true);
-    await waitFor(() => expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull());
+    await waitFor(() =>
+      expect(sessionStorage.getItem('capacitylens/import-action-proof')).toBeNull(),
+    );
     expect(screen.queryByText(/Choose the same import file again/)).toBeNull();
-    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(useStore.getState().notice?.tone).toBe('error');
   });
 
-  it("hides server import from non-owners while keeping export", () => {
+  it('hides server import from non-owners while keeping export', () => {
     serverFlag.on = true;
     render(
-      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+      <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
         <ImportExport />
       </PermissionContext.Provider>,
     );
-    expect(screen.queryByTestId("import-input")).toBeNull();
-    expect(screen.getByTestId("export-data")).toBeInTheDocument();
+    expect(screen.queryByTestId('import-input')).toBeNull();
+    expect(screen.getByTestId('export-data')).toBeInTheDocument();
   });
 });

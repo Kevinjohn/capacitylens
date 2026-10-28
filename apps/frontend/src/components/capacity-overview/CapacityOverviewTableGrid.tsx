@@ -1,19 +1,19 @@
-import { isPlaceholderResource } from "@capacitylens/shared/types/entities";
-import type { ID } from "@capacitylens/shared/types/entities";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
-import { m } from "@/i18n";
-import { formatWeekColumnRange } from "@/lib/dateDisplay";
-import { resolveResourceDisplayName } from "@/lib/metadata";
-import { useDateStyle } from "@/store/useDateStyle";
-import { PersonScheduleTrigger } from "@/components/person-schedule/PersonScheduleTrigger";
-import { resolveResourceAvatarUrl } from "@/account/resolveResourceAvatarUrl";
-import { buildPeriodTotals } from "./capacityOverviewBar";
-import type { CapacityDisplayMode } from "./capacityOverviewBar";
-import type { CapacityOverviewPeriod } from "./capacityOverviewDates";
-import { PeriodCell, TotalsCell } from "./CapacityOverviewCells";
-import type { CapacityOverviewGroup, CapacityOverviewModel } from "./capacityOverviewModel";
-import { SURFACE_2_CLASS } from "./OverviewLegend";
+import { isPlaceholderResource } from '@capacitylens/shared/types/entities';
+import type { ID } from '@capacitylens/shared/types/entities';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Fragment, useMemo, useState } from 'react';
+import { m } from '@/i18n';
+import { formatWeekColumnRange } from '@/lib/dateDisplay';
+import { resolveResourceDisplayName } from '@/lib/metadata';
+import { useDateStyle } from '@/store/useDateStyle';
+import { PersonScheduleTrigger } from '@/components/person-schedule/PersonScheduleTrigger';
+import { resolveResourceAvatarUrl } from '@/account/resolveResourceAvatarUrl';
+import { buildPeriodTotals } from './capacityOverviewBar';
+import type { CapacityDisplayMode } from './capacityOverviewBar';
+import type { CapacityOverviewPeriod } from './capacityOverviewDates';
+import { PeriodCell, TotalsCell } from './CapacityOverviewCells';
+import type { CapacityOverviewGroup, CapacityOverviewModel } from './capacityOverviewModel';
+import { SURFACE_2_CLASS } from './OverviewLegend';
 
 /** Resource titles and actions used when opening a person schedule. */
 export interface PersonScheduleTriggerHandlers {
@@ -27,7 +27,7 @@ interface ResourceAvatarProp {
 
 // The person column is sticky so rows pass under it while the week columns scroll. Every sticky
 // cell paints an opaque background of its own row's surface for that reason.
-const STICKY_CLASS = "sticky left-0 z-10 min-w-[230px] text-left";
+const STICKY_CLASS = 'sticky left-0 z-10 min-w-[230px] text-left';
 
 function formatPeopleCount(count: number): string {
   return count === 1
@@ -46,10 +46,13 @@ function GroupRow({
   onToggle: () => void;
   periodCount: number;
 }) {
-  const people = group.rows.filter((row) => row.resource.kind !== "placeholder").length;
+  const people = group.rows.filter((row) => row.resource.kind !== 'placeholder').length;
   return (
     <tr data-testid="capacity-overview-group" className={SURFACE_2_CLASS}>
-      <th scope="row" className={`${STICKY_CLASS} ${SURFACE_2_CLASS} border-b border-line-soft p-0 font-normal`}>
+      <th
+        scope="row"
+        className={`${STICKY_CLASS} ${SURFACE_2_CLASS} border-b border-line-soft p-0 font-normal`}
+      >
         <button
           type="button"
           onClick={onToggle}
@@ -64,7 +67,7 @@ function GroupRow({
           <span
             aria-hidden="true"
             className="inline-block size-[5px] shrink-0 rounded-full"
-            style={{ backgroundColor: group.color ?? "var(--color-faint)" }}
+            style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
           />
           <span className="min-w-0 truncate">{group.title}</span>
           {people > 0 ? (
@@ -87,13 +90,20 @@ function PersonCell({
   personScheduleTitlesByResourceId,
   onViewSchedule,
   resourceAvatars,
-}: { group: CapacityOverviewGroup; row: CapacityOverviewGroup["rows"][number] } & PersonScheduleTriggerHandlers &
+}: {
+  group: CapacityOverviewGroup;
+  row: CapacityOverviewGroup['rows'][number];
+} & PersonScheduleTriggerHandlers &
   ResourceAvatarProp) {
   const { resource } = row;
-  const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
+  const scheduleTitle =
+    personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
   const imageUrl = resolveResourceAvatarUrl(resource, resourceAvatars);
   return (
-    <th scope="row" className={`${STICKY_CLASS} border-b border-line-soft bg-surface px-[18px] py-2 font-normal`}>
+    <th
+      scope="row"
+      className={`${STICKY_CLASS} border-b border-line-soft bg-surface px-[18px] py-2 font-normal`}
+    >
       <div className="flex min-w-0 items-center gap-[11px]">
         <PersonScheduleTrigger
           resourceId={resource.id}
@@ -126,7 +136,7 @@ function CapacityTableHead({
 }) {
   // The bottom rule belongs to the last header tier, so toggling Totals never changes the header's
   // weight; the person cell of the totals tier stays empty so the column width cannot shift.
-  const labelRule = totals ? "border-b-0 pb-1.5" : "border-b border-line pb-3";
+  const labelRule = totals ? 'border-b-0 pb-1.5' : 'border-b border-line pb-3';
   return (
     <thead>
       <tr>
@@ -152,7 +162,11 @@ function CapacityTableHead({
           {periods.map((period, index) => {
             const periodTotals = totals[index];
             return periodTotals ? (
-              <TotalsCell key={period.key} totals={periodTotals} rangeLabel={rangeLabels[index] ?? ""} />
+              <TotalsCell
+                key={period.key}
+                totals={periodTotals}
+                rangeLabel={rangeLabels[index] ?? ''}
+              />
             ) : null;
           })}
         </tr>
@@ -206,7 +220,7 @@ function CapacityTableBody({
                       key={result.period.key}
                       result={result}
                       capacityDisplayMode={capacityDisplayMode}
-                      rangeLabel={rangeLabels[result.period.index] ?? ""}
+                      rangeLabel={rangeLabels[result.period.index] ?? ''}
                     />
                   ))}
                 </tr>
@@ -268,15 +282,18 @@ export function CapacityTable({
       aria-label={m.capacity_overview_table_region()}
       tabIndex={0}
       onKeyDown={(event) => {
-        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
         event.preventDefault();
-        event.currentTarget.scrollBy({ left: event.key === "ArrowRight" ? 80 : -80 });
+        event.currentTarget.scrollBy({ left: event.key === 'ArrowRight' ? 80 : -80 });
       }}
       className="min-w-0 overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
-      <table aria-label={m.capacity_overview_title()} className="w-full min-w-[720px] border-collapse text-sm">
+      <table
+        aria-label={m.capacity_overview_title()}
+        className="w-full min-w-[720px] border-collapse text-sm"
+      >
         <colgroup>
-          <col style={{ width: "22%" }} />
+          <col style={{ width: '22%' }} />
           {periods.map((period) => (
             <col key={period.key} style={{ width: `${(78 / periods.length).toFixed(3)}%` }} />
           ))}

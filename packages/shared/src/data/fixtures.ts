@@ -1,7 +1,7 @@
-import { NULLABLE_FIELDS } from "../types/nullableFields.js";
+import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 // Fixtures use present, non-default optional values so server round-trip tests prove those values survive persistence.
-import { externalCapacityDefaults, placeholderCapacityDefaults } from "../types/entities.js";
-import { NEUTRAL_COLOR } from "../lib/color.js";
+import { externalCapacityDefaults, placeholderCapacityDefaults } from '../types/entities.js';
+import { NEUTRAL_COLOR } from '../lib/color.js';
 import type {
   Account,
   Allocation,
@@ -13,22 +13,22 @@ import type {
   Resource,
   Activity,
   TimeOff,
-} from "../types/entities.js";
+} from '../types/entities.js';
 
-const TS1 = "2026-01-01T00:00:00.000Z";
-const TS2 = "2026-06-01T12:00:00.000Z";
+const TS1 = '2026-01-01T00:00:00.000Z';
+const TS2 = '2026-06-01T12:00:00.000Z';
 
 /** Complete account fixture with every optional field set. */
 export const FIXTURE_ACCOUNT: Account = {
   ...NULLABLE_FIELDS.accounts,
-  id: "fix-a1",
-  name: "Fixture Studio",
-  color: "#2d75da",
-  schedulingMode: "days",
-  timezone: "Europe/London",
+  id: 'fix-a1',
+  name: 'Fixture Studio',
+  color: '#2d75da',
+  schedulingMode: 'days',
+  timezone: 'Europe/London',
   weekStartsOn: 0,
   workingDays: [0, 1, 2, 3],
-  language: "en",
+  language: 'en',
   disciplinesEnabled: false,
   // Both true (the non-default, absent reads as false/hidden) so the server round-trip test
   // proves the optional boolean columns persist a present value, not just absence.
@@ -38,7 +38,7 @@ export const FIXTURE_ACCOUNT: Account = {
   inlineActivityCreateEnabled: false,
   showTaskFieldInSchedule: true,
   // Non-default so the round-trip proves the optional enum is stored, not merely defaulted.
-  dateStyle: "month-day",
+  dateStyle: 'month-day',
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -46,12 +46,12 @@ export const FIXTURE_ACCOUNT: Account = {
 /** Complete client fixture owned by {@link FIXTURE_ACCOUNT}. */
 export const FIXTURE_CLIENT: Client = {
   ...NULLABLE_FIELDS.clients,
-  id: "fix-c1",
-  accountId: "fix-a1",
-  name: "Fixture Client",
-  color: "#da2d92",
+  id: 'fix-c1',
+  accountId: 'fix-a1',
+  name: 'Fixture Client',
+  color: '#da2d92',
   isPrivate: true,
-  codeName: "Fixture Nightwing",
+  codeName: 'Fixture Nightwing',
   // A generic fixture must remain a regular client: the built-in Internal client can only be
   // created and repaired by the account lifecycle path.
   // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
@@ -64,10 +64,10 @@ export const FIXTURE_CLIENT: Client = {
 
 /** Complete discipline fixture owned by {@link FIXTURE_ACCOUNT}. */
 export const FIXTURE_DISCIPLINE: Discipline = {
-  id: "fix-d1",
-  accountId: "fix-a1",
-  name: "Fixture Discipline",
-  color: "#2d75da",
+  id: 'fix-d1',
+  accountId: 'fix-a1',
+  name: 'Fixture Discipline',
+  color: '#2d75da',
   sortOrder: 7,
   createdAt: TS1,
   updatedAt: TS2,
@@ -75,13 +75,13 @@ export const FIXTURE_DISCIPLINE: Discipline = {
 
 /** Complete project fixture for {@link FIXTURE_CLIENT}. */
 export const FIXTURE_PROJECT: Project = {
-  id: "fix-p1",
-  accountId: "fix-a1",
-  name: "Fixture Project",
-  clientId: "fix-c1",
-  color: "#2d75da",
+  id: 'fix-p1',
+  accountId: 'fix-a1',
+  name: 'Fixture Project',
+  clientId: 'fix-c1',
+  color: '#2d75da',
   isPrivate: true,
-  codeName: "Fixture Aurora",
+  codeName: 'Fixture Aurora',
   // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
   // proves the optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
@@ -92,10 +92,10 @@ export const FIXTURE_PROJECT: Project = {
 
 /** Complete phase fixture for {@link FIXTURE_PROJECT}. */
 export const FIXTURE_PHASE: Phase = {
-  id: "fix-ph1",
-  accountId: "fix-a1",
-  name: "Fixture Phase",
-  projectId: "fix-p1",
+  id: 'fix-ph1',
+  accountId: 'fix-a1',
+  name: 'Fixture Phase',
+  projectId: 'fix-p1',
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -103,18 +103,18 @@ export const FIXTURE_PHASE: Phase = {
 /** Complete placeholder resource fixture. */
 export const FIXTURE_RESOURCE: Resource = {
   ...NULLABLE_FIELDS.resources,
-  id: "fix-r1",
-  accountId: "fix-a1",
-  kind: "placeholder",
-  name: "Fixture Placeholder",
-  role: "Fixture Role",
-  disciplineId: "fix-d1",
-  employmentType: "contractor",
-  engagement: "studio",
+  id: 'fix-r1',
+  accountId: 'fix-a1',
+  kind: 'placeholder',
+  name: 'Fixture Placeholder',
+  role: 'Fixture Role',
+  disciplineId: 'fix-d1',
+  employmentType: 'contractor',
+  engagement: 'studio',
   workingHoursPerDay: 6,
   ...placeholderCapacityDefaults(),
-  projectId: "fix-p1",
-  color: "#3ace6b",
+  projectId: 'fix-p1',
+  color: '#3ace6b',
   isFavourite: true,
   // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
   // proves the optional archivedAt/deletedAt columns persist a present value, not just absence.
@@ -129,22 +129,22 @@ export const FIXTURE_RESOURCE: Resource = {
  * that non-person sanitisation intentionally strips. */
 export const FIXTURE_RESOURCE_PERSON: Resource = {
   ...NULLABLE_FIELDS.resources,
-  id: "fix-r-person",
-  accountId: "fix-a1",
-  kind: "person",
-  name: "Bruce Wayne",
-  role: "Fixture Person Role",
-  avatarUrl: "https://images.example/bruce-wayne.png",
-  disciplineId: "fix-d1",
-  employmentType: "freelancer",
-  engagement: "supplementary",
+  id: 'fix-r-person',
+  accountId: 'fix-a1',
+  kind: 'person',
+  name: 'Bruce Wayne',
+  role: 'Fixture Person Role',
+  avatarUrl: 'https://images.example/bruce-wayne.png',
+  disciplineId: 'fix-d1',
+  employmentType: 'freelancer',
+  engagement: 'supplementary',
   workingHoursPerDay: 7,
   workingDays: [1, 2, 3, 4],
   halfDays: [2],
-  color: "#3ace6b",
+  color: '#3ace6b',
   isFavourite: true,
-  firstAvailableDate: "2026-02-01",
-  lastAvailableDate: "2026-11-30",
+  firstAvailableDate: '2026-02-01',
+  lastAvailableDate: '2026-11-30',
   archivedAt: TS1,
   deletedAt: TS2,
   createdAt: TS1,
@@ -156,11 +156,11 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
  * round-trips through the server with the optional FK columns left NULL. */
 export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
   ...NULLABLE_FIELDS.resources,
-  id: "fix-r2",
-  accountId: "fix-a1",
-  kind: "external",
-  name: "Fixture External Co",
-  role: "Fixture Partner",
+  id: 'fix-r2',
+  accountId: 'fix-a1',
+  kind: 'external',
+  name: 'Fixture External Co',
+  role: 'Fixture Partner',
   ...externalCapacityDefaults(),
   color: NEUTRAL_COLOR,
   createdAt: TS1,
@@ -170,12 +170,12 @@ export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
 /** Complete project activity fixture. */
 export const FIXTURE_ACTIVITY: Activity = {
   ...NULLABLE_FIELDS.activities,
-  id: "fix-t1",
-  accountId: "fix-a1",
-  name: "Fixture Activity",
-  kind: "project",
-  projectId: "fix-p1",
-  phaseId: "fix-ph1",
+  id: 'fix-t1',
+  accountId: 'fix-a1',
+  name: 'Fixture Activity',
+  kind: 'project',
+  projectId: 'fix-p1',
+  phaseId: 'fix-ph1',
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -185,10 +185,10 @@ export const FIXTURE_ACTIVITY: Activity = {
  * the server with the optional FK columns left NULL. */
 export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
   ...NULLABLE_FIELDS.activities,
-  id: "fix-t2",
-  accountId: "fix-a1",
-  name: "Fixture Internal Activity",
-  kind: "internal",
+  id: 'fix-t2',
+  accountId: 'fix-a1',
+  name: 'Fixture Internal Activity',
+  kind: 'internal',
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -196,10 +196,10 @@ export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
 /** Complete all-projects (repeatable) activity fixture. */
 export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
   ...NULLABLE_FIELDS.activities,
-  id: "fix-t3",
-  accountId: "fix-a1",
-  name: "Fixture Repeatable Activity",
-  kind: "repeatable",
+  id: 'fix-t3',
+  accountId: 'fix-a1',
+  name: 'Fixture Repeatable Activity',
+  kind: 'repeatable',
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -207,17 +207,17 @@ export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
 /** Complete allocation fixture for {@link FIXTURE_RESOURCE}. */
 export const FIXTURE_ALLOCATION: Allocation = {
   ...NULLABLE_FIELDS.allocations,
-  id: "fix-al1",
-  accountId: "fix-a1",
-  resourceId: "fix-r1",
-  activityId: "fix-t1",
-  seriesId: "fix-series-1",
-  startDate: "2026-02-01",
-  endDate: "2026-02-28",
+  id: 'fix-al1',
+  accountId: 'fix-a1',
+  resourceId: 'fix-r1',
+  activityId: 'fix-t1',
+  seriesId: 'fix-series-1',
+  startDate: '2026-02-01',
+  endDate: '2026-02-28',
   hoursPerDay: 0,
-  status: "tentative",
-  note: "Fixture note",
-  task: "Fixture task",
+  status: 'tentative',
+  note: 'Fixture note',
+  task: 'Fixture task',
   ignoreWeekends: true,
   createdAt: TS1,
   updatedAt: TS2,
@@ -226,31 +226,31 @@ export const FIXTURE_ALLOCATION: Allocation = {
 /** Allocation fixture on the repeatable activity, attributed to a project. */
 export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
   ...FIXTURE_ALLOCATION,
-  id: "fix-al2",
+  id: 'fix-al2',
   activityId: FIXTURE_ACTIVITY_REPEATABLE.id,
-  projectId: "fix-p1",
+  projectId: 'fix-p1',
 };
 
 /** Complete time-off fixture for {@link FIXTURE_RESOURCE}. */
 export const FIXTURE_TIMEOFF: TimeOff = {
-  id: "fix-to1",
-  accountId: "fix-a1",
-  resourceId: "fix-r1",
-  startDate: "2026-03-01",
-  endDate: "2026-03-05",
-  type: "sick",
-  note: "Fixture sick note",
+  id: 'fix-to1',
+  accountId: 'fix-a1',
+  resourceId: 'fix-r1',
+  startDate: '2026-03-01',
+  endDate: '2026-03-05',
+  type: 'sick',
+  note: 'Fixture sick note',
   createdAt: TS1,
   updatedAt: TS2,
 };
 
 /** Complete company-closure fixture. */
 export const FIXTURE_CLOSURE: Closure = {
-  id: "fix-cl1",
-  accountId: "fix-a1",
-  name: "Fixture shutdown",
-  startDate: "2026-12-24",
-  endDate: "2026-12-27",
+  id: 'fix-cl1',
+  accountId: 'fix-a1',
+  name: 'Fixture shutdown',
+  startDate: '2026-12-24',
+  endDate: '2026-12-27',
   createdAt: TS1,
   updatedAt: TS2,
 };

@@ -1,5 +1,5 @@
-import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
-import type { Role } from "@capacitylens/shared/domain/access";
+import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types';
+import type { Role } from '@capacitylens/shared/domain/access';
 
 /** A workspace member and the resource-link state shown in team access. */
 export interface TeamMember {
@@ -18,7 +18,7 @@ export interface TeamMember {
     resourceId: string;
     revision: string;
     resourceName?: string | null;
-    resourceStatus?: "active" | "disabled" | "archived" | null;
+    resourceStatus?: 'active' | 'disabled' | 'archived' | null;
   } | null;
 }
 
@@ -46,5 +46,5 @@ export interface AdmissionRequest {
   /** The role an invitation offered, which completion grants when it is assignable. */
   invitedRole: string | null;
   /** `pending` waits for a first decision; a declined or revoked person can still be approved. */
-  approval: "pending" | "rejected" | "revoked";
+  approval: 'pending' | 'rejected' | 'revoked';
 }

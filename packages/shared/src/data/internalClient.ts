@@ -1,15 +1,15 @@
-import { NULLABLE_FIELDS } from "../types/nullableFields.js";
-import type { AppData, Client, ID, ISOTimestamp } from "../types/entities.js";
+import { NULLABLE_FIELDS } from '../types/nullableFields.js';
+import type { AppData, Client, ID, ISOTimestamp } from '../types/entities.js';
 
 // Each account has one persisted Internal client, identified by `builtin` because import remapping changes IDs.
 // Public CRUD strips the flag, imports reconcile duplicates, and server writes reject a second built-in client.
 
 /** The display name of the built-in Internal client (also recognised on import). */
-export const INTERNAL_CLIENT_NAME = "Internal";
+export const INTERNAL_CLIENT_NAME = 'Internal';
 
 /** A preset swatch colour for the Internal client (Blue bright, a valid `#rrggbb` from the
  * palette, distinct from NEUTRAL_COLOR which is reserved for external resources). */
-export const INTERNAL_CLIENT_COLOR = "#2d75da";
+export const INTERNAL_CLIENT_COLOR = '#2d75da';
 
 // Return a deterministic repair revision that differs from, and never precedes, the row's current
 // revision. Callers may supply a fixed clock value, so assigning `now` directly can leave the
@@ -18,8 +18,10 @@ function repairRevision(current: ISOTimestamp, now: ISOTimestamp): ISOTimestamp 
   const currentMs = Date.parse(current);
   const nowMs = Date.parse(now);
   if (!Number.isFinite(currentMs) || !Number.isFinite(nowMs) || currentMs < nowMs) return now;
-  if (currentMs >= Date.parse("9999-12-31T23:59:59.999Z")) {
-    throw new RangeError("Internal-client repair cannot advance beyond the supported four-digit ISO timestamp range.");
+  if (currentMs >= Date.parse('9999-12-31T23:59:59.999Z')) {
+    throw new RangeError(
+      'Internal-client repair cannot advance beyond the supported four-digit ISO timestamp range.',
+    );
   }
   return new Date(currentMs + 1).toISOString();
 }
@@ -48,7 +50,11 @@ export function availableInternalClientId(accountId: ID, usedIds: ReadonlySet<ID
 /** Build the Internal client for one account: a real Client with `builtin: true`, its selected id,
  * the reserved name + colour, and the given timestamps. Ordinary creation uses the account-derived
  * default; repair callers may provide a collision-free fallback from availableInternalClientId. */
-export function buildInternalClient(accountId: ID, now: ISOTimestamp, id: ID = internalClientIdFor(accountId)): Client {
+export function buildInternalClient(
+  accountId: ID,
+  now: ISOTimestamp,
+  id: ID = internalClientIdFor(accountId),
+): Client {
   return {
     ...NULLABLE_FIELDS.clients,
     id,
@@ -62,22 +68,24 @@ export function buildInternalClient(accountId: ID, now: ISOTimestamp, id: ID = i
 }
 
 function isObjectValue(value: unknown): value is object {
-  return value !== null && typeof value === "object";
+  return value !== null && typeof value === 'object';
 }
 
 function isStringValue(value: unknown): value is string {
-  return typeof value === "string";
+  return typeof value === 'string';
 }
 
 /** The account's built-in Internal client, or undefined if none exists yet. Identifies it by the
  * `builtin` flag (id-independent so it survives import-remap). First match wins; seed,
  * addAccount and imports guarantee at most one per account. */
 export function internalClientFor(clients: Client[], accountId: ID): Client | undefined {
-  return clients.find((client) => isObjectValue(client) && isBuiltinClient(client) && client.accountId === accountId);
+  return clients.find(
+    (client) => isObjectValue(client) && isBuiltinClient(client) && client.accountId === accountId,
+  );
 }
 
 /** True when this client is the protected built-in (cannot be renamed or deleted). */
-export function isBuiltinClient(client: Pick<Client, "builtin">): boolean {
+export function isBuiltinClient(client: Pick<Client, 'builtin'>): boolean {
   return client.builtin === true;
 }
 
@@ -110,7 +118,11 @@ interface IndexedClient {
 }
 
 function collectUsedClientIds(clients: Client[]): Set<ID> {
-  return new Set(clients.flatMap((client) => (isObjectValue(client) && isStringValue(client.id) ? [client.id] : [])));
+  return new Set(
+    clients.flatMap((client) =>
+      isObjectValue(client) && isStringValue(client.id) ? [client.id] : [],
+    ),
+  );
 }
 
 function collectBuiltinsByAccount(clients: Client[]): Map<ID, IndexedClient[]> {
@@ -134,8 +146,8 @@ function collectBuiltinsByAccount(clients: Client[]): Map<ID, IndexedClient[]> {
 function compareBuiltinEntries(generatedId: ID, left: IndexedClient, right: IndexedClient): number {
   if (left.client.id === generatedId && right.client.id !== generatedId) return -1;
   if (right.client.id === generatedId && left.client.id !== generatedId) return 1;
-  const leftCreatedAt = isStringValue(left.client.createdAt) ? left.client.createdAt : "";
-  const rightCreatedAt = isStringValue(right.client.createdAt) ? right.client.createdAt : "";
+  const leftCreatedAt = isStringValue(left.client.createdAt) ? left.client.createdAt : '';
+  const rightCreatedAt = isStringValue(right.client.createdAt) ? right.client.createdAt : '';
   return (
     leftCreatedAt.localeCompare(rightCreatedAt) ||
     left.client.id.localeCompare(right.client.id) ||
@@ -180,10 +192,19 @@ function repairRetainedClients(
     // unconditional bumps would create phantom writes on every load.
     const altered = needsInternalClientRepair(client);
     if (altered) repairedAny = true;
-    const repaired = { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const };
+    const repaired = {
+      ...client,
+      name: INTERNAL_CLIENT_NAME,
+      color: INTERNAL_CLIENT_COLOR,
+      builtin: true as const,
+    };
     repaired.archivedAt = null;
     repaired.deletedAt = null;
-    return [altered ? { ...repaired, updatedAt: repairRevision(client.updatedAt, options.now) } : repaired];
+    return [
+      altered
+        ? { ...repaired, updatedAt: repairRevision(client.updatedAt, options.now) }
+        : repaired,
+    ];
   });
   return { clients: repairedClients, repairedAny };
 }
@@ -192,7 +213,7 @@ function rewireDuplicateProjects(
   data: AppData,
   duplicateIds: ReadonlyMap<ID, ID>,
   now: ISOTimestamp,
-): AppData["projects"] {
+): AppData['projects'] {
   if (duplicateIds.size === 0) return data.projects;
   return data.projects.map((project) => {
     if (!isObjectValue(project)) return project;
@@ -230,7 +251,11 @@ export function applyInternalClientRepairs(data: AppData, now: ISOTimestamp): Ap
       added.push(buildInternalClient(account.id, now, id));
       continue;
     }
-    recordBuiltinDuplicates(builtins, generatedId, { duplicateIds, duplicateIndexes, retainedIndexes });
+    recordBuiltinDuplicates(builtins, generatedId, {
+      duplicateIds,
+      duplicateIndexes,
+      retainedIndexes,
+    });
   }
   // One pass over the rows: the repaired projection and the "was anything actually repaired?" flag
   // come from the same predicate evaluation, so they cannot disagree.

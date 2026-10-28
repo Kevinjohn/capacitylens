@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   apiFetch: vi
@@ -7,8 +7,8 @@ const mocks = vi.hoisted(() => ({
   requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
 
-vi.mock("@/data/apiConfig", () => ({ API_BASE: "https://app.example" }));
-vi.mock("@/data/requestTimeout", () => ({
+vi.mock('@/data/apiConfig', () => ({ API_BASE: 'https://app.example' }));
+vi.mock('@/data/requestTimeout', () => ({
   apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: mocks.requestSignal,
@@ -21,16 +21,19 @@ import {
   bindStoredAccountCommandsToIdentity,
   clearStoredAccountCommands,
   createBrowserAccountCommand,
-} from "./accountClient";
-import { announceAuditWarning, AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
+} from './accountClient';
+import { announceAuditWarning, AUDIT_WARNING_EVENT } from '@/lib/auditWarning';
 
-const command = { commandId: "command-1", idempotencyKey: "key-1" };
+const command = { commandId: 'command-1', idempotencyKey: 'key-1' };
 
-function transferOwner(input: { name: string; color?: string }, explicit?: typeof command): Promise<Response> {
+function transferOwner(
+  input: { name: string; color?: string },
+  explicit?: typeof command,
+): Promise<Response> {
   return accountClient.transferOwnership({
-    workspaceId: "a-studio",
+    workspaceId: 'a-studio',
     targetPrincipalId: input.name,
-    proofId: input.color ?? "proof-1",
+    proofId: input.color ?? 'proof-1',
     ...(explicit ? { command: explicit } : {}),
   });
 }
@@ -38,11 +41,14 @@ function transferOwner(input: { name: string; color?: string }, explicit?: typeo
 function expectCommand(init: RequestInit, method: string): void {
   expect(init.method).toBe(method);
   const headers = new Headers(init.headers);
-  expect(headers.get("idempotency-key")).toBe(command.idempotencyKey);
-  expect(headers.get("x-account-command-id")).toBe(command.commandId);
+  expect(headers.get('idempotency-key')).toBe(command.idempotencyKey);
+  expect(headers.get('x-account-command-id')).toBe(command.commandId);
 }
 
-function requestInitAt(calls: ReadonlyArray<Parameters<typeof mocks.apiFetch>>, index: number): RequestInit {
+function requestInitAt(
+  calls: ReadonlyArray<Parameters<typeof mocks.apiFetch>>,
+  index: number,
+): RequestInit {
   const call = calls[index];
   if (!call?.[1]) {
     throw new Error(`Expected request call ${index} to include init options.`);
@@ -50,10 +56,12 @@ function requestInitAt(calls: ReadonlyArray<Parameters<typeof mocks.apiFetch>>, 
   return call[1];
 }
 
-describe("browser account client", () => {
+describe('browser account client', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
-    mocks.apiFetch.mockReset().mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
+    mocks.apiFetch
+      .mockReset()
+      .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
     sessionStorage.clear();
   });
@@ -85,19 +93,19 @@ describe("browser account client", () => {
 });
 
 function registerCommandCreationTests(): void {
-  it("creates independent command and idempotency secrets", () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000000")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000001");
+  it('creates independent command and idempotency secrets', () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000000')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000001');
     expect(createBrowserAccountCommand()).toEqual({
-      commandId: "00000000-0000-4000-8000-000000000000",
-      idempotencyKey: "00000000-0000-4000-8000-000000000001",
+      commandId: '00000000-0000-4000-8000-000000000000',
+      idempotencyKey: '00000000-0000-4000-8000-000000000001',
     });
   });
 }
 
 function registerReadRouteTests(): void {
-  it("owns unauthenticated status and workspace-list reads via apiFetch", async () => {
+  it('owns unauthenticated status and workspace-list reads via apiFetch', async () => {
     // Routed through apiFetch (not raw fetch) so the audit-degradation header check that apiFetch
     // performs applies uniformly to these reads too.
     const controller = new AbortController();
@@ -105,25 +113,28 @@ function registerReadRouteTests(): void {
     await accountClient.me(controller.signal);
     await accountClient.listWorkspaces(controller.signal);
 
-    expect(mocks.apiFetch).toHaveBeenNthCalledWith(1, "https://app.example/api/auth/me", {
-      credentials: "include",
+    expect(mocks.apiFetch).toHaveBeenNthCalledWith(1, 'https://app.example/api/auth/me', {
+      credentials: 'include',
       signal: controller.signal,
     });
-    expect(mocks.apiFetch).toHaveBeenNthCalledWith(2, "https://app.example/api/accounts", {
-      credentials: "include",
+    expect(mocks.apiFetch).toHaveBeenNthCalledWith(2, 'https://app.example/api/accounts', {
+      credentials: 'include',
       signal: controller.signal,
     });
   });
 }
 
 function registerAuditWarningTests(): void {
-  it("surfaces an audit-degradation warning when apiFetch reports one for /api/auth/me", async () => {
+  it('surfaces an audit-degradation warning when apiFetch reports one for /api/auth/me', async () => {
     // Account reads use apiFetch so audit-degradation headers reach the shared warning surface. The mock preserves that header check.
     const warning = vi.fn();
     globalThis.addEventListener(AUDIT_WARNING_EVENT, warning);
     mocks.apiFetch.mockImplementation(async () => {
-      const res = new Response("{}", { status: 200, headers: { "x-capacitylens-audit-warning": "true" } });
-      if (res.headers.get("x-capacitylens-audit-warning") === "true") announceAuditWarning();
+      const res = new Response('{}', {
+        status: 200,
+        headers: { 'x-capacitylens-audit-warning': 'true' },
+      });
+      if (res.headers.get('x-capacitylens-audit-warning') === 'true') announceAuditWarning();
       return res;
     });
 
@@ -137,86 +148,96 @@ function registerAuditWarningTests(): void {
 }
 
 function registerMutationRouteTests(): void {
-  it("adds command headers, JSON encoding, safe path encoding, and bulk timeout policy", async () => {
-    await transferOwner({ name: "Studio" }, command);
+  it('adds command headers, JSON encoding, safe path encoding, and bulk timeout policy', async () => {
+    await transferOwner({ name: 'Studio' }, command);
     await accountClient.changeMemberRole({
-      workspaceId: "workspace / one",
-      principalId: "person / one",
-      role: "editor",
+      workspaceId: 'workspace / one',
+      principalId: 'person / one',
+      role: 'editor',
       command: command,
     });
-    await accountClient.removeMember("workspace / one", "person / one", command);
+    await accountClient.removeMember('workspace / one', 'person / one', command);
     await accountClient.transferOwnership({
-      workspaceId: "workspace / one",
-      targetPrincipalId: "person / one",
-      proofId: "proof-1",
+      workspaceId: 'workspace / one',
+      targetPrincipalId: 'person / one',
+      proofId: 'proof-1',
       command,
     });
     await accountClient.createInvitation(
-      { accountId: "workspace / one", role: "viewer", email: "selina@wayne.test" },
+      { accountId: 'workspace / one', role: 'viewer', email: 'selina@wayne.test' },
       command,
     );
-    await accountClient.revokeInvitation("workspace / one", "invite / one", command);
+    await accountClient.revokeInvitation('workspace / one', 'invite / one', command);
 
-    const [createUrl, createInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
-    expect(createUrl).toBe("https://app.example/api/accounts/a-studio/ownership-transfer");
-    expectCommand(createInit, "POST");
-    expect(new Headers(createInit.headers).get("content-type")).toBe("application/json");
-    expect(createInit.body).toBe(JSON.stringify({ toUserId: "Studio", proofId: "proof-1" }));
+    const [createUrl, createInit] = mocks.apiFetch.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(createUrl).toBe('https://app.example/api/accounts/a-studio/ownership-transfer');
+    expectCommand(createInit, 'POST');
+    expect(new Headers(createInit.headers).get('content-type')).toBe('application/json');
+    expect(createInit.body).toBe(JSON.stringify({ toUserId: 'Studio', proofId: 'proof-1' }));
 
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
       expect.arrayContaining([
-        "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one",
-        "https://app.example/api/accounts/workspace%20%2F%20one/invites/invite%20%2F%20one",
+        'https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one',
+        'https://app.example/api/accounts/workspace%20%2F%20one/invites/invite%20%2F%20one',
       ]),
     );
   });
 }
 
 function registerOwnershipTransferTests(): void {
-  it("sends one command and bound proof to the typed ownership route", async () => {
+  it('sends one command and bound proof to the typed ownership route', async () => {
     await accountClient.transferOwnership({
-      workspaceId: "workspace / one",
-      targetPrincipalId: "person / one",
-      proofId: "proof-1",
+      workspaceId: 'workspace / one',
+      targetPrincipalId: 'person / one',
+      proofId: 'proof-1',
       command,
     });
 
     const [url, init] = mocks.apiFetch.mock.calls[0] ?? [];
-    expect(url).toBe("https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer");
-    expectCommand(init as RequestInit, "POST");
-    expect(JSON.parse(String(init?.body))).toEqual({ toUserId: "person / one", proofId: "proof-1" });
+    expect(url).toBe('https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer');
+    expectCommand(init as RequestInit, 'POST');
+    expect(JSON.parse(String(init?.body))).toEqual({
+      toUserId: 'person / one',
+      proofId: 'proof-1',
+    });
   });
 
-  it("reuses the same command and target after an uncertain response", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000201")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000202");
+  it('reuses the same command and target after an uncertain response', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000201')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000202');
     mocks.apiFetch
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(Response.json({ fromUserId: "bruce", toUserId: "selina" }));
-    const input = { workspaceId: "wayne-enterprises", targetPrincipalId: "selina", proofId: "proof-1" };
+      .mockResolvedValueOnce(Response.json({ fromUserId: 'bruce', toUserId: 'selina' }));
+    const input = {
+      workspaceId: 'wayne-enterprises',
+      targetPrincipalId: 'selina',
+      proofId: 'proof-1',
+    };
 
     await accountClient.transferOwnership(input);
     await accountClient.transferOwnership(input);
 
     const headers = mocks.apiFetch.mock.calls.map((call) => new Headers(call[1]?.headers));
-    expect(headers[0]?.get("x-account-command-id")).toBe("00000000-0000-4000-8000-000000000201");
-    expect(headers[0]?.get("idempotency-key")).toBe("00000000-0000-4000-8000-000000000202");
-    expect(headers[1]?.get("x-account-command-id")).toBe(headers[0]?.get("x-account-command-id"));
-    expect(headers[1]?.get("idempotency-key")).toBe(headers[0]?.get("idempotency-key"));
+    expect(headers[0]?.get('x-account-command-id')).toBe('00000000-0000-4000-8000-000000000201');
+    expect(headers[0]?.get('idempotency-key')).toBe('00000000-0000-4000-8000-000000000202');
+    expect(headers[1]?.get('x-account-command-id')).toBe(headers[0]?.get('x-account-command-id'));
+    expect(headers[1]?.get('idempotency-key')).toBe(headers[0]?.get('idempotency-key'));
   });
 }
 
 function registerMemberResourceCommandTests(): void {
-  it("routes member-resource commands with operation headers and ambiguous conflict handling", async () => {
-    mocks.apiFetch.mockResolvedValueOnce(new Response("unreadable conflict", { status: 409 }));
+  it('routes member-resource commands with operation headers and ambiguous conflict handling', async () => {
+    mocks.apiFetch.mockResolvedValueOnce(new Response('unreadable conflict', { status: 409 }));
     const link = await accountClient.setMemberResourceLink(
       {
-        workspaceId: "workspace / one",
-        principalId: "person / one",
-        resourceId: "resource / one",
+        workspaceId: 'workspace / one',
+        principalId: 'person / one',
+        resourceId: 'resource / one',
         expectedRevision: null,
       },
       command,
@@ -225,205 +246,221 @@ function registerMemberResourceCommandTests(): void {
     expect(hasUnknownAccountCommandOutcome(link)).toBe(true);
     const [linkUrl, linkInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(linkUrl).toBe(
-      "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/resource-link",
+      'https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/resource-link',
     );
-    expectCommand(linkInit, "PUT");
-    expect(JSON.parse(String(linkInit.body))).toEqual({ resourceId: "resource / one", expectedRevision: null });
+    expectCommand(linkInit, 'PUT');
+    expect(JSON.parse(String(linkInit.body))).toEqual({
+      resourceId: 'resource / one',
+      expectedRevision: null,
+    });
 
     await accountClient.clearMemberResourceLink(
-      { workspaceId: "workspace / one", principalId: "person / one", expectedRevision: "revision-1" },
+      {
+        workspaceId: 'workspace / one',
+        principalId: 'person / one',
+        expectedRevision: 'revision-1',
+      },
       command,
     );
-    const [unlinkUrl, unlinkInit] = mocks.apiFetch.mock.calls[1] as unknown as [string, RequestInit];
+    const [unlinkUrl, unlinkInit] = mocks.apiFetch.mock.calls[1] as unknown as [
+      string,
+      RequestInit,
+    ];
     expect(unlinkUrl).toBe(linkUrl);
-    expectCommand(unlinkInit, "DELETE");
-    expect(JSON.parse(String(unlinkInit.body))).toEqual({ expectedRevision: "revision-1" });
+    expectCommand(unlinkInit, 'DELETE');
+    expect(JSON.parse(String(unlinkInit.body))).toEqual({ expectedRevision: 'revision-1' });
   });
 }
 
 function registerMembershipRouteTests(): void {
-  it("owns member, invitation preview, and signup routes", async () => {
-    await accountClient.listMembers("workspace / one");
-    await accountClient.listInvitations("workspace / one");
-    await accountClient.startMasquerade("workspace / one", { targetUserId: "person / one" });
+  it('owns member, invitation preview, and signup routes', async () => {
+    await accountClient.listMembers('workspace / one');
+    await accountClient.listInvitations('workspace / one');
+    await accountClient.startMasquerade('workspace / one', { targetUserId: 'person / one' });
     await accountClient.masqueradeStatus();
-    await accountClient.endMasquerade({ token: "token-1", reason: "explicit" });
-    await accountClient.previewInvitation("token / one");
-    await accountClient.signupWithInvitation("token / one", { name: "New user", password: "example-password" });
+    await accountClient.endMasquerade({ token: 'token-1', reason: 'explicit' });
+    await accountClient.previewInvitation('token / one');
+    await accountClient.signupWithInvitation('token / one', {
+      name: 'New user',
+      password: 'example-password',
+    });
 
     const directoryUrls = mocks.apiFetch.mock.calls
       .map((call) => String(call[0]))
-      .filter((url) => url.endsWith("/members") || url.endsWith("/invites"));
+      .filter((url) => url.endsWith('/members') || url.endsWith('/invites'));
     expect(directoryUrls).toEqual([
-      "https://app.example/api/accounts/workspace%20%2F%20one/members",
-      "https://app.example/api/accounts/workspace%20%2F%20one/invites",
+      'https://app.example/api/accounts/workspace%20%2F%20one/members',
+      'https://app.example/api/accounts/workspace%20%2F%20one/invites',
     ]);
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
-      "https://app.example/api/accounts/workspace%20%2F%20one/members",
-      "https://app.example/api/accounts/workspace%20%2F%20one/invites",
-      "https://app.example/api/accounts/workspace%20%2F%20one/masquerade",
-      "https://app.example/api/masquerade",
-      "https://app.example/api/masquerade",
-      "https://app.example/api/invites/token%20%2F%20one/preview",
-      "https://app.example/api/invites/token%20%2F%20one/signup",
+      'https://app.example/api/accounts/workspace%20%2F%20one/members',
+      'https://app.example/api/accounts/workspace%20%2F%20one/invites',
+      'https://app.example/api/accounts/workspace%20%2F%20one/masquerade',
+      'https://app.example/api/masquerade',
+      'https://app.example/api/masquerade',
+      'https://app.example/api/invites/token%20%2F%20one/preview',
+      'https://app.example/api/invites/token%20%2F%20one/signup',
     ]);
     expect(requestInitAt(mocks.apiFetch.mock.calls, 2)).toMatchObject({
-      method: "POST",
-      credentials: "include",
-      body: JSON.stringify({ targetUserId: "person / one" }),
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify({ targetUserId: 'person / one' }),
     });
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 3)).toEqual({ credentials: "include" });
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 3)).toEqual({ credentials: 'include' });
     expect(requestInitAt(mocks.apiFetch.mock.calls, 4)).toMatchObject({
-      method: "DELETE",
-      credentials: "include",
-      body: JSON.stringify({ token: "token-1", reason: "explicit" }),
+      method: 'DELETE',
+      credentials: 'include',
+      body: JSON.stringify({ token: 'token-1', reason: 'explicit' }),
     });
     expect(requestInitAt(mocks.apiFetch.mock.calls, 6)).toMatchObject({
-      method: "POST",
-      body: JSON.stringify({ name: "New user", password: "example-password" }),
+      method: 'POST',
+      body: JSON.stringify({ name: 'New user', password: 'example-password' }),
     });
   });
 }
 
 function registerStoredCommandTests(): void {
-  it("reuses a stored command across unknown outcomes and rotates it after terminal completion", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000001")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000002")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000003")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000004");
+  it('reuses a stored command across unknown outcomes and rotates it after terminal completion', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000001')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000002')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000003')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000004');
     mocks.apiFetch
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await transferOwner({ name: "Studio" });
-    await transferOwner({ name: "Studio" });
-    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000001",
-      "00000000-0000-4000-8000-000000000001",
-      "00000000-0000-4000-8000-000000000003",
+      '00000000-0000-4000-8000-000000000001',
+      '00000000-0000-4000-8000-000000000001',
+      '00000000-0000-4000-8000-000000000003',
     ]);
   });
 }
 
 function registerStorageFallbackTests(): void {
-  it("reuses a stored command after HTTP 408 until a terminal completion is known", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000071")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000072")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000073")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000074");
+  it('reuses a stored command after HTTP 408 until a terminal completion is known', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000071')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000072')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000073')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000074');
     mocks.apiFetch
       .mockResolvedValueOnce(new Response(null, { status: 408 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await transferOwner({ name: "Timeout Studio" });
-    await transferOwner({ name: "Timeout Studio" });
-    await transferOwner({ name: "Timeout Studio" });
+    await transferOwner({ name: 'Timeout Studio' });
+    await transferOwner({ name: 'Timeout Studio' });
+    await transferOwner({ name: 'Timeout Studio' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000071",
-      "00000000-0000-4000-8000-000000000071",
-      "00000000-0000-4000-8000-000000000073",
+      '00000000-0000-4000-8000-000000000071',
+      '00000000-0000-4000-8000-000000000071',
+      '00000000-0000-4000-8000-000000000073',
     ]);
   });
 }
 
 function registerCeremonyCleanupTests(): void {
-  it("reuses an in-memory command when session storage is blocked", async () => {
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new DOMException("Access denied", "SecurityError");
+  it('reuses an in-memory command when session storage is blocked', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Access denied', 'SecurityError');
     });
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new DOMException("Access denied", "SecurityError");
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Access denied', 'SecurityError');
     });
-    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
-      throw new DOMException("Access denied", "SecurityError");
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new DOMException('Access denied', 'SecurityError');
     });
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000051")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000052")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000053")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000054");
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000051')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000052')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000053')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000054');
     mocks.apiFetch
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await transferOwner({ name: "Studio" });
-    await transferOwner({ name: "Studio" });
-    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000051",
-      "00000000-0000-4000-8000-000000000051",
-      "00000000-0000-4000-8000-000000000053",
+      '00000000-0000-4000-8000-000000000051',
+      '00000000-0000-4000-8000-000000000051',
+      '00000000-0000-4000-8000-000000000053',
     ]);
   });
 }
 
 function registerIdentityCleanupTests(): void {
-  it("keeps a command after an in-progress conflict but clears it after an idempotency conflict", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000003")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000004")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000005")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000006");
+  it('keeps a command after an in-progress conflict but clears it after an idempotency conflict', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000003')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000004')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000005')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000006');
     mocks.apiFetch
-      .mockResolvedValueOnce(Response.json({ code: "COMMAND_IN_PROGRESS" }, { status: 409 }))
-      .mockResolvedValueOnce(Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 }))
+      .mockResolvedValueOnce(Response.json({ code: 'COMMAND_IN_PROGRESS' }, { status: 409 }))
+      .mockResolvedValueOnce(Response.json({ code: 'IDEMPOTENCY_CONFLICT' }, { status: 409 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await transferOwner({ name: "Studio" });
-    await transferOwner({ name: "Studio" });
-    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000003",
-      "00000000-0000-4000-8000-000000000003",
-      "00000000-0000-4000-8000-000000000005",
+      '00000000-0000-4000-8000-000000000003',
+      '00000000-0000-4000-8000-000000000003',
+      '00000000-0000-4000-8000-000000000005',
     ]);
   });
 }
 
 function registerCleanupStorageTests(): void {
-  it("clears retained command ceremonies without removing unrelated per-tab data", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000061")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000062")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000063")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000064");
+  it('clears retained command ceremonies without removing unrelated per-tab data', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000061')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000062')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000063')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000064');
     mocks.apiFetch
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
-    sessionStorage.setItem("capacitylens.unrelated-preference", "keep");
+    sessionStorage.setItem('capacitylens.unrelated-preference', 'keep');
 
-    await transferOwner({ name: "Shared browser" });
+    await transferOwner({ name: 'Shared browser' });
     clearStoredAccountCommands();
-    await transferOwner({ name: "Shared browser" });
+    await transferOwner({ name: 'Shared browser' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
-    expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000061", "00000000-0000-4000-8000-000000000063"]);
-    expect(sessionStorage.getItem("capacitylens.unrelated-preference")).toBe("keep");
+    expect(commandIds).toEqual([
+      '00000000-0000-4000-8000-000000000061',
+      '00000000-0000-4000-8000-000000000063',
+    ]);
+    expect(sessionStorage.getItem('capacitylens.unrelated-preference')).toBe('keep');
     expect(
       Array.from({ length: sessionStorage.length }, (_unused, index) => sessionStorage.key(index)),
     ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-command\./));
@@ -431,204 +468,240 @@ function registerCleanupStorageTests(): void {
 }
 
 function registerIdentityRecoveryTests(): void {
-  it("retains same-user recovery but clears a ceremony before a different identity can use it", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000081")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000082")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000083")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000084");
+  it('retains same-user recovery but clears a ceremony before a different identity can use it', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000081')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000082')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000083')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000084');
     mocks.apiFetch
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    bindStoredAccountCommandsToIdentity("user-one");
-    await transferOwner({ name: "Shared browser" });
-    bindStoredAccountCommandsToIdentity("user-one");
-    await transferOwner({ name: "Shared browser" });
-    bindStoredAccountCommandsToIdentity("user-two");
-    await transferOwner({ name: "Shared browser" });
+    bindStoredAccountCommandsToIdentity('user-one');
+    await transferOwner({ name: 'Shared browser' });
+    bindStoredAccountCommandsToIdentity('user-one');
+    await transferOwner({ name: 'Shared browser' });
+    bindStoredAccountCommandsToIdentity('user-two');
+    await transferOwner({ name: 'Shared browser' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000081",
-      "00000000-0000-4000-8000-000000000081",
-      "00000000-0000-4000-8000-000000000083",
+      '00000000-0000-4000-8000-000000000081',
+      '00000000-0000-4000-8000-000000000081',
+      '00000000-0000-4000-8000-000000000083',
     ]);
-    expect(sessionStorage.getItem("capacitylens.account-command.identity")).toBe("user-two");
+    expect(sessionStorage.getItem('capacitylens.account-command.identity')).toBe('user-two');
   });
 }
 
 function registerSurvivingCeremonyTests(): void {
-  it("isolates a surviving stored ceremony when identity-change cleanup cannot enumerate storage", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000091")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000092")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000093")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000094");
+  it('isolates a surviving stored ceremony when identity-change cleanup cannot enumerate storage', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000091')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000092')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000093')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000094');
     mocks.apiFetch
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    bindStoredAccountCommandsToIdentity("user-one");
-    await transferOwner({ name: "Shared browser" });
-    vi.spyOn(Storage.prototype, "length", "get").mockImplementationOnce(() => {
-      throw new DOMException("Storage unavailable", "SecurityError");
+    bindStoredAccountCommandsToIdentity('user-one');
+    await transferOwner({ name: 'Shared browser' });
+    vi.spyOn(Storage.prototype, 'length', 'get').mockImplementationOnce(() => {
+      throw new DOMException('Storage unavailable', 'SecurityError');
     });
-    bindStoredAccountCommandsToIdentity("user-two");
-    await transferOwner({ name: "Shared browser" });
+    bindStoredAccountCommandsToIdentity('user-two');
+    await transferOwner({ name: 'Shared browser' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
-    expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000091", "00000000-0000-4000-8000-000000000093"]);
+    expect(commandIds).toEqual([
+      '00000000-0000-4000-8000-000000000091',
+      '00000000-0000-4000-8000-000000000093',
+    ]);
   });
 }
 
 function registerUnreadableCommandResponseTests(): void {
-  it("keeps the same command identity after an unreadable 409 response", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000041")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000042")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000043")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000044");
+  it('keeps the same command identity after an unreadable 409 response', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000041')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000042')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000043')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000044');
     mocks.apiFetch
-      .mockResolvedValueOnce(new Response("truncated", { status: 409 }))
+      .mockResolvedValueOnce(new Response('truncated', { status: 409 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await transferOwner({ name: "Studio" });
-    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
-    expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000041", "00000000-0000-4000-8000-000000000041"]);
+    expect(commandIds).toEqual([
+      '00000000-0000-4000-8000-000000000041',
+      '00000000-0000-4000-8000-000000000041',
+    ]);
   });
 }
 
 function registerExplicitCommandCeremonyTests(): void {
-  it("does not let an explicit command discard an implicit unknown-outcome ceremony", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000031")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000032");
+  it('does not let an explicit command discard an implicit unknown-outcome ceremony', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000031')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000032');
     mocks.apiFetch
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await transferOwner({ name: "Studio" });
-    await transferOwner({ name: "Studio" }, command);
-    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' }, command);
+    await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000031",
+      '00000000-0000-4000-8000-000000000031',
       command.commandId,
-      "00000000-0000-4000-8000-000000000031",
+      '00000000-0000-4000-8000-000000000031',
     ]);
   });
 }
 
 function registerSemanticPayloadTests(): void {
-  it("keeps unknown-outcome ceremonies separate for different ownership targets", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000011")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000012")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000013")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000014");
+  it('keeps unknown-outcome ceremonies separate for different ownership targets', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000011')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000012')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000013')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000014');
     mocks.apiFetch.mockResolvedValue(new Response(null, { status: 503 }));
 
-    await transferOwner({ name: "Studio A" });
-    await transferOwner({ name: "Studio B" });
-    await transferOwner({ name: "Studio A" });
+    await transferOwner({ name: 'Studio A' });
+    await transferOwner({ name: 'Studio B' });
+    await transferOwner({ name: 'Studio A' });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000011",
-      "00000000-0000-4000-8000-000000000013",
-      "00000000-0000-4000-8000-000000000011",
+      '00000000-0000-4000-8000-000000000011',
+      '00000000-0000-4000-8000-000000000013',
+      '00000000-0000-4000-8000-000000000011',
     ]);
   });
 }
 
 function registerSemanticPayloadOrderTests(): void {
-  it("treats invitation field order as irrelevant when binding a semantic payload", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000021")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000022");
+  it('treats invitation field order as irrelevant when binding a semantic payload', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000021')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000022');
     mocks.apiFetch.mockResolvedValue(new Response(null, { status: 503 }));
 
-    await accountClient.createInvitation({ accountId: "a-studio", role: "viewer", email: "bruce@example.test" });
-    await accountClient.createInvitation({ email: "bruce@example.test", role: "viewer", accountId: "a-studio" });
+    await accountClient.createInvitation({
+      accountId: 'a-studio',
+      role: 'viewer',
+      email: 'bruce@example.test',
+    });
+    await accountClient.createInvitation({
+      email: 'bruce@example.test',
+      role: 'viewer',
+      accountId: 'a-studio',
+    });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
+      new Headers(init?.headers).get('x-account-command-id'),
     );
-    expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000021", "00000000-0000-4000-8000-000000000021"]);
+    expect(commandIds).toEqual([
+      '00000000-0000-4000-8000-000000000021',
+      '00000000-0000-4000-8000-000000000021',
+    ]);
   });
 }
 
 function registerResponseClassificationTests(): void {
-  it("classifies server and in-progress responses as unknown without consuming the body", async () => {
-    const inProgress = Response.json({ code: "COMMAND_IN_PROGRESS", error: "Still running." }, { status: 409 });
+  it('classifies server and in-progress responses as unknown without consuming the body', async () => {
+    const inProgress = Response.json(
+      { code: 'COMMAND_IN_PROGRESS', error: 'Still running.' },
+      { status: 409 },
+    );
     await expect(readUnknownAccountCommandOutcome(inProgress)).resolves.toBe(true);
     await expect(inProgress.json()).resolves.toMatchObject({
-      error: "Still running.",
+      error: 'Still running.',
     });
-    await expect(readUnknownAccountCommandOutcome(new Response(null, { status: 408 }))).resolves.toBe(true);
-    await expect(readUnknownAccountCommandOutcome(new Response(null, { status: 503 }))).resolves.toBe(true);
     await expect(
-      readUnknownAccountCommandOutcome(Response.json({ code: "DEPENDENCY_UNAVAILABLE" }, { status: 503 })),
+      readUnknownAccountCommandOutcome(new Response(null, { status: 408 })),
     ).resolves.toBe(true);
     await expect(
-      readUnknownAccountCommandOutcome(Response.json({ code: "MAIL_UNAVAILABLE" }, { status: 503 })),
+      readUnknownAccountCommandOutcome(new Response(null, { status: 503 })),
+    ).resolves.toBe(true);
+    await expect(
+      readUnknownAccountCommandOutcome(
+        Response.json({ code: 'DEPENDENCY_UNAVAILABLE' }, { status: 503 }),
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      readUnknownAccountCommandOutcome(
+        Response.json({ code: 'MAIL_UNAVAILABLE' }, { status: 503 }),
+      ),
     ).resolves.toBe(false);
     await expect(
-      readUnknownAccountCommandOutcome(Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 })),
+      readUnknownAccountCommandOutcome(
+        Response.json({ code: 'IDEMPOTENCY_CONFLICT' }, { status: 409 }),
+      ),
     ).resolves.toBe(false);
   });
 }
 
 function registerTerminalClassificationTests(): void {
-  it.each(["INVITATION_USED", "CONFLICT", "AUTHORITY_CHANGED", "IDEMPOTENCY_CONFLICT"])(
-    "classifies the known terminal 409 code %s as final",
+  it.each(['INVITATION_USED', 'CONFLICT', 'AUTHORITY_CHANGED', 'IDEMPOTENCY_CONFLICT'])(
+    'classifies the known terminal 409 code %s as final',
     async (code) => {
-      await expect(readUnknownAccountCommandOutcome(Response.json({ code }, { status: 409 }))).resolves.toBe(false);
+      await expect(
+        readUnknownAccountCommandOutcome(Response.json({ code }, { status: 409 })),
+      ).resolves.toBe(false);
     },
   );
 
-  it("classifies unreadable and unrecognised 409 responses as unknown", async () => {
+  it('classifies unreadable and unrecognised 409 responses as unknown', async () => {
     const unreadable = {
       status: 409,
       clone: () => ({
-        json: () => Promise.reject(new Error("response body disconnected")),
+        json: () => Promise.reject(new Error('response body disconnected')),
       }),
     } as unknown as Response;
 
-    await expect(readUnknownAccountCommandOutcome(new Response("truncated", { status: 409 }))).resolves.toBe(true);
+    await expect(
+      readUnknownAccountCommandOutcome(new Response('truncated', { status: 409 })),
+    ).resolves.toBe(true);
     await expect(readUnknownAccountCommandOutcome(unreadable)).resolves.toBe(true);
     await expect(
-      readUnknownAccountCommandOutcome(Response.json({ code: "FUTURE_CONFLICT_CODE" }, { status: 409 })),
+      readUnknownAccountCommandOutcome(
+        Response.json({ code: 'FUTURE_CONFLICT_CODE' }, { status: 409 }),
+      ),
     ).resolves.toBe(true);
   });
 }
 
-describe("admission list query", () => {
-  it("encodes an opaque cursor once and preserves credentials and cancellation", async () => {
+describe('admission list query', () => {
+  it('encodes an opaque cursor once and preserves credentials and cancellation', async () => {
     const controller = new AbortController();
-    await accountClient.listAdmissionRequests("pending", "next+/=&?", controller.signal);
+    await accountClient.listAdmissionRequests('pending', 'next+/=&?', controller.signal);
     const call = mocks.apiFetch.mock.calls.at(-1);
-    if (!call) throw new Error("Expected admission read");
+    if (!call) throw new Error('Expected admission read');
     const url = new URL(call[0]);
-    expect(url.pathname).toBe("/api/admission/requests");
-    expect(url.searchParams.get("status")).toBe("pending");
-    expect(url.searchParams.get("cursor")).toBe("next+/=&?");
-    expect(call[1]).toMatchObject({ credentials: "include", signal: controller.signal });
+    expect(url.pathname).toBe('/api/admission/requests');
+    expect(url.searchParams.get('status')).toBe('pending');
+    expect(url.searchParams.get('cursor')).toBe('next+/=&?');
+    expect(call[1]).toMatchObject({ credentials: 'include', signal: controller.signal });
   });
 });

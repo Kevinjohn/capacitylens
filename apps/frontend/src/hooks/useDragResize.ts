@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef } from "react";
-import type { DragMode } from "@/lib/gestureMath";
+import { useCallback, useEffect, useRef } from 'react';
+import type { DragMode } from '@/lib/gestureMath';
 
 // Thin DOM wrapper over the pure gestureMath. Mode comes from a `data-handle` on
 // the pressed element (resize grips) or defaults to 'move'. During the gesture it
@@ -68,16 +68,16 @@ function isOtherPointer(event: PointerEvent, pointerId: number): boolean {
 
 function resolveDragMode(target: EventTarget | null): DragMode {
   const handle = target instanceof HTMLElement ? target.dataset.handle : undefined;
-  if (handle === "start") return "resize-start";
-  if (handle === "end") return "resize-end";
-  return "move";
+  if (handle === 'start') return 'resize-start';
+  if (handle === 'end') return 'resize-end';
+  return 'move';
 }
 
 function createPointerHandlers(
   state: GestureState,
   progress: GestureProgress,
   detach: () => void,
-): Pick<GestureHandlers, "onMove" | "onUp"> {
+): Pick<GestureHandlers, 'onMove' | 'onUp'> {
   const { argsRef, mode, startX, startY, pointerId, threshold } = state;
   // Geometry owns snapping validation; this DOM wrapper relies on its total index lookup.
   // Keep the click threshold in raw pixels so narrow columns do not change gesture arming.
@@ -87,7 +87,8 @@ function createPointerHandlers(
     const dy = event.clientY - startY;
     if (!progress.dragging && Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return;
     progress.dragging = true;
-    const deltaDays = argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
+    const deltaDays =
+      argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
     argsRef.current.onPreview({
       mode,
       deltaDays,
@@ -102,7 +103,8 @@ function createPointerHandlers(
       argsRef.current.onClick?.();
       return;
     }
-    const deltaDays = argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
+    const deltaDays =
+      argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
     argsRef.current.onCommit(mode, deltaDays, { clientX: event.clientX, clientY: event.clientY });
   };
   return { onMove, onUp };
@@ -112,11 +114,11 @@ function createGestureHandlers(state: GestureState): GestureHandlers {
   const { argsRef, teardownRef, pointerId, captureTarget } = state;
   const progress: GestureProgress = { dragging: false };
   const detach = () => {
-    document.removeEventListener("pointermove", handlers.onMove);
-    document.removeEventListener("pointerup", handlers.onUp);
-    document.removeEventListener("pointercancel", handlers.onCancel);
-    document.removeEventListener("keydown", handlers.onKeyDown);
-    captureTarget.removeEventListener("lostpointercapture", handlers.onLostPointerCapture);
+    document.removeEventListener('pointermove', handlers.onMove);
+    document.removeEventListener('pointerup', handlers.onUp);
+    document.removeEventListener('pointercancel', handlers.onCancel);
+    document.removeEventListener('keydown', handlers.onKeyDown);
+    captureTarget.removeEventListener('lostpointercapture', handlers.onLostPointerCapture);
     if (captureTarget.hasPointerCapture(pointerId)) captureTarget.releasePointerCapture(pointerId);
     teardownRef.current = null;
   };
@@ -138,7 +140,7 @@ function createGestureHandlers(state: GestureState): GestureHandlers {
   // resize/move drag has no native "cancel" gesture). Escape takes the same abandon path
   // rather than committing whatever the last preview was.
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== "Escape") return;
+    if (event.key !== 'Escape') return;
     abort();
   };
   const handlers: GestureHandlers = {
@@ -189,11 +191,11 @@ export function useDragResize(args: UseDragResizeArgs) {
     });
     const { onMove, onUp, onCancel, onKeyDown, onLostPointerCapture, detach } = handlers;
 
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onCancel);
-    document.addEventListener("keydown", onKeyDown);
-    captureTarget.addEventListener("lostpointercapture", onLostPointerCapture);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onCancel);
+    document.addEventListener('keydown', onKeyDown);
+    captureTarget.addEventListener('lostpointercapture', onLostPointerCapture);
     captureTarget.setPointerCapture(pointerId);
     teardownRef.current = detach;
     return true;

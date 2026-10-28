@@ -1,55 +1,62 @@
-import { test, expect } from "./fixtures";
-import { openNewCompanyForm, createCompany } from "./browserTestSupport";
+import { test, expect } from './fixtures';
+import { openNewCompanyForm, createCompany } from './browserTestSupport';
 
-test.use({ contextOptions: { reducedMotion: "reduce", timezoneId: "Europe/London" } });
+test.use({ contextOptions: { reducedMotion: 'reduce', timezoneId: 'Europe/London' } });
 
 // Company creation captures fixed calendar settings; Settings presents their values read-only.
 
-test.describe("onboarding: capture-then-freeze language / week-start / time zone", () => {
-  test("create a company capturing week-start + timezone → Settings shows the read-only summary", async ({ page }) => {
+test.describe('onboarding: capture-then-freeze language / week-start / time zone', () => {
+  test('create a company capturing week-start + timezone → Settings shows the read-only summary', async ({
+    page,
+  }) => {
     // Same frozen-clock + "New company" walk as browserTestSupport.ts's `openApp`/
     // `openNewCompany`, stopping short so this spec can inspect and change the open form's
     // fields before submitting it.
     await openNewCompanyForm(page);
 
-    await expect(page.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
-    const tz = page.getByLabel("Timezone");
+    await expect(page.getByRole('radio', { name: 'Monday' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    const tz = page.getByLabel('Timezone');
     await expect(tz).toContainText(/London.*Europe\/London.*(?:BST|GMT)/);
     await tz.click();
-    await expect(page.getByRole("option", { name: "GMT (UTC+00:00)", exact: true })).toBeVisible();
-    await expect(page.getByRole("option", { name: /London.*Europe\/London/ })).toBeVisible();
-    const list = await page.getByRole("listbox").boundingBox();
+    await expect(page.getByRole('option', { name: 'GMT (UTC+00:00)', exact: true })).toBeVisible();
+    await expect(page.getByRole('option', { name: /London.*Europe\/London/ })).toBeVisible();
+    const list = await page.getByRole('listbox').boundingBox();
     expect(list).not.toBeNull();
     expect(list!.y).toBeGreaterThanOrEqual(0);
     expect(list!.height).toBeLessThanOrEqual(256);
-    const search = page.getByRole("combobox", { name: "Search time zones" });
-    await search.fill("no_matching_zone");
-    await expect(page.getByText("No time zones found.", { exact: true })).toBeVisible();
-    await search.fill("America/New_York");
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Enter");
-    await expect(tz).toContainText("America/New_York");
+    const search = page.getByRole('combobox', { name: 'Search time zones' });
+    await search.fill('no_matching_zone');
+    await expect(page.getByText('No time zones found.', { exact: true })).toBeVisible();
+    await search.fill('America/New_York');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(tz).toContainText('America/New_York');
     await expect(tz).toBeFocused();
-    await expect(page.getByTestId("create-language")).toHaveText("English");
+    await expect(page.getByTestId('create-language')).toHaveText('English');
     // Example data is added by the server, so the in-memory demo does not offer it.
-    await expect(page.getByRole("checkbox", { name: "Start with example data" })).toHaveCount(0);
+    await expect(page.getByRole('checkbox', { name: 'Start with example data' })).toHaveCount(0);
 
-    await page.getByRole("radio", { name: "Sunday" }).click();
+    await page.getByRole('radio', { name: 'Sunday' }).click();
     await tz.click();
-    await page.getByRole("combobox", { name: "Search time zones" }).fill("Europe/London");
-    await page.getByRole("option", { name: /London.*Europe\/London/ }).click();
-    await createCompany(page, "Queen Industries");
+    await page.getByRole('combobox', { name: 'Search time zones' }).fill('Europe/London');
+    await page.getByRole('option', { name: /London.*Europe\/London/ }).click();
+    await createCompany(page, 'Queen Industries');
 
     // Navigate to Settings via the in-app nav (a full reload would drop the never-persisted
     // active account and bounce back to the picker). Settings shows the captured values read-only.
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
     const accountOptions = page
-      .getByRole("heading", { name: "Company details" })
+      .getByRole('heading', { name: 'Company details' })
       .locator('xpath=ancestor::*[@data-slot="settings-row"]');
-    await expect(accountOptions.getByRole("row", { name: "Company name Queen Industries" })).toBeVisible();
-    await expect(accountOptions.getByRole("row", { name: "Week starts on Sunday" })).toBeVisible();
     await expect(
-      accountOptions.getByRole("row", { name: /Time zone London.*Europe\/London.*(?:BST|GMT)/ }),
+      accountOptions.getByRole('row', { name: 'Company name Queen Industries' }),
+    ).toBeVisible();
+    await expect(accountOptions.getByRole('row', { name: 'Week starts on Sunday' })).toBeVisible();
+    await expect(
+      accountOptions.getByRole('row', { name: /Time zone London.*Europe\/London.*(?:BST|GMT)/ }),
     ).toBeVisible();
   });
 });

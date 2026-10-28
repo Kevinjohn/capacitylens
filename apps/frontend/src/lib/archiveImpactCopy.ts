@@ -1,7 +1,7 @@
-import { archiveImpact, canArchive } from "@capacitylens/shared/domain/lifecycle";
-import type { ArchiveImpact, LifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
-import type { AppData } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
+import { archiveImpact, canArchive } from '@capacitylens/shared/domain/lifecycle';
+import type { ArchiveImpact, LifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
+import type { AppData } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
 
 /**
  * `archiveImpact` throws when its target row is missing or already inactive, a real possibility at
@@ -16,7 +16,11 @@ import { m } from "@/i18n";
  * might hold) using the same `canArchive` affordance predicate `archiveImpact`'s own precondition
  * is built on, so this can never disagree with when `archiveImpact` would throw.
  */
-export function safeArchiveImpact(data: AppData, entity: LifecycleEntityKey, id: string): ArchiveImpact | undefined {
+export function safeArchiveImpact(
+  data: AppData,
+  entity: LifecycleEntityKey,
+  id: string,
+): ArchiveImpact | undefined {
   const row = data[entity].find((candidate) => candidate.id === id);
   return row && canArchive(row) ? archiveImpact(data, entity, id) : undefined;
 }
@@ -33,7 +37,11 @@ const phaseCount = plural(m.list_archive_phase_one, m.list_archive_phase_other);
 const allocationCount = plural(m.list_archive_allocation_one, m.list_archive_allocation_other);
 
 /** Builds the impact summary for archiving a client and its dependent rows. */
-export function buildClientArchiveImpactCopy({ projects, phases, allocations }: ArchiveImpact): string {
+export function buildClientArchiveImpactCopy({
+  projects,
+  phases,
+  allocations,
+}: ArchiveImpact): string {
   return m.list_clients_archive_cascade({
     projects: projectCount(projects),
     phases: phaseCount(phases),

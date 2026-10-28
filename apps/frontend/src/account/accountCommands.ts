@@ -1,4 +1,7 @@
-import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/shared/account/validation";
+import {
+  isAccountCommandId,
+  isAccountIdempotencyKey,
+} from '@capacitylens/shared/account/validation';
 
 /** Identifies one browser-issued account command and its idempotency key. */
 export interface BrowserAccountCommand {
@@ -14,7 +17,7 @@ export function createBrowserAccountCommand(): BrowserAccountCommand {
   };
 }
 
-const COMMAND_STORAGE_PREFIX = "capacitylens.account-command.";
+const COMMAND_STORAGE_PREFIX = 'capacitylens.account-command.';
 const COMMAND_IDENTITY_STORAGE_KEY = `${COMMAND_STORAGE_PREFIX}identity`;
 // sessionStorage can be unavailable in hardened/private browser contexts. Keep the current page's
 // retry ceremony in memory as the minimum safe fallback; successful storage still extends it across
@@ -40,7 +43,7 @@ function buildCommandStorageKey(operationKey: string): string {
   // Cleanup is best-effort because sessionStorage can fail partway through an identity change.
   // Keep the identity in the lookup coordinate as the backstop: a surviving old handle can only
   // ever be recovered by the same authenticated principal.
-  return `${COMMAND_STORAGE_PREFIX}${activeCommandIdentity ?? "unbound"}.${operationKey}`;
+  return `${COMMAND_STORAGE_PREFIX}${activeCommandIdentity ?? 'unbound'}.${operationKey}`;
 }
 
 function invalidateCommandCohorts(): void {
@@ -89,12 +92,12 @@ export function clearStoredAccountCommands(): void {
   activeCommandIdentity = undefined;
   let keys: string[];
   try {
-    keys = Array.from({ length: sessionStorage.length }, (_unused, index) => sessionStorage.key(index)).filter(
-      (key): key is string => key?.startsWith(COMMAND_STORAGE_PREFIX) === true,
-    );
+    keys = Array.from({ length: sessionStorage.length }, (_unused, index) =>
+      sessionStorage.key(index),
+    ).filter((key): key is string => key?.startsWith(COMMAND_STORAGE_PREFIX) === true);
   } catch (error) {
     // Log storage inspection failure so sign-out cleanup is diagnosable while sign-out itself can continue.
-    console.error("Account command storage could not be inspected during sign-out", error);
+    console.error('Account command storage could not be inspected during sign-out', error);
     return;
   }
   for (const key of keys) {
@@ -102,7 +105,7 @@ export function clearStoredAccountCommands(): void {
       sessionStorage.removeItem(key);
     } catch (error) {
       // Log failed removal and continue clearing other identity-bound command handles.
-      console.error("An account command could not be cleared during sign-out", error);
+      console.error('An account command could not be cleared during sign-out', error);
     }
   }
 }
@@ -133,8 +136,14 @@ export function readOrCreateStoredCommand(operationKey: string): BrowserAccountC
   const memoryCommand = memoryCommands.get(storageKey);
   if (memoryCommand) return memoryCommand;
   try {
-    const parsed = JSON.parse(sessionStorage.getItem(storageKey) ?? "null") as Partial<BrowserAccountCommand> | null;
-    if (parsed && isAccountCommandId(parsed.commandId) && isAccountIdempotencyKey(parsed.idempotencyKey)) {
+    const parsed = JSON.parse(
+      sessionStorage.getItem(storageKey) ?? 'null',
+    ) as Partial<BrowserAccountCommand> | null;
+    if (
+      parsed &&
+      isAccountCommandId(parsed.commandId) &&
+      isAccountIdempotencyKey(parsed.idempotencyKey)
+    ) {
       const command = {
         commandId: parsed.commandId,
         idempotencyKey: parsed.idempotencyKey,

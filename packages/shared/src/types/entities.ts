@@ -13,30 +13,35 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export const HALF_DAY_HOURS = 4;
 
 /** Whether an allocation is confirmed, tentative or completed. */
-export type AllocationStatus = "confirmed" | "tentative" | "completed";
+export type AllocationStatus = 'confirmed' | 'tentative' | 'completed';
 /** How allocations are entered: by daily load against a fixed end date ('hourly',
  * the default), by volume of work spread over a span ('days'), or as a pure
  * booking block where only the span matters and load is ignored ('blocks'). */
-export type SchedulingMode = "hourly" | "days" | "blocks";
+export type SchedulingMode = 'hourly' | 'days' | 'blocks';
 /** Runtime list of the valid scheduling modes, the single source the server's
  * sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
-export const SCHEDULING_MODES: SchedulingMode[] = ["hourly", "days", "blocks"];
+export const SCHEDULING_MODES: SchedulingMode[] = ['hourly', 'days', 'blocks'];
 /** Who may open the Capacity Overview for an account. Null means owner/admin only. */
-export type CapacityOverviewAccess = "owner_admin" | "owner_admin_editor" | "everyone";
+export type CapacityOverviewAccess = 'owner_admin' | 'owner_admin_editor' | 'everyone';
 /** Runtime list used by import and server sanitisation to reject unknown access policies. */
 export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
-  "owner_admin",
-  "owner_admin_editor",
-  "everyone",
+  'owner_admin',
+  'owner_admin_editor',
+  'everyone',
 ];
 /** How human-readable dates read across an account: day/month order, and whether the day number
  * carries an ordinal suffix. Null means "day-month" ("9 Sep"). This is account data, not a device preference. A company reads one convention. */
-export type DateStyle = "day-month" | "day-ordinal-month" | "month-day" | "month-day-ordinal";
+export type DateStyle = 'day-month' | 'day-ordinal-month' | 'month-day' | 'month-day-ordinal';
 /** Supported date styles in Settings order; server/import sanitization rejects values absent from this list.
  * Keep this list aligned with DateStyle; the array type alone does not enforce union completeness. */
-export const DATE_STYLES: DateStyle[] = ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"];
+export const DATE_STYLES: DateStyle[] = [
+  'day-month',
+  'day-ordinal-month',
+  'month-day',
+  'month-day-ordinal',
+];
 /** The format a null `dateStyle` reads back as. */
-export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
+export const DEFAULT_DATE_STYLE: DateStyle = 'day-month';
 /**
  * What a resource row represents:
  * - `person`: a real team member with capacity (the default).
@@ -47,13 +52,13 @@ export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
  *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
  *   defaults. See the external-resource rule in DECISIONS.md.
  */
-export type ResourceKind = "person" | "placeholder" | "external";
+export type ResourceKind = 'person' | 'placeholder' | 'external';
 /** A person's contract status. */
-export type EmploymentType = "permanent" | "freelancer" | "contractor";
+export type EmploymentType = 'permanent' | 'freelancer' | 'contractor';
 /** How the agency regards a person, independently of contract status or discipline. */
-export type ResourceEngagement = "studio" | "supplementary";
+export type ResourceEngagement = 'studio' | 'supplementary';
 /** The reason for a time-off entry. */
-export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
+export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other';
 /**
  * What an activity is, the axis the schedule's "activity view" filters on. Three kinds:
  * - `project`: project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
@@ -62,7 +67,7 @@ export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
  * Coherence (enforced in assertScopedRefs, repaired on import): `project` has a `projectId`;
  * `internal`/`repeatable` have neither `projectId` nor `phaseId`.
  */
-export type ActivityKind = "project" | "internal" | "repeatable";
+export type ActivityKind = 'project' | 'internal' | 'repeatable';
 
 /** Identity and revision fields shared by persisted entities. */
 export interface Entity {
@@ -288,8 +293,8 @@ export {
   SCOPED_WRITE_ORDER,
   FULL_DAY_HOURS,
   MAX_HOURS_PER_DAY,
-} from "./entityKeys.js";
-export type { AppDataKey, ScopedEntityKey } from "./entityKeys.js";
+} from './entityKeys.js';
+export type { AppDataKey, ScopedEntityKey } from './entityKeys.js';
 
 /** Portable JSON schema version, independent of the physical SQLite schema version.
  * Increment when the portable AppData shape changes and provide the corresponding migration. */
@@ -317,4 +322,4 @@ export {
   placeholderCapacityDefaults,
   emptyAppData,
   isEmpty,
-} from "./entityHelpers.js";
+} from './entityHelpers.js';

@@ -4,11 +4,11 @@
  * Refresh still works at the component-defining modules (./dialogs, ./fields, etc.). */
 // Product compositions layer CapacityLens behaviour over the generic primitives.
 
-export * from "./dialogs";
-export * from "./ListPage";
-export * from "./fields";
-export * from "./badges";
-export * from "./SegmentedControl";
-export * from "./TogglePill";
-export * from "./SectionHelp";
-export * from "./FormActions";
+export * from './dialogs';
+export * from './ListPage';
+export * from './fields';
+export * from './badges';
+export * from './SegmentedControl';
+export * from './TogglePill';
+export * from './SectionHelp';
+export * from './FormActions';
