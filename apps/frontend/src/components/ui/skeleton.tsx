@@ -1,11 +1,11 @@
-import { cn } from '@/lib/cn';
+import { cn } from "@/lib/cn";
 
 /** Renders a loading placeholder. */
-function Skeleton({ className, ...props }: React.ComponentProps<'div'>) {
+function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="skeleton"
-      className={cn('animate-pulse rounded-md bg-accent', className)}
+      className={cn("animate-pulse rounded-md bg-accent", className)}
       {...props}
     />
   );

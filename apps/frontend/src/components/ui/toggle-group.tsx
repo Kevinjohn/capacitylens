@@ -1,9 +1,9 @@
-import * as React from 'react';
-import type { VariantProps } from 'class-variance-authority';
-import { ToggleGroup as ToggleGroupPrimitive } from 'radix-ui';
+import * as React from "react";
+import type { VariantProps } from "class-variance-authority";
+import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 
-import { cn } from '@/lib/cn';
-import { toggleVariants } from '@/components/ui/toggle';
+import { cn } from "@/lib/cn";
+import { toggleVariants } from "@/components/ui/toggle";
 
 // Local shadcn deviation: omit the registry's connected-item geometry because SegmentedControl
 // owns those borders, radii, and focus seams; keep only shared variant/size context and neutral
@@ -11,8 +11,8 @@ import { toggleVariants } from '@/components/ui/toggle';
 const ToggleGroupContext = React.createContext<
   VariantProps<typeof toggleVariants>
 >({
-  size: 'default',
-  variant: 'default',
+  size: "default",
+  variant: "default",
 });
 
 /** Groups related toggle controls. */
@@ -30,7 +30,7 @@ function ToggleGroup({
       data-variant={variant}
       data-size={size}
       className={cn(
-        'group/toggle-group flex w-fit items-center rounded-md',
+        "group/toggle-group flex w-fit items-center rounded-md",
         className,
       )}
       {...props}
@@ -63,7 +63,7 @@ function ToggleGroupItem({
           variant: context.variant ?? variant,
           size: context.size ?? size,
         }),
-        'w-auto min-w-0 shrink-0 px-3',
+        "w-auto min-w-0 shrink-0 px-3",
         className,
       )}
       {...props}
