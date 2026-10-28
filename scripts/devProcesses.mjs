@@ -33,12 +33,8 @@ function processTreeRunning(child) {
   return child.exitCode === null && child.signalCode === null;
 }
 
-function effectivePlatform(options) {
-  return options.platform ?? process.platform;
-}
-
 function processGroupRunning(child, options) {
-  if (effectivePlatform(options) === "win32" || (options.kill !== undefined && options.kill !== process.kill))
+  if (options.platform === "win32" || (options.kill !== undefined && options.kill !== process.kill))
     return processTreeRunning(child);
   try {
     process.kill(-child.pid, 0);
@@ -55,7 +51,7 @@ function signalProcessTree(
   signal,
   { platform = process.platform, kill = process.kill, spawnProcess = spawn } = {},
 ) {
-  if (platform === "win32" ? !processTreeRunning(child) : !processGroupRunning(child, { platform, kill })) return;
+  if (!processGroupRunning(child, { platform, kill })) return;
   try {
     if (platform === "win32") {
       const terminator = spawnProcess(
@@ -92,7 +88,7 @@ function waitForExit(child, timeoutMs) {
 }
 
 function waitForProcessTreeExit(child, timeoutMs, options) {
-  if (effectivePlatform(options) === "win32" || (options.kill !== undefined && options.kill !== process.kill))
+  if (options.platform === "win32" || (options.kill !== undefined && options.kill !== process.kill))
     return waitForExit(child, timeoutMs);
   return new Promise((resolve) => {
     const deadline = Date.now() + timeoutMs;
@@ -113,9 +109,8 @@ function waitForProcessTreeExit(child, timeoutMs, options) {
  */
 export async function terminateProcessTree(child, options = {}) {
   if (!Number.isInteger(child.pid) || child.pid <= 0) return;
-  const platformOptions = { ...options, platform: effectivePlatform(options) };
-  if (platformOptions.platform === "win32" ? !processTreeRunning(child) : !processGroupRunning(child, platformOptions))
-    return;
+  const platformOptions = { ...options, platform: options.platform ?? process.platform };
+  if (!processGroupRunning(child, platformOptions)) return;
   const graceMs = platformOptions.graceMs ?? 2_000;
   const forceMs = platformOptions.forceMs ?? 1_000;
   signalProcessTree(child, "SIGTERM", platformOptions);

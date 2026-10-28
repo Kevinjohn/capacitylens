@@ -86,7 +86,6 @@ export function AppSidebar({
         navLinks={navLinks}
         adminLinks={adminLinks}
         pathname={pathname}
-        isMobile={isMobile}
         onNavigate={closeOnMobile}
         onShowOrientation={onShowOrientation}
       />
@@ -126,17 +125,16 @@ function SidebarNavigation({
   navLinks,
   adminLinks,
   pathname,
-  isMobile,
   onNavigate,
   onShowOrientation,
 }: {
   navLinks: NavigationLinkDefinition[];
   adminLinks: NavigationLinkDefinition[];
   pathname: string;
-  isMobile: boolean;
   onNavigate: () => void;
   onShowOrientation: (trigger: HTMLButtonElement, mobile: boolean) => void;
 }) {
+  const { isMobile } = useSidebar();
   return (
     <SidebarContent>
       {/* One <nav> landmark around both groups. The admin group is a separate visual block

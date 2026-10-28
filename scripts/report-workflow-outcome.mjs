@@ -128,7 +128,7 @@ function readOpenWorkflowIssueNumbers(runGh = gh) {
     "--jq",
     ".[].number",
   ]);
-  return found === "" ? [] : found.split("\n").filter(Boolean).map(Number).filter(Number.isInteger);
+  return found.split("\n").filter(Boolean).map(Number).filter(Number.isInteger);
 }
 
 function commentOnIssue(issueNumber, body, runGh) {

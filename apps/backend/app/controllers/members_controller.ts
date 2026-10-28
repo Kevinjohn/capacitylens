@@ -106,11 +106,7 @@ export default class MembersController {
       ])
       const denied = new Set(restrictions.map((row) => String(row.principal_id)))
       const memberIds = new Set(rows.map((row) => String(row.user_id)))
-      const resourceFields = await readMemberResourceFields(
-        trx,
-        accountId,
-        rows.map((row) => String(row.user_id))
-      )
+      const resourceFields = await readMemberResourceFields(trx, accountId, [...memberIds])
       const members = []
       for (const row of rows) {
         const userId = String(row.user_id)
