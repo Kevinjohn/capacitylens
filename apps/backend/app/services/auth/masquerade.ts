@@ -56,14 +56,20 @@ export async function currentMasquerade(ctx: HttpContext) {
   const requestedAccountId =
     (typeof ctx.params.accountId === 'string' && ctx.params.accountId) ||
     (typeof ctx.request.input('accountId') === 'string' && ctx.request.input('accountId'))
-  let accountId = requestedAccountId || null
+  let accountId: string | null = null
   let effectiveRole: Role | null = null
-  if (accountId) {
-    const actorRole = await activeCompanyRole(actor.id, accountId, db)
-    effectiveRole = await activeCompanyRole(view.targetId, accountId, db)
-    if (!actorRole || !can(actorRole, 'masquerade') || !effectiveRole)
-      throw new PackageMasqueradeError('E_MASQUERADE_NOT_ALLOWED')
-  } else {
+  if (requestedAccountId) {
+    const actorRole = await activeCompanyRole(actor.id, requestedAccountId, db)
+    const targetRole = await activeCompanyRole(view.targetId, requestedAccountId, db)
+    if (actorRole && can(actorRole, 'masquerade') && targetRole) {
+      accountId = requestedAccountId
+      effectiveRole = targetRole
+    }
+  }
+  // Another tab of the same sign-in may sit on a company the target does not share. Report the
+  // mode where it holds so that tab can adopt the current context and offer End; company reads
+  // are still authorized per request by effectiveReadPrincipal.
+  if (!accountId) {
     const memberships = await db
       .from('memberships')
       .where({ user_id: actor.id, status: 'active' })

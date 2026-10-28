@@ -565,6 +565,28 @@ test.group('native read-only masquerade', (group) => {
     )
   })
 
+  test('reports the active view where it holds when another company is requested', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, ownerId, targetId } = await fixture(client)
+    await createFixtureCompanyForOwner(ownerId, 'Stark Industries', 'a-loft')
+    const started = await startView(client, cookie, targetId)
+    started.assertStatus(200)
+    const elsewhere = await asSession(client.get('/api/masquerade?accountId=a-loft'), cookie).send()
+    elsewhere.assertStatus(200)
+    const body = elsewhere.body() as {
+      active: boolean
+      accountId: string
+      targetUserId: string
+      contextToken: string
+    }
+    assert.isTrue(body.active)
+    assert.equal(body.accountId, 'a-studio')
+    assert.equal(body.targetUserId, targetId)
+    assert.equal(body.contextToken, (started.body() as { contextToken: string }).contextToken)
+  })
+
   test('rejects self, inactive target, and malformed session authority', async ({ client }) => {
     const { cookie, ownerId, targetId } = await fixture(client)
     const self = await startView(client, cookie, ownerId)
