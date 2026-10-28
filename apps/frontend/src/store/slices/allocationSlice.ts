@@ -5,7 +5,7 @@ import type { PlanningIntent } from "@capacitylens/backend/planning";
 import { assertAllocationWithinResourceAvailability, assertDateRange } from "@capacitylens/shared/domain/mutations";
 import { assertAllocationPlacement } from "@capacitylens/shared/domain/placement";
 import { newId } from "@capacitylens/shared/lib/id";
-import { emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import { emptyAppData, MAX_HOURS_PER_DAY, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { Allocation, AppData, ID } from "@capacitylens/shared/types/entities";
@@ -18,7 +18,7 @@ import {
 } from "@/data/planning/planningCommands";
 import type { PlanningCommand } from "@/data/planning/planningCommands";
 import type { StoreInternals } from "@/store/storeInternal";
-import type { Draft, Patch, StoreState } from "@/store/types";
+import type { Draft, StoreState } from "@/store/types";
 
 type AllocationSlice = Pick<
   StoreState,
@@ -53,8 +53,8 @@ const PAGE_IDENTITY = Symbol("page planning identity");
 const RESTORE_FROM_RECEIPT: PlanningIntent = { operation: "planning.restoreGroup", restorationGroupId: "" };
 
 function assertSuppliedHours(hours: number): void {
-  if (!Number.isFinite(hours) || hours < 0 || hours > 24)
-    throw new Error("Hours per day must be a finite number between 0 and 24.");
+  if (!Number.isFinite(hours) || hours < 0 || hours > MAX_HOURS_PER_DAY)
+    throw new Error(`Hours per day must be a finite number between 0 and ${MAX_HOURS_PER_DAY}.`);
 }
 
 /**
@@ -282,8 +282,7 @@ export function createAllocationSlice(
         const data = get().data;
         const existing = resolveOwnedRow(data, "allocations", id);
         if (!existing || blockedByViewer()) return false;
-        const changes: Patch<Allocation> = patch;
-        const effective = applyPatch(existing, changes);
+        const effective = applyPatch(existing, patch);
         assertSuppliedHours(effective.hoursPerDay);
         // Validate the merged row so unrelated edits cannot preserve invalid external-resource
         // load that the server would reject.
@@ -302,7 +301,7 @@ export function createAllocationSlice(
           data,
           accountId: existing.accountId,
           original: existing,
-          args: { id, changes },
+          args: { id, changes: patch },
         });
         if (!command) return false;
         await send(command, existing);

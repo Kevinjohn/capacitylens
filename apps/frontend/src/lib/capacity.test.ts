@@ -1421,8 +1421,29 @@ it("reports a real sub-nanohour overload in both the day marker and proposal adv
   ).toBe(1);
 });
 
-it.each([[8 + 2 ** -49], [8 + 2 ** -49, ...Array<number>(100).fill(0)], [8, 1e-20]].map((hours) => [hours]))(
-  "preserves actual positive excess through marker and advisory despite zero operands: %j",
+it("does not mark a day over when days-mode bookings fit it exactly", () => {
+  const resource = makeResource();
+  // One day of work over five working days stores 1.6 h/day; five of them are 8 h in decimal but a
+  // hair above 8 h in binary, which the marker and the advisory must both read as full, not over.
+  const allocations = Array.from({ length: 5 }, (_, index) => makeAlloc({ id: `fit-${index}`, hoursPerDay: 1.6 }));
+  expect(dayCapacity({ resource, date: "2026-06-01", allocations, timeOff: [] }).over).toBe(false);
+  expect(
+    capacityAdvisory({
+      resource,
+      proposal: makeProposal(resource)({
+        startDate: "2026-06-01",
+        endDate: "2026-06-01",
+        hoursPerDay: 1.6,
+        ignoreWeekends: false,
+      }),
+      otherAllocations: allocations.slice(0, 4),
+      timeOff: [],
+    }).overDays,
+  ).toBe(0);
+});
+
+it.each([[8 + 1e-12], [8 + 1e-12, ...Array<number>(100).fill(0)], [8, 1e-12]].map((hours) => [hours]))(
+  "preserves real positive excess through marker and advisory despite zero operands: %j",
   (hours) => {
     const resource = makeResource();
     const allocations = hours.map((hoursPerDay, index) => makeAlloc({ id: `exact-${index}`, hoursPerDay }));

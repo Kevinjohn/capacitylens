@@ -92,7 +92,6 @@ export function buildActivityOptions({
         rightId: right.activity.id,
       }),
   );
-  const reservedLabels = new Set(resolved.map(({ baseLabel }) => baseLabel));
   const emittedLabels = new Set<string>();
   const options = resolved.map(({ activity, kind: resolvedKind, baseLabel }) => {
     let occurrence = occurrenceCountsByLabel.get(baseLabel) ?? 0;
@@ -101,7 +100,7 @@ export function buildActivityOptions({
       do {
         occurrence += 1;
         label = `${baseLabel} (${occurrence})`;
-      } while (reservedLabels.has(label) || emittedLabels.has(label));
+      } while (labelCountsByLabel.has(label) || emittedLabels.has(label));
     }
     occurrenceCountsByLabel.set(baseLabel, occurrence);
     emittedLabels.add(label);

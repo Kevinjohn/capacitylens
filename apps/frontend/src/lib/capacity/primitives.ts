@@ -22,13 +22,20 @@ export function addCapacityHours(components: readonly number[], hours: number): 
   return next;
 }
 
-/** Compare the exact accumulated load to capacity, without a tolerance or hour quantum.
- * The last nonzero component carries the sign after exact subtraction of availability.
- * A scalar has no accumulated arithmetic to correct and is compared directly.
+/** Half an ulp bounds how far a stored double sits from the decimal that produced it, and half an
+ * ulp of a non-negative double never exceeds the value × 2^-53. */
+const UNIT_ROUNDOFF = 2 ** -53;
+
+/** Compare the exact accumulated load to capacity, allowing only for the representation error of
+ * the operands themselves: a decimal exact fit (five 1.6 h bookings against 8 h) is full rather
+ * than over whatever the summation order, while any larger excess, however small, is over.
+ * Components are the exact expansion from `addCapacityHours`; a scalar is one component.
  */
 export function hasOverCapacity(allocated: number | readonly number[], available: number): boolean {
-  if (typeof allocated === "number") return allocated > available;
-  return (addCapacityHours(allocated, -available).at(-1) ?? 0) > 0;
+  const components = typeof allocated === "number" ? [allocated] : allocated;
+  const total = components.reduce((sum, component) => sum + component, 0);
+  const excess = addCapacityHours(components, -available).reduce((sum, component) => sum + component, 0);
+  return excess > (Math.abs(total) + Math.abs(available)) * UNIT_ROUNDOFF;
 }
 
 // Blocks-mode hourly capacity projection using the standard full working day as its reference.
