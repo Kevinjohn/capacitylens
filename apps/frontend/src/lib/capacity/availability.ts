@@ -173,7 +173,7 @@ interface ResolveAllocatedHoursOnDayInput {
   effectiveWeek: EffectiveWorkingWeek;
 }
 
-/** Keep the allocation/calendar contract, but replace the top-of-file reference with an explicit requirement that hoursPerDay be finite and non-negative. */
+/** Totals the allocation hours assigned to `resource` on `date`, respecting effective working days. */
 export function resolveAllocatedHoursOnDay({
   resource,
   date,

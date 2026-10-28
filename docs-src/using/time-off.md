@@ -53,7 +53,7 @@ in. Switch back to **Work** after saving.
 
 ## Repeat personal time off
 
-![The Add time off form previewing seven three-day holiday entries, with every generated date range expanded](../screenshots/flows/timeoff_repeat_form.jpg)
+![The Add time off form previewing seven two-day holiday entries, with every generated date range expanded](../screenshots/flows/timeoff_repeat_form.jpg)
 
 Weekly repeats run every one, two, three or four weeks. Monthly repeats use either the same date or
 the last matching weekday:

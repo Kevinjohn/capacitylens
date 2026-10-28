@@ -41,7 +41,6 @@
   // `"types": ["node"]`) instead, keeping Node globals out of this browser-only program.
   "exclude": [
     "../../packages/shared/src/packageExports.test.ts",
-    "src/auth/authErrorInit.test.ts",
     "src/bundleBudgetGate.test.ts",
     "src/data/offlineWorker.test.ts",
     "src/playwrightFixturesPolicy.test.ts",

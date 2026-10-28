@@ -69,6 +69,6 @@ draggable/resizable.
   `importData` and surfaces _"Read-only — you don't have edit access."_
 - The in-memory demo has no persisted badge or membership role and remains editable; it identifies
   its access posture as **Demo access**.
-- UI: `src/auth/PermissionProvider.tsx` + `src/auth/permissionContext.ts` (`useRole`/`useCanEdit`, off
+- UI: `apps/frontend/src/auth/PermissionProvider.tsx` + `apps/frontend/src/auth/permissionContext.ts` (`useRole`/`useCanEdit`, off
   the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`; spec
   `e2e/viewer.auth.spec.ts`.

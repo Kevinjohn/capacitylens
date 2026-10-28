@@ -41,6 +41,11 @@ const state: MasqueradeState & { contextToken: string } = {
 const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
 function controllerWithNativeSlice(bootstrapFailure = false) {
+  useStore.setState({
+    data: makeAppData({
+      accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })],
+    }),
+  });
   const bootstrapTransport = createVolatilePlanningTransport(() =>
     makeAppData({ accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })] }),
   );

@@ -175,14 +175,12 @@ interface MemberMutationStateInput {
 
 function useMemberMutationState(input: MemberMutationStateInput) {
   const refreshDirectory = input.directoryState.reload;
-  const bumpReadiness = () => undefined;
   const reconciliation = createMemberAccessReconciliation({
     activeAccountId: input.activeAccountId,
     invalidateMemberships: input.invalidateMemberships,
     refreshAuth: input.refreshAuth,
     closeActiveAccount: input.directoryState.closeActiveAccount,
     ...input.directoryState.actionDependencies,
-    bumpReadiness,
     replaceAuthorizedDirectory: input.directoryState.replaceAuthorizedDirectory,
   });
   const actions = createMemberMutations({
@@ -190,7 +188,6 @@ function useMemberMutationState(input: MemberMutationStateInput) {
     ...reconciliation,
     refreshDirectory,
     reload: input.directoryState.reload,
-    bumpReadiness,
   });
   const inviteActions = input.createInviteActions({
     clear: input.clear,

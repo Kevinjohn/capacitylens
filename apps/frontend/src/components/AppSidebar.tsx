@@ -1,4 +1,4 @@
-import { EyeIcon, MoonIcon, SunIcon } from 'lucide-react';
+import { CircleHelpIcon, EyeIcon, MoonIcon, SunIcon } from 'lucide-react';
 import { matchPath, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/authContext';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
@@ -42,6 +42,7 @@ interface AppSidebarProps {
   demoAuthActive: boolean;
   navLinks: NavigationLinkDefinition[];
   onSwitchAccount: () => void;
+  onShowOrientation: (trigger: HTMLButtonElement, mobile: boolean) => void;
   open: boolean;
 }
 
@@ -52,6 +53,7 @@ export function AppSidebar({
   demoAuthActive,
   navLinks,
   onSwitchAccount,
+  onShowOrientation,
   open,
 }: AppSidebarProps) {
   const { pathname } = useLocation();
@@ -85,6 +87,7 @@ export function AppSidebar({
         adminLinks={adminLinks}
         pathname={pathname}
         onNavigate={closeOnMobile}
+        onShowOrientation={onShowOrientation}
       />
       <SidebarAccountFooter
         activeAccount={activeAccount}
@@ -129,12 +132,15 @@ function SidebarNavigation({
   adminLinks,
   pathname,
   onNavigate,
+  onShowOrientation,
 }: {
   navLinks: NavigationLinkDefinition[];
   adminLinks: NavigationLinkDefinition[];
   pathname: string;
   onNavigate: () => void;
+  onShowOrientation: (trigger: HTMLButtonElement, mobile: boolean) => void;
 }) {
+  const { isMobile } = useSidebar();
   return (
     <SidebarContent>
       {/* One <nav> landmark around both groups. The admin group is a separate visual block
@@ -145,6 +151,23 @@ function SidebarNavigation({
         <SidebarGroup>
           <SidebarGroupContent>
             <NavMenu links={navLinks} pathname={pathname} onNavigate={onNavigate} />
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
+                  data-testid="product-orientation-reopen"
+                  aria-label={m.product_orientation_heading({ app: APP_NAME })}
+                  tooltip={m.product_orientation_heading({ app: APP_NAME })}
+                  onClick={(event) => {
+                    onShowOrientation(event.currentTarget, isMobile);
+                    onNavigate();
+                  }}
+                >
+                  <CircleHelpIcon aria-hidden="true" focusable="false" />
+                  <span>{m.product_orientation_heading({ app: APP_NAME })}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 

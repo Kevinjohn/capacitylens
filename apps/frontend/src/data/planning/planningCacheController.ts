@@ -248,6 +248,7 @@ function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot {
 
 function isSnapshotForCompany(snapshot: PlanningSnapshot, companyId: string): boolean {
   return (
+    snapshot.data.accounts.length === 1 &&
     snapshot.data.accounts.every((account) => isRecord(account) && account.id === companyId) &&
     SCOPED_KEYS.every((key) =>
       snapshot.data[key].every((row) => isRecord(row) && row.accountId === companyId),

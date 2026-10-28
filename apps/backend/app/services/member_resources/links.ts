@@ -67,7 +67,7 @@ export async function setMemberResourceLink(
     conflictingAdmission('That scheduled person is already linked to another member.');
   }
   if (current?.resource_id === resourceId) {
-    return { resourceId, revision: String(current.revision) };
+    return { resourceId, revision: String(current.revision), changed: false };
   }
   const now = new Date().toISOString();
   const revision = crypto.randomUUID();
@@ -88,7 +88,7 @@ export async function setMemberResourceLink(
     });
   }
   await advancePlanningRevision(trx, accountId);
-  return { resourceId, revision };
+  return { resourceId, revision, changed: true };
 }
 
 /** Clears a member/person association only at the expected revision. */

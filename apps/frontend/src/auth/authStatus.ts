@@ -63,8 +63,3 @@ export function buildOpenAuthResult(
 export function isAuthMode(value: unknown): value is AccountMode {
   return value === 'off' || value === 'password-only';
 }
-type ResolveBooleanFieldOptions = { value: unknown; fallback: boolean };
-/** Unknown boolean metadata uses the supplied compatibility fallback because the server remains authoritative for creation permission. */
-export function resolveBooleanField({ value, fallback }: ResolveBooleanFieldOptions): boolean {
-  return typeof value === 'boolean' ? value : fallback;
-}

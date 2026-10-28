@@ -415,7 +415,7 @@ function registerPublicPredicateTests(): void {
   });
 
   // A client write must reject a second built-in client in the same account while allowing updates to the existing one.
-  it('wouldAddSecondBuiltin: reproduces the server reject check byte-for-byte', () => {
+  it('wouldAddSecondBuiltin matches the client-side duplicate built-in write predicate', () => {
     const existing: Client = {
       ...NULLABLE_FIELDS.clients,
       id: 'c-int',

@@ -17,7 +17,6 @@ import {
   resolveWeekStart,
 } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
-import { useLocalDataActions } from './useLocalDataActions';
 
 function useDisplayPreferences() {
   return {
@@ -66,7 +65,6 @@ export function useSettingsViewController() {
   const display = useDisplayPreferences();
   const serverMode = isServerConfigured();
   const scheduling = readSchedulingSettings(data, activeAccountId);
-  const localData = useLocalDataActions(setNotice);
   const updateSetting = async (patch: Parameters<typeof updateAccount>[1]) => {
     if (!activeAccount) return;
     try {
@@ -86,6 +84,5 @@ export function useSettingsViewController() {
     canManageCapacityOverviewAccess: role === null || role === 'owner' || role === 'admin',
     updateSetting,
     serverMode,
-    localData,
   };
 }

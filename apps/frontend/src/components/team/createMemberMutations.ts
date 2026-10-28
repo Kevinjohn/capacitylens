@@ -22,7 +22,6 @@ export interface MemberMutationDependencies extends Pick<
   >['reconcileUnknownMutation'];
   refreshDirectory: () => void;
   reload: () => void;
-  bumpReadiness: () => void;
 }
 
 function createSignInTrackingMutation(dependencies: MemberMutationDependencies) {

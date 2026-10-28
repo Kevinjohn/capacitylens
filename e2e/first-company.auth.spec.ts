@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { masqueradeContextHeaders } from './authTestSupport';
 
 // This journey needs an empty native installation, independently of the shared role fixtures.
-test('the operator setup link creates the first Owner, one company and a usable schedule and opens a usable schedule', async ({
+test('operator setup creates the first Owner, one company and its default client', async ({
   page,
   request,
 }, testInfo) => {

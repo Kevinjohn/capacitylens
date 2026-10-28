@@ -30,23 +30,23 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Navigation & shell — `navigation/`
 
-| Story                                                          | Title                                                          | Automated coverage                                                                                                   |
-| -------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate between all available sections                        | `e2e/navigation.spec.ts`                                                                                             |
-| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | Active section is indicated (`aria-current`)                   | `e2e/navigation.spec.ts`                                                                                             |
-| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Content gated on hydration ("Loading…")                        | manual (AppShell gates on `hydrated`)                                                                                |
-| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | Server save-failure warning                                    | `e2e/resilience.db.spec.ts` + unit (`AppShell.test.tsx`, `planningCacheController.test.ts`)                          |
-| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Transient toast (auto-dismiss)                                 | `e2e/data.spec.ts` (toast appears); auto-dismiss manual                                                              |
-| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Light / dark theme preference                                  | `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts` (dark)                                                                 |
-| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recoverable error screen                                       | unit (`ErrorBoundary.test.tsx`) + manual                                                                             |
-| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Command palette (⌘K / Ctrl+K)                                  | `e2e/palette.spec.ts` + unit (`CommandPalette.test.tsx`, `fuzzy.test.ts`)                                            |
-| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Mobile affordances (sidebar rail + rotate hint)                | `e2e/mobile.spec.ts`                                                                                                 |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Sign in before using persisted server data                     | `e2e/login.auth.spec.ts` (auth-backed project)                                                                       |
-| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Non-blocking, reusable product orientation                     | `ProductOrientation.test.tsx` + `AppShell.productOrientation.test.tsx` + `e2e/product-orientation.spec.ts`           |
-| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Setup milestones, progress, dismissal and role-based tour      | `e2e/getting-started.spec.ts` + `e2e/getting-started.db.spec.ts` + auth E2E + `GettingStarted.test.tsx`              |
-| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company                       | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`            |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `e2e/navigation.spec.ts` + `src/components/common/ui.test.tsx` + `src/lib/designTokens.test.ts` + `e2e/a11y.spec.ts` |
-| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and start the role-based tour                        | `HelpView.test.tsx` + navigation, mobile and role-auth E2E                                                           |
+| Story                                                          | Title                                                          | Automated coverage                                                                                         |
+| -------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate between all available sections                        | `e2e/navigation.spec.ts`                                                                                   |
+| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | Active section is indicated (`aria-current`)                   | `e2e/navigation.spec.ts`                                                                                   |
+| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Content gated on hydration ("Loading…")                        | manual (AppShell gates on `hydrated`)                                                                      |
+| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | Server save-failure warning                                    | `e2e/resilience.db.spec.ts` + unit (`AppShell.test.tsx`, `planningCacheController.test.ts`)                |
+| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Transient toast (auto-dismiss)                                 | `e2e/data.spec.ts` (toast appears); auto-dismiss manual                                                    |
+| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Light / dark theme preference                                  | `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts` (dark)                                                       |
+| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recoverable error screen                                       | unit (`ErrorBoundary.test.tsx`) + manual                                                                   |
+| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Command palette (⌘K / Ctrl+K)                                  | `e2e/palette.spec.ts` + unit (`CommandPalette.test.tsx`, `fuzzy.test.ts`)                                  |
+| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Mobile affordances (sidebar rail + rotate hint)                | `e2e/mobile.spec.ts`                                                                                       |
+| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Sign in before using persisted server data                     | `e2e/login.auth.spec.ts` (auth-backed project)                                                             |
+| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Non-blocking, reusable product orientation                     | `ProductOrientation.test.tsx` + `AppShell.productOrientation.test.tsx` + `e2e/product-orientation.spec.ts` |
+| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Setup milestones, progress, dismissal and role-based tour      | `e2e/getting-started.spec.ts` + `e2e/getting-started.db.spec.ts` + auth E2E + `GettingStarted.test.tsx`    |
+| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company                       | `AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`                          |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `ui.test.tsx` + `designTokens.test.ts` + `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts`                     |
+| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and start the role-based tour                        | `HelpView.test.tsx` + navigation, mobile and role-auth E2E                                                 |
 
 ## Overview — `capacity-overview/`
 
@@ -104,7 +104,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | Story                                                                   | Title                                            | Automated coverage                                   |
 | ----------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------- |
 | [US-PRI-01](privacy/US-PRI-01-role-safe-private-name-display.md)        | Role-safe private-name display across the app    | server authz + component tests; cross-surface manual |
-| [US-PRI-02](privacy/US-PRI-02-preserve-private-identities-on-writes.md) | Preserve private identities across server writes | `server/src/app.authz.test.ts` + tenant-store tests  |
+| [US-PRI-02](privacy/US-PRI-02-preserve-private-identities-on-writes.md) | Preserve private identities across server writes | `operations.spec.ts`                                 |
 
 ## Activities — `activities/`
 
@@ -167,16 +167,16 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Toolbar — `toolbar/`
 
-| Story                                                | Title                                         | Automated coverage                                                       |
-| ---------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
-| [US-TBR-01](toolbar/US-TBR-01-zoom.md)               | Weeks visible (1/2/4/6/8 weeks)               | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts`                          |
-| [US-TBR-02](toolbar/US-TBR-02-pan.md)                | Pan a week (icon-only Prev/Next)              | `e2e/toolbar.spec.ts`                                                    |
-| [US-TBR-03](toolbar/US-TBR-03-today.md)              | Re-centre on Today                            | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts`                          |
-| [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md)       | Jump to a date (hidden from toolbar — #173)   | `src/components/scheduler/JumpToDateInput.test.tsx` + `useStore.test.ts` |
-| [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Work / Time-off draw mode                     | `e2e/toolbar.spec.ts` + `e2e/features.spec.ts`                           |
-| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md)  | Booking undo/redo toolbar buttons + keyboard  | `e2e/toolbar.spec.ts`                                                    |
-| [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Booking undo/redo (⌘Z / ⌘⇧Z)                  | `e2e/toolbar.spec.ts`                                                    |
-| [US-TBR-08](toolbar/US-TBR-08-week-start-snap.md)    | Navigation re-anchors left edge to week start | `e2e/scheduler.spec.ts` + `e2e/toolbar.spec.ts`                          |
+| Story                                                | Title                                         | Automated coverage                              |
+| ---------------------------------------------------- | --------------------------------------------- | ----------------------------------------------- |
+| [US-TBR-01](toolbar/US-TBR-01-zoom.md)               | Weeks visible (1/2/4/6/8 weeks)               | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
+| [US-TBR-02](toolbar/US-TBR-02-pan.md)                | Pan a week (icon-only Prev/Next)              | `e2e/toolbar.spec.ts`                           |
+| [US-TBR-03](toolbar/US-TBR-03-today.md)              | Re-centre on Today                            | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
+| [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md)       | Jump to a date (hidden from toolbar — #173)   | `JumpToDateInput.test.tsx` + `useStore.test.ts` |
+| [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Work / Time-off draw mode                     | `e2e/toolbar.spec.ts` + `e2e/features.spec.ts`  |
+| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md)  | Booking undo/redo toolbar buttons + keyboard  | `e2e/toolbar.spec.ts`                           |
+| [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Booking undo/redo (⌘Z / ⌘⇧Z)                  | `e2e/toolbar.spec.ts`                           |
+| [US-TBR-08](toolbar/US-TBR-08-week-start-snap.md)    | Navigation re-anchors left edge to week start | `e2e/scheduler.spec.ts` + `e2e/toolbar.spec.ts` |
 
 ## Filters — `filters/`
 
@@ -241,6 +241,6 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Installation — `installation/`
 
-| Story                                                     | Title                               | Automated coverage                                                                    |
-| --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
-| [US-INS-01](installation/US-INS-01-install-one-agency.md) | Install CapacityLens for one agency | gate `release-package-smoke` + `server/src/routes/staticWeb.test.ts`; manual per host |
+| Story                                                     | Title                               | Automated coverage                                                        |
+| --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------- |
+| [US-INS-01](installation/US-INS-01-install-one-agency.md) | Install CapacityLens for one agency | gate `release-package-smoke` + `static_fallback.spec.ts`; manual per host |

@@ -14,9 +14,9 @@ const corsConfig = defineConfig({
   enabled: true,
 
   /**
-   * In development, allow every origin to simplify local front/backend setup.
-   * In production, keep an explicit allowlist (empty by default, so no
-   * cross-origin browser access is allowed until configured).
+   * Use the configured origins (or the documented local development origins).
+   * Production defaults to the same explicit local list; configure the public
+   * frontend origin with CAPACITYLENS_CORS_ORIGIN when deploying elsewhere.
    */
   origin: corsOrigins,
 

@@ -189,6 +189,7 @@ test.group('general HTTP logging privacy', (group) => {
 
     assert.isDefined(committed);
     assert.equal(result.status(), 201);
+    assert.isUndefined(result.header('x-capacitylens-audit-warning'));
     assert.include(output, '"event":"http.request.logging_failed"');
     assert.notInclude(output, secret);
   });

@@ -91,6 +91,19 @@ function rejectStage(fixture: Fixture, stage: RequestStage, error: Error) {
 }
 
 describe('planning request access boundaries', () => {
+  it('rejects a canonical snapshot with duplicate active-company rows', async () => {
+    const fixture = await setup();
+    const duplicateCompany = makeAccount({ id: 'wayne', name: 'Wayne Enterprises' });
+    fixture.read.mockResolvedValueOnce({
+      ...snapshot('Wayne Enterprises', 2),
+      data: makeAppData({ accounts: [duplicateCompany, duplicateCompany] }),
+    });
+
+    await expect(fixture.controller.refresh()).resolves.toBe(false);
+    expect(fixture.store.getState().planning.status).toBe('error');
+    expect(fixture.store.getState().planning.revision).toBe(1);
+  });
+
   for (const stage of ['read', 'execute', 'lookup'] as const) {
     it(`clears rows, history and pending state atomically after ${stage} reports 401`, async () => {
       const fixture = await setup();

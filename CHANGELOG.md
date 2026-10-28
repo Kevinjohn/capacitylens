@@ -9,9 +9,18 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Reopen “How CapacityLens works” from the sidebar after dismissing the introduction.
+
 - `pnpm run check:changed` runs only the formatting, lint, type-check, test and documentation checks that a branch's changed files need (#1603). `--static` leaves whole test suites to one combined run, and a fresh worktree builds the application its backend tests read (#1657).
 
 ### Fixed
+
+- Return to sign-in after a committed password change even when its dialog was dismissed.
+- Stop surviving development-server descendants when their launcher exits.
+- Preserve interrupted development identities and explain supported operator admission recovery.
+- Keep unexpected restore failures distinguishable, report bounded database diagnostics, and avoid false audit warnings or unchanged-link audit events.
+- Reject incomplete planning and admission responses instead of presenting them as complete.
+- Correct native setup, portable date-format, ownership-recovery and company-closure guidance.
 
 - Align scheduler accessible names with visible avatar and lane content.
 - Record bounded password sign-in outcomes, including automatic sign-in after registration.
@@ -28,6 +37,8 @@ new features and **patch** versions carry fixes.
 - Align remaining security-header and first-company guides with native setup and the supported Google provider.
 
 ### Changed
+
+- Read member/resource associations in one company-scoped batch and remove retired confirmation-return/provider-error protocols and unused internal contracts.
 
 - Use package-managed storage for planning deletion and restoration, preserving session-bound Undo/Redo while preventing old recovery groups from affecting replacement rows or newer deletions.
 - Pin Lucid soft deletes to the verified 0.1.1-alpha release archive.
