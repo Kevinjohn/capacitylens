@@ -14,7 +14,7 @@ export function transformState(data: AppData, accountId: string | undefined, rol
   )
   const allocations = scoped(data.allocations)
   const timeOff = scoped(data.timeOff).map((row) =>
-    !canSeeTimeOffNote(role) && row.note !== undefined ? { ...row, note: null } : row
+    !canSeeTimeOffNote(role) ? { ...row, note: null } : row
   )
   return {
     accounts: accountId ? data.accounts.filter((row) => row.id === accountId) : data.accounts,

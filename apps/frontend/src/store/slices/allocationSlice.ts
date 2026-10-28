@@ -237,8 +237,7 @@ export function createAllocationSlice(
       addAllocation: async (input) => {
         const prepared = prepareNew([input]);
         if (!prepared) return { kind: "blocked" };
-        const [draft] = prepared.drafts;
-        if (!draft) throw new Error("Allocation creation produced no row.");
+        const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
         await send(requireCommand(buildAllocationCreate({ ...prepared, args: draft })));
         const [created] = createdRows(get, [draft.id]);
         if (!created) throw new Error("Allocation creation produced no row.");
@@ -262,9 +261,9 @@ export function createAllocationSlice(
       duplicateAllocation: async (sourceId, input) => {
         const prepared = prepareNew([input]);
         if (!prepared) return { kind: "blocked" };
-        const [draft] = prepared.drafts;
+        const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
         const original = resolveOwnedRow(prepared.data, "allocations", sourceId);
-        if (!draft || !original) throw new Error("The allocation to duplicate no longer exists.");
+        if (!original) throw new Error("The allocation to duplicate no longer exists.");
         await send(
           requireCommand(
             buildAllocationDuplicate({ ...prepared, original, args: { sourceId, id: draft.id, fields: draft.fields } }),

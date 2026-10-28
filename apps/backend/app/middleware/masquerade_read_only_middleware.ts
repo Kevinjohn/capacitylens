@@ -20,7 +20,7 @@ function sendContextError(
 export default class MasqueradeReadOnlyMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     const path = ctx.request.url().split('?', 1)[0]
-    if (!path?.startsWith('/api/')) return next()
+    if (!path.startsWith('/api/')) return next()
     const method = ctx.request.method().toUpperCase()
     const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(method)
     const isStatus = (method === 'GET' || method === 'HEAD') && path === '/api/masquerade'

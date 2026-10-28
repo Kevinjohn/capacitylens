@@ -118,8 +118,8 @@ export function resolveTimeZoneAbbreviation(timeZone: string, date = new Date())
 export function resolveTimeZoneDisplayName(timeZone: string): string {
   if (timeZone === DEFAULT_TIME_ZONE) return m.settings_timezone_gmt();
   if (timeZone === "UTC") return "UTC";
-  const segment = timeZone.split("/").at(-1);
-  return (segment ?? timeZone).replaceAll("_", " ");
+  const segment = timeZone.slice(timeZone.lastIndexOf("/") + 1);
+  return segment.replaceAll("_", " ");
 }
 
 /** Return the current UTC offset for an IANA zone in a compact, unambiguous form. */
@@ -130,11 +130,14 @@ export function resolveTimeZoneOffsetLabel(timeZone: string, date = new Date()):
       .find((part) => part.type === "timeZoneName")?.value;
 
     if (!value || value === "GMT" || value === "UTC") return "UTC+00:00";
-    const match = value.match(/^(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?$/);
+    const offsetPattern = /^(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?$/;
+    const match = value.match(offsetPattern);
     if (!match) return value.replace(/^GMT/, "UTC");
-    const [, sign, hours, minutes = "00"] = match;
-    if (!sign || !hours) return value.replace(/^GMT/, "UTC");
-    return `UTC${sign}${hours.padStart(2, "0")}:${minutes}`;
+    return value.replace(
+      offsetPattern,
+      (_match, sign: string, hours: string, minutes?: string) =>
+        `UTC${sign}${hours.padStart(2, "0")}:${minutes ?? "00"}`,
+    );
   } catch {
     // The zone list itself is validated by listSupportedTimeZones(); this is only a defensive
     // fallback for an older Intl implementation or an unexpected persisted value.
