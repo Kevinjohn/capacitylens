@@ -202,6 +202,9 @@ describe("MasqueradeController", () => {
 
   it("preserves a failed cold End attempt's retry ownership after server confirms it remains active", async () => {
     useStore.getState().clearPlanning();
+    useStore.setState({
+      data: makeAppData({ accounts: [makeAccount({ id: state.accountId, name: "Wayne Enterprises" })] }),
+    });
     const { controller, dependencies } = harness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
       readBootstrapAccount: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("Wayne Enterprises"),

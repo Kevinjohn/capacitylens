@@ -6,6 +6,7 @@ import { apiRouteUrl } from "@/api/queryClient";
 import { apiFetch } from "@/data/requestTimeout";
 import { readApiError } from "@/lib/readApiError";
 import { MAX_NAME_LENGTH } from "@capacitylens/shared/lib/strings";
+import { m } from "@/i18n";
 
 /** Collects the only company setup choice after native identity authentication. */
 export function CompanySetup({
@@ -33,10 +34,10 @@ export function CompanySetup({
         body: JSON.stringify({ name }),
       });
       if (response.status === 409 && (await onConflict())) return;
-      if (!response.ok) throw new Error((await readApiError(response)) ?? "Company setup failed. Try again.");
+      if (!response.ok) throw new Error((await readApiError(response)) ?? m.company_setup_failed());
       await onCreated();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Company setup failed. Try again.");
+      setError(failure instanceof Error ? failure.message : m.company_setup_failed());
     } finally {
       setBusy(false);
     }
@@ -50,10 +51,10 @@ export function CompanySetup({
           void submit();
         }}
       >
-        <h1 className="text-2xl font-semibold">Set up your company</h1>
-        <p className="text-sm text-muted-foreground">Create your company to start scheduling. You will be its Owner.</p>
+        <h1 className="text-2xl font-semibold">{m.company_setup_title()}</h1>
+        <p className="text-sm text-muted-foreground">{m.company_setup_intro()}</p>
         <div className="space-y-2">
-          <Label htmlFor={id}>Company name</Label>
+          <Label htmlFor={id}>{m.company_setup_name_label()}</Label>
           <Input
             id={id}
             data-testid="company-setup-name"
@@ -71,10 +72,10 @@ export function CompanySetup({
           </p>
         )}
         <Button data-testid="company-setup-submit" type="submit" disabled={busy || !name.trim()} className="w-full">
-          {busy ? "Creating company…" : "Create company"}
+          {busy ? m.company_setup_creating() : m.company_setup_create()}
         </Button>
         <Button type="button" variant="link" disabled={busy} onClick={() => void onSignOut()} className="w-full">
-          Sign out
+          {m.company_setup_sign_out()}
         </Button>
       </form>
     </main>

@@ -30,8 +30,8 @@ dismissal keys from local storage.
 3. Click **Got it**. The region closes without changing page.
 4. Reload and choose the same company. The explanation stays closed for this person, company and
    device.
-5. The explanation has no sidebar action. It appears automatically on eligible entry and can be
-   dismissed with **Got it** while the rest of the application remains usable.
+5. Select **How CapacityLens works** in the sidebar. The explanation reopens and receives focus;
+   dismiss it with **Got it** while the rest of the application remains usable.
 6. Repeat from the personal **Account** page with no active company. The same explanation remains
    available and its dismissal is stored independently from company dismissals.
 
@@ -47,5 +47,6 @@ dismissal keys from local storage.
   of company data or an export. The no-company state has its own stable scope.
 - A storage failure does not block the application: the region stays dismissed for the current
   mount and can return on a later load.
-- The explanation has no product-orientation sidebar action in expanded, collapsed or mobile
-  navigation. Automatic background state changes do not steal focus repeatedly.
+- The sidebar action **How CapacityLens works** (`data-testid="product-orientation-reopen"`)
+  reopens and focuses the region in expanded, collapsed and mobile navigation. Automatic background
+  state changes do not steal focus repeatedly.

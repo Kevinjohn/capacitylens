@@ -19,6 +19,9 @@ unsold. Someone finds out about a new project the week before their holiday.
 CapacityLens puts the whole team on one screen that everyone can read, so you can see trouble
 coming and move work around before it lands.
 
+The **How CapacityLens works** introduction can be reopened from the same-named item in the
+sidebar.
+
 ## What you get
 
 - **The weeks ahead at a glance.** Show 1, 2, 4, 6 or 8 weeks, filtered by client, project or

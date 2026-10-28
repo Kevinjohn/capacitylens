@@ -72,7 +72,7 @@ export default class ExampleDataController {
       try {
         logger.info({ accountId, added }, 'Example data committed')
       } catch {
-        response.header('x-capacitylens-audit-warning', 'true')
+        // The audit and data are already committed; logging is diagnostic only.
       }
       return response.created({ added })
     } catch (error) {

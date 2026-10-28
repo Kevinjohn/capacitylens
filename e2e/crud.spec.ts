@@ -24,7 +24,6 @@ test.describe("CRUD + demo lifecycle", () => {
     await expect(page.getByText("Persisted Client")).toBeVisible();
 
     // The zero-setup demo is memory-only; reload restores the canonical seed.
-    await page.waitForTimeout(500);
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByText("Persisted Client")).toHaveCount(0);
@@ -44,7 +43,6 @@ test.describe("CRUD + demo lifecycle", () => {
     await page.getByTestId("export-data").click();
     const file = await (await downloadPromise).path();
 
-    await page.waitForTimeout(400);
     // Reload restores the demo seed because account data is intentionally memory-only.
     await page.evaluate(() => localStorage.clear());
     await openApp(page);

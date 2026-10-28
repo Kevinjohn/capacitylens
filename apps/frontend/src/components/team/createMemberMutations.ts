@@ -20,7 +20,6 @@ export interface MemberMutationDependencies extends Pick<
   reconcileUnknownMutation: ReturnType<typeof createMemberAccessReconciliation>["reconcileUnknownMutation"];
   refreshDirectory: () => void;
   reload: () => void;
-  bumpReadiness: () => void;
 }
 
 function createSignInTrackingMutation(dependencies: MemberMutationDependencies) {

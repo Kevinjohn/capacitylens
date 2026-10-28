@@ -27,8 +27,6 @@ import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
 import { readApiError } from "@/lib/readApiError";
 
-const PENDING_PROOF_KEY = "capacitylens/import-action-proof";
-
 // Store message getters so import-summary labels follow the active locale at render time.
 const SUMMARY: [keyof AppData, () => string][] = [
   ["resources", () => m.data_summary_resources()],
@@ -295,51 +293,6 @@ export function ImportExport() {
   const [previewRevision, setPreviewRevision] = useState<number | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
   const [confirmingAction, setConfirmingAction] = useState(false);
-  const [readyProof, setReadyProof] = useState<string | null>(null);
-  const [returnedProof, setReturnedProof] = useState<{ id: string; baseRevision: number } | null>(null);
-  const proofAccountRef = useRef(activeAccountId);
-
-  useEffect(() => {
-    const saved = sessionStorage.getItem(PENDING_PROOF_KEY);
-    if (new URLSearchParams(window.location.search).get("capacitylensActionConfirmed") !== "1") {
-      if (saved) sessionStorage.removeItem(PENDING_PROOF_KEY);
-      return;
-    }
-    if (!activeAccountId) return;
-    if (!saved) return;
-    const timer = window.setTimeout(() => {
-      sessionStorage.removeItem(PENDING_PROOF_KEY);
-      const url = new URL(window.location.href);
-      url.searchParams.delete("capacitylensActionConfirmed");
-      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
-      try {
-        const value: unknown = JSON.parse(saved);
-        if (
-          !value ||
-          typeof value !== "object" ||
-          !("accountId" in value) ||
-          value.accountId !== activeAccountId ||
-          !("baseRevision" in value) ||
-          !Number.isSafeInteger(value.baseRevision) ||
-          !("proofId" in value) ||
-          typeof value.proofId !== "string"
-        )
-          throw new Error("Import confirmation could not be resumed.");
-        setReturnedProof({ id: value.proofId, baseRevision: value.baseRevision as number });
-      } catch {
-        setNotice(m.data_import_failed({ status: 0 }), "error");
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [activeAccountId, setNotice]);
-
-  useEffect(() => {
-    if (proofAccountRef.current === activeAccountId) return;
-    proofAccountRef.current = activeAccountId;
-    setReturnedProof(null);
-    setReadyProof(null);
-  }, [activeAccountId]);
-
   const continuePreview = async () => {
     if (!pendingImport || !activeAccountId) return;
     if (!serverMode) {
@@ -369,15 +322,7 @@ export function ImportExport() {
         throw new Error(m.data_import_failed({ status: 0 }));
       if (!isCurrent()) return;
       const revision = result.baseRevision as number;
-      if (returnedProof && returnedProof.baseRevision !== revision) {
-        setReturnedProof(null);
-        throw new Error("The company changed. Preview the current data again and confirm a new import.");
-      }
       setPreviewRevision(revision);
-      if (returnedProof) {
-        setReadyProof(returnedProof.id);
-        setReturnedProof(null);
-      }
     } catch (error) {
       if (isCurrent()) setNotice(resolveErrorMessage(error), "error");
     } finally {
@@ -393,12 +338,7 @@ export function ImportExport() {
       return;
     }
     if (serverMode) {
-      if (readyProof && previewRevision !== null) {
-        const proofId = readyProof;
-        setReadyProof(null);
-        setPendingImport(null);
-        void confirmServerImport(pendingImport.document, previewRevision, proofId);
-      } else setConfirmingAction(true);
+      setConfirmingAction(true);
       return;
     }
     if (!activeAccountId) return;
@@ -416,12 +356,9 @@ export function ImportExport() {
         onFile={(file) => {
           setPreviewRevision(null);
           setPreviewBusy(false);
-          if (!returnedProof) setReadyProof(null);
           void readFile(file);
         }}
       />
-
-      {returnedProof && <p role="status">{m.data_import_reselect_after_google()}</p>}
 
       {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale slice. */}
       {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
@@ -455,7 +392,6 @@ export function ImportExport() {
           onCancel={() => {
             selectionRef.current += 1;
             setPendingImport(null);
-            setReadyProof(null);
             setPreviewRevision(null);
           }}
         />

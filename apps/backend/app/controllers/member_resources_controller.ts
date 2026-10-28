@@ -53,16 +53,18 @@ export default class MemberResourcesController {
           resourceId: body.resourceId as string,
           expectedRevision: body.expectedRevision as string | null,
         })
-        await writeAudit(trx, {
-          accountId,
-          actorId,
-          action: 'member-resource.linked',
-          entity: 'membership',
-          entityId: principalId,
-          fields: ['resourceLink'],
-        })
-        await completeAccountCommand(trx, command.commandId, link)
-        return link
+        if (link.changed)
+          await writeAudit(trx, {
+            accountId,
+            actorId,
+            action: 'member-resource.linked',
+            entity: 'membership',
+            entityId: principalId,
+            fields: ['resourceLink'],
+          })
+        const commandResult = { resourceId: link.resourceId, revision: link.revision }
+        await completeAccountCommand(trx, command.commandId, commandResult)
+        return commandResult
       })
       return ctx.response.ok(result)
     } catch (error) {

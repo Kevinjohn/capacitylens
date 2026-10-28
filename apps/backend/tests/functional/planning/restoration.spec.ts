@@ -4,6 +4,7 @@ import type { ApiClient } from '@japa/api-client'
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
+import Allocation from '#models/allocation'
 import Activity from '#models/activity'
 import Resource from '#models/resource'
 import { encodeRow, readState } from '#services/state_repository'
@@ -134,6 +135,47 @@ test.group('session-bound allocation restoration', (suite) => {
   suite.setup(() => freshDatabase())
   suite.each.setup(async () => {
     await resetPlanningFixture()
+  })
+
+  test('an unexpected restoration assertion escapes and rollback leaves the group reusable', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const [id] = await createAllocations(client, cookie, 1)
+    const deleted = await deleteOne(client, cookie, id!, 1)
+    deleted.assertStatus(200)
+    const groupId = deleted.body().restoration.replacementGroupId
+    const unexpected = new Error('SENTINEL_RESTORATION_ASSERTION')
+    const retainedBefore = await db.from('allocations').where('id', id!).first()
+    const revisionBefore = await currentRevision(client, cookie)
+    const originalSerialize = Allocation.prototype.serialize
+    try {
+      Allocation.prototype.serialize = function (...args) {
+        const serialized = originalSerialize.apply(this, args)
+        if (this.id === id && this.deletionGroupId === groupId)
+          Object.defineProperty(serialized, 'activityId', {
+            configurable: true,
+            get() {
+              throw unexpected
+            },
+          })
+        return serialized
+      }
+      const failed = await restore(client, cookie, groupId, revisionBefore)
+      failed.assertStatus(500)
+      assert.notEqual(failed.body().code, 'restoration_conflict')
+    } finally {
+      Allocation.prototype.serialize = originalSerialize
+    }
+    assert.isNull(await consumedAt(groupId))
+    assert.equal(await currentRevision(client, cookie), revisionBefore)
+    assert.deepEqual(await db.from('allocations').where('id', id!).first(), retainedBefore)
+    const retry = await restore(client, cookie, groupId, revisionBefore)
+    retry.assertStatus(200)
+    assert.isDefined(await stored(id!))
   })
 
   test('delete and restore repeat with a fresh group each time and keep the row intact', async ({

@@ -16,7 +16,6 @@ interface MemberAccessDependencies extends Pick<
   invalidateMemberships: () => void;
   refreshAuth: () => Promise<void>;
   closeActiveAccount: () => void;
-  bumpReadiness: () => void;
   replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>["replaceAuthorizedDirectory"];
 }
 
@@ -70,9 +69,8 @@ async function reloadAuthorizedDirectory({
   message,
   isActiveAccount,
   setNotice,
-  bumpReadiness,
   replaceAuthorizedDirectory,
-}: Pick<MemberAccessDependencies, "isActiveAccount" | "setNotice" | "bumpReadiness" | "replaceAuthorizedDirectory"> & {
+}: Pick<MemberAccessDependencies, "isActiveAccount" | "setNotice" | "replaceAuthorizedDirectory"> & {
   accountId: string;
   message: string;
 }): Promise<{ kind: "ready" } | { kind: "stale" } | { kind: "failed"; error: unknown }> {
@@ -86,7 +84,6 @@ async function reloadAuthorizedDirectory({
       return { kind: "failed", error: new Error(m.settings_members_err_authoritative_reload()) };
     }
     replaceAuthorizedDirectory(memberResult.value, inviteResult.value);
-    bumpReadiness();
     setNotice(m.settings_members_reconcile_directory({ message }), "warning");
     return { kind: "ready" };
   } catch (error) {
@@ -114,12 +111,11 @@ function createReconcileUnknownMutation({
   isActiveAccount,
   fail,
   setNotice,
-  bumpReadiness,
   replaceAuthorizedDirectory,
   refreshCallerAccess,
 }: Pick<
   MemberAccessDependencies,
-  "requestAccountId" | "isActiveAccount" | "fail" | "setNotice" | "bumpReadiness" | "replaceAuthorizedDirectory"
+  "requestAccountId" | "isActiveAccount" | "fail" | "setNotice" | "replaceAuthorizedDirectory"
 > & {
   refreshCallerAccess: ReturnType<typeof createRefreshCallerAccess>;
 }) {
@@ -143,7 +139,6 @@ function createReconcileUnknownMutation({
       message,
       isActiveAccount,
       setNotice,
-      bumpReadiness,
       replaceAuthorizedDirectory,
     });
     if (reloadResult.kind !== "failed" || !isActiveAccount(accountId)) return;
@@ -171,7 +166,6 @@ export function createMemberAccessReconciliation({
   isActiveAccount,
   fail,
   setNotice,
-  bumpReadiness,
   replaceAuthorizedDirectory,
 }: MemberAccessDependencies) {
   // Revalidate role and tenant projections after a possible self-role mutation so
@@ -189,7 +183,6 @@ export function createMemberAccessReconciliation({
     isActiveAccount,
     fail,
     setNotice,
-    bumpReadiness,
     replaceAuthorizedDirectory,
     refreshCallerAccess,
   });

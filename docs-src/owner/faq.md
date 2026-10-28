@@ -80,9 +80,9 @@ On **Schedule**, a day shows red when someone is booked for more than they can d
 ## How do we get our data out?
 
 Open **Settings → Data and support → Import and export** and select **Export JSON**. The file holds
-the company's scheduling records, such as people, clients, projects, bookings and time off, and can
-be imported into another CapacityLens installation. It does not include members or settings. There
-is no CSV or spreadsheet export.
+the company's scheduling records, such as people, clients, projects, bookings and time off, plus
+the supported company settings. It can be imported into another CapacityLens installation. It does
+not include identities, sessions or memberships. There is no CSV or spreadsheet export.
 
 ## My Admin is leaving. What do I do?
 

@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla";
 import { describe, expect, it, vi } from "vitest";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { makeAccount } from "@/test/fixtures";
 import {
   createPlanningCacheController,
   createPlanningCacheState,
@@ -36,7 +36,15 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
   const controller = createPlanningCacheController({
     getState: store.getState,
     setState: store.setState,
-    transport: { execute, read: async () => ({ revision: 0, canWrite: true, data: emptyAppData() }), lookup: vi.fn() },
+    transport: {
+      execute,
+      read: async () => ({
+        revision: 0,
+        canWrite: true,
+        data: { ...createPlanningCacheState().data, accounts: [makeAccount({ id: context.companyId })] },
+      }),
+      lookup: vi.fn(),
+    },
     ...(confirm ? { confirmRestorationCleanup: confirm } : {}),
   });
   controller.setContext(context);

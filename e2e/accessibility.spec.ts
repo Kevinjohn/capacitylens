@@ -61,13 +61,14 @@ function registerSchedulerExposesGridRolesSrTest() {
     const grid = page.getByRole("grid", { name: "Resource schedule" });
     await expect(grid).toBeVisible();
     await expect(grid).toHaveAttribute("aria-colcount", "2");
-    await expect(page.getByRole("rowheader", { name: /Bruce Wayne/ })).toBeVisible();
+    const bruceHeader = page.getByRole("rowheader", { name: /Bruce Wayne/ });
+    await expect(bruceHeader).toBeVisible();
     const bruceRow = page.getByRole("row").filter({ has: page.getByRole("rowheader", { name: /Bruce Wayne/ }) });
     const lane = bruceRow.getByRole("gridcell");
     await expect(lane).toBeVisible();
     await expect(lane).toHaveAccessibleName(/./);
     await expect(lane).toHaveAttribute("aria-colindex", "2");
-    await expect(page.getByText(/\d+ allocation/).first()).toBeAttached();
+    await expect(bruceHeader.getByText(/\d+ allocations?\./)).toBeAttached();
   });
 }
 

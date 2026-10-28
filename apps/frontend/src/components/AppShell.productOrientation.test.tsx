@@ -73,9 +73,16 @@ describe("AppShell product orientation", () => {
     expect(localStorage.getItem("capacitylens/productOrientation/v1/demo/acct-test")).toBe("dismissed");
   });
 
-  it("does not expose a separate product-orientation sidebar action", () => {
+  it("reopens and focuses guidance from the named sidebar action", async () => {
+    localStorage.removeItem("capacitylens/productOrientation/v1/demo/acct-test");
     renderShell();
-    expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Got it" }));
+    const reopen = screen.getByRole("button", { name: "How CapacityLens works" });
+    await user.click(reopen);
+    expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("heading", { name: "How CapacityLens works" })).toHaveFocus());
+    expect(reopen).toHaveAttribute("data-testid", "product-orientation-reopen");
   });
 
   it("focuses the visible orientation heading on entry", async () => {
@@ -108,14 +115,15 @@ describe("AppShell product orientation", () => {
     expect(localStorage.getItem("capacitylens/productOrientation/v1/demo/no-company")).toBe("dismissed");
   });
 
-  it("does not add a product-orientation control to the collapsed sidebar", () => {
+  it("keeps the orientation action available in the collapsed sidebar", () => {
     renderShell();
     act(() => useStore.getState().setSidebarOpen(false));
 
-    expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "How CapacityLens works" })).toBeInTheDocument();
   });
 
-  it("does not add a product-orientation control to the mobile sidebar", () => {
+  it("keeps the orientation action available in the mobile sidebar and returns focus to its trigger", async () => {
+    localStorage.removeItem("capacitylens/productOrientation/v1/demo/acct-test");
     vi.stubGlobal(
       "matchMedia",
       vi.fn(
@@ -134,7 +142,21 @@ describe("AppShell product orientation", () => {
     );
     sessionStorage.setItem("capacitylens/rotateHintDismissed", "1");
     renderShell();
-    expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    const menuTrigger = screen.getByRole("button", { name: "Expand menu" });
+    await user.keyboard("{Control>}b{/Control}");
+    const orientationAction = screen.getByRole("button", { name: "How CapacityLens works" });
+    expect(screen.getByRole("button", { name: "Collapse menu" })).toBeInTheDocument();
+    await user.click(orientationAction);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "How CapacityLens works" })).toHaveFocus());
+    await user.click(screen.getByRole("button", { name: "Got it" }));
+    await waitFor(() => expect(menuTrigger).toHaveFocus());
+
+    await user.click(menuTrigger);
+    await user.click(screen.getByRole("button", { name: "How CapacityLens works" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "How CapacityLens works" })).toHaveFocus());
+    await user.click(screen.getByRole("button", { name: "Got it" }));
+    await waitFor(() => expect(menuTrigger).toHaveFocus());
   });
 
   it("scopes guidance to the authenticated subject when the signed-in user changes", async () => {
@@ -221,7 +243,7 @@ describe("AppShell product orientation", () => {
 
     await waitFor(() => expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTestId("active-role")).toHaveTextContent("Viewer"));
-    expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "How CapacityLens works" })).toBeInTheDocument();
   });
 
   it("preserves focus on an unrelated control across an ordinary shell rerender", async () => {

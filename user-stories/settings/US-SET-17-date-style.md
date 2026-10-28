@@ -56,9 +56,10 @@ seed window — see _Seed data_ in REFERENCE.md).
   the calendar context, so their one cross-year week may read `28 Dec – 3 Jan`. Screen-reader names
   that state the two dates separately, such as an allocation bar's, carry the year on the general rule.
 - Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal, whatever the preference.
-- The choice is **account data**: it is stored on the account, and every
-  member of the company sees it. It is **not** a device preference. Settings JSON exports omit
-  company settings; importing scheduling data preserves the destination company's date format.
+- The choice is **company data**: it is stored with the company, and every
+  member of the company sees it. It is **not** a device preference. Supported portable exports
+  include the company date format; importing a full document replaces the destination company's
+  date format with the exported value.
 - Server instants use the viewer's browser locale and local time zone instead. This includes session
   creation and expiry, password-reset expiry, invitation expiry in the Team & access member panel
   and on the invitee's Accept invite page, ownership-transfer deadlines and ownership outcome dates.

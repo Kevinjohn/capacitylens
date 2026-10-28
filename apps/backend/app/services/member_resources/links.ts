@@ -61,7 +61,8 @@ export async function setMemberResourceLink(
     .first()
   if (occupied && occupied.user_id !== userId)
     conflictingAdmission('That scheduled person is already linked to another member.')
-  if (current?.resource_id === resourceId) return { resourceId, revision: String(current.revision) }
+  if (current?.resource_id === resourceId)
+    return { resourceId, revision: String(current.revision), changed: false }
   const now = new Date().toISOString()
   const revision = crypto.randomUUID()
   if (current) {
@@ -81,7 +82,7 @@ export async function setMemberResourceLink(
     })
   }
   await advancePlanningRevision(trx, accountId)
-  return { resourceId, revision }
+  return { resourceId, revision, changed: true }
 }
 
 /** Clears a member/person association only at the expected revision. */

@@ -33,12 +33,25 @@ function processTreeRunning(child) {
   return child.exitCode === null && child.signalCode === null;
 }
 
+function processGroupRunning(child, options) {
+  if (options.platform === "win32" || (options.kill !== undefined && options.kill !== process.kill))
+    return processTreeRunning(child);
+  try {
+    process.kill(-child.pid, 0);
+    return true;
+  } catch (error) {
+    if (error.code === "ESRCH") return false;
+    if (error.code === "EPERM") return true;
+    throw error;
+  }
+}
+
 function signalProcessTree(
   child,
   signal,
   { platform = process.platform, kill = process.kill, spawnProcess = spawn } = {},
 ) {
-  if (!processTreeRunning(child)) return;
+  if (!processGroupRunning(child, { platform, kill })) return;
   try {
     if (platform === "win32") {
       const terminator = spawnProcess(
@@ -74,19 +87,36 @@ function waitForExit(child, timeoutMs) {
   });
 }
 
+function waitForProcessTreeExit(child, timeoutMs, options) {
+  if (options.platform === "win32" || (options.kill !== undefined && options.kill !== process.kill))
+    return waitForExit(child, timeoutMs);
+  return new Promise((resolve) => {
+    const deadline = Date.now() + timeoutMs;
+    const check = () => {
+      if (!processGroupRunning(child, options)) return resolve(true);
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return resolve(false);
+      setTimeout(check, Math.min(25, remaining));
+    };
+    check();
+  });
+}
+
 /**
  * Attempts to stop a detached child process tree, escalating from SIGTERM to SIGKILL after the grace period.
  * Resolution does not guarantee exit if the force timeout expires.
  * @throws When a non-racing signal failure occurs.
  */
 export async function terminateProcessTree(child, options = {}) {
-  if (!processTreeRunning(child)) return;
-  const graceMs = options.graceMs ?? 2_000;
-  const forceMs = options.forceMs ?? 1_000;
-  signalProcessTree(child, "SIGTERM", options);
-  if (await waitForExit(child, graceMs)) return;
-  signalProcessTree(child, "SIGKILL", options);
-  await waitForExit(child, forceMs);
+  if (!Number.isInteger(child.pid) || child.pid <= 0) return;
+  const platformOptions = { ...options, platform: options.platform ?? process.platform };
+  if (!processGroupRunning(child, platformOptions)) return;
+  const graceMs = platformOptions.graceMs ?? 2_000;
+  const forceMs = platformOptions.forceMs ?? 1_000;
+  signalProcessTree(child, "SIGTERM", platformOptions);
+  if (await waitForProcessTreeExit(child, graceMs, platformOptions)) return;
+  signalProcessTree(child, "SIGKILL", platformOptions);
+  await waitForProcessTreeExit(child, forceMs, platformOptions);
 }
 
 /**

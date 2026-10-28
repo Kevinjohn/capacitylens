@@ -9,6 +9,7 @@ import HttpExceptionHandler from '#exceptions/handler'
 
 function context(error: unknown) {
   const result = { status: 0, body: undefined as unknown, headers: {} as Record<string, string> }
+  const diagnostics: Array<{ fields: Record<string, unknown>; message: string }> = []
   const response = {
     header(name: string, value: string) {
       result.headers[name] = value
@@ -17,6 +18,10 @@ function context(error: unknown) {
     status(status: number) {
       result.status = status
       return this
+    },
+    internalServerError(body: unknown) {
+      result.status = 500
+      result.body = body
     },
     forbidden(body: unknown) {
       result.status = 403
@@ -32,8 +37,16 @@ function context(error: unknown) {
   }
   return {
     result,
+    diagnostics,
     ctx: {
       response,
+      logger: {
+        error(fields: Record<string, unknown>, message: string) {
+          diagnostics.push({ fields, message })
+        },
+      },
+      request: { method: () => 'POST' },
+      route: { pattern: '/api/accounts/:accountId/resources' },
       get params() {
         throw error
       },
@@ -85,11 +98,28 @@ test.group('product error adapters', () => {
     })
   }
   test('constraint refusals carry the validation code', async ({ assert }) => {
-    const error = { code: 'SQLITE_CONSTRAINT_FOREIGNKEY' }
-    const { ctx, result } = context(error)
+    const error = Object.assign(new Error('SENTINEL_SQL_TEXT SENTINEL_PAYLOAD'), {
+      code: 'SQLITE_CONSTRAINT_FOREIGNKEY',
+      sql: 'SENTINEL_SQL_TEXT',
+      payload: 'SENTINEL_PAYLOAD',
+    })
+    const { ctx, result, diagnostics } = context(error)
     await new HttpExceptionHandler().handle(error, ctx)
+    await new HttpExceptionHandler().report(error, ctx)
     assert.equal(result.status, 400)
     assert.equal((result.body as { code: string }).code, 'VALIDATION_ERROR')
+    assert.lengthOf(diagnostics, 1)
+    assert.deepEqual(diagnostics[0]!.fields, {
+      event: 'http.request.error',
+      errorType: 'database_constraint',
+      method: 'POST',
+      path: '/api/accounts/:accountId/resources',
+      status: 400,
+    })
+    const serialized = JSON.stringify(diagnostics)
+    assert.notInclude(serialized, 'SENTINEL_SQL_TEXT')
+    assert.notInclude(serialized, 'SENTINEL_PAYLOAD')
+    assert.notInclude(serialized, error.message)
   })
   test('Vine validation is flat status 400 rather than the generated default 422', async ({
     assert,

@@ -7,6 +7,7 @@ import {
   assertScopedRefs,
 } from '@capacitylens/shared/domain/mutations'
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement'
+import { DomainError } from '@capacitylens/shared/domain/errors'
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays'
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities'
 import { readStateWithClient } from '#services/state_repository'
@@ -32,6 +33,16 @@ function conflict(): never {
     'restoration_conflict',
     'The deleted records can no longer be restored.'
   )
+}
+
+/** Maps expected domain refusals to a restoration conflict while surfacing implementation faults. */
+function assertRestorationCandidate(assertion: () => void) {
+  try {
+    assertion()
+  } catch (error) {
+    if (error instanceof DomainError) conflict()
+    throw error
+  }
 }
 
 function affectedRows(result: number | unknown[]): number {
@@ -199,7 +210,7 @@ export async function restoreGroup(
     account?.weekStartsOn === 0 ? 0 : 1
   )
   for (const { entity, row } of rows) {
-    try {
+    assertRestorationCandidate(() => {
       if (entity === 'allocations') {
         const allocation = row as unknown as Allocation
         const activity = dependencies.activities.find((item) => item.id === allocation.activityId)
@@ -219,9 +230,7 @@ export async function restoreGroup(
       if (entity === 'phases') assertScopedRefs(dependencies, accountId, 'phases', row)
       if (entity === 'timeOff')
         assertResourceExists(dependencies, accountId, String(row.resourceId))
-    } catch {
-      conflict()
-    }
+    })
   }
   for (const { entity, id, row } of rows) {
     if (row.accountId !== accountId || row.id !== id) conflict()
@@ -249,11 +258,9 @@ export async function restoreGroup(
     if (!child || !parent || (child as unknown as Record<string, unknown>)[field] !== null)
       conflict()
     const candidate = { ...child, [field]: parentId }
-    try {
+    assertRestorationCandidate(() => {
       assertScopedRefs(current, accountId, entity, candidate, child)
-    } catch {
-      conflict()
-    }
+    })
     await trx
       .from(TABLE_NAMES[entity])
       .where({ id: rowId, account_id: accountId })

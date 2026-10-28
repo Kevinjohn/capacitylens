@@ -60,7 +60,7 @@ export function SettingsView() {
   const controller = useSettingsViewController();
   useSettingsOnboardingTarget({ ready: controller.activeAccount !== null });
   if (!controller.activeAccount) return null;
-  const { scheduling, display, localData } = controller;
+  const { scheduling, display } = controller;
   return (
     <ListPage title={m.settings_title()}>
       <div className="flex flex-col gap-6">
@@ -96,7 +96,7 @@ export function SettingsView() {
           />
         </SettingsGroup>
         <SettingsGroup title={m.settings_support_heading()} description={m.settings_support_description()}>
-          <SettingsDataSection serverMode={controller.serverMode} {...localData} />
+          <SettingsDataSection serverMode={controller.serverMode} />
           <SettingsBottomSections controller={controller} />
         </SettingsGroup>
       </div>
