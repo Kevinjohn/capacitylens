@@ -253,7 +253,8 @@ sanitisation so the compile-time exhaustiveness checks can protect them.
 
 ## Engineering standard
 
-Write comments to explain why rather than restating what the code does; exported APIs need TSDoc.
+The [code standards](docs-src/reference/code-standards.md) page sets how code is formatted, named,
+documented and reviewed, including the comment and TSDoc rules.
 
 When changing a data path, preserve the product and security invariants in [DECISIONS.md](DECISIONS.md).
 In brief:

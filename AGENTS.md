@@ -28,6 +28,7 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 
 - Give icon-only buttons accessible names. Use native `title` for simple hover hints; use the local Radix tooltip only for styled, delayed or keyboard-accessible rich content. Use the shared z-index tokens for global layers.
 - Local UI primitives are source-owned. Before updating one from shadcn, inspect the dry-run diff and preserve documented local behavior.
+- Follow `docs-src/reference/code-standards.md` for names, errors, comments and TSDoc; lint and Prettier own the rest.
 - Keep `DECISIONS.md` authoritative for product rules and framework departures. User-facing documentation is sourced from `docs-src/`; regenerate committed `docs/` after changing its inputs. Update affected stories and their guide links when user-visible behavior changes.
 - Use fictional DC/Marvel identities in demo data, examples and tests; never use a real customer or colleague's name.
 - Do not publish AI/provider/model attribution or credentials in repository content, screenshots, commits or pull requests.
