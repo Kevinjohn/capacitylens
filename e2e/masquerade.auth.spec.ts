@@ -56,6 +56,7 @@ test.describe("member masquerade", () => {
     await expect(banner).toBeVisible();
     await expect(banner).toHaveAttribute("role", "status");
     await expect(banner).toContainText("Masquerading as");
+    await expect(banner).toContainText("Ends");
     await expect(banner.getByRole("button", { name: "End now" })).toBeVisible();
     await expect(page.getByTestId("current-access")).toContainText("Viewer");
     await expect(page.getByTestId("members-section")).toHaveCount(0);
@@ -116,7 +117,13 @@ test.describe("member masquerade", () => {
     const projectionCookies = await context.cookies(AUTH_API);
     const cookie = projectionCookies.map(({ name, value }) => `${name}=${value}`).join("; ");
     expect(cookie).not.toBe("");
-    const headers = { cookie, "sec-fetch-site": "same-origin" };
+    const status = await request.get(`${AUTH_API}/api/masquerade?accountId=${encodeURIComponent(accountId)}`, {
+      headers: { cookie, "sec-fetch-site": "same-origin" },
+    });
+    expect(status.status()).toBe(200);
+    const contextToken = ((await status.json()) as { contextToken: string }).contextToken;
+    expect(contextToken).not.toBe("");
+    const headers = { cookie, "sec-fetch-site": "same-origin", "X-Masquerade-Context": contextToken };
     const planning = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, { headers });
     expect(planning.status()).toBe(200);
     const revision = ((await planning.json()) as { revision: number }).revision;

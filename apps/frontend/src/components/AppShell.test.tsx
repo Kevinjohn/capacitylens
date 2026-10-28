@@ -99,6 +99,7 @@ it("offers projection recovery after the server has prepared a starting member v
       targetName: "Selina Kyle",
       effectiveRole: "viewer",
       startedAt: "2026-09-01T10:00:00.000Z",
+      expiresAt: "2999-09-01T10:15:00.000Z",
       token: "token-1",
     },
   });
@@ -121,6 +122,7 @@ it("hides old actor route data during a member-view projection while keeping rec
       targetName: "Selina Kyle",
       effectiveRole: "viewer",
       startedAt: "2026-09-01T10:00:00.000Z",
+      expiresAt: "2999-09-01T10:15:00.000Z",
       token: "token-1",
     },
   });
@@ -154,6 +156,7 @@ it("offers Retry and End when an authenticated cold member view has no selected 
       targetName: "Selina Kyle",
       effectiveRole: "viewer",
       startedAt: "2026-09-01T10:00:00.000Z",
+      expiresAt: "2999-09-01T10:15:00.000Z",
       token: "token-1",
     },
   });

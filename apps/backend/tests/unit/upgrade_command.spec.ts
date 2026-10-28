@@ -1,9 +1,18 @@
 import { test } from '@japa/runner'
-import { cpSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  copyFileSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { DatabaseSync } from 'node:sqlite'
 import { openNativeDatabase } from '#services/backup/native'
 import { ensurePrivateBackupDirectory, writeOneShotSnapshot } from '#services/backup/snapshot'
 import { preMigrationBackupDirectory } from '../../commands/app_upgrade.js'
@@ -91,12 +100,12 @@ test('native upgrade initializes a fresh database without a snapshot', ({
     const dbPath = join(root, 'live.db')
     const result = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(result.status, 0, result.output)
-    assert.lengthOf(journal(dbPath), 3)
+    assert.lengthOf(journal(dbPath), 4)
     assert.isFalse(result.output.includes('Pre-upgrade backup written'))
     const repeated = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(repeated.status, 0, repeated.output)
     assert.match(repeated.output, /Already up to date/)
-    assert.lengthOf(journal(dbPath), 3)
+    assert.lengthOf(journal(dbPath), 4)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -121,20 +130,133 @@ test('native upgrade backs up an existing database before migrating and refuses 
     const blocked = ace(scratch, dbPath, 'app:upgrade', blockedDir)
     assert.notEqual(blocked.status, 0, blocked.output)
     assert.isNotNull(blocked.status, blocked.output)
-    assert.lengthOf(journal(dbPath), 3)
+    assert.lengthOf(journal(dbPath), 4)
     assert.notInclude(tables(dbPath), 'upgrade_added')
 
     const upgrade = ace(scratch, dbPath, 'app:upgrade')
     assert.equal(upgrade.status, 0, upgrade.output)
     assert.match(upgrade.output, /Pre-upgrade backup written/)
-    assert.lengthOf(journal(dbPath), 4)
+    assert.lengthOf(journal(dbPath), 5)
     assert.include(tables(dbPath), 'upgrade_added')
     const backups = join(root, 'live.db.backups')
     const [snapshot, ...others] = preMigrationSnapshots(backups)
     assert.isDefined(snapshot)
     assert.lengthOf(others, 0)
-    assert.lengthOf(journal(join(backups, snapshot!)), 3)
+    assert.lengthOf(journal(join(backups, snapshot!)), 4)
     assert.notInclude(tables(join(backups, snapshot!)), 'upgrade_added')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('masquerade migration retires legacy tokens and preserves historical audit entries', ({
+  assert,
+  test: testCase,
+}) => {
+  testCase.timeout(90_000)
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-masquerade-upgrade-'))
+  try {
+    const dbPath = join(root, 'legacy.db')
+    const scratch = scratchApp(root, {})
+    const migrationName = '202610270001_replace_legacy_masquerades_with_package.ts'
+    const scratchMigration = join(scratch, 'database/migrations', migrationName)
+    rmSync(scratchMigration)
+    const baseline = command(scratch, dbPath, [
+      'ace.js',
+      'migration:run',
+      '--force',
+      '--no-schema-generate',
+    ])
+    assert.equal(baseline.status, 0, baseline.output)
+
+    const database = new DatabaseSync(dbPath)
+    const now = new Date().toISOString()
+    database
+      .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
+      .run('a-studio', 'Wayne Enterprises', '#123456', now, now)
+    database
+      .prepare(
+        'INSERT INTO users (id,email,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?)'
+      )
+      .run('bruce', 'bruce@wayne.example', 'Bruce Wayne', null, now, now)
+    database
+      .prepare(
+        'INSERT INTO users (id,email,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?)'
+      )
+      .run('clark', 'clark@wayne.example', 'Clark Kent', null, now, now)
+    const session = database
+      .prepare(
+        'INSERT INTO account_sessions (user_id,handle_hash,created_at,last_seen_at,expires_at) VALUES (?,?,?,?,?)'
+      )
+      .run('bruce', 'a'.repeat(64), now, now, '2999-01-01T00:00:00.000Z')
+    database
+      .prepare(
+        'INSERT INTO masquerades (id,created_at,updated_at,account_id,session_id,actor_user_id,role,target_user_id,token,started_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
+      )
+      .run(
+        'legacy-mode',
+        now,
+        now,
+        'a-studio',
+        session.lastInsertRowid,
+        'bruce',
+        'viewer',
+        'clark',
+        'retired-bearer-token',
+        now
+      )
+    database
+      .prepare(
+        'INSERT INTO audit_entries (id,account_id,actor_id,action,entity,entity_id,details,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)'
+      )
+      .run(
+        'historical-audit',
+        'a-studio',
+        'bruce',
+        'masquerade-started',
+        'user',
+        'clark',
+        JSON.stringify({ reason: 'support' }),
+        now,
+        now
+      )
+    database.close()
+
+    copyFileSync(join(appRoot, 'database/migrations', migrationName), scratchMigration)
+    const upgraded = command(scratch, dbPath, [
+      'ace.js',
+      'migration:run',
+      '--force',
+      '--no-schema-generate',
+    ])
+    assert.equal(upgraded.status, 0, upgraded.output)
+    const migrated = openNativeDatabase(dbPath, { readonly: true })
+    try {
+      const names = (
+        migrated.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{
+          name: string
+        }>
+      ).map(({ name }) => name)
+      assert.notInclude(names, 'masquerades')
+      assert.include(names, 'masquerade_modes')
+      assert.include(names, 'masquerade_events')
+      const history = (
+        migrated.prepare('SELECT id,action,entity_id,details FROM audit_entries').all() as Array<{
+          id: string
+          action: string
+          entity_id: string
+          details: string
+        }>
+      ).find(({ id }) => id === 'historical-audit')
+      assert.deepEqual(history, {
+        id: 'historical-audit',
+        action: 'masquerade-started',
+        entity_id: 'clark',
+        details: JSON.stringify({ reason: 'support' }),
+      })
+    } finally {
+      migrated.close()
+    }
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -179,12 +301,12 @@ test('a failing later migration rolls back its own DDL after an earlier file com
 
     const upgrade = ace(scratch, dbPath, 'app:upgrade')
     assert.notEqual(upgrade.status, 0, upgrade.output)
-    assert.lengthOf(journal(dbPath), 4)
+    assert.lengthOf(journal(dbPath), 5)
     assert.include(tables(dbPath), 'upgrade_committed')
     assert.notInclude(tables(dbPath), 'upgrade_rolled_back')
     const [snapshot] = preMigrationSnapshots(join(root, 'live.db.backups'))
     assert.isDefined(snapshot)
-    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!)), 3)
+    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!)), 4)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

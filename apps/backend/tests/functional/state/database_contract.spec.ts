@@ -54,6 +54,7 @@ test.group('M1 database contract', (group) => {
       [
         'database/migrations/202610120001_create_capacitylens_baseline',
         'database/migrations/202610270001_planning_soft_delete_ownership',
+        'database/migrations/202610270001_replace_legacy_masquerades_with_package',
         'database/migrations/202610270002_convert_planning_delete_snapshots',
       ]
     )

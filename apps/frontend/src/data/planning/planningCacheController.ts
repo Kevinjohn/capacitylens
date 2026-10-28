@@ -9,6 +9,7 @@ import type {
   PlanningMutationLookup,
   PlanningMutationSuccess,
 } from "@capacitylens/backend/planning";
+import { getMasqueradeContextToken } from "@/auth/masqueradeContext";
 
 /** A canonical read normalized by the typed transport; its wire shape remains transport-owned. */
 export interface PlanningSnapshot {
@@ -23,6 +24,8 @@ export interface PlanningSnapshot {
 export interface PlanningClientContext {
   readonly identity: string | symbol;
   readonly companyId: string;
+  /** Mode boundary captured when this planning context is installed. */
+  readonly masqueradeContextToken?: string | null | undefined;
 }
 
 export interface PlanningTransport {
@@ -102,6 +105,8 @@ export interface PlanningDraft {
   /** The editable fields observed at gesture/form start, kept for the caller's rollback preview. */
   readonly originalWritable: unknown;
   readonly context: PlanningClientContext;
+  /** Request proof frozen with the action; context changes never replace an admitted write's proof. */
+  readonly requestContext: PlanningClientContext;
   readonly generation: number;
 }
 
@@ -163,7 +168,11 @@ function cloneImmutable<T>(value: T): T {
 function sameContext(left: PlanningClientContext | null, right: PlanningClientContext | null): boolean {
   return (
     left === right ||
-    (!!left && !!right && left.companyId === right.companyId && Object.is(left.identity, right.identity))
+    (!!left &&
+      !!right &&
+      left.companyId === right.companyId &&
+      Object.is(left.identity, right.identity) &&
+      left.masqueradeContextToken === right.masqueradeContextToken)
   );
 }
 
@@ -393,7 +402,15 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     generation === capturedGeneration && sameContext(store.getState().planning.context, context);
 
   function setContext(context: PlanningClientContext | null): void {
-    const frozenContext = context ? Object.freeze({ identity: context.identity, companyId: context.companyId }) : null;
+    const frozenContext = context
+      ? Object.freeze({
+          identity: context.identity,
+          companyId: context.companyId,
+          ...(context.masqueradeContextToken === undefined
+            ? {}
+            : { masqueradeContextToken: context.masqueradeContextToken }),
+        })
+      : null;
     if (sameContext(store.getState().planning.context, frozenContext)) return;
     generation += 1;
     readSequence += 1;
@@ -541,10 +558,12 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       throw new PlanningControllerError("Planning is not ready for a new change.");
     }
     const immutableContext = context;
+    const requestContext = Object.freeze({ ...immutableContext, masqueradeContextToken: getMasqueradeContextToken() });
     return Object.freeze({
       baseRevision,
       originalWritable: cloneImmutable(originalWritable),
       context: immutableContext,
+      requestContext,
       generation,
     });
   }
@@ -594,7 +613,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const controller = requestController();
     const currentLookup = () => ownsAttempt(owner) && sequence === lookupSequence && !controller.signal.aborted;
     try {
-      const lookup = await transport.lookup(owner.draft.context, owner.pending.execution.mutationId, controller.signal);
+      const lookup = await transport.lookup(
+        owner.draft.requestContext,
+        owner.pending.execution.mutationId,
+        controller.signal,
+      );
       if (!currentLookup()) return false;
       if (lookup.mutationId !== owner.pending.execution.mutationId)
         throw new PlanningControllerError("The commitment lookup returned an invalid identity.");
@@ -664,7 +687,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     try {
       let receipt: PlanningMutationSuccess;
       try {
-        receipt = await transport.execute(draft.context, execution, controller.signal);
+        receipt = await transport.execute(draft.requestContext, execution, controller.signal);
       } catch (error) {
         if (
           !(error instanceof PlanningControllerError) ||
@@ -698,7 +721,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         }
         execution = cloneImmutable({ ...execution, confirmedRestorationCount: error.restorableItemCount });
         pending.execution = execution;
-        receipt = await transport.execute(draft.context, execution, controller.signal);
+        receipt = await transport.execute(draft.requestContext, execution, controller.signal);
       }
       if (!ownsAttempt(owner))
         throw new PlanningControllerError("Planning context changed while the request was pending.");
@@ -848,12 +871,14 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     )
       return null;
     const context = Object.freeze({ ...state.planning.context });
+    const requestContext = Object.freeze({ ...context, masqueradeContextToken: getMasqueradeContextToken() });
     return {
       entry,
       draft: Object.freeze({
         baseRevision: state.planning.revision,
         originalWritable: Object.freeze({}),
         context,
+        requestContext,
         generation,
       }),
     };

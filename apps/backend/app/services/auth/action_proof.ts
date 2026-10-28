@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { activeCompanyRole } from './authorization.js'
-import { activeMasquerade } from './masquerade.js'
 import { actorIn, type CurrentActor } from './current_actor.js'
 import { affectedRows } from '#services/admission/affected_rows'
 
@@ -39,7 +38,7 @@ export async function actionProofActor(
   trx: TransactionClientContract
 ): Promise<CurrentActor> {
   const actor = actorIn(trx)
-  if (await activeMasquerade(actor.sessionId, trx)) throw new ActionProofError()
+  if (actor.masqueradeContext?.isMasquerading) throw new ActionProofError()
   if ((await activeCompanyRole(actor.userId, accountId, trx)) !== 'owner')
     throw new ActionProofError()
   return actor

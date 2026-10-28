@@ -106,11 +106,6 @@ export default {
         },
       },
     },
-    masquerades: {
-      columns: {
-        role: { tsType: "import('@capacitylens/shared/account/types').Role" },
-      },
-    },
     audit_entries: {
       columns: {
         details: { tsType: 'unknown' },

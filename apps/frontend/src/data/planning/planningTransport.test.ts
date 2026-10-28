@@ -4,8 +4,9 @@ import { registry } from "@capacitylens/backend/registry";
 import type { PlanningIntent } from "@capacitylens/backend/planning";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { createPlanningTransport } from "./planningTransport";
+import { setMasqueradeContextToken } from "@/auth/masqueradeContext";
 
-const context = { identity: "bruce-login", companyId: "wayne" };
+const context = { identity: "bruce-login", companyId: "wayne", masqueradeContextToken: "captured-context" };
 const signal = new AbortController().signal;
 const id = "7415a19e-539d-45c9-9c52-8b8c3a058926";
 const mutationId = "7b2e020c-f2b4-4a0f-b6b2-17148ddac4a1";
@@ -209,9 +210,36 @@ describe("generated planning transport", () => {
       expect(requests[0]?.url).toBe(`http://planning.test/api/accounts/wayne/${path}`);
       expect(requests[0]?.method).toBe(method);
       expect(requests[0]?.credentials).toBe("include");
+      expect(requests[0]?.headers.get("X-Masquerade-Context")).toBe("captured-context");
       expect(await requests[0]?.json()).toEqual(execution(intent));
     },
   );
+
+  it("keeps the action's captured proof when the shared mode changes before fetch dispatch", async () => {
+    const { transport, requests } = harness({ status: "committed", mutationId, revision: 6 });
+    const actionContext = { identity: "bruce-login", companyId: "wayne", masqueradeContextToken: "captured-context" };
+    setMasqueradeContextToken("newer-context");
+
+    await transport.execute(actionContext, execution({ operation: "allocation.create", allocation }), signal);
+
+    expect(requests[0]?.headers.get("X-Masquerade-Context")).toBe("captured-context");
+  });
+
+  it("surfaces context changes without replaying a stale write", async () => {
+    const { transport, fetcher } = harness(
+      { error: "The masquerade context changed.", code: "MASQUERADE_CONTEXT_CHANGED" },
+      409,
+    );
+
+    await expect(
+      transport.execute(
+        { ...context, masqueradeContextToken: "captured-context" },
+        execution({ operation: "allocation.create", allocation }),
+        signal,
+      ),
+    ).rejects.toMatchObject({ status: 409, code: "MASQUERADE_CONTEXT_CHANGED" });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
 
   it("normalizes a read with the complete canonical authority fingerprint", async () => {
     const authority = {
@@ -232,6 +260,21 @@ describe("generated planning transport", () => {
     });
     expect(requests[0]?.url).toBe("http://planning.test/api/accounts/wayne/planning");
     expect(requests[0]?.method).toBe("GET");
+    expect(requests[0]?.headers.get("X-Masquerade-Context")).toBe("captured-context");
+  });
+
+  it("surfaces a stale proof on a canonical read without replaying it", async () => {
+    const { transport, fetcher, requests } = harness(
+      { error: "The masquerade context changed.", code: "MASQUERADE_CONTEXT_CHANGED" },
+      409,
+    );
+
+    await expect(transport.read(context, signal)).rejects.toMatchObject({
+      status: 409,
+      code: "MASQUERADE_CONTEXT_CHANGED",
+    });
+    expect(requests[0]?.headers.get("X-Masquerade-Context")).toBe("captured-context");
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it("refuses a canonical read without a verified write capability", async () => {

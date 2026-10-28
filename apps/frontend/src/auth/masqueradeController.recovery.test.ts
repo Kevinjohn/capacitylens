@@ -28,21 +28,24 @@ vi.mock("@/data/planning/volatilePlanningTransport", async (importOriginal) => {
   };
 });
 
-const state: MasqueradeState = {
+const state: MasqueradeState & { contextToken: string } = {
   accountId: "a-studio",
   targetUserId: "u-viewer",
   targetName: "Selina Kyle",
   effectiveRole: "viewer",
   startedAt: "2026-09-01T10:00:00.000Z",
+  expiresAt: "2026-09-01T10:15:00.000Z",
   token: "token-1",
+  contextToken: "token-1",
 };
+const inactiveStatus = { active: false as const, contextToken: "idle-context" };
 
 function controllerWithNativeSlice(bootstrapFailure = false) {
   const bootstrapTransport = createVolatilePlanningTransport(() =>
     makeAppData({ accounts: [makeAccount({ id: state.accountId, name: "Wayne Enterprises" })] }),
   );
   const api = {
-    status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
+    status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
     start: vi.fn(async () => state),
     end: vi.fn(async () => {}),
   };

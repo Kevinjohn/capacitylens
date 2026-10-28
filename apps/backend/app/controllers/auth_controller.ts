@@ -18,7 +18,6 @@ import {
   withActor,
   type CurrentActor,
 } from '#services/auth/current_actor'
-import { endMasqueradeForSignOut } from '#services/auth/masquerade'
 import { recordMemberSignIn } from '#services/membership/sign_in_tracking'
 import { errors as vineErrors } from '@vinejs/vine'
 import { signInValidator, signUpValidator } from '#validators/auth_requests'
@@ -185,12 +184,11 @@ export default class AuthController {
     }
   }
 
-  /** Ends any view-as display, then the Account Kit sign-in, whose row takes its proofs with it. */
+  /** Ends this sign-in while leaving the identity-wide view active in its other sessions. */
   async signOut(ctx: HttpContext) {
     let current: CurrentAccountInput | undefined
     try {
       current = await accountInput(ctx)
-      await withActor(ctx, (_actor, trx) => endMasqueradeForSignOut(trx), { limited: true })
     } catch (error) {
       if (!(error instanceof InvalidSessionError)) throw error
     }

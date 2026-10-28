@@ -1,181 +1,149 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type { HttpContext } from '@adonisjs/core/http'
+import {
+  MasqueradeError as PackageMasqueradeError,
+  createMasqueradeService,
+} from 'adonisjs-masquerade'
+import type { MasqueradeService, ModeView } from 'adonisjs-masquerade'
+import app from '@adonisjs/core/services/app'
+import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
-import type { Role } from '@capacitylens/shared/account/types'
-import { can } from '@capacitylens/shared/domain/access'
-import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
+import config from '#config/masquerade'
+import { nativeAdapter } from '#config/masquerade'
 import { actorIn } from '#services/auth/current_actor'
-import { writeAudit } from '#services/audit'
+import { capturedMasqueradeContext } from '#services/auth/masquerade_request'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
+import { can } from '@capacitylens/shared/domain/access'
+import type { Role } from '@capacitylens/shared/account/types'
 
-export class MasqueradeError extends Error {
-  constructor(
-    message: string,
-    readonly code: string,
-    readonly status: number
-  ) {
-    super(message)
-  }
-}
+export { PackageMasqueradeError as MasqueradeError }
 
-interface ActiveMasquerade {
-  id: string
-  accountId: string
-  actorId: string
-  targetId: string
-  token: string
-  startedAt: string
-}
+let servicePromise: Promise<MasqueradeService<HttpContext>> | undefined
 
-function parseActive(row: Record<string, unknown> | undefined): ActiveMasquerade | null {
-  if (!row) return null
-  if (
-    typeof row.id !== 'string' ||
-    typeof row.account_id !== 'string' ||
-    typeof row.actor_user_id !== 'string' ||
-    typeof row.target_user_id !== 'string' ||
-    typeof row.token !== 'string' ||
-    typeof row.started_at !== 'string'
-  )
-    throw new MasqueradeError('Invalid masquerade state.', 'MASQUERADE_ENDED', 403)
-  return {
-    id: row.id,
-    accountId: row.account_id,
-    actorId: row.actor_user_id,
-    targetId: row.target_user_id,
-    token: row.token,
-    startedAt: row.started_at,
-  }
-}
-
-/** Reads only the projection bound to the current native session. */
-export async function activeMasquerade(
-  sessionId: number,
-  connection: Pick<typeof db, 'from'> = db
-): Promise<ActiveMasquerade | null> {
-  return parseActive(await connection.from('masquerades').where('session_id', sessionId).first())
-}
-
-/** Re-checks the viewer too, so removal or demotion ends an open view on the next request. */
-async function targetRole(record: ActiveMasquerade, trx: TransactionClientContract) {
-  const actorRole = await activeCompanyRole(record.actorId, record.accountId, trx)
-  if (!actorRole || !can(actorRole, 'masquerade'))
-    throw new IdentityAuthorityError('Viewer is no longer permitted.')
-  const target = await trx.from('users').where('id', record.targetId).first()
-  if (!target) throw new IdentityAuthorityError('Target is unavailable.')
-  const role = await activeCompanyRole(record.targetId, record.accountId, trx)
-  if (!role) throw new IdentityAuthorityError('Target is unavailable.')
-  return { target, role }
-}
-
-/** Resolves the real actor and transaction-current effective member for data reads. */
-export async function effectiveReadPrincipal(trx: TransactionClientContract) {
-  const actor = actorIn(trx)
-  const record = await activeMasquerade(actor.sessionId, trx)
-  if (!record) return { actorId: actor.userId, effectiveId: actor.userId, accountId: null }
-  if (record.actorId !== actor.userId)
-    throw new MasqueradeError('Masquerade session changed.', 'MASQUERADE_ENDED', 403)
-  await targetRole(record, trx)
-  return { actorId: actor.userId, effectiveId: record.targetId, accountId: record.accountId }
-}
-
-function responseState(record: ActiveMasquerade, target: Record<string, unknown>, role: Role) {
-  return {
-    accountId: record.accountId,
-    targetUserId: record.targetId,
-    targetName: String(target.display_name || target.email || 'Member'),
-    effectiveRole: role,
-    startedAt: record.startedAt,
-    token: record.token,
-  }
-}
-
-export async function startMasquerade(
-  accountId: string,
-  targetUserId: string,
-  trx: TransactionClientContract
-) {
-  const actor = actorIn(trx)
-  if (await activeMasquerade(actor.sessionId, trx))
-    throw new MasqueradeError('Masquerade already active.', 'MASQUERADE_ACTIVE', 409)
-  const actorRole = await activeCompanyRole(actor.userId, accountId, trx)
-  if (!actorRole || !can(actorRole, 'masquerade')) throw new IdentityAuthorityError('Forbidden.')
-  if (actor.userId === targetUserId)
-    throw new MasqueradeError('Cannot masquerade as yourself.', 'MASQUERADE_SELF', 400)
-  const target = await trx.from('users').where('id', targetUserId).first()
-  const role = await activeCompanyRole(targetUserId, accountId, trx)
-  if (!target || !role) throw new MasqueradeError('Member not found.', 'MEMBER_NOT_FOUND', 404)
-  const now = new Date().toISOString()
-  const record: ActiveMasquerade = {
-    id: crypto.randomUUID(),
-    accountId,
-    actorId: actor.userId,
-    targetId: targetUserId,
-    token: Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url'),
-    startedAt: now,
-  }
-  await trx.table('masquerades').insert({
-    id: record.id,
-    account_id: accountId,
-    session_id: actor.sessionId,
-    actor_user_id: actor.userId,
-    target_user_id: targetUserId,
-    role,
-    token: record.token,
-    started_at: now,
-    created_at: now,
-    updated_at: now,
+/** Lazily opens the package control store outside any product transaction. */
+export function masqueradeService() {
+  servicePromise ??= createMasqueradeService(config, {
+    environment: app.nodeEnvironment,
+    authenticateActor: (ctx) => nativeAdapter.authenticateActor(ctx),
+    emitter: { emit: () => undefined },
+    logger: {
+      info: (event) => logger.info(event),
+      error: (event) => logger.error(event),
+    },
+    observerErrorHandler: (error) => logger.error({ code: 'E_MASQUERADE_OBSERVER_FAILED', error }),
   })
-  await writeAudit(trx, {
-    accountId,
-    actorId: actor.userId,
-    action: 'identity.masquerade_started',
-    entity: 'user',
-    entityId: targetUserId,
-    fields: ['masquerade'],
-  })
-  return responseState(record, target, role)
+  return servicePromise
 }
 
-export async function currentMasquerade(trx: TransactionClientContract) {
-  const actor = actorIn(trx)
-  const record = await activeMasquerade(actor.sessionId, trx)
-  if (!record) return { active: false as const }
-  if (record.actorId !== actor.userId)
-    throw new MasqueradeError('Masquerade session changed.', 'MASQUERADE_ENDED', 403)
-  const { target, role } = await targetRole(record, trx)
+/** Current package mode with product display details, read outside any product transaction. */
+export async function currentMasquerade(ctx: HttpContext) {
+  const service = await masqueradeService()
+  try {
+    await service.resolve(ctx)
+  } catch (error) {
+    if (!(error instanceof PackageMasqueradeError) || error.code !== 'E_MASQUERADE_CONTEXT_CHANGED')
+      throw error
+  }
+  const view = await service.status(ctx)
+  if (!view.isMasquerading) return { active: false as const, contextToken: view.contextToken }
+  const actor = await nativeAdapter.authenticateActor(ctx)
+  const target = await db
+    .from('users')
+    .where('id', view.targetId)
+    .select('display_name', 'email')
+    .first()
+  if (!target) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED')
+  const requestedAccountId =
+    (typeof ctx.params.accountId === 'string' && ctx.params.accountId) ||
+    (typeof ctx.request.input('accountId') === 'string' && ctx.request.input('accountId'))
+  let accountId: string | null = null
+  let effectiveRole: Role | null = null
+  if (requestedAccountId) {
+    const actorRole = await activeCompanyRole(actor.id, requestedAccountId, db)
+    const targetRole = await activeCompanyRole(view.targetId, requestedAccountId, db)
+    if (actorRole && can(actorRole, 'masquerade') && targetRole) {
+      accountId = requestedAccountId
+      effectiveRole = targetRole
+    }
+  }
+  // Another tab of the same sign-in may sit on a company the target does not share. Report the
+  // mode where it holds so that tab can adopt the current context and offer End; company reads
+  // are still authorized per request by effectiveReadPrincipal.
+  if (!accountId) {
+    const memberships = await db
+      .from('memberships')
+      .where({ user_id: actor.id, status: 'active' })
+      .orderBy('account_id', 'asc')
+      .select('account_id')
+    for (const row of memberships) {
+      const candidate = String(row.account_id)
+      const actorRole = await activeCompanyRole(actor.id, candidate, db)
+      const targetRole = await activeCompanyRole(view.targetId, candidate, db)
+      if (actorRole && can(actorRole, 'masquerade') && targetRole) {
+        accountId = candidate
+        effectiveRole = targetRole
+        break
+      }
+    }
+    if (!accountId || !effectiveRole)
+      throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED')
+  }
   return {
     active: true as const,
-    ...responseState(record, target, role),
-    principal: {
-      id: actor.userId,
-      name: actor.displayName,
-      email: actor.email,
-    },
+    accountId,
+    targetUserId: view.targetId,
+    targetName: String(target.display_name || target.email || 'Member'),
+    effectiveRole,
+    startedAt: view.startedAt,
+    expiresAt: view.expiresAt,
+    contextToken: view.contextToken,
+    token: view.contextToken,
+    principal: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
     authMode: 'password-only',
   }
 }
 
-/** Ends only the current session's projection and audits with the real actor. */
-export async function endMasquerade(
-  token: string,
-  reason: 'explicit' | 'account_switch' | 'sign_out',
-  trx: TransactionClientContract
-) {
-  const actor = actorIn(trx)
-  const record = await activeMasquerade(actor.sessionId, trx)
-  if (!record || record.token !== token || record.actorId !== actor.userId) return
-  await writeAudit(trx, {
-    accountId: record.accountId,
-    actorId: actor.userId,
-    action: 'identity.masquerade_ended',
-    entity: 'user',
-    entityId: record.targetId,
-    fields: ['masquerade', reason],
+export async function startMasquerade(ctx: HttpContext, targetUserId: string) {
+  const service = await masqueradeService()
+  return service.start(ctx, {
+    targetId: targetUserId,
+    access: 'view',
+    expectedContext: ctx.request.header('X-Masquerade-Context') ?? '',
   })
-  await trx.from('masquerades').where('id', record.id).delete()
 }
 
-export async function endMasqueradeForSignOut(trx: TransactionClientContract) {
-  const actor = actorIn(trx)
-  const record = await activeMasquerade(actor.sessionId, trx)
-  if (record) await endMasquerade(record.token, 'sign_out', trx)
+export async function endMasquerade(ctx: HttpContext) {
+  const service = await masqueradeService()
+  return service.stop(ctx, {
+    expectedContext: ctx.request.header('X-Masquerade-Context') ?? '',
+  })
 }
+
+/** Resolves only the identity captured before the product transaction; never substitutes on error. */
+export async function effectiveReadPrincipal(
+  ctx: HttpContext,
+  trx: TransactionClientContract,
+  requestedAccountId?: string
+) {
+  const actor = actorIn(trx)
+  const context = capturedMasqueradeContext(ctx)
+  if (!context || context.actorId !== actor.userId)
+    throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED')
+  const accountId =
+    requestedAccountId ??
+    (typeof ctx.params.accountId === 'string' ? ctx.params.accountId : undefined)
+  if (context.isMasquerading && accountId) {
+    const actorRole = await activeCompanyRole(actor.userId, accountId, trx)
+    const targetRole = await activeCompanyRole(context.effectiveId, accountId, trx)
+    if (!actorRole || !can(actorRole, 'masquerade') || !targetRole)
+      throw new IdentityAuthorityError('Masquerade company authority changed.')
+  }
+  return {
+    actorId: actor.userId,
+    effectiveId: context.effectiveId,
+    accountId: context.isMasquerading ? (accountId ?? null) : null,
+    isMasquerading: context.isMasquerading,
+  }
+}
+
+export type { ModeView }

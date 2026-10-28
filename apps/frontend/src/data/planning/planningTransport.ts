@@ -3,8 +3,33 @@ import type { PlanningExecution, PlanningMutationSuccess } from "@capacitylens/b
 import { client } from "@/api/queryClient";
 import { PlanningControllerError } from "./planningCacheController";
 import type { PlanningClientContext, PlanningTransport } from "./planningCacheController";
+import { getMasqueradeContextToken } from "@/auth/masqueradeContext";
 
 type PlanningClient = typeof client;
+
+function capturedContextToken(context: PlanningClientContext): string | null {
+  return Object.hasOwn(context, "masqueradeContextToken")
+    ? (context.masqueradeContextToken ?? null)
+    : getMasqueradeContextToken();
+}
+
+function withMasqueradeContext(apiClient: PlanningClient, contextToken: string | null | undefined): PlanningClient {
+  return new Proxy(apiClient, {
+    get(target, property, receiver) {
+      if (property !== "request") {
+        const value: unknown = Reflect.get(target, property, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      return (name: Parameters<PlanningClient["request"]>[0], args: Parameters<PlanningClient["request"]>[1]) => {
+        // An empty proof is explicit too: a delayed action cannot inherit a newer global context.
+        return target.request(name, {
+          ...args,
+          headers: { ...args.headers, "X-Masquerade-Context": contextToken ?? "" },
+        });
+      };
+    },
+  });
+}
 
 // The generated controller union includes its void refusal branch. A missing success body
 // cannot acknowledge an execution, even when the HTTP status was successful.
@@ -239,8 +264,9 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
   return {
     async read(context, signal) {
       try {
+        const scopedClient = withMasqueradeContext(apiClient, capturedContextToken(context));
         const snapshot = requireReply(
-          await apiClient.request("api.planning.show", {
+          await scopedClient.request("api.planning.show", {
             params: { accountId: context.companyId },
             signal,
           }),
@@ -269,15 +295,21 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     },
     async execute(context, execution, signal) {
       try {
-        return await sendOperation(apiClient, context, execution, signal);
+        return await sendOperation(
+          withMasqueradeContext(apiClient, capturedContextToken(context)),
+          context,
+          execution,
+          signal,
+        );
       } catch (error) {
         throw planningError(error);
       }
     },
     async lookup(context, mutationId, signal) {
       try {
+        const scopedClient = withMasqueradeContext(apiClient, capturedContextToken(context));
         return requireReply(
-          await apiClient.request("api.planning.lookup", {
+          await scopedClient.request("api.planning.lookup", {
             params: { accountId: context.companyId, mutationId },
             signal,
           }),

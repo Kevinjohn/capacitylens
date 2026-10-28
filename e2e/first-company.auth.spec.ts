@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { createServer } from "node:net";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
+import { masqueradeContextHeaders } from "./authTestSupport";
 
 // This journey needs an empty native installation, independently of the shared role fixtures.
 test("the operator setup link creates the first Owner, one company and a usable schedule and opens a usable schedule", async ({
@@ -118,7 +119,7 @@ test("the operator setup link creates the first Owner, one company and a usable 
     expect(data.clients[0].builtin).toBe(true);
     const duplicate = await page.request.post(`${origin}/api/installation/company`, {
       data: { name: "Stark Industries" },
-      headers: { "sec-fetch-site": "same-origin" },
+      headers: await masqueradeContextHeaders(page.request, undefined, origin),
     });
     expect(duplicate.status()).toBe(409);
     const permittedSignup = await request.post(`${origin}/api/auth/sign-up`, {

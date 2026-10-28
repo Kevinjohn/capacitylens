@@ -6,14 +6,17 @@ import type { FlushPendingWritesResult } from "./masqueradeController";
 import { MasqueradeController } from "./masqueradeController";
 import type { MasqueradeControllerDependencies } from "./masqueradeController";
 
-const state: MasqueradeState = {
+const state: MasqueradeState & { contextToken: string } = {
   accountId: "a-studio",
   targetUserId: "u-viewer",
   targetName: "Selina Kyle",
   effectiveRole: "viewer",
   startedAt: "2026-09-01T10:00:00.000Z",
+  expiresAt: "2026-09-01T10:15:00.000Z",
   token: "token-1",
+  contextToken: "token-1",
 };
+const inactiveStatus = { active: false as const, contextToken: "idle-context" };
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -34,7 +37,7 @@ function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
     switchAccount: vi.fn(async () => ({ kind: "reloaded" as const })),
     readBootstrapAccount: vi.fn(async () => "Wayne Enterprises"),
     api: {
-      status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
+      status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
       start: vi.fn(async () => state),
       end: vi.fn(async () => {}),
     },
@@ -50,6 +53,24 @@ beforeEach(async () => {
 });
 
 describe("MasqueradeController", () => {
+  it("invalidates a captured reconciliation when its company or identity changes", async () => {
+    await resetStoreWithAccount("a-studio");
+    const { controller } = harness({
+      switchAccount: vi.fn(async (accountId: string | null) => {
+        useStore.getState().setActiveAccount(accountId);
+        return { kind: "reloaded" as const };
+      }),
+    });
+    const beforeCompanySwitch = controller.captureStatusReconciliation();
+
+    await expect(controller.transitionAccount("a-loft")).resolves.toBe(true);
+    expect(beforeCompanySwitch()).toBe(false);
+
+    const beforeIdentityChange = controller.captureStatusReconciliation();
+    controller.invalidate();
+    expect(beforeIdentityChange()).toBe(false);
+  });
+
   it("holds a newly adopted status behind a blocked old-actor read until a fresh retry finishes", async () => {
     await resetStoreWithAccount("a-studio");
     const oldRead = deferred<void>();
@@ -82,7 +103,13 @@ describe("MasqueradeController", () => {
   it("lets a newer server status supersede a pending local start without publishing its late response", async () => {
     await resetStoreWithAccount("a-studio");
     const oldStart = deferred<MasqueradeState>();
-    const newer = { ...state, token: "token-2", targetUserId: "u-editor", targetName: "Dick Grayson" };
+    const newer = {
+      ...state,
+      token: "token-2",
+      contextToken: "token-2",
+      targetUserId: "u-editor",
+      targetName: "Dick Grayson",
+    };
     const { controller, dependencies } = harness({
       api: {
         status: vi.fn(async () => ({ active: true, ...newer })),
@@ -98,6 +125,79 @@ describe("MasqueradeController", () => {
     oldStart.resolve(state);
     await expect(starting).resolves.toBe(false);
     expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state: newer });
+  });
+
+  it("reconciles an idle-context failure when another tab starts masquerade", async () => {
+    await resetStoreWithAccount("a-studio");
+    const remote = {
+      ...state,
+      token: "remote-mode-token",
+      contextToken: "remote-mode-token",
+      targetUserId: "u-editor",
+      targetName: "Dick Grayson",
+    };
+    const { controller, dependencies } = harness({
+      api: {
+        status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: true, ...remote })),
+        start: vi.fn(async () => state),
+        end: vi.fn(async () => {}),
+      },
+    });
+
+    controller.restoreServerEndedProjection();
+
+    await vi.waitFor(() => expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state: remote }));
+    expect(dependencies.api.status).toHaveBeenCalledOnce();
+    expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId, false);
+    expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state: remote });
+  });
+
+  it("restores the real projection when End fails after another tab already stopped the mode", async () => {
+    await resetStoreWithAccount("a-studio");
+    const { controller, dependencies, resume } = harness({
+      api: {
+        status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
+        start: vi.fn(async () => state),
+        end: vi.fn(async () => {
+          throw new Error("The mode was already ended remotely.");
+        }),
+      },
+    });
+    await controller.adoptStatus({ active: true, ...state });
+
+    await expect(controller.end()).resolves.toBe(true);
+    expect(dependencies.api.status).toHaveBeenCalledOnce();
+    expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId);
+    expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
+    expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
+  });
+
+  it("retains a replacement server mode after an ambiguous End response", async () => {
+    await resetStoreWithAccount("a-studio");
+    const replacement = {
+      ...state,
+      token: "replacement-mode-token",
+      contextToken: "replacement-mode-token",
+      targetUserId: "u-editor",
+      targetName: "Dick Grayson",
+    };
+    const { controller, dependencies } = harness({
+      api: {
+        status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: true, ...replacement })),
+        start: vi.fn(async () => state),
+        end: vi.fn(async () => {
+          throw new Error("The End response was lost.");
+        }),
+      },
+    });
+    await controller.adoptStatus({ active: true, ...state });
+
+    await expect(controller.end()).resolves.toBe(true);
+    await vi.waitFor(() =>
+      expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state: replacement }),
+    );
+    expect(dependencies.api.status).toHaveBeenCalledOnce();
+    expect(dependencies.reproject).toHaveBeenLastCalledWith(state.accountId, false);
   });
 
   it("preserves a failed cold End attempt's retry ownership after server confirms it remains active", async () => {
@@ -116,9 +216,9 @@ describe("MasqueradeController", () => {
     });
     await controller.adoptStatus({ active: true, ...state });
     expect(useStore.getState().masquerade.kind).toBe("starting");
-    await expect(controller.end()).resolves.toBe(false);
+    await expect(controller.end()).resolves.toBe(true);
     expect(dependencies.api.end).toHaveBeenCalledExactlyOnceWith(state.token, "explicit");
-    expect(useStore.getState().masquerade.kind).toBe("starting");
+    expect(useStore.getState().masquerade.kind).toBe("active");
     await expect(controller.retryProjection()).resolves.toBe(true);
     expect(useStore.getState().masquerade.kind).toBe("active");
   });
@@ -163,7 +263,7 @@ describe("MasqueradeController", () => {
     const { controller } = harness({ readBootstrapAccount: vi.fn(async () => null) });
     await controller.adoptStatus({ active: true, ...state });
     expect(useStore.getState().masquerade.kind).toBe("starting");
-    await controller.adoptStatus({ active: false });
+    await controller.adoptStatus(inactiveStatus);
     expect(useStore.getState().masquerade.kind).toBe("inactive");
     expect(useStore.getState().activeAccountId).toBeNull();
   });
@@ -291,7 +391,7 @@ describe("MasqueradeController", () => {
   it("releases without dropping edits when the start request fails", async () => {
     const { controller, resume } = harness({
       api: {
-        status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
+        status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
         start: vi.fn(async () => {
           throw new Error("denied");
         }),
@@ -358,7 +458,7 @@ describe("MasqueradeController transitions", () => {
 
     const starting = controller.start(state.accountId, state.targetUserId);
     await vi.waitFor(() => expect(useStore.getState().masquerade).toMatchObject({ kind: "starting", state }));
-    await controller.adoptStatus({ active: false });
+    await controller.adoptStatus(inactiveStatus);
     await vi.waitFor(() => expect(useStore.getState().masquerade).toEqual({ kind: "inactive" }));
     useStore.getState().setNotice("newer transition", "info");
 
@@ -398,7 +498,7 @@ describe("MasqueradeController generation fencing", () => {
       .mockResolvedValueOnce(true);
     const { controller, resume } = harness({ reproject });
     await controller.adoptStatus({ active: true, ...state });
-    await controller.adoptStatus({ active: false });
+    await controller.adoptStatus(inactiveStatus);
     await vi.waitFor(() => expect(reproject).toHaveBeenCalledTimes(2));
 
     await expect(controller.end()).resolves.toBe(true);
@@ -421,7 +521,7 @@ describe("MasqueradeController transitions", () => {
     });
     const { controller, dependencies } = harness({
       api: {
-        status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
+        status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
         start: vi.fn(() => startResponse),
         end: vi.fn(async () => {}),
       },
@@ -456,7 +556,13 @@ describe("MasqueradeController transitions", () => {
 
 describe("MasqueradeController cross-tab reconciliation", () => {
   it("adopts a newer cross-tab masquerade returned after DELETE", async () => {
-    const newer = { ...state, targetUserId: "u-editor", targetName: "Dick Grayson", token: "token-2" };
+    const newer = {
+      ...state,
+      targetUserId: "u-editor",
+      targetName: "Dick Grayson",
+      token: "token-2",
+      contextToken: "token-2",
+    };
     const { controller, resume } = harness({
       api: {
         status: vi.fn(async () => ({ active: true, ...newer })),
@@ -473,7 +579,13 @@ describe("MasqueradeController cross-tab reconciliation", () => {
   });
 
   it("refuses an account switch when DELETE is superseded by a newer masquerade", async () => {
-    const newer = { ...state, targetUserId: "u-editor", targetName: "Dick Grayson", token: "token-2" };
+    const newer = {
+      ...state,
+      targetUserId: "u-editor",
+      targetName: "Dick Grayson",
+      token: "token-2",
+      contextToken: "token-2",
+    };
     const { controller, dependencies, resume } = harness({
       api: {
         status: vi.fn(async () => ({ active: true, ...newer })),
@@ -506,7 +618,7 @@ describe("MasqueradeController cross-tab reconciliation", () => {
     await controller.adoptStatus({ active: true, ...state });
     await expect(controller.transitionAccount("a-loft")).resolves.toBe(false);
     expect(dependencies.switchAccount).not.toHaveBeenCalled();
-    expect(useStore.getState().masquerade.kind).toBe("ending");
+    expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state });
     expect(resume).not.toHaveBeenCalled();
   });
 });
@@ -516,7 +628,7 @@ describe("MasqueradeController shared-session reconciliation", () => {
     const { controller, dependencies, resume } = harness();
     await controller.adoptStatus({ active: true, ...state });
 
-    await controller.adoptStatus({ active: false });
+    await controller.adoptStatus(inactiveStatus);
     await vi.waitFor(() => expect(useStore.getState().masquerade.kind).toBe("inactive"));
 
     expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId);

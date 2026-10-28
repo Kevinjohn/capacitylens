@@ -3,16 +3,11 @@ import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { resetState } from '#services/state_repository'
 import { signUpAndIn } from '../../helpers/identities.js'
+import { asDataOwner } from '../../helpers/authenticated_data_fixture.js'
 
 const password = 'batman-secret-2026'
 
-function signed<
-  T extends { setup(callback: () => void): T; withCookie(name: string, value: string): T },
->(request: T, cookie: string) {
-  return request.setup(() => {
-    request.withCookie('adonis-session', cookie)
-  })
-}
+const signed = asDataOwner
 
 async function userId(email: string) {
   const user = await db.from('users').where('email', email).first()

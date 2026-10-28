@@ -2,6 +2,7 @@ import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import type { MasqueradeErrorCode } from "@capacitylens/shared/domain/masquerade";
 import { noteAuditWarning } from "@/lib/auditWarning";
 import { readApiErrorCode } from "@/lib/readApiError";
+import { getMasqueradeContextToken } from "@/auth/masqueradeContext";
 
 let masqueradeEndedHandler: (() => void) | null = null;
 
@@ -58,16 +59,34 @@ export async function apiFetch(
   requestOptions: RequestInit = {},
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
+  const headers = headersWithMasqueradeContext(input, requestOptions);
   const response = await fetch(input, {
     ...requestOptions,
+    ...(headers === undefined ? {} : { headers }),
     signal: createRequestSignal(requestOptions.signal, timeoutMs),
   });
   // Defer until the direct action's own success notice has run; otherwise that notice immediately
   // overwrites the more important persistent audit warning in the single-notice store.
   noteAuditWarning(response, { defer: true });
-  if (response.status === 403) {
+  if (!response.ok) {
     const code = await readMasqueradeErrorCode(response);
-    if (code === MASQUERADE_ERROR_CODES.ended) masqueradeEndedHandler?.();
+    if (
+      code === MASQUERADE_ERROR_CODES.ended ||
+      code === MASQUERADE_ERROR_CODES.contextChanged ||
+      code === MASQUERADE_ERROR_CODES.contextRequired
+    ) {
+      masqueradeEndedHandler?.();
+    }
   }
   return response;
+}
+
+function headersWithMasqueradeContext(input: RequestInfo | URL, requestOptions: RequestInit): HeadersInit | undefined {
+  const method = (requestOptions.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+  if (method === "OPTIONS") return requestOptions.headers;
+  const token = getMasqueradeContextToken();
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  new Headers(requestOptions.headers).forEach((value, name) => headers.set(name, value));
+  if (!headers.has("X-Masquerade-Context") && token !== null) headers.set("X-Masquerade-Context", token);
+  return headers;
 }

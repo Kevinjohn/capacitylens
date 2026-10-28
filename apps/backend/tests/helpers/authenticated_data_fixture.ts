@@ -7,7 +7,7 @@ import { resetState } from '#services/state_repository'
 import { encodeRow } from '#services/state_repository'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
-import { createIdentity, signIn } from './identities.js'
+import { createIdentity, sessionCookieHeader, signIn } from './identities.js'
 
 const ownerEmail = 'bruce.wayne@wayne.example'
 
@@ -32,11 +32,21 @@ export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 
   return { cookie, cookieHeader, userId }
 }
 
-/** Applies a real native session and the normal same-origin header to a Japa request. */
+/** Applies a real native session and its current write context to a Japa request. */
 export function asDataOwner<T extends ApiRequest>(request: T, cookie: string): T {
   return request
-    .setup(() => {
-      request.withCookie('adonis-session', cookie)
+    .setup(async (prepared) => {
+      prepared.withCookie('adonis-session', cookie)
+      const status = await fetch(new URL('/api/masquerade', prepared.config.baseUrl), {
+        headers: {
+          'cookie': sessionCookieHeader(cookie),
+          'sec-fetch-site': 'same-origin',
+        },
+      })
+      if (!status.ok) throw new Error(`Could not capture masquerade context: ${status.status}`)
+      const body = (await status.json()) as { contextToken?: unknown }
+      if (typeof body.contextToken === 'string' && body.contextToken)
+        prepared.header('X-Masquerade-Context', body.contextToken)
     })
     .header('sec-fetch-site', 'same-origin') as T
 }

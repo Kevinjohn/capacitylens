@@ -121,9 +121,22 @@ async function establishAuthFixtureBaseline(signal) {
     .join('; ')
   if (!cookie) throw new Error('Auth E2E baseline owner setup did not create a session.')
 
+  const modeResponse = await fetch(`${origin}/api/masquerade`, {
+    headers: { cookie, 'sec-fetch-site': 'same-origin' },
+    signal,
+  })
+  const mode = await modeResponse.json()
+  if (modeResponse.status !== 200 || typeof mode.contextToken !== 'string')
+    throw new Error(`Auth E2E baseline masquerade context unavailable (${modeResponse.status}).`)
+
   const company = await fetch(`${origin}/api/installation/company`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', cookie, 'sec-fetch-site': 'same-origin' },
+    headers: {
+      'content-type': 'application/json',
+      cookie,
+      'sec-fetch-site': 'same-origin',
+      'X-Masquerade-Context': mode.contextToken,
+    },
     signal,
     body: JSON.stringify({ name: 'Daily Planet E2E Baseline' }),
   })

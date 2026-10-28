@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import type { CSSProperties } from "react";
 import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { GettingStarted } from "./GettingStarted";
@@ -19,7 +19,7 @@ import { AppEntryGate } from "./AppEntryGate";
 import { useAppShellController } from "./useAppShellController";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
-import { endMasquerade, retryMasqueradeProjection } from "@/auth/accountTransition";
+import { endMasquerade, reconcileMasqueradeStatus, retryMasqueradeProjection } from "@/auth/accountTransition";
 import { Button } from "./ui/button";
 import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "@/lib/tourAnchors";
 import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
@@ -38,6 +38,7 @@ function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.get
     case "starting":
       return {
         label: m.app_masquerade_starting(),
+        deadline: masquerade.state?.expiresAt,
         showControls: masquerade.state !== undefined,
         showRetryProjection: true,
         endLabel: m.app_masquerade_end_now(),
@@ -45,6 +46,7 @@ function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.get
     case "active":
       return {
         label: m.app_masquerading_as({ name: masquerade.state.targetName }),
+        deadline: masquerade.state.expiresAt,
         showControls: true,
         showRetryProjection: false,
         endLabel: m.app_masquerade_end_now(),
@@ -52,6 +54,7 @@ function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.get
     case "ending":
       return {
         label: m.app_masquerade_ending(),
+        deadline: masquerade.state.expiresAt,
         showControls: true,
         showRetryProjection: false,
         endLabel: m.app_masquerade_retry(),
@@ -285,6 +288,26 @@ function MasqueradeBanner({
   banner: Exclude<ReturnType<typeof buildMasqueradeBannerContent>, null>;
   navigate: ReturnType<typeof useNavigate>;
 }) {
+  useEffect(() => {
+    const deadline = banner.deadline;
+    if (!deadline) return;
+    let timer: number | undefined;
+    const checkDeadline = () => {
+      const remaining = Date.parse(deadline) - Date.now();
+      if (remaining > 0) {
+        timer = window.setTimeout(checkDeadline, Math.min(remaining, 2_147_483_647));
+        return;
+      }
+      void reconcileMasqueradeStatus().catch((error) => {
+        console.warn("Masquerade expiry status could not be refreshed", error);
+      });
+    };
+    checkDeadline();
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [banner.deadline]);
+
   return (
     <Alert
       role="status"
@@ -292,7 +315,16 @@ function MasqueradeBanner({
       className="rounded-none border-x-0 border-t-0 border-danger bg-danger text-white *:data-[slot=alert-description]:text-white"
     >
       <AlertDescription className="flex w-full grid-cols-none flex-row items-center justify-between gap-3">
-        <span>{banner.label}</span>
+        <span>
+          {banner.label}
+          {banner.deadline && (
+            <span className="ml-2 font-normal">
+              {m.app_masquerade_expires({
+                time: new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date(banner.deadline)),
+              })}
+            </span>
+          )}
+        </span>
         {banner.showControls && (
           <span className="flex gap-2">
             {banner.showRetryProjection && (

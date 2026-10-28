@@ -14,9 +14,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const STARTUP_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
+const MEMBER_VIEW_DURATION_MS = 15 * 60_000;
 const RESOURCE_NAME = "Bruce Wayne Packaged Schedule";
-// The baseline is followed by planning deletion ownership and legacy recovery conversion.
-const MIGRATION_COUNT = 3;
+// The baseline is followed by planning deletion ownership, the member-view control migration and
+// legacy recovery conversion.
+const MIGRATION_COUNT = 4;
 
 function message(error) {
   return error instanceof Error ? error.message : String(error);
@@ -59,6 +61,7 @@ export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port
     SESSION_DRIVER: "database",
     CAPACITYLENS_SECRET: "capacitylens-packaged-secret-0123456789abcdef",
     CAPACITYLENS_AUDIT: "on",
+    CAPACITYLENS_ALLOW_OPEN_SIGNUP: "true",
     CAPACITYLENS_DB: databasePath,
     CAPACITYLENS_BACKUP_DIR: backupDir,
     CAPACITYLENS_PUBLIC_URL: `https://127.0.0.1:${port}`,
@@ -118,6 +121,66 @@ function assertAllocationInDatabase(path, accountId, allocation) {
   }
 }
 
+/** Seed only the target's confirmation, admission and Viewer membership in the stopped smoke database. */
+export function seedSmokeViewer(path, { accountId, actorUserId, targetUserId, targetEmail }) {
+  assert.notEqual(actorUserId, targetUserId);
+  const database = new DatabaseSync(path);
+  try {
+    const account = database.prepare("SELECT id FROM accounts WHERE id = ?").get(accountId);
+    const target = database.prepare("SELECT id, email FROM users WHERE id = ?").get(targetUserId);
+    assert.ok(account, "Smoke Viewer fixture account is missing");
+    assert.ok(target, "Smoke Viewer fixture identity is missing");
+    assert.equal(String(target.email).toLowerCase(), targetEmail.toLowerCase());
+
+    const now = new Date().toISOString();
+    database
+      .prepare("UPDATE users SET email_verified_at = ?, unverified_email = NULL WHERE id = ?")
+      .run(now, targetUserId);
+    database
+      .prepare(
+        `INSERT INTO account_admissions
+           (user_id, invited_email, invitation_source, invitation_recorded_at, approval_status,
+            approval_actor_id, approval_decided_at, created_at, updated_at)
+         VALUES (?, ?, 'operator', ?, 'approved', ?, ?, ?, ?)
+         ON CONFLICT (user_id) DO UPDATE SET
+           invited_email = excluded.invited_email,
+           invitation_source = excluded.invitation_source,
+           invitation_recorded_at = excluded.invitation_recorded_at,
+           approval_status = excluded.approval_status,
+           approval_actor_id = excluded.approval_actor_id,
+           approval_decided_at = excluded.approval_decided_at,
+           updated_at = excluded.updated_at`,
+      )
+      .run(targetUserId, targetEmail, now, actorUserId, now, now, now);
+    database
+      .prepare(
+        `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
+         VALUES (?, ?, ?, 'viewer', 'active', ?, ?)`,
+      )
+      .run(randomUUID(), accountId, targetUserId, now, now);
+  } finally {
+    database.close();
+  }
+}
+
+/** Move a live mode's valid 15-minute interval into the past in the stopped smoke database. */
+export function expireSmokeViewer(path, actorUserId) {
+  const database = new DatabaseSync(path);
+  try {
+    const expiresAt = new Date(Date.now() - 60_000);
+    const startedAt = new Date(expiresAt.getTime() - MEMBER_VIEW_DURATION_MS);
+    const result = database
+      .prepare(
+        `UPDATE masquerade_modes SET started_at = ?, expires_at = ?
+         WHERE authority_namespace = 'capacitylens' AND actor_id = ? AND state = 'active'`,
+      )
+      .run(startedAt.toISOString(), expiresAt.toISOString(), actorUserId);
+    assert.equal(result.changes, 1, "Expected one active smoke member-view mode to expire");
+  } finally {
+    database.close();
+  }
+}
+
 async function snapshotFiles(directory) {
   try {
     return (await readdir(directory)).filter((name) => name.endsWith(".db")).sort();
@@ -148,6 +211,13 @@ async function fetchOk(url, options = {}) {
   const body = await response.text();
   assert.ok(response.ok, `${options.method ?? "GET"} ${url} returned ${response.status}: ${body}`);
   return { response, body };
+}
+
+/** Read a JSON response once while retaining its body in assertion failures. */
+export async function expectJsonStatus(response, expectedStatus, description) {
+  const body = await response.text();
+  assert.equal(response.status, expectedStatus, `${description}: ${body}`);
+  return JSON.parse(body);
 }
 
 export function startServer(backend, environment, appendLog) {
@@ -195,7 +265,7 @@ async function assertReady(baseUrl, child) {
 }
 
 /** Write one scheduled allocation through authenticated typed planning routes. */
-export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
+export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture, contextToken) {
   const account = fixture.accounts.find((row) => row.id === "a-studio");
   assert.ok(account);
   const resource = {
@@ -206,7 +276,12 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
   assert.ok(resource.id);
   const createdResource = await fetchOk(`${baseUrl}/api/accounts/${accountId}/resources`, {
     method: "POST",
-    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    headers: {
+      "content-type": "application/json",
+      "sec-fetch-site": "same-origin",
+      cookie,
+      "X-Masquerade-Context": contextToken,
+    },
     body: JSON.stringify({
       mutationId: randomUUID(),
       baseRevision: 1,
@@ -238,7 +313,12 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
   const activity = { id: randomUUID(), name: "Packaged Planning", kind: "internal", projectId: null, phaseId: null };
   const createdActivity = await fetchOk(`${baseUrl}/api/accounts/${accountId}/activities`, {
     method: "POST",
-    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    headers: {
+      "content-type": "application/json",
+      "sec-fetch-site": "same-origin",
+      cookie,
+      "X-Masquerade-Context": contextToken,
+    },
     body: JSON.stringify({
       mutationId: randomUUID(),
       baseRevision: 2,
@@ -266,7 +346,12 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
   };
   const createdAllocation = await fetchOk(`${baseUrl}/api/accounts/${accountId}/allocations`, {
     method: "POST",
-    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    headers: {
+      "content-type": "application/json",
+      "sec-fetch-site": "same-origin",
+      cookie,
+      "X-Masquerade-Context": contextToken,
+    },
     body: JSON.stringify({
       mutationId: randomUUID(),
       baseRevision: 3,
@@ -376,17 +461,30 @@ export async function runPackagedSmoke({ acceptBrowser, usageCommand = "smoke:pa
     const session = JSON.parse((await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body);
     assert.equal(session.user.email, credentials.email);
 
+    const mode = JSON.parse((await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body);
+    assert.equal(typeof mode.contextToken, "string");
+    const contextToken = mode.contextToken;
     assert.equal(session.companySetupRequired, true);
     const initialize = await fetch(`${baseUrl}/api/installation/company`, {
       method: "POST",
-      headers: { cookie, "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      headers: {
+        cookie,
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        "X-Masquerade-Context": contextToken,
+      },
       body: JSON.stringify({ name: "Wayne Enterprises" }),
     });
     assert.equal(initialize.status, 201, "Authenticated browser company setup failed");
     const { accountId } = await initialize.json();
     const secondInitialize = await fetch(`${baseUrl}/api/installation/company`, {
       method: "POST",
-      headers: { cookie, "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      headers: {
+        cookie,
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        "X-Masquerade-Context": contextToken,
+      },
       body: JSON.stringify({ name: "Stark Industries" }),
     });
     assert.equal(secondInitialize.status, 409, "Second company initialization must be refused");
@@ -400,11 +498,162 @@ export async function runPackagedSmoke({ acceptBrowser, usageCommand = "smoke:pa
     assert.equal(initializedState.clients.length, 1);
     assert.equal(initializedState.clients[0].builtin, true);
     assert.equal(initializedState.accounts[0].name, "Wayne Enterprises");
+
+    // Create the real identity over HTTP, then seed only email confirmation, admission and membership while stopped.
+    const viewerCredentials = { email: "clark@wayne.example", password: "packaged-viewer-password-2026" };
+    const viewerSignup = await fetch(`${baseUrl}/api/auth/sign-up`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify({ ...viewerCredentials, name: "Clark Kent" }),
+    });
+    assert.equal(viewerSignup.status, 201, "Packaged Viewer registration failed");
+    const viewerCookie = viewerSignup.headers
+      .getSetCookie()
+      .map((value) => value.split(";", 1)[0])
+      .join("; ");
+    assert.ok(viewerCookie, "Packaged Viewer registration did not return a session cookie");
+    const viewerIdentity = JSON.parse(
+      (await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie: viewerCookie } })).body,
+    );
+    assert.equal(viewerIdentity.user.email, viewerCredentials.email);
+    assert.notEqual(viewerIdentity.user.id, session.user.id);
+
+    assert.deepEqual(await stopServer(child), { code: 0, signal: null });
+    child = null;
+    seedSmokeViewer(databasePath, {
+      accountId,
+      actorUserId: session.user.id,
+      targetUserId: viewerIdentity.user.id,
+      targetEmail: viewerCredentials.email,
+    });
+    child = startServer(backend, environment, (chunk) => {
+      log += chunk;
+    });
+    await assertReady(baseUrl, child);
+
+    const secondOwnerSignIn = await fetch(`${baseUrl}/api/auth/sign-in`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify(credentials),
+    });
+    assert.equal(secondOwnerSignIn.status, 200, "Second packaged native sign-in failed");
+    const secondOwnerCookie = secondOwnerSignIn.headers
+      .getSetCookie()
+      .map((value) => value.split(";", 1)[0])
+      .join("; ");
+    assert.ok(secondOwnerCookie, "Second native sign-in did not return a session cookie");
+    const idleMode = JSON.parse((await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body);
+    assert.equal(idleMode.active, false);
+    assert.equal(typeof idleMode.contextToken, "string");
+    const secondIdleMode = JSON.parse(
+      (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
+    );
+    assert.equal(secondIdleMode.contextToken, idleMode.contextToken);
+
     const { seed } = await import(
       pathToFileURL(join(backend, "node_modules", "@capacitylens", "shared", "dist", "data", "seed.js")).href
     );
     const fixture = seed();
-    const { resource, allocation } = await writeSmokeSchedule(baseUrl, cookie, accountId, fixture);
+    const { resource, allocation } = await writeSmokeSchedule(
+      baseUrl,
+      cookie,
+      accountId,
+      fixture,
+      idleMode.contextToken,
+    );
+
+    const started = await fetch(`${baseUrl}/api/accounts/${accountId}/masquerade`, {
+      method: "POST",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        "X-Masquerade-Context": idleMode.contextToken,
+      },
+      body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
+    });
+    const activeMode = await expectJsonStatus(started, 200, "Packaged member-view start failed");
+    assert.equal(activeMode.active, true);
+    assert.equal(activeMode.targetUserId, viewerIdentity.user.id);
+    assert.ok(Date.parse(activeMode.expiresAt) > Date.now(), "Member-view expiry must be in the future");
+
+    const otherSessionMode = JSON.parse(
+      (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
+    );
+    assert.equal(otherSessionMode.active, true, "Member view must apply to every signed-in session");
+    assert.equal(otherSessionMode.targetUserId, viewerIdentity.user.id);
+    assert.equal(otherSessionMode.contextToken, activeMode.contextToken);
+    const memberRead = await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, {
+      headers: { cookie: secondOwnerCookie },
+    });
+    const memberState = JSON.parse(memberRead.body);
+    assert.equal(memberState.accounts[0].id, accountId);
+    assert.equal(memberState.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
+
+    const refusedWrite = await fetch(`${baseUrl}/api/accounts/${accountId}/clients`, {
+      method: "POST",
+      headers: {
+        cookie: secondOwnerCookie,
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        "X-Masquerade-Context": activeMode.contextToken,
+      },
+      body: JSON.stringify({ mutationId: randomUUID(), baseRevision: 4, intent: {} }),
+    });
+    assert.equal(refusedWrite.status, 403, "Member-view write must be refused");
+    assert.equal((await refusedWrite.json()).code, "MASQUERADE_READ_ONLY");
+
+    const ended = await fetch(`${baseUrl}/api/masquerade`, {
+      method: "DELETE",
+      headers: {
+        cookie: secondOwnerCookie,
+        "content-type": "application/json",
+        "X-Masquerade-Context": activeMode.contextToken,
+      },
+      body: JSON.stringify({ token: activeMode.contextToken, reason: "explicit" }),
+    });
+    const endedMode = await expectJsonStatus(ended, 200, "Packaged member-view end failed");
+    assert.equal(endedMode.active, false);
+    const endedInFirstSession = JSON.parse((await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body);
+    assert.equal(endedInFirstSession.active, false, "Ending in one session must end the shared member view");
+
+    const restartContext = endedInFirstSession.contextToken;
+    const expiringStart = await fetch(`${baseUrl}/api/accounts/${accountId}/masquerade`, {
+      method: "POST",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        "X-Masquerade-Context": restartContext,
+      },
+      body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
+    });
+    const expiringMode = await expectJsonStatus(expiringStart, 200, "Packaged expiring member-view start failed");
+    assert.equal(expiringMode.active, true);
+    assert.deepEqual(await stopServer(child), { code: 0, signal: null });
+    child = null;
+    expireSmokeViewer(databasePath, session.user.id);
+    child = startServer(backend, environment, (chunk) => {
+      log += chunk;
+    });
+    await assertReady(baseUrl, child);
+    const expiredStart = await fetch(`${baseUrl}/api/accounts/${accountId}/masquerade`, {
+      method: "POST",
+      headers: {
+        cookie: secondOwnerCookie,
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        "X-Masquerade-Context": expiringMode.contextToken,
+      },
+      body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
+    });
+    const expiredResult = await expectJsonStatus(expiredStart, 409, "Expired member view must invalidate control");
+    assert.equal(expiredResult.code, "MASQUERADE_CONTEXT_CHANGED");
+    const expiredMode = JSON.parse(
+      (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
+    );
+    assert.equal(expiredMode.active, false);
+
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
     assertAllocationInDatabase(databasePath, accountId, allocation);
     if (acceptBrowser) await acceptBrowser({ baseUrl, credentials, workDir, resourceName: resource.name });
@@ -466,6 +715,7 @@ export async function runPackagedSmoke({ acceptBrowser, usageCommand = "smoke:pa
         migrations: MIGRATION_COUNT,
         passwordAuthentication: "verified",
         firstCompanyInitialization: "verified",
+        memberView: "target-authorized read, cross-session write refusal, end and expiry verified",
         databaseSession: "survived restart",
         scheduleWrite: "persisted",
         allocation: "persisted and restored",

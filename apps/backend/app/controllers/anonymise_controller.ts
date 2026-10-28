@@ -3,7 +3,6 @@ import { withActor } from '#services/auth/current_actor'
 import { anonymiseResources } from '#services/anonymise'
 import { actionProofActor, ActionProofError, consumeActionProof } from '#services/auth/action_proof'
 import { dataContextForActor } from '#services/planning_operations/data_policy'
-import { activeMasquerade } from '#services/auth/masquerade'
 
 export default class AnonymiseController {
   async resource(ctx: HttpContext) {
@@ -17,8 +16,8 @@ export default class AnonymiseController {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' })
     const { accountId, id } = ctx.params
     const applied = await withActor(ctx, async (actor, trx) => {
-      if (await activeMasquerade(actor.sessionId, trx)) return 'forbidden'
-      const context = await dataContextForActor(trx)
+      if (actor.masqueradeContext?.isMasquerading) return 'forbidden'
+      const context = await dataContextForActor(ctx, trx)
       const capabilities = context.capabilitiesFor(accountId)
       if (!(await context.authorize(accountId, 'anonymise', capabilities))) return 'forbidden'
       return anonymiseResources(trx, accountId, context.actorId, id)

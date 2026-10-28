@@ -8,6 +8,7 @@ import {
   signUpUser as signUp,
   signUpUserWithId,
   seedFixtureMember,
+  masqueradeContextHeaders,
 } from "./authTestSupport";
 import { waitForAppLanding, selectShadOption } from "./browserTestSupport";
 
@@ -33,23 +34,23 @@ async function setupMembersApi(request: APIRequestContext) {
     seedFixtureMember(accountId, who.email, role);
   }
   const grant = await request.patch(`${API}/api/accounts/${accountId}/members/${editor.userId}`, {
-    headers: { cookie: admin.cookie },
+    headers: await masqueradeContextHeaders(request, admin.cookie),
     data: { role: "owner" },
   });
   expect(grant.status()).toBe(400);
   const touchOwner = await request.patch(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
-    headers: { cookie: admin.cookie },
+    headers: await masqueradeContextHeaders(request, admin.cookie),
     data: { role: "editor" },
   });
   expect(touchOwner.status()).toBe(403);
   // Only the current Owner can confirm the atomic handover, covered by ownership-transfer.auth.spec.
   const adminTransfer = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
-    headers: { cookie: admin.cookie },
+    headers: await masqueradeContextHeaders(request, admin.cookie),
     data: { toUserId: editor.userId },
   });
   expect(adminTransfer.status()).toBe(403);
   const selfRemove = await request.delete(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
-    headers: { cookie: owner.cookie },
+    headers: await masqueradeContextHeaders(request, owner.cookie),
   });
   expect(selfRemove.status()).toBe(403);
   const crossTenant = await request.get(`${API}/api/accounts/some-other-account-${STAMP}/members`, {
@@ -130,7 +131,7 @@ async function assertOwnershipIsNotAMemberRowAction(
 ) {
   await expect(ownerPage.getByTestId("member-make-owner")).toHaveCount(0);
   const retired = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
-    headers: { cookie: owner.cookie },
+    headers: await masqueradeContextHeaders(request, owner.cookie),
     data: { toUserId: editor.userId },
   });
   expect(retired.status()).toBe(404);

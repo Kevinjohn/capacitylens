@@ -1010,8 +1010,9 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="member-masquerade"`). It opens a confirmation naming that member. Once confirmed,
   the app reloads the account through that member's read projection, hides every write affordance
   and shows a bright red **Masquerading as _name_** status bar
-  (`data-testid="masquerade-banner"`) with **End now**. Switching company ends the projection
-  first. Ending restores the real member's projection before writes resume and returns to `/`.
+  (`data-testid="masquerade-banner"`) with its 15-minute deadline and **End now**. The view applies
+  across the operator’s signed-in sessions, reconciled on focus, visibility and requests. Switching
+  company ends the projection for all sessions first; signing out ends only that session. Ending restores the real member's projection before writes resume and returns to `/`.
   Disabled, archived and self rows never offer the eye button; the in-memory demo never exposes it.
   The server enforces the read-only boundary even if a stale client attempts a write.
   Each manageable active row also has a pencil for role editing, a link icon

@@ -22,11 +22,13 @@ const state = {
   targetName: "Selina Kyle",
   effectiveRole: "viewer",
   startedAt: "2026-09-01T10:00:00.000Z",
+  expiresAt: "2026-09-01T10:15:00.000Z",
   token: "token-1",
 };
 const activeStatus = {
   active: true,
   ...state,
+  contextToken: state.token,
   principal: { id: "u-actor", email: "actor@example.test" },
   authMode: "password-only",
 };
@@ -48,8 +50,14 @@ describe("masqueradeApi", () => {
   it("decodes status transported by the account client", async () => {
     mocks.status.mockResolvedValue(json(activeStatus));
 
+    await expect(masqueradeApi.status("a-studio")).resolves.toEqual(activeStatus);
+    expect(mocks.status).toHaveBeenCalledWith("a-studio");
+  });
+
+  it("accepts the backend-selected company when a cold status request has no local account", async () => {
+    mocks.status.mockResolvedValue(json(activeStatus));
     await expect(masqueradeApi.status()).resolves.toEqual(activeStatus);
-    expect(mocks.status).toHaveBeenCalledOnce();
+    expect(mocks.status).toHaveBeenCalledWith(undefined);
   });
 
   it("surfaces server-authored errors for start, status, and end", async () => {
@@ -113,5 +121,21 @@ describe("masqueradeApi", () => {
     mocks.status.mockResolvedValue(json({ ...activeStatus, targetName: "" }));
 
     await expect(masqueradeApi.status()).resolves.toEqual({ ...activeStatus, targetName: "" });
+  });
+
+  it("requires a current idle context token from inactive status", async () => {
+    mocks.status.mockResolvedValue(json({ active: false, contextToken: "idle-context" }));
+    await expect(masqueradeApi.status()).resolves.toEqual({ active: false, contextToken: "idle-context" });
+
+    mocks.status.mockResolvedValue(json({ active: false, contextToken: null }));
+    await expect(masqueradeApi.status()).resolves.toEqual({ active: false, contextToken: null });
+
+    mocks.status.mockResolvedValue(json({ active: false }));
+    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
+  });
+
+  it("rejects a status whose active context proof differs from the active mode token", async () => {
+    mocks.status.mockResolvedValue(json({ ...activeStatus, contextToken: "stale-context" }));
+    await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
   });
 });

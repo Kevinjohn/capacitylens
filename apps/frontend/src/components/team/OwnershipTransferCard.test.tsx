@@ -212,6 +212,7 @@ describe("OwnershipTransferCard", () => {
           targetName: "Selina Kyle",
           effectiveRole: "owner",
           startedAt: "2026-09-01T00:00:00.000Z",
+          expiresAt: "2999-09-01T00:15:00.000Z",
           token: "masquerade-token",
         },
         generation: 1,

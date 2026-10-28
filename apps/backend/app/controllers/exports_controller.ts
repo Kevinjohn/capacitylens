@@ -6,13 +6,14 @@ import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/author
 import { effectiveReadPrincipal } from '#services/auth/masquerade'
 import { withActor } from '#services/auth/current_actor'
 import { APP_DATA_KEYS, emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
+import { can } from '@capacitylens/shared/domain/access'
 
 export default class ExportsController {
   async show(ctx: HttpContext) {
     const { request, response } = ctx
     const { accountId, includeInactive } = await exportQueryValidator.validate(request.qs())
     return withActor(ctx, async (_actor, trx) => {
-      const principal = await effectiveReadPrincipal(trx)
+      const principal = await effectiveReadPrincipal(ctx, trx, accountId)
       if (principal.accountId && accountId && principal.accountId !== accountId)
         throw new IdentityAuthorityError('Forbidden.')
       const memberships = accountId
@@ -30,6 +31,10 @@ export default class ExportsController {
       for (const membership of memberships) {
         const id = String(membership.account_id)
         if (principal.accountId && principal.accountId !== id) continue
+        if (principal.isMasquerading) {
+          const actorRole = await activeCompanyRole(principal.actorId, id, trx)
+          if (!actorRole || !can(actorRole, 'masquerade')) continue
+        }
         const role = await activeCompanyRole(principal.effectiveId, id, trx)
         if (!role) {
           if (accountId) throw new IdentityAuthorityError('Forbidden.')

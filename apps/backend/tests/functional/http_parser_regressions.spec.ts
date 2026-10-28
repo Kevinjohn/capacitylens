@@ -71,11 +71,15 @@ test.group('M2a review regressions', (group) => {
     const fixture = await reset(client, true)
     client = fixture.client
     const cookie = fixture.cookie
+    const context = await client.get('/api/masquerade').send()
+    context.assertStatus(200)
+    const contextToken = (context.body() as unknown as { contextToken?: unknown }).contextToken
+    assert.isString(contextToken)
     const oversized = await postRaw(
       '/api/accounts/a-studio/example-data',
       Buffer.from(`value=${'x'.repeat(1_100_000)}`),
       'application/x-www-form-urlencoded',
-      {},
+      { 'x-masquerade-context': contextToken as string },
       cookie
     )
     assert.equal(oversized.statusCode, 413)
@@ -88,7 +92,7 @@ test.group('M2a review regressions', (group) => {
       '/api/accounts/a-studio/example-data',
       Buffer.from('value=x'),
       'application/x-www-form-urlencoded',
-      { 'content-encoding': 'compress' },
+      { 'content-encoding': 'compress', 'x-masquerade-context': contextToken as string },
       cookie
     )
     assert.equal(unsupported.statusCode, 415)

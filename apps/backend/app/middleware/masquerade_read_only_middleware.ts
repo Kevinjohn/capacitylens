@@ -1,48 +1,69 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
-import { activeMasquerade } from '#services/auth/masquerade'
+import { MasqueradeError } from 'adonisjs-masquerade'
 import { signedInSession } from '#services/auth/current_actor'
+import { masqueradeService } from '#services/auth/masquerade'
+import { captureMasqueradeContext } from '#services/auth/masquerade_request'
 
-function blockedRead(path: string) {
-  // The company planning snapshot is a projected data read, like the retained state route.
-  if (/^\/api\/accounts\/[^/]+\/planning$/.test(path)) return false
-  return [
-    '/api/auth',
-    '/api/accounts',
-    '/api/orgs',
-    '/api/members',
-    '/api/invitations',
-    '/api/invites',
-    '/api/identity',
-    '/api/joining',
-    '/api/company-join',
-  ].some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+function sendContextError(
+  ctx: HttpContext,
+  code: 'MASQUERADE_CONTEXT_REQUIRED' | 'MASQUERADE_CONTEXT_CHANGED'
+) {
+  const required = code === 'MASQUERADE_CONTEXT_REQUIRED'
+  return ctx.response.status(required ? 428 : 409).send({
+    error: required ? 'Masquerade context is required.' : 'Masquerade context changed.',
+    code,
+  })
 }
 
-/** Refuses active projections before JSON or route validation, including unknown writes. */
+/** Captures one package admission and enforces context/read-only policy before route parsing. */
 export default class MasqueradeReadOnlyMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     const path = ctx.request.url().split('?', 1)[0]
-    const method = ctx.request.method()
-    const unsafe = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS'
-    if (!path?.startsWith('/api/') && !unsafe) return next()
+    if (!path?.startsWith('/api/')) return next()
+    const method = ctx.request.method().toUpperCase()
+    const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(method)
+    const isStatus = (method === 'GET' || method === 'HEAD') && path === '/api/masquerade'
+    const isEnd = method === 'DELETE' && path === '/api/masquerade'
+    if (isStatus || isEnd || (method === 'POST' && path === '/api/auth/sign-out')) return next()
     const signIn = await signedInSession(ctx)
-    const record = signIn ? await activeMasquerade(signIn.sessionId) : null
-    if (!signIn || !record) return next()
-    if (ctx.request.method() === 'GET' && path === '/api/masquerade') return next()
-    if (record.actorId !== signIn.userId)
-      return ctx.response.unauthorized({ error: 'Sign-in required.' })
+    if (!signIn) return next()
+    const service = await masqueradeService()
+    let mode
+    try {
+      mode = await service.resolve(ctx)
+    } catch (error) {
+      if (error instanceof MasqueradeError) {
+        if (error.code === 'E_MASQUERADE_CONTEXT_CHANGED')
+          return sendContextError(ctx, 'MASQUERADE_CONTEXT_CHANGED')
+        if (error.code === 'E_MASQUERADE_NOT_ALLOWED')
+          return ctx.response.forbidden({ error: error.message, code: 'AUTHORIZATION_DENIED' })
+      }
+      throw error
+    }
+    captureMasqueradeContext(ctx, mode)
+
+    const contextToken = ctx.request.header('X-Masquerade-Context')
+    if (unsafe && (typeof contextToken !== 'string' || !contextToken))
+      return sendContextError(ctx, 'MASQUERADE_CONTEXT_REQUIRED')
+    if (typeof contextToken === 'string' && contextToken !== mode.contextToken)
+      return sendContextError(ctx, 'MASQUERADE_CONTEXT_CHANGED')
+    // Start re-checks the token in its package operation; this early check also prevents
+    // malformed bodies and route discovery from bypassing stale-context handling.
+    if (unsafe && !mode.contextToken) return sendContextError(ctx, 'MASQUERADE_CONTEXT_CHANGED')
+    // Status, End and sign-out returned above, so every remaining unsafe request is a product write.
     if (
-      (method === 'DELETE' && path === '/api/masquerade') ||
-      (method === 'POST' && path === '/api/auth/sign-out')
+      mode.isMasquerading &&
+      (unsafe ||
+        path.startsWith('/api/auth/') ||
+        (/^\/api\/(?:accounts|orgs|members|invitations|invites|identity|joining|company-join|admission|diagnostics)(?:\/|$)/.test(
+          path
+        ) &&
+          !(
+            method === 'GET' &&
+            /^\/api\/accounts\/[^/]+\/planning(?:\/mutations\/[^/]+)?$/.test(path)
+          )))
     )
-      return next()
-    if (unsafe)
-      return ctx.response.forbidden({
-        error: 'Masquerade is read-only.',
-        code: 'MASQUERADE_READ_ONLY',
-      })
-    if (blockedRead(path))
       return ctx.response.forbidden({
         error: 'Masquerade is read-only.',
         code: 'MASQUERADE_READ_ONLY',

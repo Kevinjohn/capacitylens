@@ -1,7 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types'
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
-import { activeMasquerade } from '#services/auth/masquerade'
 import { withActor } from '#services/auth/current_actor'
 import { consumeActionProof } from '#services/auth/action_proof'
 import {
@@ -32,7 +31,7 @@ export async function transferOwnership(
   command: AccountCommandIdentity
 ): Promise<OwnershipTransferReceipt> {
   return withActor(ctx, async (actor, trx) => {
-    if (await activeMasquerade(actor.sessionId, trx))
+    if (actor.masqueradeContext?.isMasquerading)
       throw new IdentityAuthorityError('Masquerade is read-only.')
     const account = await trx.from('accounts').where('id', accountId).select('id').first()
     if (!account) throw new OwnershipTransferError('Company not found.', 404, 'NOT_FOUND')

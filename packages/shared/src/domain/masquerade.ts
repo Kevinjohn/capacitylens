@@ -11,7 +11,7 @@ export const MASQUERADE_END_REASONS = [
   "target_invalidated",
 ] as const;
 
-/** Audit-classified reason for ending one session's masquerade. */
+/** Legacy-compatible reason labels accepted by existing masquerade controls. */
 export type MasqueradeEndReason = (typeof MASQUERADE_END_REASONS)[number];
 
 /** End reasons accepted from the browser-facing DELETE route. */
@@ -24,6 +24,8 @@ export interface MasqueradeState {
   targetName: string;
   effectiveRole: Role;
   startedAt: IsoInstant;
+  expiresAt: IsoInstant;
+  /** Package context proof used to admit requests captured in this active mode. */
   token: string;
 }
 
@@ -38,14 +40,17 @@ export interface EndMasqueradePayload {
   reason: ClientMasqueradeEndReason;
 }
 
-/** Response from the session-scoped masquerade status endpoint. */
-export type MasqueradeStatus = { active: false } | ({ active: true } & MasqueradeState);
+/** Identity-wide mode status plus the proof for requests captured in that context. */
+export type MasqueradeStatus =
+  { active: false; contextToken: string | null } | ({ active: true; contextToken: string } & MasqueradeState);
 
 /** Stable machine-readable failures shared by server guards and browser recovery. */
 export const MASQUERADE_ERROR_CODES = {
   active: "MASQUERADE_ACTIVE",
   readOnly: "MASQUERADE_READ_ONLY",
   ended: "MASQUERADE_ENDED",
+  contextRequired: "MASQUERADE_CONTEXT_REQUIRED",
+  contextChanged: "MASQUERADE_CONTEXT_CHANGED",
 } as const;
 
 /** Union of stable masquerade failure codes. */

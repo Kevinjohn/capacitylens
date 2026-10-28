@@ -10,9 +10,11 @@ import {
   setMasqueradeEndedHandler,
 } from "./requestTimeout";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
+import { getMasqueradeContextToken, setMasqueradeContextToken } from "@/auth/masqueradeContext";
 
 afterEach(() => {
   setMasqueradeEndedHandler(null);
+  setMasqueradeContextToken(null);
   vi.unstubAllGlobals();
 });
 
@@ -96,20 +98,52 @@ describe("apiFetch", () => {
     }
   });
 
-  it("notifies the masquerade recovery owner when a projected read reports MASQUERADE_ENDED", async () => {
+  it("captures the current context for reads and writes while preserving explicit action context", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}"));
+    vi.stubGlobal("fetch", fetcher);
+    setMasqueradeContextToken("newer-context");
+
+    await apiFetch("/api/write", { method: "POST" });
+    await apiFetch("/api/write", { method: "POST", headers: { "X-Masquerade-Context": "captured-context" } });
+    await apiFetch("/api/read");
+    await apiFetch("/api/read", { headers: { "X-Masquerade-Context": "captured-read-context" } });
+    await apiFetch("/api/read", { method: "HEAD" });
+    await apiFetch("/api/preflight", { method: "OPTIONS" });
+
+    expect(new Headers(fetcher.mock.calls[0]?.[1]?.headers).get("X-Masquerade-Context")).toBe("newer-context");
+    expect(new Headers(fetcher.mock.calls[1]?.[1]?.headers).get("X-Masquerade-Context")).toBe("captured-context");
+    expect(new Headers(fetcher.mock.calls[2]?.[1]?.headers).get("X-Masquerade-Context")).toBe("newer-context");
+    expect(new Headers(fetcher.mock.calls[3]?.[1]?.headers).get("X-Masquerade-Context")).toBe("captured-read-context");
+    expect(new Headers(fetcher.mock.calls[4]?.[1]?.headers).get("X-Masquerade-Context")).toBe("newer-context");
+    expect(new Headers(fetcher.mock.calls[5]?.[1]?.headers).has("X-Masquerade-Context")).toBe(false);
+    expect(getMasqueradeContextToken()).toBe("newer-context");
+  });
+
+  it.each([
+    ["ended", 403],
+    ["context changed", 409],
+    ["context required", 428],
+  ])("notifies the masquerade recovery owner when a request reports %s", async (label, status) => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ code: "MASQUERADE_ENDED" }), {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify({
+            code: MASQUERADE_ERROR_CODES[
+              label === "ended" ? "ended" : label === "context changed" ? "contextChanged" : "contextRequired"
+            ],
+          }),
+          {
+            status,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
       ),
     );
     const ended = vi.fn();
     setMasqueradeEndedHandler(ended);
     const response = await apiFetch("/api/state");
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(status);
     expect(ended).toHaveBeenCalledOnce();
   });
 });

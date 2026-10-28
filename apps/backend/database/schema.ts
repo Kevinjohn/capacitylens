@@ -495,27 +495,72 @@ export class LoginLinkTokenSchema extends BaseModel {
   declare tokenableId: string
 }
 
-export class MasqueradeSchema extends BaseModel {
-  static $columns = ['accountId', 'actorUserId', 'createdAt', 'id', 'role', 'sessionId', 'startedAt', 'targetUserId', 'token', 'updatedAt'] as const
-  $columns = MasqueradeSchema.$columns
+export class MasqueradeEventSchema extends BaseModel {
+  static $columns = ['access', 'actorId', 'actorIncarnation', 'at', 'authorityNamespace', 'id', 'kind', 'modeId', 'outcomeCode', 'reason', 'revision', 'targetId', 'targetIncarnation'] as const
+  $columns = MasqueradeEventSchema.$columns
   @column()
-  declare accountId: string
+  declare access: string | null
   @column()
-  declare actorUserId: string
+  declare actorId: string
   @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  declare actorIncarnation: string
+  @column()
+  declare at: string
+  @column()
+  declare authorityNamespace: string
   @column({ isPrimary: true })
   declare id: string
   @column()
-  declare role: import('@capacitylens/shared/account/types').Role
+  declare kind: string
   @column()
-  declare sessionId: number
+  declare modeId: string | null
   @column()
-  declare startedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  declare outcomeCode: string
   @column()
-  declare targetUserId: string | null
+  declare reason: string | null
   @column()
-  declare token: string | null
+  declare revision: bigint | number
+  @column()
+  declare targetId: string | null
+  @column()
+  declare targetIncarnation: string | null
+}
+
+export class MasqueradeModeSchema extends BaseModel {
+  static $columns = ['access', 'actorId', 'actorIncarnation', 'actorStampHash', 'authorityNamespace', 'expiresAt', 'lastTransitionId', 'modeId', 'reason', 'revision', 'revisionNonce', 'startedAt', 'state', 'targetId', 'targetIncarnation', 'targetStampHash', 'updatedAt'] as const
+  $columns = MasqueradeModeSchema.$columns
+  @column()
+  declare access: string | null
+  @column()
+  declare actorId: string
+  @column()
+  declare actorIncarnation: string
+  @column()
+  declare actorStampHash: string | null
+  @column()
+  declare authorityNamespace: string
+  @column()
+  declare expiresAt: string | null
+  @column()
+  declare lastTransitionId: string
+  @column()
+  declare modeId: string
+  @column()
+  declare reason: string | null
+  @column()
+  declare revision: bigint | number
+  @column()
+  declare revisionNonce: string
+  @column()
+  declare startedAt: string | null
+  @column()
+  declare state: string
+  @column()
+  declare targetId: string | null
+  @column()
+  declare targetIncarnation: string | null
+  @column()
+  declare targetStampHash: string | null
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }

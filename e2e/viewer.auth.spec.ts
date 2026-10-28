@@ -6,6 +6,7 @@ import {
   bootstrapOrg,
   createFixturePerson,
   sendPlanningFixtureCommand,
+  masqueradeContextHeaders,
   seedFixtureMember,
   signUpUser as signUp,
 } from "./authTestSupport";
@@ -38,7 +39,7 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
 async function assertViewerWriteRejected(request: APIRequestContext, accountId: string, cookie: string) {
   const newClientId = crypto.randomUUID();
   const directWrite = await request.post(`${API}/api/accounts/${accountId}/clients`, {
-    headers: { cookie, "sec-fetch-site": "same-origin" },
+    headers: await masqueradeContextHeaders(request, cookie),
     data: {
       mutationId: crypto.randomUUID(),
       baseRevision: 2,

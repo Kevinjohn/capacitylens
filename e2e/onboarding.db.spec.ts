@@ -1,5 +1,6 @@
 import { test, expect } from "./dbFixtures";
 import { API, resetServer, serverState, requireStateRows } from "./serverTestState";
+import { masqueradeContextHeaders } from "./authTestSupport";
 
 // The server rejects direct typed updates to frozen account fields. The read-only Settings summary
 // is a convenience; server enforcement also applies when a client bypasses the UI.
@@ -25,6 +26,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
       // The demo seed deliberately models legacy accounts with these nullable settings unset.
       // Missing frozen fields may be initialized once; only a subsequent change is forbidden.
       const initialized = await request.patch(`${API}/api/accounts/${account.id}/settings`, {
+        headers: await masqueradeContextHeaders(request, undefined, API),
         data: {
           mutationId: crypto.randomUUID(),
           baseRevision: revision,
@@ -35,6 +37,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
       revision += 1;
 
       const res = await request.patch(`${API}/api/accounts/${account.id}/settings`, {
+        headers: await masqueradeContextHeaders(request, undefined, API),
         data: {
           mutationId: crypto.randomUUID(),
           baseRevision: revision,
@@ -47,6 +50,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
     // English is currently the only supported language. A malformed choice is rejected
     // before frozen-field handling and cannot change stored account settings.
     const language = await request.patch(`${API}/api/accounts/${account.id}/settings`, {
+      headers: await masqueradeContextHeaders(request, undefined, API),
       data: {
         mutationId: crypto.randomUUID(),
         baseRevision: revision,
@@ -83,6 +87,7 @@ test.describe("single-company production entry", () => {
 
   test("ordinary additional company creation is rejected", async ({ request }) => {
     const res = await request.post(`${API}/api/orgs`, {
+      headers: await masqueradeContextHeaders(request, undefined, API),
       data: {
         id: `e2e-cap-check-${Date.now()}`,
         name: "Should Not Exist",

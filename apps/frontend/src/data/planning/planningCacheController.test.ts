@@ -1,10 +1,11 @@
 import { createStore } from "zustand/vanilla";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { PlanningIntent, PlanningMutationSuccess } from "@capacitylens/backend/planning";
 import { createPlanningCacheController, createPlanningCacheState } from "./planningCacheController";
 import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from "./planningCacheController";
+import { setMasqueradeContextToken } from "@/auth/masqueradeContext";
 
 const context = { identity: "actor-1", companyId: "company-1" };
 const intent = { operation: "allocation.update", id: "allocation-1", changes: { startDate: "2026-10-21" } } as const;
@@ -57,7 +58,26 @@ function harness(transport: PlanningTransport) {
   };
 }
 
+afterEach(() => setMasqueradeContextToken(null));
+
 describe("planning cache controller", () => {
+  it("keeps the context proof captured with a planning action when status changes before execution", async () => {
+    const execute = vi.fn<PlanningTransport["execute"]>().mockResolvedValue(success("mutation-1", 4));
+    const h = harness({ execute, read: vi.fn(), lookup: vi.fn() });
+    setMasqueradeContextToken("captured-idle-context");
+    h.controller.setContext(context);
+    await h.readSnapshot({ revision: 3, canWrite: true, data: emptyAppData() });
+
+    const draft = h.controller.begin({ timezone: "Etc/GMT" });
+    setMasqueradeContextToken("new-active-context");
+    await h.controller.execute(draft, intent, inverse);
+
+    expect(execute.mock.calls[0]?.[0]).toEqual({
+      ...context,
+      masqueradeContextToken: "captured-idle-context",
+    });
+  });
+
   it("retains the draft revision through refresh and refuses the stale attempt without replay", async () => {
     const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 409, code: "STALE_REVISION" });
     const read = vi
@@ -89,7 +109,11 @@ describe("planning cache controller", () => {
     await h.controller.reconcile();
     expect(h.state().planning.status).toBe("uncertain");
     expect(execute).toHaveBeenCalledTimes(1);
-    expect(lookup).toHaveBeenCalledWith(context, "mutation-1", expect.any(AbortSignal));
+    expect(lookup).toHaveBeenCalledWith(
+      { ...context, masqueradeContextToken: null },
+      "mutation-1",
+      expect.any(AbortSignal),
+    );
   });
 
   it.each([undefined, "request_timeout"])(

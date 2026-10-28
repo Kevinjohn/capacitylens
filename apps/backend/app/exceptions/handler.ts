@@ -12,6 +12,7 @@ import { IdentityAuthorityError } from '#services/auth/authorization'
 import { ActionProofError } from '#services/auth/action_proof'
 import { AdmissionError } from '#services/admission/errors'
 import { FirstCompanyPendingError } from '#models/user'
+import { MasqueradeError } from 'adonisjs-masquerade'
 import {
   classifyLogError,
   reportPrivateFailure,
@@ -31,6 +32,55 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * response to the client
    */
   async handle(error: unknown, ctx: HttpContext) {
+    if (error instanceof MasqueradeError) {
+      const known: Record<string, { status: number; code: string; message: string }> = {
+        E_MASQUERADE_CONTEXT_REQUIRED: {
+          status: 428,
+          code: 'MASQUERADE_CONTEXT_REQUIRED',
+          message: 'Masquerade context is required.',
+        },
+        E_MASQUERADE_CONTEXT_CHANGED: {
+          status: 409,
+          code: 'MASQUERADE_CONTEXT_CHANGED',
+          message: 'Masquerade context changed.',
+        },
+        E_MASQUERADE_ACTION_BLOCKED: {
+          status: 403,
+          code: 'MASQUERADE_READ_ONLY',
+          message: 'Masquerade is read-only.',
+        },
+        E_MASQUERADE_NOT_ALLOWED: {
+          status: 403,
+          code: 'AUTHORIZATION_DENIED',
+          message: 'This action is not allowed.',
+        },
+        E_MASQUERADE_ALREADY_ACTIVE: {
+          status: 409,
+          code: 'MASQUERADE_ACTIVE',
+          message: 'Masquerade is already active.',
+        },
+        E_MASQUERADE_INVALID_INPUT: {
+          status: 400,
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid masquerade request.',
+        },
+        E_MASQUERADE_UNAUTHENTICATED: {
+          status: 401,
+          code: 'SIGN_IN_REQUIRED',
+          message: 'Sign-in required.',
+        },
+        E_MASQUERADE_UNAVAILABLE: {
+          status: 503,
+          code: 'MASQUERADE_UNAVAILABLE',
+          message: 'Masquerade is unavailable.',
+        },
+      }
+      const response = known[error.code]
+      if (response)
+        return ctx.response
+          .status(response.status)
+          .send({ error: response.message, code: response.code })
+    }
     // The limited screens explain the decision, so it travels with the refusal.
     if (error instanceof AdmissionRequiredError)
       return ctx.response.forbidden({

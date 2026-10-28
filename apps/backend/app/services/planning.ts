@@ -3,14 +3,14 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Bouncer } from '@adonisjs/bouncer'
 import DataPolicy from '#policies/data_policy'
 import { activeCompanyRole } from '#services/auth/authorization'
-import { effectiveReadPrincipal, activeMasquerade } from '#services/auth/masquerade'
+import { effectiveReadPrincipal } from '#services/auth/masquerade'
 import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access'
 import type { Role } from '@capacitylens/shared/account/types'
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities'
 import { readStateWithClient } from '#services/state_repository'
 import { transformState } from '#transformers/state_transformer'
-import { actorIn, withActor } from '#services/auth/current_actor'
+import { withActor } from '#services/auth/current_actor'
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision'
 import {
   executePlanningIntent,
@@ -49,8 +49,12 @@ export interface PlanningSnapshot {
   data: AppData
 }
 
-async function currentAuthority(trx: TransactionClientContract, accountId: string) {
-  const principal = await effectiveReadPrincipal(trx)
+async function currentAuthority(
+  ctx: HttpContext,
+  trx: TransactionClientContract,
+  accountId: string
+) {
+  const principal = await effectiveReadPrincipal(ctx, trx, accountId)
   const role = await activeCompanyRole(principal.effectiveId, accountId, trx)
   if (!role || (principal.accountId !== null && principal.accountId !== accountId))
     throw new PlanningOperationError(
@@ -68,7 +72,7 @@ async function currentAuthority(trx: TransactionClientContract, accountId: strin
       'ACCOUNT_MEMBERSHIP_LOST',
       'Company membership is unavailable.'
     )
-  const masquerading = (await activeMasquerade(actorIn(trx).sessionId, trx)) !== null
+  const masquerading = principal.isMasquerading
   const authority: PlanningAuthority = {
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,
@@ -87,7 +91,7 @@ async function currentAuthority(trx: TransactionClientContract, accountId: strin
 /** Resolves current product authority, revision and rows from the same database snapshot. */
 export function readPlanning(ctx: HttpContext, accountId: string): Promise<PlanningSnapshot> {
   return withActor(ctx, async (_actor, trx) => {
-    const { authority } = await currentAuthority(trx, accountId)
+    const { authority } = await currentAuthority(ctx, trx, accountId)
     const revision = await getPlanningRevision(trx, accountId)
     const data = await readStateWithClient(trx, accountId, true)
     return { accountId, revision, authority, data: transformState(data, accountId, authority.role) }
@@ -161,7 +165,7 @@ export function mutatePlanning(
   input: PlanningMutationInput
 ): Promise<PlanningMutationSuccess> {
   return withActor(ctx, async (actor, trx) => {
-    const { authority, capabilities, bouncer } = await currentAuthority(trx, accountId)
+    const { authority, capabilities, bouncer } = await currentAuthority(ctx, trx, accountId)
     if (!(await bouncer.with(DataPolicy).allows('write', { accountId, capabilities })))
       throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.')
     const previous = await trx
@@ -254,7 +258,7 @@ export function lookupPlanningMutation(
   mutationId: string
 ): Promise<PlanningMutationLookup> {
   return withActor(ctx, async (actor, trx) => {
-    const { authority } = await currentAuthority(trx, accountId)
+    const { authority } = await currentAuthority(ctx, trx, accountId)
     const marker = await trx
       .from('planning_mutations')
       .where({ account_id: accountId, actor_id: authority.actorId, mutation_id: mutationId })

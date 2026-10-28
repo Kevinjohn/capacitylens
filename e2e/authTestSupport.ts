@@ -26,6 +26,21 @@ export const AUTH_PASSWORD = "demo-password-123456";
  */
 export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
 
+/** Captures the authenticated session's current masquerade context for one deliberate API action. */
+export async function masqueradeContextHeaders(
+  request: APIRequestContext,
+  cookie?: string,
+  origin = AUTH_API,
+): Promise<Record<string, string>> {
+  const headers = { "sec-fetch-site": "same-origin", ...(cookie ? { cookie } : {}) };
+  const response = await request.get(`${origin}/api/masquerade`, { headers });
+  expect(response.status(), "read masquerade context for fixture request").toBe(200);
+  const contextToken = ((await response.json()) as { contextToken?: unknown }).contextToken;
+  if (typeof contextToken !== "string" || contextToken.length === 0)
+    throw new Error("Authenticated fixture session did not return a masquerade context token.");
+  return { ...headers, "X-Masquerade-Context": contextToken };
+}
+
 const AUTH_E2E_DATABASE = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
 const BACKEND_DIRECTORY = fileURLToPath(new URL("../apps/backend/", import.meta.url));
 const AUTH_E2E_BASELINE_COMPANY = "Daily Planet E2E Baseline";
@@ -487,7 +502,7 @@ export async function sendPlanningFixtureCommand(
     throw new Error("The fixture planning read did not return a revision.");
   const url = `${AUTH_API}/api/accounts/${accountId}/${path}`;
   const options = {
-    headers,
+    headers: await masqueradeContextHeaders(request, cookie),
     data: { mutationId: crypto.randomUUID(), baseRevision: revision, intent },
   };
   const response = method === "patch" ? await request.patch(url, options) : await request.post(url, options);
