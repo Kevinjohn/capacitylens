@@ -20,11 +20,12 @@ function validBody(value: unknown): value is { toUserId: string; proofId?: strin
 
 export default class OwnershipController {
   async transfer(ctx: HttpContext) {
-    if (!validBody(ctx.request.body()))
+    if (!validBody(ctx.request.body())) {
       return ctx.response.badRequest({
         error: 'An eligible target user is required.',
         code: 'VALIDATION_FAILED',
       });
+    }
     try {
       const command = readAccountCommand(ctx);
       const receipt = await transferOwnership(
@@ -40,10 +41,12 @@ export default class OwnershipController {
         error instanceof AccountCommandError ||
         error instanceof OwnershipTransferError ||
         error instanceof ActionProofError
-      )
+      ) {
         return ctx.response.status(error.status).send({ error: error.message, code: error.code });
-      if (error instanceof IdentityAuthorityError)
+      }
+      if (error instanceof IdentityAuthorityError) {
         return ctx.response.forbidden({ error: error.message, code: error.code });
+      }
       throw error;
     }
   }

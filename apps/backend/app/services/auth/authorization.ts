@@ -16,8 +16,9 @@ export class IdentityAuthorityError extends Error {
 const roles = new Set<Role>(['viewer', 'editor', 'admin', 'owner']);
 
 function role(value: unknown): Role {
-  if (typeof value !== 'string' || !roles.has(value as Role))
+  if (typeof value !== 'string' || !roles.has(value as Role)) {
     throw new IdentityAuthorityError('Invalid membership role.');
+  }
   return value as Role;
 }
 
@@ -44,8 +45,9 @@ export async function restrictedCompanyIds(userId: string, trx: Reader) {
 /** Refuses a new membership in a company that restricted this principal or its confirmed address. */
 export async function assertCompanyAccessOpen(userId: string, accountId: string, trx: Reader) {
   const restricted = await restrictedCompanyIds(userId, trx);
-  if (restricted.has(accountId))
+  if (restricted.has(accountId)) {
     forbiddenAdmission('Company access requires administrator restoration.');
+  }
 }
 
 async function memberRoles(userId: string, trx: Reader, activeOnly: boolean) {
@@ -73,8 +75,11 @@ export async function assertMayAdministerTarget(
     memberRoles(actorUserId, trx, true),
     memberRoles(targetUserId, trx, false),
   ]);
-  if (!canAdministerIdentityAcrossWorkspaces(actorRoles, targetRoles, actorUserId === targetUserId))
+  if (
+    !canAdministerIdentityAcrossWorkspaces(actorRoles, targetRoles, actorUserId === targetUserId)
+  ) {
     throw new IdentityAuthorityError('You cannot administer this identity.');
+  }
 }
 
 /** Resolves active company standing for ordinary data and member policies. */

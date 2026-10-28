@@ -31,8 +31,9 @@ export async function transferOwnership(
   command: AccountCommandIdentity
 ): Promise<OwnershipTransferReceipt> {
   return withActor(ctx, async (actor, trx) => {
-    if (actor.masqueradeContext?.isMasquerading)
+    if (actor.masqueradeContext?.isMasquerading) {
       throw new IdentityAuthorityError('Masquerade is read-only.');
+    }
     const account = await trx.from('accounts').where('id', accountId).select('id').first();
     if (!account) throw new OwnershipTransferError('Company not found.', 404, 'NOT_FOUND');
     const currentRole = await activeCompanyRole(actor.userId, accountId, trx);
@@ -48,13 +49,15 @@ export async function transferOwnership(
     });
     if (claim.replayed) {
       const receipt = claim.result as OwnershipTransferReceipt;
-      if (receipt.fromUserId !== actor.userId || receipt.toUserId !== toUserId)
+      if (receipt.fromUserId !== actor.userId || receipt.toUserId !== toUserId) {
         throw new Error('Invalid ownership transfer receipt.');
+      }
       return receipt;
     }
     if (currentRole !== 'owner') throw new IdentityAuthorityError('Forbidden.');
-    if (actor.userId === toUserId)
+    if (actor.userId === toUserId) {
       throw new OwnershipTransferError('Choose another administrator.', 409, 'TARGET_INELIGIBLE');
+    }
 
     const memberships = await trx
       .from('memberships')
@@ -65,14 +68,16 @@ export async function transferOwnership(
     if (owners[0].user_id !== actor.userId) throw new IdentityAuthorityError('Forbidden.');
     const target = memberships.find((row) => row.user_id === toUserId);
     if (!target) throw new OwnershipTransferError('Member not found.', 404, 'NOT_FOUND');
-    if (target.status !== 'active' || target.role !== 'admin')
+    if (target.status !== 'active' || target.role !== 'admin') {
       throw new OwnershipTransferError(
         'Target is no longer an active administrator.',
         409,
         'TARGET_INELIGIBLE'
       );
-    if ((await activeCompanyRole(toUserId, accountId, trx)) !== 'admin')
+    }
+    if ((await activeCompanyRole(toUserId, accountId, trx)) !== 'admin') {
       throw new OwnershipTransferError('Target access is restricted.', 409, 'TARGET_INELIGIBLE');
+    }
 
     await consumeActionProof(trx, actor, proofId, 'transfer-ownership', accountId, { toUserId });
 
@@ -91,8 +96,9 @@ export async function transferOwnership(
       .from('memberships')
       .where({ account_id: accountId, role: 'owner', status: 'active' })
       .select('user_id');
-    if (finalOwners.length !== 1 || finalOwners[0].user_id !== toUserId)
+    if (finalOwners.length !== 1 || finalOwners[0].user_id !== toUserId) {
       throw new Error('Company Owner invariant failed after transfer.');
+    }
 
     await advancePlanningRevision(trx, accountId);
     await writeAudit(trx, {

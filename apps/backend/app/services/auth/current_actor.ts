@@ -61,8 +61,9 @@ export async function accountInput(ctx: HttpContext): Promise<CurrentAccountInpu
   }
   const revision: unknown = ctx.session.get(revisionKey);
   const handle: unknown = ctx.session.get(handleKey);
-  if (typeof revision !== 'string' || typeof handle !== 'string' || !handle)
+  if (typeof revision !== 'string' || typeof handle !== 'string' || !handle) {
     throw new InvalidSessionError();
+  }
   return {
     userId: String(user.id),
     revision: revision === '' ? null : revision,
@@ -119,8 +120,9 @@ export async function withActor<T>(
       masqueradeContext: capturedMasqueradeContext(ctx),
     };
     const captured = capturedMasqueradeContext(ctx);
-    if (captured && captured.actorId !== actor.userId)
+    if (captured && captured.actorId !== actor.userId) {
       throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+    }
     actors.set(trx, actor);
     try {
       return await run(actor, trx);

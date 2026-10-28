@@ -44,9 +44,12 @@ export function jsonColumn<T>(
     prepare(value) {
       if (value === null) return null;
       if (!validate(value)) throw invalid();
-      const encoded = JSON.stringify(value);
-      if (encoded === undefined)
+      // The lib types promise a string, but functions and undefined serialise to undefined, and an
+      // annotated declaration would narrow straight back to string on assignment.
+      const encoded = JSON.stringify(value) as string | undefined;
+      if (encoded === undefined) {
         throw new Error(`Cannot persist undefined JSON in ${table}.${column}`);
+      }
       return encoded;
     },
     consume(value) {

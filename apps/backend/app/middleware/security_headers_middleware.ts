@@ -23,8 +23,9 @@ export default class SecurityHeadersMiddleware {
         host: request.header('host'),
         protocol: request.protocol(),
       })
-    )
+    ) {
       return response.forbidden({ error: 'Cross-site request rejected.' });
+    }
     await next();
     const body = response.getBody();
     if (

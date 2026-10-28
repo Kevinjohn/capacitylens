@@ -13,21 +13,24 @@ import { assertCompanyAccessOpen } from '#services/auth/authorization';
  */
 export async function completeMembership(userId: string, trx: TransactionClientContract) {
   const accountId = await installationCompanyId(trx);
-  if (!accountId)
+  if (!accountId) {
     throw new AdmissionError('The company has not been set up yet.', 409, 'COMPANY_SETUP_REQUIRED');
+  }
   const existing = await trx
     .from('memberships')
     .where({ account_id: accountId, user_id: userId })
     .select('role', 'status')
     .first();
-  if (existing?.status === 'active')
+  if (existing?.status === 'active') {
     return { accountId, role: String(existing.role), created: false };
-  if (existing)
+  }
+  if (existing) {
     throw new AdmissionError(
       'Your access to this company is disabled. Ask an Owner or Admin.',
       409,
       'MEMBERSHIP_DISABLED'
     );
+  }
   await assertCompanyAccessOpen(userId, accountId, trx);
   // The Account Kit's admission record keeps the invited role as evidence.
   const evidence = await trx

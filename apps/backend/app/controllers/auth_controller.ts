@@ -158,8 +158,9 @@ export default class AuthController {
       return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-up') });
     }
     const { email, name } = body;
-    if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || !(await db.from('accounts').first()))
+    if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || !(await db.from('accounts').first())) {
       return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
+    }
     try {
       await accountKit.registration.register({
         email,
@@ -167,13 +168,15 @@ export default class AuthController {
         registrationData: { name },
       });
     } catch (error) {
-      if (error instanceof FirstCompanyPendingError)
+      if (error instanceof FirstCompanyPendingError) {
         return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
-      if (error instanceof RegistrationEmailAlreadyRegisteredError)
+      }
+      if (error instanceof RegistrationEmailAlreadyRegisteredError) {
         return ctx.response.conflict({
           error: 'An account already uses this email. Sign in or reset your password.',
           code: 'EMAIL_REGISTERED',
         } satisfies ProductHttpErrorBody);
+      }
       // The account exists; only the confirmation email may be missing, and it can be resent.
       if (!isCommittedFailure(error)) throw error;
       ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed');

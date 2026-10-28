@@ -61,38 +61,47 @@ const strictField = vine.createRule<{
       if (typeof value !== 'string') return fail('must be text');
       const canonical = value.normalize('NFC');
       const multiline = kind === 'note';
-      if (hasDisallowedChars(canonical, { multiline }))
+      if (hasDisallowedChars(canonical, { multiline })) {
         return fail('contains unsupported characters');
+      }
       if (
         unicodeCharacterCount(normalizeUserText(canonical, { multiline })) >
         (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH)
-      )
+      ) {
         return fail('is too long');
+      }
       if (field === 'name' && normalizeUserText(canonical).length === 0) return fail('is required');
       return;
     }
-    if (kind === 'boolean')
+    if (kind === 'boolean') {
       return typeof value === 'boolean' ? undefined : fail('must be a boolean');
+    }
     if (kind === 'number') {
-      if (typeof value !== 'number' || !Number.isFinite(value))
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
         return fail('must be a finite number');
-      if (field === 'sortOrder' && !Number.isSafeInteger(value))
+      }
+      if (field === 'sortOrder' && !Number.isSafeInteger(value)) {
         return fail('must be a safe integer');
-      if (field === 'hoursPerDay' && (value < 0 || value > 24))
+      }
+      if (field === 'hoursPerDay' && (value < 0 || value > 24)) {
         return fail('must be between 0 and 24');
-      if (field === 'workingHoursPerDay' && (value <= 0 || value > 24))
+      }
+      if (field === 'workingHoursPerDay' && (value <= 0 || value > 24)) {
         return fail('must be greater than 0 and at most 24');
+      }
       return;
     }
-    if (kind === 'date')
+    if (kind === 'date') {
       return isValidISODate(value) ? undefined : fail('must be a valid calendar date (YYYY-MM-DD)');
+    }
     if (kind === 'weekdays') {
       if (!isWeekdaySet(value)) return fail('must contain distinct weekdays from 0 to 6');
       if (field === 'workingDays' && value.length === 0) return fail('must contain a working day');
       return;
     }
-    if (kind === 'weekStart')
+    if (kind === 'weekStart') {
       return value === 0 || value === 1 ? undefined : fail('must be Sunday or Monday');
+    }
     if (kind === 'choice') {
       const accepted =
         field === 'kind'
@@ -100,7 +109,7 @@ const strictField = vine.createRule<{
             ? ['project', 'internal', 'repeatable']
             : ['person', 'placeholder', 'external']
           : choices[field];
-      return accepted?.includes(value) ? undefined : fail('is not supported');
+      return accepted.includes(value) ? undefined : fail('is not supported');
     }
     if (kind === 'color') {
       return isPresetColor(value) ||
@@ -120,8 +129,9 @@ const strictField = vine.createRule<{
         : undefined;
     }
     if (kind === 'timezone') {
-      if (typeof value !== 'string' || value.length > 128)
+      if (typeof value !== 'string' || value.length > 128) {
         return fail('must be a supported time zone');
+      }
       try {
         new Intl.DateTimeFormat(undefined, { timeZone: value });
       } catch {

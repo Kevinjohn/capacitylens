@@ -72,8 +72,9 @@ export async function dataContextForActor(
         row.role === 'admin' ||
         row.role === 'editor' ||
         row.role === 'viewer')
-    )
+    ) {
       roles.set(String(row.account_id), row.role);
+    }
   }
   const capabilitiesFor = (accountId: string): BatchCapabilities => {
     const role = roles.get(accountId) ?? 'viewer';

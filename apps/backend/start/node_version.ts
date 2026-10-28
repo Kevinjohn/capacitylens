@@ -11,8 +11,9 @@ export function supportsNodeVersion(version: string) {
 
 /** Refuse unsupported Node before importing providers or opening application data. */
 export function assertSupportedNodeVersion(version = process.versions.node) {
-  if (!supportsNodeVersion(version))
+  if (!supportsNodeVersion(version)) {
     throw new Error(
       `CapacityLens requires ${supportedRange}; found Node ${version}. Use nvm use for the default Node 24 runtime.`
     );
+  }
 }

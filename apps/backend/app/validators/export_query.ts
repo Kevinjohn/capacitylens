@@ -10,8 +10,9 @@ export const exportQueryValidator = vine.compile(
     .use(
       vine.createRule((value, _options, field) => {
         if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
-        if (Object.keys(value).some((key) => key !== 'accountId' && key !== 'includeInactive'))
+        if (Object.keys(value).some((key) => key !== 'accountId' && key !== 'includeInactive')) {
           field.report('Unsupported export query field.', 'unknownField', field);
+        }
       })()
     )
 );

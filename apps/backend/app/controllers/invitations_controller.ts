@@ -74,8 +74,9 @@ export default class InvitationsController {
 
   async create(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['accountId', 'role', 'email']) || !isInvitableRole(body.role))
+    if (!fields(body, ['accountId', 'role', 'email']) || !isInvitableRole(body.role)) {
       invalidAdmission();
+    }
     const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : '';
     if (!isAccountEmail(email)) invalidAdmission('Invalid invitation email.');
     const actorId = await this.manager(ctx, body.accountId);
@@ -159,8 +160,9 @@ export default class InvitationsController {
       name.length > MAX_NAME_LENGTH ||
       typeof body.password !== 'string' ||
       passwordLengthFailure(body.password)
-    )
+    ) {
       invalidAdmission('Invalid sign-up details.');
+    }
     let email: string;
     try {
       const user = await accountKit.invitations.accept({
@@ -171,16 +173,19 @@ export default class InvitationsController {
       email = user.email;
     } catch (error) {
       if (error instanceof InvalidTokenError) return ctx.response.badRequest(invalidLink);
-      if (error instanceof RegistrationEmailAlreadyRegisteredError)
+      if (error instanceof RegistrationEmailAlreadyRegisteredError) {
         return ctx.response.conflict({
           error: 'An account already uses this email. Sign in instead.',
           code: 'EMAIL_REGISTERED',
         } satisfies ProductHttpErrorBody);
-      if (error instanceof FirstCompanyPendingError)
+      }
+      if (error instanceof FirstCompanyPendingError) {
         return ctx.response.conflict({ error: error.message, code: error.code });
+      }
       // The identity exists; only a follow-up failed, so the person signs in rather than retrying.
-      if (isCommittedFailure(error))
+      if (isCommittedFailure(error)) {
         return ctx.response.accepted({ accepted: true, signInRequired: true });
+      }
       throw error;
     }
     try {

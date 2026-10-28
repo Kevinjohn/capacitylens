@@ -17,13 +17,15 @@ export default class TrustedLocalMiddleware {
     ) {
       try {
         await currentAccount(ctx);
-        if (ctx.request.url().startsWith('/api/test/reset'))
+        if (ctx.request.url().startsWith('/api/test/reset')) {
           return ctx.response.forbidden({
             error: 'Installation reset is unavailable with authentication enabled.',
           });
+        }
       } catch (error) {
-        if (error instanceof InvalidSessionError)
+        if (error instanceof InvalidSessionError) {
           return ctx.response.unauthorized({ error: 'Sign-in required.' });
+        }
         throw error;
       }
     }

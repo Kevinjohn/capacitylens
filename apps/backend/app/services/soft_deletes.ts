@@ -36,8 +36,9 @@ async function assertLifecycleAuthority(
   accountId: string
 ) {
   const role = await activeCompanyRole(actorId, accountId, trx);
-  if (!role || !isAtLeast(role, 'admin'))
+  if (!role || !isAtLeast(role, 'admin')) {
     throw new SoftDeletePolicyError('forbidden', 'Forbidden.', 403);
+  }
 }
 
 async function findRow(
@@ -68,18 +69,20 @@ export async function softDeleteArchivedEntity(
   await assertLifecycleAuthority(trx, actorId, accountId);
   const row = await findRow(trx, accountId, table, id, 'all');
   if (!row) throw new SoftDeletePolicyError('not_found', 'The record was not found.', 404);
-  if (table === 'clients' && (row as InstanceType<typeof Client>).builtin === true)
+  if (table === 'clients' && (row as InstanceType<typeof Client>).builtin === true) {
     throw new SoftDeletePolicyError(
       'builtin_client',
       'The built-in Internal client cannot be deleted.',
       403
     );
-  if (!row.archivedAt)
+  }
+  if (!row.archivedAt) {
     throw new SoftDeletePolicyError(
       'archive_required',
       'Archive this record before deleting it.',
       409
     );
+  }
   if (row.trashed) return row;
   await row.delete();
   return row;
@@ -96,12 +99,13 @@ export async function restoreArchivedEntity(
   await assertLifecycleAuthority(trx, actorId, accountId);
   const row = await findRow(trx, accountId, table, id, 'deleted');
   if (!row) throw new SoftDeletePolicyError('not_found', 'The record was not found.', 404);
-  if (table === 'clients' && (row as InstanceType<typeof Client>).builtin === true)
+  if (table === 'clients' && (row as InstanceType<typeof Client>).builtin === true) {
     throw new SoftDeletePolicyError(
       'builtin_client',
       'The built-in Internal client cannot be restored.',
       403
     );
+  }
   await row.restore();
   return row;
 }

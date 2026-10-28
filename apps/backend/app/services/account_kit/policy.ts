@@ -29,12 +29,13 @@ export function isInvitableRole(value: unknown): value is InvitableRole {
 export async function installationCompanyId(trx: Pick<Trx, 'from'>): Promise<string | null> {
   const rows = await trx.from('accounts').select('id').limit(2);
   // Only seeded development data holds two companies; say so rather than fail with a 500.
-  if (rows.length > 1)
+  if (rows.length > 1) {
     throw new AdmissionError(
       'This installation has more than one company. Accounts need a single-company database.',
       409,
       'MULTIPLE_COMPANIES'
     );
+  }
   return rows[0] ? String(rows[0].id) : null;
 }
 
@@ -90,8 +91,9 @@ export const admissionAuthorize: AdmissionAuthorizeCallbacks = {
 export async function onInvitationAccepted(user: AccountUser, invitation: Invitation, trx: Trx) {
   const accountId = await installationCompanyId(trx);
   if (!accountId) return;
-  if (!isInvitableRole(invitation.role) || !isAccountRole(invitation.role))
+  if (!isInvitableRole(invitation.role) || !isAccountRole(invitation.role)) {
     throw new Error('Invitation role is unavailable.');
+  }
   await assertCompanyAccessOpen(String(user.id), accountId, trx);
   const now = new Date().toISOString();
   await trx.table('memberships').insert({
@@ -121,7 +123,7 @@ export async function onCredentialsChangedTransaction(
   trx: Trx
 ) {
   const memberships = await trx.from('memberships').where('user_id', String(user.id));
-  for (const membership of memberships)
+  for (const membership of memberships) {
     await writeAudit(trx, {
       accountId: String(membership.account_id),
       actorId: String(user.id),
@@ -130,4 +132,5 @@ export async function onCredentialsChangedTransaction(
       entityId: String(user.id),
       fields: [context.operation],
     });
+  }
 }

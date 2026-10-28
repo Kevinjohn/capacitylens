@@ -20,7 +20,7 @@ function sendContextError(
 export default class MasqueradeReadOnlyMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     const path = ctx.request.url().split('?', 1)[0];
-    if (!path?.startsWith('/api/')) return next();
+    if (!path.startsWith('/api/')) return next();
     const method = ctx.request.method().toUpperCase();
     const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(method);
     const isStatus = (method === 'GET' || method === 'HEAD') && path === '/api/masquerade';
@@ -34,20 +34,24 @@ export default class MasqueradeReadOnlyMiddleware {
       mode = await service.resolve(ctx);
     } catch (error) {
       if (error instanceof MasqueradeError) {
-        if (error.code === 'E_MASQUERADE_CONTEXT_CHANGED')
+        if (error.code === 'E_MASQUERADE_CONTEXT_CHANGED') {
           return sendContextError(ctx, 'MASQUERADE_CONTEXT_CHANGED');
-        if (error.code === 'E_MASQUERADE_NOT_ALLOWED')
+        }
+        if (error.code === 'E_MASQUERADE_NOT_ALLOWED') {
           return ctx.response.forbidden({ error: error.message, code: 'AUTHORIZATION_DENIED' });
+        }
       }
       throw error;
     }
     captureMasqueradeContext(ctx, mode);
 
     const contextToken = ctx.request.header('X-Masquerade-Context');
-    if (unsafe && (typeof contextToken !== 'string' || !contextToken))
+    if (unsafe && (typeof contextToken !== 'string' || !contextToken)) {
       return sendContextError(ctx, 'MASQUERADE_CONTEXT_REQUIRED');
-    if (typeof contextToken === 'string' && contextToken !== mode.contextToken)
+    }
+    if (typeof contextToken === 'string' && contextToken !== mode.contextToken) {
       return sendContextError(ctx, 'MASQUERADE_CONTEXT_CHANGED');
+    }
     // Start re-checks the token in its package operation; this early check also prevents
     // malformed bodies and route discovery from bypassing stale-context handling.
     if (unsafe && !mode.contextToken) return sendContextError(ctx, 'MASQUERADE_CONTEXT_CHANGED');
@@ -63,11 +67,12 @@ export default class MasqueradeReadOnlyMiddleware {
             method === 'GET' &&
             /^\/api\/accounts\/[^/]+\/planning(?:\/mutations\/[^/]+)?$/.test(path)
           )))
-    )
+    ) {
       return ctx.response.forbidden({
         error: 'Masquerade is read-only.',
         code: 'MASQUERADE_READ_ONLY',
       });
+    }
     return next();
   }
 }

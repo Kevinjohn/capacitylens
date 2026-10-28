@@ -15,8 +15,9 @@ export async function readMemberSignInTracking(accountId: string, trx: Transacti
     .from('company_settings')
     .where({ account_id: accountId, key: TRACKING_KEY })
     .first();
-  if (!setting || !enabled(setting.value))
+  if (!setting || !enabled(setting.value)) {
     return { enabled: false, confirmations: new Set<string>() };
+  }
   const observed = await trx
     .from('company_settings')
     .where('account_id', accountId)

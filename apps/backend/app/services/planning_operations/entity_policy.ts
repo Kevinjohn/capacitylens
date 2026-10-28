@@ -73,9 +73,9 @@ function pinHiddenFields(
     }
   }
   if (table === 'accounts' && context.role !== 'owner' && context.role !== 'admin') {
-    if (CAPACITY_OVERVIEW_ACCESS_VALUES.includes(existing?.capacityOverviewAccess as never))
+    if (CAPACITY_OVERVIEW_ACCESS_VALUES.includes(existing?.capacityOverviewAccess as never)) {
       candidate.capacityOverviewAccess = existing?.capacityOverviewAccess;
-    else delete candidate.capacityOverviewAccess;
+    } else delete candidate.capacityOverviewAccess;
   }
 }
 
@@ -87,74 +87,90 @@ function assertResourceFields(
   if (
     kind !== 'placeholder' &&
     (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
-  )
+  ) {
     throw new BatchRequestError('A person or external company name is required.');
+  }
   if (kind === 'person') {
-    if (requested.projectId !== undefined && requested.projectId !== null)
+    if (requested.projectId !== undefined && requested.projectId !== null) {
       reject('projectId', 'is only used by placeholders');
+    }
     const first = candidate.firstAvailableDate;
     const last = candidate.lastAvailableDate;
-    if (typeof first === 'string' && typeof last === 'string' && first > last)
+    if (typeof first === 'string' && typeof last === 'string' && first > last) {
       reject('firstAvailableDate', 'cannot be after lastAvailableDate');
+    }
     const days = candidate.workingDays;
     const halves = candidate.halfDays;
-    if (Array.isArray(days) && Array.isArray(halves) && halves.some((day) => !days.includes(day)))
+    if (Array.isArray(days) && Array.isArray(halves) && halves.some((day) => !days.includes(day))) {
       reject('halfDays', 'must be included in workingDays');
+    }
     return;
   }
   if (kind !== 'placeholder' && kind !== 'external') return;
   const defaults = kind === 'external' ? externalCapacityDefaults() : placeholderCapacityDefaults();
-  for (const field of ['workingDays', 'halfDays'] as const)
+  for (const field of ['workingDays', 'halfDays'] as const) {
     if (
       Object.hasOwn(requested, field) &&
       JSON.stringify(candidate[field]) !== JSON.stringify(defaults[field])
-    )
+    ) {
       reject(field, "must match this resource kind's defaults");
+    }
+  }
   if (kind === 'placeholder') {
-    if (Object.hasOwn(requested, 'engagement') && candidate.engagement !== 'studio')
+    if (Object.hasOwn(requested, 'engagement') && candidate.engagement !== 'studio') {
       reject('engagement', 'must be studio for a placeholder');
+    }
   } else {
     const externalDefaults = externalCapacityDefaults();
-    for (const field of ['employmentType', 'engagement', 'workingHoursPerDay'] as const)
-      if (Object.hasOwn(requested, field) && candidate[field] !== externalDefaults[field])
+    for (const field of ['employmentType', 'engagement', 'workingHoursPerDay'] as const) {
+      if (Object.hasOwn(requested, field) && candidate[field] !== externalDefaults[field]) {
         reject(field, "must match an external resource's defaults");
-    if (Object.hasOwn(requested, 'color') && candidate.color !== NEUTRAL_COLOR)
+      }
+    }
+    if (Object.hasOwn(requested, 'color') && candidate.color !== NEUTRAL_COLOR) {
       reject('color', 'must be the external resource colour');
+    }
     if (
       (requested.disciplineId !== undefined && requested.disciplineId !== null) ||
       (requested.projectId !== undefined && requested.projectId !== null)
-    )
+    ) {
       reject('disciplineId', 'is not used by external resources');
+    }
   }
-  for (const field of ['firstAvailableDate', 'lastAvailableDate'] as const)
-    if (requested[field] !== undefined && requested[field] !== null)
+  for (const field of ['firstAvailableDate', 'lastAvailableDate'] as const) {
+    if (requested[field] !== undefined && requested[field] !== null) {
       reject(field, 'is only used by people');
+    }
+  }
   if (Object.hasOwn(requested, 'avatarUrl')) {
-    if (requested.avatarUrl !== null && requested.avatarUrl !== undefined)
+    if (requested.avatarUrl !== null && requested.avatarUrl !== undefined) {
       throw new BatchRequestError(
         'Only a person can have an avatar URL.',
         400,
         undefined,
         'resource_avatar_url_forbidden'
       );
+    }
   }
 }
 
 function assertResourceKind(candidate: Record<string, unknown>, existing: Record<string, unknown>) {
-  if (!['person', 'placeholder', 'external'].includes(existing.kind as string))
+  if (!['person', 'placeholder', 'external'].includes(existing.kind as string)) {
     throw new BatchRequestError(
       'The stored resource kind is invalid and must be repaired by import.',
       400,
       undefined,
       'resource_kind_immutable'
     );
-  if (candidate.kind !== existing.kind)
+  }
+  if (candidate.kind !== existing.kind) {
     throw new BatchRequestError(
       'A resource’s kind cannot change after creation.',
       400,
       undefined,
       'resource_kind_immutable'
     );
+  }
 }
 
 function assertManagedFields(
@@ -165,25 +181,30 @@ function assertManagedFields(
 ) {
   if (isLifecycle(table)) {
     for (const field of ['archivedAt', 'deletedAt'] as const) {
-      if (Object.hasOwn(requested, field) && requested[field] !== (existing?.[field] ?? null))
+      if (Object.hasOwn(requested, field) && requested[field] !== (existing?.[field] ?? null)) {
         throw new BatchRequestError(`${field} is managed by its lifecycle action.`);
+      }
       candidate[field] = existing?.[field] ?? null;
     }
   }
   if (table === 'allocations' && existing) {
-    if (Object.hasOwn(requested, 'seriesId') && requested.seriesId !== existing.seriesId)
+    if (Object.hasOwn(requested, 'seriesId') && requested.seriesId !== existing.seriesId) {
       throw new BatchRequestError('seriesId is fixed after creation.');
+    }
     candidate.seriesId = existing.seriesId ?? null;
   }
   if (table === 'accounts' && existing) {
     assertFrozenAccountFields(requested, candidate, existing);
-    if (!Object.hasOwn(requested, 'workingDays') && existing.workingDays !== undefined)
+    if (!Object.hasOwn(requested, 'workingDays') && existing.workingDays !== undefined) {
       candidate.workingDays = existing.workingDays;
+    }
   }
   if (table === 'resources' && existing && candidate.kind === 'person') {
-    for (const field of ['firstAvailableDate', 'lastAvailableDate'] as const)
-      if (!Object.hasOwn(requested, field) && typeof existing[field] === 'string')
+    for (const field of ['firstAvailableDate', 'lastAvailableDate'] as const) {
+      if (!Object.hasOwn(requested, field) && typeof existing[field] === 'string') {
         candidate[field] = existing[field];
+      }
+    }
   }
 }
 
@@ -199,13 +220,15 @@ export function assertFrozenAccountFields(
       existing[field] !== undefined &&
       existing[field] !== null &&
       requested[field] !== existing[field]
-    )
+    ) {
       throw new BatchRequestError(
         'Language, week start and time zone are set when the company is created and cannot be changed.',
         409
       );
-    if (!Object.hasOwn(requested, field) && existing[field] !== undefined)
+    }
+    if (!Object.hasOwn(requested, field) && existing[field] !== undefined) {
       candidate[field] = existing[field];
+    }
   }
 }
 
@@ -222,15 +245,17 @@ function validationView(
     delete visible.codeName;
     if (existing?.isPrivate === true) delete visible.name;
   }
-  if (table === 'accounts' && context.role !== 'owner' && context.role !== 'admin')
+  if (table === 'accounts' && context.role !== 'owner' && context.role !== 'admin') {
     delete visible.capacityOverviewAccess;
+  }
   return visible;
 }
 
 function assertRequired(table: AppDataKey, candidate: Record<string, unknown>) {
   const missing = requiredFields[table].filter((field) => !Object.hasOwn(candidate, field));
-  if (missing.length)
+  if (missing.length) {
     throw new BatchRequestError(`Missing required field(s): ${missing.join(', ')}.`);
+  }
   if (table === 'resources' && candidate.halfDays === undefined) candidate.halfDays = [];
   if (table === 'resources' && candidate.engagement === undefined) candidate.engagement = 'studio';
 }
@@ -264,8 +289,9 @@ function resolveGeneratedBuiltinReplacement(
     generated.builtin !== true ||
     generated.name !== INTERNAL_CLIENT_NAME ||
     generated.color !== INTERNAL_CLIENT_COLOR
-  )
+  ) {
     throw new BatchRequestError('The built-in Internal client is managed by the server.');
+  }
   return generatedId;
 }
 
@@ -278,14 +304,17 @@ export async function prepareEntityWrite(
   context: BatchCapabilities,
   options: EntityWriteOptions
 ): Promise<Record<string, unknown>> {
-  if (typeof row.id !== 'string' || !ID_PATTERN.test(row.id))
+  if (typeof row.id !== 'string' || !ID_PATTERN.test(row.id)) {
     throw new BatchRequestError(
       'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde or hyphen.'
     );
-  if (isScoped(table) && (typeof row.accountId !== 'string' || row.accountId.length === 0))
+  }
+  if (isScoped(table) && (typeof row.accountId !== 'string' || row.accountId.length === 0)) {
     throw new BatchRequestError('A string accountId is required.');
-  if (existing && isScoped(table) && existing.accountId !== row.accountId)
+  }
+  if (existing && isScoped(table) && existing.accountId !== row.accountId) {
     throw new BatchRequestError('Not found.', 404);
+  }
   for (const [field, value] of Object.entries(row)) {
     if (value !== undefined) continue;
     if (table === 'timeOff' && field === 'note' && !context.canSeeTimeOffNote) continue;
@@ -295,15 +324,17 @@ export async function prepareEntityWrite(
       (field === 'isPrivate' ||
         field === 'codeName' ||
         (field === 'name' && existing?.isPrivate === true))
-    )
+    ) {
       continue;
+    }
     if (
       table === 'accounts' &&
       field === 'capacityOverviewAccess' &&
       context.role !== 'owner' &&
       context.role !== 'admin'
-    )
+    ) {
       continue;
+    }
     reject(field, 'cannot be undefined');
   }
   let candidate = { ...row };
@@ -314,21 +345,25 @@ export async function prepareEntityWrite(
     const visible = validationView(table, candidate, existing, context);
     const validated = await validateEntityRow(table, visible);
     const preserved: Record<string, unknown> = {};
-    if (table === 'timeOff' && !context.canSeeTimeOffNote && Object.hasOwn(candidate, 'note'))
+    if (table === 'timeOff' && !context.canSeeTimeOffNote && Object.hasOwn(candidate, 'note')) {
       preserved.note = candidate.note;
+    }
     if ((table === 'clients' || table === 'projects') && !context.canSeePrivateNames) {
-      for (const field of ['isPrivate', 'codeName'] as const)
+      for (const field of ['isPrivate', 'codeName'] as const) {
         if (Object.hasOwn(candidate, field)) preserved[field] = candidate[field];
-      if (existing?.isPrivate === true && Object.hasOwn(candidate, 'name'))
+      }
+      if (existing?.isPrivate === true && Object.hasOwn(candidate, 'name')) {
         preserved.name = candidate.name;
+      }
     }
     if (
       table === 'accounts' &&
       context.role !== 'owner' &&
       context.role !== 'admin' &&
       Object.hasOwn(candidate, 'capacityOverviewAccess')
-    )
+    ) {
       preserved.capacityOverviewAccess = candidate.capacityOverviewAccess;
+    }
     candidate = { ...validated, ...preserved };
   } catch (error) {
     if (
@@ -340,13 +375,14 @@ export async function prepareEntityWrite(
       Array.isArray(error.messages)
     ) {
       const first = error.messages[0];
-      if (typeof first?.message === 'string')
+      if (typeof first?.message === 'string') {
         throw new BatchRequestError(
           first.message,
           400,
           undefined,
           first.rule === 'resource_avatar_url_invalid' ? first.rule : undefined
         );
+      }
     }
     throw error;
   }
@@ -355,24 +391,30 @@ export async function prepareEntityWrite(
     assertResourceFields(row, candidate);
   }
   if (table === 'clients' || table === 'projects') {
-    if (context.canSeePrivateNames && !hasUsablePrivateCodeName(candidate))
+    if (context.canSeePrivateNames && !hasUsablePrivateCodeName(candidate)) {
       throw new BatchRequestError('A private client or project requires a code name.');
+    }
   }
   if (
     table === 'closures' &&
     (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
-  )
+  ) {
     throw new BatchRequestError('Closure name is required.');
+  }
   if (
     table === 'accounts' &&
     (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
-  )
+  ) {
     throw new BatchRequestError('Company name is required.');
-  for (const field of ['name', 'role', 'codeName', 'note', 'task'] as const)
-    if (typeof candidate[field] === 'string')
+  }
+  for (const field of ['name', 'role', 'codeName', 'note', 'task'] as const) {
+    if (typeof candidate[field] === 'string') {
       candidate[field] = cleanText(candidate[field] as string, { multiline: field === 'note' });
-  if (table === 'resources' && candidate.avatarUrl !== null && candidate.avatarUrl !== undefined)
+    }
+  }
+  if (table === 'resources' && candidate.avatarUrl !== null && candidate.avatarUrl !== undefined) {
     candidate.avatarUrl = parseResourceAvatarUrl(candidate.avatarUrl);
+  }
   normalizeValidWrite({
     table,
     candidate,
@@ -393,8 +435,9 @@ export async function prepareEntityWrite(
     );
   } catch (error) {
     if (error instanceof BatchRequestError) throw error;
-    if (error instanceof DomainError)
+    if (error instanceof DomainError) {
       throw new BatchRequestError(error.message, 400, undefined, error.code);
+    }
     throw error;
   }
   fillNullableFields(table, candidate);

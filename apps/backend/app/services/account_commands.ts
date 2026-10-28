@@ -22,8 +22,9 @@ export class AccountCommandError extends Error {
 }
 
 function canonical(value: unknown): string {
-  if (value === undefined)
+  if (value === undefined) {
     throw new AccountCommandError('Invalid command payload.', 400, 'VALIDATION_FAILED');
+  }
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   const object = value as Record<string, unknown>;
@@ -37,10 +38,12 @@ function canonical(value: unknown): string {
 export function readAccountCommand(ctx: HttpContext): AccountCommandIdentity {
   const commandId = ctx.request.header('x-account-command-id');
   const idempotencyKey = ctx.request.header('idempotency-key');
-  if (commandId === undefined && idempotencyKey === undefined)
+  if (commandId === undefined && idempotencyKey === undefined) {
     return { commandId: randomUUID(), idempotencyKey: randomUUID() };
-  if (!isAccountCommandId(commandId) || !isAccountIdempotencyKey(idempotencyKey))
+  }
+  if (!isAccountCommandId(commandId) || !isAccountIdempotencyKey(idempotencyKey)) {
     throw new AccountCommandError('Invalid or unpaired command headers.', 400, 'VALIDATION_FAILED');
+  }
   return { commandId, idempotencyKey };
 }
 
@@ -87,8 +90,9 @@ async function existingClaim(connection: TransactionClientContract, input: Claim
     row.operation !== operation ||
     row.payload_hash !== payloadHash ||
     result === null
-  )
+  ) {
     conflict();
+  }
   return { replayed: true as const, result };
 }
 
@@ -140,6 +144,7 @@ export async function completeAccountCommand(
   if (
     !row ||
     (typeof row.result === 'string' ? row.result : JSON.stringify(row.result)) !== serialized
-  )
+  ) {
     throw new Error('Command claim was not completed.');
+  }
 }

@@ -88,8 +88,9 @@ export async function deleteRows(
     })),
   ];
   // SQLite bounds compound inserts and variables; all slices remain in the caller's transaction.
-  for (let start = 0; start < saved.length; start += 500)
+  for (let start = 0; start < saved.length; start += 500) {
     await trx.table('deleted_rows').multiInsert(saved.slice(start, start + 500));
+  }
   for (const link of links) {
     const column = link.entity === 'activities' ? 'phase_id' : 'discipline_id';
     const detached = await trx
@@ -136,18 +137,22 @@ export async function restoreGroup(
     actor_id: identity.actorId,
     session_id: identity.sessionId,
   };
-  const consumed = await trx
-    .from('deleted_groups')
-    .where(owner)
-    .whereNull('consumed_at')
-    .update({ consumed_at: new Date().toISOString() });
-  if (!consumed) {
-    if (await trx.from('deleted_groups').where(owner).select('group_id').first())
+  // Lucid types the update result as rows; SQLite reports the affected count.
+  const consumed = Number(
+    await trx
+      .from('deleted_groups')
+      .where(owner)
+      .whereNull('consumed_at')
+      .update({ consumed_at: new Date().toISOString() })
+  );
+  if (consumed === 0) {
+    if (await trx.from('deleted_groups').where(owner).select('group_id').first()) {
       throw new PlanningOperationError(
         409,
         'restoration_consumed',
         'This deletion has already been restored.'
       );
+    }
     const origin = await trx
       .from('planning_mutations')
       .where({
@@ -158,12 +163,13 @@ export async function restoreGroup(
       })
       .select('mutation_id')
       .first();
-    if (origin)
+    if (origin) {
       throw new PlanningOperationError(
         409,
         'restoration_invalidated',
         'This deletion can no longer be restored.'
       );
+    }
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
   const saved = await trx
@@ -184,12 +190,13 @@ export async function restoreGroup(
         .first();
       if (!stored) conflict();
       rows.push({ entity, id: String(item.row_id), row: stored.serialize() });
-    } else
+    } else {
       links.push({
         entity: item.entity as 'activities' | 'resources',
         rowId: String(item.row_id),
         parentId: payload.parentId,
       });
+    }
   }
   if (rows.length === 0) conflict();
   const dependencies = await readStateWithClient(trx, accountId, true);
@@ -213,12 +220,16 @@ export async function restoreGroup(
           allocation.projectId
         );
         assertDateRange(allocation.startDate, allocation.endDate);
-        const resource = dependencies.resources.find((item) => item.id === allocation.resourceId)!;
+        const resource = dependencies.resources.find((item) => item.id === allocation.resourceId);
+        if (!resource) {
+          throw new Error('The allocation reference check above guarantees the resource exists.');
+        }
         assertAllocationPlacement({ allocation, resource, accountWorkingDays });
       }
       if (entity === 'phases') assertScopedRefs(dependencies, accountId, 'phases', row);
-      if (entity === 'timeOff')
+      if (entity === 'timeOff') {
         assertResourceExists(dependencies, accountId, String(row.resourceId));
+      }
     } catch {
       conflict();
     }
@@ -246,8 +257,9 @@ export async function restoreGroup(
     const parent = current[entity === 'activities' ? 'phases' : 'disciplines'].find(
       (row) => row.id === parentId
     );
-    if (!child || !parent || (child as unknown as Record<string, unknown>)[field] !== null)
+    if (!child || !parent || (child as unknown as Record<string, unknown>)[field] !== null) {
       conflict();
+    }
     const candidate = { ...child, [field]: parentId };
     try {
       assertScopedRefs(current, accountId, entity, candidate, child);

@@ -23,16 +23,18 @@ function input(value: unknown, apply: boolean) {
   if (
     expected.some((key) => !Object.hasOwn(body, key)) ||
     Object.keys(body).some((key) => !expected.includes(key) && !(apply && key === 'proofId'))
-  )
+  ) {
     return null;
+  }
   if (typeof body.accountId !== 'string' || !body.accountId) return null;
   if (
     apply &&
     (!Number.isSafeInteger(body.baseRevision) ||
       (body.baseRevision as number) < 0 ||
       (body.proofId !== undefined && typeof body.proofId !== 'string'))
-  )
+  ) {
     return null;
+  }
   try {
     return {
       accountId: body.accountId as string,
@@ -46,14 +48,16 @@ function input(value: unknown, apply: boolean) {
 }
 
 function failure(ctx: HttpContext, error: unknown) {
-  if (error instanceof ActionProofError)
+  if (error instanceof ActionProofError) {
     return ctx.response.status(error.status).send({ error: error.message, code: error.code });
-  if (error instanceof BatchRequestError)
+  }
+  if (error instanceof BatchRequestError) {
     return ctx.response.status(error.status).send({
       error: error.message,
       ...(error.code ? { code: error.code } : {}),
       ...(error.current ?? {}),
     });
+  }
   if (error instanceof BetaTransferError) return ctx.response.badRequest({ error: error.message });
   throw error;
 }

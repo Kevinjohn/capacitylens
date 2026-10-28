@@ -22,11 +22,12 @@ export function normalizeValidWrite({
   canSeePrivateNames,
 }: NormalizeValidWriteInput): void {
   if (table === 'accounts') {
-    if (!existing || Object.hasOwn(requested, 'workingDays'))
+    if (!existing || Object.hasOwn(requested, 'workingDays')) {
       candidate.workingDays = normalizeAccountWorkingDays(
         candidate.workingDays,
         candidate.weekStartsOn === 0 ? 0 : 1
       );
+    }
     return;
   }
   if (table === 'resources') {

@@ -34,7 +34,7 @@ function refusal(error: unknown): {
   body: PlanningMutationFailure;
   headers?: Record<string, string>;
 } {
-  if (error instanceof RestorationConfirmationError)
+  if (error instanceof RestorationConfirmationError) {
     return {
       status: 409,
       body: {
@@ -43,6 +43,7 @@ function refusal(error: unknown): {
         restorableItemCount: error.restorableItemCount,
       } satisfies ProductHttpErrorBody,
     };
+  }
   if (error instanceof PlanningOperationError) {
     const code =
       planningMutationErrorCodes.find((candidate) => candidate === error.code) ??
@@ -54,7 +55,7 @@ function refusal(error: unknown): {
     const status = code === 'VALIDATION_ERROR' ? 400 : error.status;
     return { status, body: { error: error.message, ...(code ? { code } : {}) } };
   }
-  if (error instanceof BatchRequestError)
+  if (error instanceof BatchRequestError) {
     return {
       status: error.status === 403 ? 403 : 400,
       body: {
@@ -62,9 +63,11 @@ function refusal(error: unknown): {
         code: error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',
       },
     };
-  if (error instanceof StalePlanningRevisionError)
+  }
+  if (error instanceof StalePlanningRevisionError) {
     return { status: 409, body: { error: error.message, code: 'STALE_REVISION' } };
-  if (error instanceof vineErrors.E_VALIDATION_ERROR)
+  }
+  if (error instanceof vineErrors.E_VALIDATION_ERROR) {
     return {
       status: 400,
       body: {
@@ -72,7 +75,8 @@ function refusal(error: unknown): {
         code: 'VALIDATION_ERROR',
       },
     };
-  if (error instanceof AdmissionRequiredError)
+  }
+  if (error instanceof AdmissionRequiredError) {
     return {
       status: 403,
       body: {
@@ -81,8 +85,9 @@ function refusal(error: unknown): {
         decision: error.decision,
       } satisfies ProductHttpErrorBody,
     };
+  }
   const kitResponse = accountErrorResponse(error);
-  if (kitResponse && kitResponse.status < 500)
+  if (kitResponse && kitResponse.status < 500) {
     return {
       status: kitResponse.status,
       headers: kitResponse.headers,
@@ -92,19 +97,22 @@ function refusal(error: unknown): {
         ...(kitResponse.body.committed ? { committed: kitResponse.body.committed } : {}),
       },
     };
+  }
   // Identity resolution failures invalidate the projection; action refusals use PlanningOperationError.
-  if (error instanceof IdentityAuthorityError)
+  if (error instanceof IdentityAuthorityError) {
     return {
       status: 403,
       body: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
     };
+  }
   throw error;
 }
 
 function sendRefusal(error: unknown, ctx: HttpContext) {
   const failure = refusal(error);
-  for (const [name, value] of Object.entries(failure.headers ?? {}))
+  for (const [name, value] of Object.entries(failure.headers ?? {})) {
     ctx.response.header(name, value);
+  }
   return ctx.response.status(failure.status).send(failure.body);
 }
 
@@ -134,31 +142,34 @@ export default class PlanningController {
     entity?: string
   ) {
     try {
-      if (input.intent.operation !== operation)
+      if (input.intent.operation !== operation) {
         throw new PlanningOperationError(
           400,
           'VALIDATION_ERROR',
           'The operation does not match this resource route.'
         );
+      }
       const target = 'entity' in input.intent ? input.intent.entity : input.intent;
-      if (entity && (!('entity' in target) || target.entity !== entity))
+      if (entity && (!('entity' in target) || target.entity !== entity)) {
         throw new PlanningOperationError(
           400,
           'VALIDATION_ERROR',
           'The operation does not match this resource route.'
         );
+      }
       const targetId =
         'sourceAllocationId' in target
           ? target.sourceAllocationId
           : 'id' in target
             ? target.id
             : undefined;
-      if (ctx.params.id !== undefined && targetId !== ctx.params.id)
+      if (ctx.params.id !== undefined && targetId !== ctx.params.id) {
         throw new PlanningOperationError(
           400,
           'VALIDATION_ERROR',
           'The operation target does not match this resource route.'
         );
+      }
       return await mutatePlanning(ctx, String(ctx.params.accountId), input);
     } catch (error) {
       return sendRefusal(error, ctx);

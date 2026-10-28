@@ -29,15 +29,21 @@ function requestBody(value: unknown): ProofRequest | null {
   if (!body.intent || typeof body.intent !== 'object' || Array.isArray(body.intent)) return null;
   const intent = body.intent as Record<string, unknown>;
   if (body.action === 'transfer-ownership') {
-    if (Object.keys(intent).length !== 1 || typeof intent.toUserId !== 'string' || !intent.toUserId)
+    if (
+      Object.keys(intent).length !== 1 ||
+      typeof intent.toUserId !== 'string' ||
+      !intent.toUserId
+    ) {
       return null;
+    }
   } else if (body.action === 'import') {
     if (
       Object.keys(intent).length !== 2 ||
       !Number.isSafeInteger(intent.baseRevision) ||
       (intent.baseRevision as number) < 0
-    )
+    ) {
       return null;
+    }
     try {
       return {
         ...body,
@@ -57,21 +63,24 @@ export default class ActionProofsController {
   async password(ctx: HttpContext) {
     const body = requestBody(ctx.request.body());
     if (!body) return ctx.response.badRequest({ error: 'Invalid action confirmation.' });
-    if (!(await consumeFailedSignInBudget(ctx)))
+    if (!(await consumeFailedSignInBudget(ctx))) {
       return ctx.response.tooManyRequests({ error: 'Rate limit exceeded.' });
+    }
     // Hash verification is slow and must stay outside the Kit transaction, which may be retried.
     const first = await withActor(ctx, async (actor, trx) => {
       await actionProofActor(body.accountId, trx);
       const row = await trx.from('users').where('id', actor.userId).select('password').first();
       return { sessionId: actor.sessionId, password: (row?.password as string | null) ?? null };
     });
-    if (!first.password || !(await hash.verify(first.password, body.password)))
+    if (!first.password || !(await hash.verify(first.password, body.password))) {
       return ctx.response.forbidden({ error: 'Incorrect password.', code: 'ACTION_PROOF_DENIED' });
+    }
     const proofId = await withActor(ctx, async (actor, trx) => {
       const current = await actionProofActor(body.accountId, trx);
       const row = await trx.from('users').where('id', actor.userId).select('password').first();
-      if (current.sessionId !== first.sessionId || row?.password !== first.password)
+      if (current.sessionId !== first.sessionId || row?.password !== first.password) {
         throw new ActionProofError();
+      }
       return createActionProof(trx, current, body.action, body.accountId, body.intent);
     });
     await resetFailedSignInBudget(ctx);

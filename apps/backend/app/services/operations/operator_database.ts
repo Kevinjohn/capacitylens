@@ -6,11 +6,13 @@ import type { NativeDatabase } from '#services/backup/native';
 export function operatorDatabasePath(confirmServerStopped: boolean) {
   if (!confirmServerStopped) throw new Error('Refusing without --confirm-server-stopped');
   const config = db.getRawConnection(db.primaryConnectionName)?.config;
-  if (config?.client !== 'better-sqlite3' || config.pool?.max !== 1)
+  if (config?.client !== 'better-sqlite3' || config.pool?.max !== 1) {
     throw new Error('Operator commands require the configured single-connection SQLite pool');
+  }
   const path = config.connection.filename as string;
-  if (path === ':memory:' || !existsSync(path) || !lstatSync(path).isFile())
+  if (path === ':memory:' || !existsSync(path) || !lstatSync(path).isFile()) {
     throw new Error('Operator commands require an existing on-disk database');
+  }
   return path;
 }
 
@@ -24,7 +26,7 @@ export async function withOperatorDatabase<T>(
   try {
     const client = db.connection().getWriteClient().client;
     const connection = await client.acquireConnection();
-    let lockFailure: unknown;
+    let lockFailure: Error | undefined;
     try {
       connection.pragma('busy_timeout = 0');
       connection.pragma('locking_mode = EXCLUSIVE');
@@ -36,13 +38,15 @@ export async function withOperatorDatabase<T>(
         });
       }
     } catch (error) {
-      lockFailure = error;
+      lockFailure =
+        error instanceof Error ? error : new Error('Operator lock failed', { cause: error });
     }
     try {
       await client.releaseConnection(connection);
     } catch (cleanup) {
-      if (lockFailure !== undefined)
+      if (lockFailure !== undefined) {
         throw new AggregateError([lockFailure, cleanup], 'Operator lock release failed');
+      }
       throw cleanup;
     }
     if (lockFailure !== undefined) throw lockFailure;

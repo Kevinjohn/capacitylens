@@ -11,10 +11,11 @@ const PRUNE_INTERVAL_MS = 60 * 60_000;
 
 function assertAuthenticationConfiguration() {
   const secret = env.get('CAPACITYLENS_SECRET');
-  if (!secret || secret.length < 32)
+  if (!secret || secret.length < 32) {
     throw new Error(
       'CAPACITYLENS_SECRET must contain at least 32 characters when authentication is enabled'
     );
+  }
 }
 
 interface ProductionPosture {
@@ -26,17 +27,20 @@ interface ProductionPosture {
 }
 
 export function assertProductionPosture(options: ProductionPosture) {
-  if (options.createAdmin || options.bootstrapPassword)
+  if (options.createAdmin || options.bootstrapPassword) {
     throw new Error('Development bootstrap credentials are forbidden in production');
+  }
   if (
     options.rateLimit !== undefined &&
     (!/^\d+$/.test(options.rateLimit) ||
       Number(options.rateLimit) < 1 ||
       Number(options.rateLimit) > 1_000_000)
-  )
+  ) {
     throw new Error('CAPACITYLENS_RATE_LIMIT must be an integer from 1 to 1,000,000 in production');
-  if (options.audit === 'off')
+  }
+  if (options.audit === 'off') {
     throw new Error('CAPACITYLENS_AUDIT=off is not permitted in production');
+  }
   if (options.allowReset) throw new Error('CAPACITYLENS_ALLOW_RESET is forbidden in production');
 }
 export default class ConfigurationProvider {
@@ -45,7 +49,7 @@ export default class ConfigurationProvider {
   constructor(protected app: ApplicationService) {}
   async boot() {
     assertAuthenticationConfiguration();
-    if (this.app.inProduction)
+    if (this.app.inProduction) {
       assertProductionPosture({
         allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),
         createAdmin: env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN'),
@@ -53,6 +57,7 @@ export default class ConfigurationProvider {
         rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
         audit: env.get('CAPACITYLENS_AUDIT'),
       });
+    }
   }
 
   async start() {
@@ -108,10 +113,11 @@ export default class ConfigurationProvider {
   private async bootstrapCredential() {
     if (!env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN')) return;
     const password = env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD');
-    if (!password || passwordLengthFailure(password))
+    if (!password || passwordLengthFailure(password)) {
       throw new Error(
         'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must satisfy the password length policy'
       );
+    }
     if (await db.from('users').select('id').first()) return;
     const email = 'admin@admin.admin';
     const passwordHash = await hash.make(password);

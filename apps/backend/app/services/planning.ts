@@ -56,22 +56,25 @@ async function currentAuthority(
 ) {
   const principal = await effectiveReadPrincipal(ctx, trx, accountId);
   const role = await activeCompanyRole(principal.effectiveId, accountId, trx);
-  if (!role || (principal.accountId !== null && principal.accountId !== accountId))
+  if (!role || (principal.accountId !== null && principal.accountId !== accountId)) {
     throw new PlanningOperationError(
       403,
       'ACCOUNT_MEMBERSHIP_LOST',
       'Company membership is unavailable.'
     );
+  }
   const bouncer = new Bouncer({ id: principal.actorId });
-  if (!(await bouncer.with(DataPolicy).allows('read', { accountId, hasMembership: true })))
+  if (!(await bouncer.with(DataPolicy).allows('read', { accountId, hasMembership: true }))) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
+  }
   const account = await trx.from('accounts').where('id', accountId).select('id').first();
-  if (!account)
+  if (!account) {
     throw new PlanningOperationError(
       403,
       'ACCOUNT_MEMBERSHIP_LOST',
       'Company membership is unavailable.'
     );
+  }
   const masquerading = principal.isMasquerading;
   const authority: PlanningAuthority = {
     actorId: principal.actorId,
@@ -126,22 +129,25 @@ function projectionChanges(before: AppData, after: AppData) {
     const previous = new Map(before[entity].map((row) => [row.id, row]));
     const currentIds = new Set(after[entity].map((row) => row.id));
     for (const row of after[entity]) {
-      if (JSON.stringify(previous.get(row.id)) !== JSON.stringify(row))
+      if (JSON.stringify(previous.get(row.id)) !== JSON.stringify(row)) {
         upserts.push({ entity, row } as ProjectedPlanningRow);
+      }
     }
-    for (const row of before[entity])
+    for (const row of before[entity]) {
       if (!currentIds.has(row.id)) removed.push({ entity, id: row.id });
+    }
   }
   return { upserts, removed };
 }
 
 function requiresRefetch(intent: PlanningMutationInput['intent']) {
-  if (intent.operation === 'catalogue.update' && 'changes' in intent.entity)
+  if (intent.operation === 'catalogue.update' && 'changes' in intent.entity) {
     return (
       Object.hasOwn(intent.entity.changes, 'isPrivate') ||
       Object.hasOwn(intent.entity.changes, 'codeName') ||
       (intent.entity.entity === 'activities' && Object.hasOwn(intent.entity.changes, 'kind'))
     );
+  }
   return false;
 }
 
@@ -171,19 +177,21 @@ export function mutatePlanning(
 ): Promise<PlanningMutationSuccess> {
   return withActor(ctx, async (actor, trx) => {
     const { authority, capabilities, bouncer } = await currentAuthority(ctx, trx, accountId);
-    if (!(await bouncer.with(DataPolicy).allows('write', { accountId, capabilities })))
+    if (!(await bouncer.with(DataPolicy).allows('write', { accountId, capabilities }))) {
       throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
+    }
     const previous = await trx
       .from('planning_mutations')
       .where({ account_id: accountId, mutation_id: input.mutationId })
       .select('mutation_id')
       .first();
-    if (previous)
+    if (previous) {
       throw new PlanningOperationError(
         409,
         'MUTATION_ID_REUSED',
         'This mutation identity has already committed.'
       );
+    }
     assertPlanningBaseRevision(
       input.baseRevision,
       await getPlanningRevision(trx, accountId),
@@ -199,12 +207,13 @@ export function mutatePlanning(
       { actorId: authority.actorId, sessionId: actor.sessionId, mutationId: input.mutationId }
     );
     const after = await readStateWithClient(trx, accountId, true);
-    if (semanticState(before) === semanticState(after))
+    if (semanticState(before) === semanticState(after)) {
       throw new PlanningOperationError(
         400,
         'NO_CHANGE',
         'The operation does not change planning data.'
       );
+    }
     // Private names and activity kind can change what a saved before-image may safely reveal.
     // A restoration group is valid only until one of those fields actually changes.
     if (invalidatesRestoration(input.intent, before, after)) {
@@ -212,10 +221,12 @@ export function mutatePlanning(
       if (
         input.confirmedRestorationCount !== undefined &&
         input.confirmedRestorationCount !== count
-      )
+      ) {
         throw new RestorationConfirmationError(count, true);
-      if (count > 0 && input.confirmedRestorationCount === undefined)
+      }
+      if (count > 0 && input.confirmedRestorationCount === undefined) {
         throw new RestorationConfirmationError(count, false);
+      }
       await trx.from('deleted_groups').where('account_id', accountId).delete();
     }
     const revision = await advancePlanningRevision(trx, accountId);

@@ -10,8 +10,9 @@ export default class GettingStartedController {
     const { params, response } = ctx;
     return withActor(ctx, async (_actor, trx) => {
       await assertCompanyAction(params.accountId, 'read', trx);
-      if (!(await trx.from('accounts').where('id', params.accountId).first()))
+      if (!(await trx.from('accounts').where('id', params.accountId).first())) {
         return response.notFound({ error: 'Company not found.' });
+      }
       const row = await trx
         .from('account_getting_started_dismissals')
         .where('account_id', params.accountId)

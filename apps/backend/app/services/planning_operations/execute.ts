@@ -50,13 +50,22 @@ function allocationGroupShape(allocation: GroupAllocation) {
 }
 
 function assertAllocationGroupHomogeneous(allocations: readonly GroupAllocation[]) {
-  const firstShape = allocationGroupShape(allocations[0]!);
-  if (allocations.some((allocation) => allocationGroupShape(allocation) !== firstShape))
+  const first = allocations.at(0);
+  if (!first) {
+    throw new PlanningOperationError(
+      400,
+      'VALIDATION_ERROR',
+      'An allocation group needs at least one allocation.'
+    );
+  }
+  const firstShape = allocationGroupShape(first);
+  if (allocations.some((allocation) => allocationGroupShape(allocation) !== firstShape)) {
     throw new PlanningOperationError(
       400,
       'VALIDATION_ERROR',
       'All allocations in a group must share the same allocation details.'
     );
+  }
 }
 
 async function transitionLifecycle(
@@ -68,12 +77,13 @@ async function transitionLifecycle(
   action: 'archive' | 'unarchive'
 ) {
   const current = existingRow(data, table, id);
-  if (table === 'clients' && current.builtin === true)
+  if (table === 'clients' && current.builtin === true) {
     throw new PlanningOperationError(
       409,
       'conflict',
       `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'unarchived'}.`
     );
+  }
   const now = createServerRevision(current.updatedAt);
   let next: Record<string, unknown>;
   if (action === 'archive') {
@@ -118,10 +128,12 @@ export async function executePlanningIntent(
   identity: RestorationIdentity
 ): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null };
-  if (!capabilities.canWrite || capabilities.role === 'viewer')
+  if (!capabilities.canWrite || capabilities.role === 'viewer') {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
-  if (!data.accounts.some((row) => row.id === accountId))
+  }
+  if (!data.accounts.some((row) => row.id === accountId)) {
     throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The company was not found.');
+  }
   try {
     switch (intent.operation) {
       case 'allocation.create':
@@ -301,8 +313,9 @@ export async function executePlanningIntent(
         );
         return unchanged;
       case 'timeOff.repeat':
-        for (const entry of intent.entries)
+        for (const entry of intent.entries) {
           await writeRow(trx, data, accountId, 'timeOff', entry.id, entry, capabilities, 'create');
+        }
         return unchanged;
       case 'timeOff.delete':
       case 'timeOff.deleteGroup': {
@@ -348,20 +361,23 @@ export async function executePlanningIntent(
     }
   } catch (error) {
     if (error instanceof PlanningOperationError) throw error;
-    if (error instanceof BatchRequestError)
+    if (error instanceof BatchRequestError) {
       throw new PlanningOperationError(
         error.status,
         error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',
         error.message
       );
-    if (error instanceof DomainError)
+    }
+    if (error instanceof DomainError) {
       throw new PlanningOperationError(400, 'VALIDATION_ERROR', error.message);
-    if (error instanceof LifecycleTransitionError)
+    }
+    if (error instanceof LifecycleTransitionError) {
       throw new PlanningOperationError(
         400,
         error.code === 'already_inactive' ? 'NO_CHANGE' : 'VALIDATION_ERROR',
         error.message
       );
+    }
     if (
       typeof error === 'object' &&
       error !== null &&

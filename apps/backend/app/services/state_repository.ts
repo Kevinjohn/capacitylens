@@ -92,8 +92,9 @@ export async function readStateWithClient(
   accountId?: string,
   includeInactive = accountId === undefined
 ): Promise<AppData> {
-  if (accountId !== undefined && accountId.trim() === '')
+  if (accountId !== undefined && accountId.trim() === '') {
     throw new Error('A company scope is required');
+  }
   const [
     accounts,
     clients,
@@ -198,12 +199,13 @@ export async function resetState(seedRequested: boolean | 'single') {
         : seeded;
     for (const [key, table] of Object.entries(tables)) {
       const rows = data[key as keyof typeof tables];
-      if (rows.length > 0)
+      if (rows.length > 0) {
         await trx
           .table(table)
           .multiInsert(
             rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>))
           );
+      }
     }
   });
 }
@@ -214,12 +216,13 @@ export async function insertSeed() {
     const data = seed();
     for (const [key, table] of Object.entries(tables)) {
       const rows = data[key as keyof typeof tables];
-      if (rows.length > 0)
+      if (rows.length > 0) {
         await trx
           .table(table)
           .insert(rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>)))
           .onConflict('id')
           .ignore();
+      }
     }
   });
 }

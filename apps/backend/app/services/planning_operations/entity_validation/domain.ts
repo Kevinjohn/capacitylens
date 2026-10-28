@@ -47,39 +47,50 @@ export function assertEntityDomain(
       [row.archivedAt, row.deletedAt, existing?.archivedAt, existing?.deletedAt].some(
         (value) => typeof value === 'string'
       )
-    )
+    ) {
       throw new BatchRequestError('The built-in Internal client must remain active.');
-    if (typeof existing?.deletedAt === 'string')
+    }
+    if (typeof existing?.deletedAt === 'string') {
       throw new BatchRequestError(
         'Soft-deleted records can only be changed through lifecycle endpoints.'
       );
+    }
   }
   const ancestry = inspectLifecycleAncestry(
     table,
     row as never,
     (parentTable, parentId) => lookup.row(parentTable, parentId) as never
   );
-  if (ancestry.kind === 'hidden')
+  if (ancestry.kind === 'hidden') {
     throw new BatchRequestError(
       'Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.'
     );
+  }
   if (table === 'clients') {
-    if (existing?.builtin === true)
+    if (existing?.builtin === true) {
       throw new BatchRequestError('The built-in Internal client cannot be modified.');
-    if (row.builtin === true && !existing && !generatedBuiltinReplacementId)
+    }
+    if (row.builtin === true && !existing && !generatedBuiltinReplacementId) {
       throw new BatchRequestError('The built-in Internal client is managed by the server.');
+    }
     if (
       row.builtin === true &&
       (row.name !== INTERNAL_CLIENT_NAME || row.color !== INTERNAL_CLIENT_COLOR)
-    )
+    ) {
       throw new BatchRequestError('The built-in Internal client has a fixed name and colour.');
-    if (row.builtin === true && hasOtherBuiltinClient(accountId, id, generatedBuiltinReplacementId))
+    }
+    if (
+      row.builtin === true &&
+      hasOtherBuiltinClient(accountId, id, generatedBuiltinReplacementId)
+    ) {
       throw new BatchRequestError('This company already has its built-in Internal client.');
+    }
     return;
   }
   if (table === 'accounts' || table === 'disciplines') return;
-  if (table !== 'allocations' && table !== 'timeOff' && table !== 'closures')
+  if (table !== 'allocations' && table !== 'timeOff' && table !== 'closures') {
     assertScopedRefs(state, accountId, table, row, existing, lookup, { fullRow: true });
+  }
   if (
     table === 'phases' &&
     existing &&
@@ -90,13 +101,14 @@ export function assertEntityDomain(
         activity.phaseId === id &&
         activity.projectId !== row.projectId
     )
-  )
+  ) {
     throw new BatchRequestError(
       'A phase with activities cannot move to a different project.',
       400,
       undefined,
       'activity_phase_project_mismatch'
     );
+  }
   if (table === 'resources') {
     const resource = row as unknown as Resource;
     const previous = existing as unknown as Resource | undefined;
@@ -106,12 +118,13 @@ export function assertEntityDomain(
       resource.firstAvailableDate ?? undefined,
       resource.lastAvailableDate ?? undefined
     );
-    if (!availability.ok)
+    if (!availability.ok) {
       throw new BatchRequestError(
         availability.codes[0] === 'date_reversed'
           ? 'First available date cannot be after last available date.'
           : 'Availability dates must be valid calendar dates (YYYY-MM-DD).'
       );
+    }
   } else if (table === 'activities') {
     assertActivityProjectAllowsDependents(
       state,
@@ -135,13 +148,14 @@ export function assertEntityDomain(
     );
     assertDateRange(allocation.startDate, allocation.endDate);
     const resource = lookup.row('resources', allocation.resourceId) as Resource | undefined;
-    if (resource)
+    if (resource) {
       assertAllocationPlacement({
         allocation,
         existing: existing as unknown as Allocation | undefined,
         resource,
         accountWorkingDays: lookup.accountWorkingDays(accountId),
       });
+    }
   } else if (table === 'timeOff') {
     const timeOff = row as unknown as TimeOff;
     assertResourceExists(

@@ -39,8 +39,9 @@ export async function actionProofActor(
 ): Promise<CurrentActor> {
   const actor = actorIn(trx);
   if (actor.masqueradeContext?.isMasquerading) throw new ActionProofError();
-  if ((await activeCompanyRole(actor.userId, accountId, trx)) !== 'owner')
+  if ((await activeCompanyRole(actor.userId, accountId, trx)) !== 'owner') {
     throw new ActionProofError();
+  }
   return actor;
 }
 

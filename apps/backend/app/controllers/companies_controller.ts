@@ -6,11 +6,12 @@ import { withActor } from '#services/auth/current_actor';
 export default class CompaniesController {
   async index(ctx: HttpContext) {
     const installationAccounts = await db.from('accounts').count('* as count').first();
-    if (Number(installationAccounts?.count ?? 0) > 1)
+    if (Number(installationAccounts?.count ?? 0) > 1) {
       return ctx.response.conflict({
         error:
           'This installation has more than one company. Contact the administrator to resolve it.',
       });
+    }
     const summaries = await withActor(ctx, async (actor, trx) => {
       const restricted = await restrictedCompanyIds(actor.userId, trx);
       const rows = await trx

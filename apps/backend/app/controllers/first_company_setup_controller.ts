@@ -16,21 +16,23 @@ export default class FirstCompanySetupController {
       body && typeof body === 'object' && !Array.isArray(body) && Object.keys(body).length === 1
         ? parseUserName((body as { name?: unknown }).name)
         : null;
-    if (name === null)
+    if (name === null) {
       return ctx.response.badRequest({
         error: `Enter a company name of up to ${MAX_NAME_LENGTH} characters without symbols.`,
         code: 'INVALID_INPUT',
       });
+    }
     const result = await withActor(ctx, async (actor, trx) => {
       await trx.from('account_transaction_lock').where('id', 1).increment('version', 1);
       if (!(await requiresFirstCompanySetup(actor.userId, trx))) return null;
       return createInitialCompany(trx, { name, ownerId: actor.userId, actorId: actor.userId });
     });
-    if (!result)
+    if (!result) {
       return ctx.response.conflict({
         error: 'First company setup is unavailable for this installation.',
         code: 'COMPANY_SETUP_UNAVAILABLE',
       });
+    }
     return ctx.response.created({ accountId: result.accountId });
   }
 }

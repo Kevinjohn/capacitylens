@@ -24,11 +24,12 @@ function proofHeaders(ctx: HttpContext) {
 /** Address confirmation for a signed-in identity, reachable before admission. */
 export default class VerificationController {
   async send(ctx: HttpContext) {
-    if (!env.get('CAPACITYLENS_MAIL_HOST'))
+    if (!env.get('CAPACITYLENS_MAIL_HOST')) {
       return ctx.response.serviceUnavailable({
         error: 'Email delivery is not configured. Ask your administrator.',
         code: 'MAIL_UNAVAILABLE',
       });
+    }
     const account = await currentAccount(ctx);
     try {
       return ctx.response.ok({
@@ -61,8 +62,9 @@ export default class VerificationController {
   async complete(ctx: HttpContext) {
     proofHeaders(ctx);
     const body = tokenBody(ctx.request.body(), ['password']);
-    if (!body || typeof body.password !== 'string' || passwordLengthFailure(body.password))
+    if (!body || typeof body.password !== 'string' || passwordLengthFailure(body.password)) {
       return ctx.response.badRequest({ error: 'Invalid confirmation request.' });
+    }
     try {
       await accountKit.emailVerification.complete({
         token: body.token as string,
@@ -70,18 +72,20 @@ export default class VerificationController {
       });
       return ctx.response.ok({ result: 'verified' });
     } catch (error) {
-      if (error instanceof InvalidTokenError)
+      if (error instanceof InvalidTokenError) {
         return ctx.response.badRequest({
           error: 'This link is invalid or expired.',
           code: 'INVALID_TOKEN',
         });
-      if (isCommittedFailure(error))
+      }
+      if (isCommittedFailure(error)) {
         return ctx.response.serviceUnavailable({
           error:
             'Your address is confirmed and your password is set. Sign in with the new password.',
           code: 'VERIFICATION_COMMITTED',
           committed: true,
         } satisfies ProductHttpErrorBody);
+      }
       throw error;
     }
   }

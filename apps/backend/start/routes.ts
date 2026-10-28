@@ -64,8 +64,9 @@ router
       }
       return false;
     });
-    if (!administers)
+    if (!administers) {
       return response.forbidden({ error: 'Diagnostics are limited to Owners and Admins.' });
+    }
     try {
       await checkDatabase();
       const lastMigration = await db
@@ -120,8 +121,9 @@ router
   })
   .as('api.diagnostics');
 router.post('/api/test/reset', async ({ request, response }) => {
-  if (!env.get('CAPACITYLENS_ALLOW_RESET'))
+  if (!env.get('CAPACITYLENS_ALLOW_RESET')) {
     return response.forbidden({ error: 'Reset is disabled.' });
+  }
   const body = request.body() as unknown;
   if (
     body !== undefined &&
@@ -130,8 +132,9 @@ router.post('/api/test/reset', async ({ request, response }) => {
       Array.isArray(body) ||
       Object.keys(body).some((key) => key !== 'seed') ||
       ('seed' in body && body.seed !== true && body.seed !== false && body.seed !== 'single'))
-  )
+  ) {
     return response.badRequest({ error: 'Invalid reset request.' });
+  }
   const requestedSeed =
     body !== undefined && typeof body === 'object' && 'seed' in body
       ? (body.seed as boolean | 'single')
@@ -147,8 +150,9 @@ router.get('*', async ({ request, response }) => {
     path.startsWith('/assets/') ||
     (path !== '/' && path.endsWith('/')) ||
     lastSegment.includes('.')
-  )
+  ) {
     return response.notFound('Not found');
+  }
   response.header('Cache-Control', 'no-store');
   return response.download(fileURLToPath(new URL('../public/index.html', import.meta.url)));
 });

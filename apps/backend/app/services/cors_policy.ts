@@ -8,8 +8,9 @@ export const corsOrigins = (env.get('CAPACITYLENS_CORS_ORIGIN') ?? defaultOrigin
   .map((origin) => origin.trim())
   .filter(Boolean)
   .map((origin) => {
-    if (origin === '*')
+    if (origin === '*') {
       throw new Error('CORS requires explicit origins when credentials are enabled');
+    }
     const parsed = new URL(origin);
     if (
       !['http:', 'https:'].includes(parsed.protocol) ||
@@ -18,10 +19,11 @@ export const corsOrigins = (env.get('CAPACITYLENS_CORS_ORIGIN') ?? defaultOrigin
       parsed.pathname !== '/' ||
       parsed.search ||
       parsed.hash
-    )
+    ) {
       throw new Error(
         `Invalid CORS origin ${JSON.stringify(origin)}: expected a bare HTTP(S) origin`
       );
+    }
     return parsed.origin;
   });
 

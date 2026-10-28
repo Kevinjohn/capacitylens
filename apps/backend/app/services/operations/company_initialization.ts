@@ -14,27 +14,33 @@ export async function initializeCompany(input: {
   operatorDatabasePath(input.confirmServerStopped);
   const email = normalizeAccountEmail(input.email);
   const name = input.companyName.trim();
-  if (!isAccountEmail(email) || !name || name.length > 200)
+  if (!isAccountEmail(email) || !name || name.length > 200) {
     throw new Error('Refusing invalid email or company name');
+  }
   return withOperatorDatabase(async () => {
     await assertSchemaIntegrity();
     return withTransaction(async (trx) => {
-      if ((await trx.from('accounts').first()) || (await trx.from('memberships').first()))
+      if ((await trx.from('accounts').first()) || (await trx.from('memberships').first())) {
         throw new Error('Refusing company initialization: installation already has company access');
+      }
       const principal = await trx
         .from('users')
         .where('email', email)
         .select('id', 'email', 'password', 'unverified_email')
         .first();
-      if (!principal)
+      if (!principal) {
         throw new Error('Refusing company initialization: an existing identity is required');
-      if (typeof principal.password !== 'string' || !principal.password)
+      }
+      if (typeof principal.password !== 'string' || !principal.password) {
         throw new Error('Refusing company initialization: identity has no enabled sign-in method');
+      }
       // Account Kit treats an address as confirmed unless it is still awaiting its own proof.
-      if (principal.unverified_email === principal.email)
+      if (principal.unverified_email === principal.email) {
         throw new Error('Refusing company initialization: identity has not confirmed its email');
-      if (!(await isAdmitted(String(principal.id), trx)))
+      }
+      if (!(await isAdmitted(String(principal.id), trx))) {
         throw new Error('Refusing company initialization: identity is not admitted');
+      }
       return createInitialCompany(trx, { name, ownerId: String(principal.id), actorId: null });
     });
   });

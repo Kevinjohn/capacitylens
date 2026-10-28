@@ -18,8 +18,9 @@ function bodyOf(value: unknown, keys: string[]): Record<string, unknown> {
     typeof value !== 'object' ||
     Array.isArray(value) ||
     Object.keys(value).some((key) => !keys.includes(key))
-  )
+  ) {
     invalidAdmission();
+  }
   return value as Record<string, unknown>;
 }
 
@@ -32,8 +33,9 @@ export default class MemberResourcesController {
         typeof body.resourceId !== 'string' ||
         !body.resourceId ||
         !(body.expectedRevision === null || typeof body.expectedRevision === 'string')
-      )
+      ) {
         invalidAdmission();
+      }
       const command = readAccountCommand(ctx);
       const { accountId, principalId } = ctx.params;
       const result = await withActor(ctx, async (_actor, trx) => {

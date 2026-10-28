@@ -38,8 +38,9 @@ function fields(value: unknown, allowed: string[]): value is Record<string, unkn
 }
 
 function replyMemberError(ctx: HttpContext, error: unknown) {
-  if (error instanceof MembershipError || error instanceof AccountCommandError)
+  if (error instanceof MembershipError || error instanceof AccountCommandError) {
     return ctx.response.status(error.status).send({ error: error.message, code: error.code });
+  }
   throw error;
 }
 
@@ -147,8 +148,12 @@ export default class MembersController {
   }
 
   async tracking(ctx: HttpContext) {
-    if (!fields(ctx.request.body(), ['enabled']) || typeof ctx.request.body().enabled !== 'boolean')
+    if (
+      !fields(ctx.request.body(), ['enabled']) ||
+      typeof ctx.request.body().enabled !== 'boolean'
+    ) {
       return ctx.response.badRequest({ error: 'enabled must be a Boolean.' });
+    }
     const enabled = ctx.request.body().enabled as boolean;
     const accountId = ctx.params.accountId;
     await withActor(ctx, async (_actor, trx) => {
@@ -156,7 +161,7 @@ export default class MembersController {
       const current = await readMemberSignInTracking(accountId, trx);
       await setMemberSignInTracking(accountId, enabled, trx);
       if (!current.enabled && enabled) await confirmMemberSignIn(accountId, actor.actorId, trx);
-      if (current.enabled !== enabled)
+      if (current.enabled !== enabled) {
         await writeAudit(trx, {
           accountId,
           actorId: actor.actorId,
@@ -165,14 +170,16 @@ export default class MembersController {
           entityId: accountId,
           fields: ['memberSignInTracking'],
         });
+      }
     });
     return ctx.response.ok({ enabled });
   }
 
   async changeRole(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['role']) || !isAccountRole(body.role))
+    if (!fields(body, ['role']) || !isAccountRole(body.role)) {
       return ctx.response.badRequest({ error: 'Invalid member role.' });
+    }
     try {
       const result = await semanticMutation(
         ctx,
@@ -198,8 +205,9 @@ export default class MembersController {
 
   async changeStatus(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['status']) || !isMembershipStatus(body.status))
+    if (!fields(body, ['status']) || !isMembershipStatus(body.status)) {
       return ctx.response.badRequest({ error: 'Invalid member status.' });
+    }
     try {
       const result = await semanticMutation(
         ctx,

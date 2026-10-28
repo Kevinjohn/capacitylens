@@ -22,8 +22,9 @@ export default class AppUpgrade extends BaseCommand {
   async run() {
     try {
       const connectionConfig = db.getRawConnection(db.primaryConnectionName)?.config;
-      if (connectionConfig?.client !== 'better-sqlite3')
+      if (connectionConfig?.client !== 'better-sqlite3') {
         throw new Error('app:upgrade requires the configured SQLite connection');
+      }
       const dbPath = connectionConfig.connection.filename;
       const existing = await db
         .from('sqlite_master')
@@ -50,7 +51,7 @@ export default class AppUpgrade extends BaseCommand {
       const migrate = await this.kernel.exec('migration:run', ['--force', '--no-schema-generate']);
       if (migrate.exitCode !== 0) {
         this.error = migrate.error;
-        this.exitCode = migrate.exitCode || 1;
+        this.exitCode = migrate.exitCode ?? 1;
         return;
       }
       await assertSchemaIntegrity();

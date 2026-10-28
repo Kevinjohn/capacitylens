@@ -50,14 +50,16 @@ export async function changeMemberRole(
   input: { accountId: string; actorId: string; actorRole: Role; userId: string; role: Role }
 ) {
   const member = await targetMember(trx, input.accountId, input.userId);
-  if (member.status !== 'active' || !canEditAnyMemberRole(input.actorRole, member.role as Role))
+  if (member.status !== 'active' || !canEditAnyMemberRole(input.actorRole, member.role as Role)) {
     throw forbidden();
-  if (input.role === 'owner')
+  }
+  if (input.role === 'owner') {
     throw new MembershipError(
       'Transfer ownership to assign the Owner role.',
       400,
       'OWNER_TRANSFER_REQUIRED'
     );
+  }
   if (!canManageMemberRole(input.actorRole, member.role as Role, input.role)) throw forbidden();
   if (member.role !== input.role) {
     await trx
@@ -94,8 +96,11 @@ export async function changeMemberStatus(
   }
 ) {
   const member = await targetMember(trx, input.accountId, input.userId);
-  if (!canChangeMemberStatus(input.actorRole, member.role as Role, input.userId === input.actorId))
+  if (
+    !canChangeMemberStatus(input.actorRole, member.role as Role, input.userId === input.actorId)
+  ) {
     throw forbidden();
+  }
   const restriction = await trx
     .from('account_access_restrictions')
     .where({ account_id: input.accountId, principal_id: input.userId })
@@ -121,17 +126,19 @@ export async function changeMemberStatus(
       created_at: new Date().toISOString(),
     });
   }
-  if (disabling && capturesEmail)
+  if (disabling && capturesEmail) {
     await trx
       .from('account_access_restrictions')
       .where({ account_id: input.accountId, principal_id: input.userId, verified_email: null })
       .update({ verified_email: provenEmail });
+  }
   if (changed) {
-    if (!disabling)
+    if (!disabling) {
       await trx
         .from('memberships')
         .where({ account_id: input.accountId, user_id: input.userId })
         .update({ status: input.status, updated_at: new Date().toISOString() });
+    }
     await resetMemberSignIn(input.accountId, input.userId, trx);
     await advancePlanningRevision(trx, input.accountId);
     await writeAudit(trx, {
@@ -157,8 +164,9 @@ export async function removeMember(
 ) {
   const member = await targetMember(trx, input.accountId, input.userId);
   // Removal locks the person out until an administrator acts, so nobody may remove themselves.
-  if (input.userId === input.actorId || !canRemoveMember(input.actorRole, member.role as Role))
+  if (input.userId === input.actorId || !canRemoveMember(input.actorRole, member.role as Role)) {
     throw forbidden();
+  }
   await trx
     .from('account_member_resources')
     .where({ account_id: input.accountId, user_id: input.userId })
@@ -170,12 +178,12 @@ export async function removeMember(
     .from('account_access_restrictions')
     .where({ account_id: input.accountId, principal_id: input.userId })
     .first();
-  if (restricted)
+  if (restricted) {
     await trx
       .from('account_access_restrictions')
       .where({ account_id: input.accountId, principal_id: input.userId })
       .update({ role: member.role });
-  else {
+  } else {
     const principal = await trx.from('users').where('id', input.userId).select('email').first();
     const email = principal ? String(principal.email).trim().toLowerCase() : null;
     await trx.table('account_access_restrictions').insert({
@@ -219,8 +227,9 @@ export async function enableMemberAccess(
       restriction.role as Role,
       input.actorId === input.userId
     )
-  )
+  ) {
     throw forbidden();
+  }
   await trx
     .from('account_access_restrictions')
     .where({ account_id: input.accountId, principal_id: input.userId })

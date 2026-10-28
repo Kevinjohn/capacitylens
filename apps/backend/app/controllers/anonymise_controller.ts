@@ -16,8 +16,9 @@ export default class AnonymiseController {
       typeof body !== 'object' ||
       Array.isArray(body) ||
       Object.keys(body).length !== 0
-    )
+    ) {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
+    }
     const { accountId, id } = ctx.params;
     const applied = await withActor(ctx, async (actor, trx) => {
       if (actor.masqueradeContext?.isMasquerading) return 'forbidden';
@@ -39,8 +40,9 @@ export default class AnonymiseController {
       Array.isArray(body) ||
       Object.keys(body).length !== 1 ||
       typeof (body as Record<string, unknown>).proofId !== 'string'
-    )
+    ) {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
+    }
     const { accountId } = ctx.params;
     try {
       await withActor(ctx, async (_actor, trx) => {
@@ -57,8 +59,9 @@ export default class AnonymiseController {
       });
       return ctx.response.noContent();
     } catch (error) {
-      if (error instanceof ActionProofError)
+      if (error instanceof ActionProofError) {
         return ctx.response.status(error.status).send({ error: error.message, code: error.code });
+      }
       throw error;
     }
   }

@@ -41,8 +41,9 @@ function canonicalDeletedAt(
     DateTime.isDateTime(value) && value.isValid
       ? value.toUTC().toISO({ suppressMilliseconds: false })
       : null;
-  if (!isIsoInstant(serialized))
+  if (!isIsoInstant(serialized)) {
     throw new Error(`Invalid soft-delete timestamp in model ${boundary}.`);
+  }
   return serialized;
 }
 
@@ -53,15 +54,17 @@ function consumeDeletedAt(value: unknown): DateTime | null | undefined {
   if (typeof value !== 'string') throw new Error('Invalid persisted soft-delete timestamp.');
   if (isIsoInstant(value)) {
     const dateTime = DateTime.fromISO(value, { setZone: true });
-    if (!dateTime.isValid || dateTime.toUTC().toISO({ suppressMilliseconds: false }) !== value)
+    if (!dateTime.isValid || dateTime.toUTC().toISO({ suppressMilliseconds: false }) !== value) {
       throw new Error('Invalid persisted soft-delete timestamp.');
+    }
     return dateTime;
   }
 
   // The package's bulk builder writes Lucid's SQLite datetime format without column prepare hooks.
   const dateTime = DateTime.fromSQL(value);
-  if (!dateTime.isValid || dateTime.toFormat('yyyy-MM-dd HH:mm:ss') !== value)
+  if (!dateTime.isValid || dateTime.toFormat('yyyy-MM-dd HH:mm:ss') !== value) {
     throw new Error('Invalid persisted soft-delete timestamp.');
+  }
   return dateTime;
 }
 

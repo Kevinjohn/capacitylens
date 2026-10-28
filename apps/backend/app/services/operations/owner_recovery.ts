@@ -41,11 +41,12 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
     const userId = String(user.id);
     const accountIds = await soleOwnerAccounts(userId, db);
     const issued = await accountKit.operator.resetLink({ email, deliver: 'print' });
-    if (!issued.url || String(issued.user.id) !== userId)
+    if (!issued.url || String(issued.user.id) !== userId) {
       throw new Error('Owner recovery failed; no recovery link was delivered');
+    }
     await withTransaction(async (trx) => {
       const now = new Date().toISOString();
-      for (const accountId of accountIds)
+      for (const accountId of accountIds) {
         await trx.table('audit_entries').insert({
           id: crypto.randomUUID(),
           account_id: accountId,
@@ -57,6 +58,7 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
           created_at: now,
           updated_at: now,
         });
+      }
     });
     return { email, userId, accountIds, link: issued.url };
   });

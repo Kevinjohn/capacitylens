@@ -40,8 +40,9 @@ export function startBackups(input: {
       return () => clearInterval(timer);
     },
   } = input;
-  if (!dbPath || dbPath === ':memory:' || /^file:.*(?:\?|&)mode=memory(?:&|$)/i.test(dbPath))
+  if (!dbPath || dbPath === ':memory:' || /^file:.*(?:\?|&)mode=memory(?:&|$)/i.test(dbPath)) {
     throw new Error('Backups require a file-backed SQLite database');
+  }
   ensurePrivateBackupDirectory(config.dir);
   const source = openNativeDatabase(dbPath, { fileMustExist: true, readonly: true });
   let identity: ReturnType<typeof readMainDatabaseIdentity>;
@@ -93,8 +94,9 @@ export function startBackups(input: {
   };
   const backups: Backups = {
     snapshotNow() {
-      if (stopping)
+      if (stopping) {
         return Promise.reject(new Error('backups stopped — snapshot refused during shutdown'));
+      }
       if (pending) return pending;
       const run = write();
       pending = run;

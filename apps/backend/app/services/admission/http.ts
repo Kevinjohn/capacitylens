@@ -5,15 +5,18 @@ import { AdmissionError } from './errors.js';
 
 /** Renders only safe admission failures; unexpected failures reach the central handler. */
 export function renderAdmissionFailure(ctx: HttpContext, error: unknown) {
-  if (error instanceof AdmissionError)
+  if (error instanceof AdmissionError) {
     return ctx.response.status(error.status).send({
       error: error.message,
       code: error.code,
       ...(error.decision === undefined ? {} : { decision: error.decision }),
     });
-  if (error instanceof AccountCommandError)
+  }
+  if (error instanceof AccountCommandError) {
     return ctx.response.status(error.status).send({ error: error.message, code: error.code });
-  if (error instanceof IdentityAuthorityError)
+  }
+  if (error instanceof IdentityAuthorityError) {
     return ctx.response.forbidden({ error: 'Forbidden.', code: error.code });
+  }
   throw error;
 }

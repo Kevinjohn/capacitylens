@@ -25,8 +25,9 @@ export async function getPlanningRevision(
     .select('revision')
     .first();
   const revision = row ? Number(row.revision) : 0;
-  if (!Number.isSafeInteger(revision) || revision < 0)
+  if (!Number.isSafeInteger(revision) || revision < 0) {
     throw new Error(`Invalid planning revision for company ${accountId}.`);
+  }
   return revision;
 }
 
@@ -47,8 +48,9 @@ export function advancePlanningRevision(
       .first();
     if (current) {
       const revision = Number(current.revision);
-      if (!Number.isSafeInteger(revision) || revision < 0 || revision === Number.MAX_SAFE_INTEGER)
+      if (!Number.isSafeInteger(revision) || revision < 0 || revision === Number.MAX_SAFE_INTEGER) {
         throw new Error(`Invalid planning revision for company ${accountId}.`);
+      }
       await trx
         .from('company_planning_revisions')
         .where('account_id', accountId)

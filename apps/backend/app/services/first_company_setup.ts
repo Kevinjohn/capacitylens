@@ -9,7 +9,7 @@ export async function requiresFirstCompanySetup(
   const users = await connection.from('users').select('id').limit(2);
   return (
     users.length === 1 &&
-    String(users[0]!.id) === userId &&
+    String(users[0]?.id) === userId &&
     !(await connection.from('accounts').select('id').first()) &&
     !(await connection.from('memberships').select('id').first())
   );

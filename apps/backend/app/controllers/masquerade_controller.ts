@@ -24,10 +24,11 @@ async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
                 : error.code;
       return ctx.response.status(status).send({ error: error.message, code });
     }
-    if (error instanceof IdentityAuthorityError)
+    if (error instanceof IdentityAuthorityError) {
       return ctx.response
         .status(error.status)
         .send({ error: 'This action is not allowed.', code: error.code });
+    }
     throw error;
   }
 }
@@ -46,8 +47,9 @@ export default class MasqueradeController {
       !('targetUserId' in body) ||
       typeof body.targetUserId !== 'string' ||
       !body.targetUserId
-    )
+    ) {
       return ctx.response.badRequest({ error: 'Target member is required.' });
+    }
     return respond(ctx, async () => {
       const started = await startMasquerade(ctx, body.targetUserId as string);
       if (!started.isMasquerading) throw new MasqueradeError('E_MASQUERADE_UNAVAILABLE');
@@ -67,14 +69,16 @@ export default class MasqueradeController {
         if (typeof accountId === 'string' && accountId) {
           const mode = await currentMasquerade(ctx);
           if (mode.active) return ctx.response.ok(mode);
-          if (!(await activeCompanyRole(signIn.userId, accountId, db)))
+          if (!(await activeCompanyRole(signIn.userId, accountId, db))) {
             throw new IdentityAuthorityError('Company membership is unavailable.');
+          }
           return ctx.response.ok({ ...mode, accountId });
         }
         return ctx.response.ok(await currentMasquerade(ctx));
       } catch (error) {
-        if (error instanceof InvalidSessionError)
+        if (error instanceof InvalidSessionError) {
           return ctx.response.ok({ active: false, contextToken: null });
+        }
         throw error;
       }
     });
@@ -92,12 +96,14 @@ export default class MasqueradeController {
       !body.token ||
       !('reason' in body) ||
       (body.reason !== 'explicit' && body.reason !== 'account_switch')
-    )
+    ) {
       return ctx.response.badRequest({ error: 'Invalid masquerade end request.' });
+    }
     return respond(ctx, async () => {
       const header = ctx.request.header('X-Masquerade-Context');
-      if (typeof header !== 'string' || !header)
+      if (typeof header !== 'string' || !header) {
         throw new MasqueradeError('E_MASQUERADE_CONTEXT_REQUIRED');
+      }
       if (header !== body.token) throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
       const mode = await endMasquerade(ctx);
       return ctx.response.ok({ active: false, contextToken: mode.contextToken });

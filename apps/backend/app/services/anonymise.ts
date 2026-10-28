@@ -40,11 +40,12 @@ export async function anonymiseResources(
         .where('account_id', accountId)
         .whereIn('resource_id', ids.slice(start, start + 500))
         .whereNotNull('note');
-      for (const dependent of noted)
+      for (const dependent of noted) {
         await trx
           .from(table)
           .where({ id: dependent.id, account_id: accountId })
           .update({ note: null, updated_at: createServerRevision(dependent.updated_at) });
+      }
     }
   }
   await trx.from('deleted_groups').where('account_id', accountId).delete();

@@ -67,10 +67,11 @@ async function assertAccountKitStorage() {
   const tables = new Set(rows.map((row) => row.name));
   const stale = preCutoverTables.filter((table) => tables.has(table));
   const missing = accountKitTables.filter((table) => !tables.has(table));
-  if (stale.length || missing.length)
+  if (stale.length || missing.length) {
     throw new Error(
       `Database schema drift: this database predates Account Kit sign-in (${[...stale, ...missing.map((table) => `missing ${table}`)].join(', ')}). Back it up, then start from a fresh database as the upgrade guide describes.`
     );
+  }
 }
 
 async function assertBaselineMigrationRecord() {
@@ -80,8 +81,9 @@ async function assertBaselineMigrationRecord() {
     typeof rows[0]?.batch !== 'number' ||
     !Number.isSafeInteger(rows[0].batch) ||
     rows[0].batch < 1
-  )
+  ) {
     throw new Error('Database schema drift: baseline migration record is missing or invalid');
+  }
 }
 
 const normalize = (sql: string) => sql.replace(/\s+/g, ' ').trim().replace(/;$/, '');
@@ -104,14 +106,16 @@ async function assertIndex(table: string, column: string) {
 
 async function assertTrigger(name: string, expectedSql: string) {
   const row = await db.from('sqlite_master').select('sql').where({ type: 'trigger', name }).first();
-  if (typeof row?.sql !== 'string' || normalize(row.sql) !== normalize(expectedSql))
+  if (typeof row?.sql !== 'string' || normalize(row.sql) !== normalize(expectedSql)) {
     throw new Error(`Database schema drift: trigger ${name} differs from the baseline`);
+  }
 }
 
 async function assertProofStorage(table: string, expectedColumns: string[]) {
   const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
-  if (JSON.stringify(columns.map(({ name }) => name)) !== JSON.stringify(expectedColumns))
+  if (JSON.stringify(columns.map(({ name }) => name)) !== JSON.stringify(expectedColumns)) {
     throw new Error(`Database schema drift: ${table} columns differ from the baseline`);
+  }
   const references = (await db.rawQuery(`PRAGMA foreign_key_list(${table})`)) as Array<{
     table: string;
     from: string;
@@ -126,8 +130,9 @@ async function assertProofStorage(table: string, expectedColumns: string[]) {
         reference.to === 'id' &&
         reference.on_delete === 'CASCADE'
     )
-  )
+  ) {
     throw new Error(`Database schema drift: ${table} user cascade is missing`);
+  }
   const indexes = (await db.rawQuery(`PRAGMA index_list(${table})`)) as Array<{
     name: string;
     unique: number;
@@ -139,18 +144,21 @@ async function assertProofStorage(table: string, expectedColumns: string[]) {
     const indexed = (await db.rawQuery(`PRAGMA index_info(${index.name})`)) as Array<{
       name: string;
     }>;
-    if (indexed.length === 1) uniqueColumns.add(indexed[0]!.name);
+    const only = indexed.at(0);
+    if (indexed.length === 1 && only) uniqueColumns.add(only.name);
   }
-  if (!uniqueColumns.has('tokenable_id') || !uniqueColumns.has('hash'))
+  if (!uniqueColumns.has('tokenable_id') || !uniqueColumns.has('hash')) {
     throw new Error(`Database schema drift: ${table} proof uniqueness is missing`);
+  }
 }
 
 async function assertMasqueradeStorage(table: string, expectedColumns: string[]) {
   const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
-  if (JSON.stringify(columns.map(({ name }) => name)) !== JSON.stringify(expectedColumns))
+  if (JSON.stringify(columns.map(({ name }) => name)) !== JSON.stringify(expectedColumns)) {
     throw new Error(
       `Database schema drift: ${table} columns differ from the Masquerade package schema`
     );
+  }
 }
 
 async function assertLegacyMasqueradeRetired() {
@@ -231,38 +239,45 @@ export async function assertSchemaIntegrity() {
     name: string;
     notnull: number;
   }>;
-  if (auditColumns.find((column) => column.name === 'account_id')?.notnull !== 1)
+  if (auditColumns.find((column) => column.name === 'account_id')?.notnull !== 1) {
     throw new Error('Database schema drift: audit account_id must be required');
+  }
   const auditReferences = (await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')) as Array<{
     table: string;
   }>;
-  if (auditReferences.some((reference) => reference.table === 'accounts'))
+  if (auditReferences.some((reference) => reference.table === 'accounts')) {
     throw new Error('Database schema drift: deleted-company audit history must be retained');
+  }
   for (const [table, column] of relationships) await assertIndex(table, column);
-  for (const table of scopedTables)
+  for (const table of scopedTables) {
     await assertTrigger(
       `${table}_account_immutable`,
       `CREATE TRIGGER ${table}_account_immutable BEFORE UPDATE OF account_id ON ${table} WHEN NEW.account_id <> OLD.account_id BEGIN SELECT RAISE(ABORT, 'account_id is immutable'); END`
     );
-  for (const [table, column, target] of relationships)
-    for (const operation of ['INSERT', 'UPDATE'])
+  }
+  for (const [table, column, target] of relationships) {
+    for (const operation of ['INSERT', 'UPDATE']) {
       await assertTrigger(
         `${table}_${column}_${operation.toLowerCase()}`,
         `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND account_id = NEW.account_id) BEGIN SELECT RAISE(ABORT, 'cross-account reference'); END`
       );
+    }
+  }
   await assertTrigger(
     'capacitylens_member_resource_kind_cleanup',
     "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE account_id = OLD.account_id AND resource_id = OLD.id; END"
   );
-  for (const table of ['account_getting_started_dismissals', 'account_access_restrictions'])
+  for (const table of ['account_getting_started_dismissals', 'account_access_restrictions']) {
     await assertIndex(table, 'account_id');
+  }
   for (const table of ['allocations', 'time_off', 'closures', 'phases', 'disciplines']) {
     const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
     if (
       !columns.some((column) => column.name === 'deleted_at') ||
       !columns.some((column) => column.name === 'deletion_group_id')
-    )
+    ) {
       throw new Error(`Database schema drift: ${table} deletion ownership columns are missing`);
+    }
     const references = (await db.rawQuery(`PRAGMA foreign_key_list(${table})`)) as Array<{
       id: number;
       table: string;
@@ -278,13 +293,15 @@ export async function assertSchemaIntegrity() {
           reference.to === 'group_id' &&
           reference.on_delete === 'CASCADE'
       )
-    )
+    ) {
       throw new Error(`Database schema drift: ${table} deletion ownership foreign key is missing`);
-    for (const operation of ['insert', 'update'])
+    }
+    for (const operation of ['insert', 'update']) {
       await assertTrigger(
         `${table}_deletion_group_${operation}`,
         `CREATE TRIGGER ${table}_deletion_group_${operation} BEFORE ${operation.toUpperCase()} ON ${table} WHEN NEW.deletion_group_id IS NOT NULL AND (NEW.deleted_at IS NULL OR NOT EXISTS (SELECT 1 FROM deleted_groups WHERE group_id = NEW.deletion_group_id AND account_id = NEW.account_id)) BEGIN SELECT RAISE(ABORT, 'invalid deletion group association'); END`
       );
+    }
   }
   await assertTrigger(
     'deleted_groups_active_row_guard',
@@ -340,7 +357,8 @@ export async function assertSchemaIntegrity() {
     ],
   ] as const) {
     const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
-    if (JSON.stringify(actual.map((column) => column.name)) !== JSON.stringify(columns))
+    if (JSON.stringify(actual.map((column) => column.name)) !== JSON.stringify(columns)) {
       throw new Error(`Database schema drift: ${table} columns differ from the baseline`);
+    }
   }
 }

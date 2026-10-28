@@ -172,8 +172,9 @@ const requireChanges = (allowedFields: readonly string[]) =>
       value !== null &&
       typeof value === 'object' &&
       Object.keys(value).some((key) => allowedFields.includes(key))
-    )
+    ) {
       return;
+    }
     field.report('At least one writable field is required.', 'emptyChanges', field);
   })();
 
@@ -232,8 +233,9 @@ const duplicateIdIsDistinct = vine.createRule((value, _options, field) => {
     typeof sourceAllocationId === 'string' &&
     typeof duplicate?.id === 'string' &&
     sourceAllocationId !== duplicate.id
-  )
+  ) {
     return;
+  }
   field.report('The duplicated allocation must have a new ID.', 'distinctIds', field);
 });
 
@@ -918,7 +920,8 @@ export const mutationLookupValidator = vine.compile(vine.object({ mutationId: uu
 export const mutationLookupReplyValidator = vine.compile(
   vine.union([
     vine.union.if(
-      (value) =>
+      // The request body is untrusted, whatever the declared parameter type says.
+      (value: unknown) =>
         value !== null &&
         typeof value === 'object' &&
         !Array.isArray(value) &&

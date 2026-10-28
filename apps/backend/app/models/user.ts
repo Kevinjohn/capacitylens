@@ -24,13 +24,16 @@ export default class User extends UserSchema {
    */
   @beforeCreate()
   static async admitFirstIdentityOnly(user: User) {
-    user.id ??= randomUUID();
+    // The column is declared as always present, but a model created without an id has none yet.
+    const draft: { id?: string } = user;
+    draft.id ??= randomUUID();
     user.createdAt = new Date().toISOString();
     const trx = user.$trx;
     if (!trx) throw new Error('Identities are created only inside the Account Kit transaction.');
     if (await trx.from('accounts').select('id').first()) return;
-    if (user.unverifiedEmail !== null || (await trx.from('users').select('id').first()))
+    if (user.unverifiedEmail !== null || (await trx.from('users').select('id').first())) {
       throw new FirstCompanyPendingError();
+    }
   }
 
   @beforeSave()

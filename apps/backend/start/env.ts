@@ -10,8 +10,9 @@ function optionalInteger(maximum: number, minimum = 1): OptionalStringValidator 
       !Number.isSafeInteger(Number(value)) ||
       Number(value) < minimum ||
       Number(value) > maximum
-    )
+    ) {
       throw new Error(`${key} must be an integer from ${minimum} to ${maximum}`);
+    }
     return value;
   };
 }

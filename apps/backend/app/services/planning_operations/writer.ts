@@ -79,18 +79,20 @@ function requirePrivacyPermission(
       (fields.isPrivate === true || (fields.codeName !== null && fields.codeName !== undefined))) ||
       (mode === 'update' &&
         (Object.hasOwn(fields, 'isPrivate') || Object.hasOwn(fields, 'codeName'))))
-  )
+  ) {
     throw new PlanningOperationError(
       403,
       'AUTHORIZATION_DENIED',
       'Only an owner can change private names.'
     );
-  if (table === 'timeOff' && !capabilities.canSeeTimeOffNote && Object.hasOwn(fields, 'note'))
+  }
+  if (table === 'timeOff' && !capabilities.canSeeTimeOffNote && Object.hasOwn(fields, 'note')) {
     throw new PlanningOperationError(
       403,
       'AUTHORIZATION_DENIED',
       'The time-off note is restricted.'
     );
+  }
 }
 
 /**
@@ -112,16 +114,19 @@ export async function writeRow(
 ) {
   const existing = (data[table] as unknown as Row[]).find((row) => row.id === id);
   requirePrivacyPermission(table, fields, capabilities, mode);
-  if (mode === 'create' && existing)
+  if (mode === 'create' && existing) {
     throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+  }
   if (
     mode === 'create' &&
     !isRetainedTable(table) &&
     (await trx.from(TABLE_NAMES[table]).select('id').where('id', id).first())
-  )
+  ) {
     throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
-  if (mode === 'update' && !existing)
+  }
+  if (mode === 'update' && !existing) {
     throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The record was not found.');
+  }
   const candidate: Record<string, unknown> = {
     ...(existing ?? {}),
     ...fields,
@@ -155,12 +160,13 @@ export async function writeRow(
     const resource = lookup.row('resources', String(clean.resourceId)) as Resource | undefined;
     if (resource && typeof clean.startDate === 'string') {
       const effectiveWeek = effectiveWorkingWeek(resource, lookup.accountWorkingDays(accountId));
-      if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(clean.startDate)))
+      if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(clean.startDate))) {
         throw new PlanningOperationError(
           400,
           'VALIDATION_ERROR',
           'The allocation must start on a working day.'
         );
+      }
     }
   }
   if (mode === 'create') {
@@ -171,15 +177,17 @@ export async function writeRow(
         .where('id', id)
         .first();
       if (prior) {
-        if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id)
+        if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id) {
           throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+        }
         const purged = await retainedQuery(trx, accountId, table)
           .onlyTrashed()
           .where('id', id)
           .where('deletion_group_id', String(prior.deletion_group_id))
           .forceDelete();
-        if (purged !== 1)
+        if (purged !== 1) {
           throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+        }
       }
     }
     await trx.table(TABLE_NAMES[table]).insert(encodeRow(TABLE_NAMES[table], clean));
@@ -189,7 +197,8 @@ export async function writeRow(
       .from(TABLE_NAMES[table])
       .where({ id, account_id: accountId })
       .update(encodeRow(TABLE_NAMES[table], clean));
-    Object.assign(existing!, clean);
+    if (!existing) throw new Error('The update mode check above guarantees an existing row.');
+    Object.assign(existing, clean);
   }
   return clean;
 }
@@ -208,12 +217,13 @@ export async function updateSettings(
   if (
     Object.hasOwn(changes, 'capacityOverviewAccess') &&
     !['owner', 'admin'].includes(capabilities.role)
-  )
+  ) {
     throw new PlanningOperationError(
       403,
       'AUTHORIZATION_DENIED',
       'This setting requires an administrator.'
     );
+  }
   const existing = existingRow(data, 'accounts', accountId);
   const candidate = { ...existing, ...changes };
   try {

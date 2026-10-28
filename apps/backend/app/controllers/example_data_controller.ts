@@ -28,20 +28,21 @@ export default class ExampleDataController {
       const added = await withActor(ctx, async (_actor, trx) => {
         const actor = await assertCompanyAction(accountId, 'write', trx);
         const state = await readStateWithClient(trx, accountId, true);
-        const account = state.accounts[0];
+        const account = state.accounts.at(0);
         if (!account) throw new BatchRequestError('Company not found.', 404);
         if (
           state.resources.length > 0 ||
           state.clients.some((client) => client.builtin !== true) ||
           state.projects.length > 0 ||
           state.allocations.length > 0
-        )
+        ) {
           throw new BatchRequestError(
             'Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.',
             409,
             undefined,
             'EXAMPLE_DATA_COMPANY_NOT_EMPTY'
           );
+        }
         const sample = buildExampleCompany({
           accountId,
           referenceDate: todayISO(account.timezone ?? undefined),
@@ -49,7 +50,7 @@ export default class ExampleDataController {
         });
         for (const key of INSERT_ORDER) {
           const rows = sample[key];
-          if (rows.length > 0)
+          if (rows.length > 0) {
             await trx
               .table(TABLE_NAMES[key])
               .multiInsert(
@@ -57,6 +58,7 @@ export default class ExampleDataController {
                   encodeRow(TABLE_NAMES[key], row as unknown as Record<string, unknown>)
                 )
               );
+          }
         }
         await writeAudit(trx, {
           accountId,
@@ -76,11 +78,12 @@ export default class ExampleDataController {
       }
       return response.created({ added });
     } catch (error) {
-      if (error instanceof BatchRequestError)
+      if (error instanceof BatchRequestError) {
         return response.status(error.status).send({
           error: error.message,
           ...(error.code ? { code: error.code } : {}),
         });
+      }
       throw error;
     }
   }

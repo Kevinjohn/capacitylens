@@ -8,8 +8,9 @@ export const admissionQueryValidator = vine.compile(
       .string()
       .use(
         vine.createRule((value, _options, field) => {
-          if (typeof value === 'string' && value.length > 512)
+          if (typeof value === 'string' && value.length > 512) {
             field.report('Invalid cursor.', 'cursorLength', field);
+          }
         })()
       )
       .optional(),

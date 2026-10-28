@@ -30,7 +30,8 @@ function token(value: unknown): value is string {
 }
 
 function privateErrorCode(error: unknown) {
-  const code = (error as { code?: unknown })?.code;
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
   return typeof code === 'string' && /^[A-Z_]{2,64}$/.test(code) ? code : 'RECOVERY_REQUEST_FAILED';
 }
 
@@ -48,14 +49,17 @@ const committed = {
 
 export default class CredentialController {
   async requestReset(ctx: HttpContext) {
-    if (!env.get('CAPACITYLENS_MAIL_HOST'))
+    if (!env.get('CAPACITYLENS_MAIL_HOST')) {
       return ctx.response.notFound({ error: 'Password recovery is unavailable.' });
+    }
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['email']) || typeof body.email !== 'string')
+    if (!fields(body, ['email']) || typeof body.email !== 'string') {
       return ctx.response.badRequest({ error: 'Invalid recovery request.' });
+    }
     const email = normalizeAccountEmail(body.email);
-    if (!isAccountEmail(email))
+    if (!isAccountEmail(email)) {
       return ctx.response.badRequest({ error: 'Invalid recovery request.' });
+    }
     try {
       await accountKit.passwordReset.request({ email, clientKey: ctx.request.ip() });
     } catch (error) {
@@ -70,8 +74,9 @@ export default class CredentialController {
   async inspectReset(ctx: HttpContext) {
     proofHeaders(ctx);
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['token']) || !token(body.token))
+    if (!fields(body, ['token']) || !token(body.token)) {
       return ctx.response.badRequest({ error: 'Invalid recovery request.' });
+    }
     return ctx.response.ok({
       valid: await accountKit.passwordReset.inspect({ token: body.token }),
     });
@@ -85,17 +90,19 @@ export default class CredentialController {
       !fields(body, ['token', 'newPassword']) ||
       !token(body.token) ||
       !password(body.newPassword)
-    )
+    ) {
       return ctx.response.badRequest({ error: 'Invalid recovery request.' });
+    }
     try {
       await accountKit.passwordReset.reset({ token: body.token, password: body.newPassword });
       return ctx.response.ok({ ok: true });
     } catch (error) {
-      if (error instanceof InvalidTokenError)
+      if (error instanceof InvalidTokenError) {
         return ctx.response.badRequest({
           error: 'This link is invalid or expired.',
           code: 'INVALID_TOKEN',
         });
+      }
       if (isCommittedFailure(error)) return ctx.response.serviceUnavailable(committed);
       throw error;
     }
@@ -108,8 +115,9 @@ export default class CredentialController {
       !fields(body, ['currentPassword', 'newPassword']) ||
       typeof body.currentPassword !== 'string' ||
       !password(body.newPassword)
-    )
+    ) {
       return ctx.response.badRequest({ error: 'Invalid credential request.' });
+    }
     const account = await currentAccount(ctx);
     let outcome: 'changed' | 'committed' = 'changed';
     try {
@@ -119,11 +127,12 @@ export default class CredentialController {
         newPassword: body.newPassword,
       });
     } catch (error) {
-      if (error instanceof IdentityNotConfirmedError)
+      if (error instanceof IdentityNotConfirmedError) {
         return ctx.response.forbidden({
           error: 'Current password is incorrect.',
           code: 'CURRENT_PASSWORD_INCORRECT',
         });
+      }
       if (!isCommittedFailure(error)) throw error;
       outcome = 'committed';
     }

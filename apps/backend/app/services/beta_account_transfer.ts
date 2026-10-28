@@ -76,28 +76,32 @@ export async function applyBetaAccountTransfer(
   const current = await readStateWithClient(trx, accountId, true);
   if (current.accounts.length !== 1) throw new BatchRequestError('Company not found.', 404);
   const revision = await getPlanningRevision(trx, accountId);
-  if (revision !== baseRevision)
+  if (revision !== baseRevision) {
     throw new BatchRequestError(
       'The company changed. Preview the current data again.',
       409,
       { revision },
       'IMPORT_SNAPSHOT_STALE'
     );
+  }
   const prepared = prepareBetaImport(document, await context(trx, accountId));
-  if (portableFingerprint(current, accountId) === fingerprint(prepared.data))
+  if (portableFingerprint(current, accountId) === fingerprint(prepared.data)) {
     return { imported: prepared.imported, changed: false, revision };
+  }
 
   await trx.from('deleted_groups').where('account_id', accountId).delete();
-  for (const key of [...INSERT_ORDER].reverse())
+  for (const key of [...INSERT_ORDER].reverse()) {
     await trx.from(TABLE_NAMES[key]).where('account_id', accountId).delete();
-  const account = prepared.data.accounts[0]!;
+  }
+  const account = prepared.data.accounts.at(0);
+  if (!account) throw new Error('A prepared beta import always carries exactly one account.');
   await trx
     .from('accounts')
     .where('id', accountId)
     .update(encodeRow('accounts', account as unknown as Record<string, unknown>));
   for (const key of INSERT_ORDER) {
     const rows = prepared.data[key];
-    for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE)
+    for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE) {
       await trx
         .table(TABLE_NAMES[key])
         .multiInsert(
@@ -105,6 +109,7 @@ export async function applyBetaAccountTransfer(
             .slice(offset, offset + INSERT_CHUNK_SIZE)
             .map((row) => encodeRow(TABLE_NAMES[key], row as unknown as Record<string, unknown>))
         );
+    }
   }
   await writeAudit(trx, {
     accountId,

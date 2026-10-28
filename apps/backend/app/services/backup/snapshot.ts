@@ -69,15 +69,18 @@ function verifySnapshot(path: string, expectedSchema: unknown[], label: string):
   const copied = openNativeDatabase(path, { fileMustExist: true });
   try {
     const quick = copied.pragma('quick_check') as Array<{ quick_check: string }>;
-    if (quick.length !== 1 || quick[0]?.quick_check !== 'ok')
+    if (quick.length !== 1 || quick[0]?.quick_check !== 'ok') {
       throw new Error(`${label} failed SQLite quick_check`);
+    }
     const violations = copied.pragma('foreign_key_check') as unknown[];
-    if (violations.length > 0)
+    if (violations.length > 0) {
       throw new Error(
         `${label} failed SQLite foreign_key_check (${violations.length} violation(s))`
       );
-    if (JSON.stringify(schemaRows(copied)) !== JSON.stringify(expectedSchema))
+    }
+    if (JSON.stringify(schemaRows(copied)) !== JSON.stringify(expectedSchema)) {
       throw new Error(`${label} adonis_schema mismatch`);
+    }
     copied.pragma('wal_checkpoint(TRUNCATE)');
     copied.pragma('journal_mode = DELETE');
   } finally {
@@ -104,10 +107,12 @@ export async function writeOneShotSnapshot(input: {
     publisher = durableSnapshotPublisher,
     overwrite = true,
   } = input;
-  if (resolve(dirname(file)) !== resolve(dir))
+  if (resolve(dirname(file)) !== resolve(dir)) {
     throw new Error('Snapshot file must be inside the configured directory');
-  if (isProtectedDatabasePath(file, readMainDatabaseIdentity(database)))
+  }
+  if (isProtectedDatabasePath(file, readMainDatabaseIdentity(database))) {
     throw new Error('Snapshot destination is the live SQLite database');
+  }
   const expectedSchema = schemaRows(database);
   let tmp: string | undefined;
   try {

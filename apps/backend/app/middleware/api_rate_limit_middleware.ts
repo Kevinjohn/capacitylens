@@ -13,8 +13,9 @@ export default class ApiRateLimitMiddleware {
         .use({ requests: count, duration: '1 minute' })
         .consume(`api:${requestClientKey(ctx)}`);
     } catch (error) {
-      if ((error as { status?: number }).status === 429)
+      if ((error as { status?: number }).status === 429) {
         return ctx.response.tooManyRequests({ error: 'Rate limit exceeded.' });
+      }
       throw error;
     }
     return next();

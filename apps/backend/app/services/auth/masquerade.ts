@@ -41,8 +41,12 @@ export async function currentMasquerade(ctx: HttpContext) {
   try {
     await service.resolve(ctx);
   } catch (error) {
-    if (!(error instanceof PackageMasqueradeError) || error.code !== 'E_MASQUERADE_CONTEXT_CHANGED')
+    if (
+      !(error instanceof PackageMasqueradeError) ||
+      error.code !== 'E_MASQUERADE_CONTEXT_CHANGED'
+    ) {
       throw error;
+    }
   }
   const view = await service.status(ctx);
   if (!view.isMasquerading) return { active: false as const, contextToken: view.contextToken };
@@ -85,14 +89,18 @@ export async function currentMasquerade(ctx: HttpContext) {
         break;
       }
     }
-    if (!accountId || !effectiveRole)
+    if (!accountId || !effectiveRole) {
       throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+    }
   }
+  // An empty display name falls through to the email, so these are string-or-empty, not nullable.
+  const displayName = String(target.display_name ?? '');
+  const email = String(target.email ?? '');
   return {
     active: true as const,
     accountId,
     targetUserId: view.targetId,
-    targetName: String(target.display_name || target.email || 'Member'),
+    targetName: displayName || email || 'Member',
     effectiveRole,
     startedAt: view.startedAt,
     expiresAt: view.expiresAt,
@@ -127,16 +135,18 @@ export async function effectiveReadPrincipal(
 ) {
   const actor = actorIn(trx);
   const context = capturedMasqueradeContext(ctx);
-  if (!context || context.actorId !== actor.userId)
+  if (!context || context.actorId !== actor.userId) {
     throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+  }
   const accountId =
     requestedAccountId ??
     (typeof ctx.params.accountId === 'string' ? ctx.params.accountId : undefined);
   if (context.isMasquerading && accountId) {
     const actorRole = await activeCompanyRole(actor.userId, accountId, trx);
     const targetRole = await activeCompanyRole(context.effectiveId, accountId, trx);
-    if (!actorRole || !can(actorRole, 'masquerade') || !targetRole)
+    if (!actorRole || !can(actorRole, 'masquerade') || !targetRole) {
       throw new IdentityAuthorityError('Masquerade company authority changed.');
+    }
   }
   return {
     actorId: actor.userId,
