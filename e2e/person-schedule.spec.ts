@@ -121,6 +121,8 @@ function registerLayoutScenario() {
 
     await page.setViewportSize({ width: 520, height: 800 });
     await dismissLandscapeHint(page);
+    await page.setViewportSize({ width: 520, height: 800 });
+    expect(page.viewportSize()).toEqual({ width: 520, height: 800 });
     const narrowTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
     await expect(narrowTrigger).toBeVisible();
     await narrowTrigger.click();

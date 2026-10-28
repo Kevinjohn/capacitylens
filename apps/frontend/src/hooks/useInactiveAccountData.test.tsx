@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { AuthContext } from "@/auth/authContext";
 import { PermissionContext } from "@/auth/permissionContext";
 import { notifyInactiveDataChanged } from "@/data/inactiveDataEvents";
 import { useStore } from "@/store/useStore";
@@ -42,11 +43,21 @@ function Probe() {
   return <div>{data?.clients.map((client) => client.name).join(",") ?? "hidden"}</div>;
 }
 
-function view(role: "admin" | "editor") {
+function view(role: "owner" | "admin" | "editor", principalId = "bruce") {
   return (
-    <PermissionContext.Provider value={{ role, status: "resolved" }}>
-      <Probe />
-    </PermissionContext.Provider>
+    <AuthContext.Provider
+      value={{
+        authMode: "password-only",
+        user: { id: principalId },
+        canCreateAccount: true,
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
+    >
+      <PermissionContext.Provider value={{ role, status: "resolved" }}>
+        <Probe />
+      </PermissionContext.Provider>
+    </AuthContext.Provider>
   );
 }
 
@@ -102,5 +113,24 @@ describe("useInactiveAccountData", () => {
     useStore.setState({ activeAccountId: "a1" });
     await waitFor(() => expect(screen.getByText("hidden")).toBeInTheDocument());
     expect(screen.queryByText("Old A")).not.toBeInTheDocument();
+  });
+  it("hides Owner labels immediately on Admin demotion and same-company principal replacement", async () => {
+    const next = deferred<{ ok: boolean; status: number; json: () => Promise<ReturnType<typeof payload>> }>();
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, status: 200, json: async () => payload("a1", "Owner secret") })
+        .mockReturnValue(next.promise),
+    );
+    const rendered = render(view("owner"));
+    expect(await screen.findByText(/Owner secret/)).toBeInTheDocument();
+    rendered.rerender(view("admin"));
+    expect(screen.getByText("hidden")).toBeInTheDocument();
+    rendered.rerender(view("admin", "diana"));
+    expect(screen.getByText("hidden")).toBeInTheDocument();
+    next.resolve({ ok: true, status: 200, json: async () => payload("a1", "Safe cover") });
+    expect(await screen.findByText(/Safe cover/)).toBeInTheDocument();
+    expect(screen.queryByText(/Owner secret/)).not.toBeInTheDocument();
   });
 });

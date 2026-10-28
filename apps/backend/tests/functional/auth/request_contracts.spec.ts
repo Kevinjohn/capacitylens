@@ -1,3 +1,6 @@
+import { allocationMutationValidator } from '#validators/planning_operations'
+import { signUpValidator } from '#validators/auth_requests'
+import { registrationDisplayName } from '#services/account_kit/users'
 import { test } from '@japa/runner'
 import accountKit from 'adonisjs-account-kit/services/main'
 import { RegistrationEmailAlreadyRegisteredError } from 'adonisjs-account-kit/errors'
@@ -17,6 +20,52 @@ test.group('ordinary authentication request contracts', (group) => {
     await resetState(false)
     await clearIdentities()
     await limiter.clear()
+  })
+
+  test('typed mutations retain imported colon identifiers while new rows remain UUID-only', async ({
+    assert,
+  }) => {
+    const meta = { mutationId: crypto.randomUUID(), baseRevision: 0 }
+    const existing = await allocationMutationValidator.validate({
+      ...meta,
+      intent: { operation: 'allocation.delete', id: 'legacy:allocation' },
+    })
+    assert.equal(existing.intent.operation, 'allocation.delete')
+    const allocation = {
+      id: crypto.randomUUID(),
+      resourceId: 'legacy:resource',
+      activityId: 'legacy:activity',
+      startDate: '2026-10-26',
+      endDate: '2026-10-26',
+      hoursPerDay: 7.5,
+      status: 'confirmed',
+    }
+    const created = await allocationMutationValidator.validate({
+      ...meta,
+      intent: { operation: 'allocation.create', allocation },
+    })
+    assert.equal(created.intent.operation, 'allocation.create')
+    await assert.rejects(() =>
+      allocationMutationValidator.validate({
+        ...meta,
+        intent: { operation: 'allocation.create', allocation: { ...allocation, id: 'legacy:new' } },
+      })
+    )
+  })
+
+  test('registration accepts 100 Unicode code points and refuses 101 at both boundaries', async ({
+    assert,
+  }) => {
+    const input = {
+      email: 'clark@wayne.example',
+      password: 'krypton-password-2026',
+      name: '𐐀'.repeat(100),
+    }
+    const validated = await signUpValidator.validate(input)
+    assert.equal(validated.name, input.name)
+    assert.equal(registrationDisplayName(input), input.name)
+    await assert.rejects(() => signUpValidator.validate({ ...input, name: '𐐀'.repeat(101) }))
+    assert.throws(() => registrationDisplayName({ name: '𐐀'.repeat(101) }))
   })
 
   test('sign-in preserves shape and detail refusals before authentication', async ({

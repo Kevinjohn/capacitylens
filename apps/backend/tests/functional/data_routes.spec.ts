@@ -31,6 +31,47 @@ test.group('M2b data routes', (group) => {
     await db.from('account_getting_started_dismissals').delete()
   })
 
+  test('inactive export follows effective member role and omitted scope stays active-only', async ({
+    client,
+    assert,
+  }) => {
+    client = await reset(client, true)
+    const candidate = await db.from('resources').where('account_id', 'a-studio').first()
+    await db
+      .from('resources')
+      .where('id', candidate.id)
+      .update({ archived_at: new Date().toISOString() })
+    for (const role of ['viewer', 'editor', 'admin', 'owner']) {
+      await db
+        .from('memberships')
+        .where({ user_id: dataOwnerId, account_id: 'a-studio' })
+        .update({ role })
+      const explicit = await client.get('/api/state?accountId=a-studio&includeInactive=1').send()
+      explicit.assertStatus(['viewer', 'editor'].includes(role) ? 403 : 200)
+      const omitted = await client.get('/api/state').send()
+      omitted.assertStatus(200)
+      const ids = omitted.body().resources.map((row: { id: string }) => row.id)
+      assert.equal(ids.includes(candidate.id), ['admin', 'owner'].includes(role))
+    }
+  })
+
+  test('example data requires Admin authority', async ({ client }) => {
+    client = await reset(client, false)
+    const account = { ...seed().accounts[0]!, id: 'a-example' }
+    await db.table('accounts').insert(encodeRow('accounts', account))
+    await grantDataOwner(dataOwnerId, account.id)
+    for (const role of ['editor', 'admin']) {
+      await db
+        .from('memberships')
+        .where({ user_id: dataOwnerId, account_id: account.id })
+        .update({ role })
+      const response = await trusted(client.post(`/api/accounts/${account.id}/example-data`))
+        .json({})
+        .send()
+      response.assertStatus(role === 'editor' ? 403 : 201)
+    }
+  })
+
   test('inactive export includes archived and deleted rows but stays in one company', async ({
     client,
     assert,

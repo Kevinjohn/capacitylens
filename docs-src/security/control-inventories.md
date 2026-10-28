@@ -12,8 +12,8 @@ substitute for deployment-specific data classification, key inventory or log-ret
 
 | Input | Format and limit | Trusted enforcement | Security treatment |
 | --- | --- | --- | --- |
-| Tenant API route, body, query and path | Adonis BodyParser defaults; compiled Vine schemas | Adonis and shared domain | Authenticated operation; server membership/action checks, validated fields and relational checks; unknown Vine object properties are stripped |
-| Whole-company import | JSON; framework request-size default | Owner-only API and SQLite | Schema validation, reference checks, import preparation and atomic replacement |
+| Tenant API route, body, query and path | JSON requests up to the configured 5 MB limit; compiled Vine schemas | Adonis and shared domain | Authenticated operation; server membership/action checks, validated fields and relational checks; unknown Vine object properties are stripped |
+| Whole-company import | JSON request, subject to the configured 5 MB limit | Owner-only API and SQLite | Schema validation, reference checks, import preparation and atomic replacement |
 | Password creation, change and reset | 15–128 Unicode code points | Account Kit with application auth routes | Password length validation; no common-password or breached-password screening |
 | Sign-in credentials | Email and password in bounded JSON | Account Kit with application auth routes | Generic invalid-credential response and authentication throttling |
 | Registration, invitation, address-confirmation and reset links | Bounded JSON/path/header values; invitation 7 days, other emailed links 1 hour | Account Kit plus application routes and admission policy | One-time links are stored as SHA-256 digests; address confirmation and admission are checked before product access |

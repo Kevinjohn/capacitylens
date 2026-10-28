@@ -4,7 +4,7 @@ import { CompanySetup } from "./CompanySetup";
 
 afterEach(() => vi.unstubAllGlobals());
 
-it("asks only for company name and preserves it after a retryable failure", async () => {
+it("asks for company name and calendar convention and preserves it after a retryable failure", async () => {
   const complete = vi.fn();
   const fetch = vi
     .fn()
@@ -22,7 +22,9 @@ it("asks only for company name and preserves it after a retryable failure", asyn
   await waitFor(() => expect(complete).toHaveBeenCalledOnce());
   expect(fetch).toHaveBeenCalledWith(
     expect.anything(),
-    expect.objectContaining({ body: JSON.stringify({ name: "Wayne Enterprises" }) }),
+    expect.objectContaining({
+      body: JSON.stringify({ name: "Wayne Enterprises", weekStartsOn: 1, timeZone: "Etc/GMT" }),
+    }),
   );
 });
 
@@ -45,4 +47,40 @@ it("reconciles a concurrent winner once and leaves an unconfirmed refusal visibl
   await waitFor(() => expect(reconcile).toHaveBeenCalledTimes(2));
   expect(created).not.toHaveBeenCalled();
   expect(fetch).toHaveBeenCalledTimes(2);
+});
+
+it("sends the selected Sunday week and IANA zone", async () => {
+  const fetch = vi.fn().mockResolvedValue(Response.json({ accountId: "wayne" }, { status: 201 }));
+  vi.stubGlobal("fetch", fetch);
+  render(<CompanySetup onCreated={vi.fn()} onConflict={async () => false} onSignOut={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText("Company name"), { target: { value: "Wayne Enterprises" } });
+  fireEvent.change(screen.getByLabelText("Week starts on"), { target: { value: "0" } });
+  fireEvent.change(screen.getByLabelText("Time zone"), { target: { value: "America/New_York" } });
+  fireEvent.click(screen.getByRole("button", { name: "Create company" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+  expect(fetch).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({
+      body: JSON.stringify({ name: "Wayne Enterprises", weekStartsOn: 0, timeZone: "America/New_York" }),
+    }),
+  );
+});
+
+it("accepts 100 astral name characters and refuses 101 without truncating", async () => {
+  const fetch = vi.fn().mockResolvedValue(Response.json({ accountId: "wayne" }, { status: 201 }));
+  vi.stubGlobal("fetch", fetch);
+  render(<CompanySetup onCreated={vi.fn()} onConflict={async () => false} onSignOut={vi.fn()} />);
+  const name = screen.getByLabelText("Company name");
+  expect(name).not.toHaveAttribute("maxlength");
+  fireEvent.change(name, { target: { value: "𐐀".repeat(101) } });
+  fireEvent.click(screen.getByRole("button", { name: "Create company" }));
+  expect(await screen.findByRole("alert")).toBeVisible();
+  expect(fetch).not.toHaveBeenCalled();
+  fireEvent.change(name, { target: { value: "𐐀".repeat(100) } });
+  fireEvent.click(screen.getByRole("button", { name: "Create company" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+  expect(fetch).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ body: JSON.stringify({ name: "𐐀".repeat(100), weekStartsOn: 1, timeZone: "Etc/GMT" }) }),
+  );
 });

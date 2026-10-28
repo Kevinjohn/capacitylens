@@ -747,7 +747,7 @@ function registerBuildSchedulerModelTest23() {
 }
 
 function registerBuildSchedulerModelTest24() {
-  it("folds resource-name diacritics but does not match a phrase across field boundaries", () => {
+  it("folds resource-name diacritics and matches a phrase across field boundaries", () => {
     const d = dataset();
     const firstResource = d.resources[0];
     expect(firstResource).toBeDefined();
@@ -767,7 +767,8 @@ function registerBuildSchedulerModelTest24() {
         .map((row) => row.resource.id);
 
     expect(search("jose alvarez")).toContain("r1");
-    expect(search("alvarez research")).not.toContain("r1");
+    expect(search("alvarez research")).toContain("r1");
+    expect(search("alvarez engineer")).not.toContain("r1");
   });
 }
 
@@ -1728,3 +1729,21 @@ describe(
   "buildSchedulerModel(activeOnly(data), …) — non-active resources vanish (P2.4)",
   registerActiveOnlySchedulerTests,
 );
+
+it("uses a neutral unassigned scheduler band while preserving stored resource colour", () => {
+  const d = dataset();
+  const template = requireValue(d.resources[0], "resource template");
+  d.resources = [{ ...template, id: "unassigned", disciplineId: null, color: "#2d75da" }];
+  const model = buildSchedulerModel({
+    data: d,
+    geom,
+    days,
+    visibleWindow: { start, end },
+    overSoonWindow: { start, end },
+    filters: buildEmptyFilters(),
+    preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+  });
+  const group = model.find((g) => g.rows.some((r) => r.resource.id === "unassigned"));
+  expect(group?.color).toBe("#9ca3af");
+  expect(d.resources[0]?.color).toBe("#2d75da");
+});

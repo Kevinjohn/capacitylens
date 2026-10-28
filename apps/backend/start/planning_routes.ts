@@ -5,6 +5,9 @@ router
   .get('/api/accounts/:accountId/planning', [PlanningController, 'show'])
   .as('api.planning.show')
 router
+  .get('/api/accounts/:accountId/planning/archive', [PlanningController, 'archive'])
+  .as('api.planning.archive')
+router
   .get('/api/accounts/:accountId/planning/mutations/:mutationId', [PlanningController, 'lookup'])
   .as('api.planning.lookup')
 router

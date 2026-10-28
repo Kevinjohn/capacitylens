@@ -1,5 +1,5 @@
 import { createLucidAdapter } from 'adonisjs-account-kit'
-import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
+import { MAX_NAME_LENGTH, unicodeCharacterCount } from '@capacitylens/shared/lib/strings'
 
 /** The only registration field: a display name, which the sign-up routes have already validated. */
 export function registrationDisplayName(data: unknown) {
@@ -7,7 +7,8 @@ export function registrationDisplayName(data: unknown) {
     data && typeof data === 'object' && typeof (data as { name?: unknown }).name === 'string'
       ? (data as { name: string }).name.trim()
       : ''
-  if (!name || name.length > MAX_NAME_LENGTH) throw new Error('A display name is required.')
+  if (!name || unicodeCharacterCount(name) > MAX_NAME_LENGTH)
+    throw new Error('A display name is required.')
   return name
 }
 

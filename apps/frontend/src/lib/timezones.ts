@@ -114,7 +114,7 @@ export function resolveTimeZoneAbbreviation(timeZone: string, date = new Date())
   }
 }
 
-/** Turn an IANA identifier into a compact name people can scan while retaining the identifier. */
+/** Return a friendly standalone name; option labels separately retain the IANA identifier and offset. */
 export function resolveTimeZoneDisplayName(timeZone: string): string {
   if (timeZone === DEFAULT_TIME_ZONE) return m.settings_timezone_gmt();
   if (timeZone === "UTC") return "UTC";

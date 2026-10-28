@@ -5,7 +5,7 @@ import { resetServer, serverState, requireStateRows } from "./serverTestState";
 // DB-backed flavour of the date-format preference (US-SET-17). The demo project
 // cannot carry this assertion: its in-memory store restores the seed on every reload, so a
 // surviving choice there would prove nothing. Here the reload re-hydrates purely from
-// GET /api/state, so the choice coming back proves the full round-trip
+// the company-scoped planning GET (the fixture polls /api/state separately), so the choice proves
 // UI → typed settings PATCH → SQLite `accounts.dateStyle` → planning GET on reload.
 test.describe("Settings — date format is account data", () => {
   test.beforeEach(async ({ request }) => {

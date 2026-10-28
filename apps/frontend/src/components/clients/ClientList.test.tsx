@@ -1,3 +1,5 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { FALLBACK_PRESET_COLOR } from "@capacitylens/shared/lib/color";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
@@ -108,19 +110,21 @@ describe("ClientList archive flow", () => {
     expect(dialog).not.toHaveTextContent("This also hides");
   });
 
-  it("tells editors that an owner or admin manages the archived client", async () => {
+  it("tells Editors they can recover the archived client inline", async () => {
     const user = userEvent.setup();
     await useStore.getState().addClient({ name: "Ferris", color: "#111" });
     render(
-      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
-        <ClientList />
-      </PermissionContext.Provider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+          <ClientList />
+        </PermissionContext.Provider>
+      </QueryClientProvider>,
     );
 
     await user.click(screen.getByRole("button", { name: "Archive Ferris" }));
 
     expect(screen.getByRole("alertdialog")).toHaveTextContent(
-      "An owner or admin can restore it from Archived clients.",
+      "Editors, Admins and Owners can restore it from Archived clients.",
     );
   });
 
@@ -137,7 +141,28 @@ describe("ClientList archive flow", () => {
     expect(dialog).not.toHaveTextContent('""Nightwing""');
   });
 
-  it.each(["editor", "viewer"] as const)("hides archived clients from a %s", async (role) => {
+  it("lets an Editor restore an archived identity without inactive management details", async () => {
+    const user = userEvent.setup();
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+    useStore.getState().archiveEntity("clients", client.id);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+          <ClientList />
+        </PermissionContext.Provider>
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByTestId("client-row")).not.toBeInTheDocument();
+    const archive = within(screen.getByTestId("archived-clients-section"));
+    expect(archive.getByText("Ferris")).toBeInTheDocument();
+    expect(archive.queryByRole("button", { name: /Edit|Anonymise/ })).not.toBeInTheDocument();
+    await user.click(archive.getByRole("button", { name: "Restore Ferris" }));
+    expect(screen.getByTestId("client-row")).toHaveTextContent("Ferris");
+    expect(screen.queryByTestId("archived-clients-section")).not.toBeInTheDocument();
+  });
+
+  it("hides archived clients from a Viewer", async () => {
+    const role = "viewer";
     const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     useStore.getState().archiveEntity("clients", client.id);
 
@@ -169,7 +194,7 @@ describe("ClientList archive flow", () => {
 describe("ClientList withholds the Archive affordance for the built-in Internal client", () => {
   it("renders no row and no Archive control for the Internal client (only normal clients show)", async () => {
     useStore.getState().replaceAll(emptyAppData());
-    const a = useStore.getState().addAccount({ name: "Ferris Co", color: "#6366f1" });
+    const a = useStore.getState().addAccount({ name: "Ferris Co", color: FALLBACK_PRESET_COLOR });
     if (!a) throw new Error("Expected account");
     useStore.getState().setActiveAccount(a.id);
     await useStore.getState().refreshPlanning();

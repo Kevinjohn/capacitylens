@@ -1,3 +1,4 @@
+import { ArchiveRecoverySection } from "./ArchiveRecoverySection";
 import { Fragment, useMemo, useState } from "react";
 import { inspectLifecycleAncestry, lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
 import type { LifecycleAncestryRow } from "@capacitylens/shared/domain/lifecycle";
@@ -255,7 +256,7 @@ function ArchivedContent({
 }
 
 /** Shows archived records only when the current role can view inactive data. */
-export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
+function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
   const { data, mayViewInactive } = useInactiveAccountData();
   const actions = useLifecycleActions();
   const [anonymising, setAnonymising] = useState<{ accountId: string | null; row: LifecycleRow } | null>(null);
@@ -313,4 +314,13 @@ export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
       )}
     </section>
   );
+}
+
+/** Keeps the full inactive browser privileged while Editors receive recovery identities only. */
+export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
+  const mayAnonymise = useCan("anonymise");
+  const mayWrite = useCan("write");
+  if (mayAnonymise) return <PrivilegedArchivedEntitySection entity={entity} />;
+  if (mayWrite) return <ArchiveRecoverySection entity={entity} />;
+  return null;
 }

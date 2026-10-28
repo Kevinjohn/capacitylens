@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
-import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
+import { MAX_NAME_LENGTH, unicodeCharacterCount } from '@capacitylens/shared/lib/strings'
 
 const accountEmail = vine.createRule((value, _options, field) => {
   if (typeof value === 'string' && !isAccountEmail(normalizeAccountEmail(value)))
@@ -12,7 +12,10 @@ const passwordLength = vine.createRule((value, _options, field) => {
     field.report('Invalid password.', 'passwordLength', field)
 })
 const displayName = vine.createRule((value, _options, field) => {
-  if (typeof value === 'string' && (!value.trim() || value.trim().length > MAX_NAME_LENGTH))
+  if (
+    typeof value === 'string' &&
+    (!value.trim() || unicodeCharacterCount(value.trim()) > MAX_NAME_LENGTH)
+  )
     field.report('Invalid name.', 'displayName', field)
 })
 const allowedFields = vine.createRule((value, fields: string[], field) => {
@@ -35,7 +38,7 @@ export const signInValidator = vine.compile(
     .use(allowedFields(['email', 'password']))
 )
 
-/** Counts password code points and display-name code units, matching the established boundaries. */
+/** Counts password code points and display-name code points, matching the established boundaries. */
 export const signUpValidator = vine.compile(
   vine
     .object({

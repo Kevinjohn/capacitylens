@@ -50,7 +50,7 @@ interface BuildFallbackGroupsInput {
   resources: Resource[];
   groupByEngagement: boolean;
   /** The single band used when engagement grouping is off. */
-  ungrouped: { key: string; title: string };
+  ungrouped: { key: string; title: string; color?: string };
 }
 
 interface CreateResourceComparatorInput {
@@ -181,7 +181,7 @@ export function applyVisibleUtilization({
   });
 }
 
-const UNASSIGNED_BAND = { key: "unassigned", title: "Unassigned" };
+const UNASSIGNED_BAND = { key: "unassigned", title: "Unassigned", color: NEUTRAL_COLOR };
 const ALL_RESOURCES_BAND = { key: "resources", title: "Resources" };
 
 function buildFallbackGroups({
@@ -194,12 +194,14 @@ function buildFallbackGroups({
   }
   return [
     {
+      ...ungrouped,
       key: "engagement-studio",
       title: "Studio",
       discipline: null,
       resources: resources.filter((resource) => resource.engagement === "studio"),
     },
     {
+      ...ungrouped,
       key: "engagement-supplementary",
       title: "Supplementary",
       discipline: null,

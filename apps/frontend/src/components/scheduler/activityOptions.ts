@@ -92,15 +92,25 @@ export function buildActivityOptions({
         rightId: right.activity.id,
       }),
   );
-  return resolved.map(({ activity, kind: resolvedKind, baseLabel }) => {
-    const occurrence = (occurrenceCountsByLabel.get(baseLabel) ?? 0) + 1;
+  const emittedLabels = new Set<string>();
+  const options = resolved.map(({ activity, kind: resolvedKind, baseLabel }) => {
+    let occurrence = occurrenceCountsByLabel.get(baseLabel) ?? 0;
+    let label = baseLabel;
+    if ((labelCountsByLabel.get(baseLabel) ?? 0) > 1) {
+      do {
+        occurrence += 1;
+        label = `${baseLabel} (${occurrence})`;
+      } while (labelCountsByLabel.has(label) || emittedLabels.has(label));
+    }
     occurrenceCountsByLabel.set(baseLabel, occurrence);
+    emittedLabels.add(label);
     return {
       value: activity.id,
-      label: (labelCountsByLabel.get(baseLabel) ?? 0) > 1 ? `${baseLabel} (${occurrence})` : baseLabel,
+      label,
       ...(groupedProjectScope
         ? { groupKey: resolveGroupKeyForKind(resolvedKind), groupLabel: resolveGroupLabelForKind(resolvedKind) }
         : {}),
     };
   });
+  return sortGroupedOptions(options);
 }

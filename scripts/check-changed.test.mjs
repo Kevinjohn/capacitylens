@@ -307,3 +307,16 @@ test("a passing test step reports how many tests it ran", () => {
   assert.equal(testCount("# tests 4\n# pass 4\n"), 4);
   assert.equal(testCount("No test files found, exiting with code 0\n"), undefined);
 });
+
+test("deleted frontend implementation selects full tests without missing file arguments", () => {
+  const deleted = "apps/frontend/src/removed.ts";
+  for (const staticOnly of [false, true]) {
+    const steps = planChecks([deleted], () => false, noImporters, { staticOnly });
+    const selected = step(steps, "test: frontend suite");
+    assert.ok(selected);
+    if (staticOnly) assert.ok(selected.skip);
+    else assert.deepEqual(selected.args, ["--dir", "apps/frontend", "exec", "vitest", "run"]);
+    assert.ok(step(steps, "typecheck"));
+    assert.ok(steps.every((entry) => !entry.args?.includes(deleted)));
+  }
+});

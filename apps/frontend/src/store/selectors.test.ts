@@ -329,3 +329,21 @@ describe("resolveDateStyle", () => {
     expect(resolveDateStyle(withStyle("year-month-day"), "a1")).toBe("day-month");
   });
 });
+
+it("orders equal-name equal-order scheduler disciplines by stable id regardless of storage order", () => {
+  const initial = data();
+  const first = initial.disciplines[0];
+  if (!first) throw new Error("Expected discipline fixture");
+  const equal = [
+    { ...first, id: "d-z", name: "Design", sortOrder: 1 },
+    { ...first, id: "d-a", name: "Design", sortOrder: 1 },
+  ];
+  for (const disciplines of [equal, equal.toReversed()]) {
+    expect(
+      buildDisciplineGroups({ ...initial, disciplines })
+        .filter((group) => group.discipline)
+        .map((group) => group.discipline?.id),
+    ).toEqual(["d-a", "d-z"]);
+    expect(initial.disciplines).toEqual(data().disciplines);
+  }
+});

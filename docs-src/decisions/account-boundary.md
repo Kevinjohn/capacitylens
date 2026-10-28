@@ -6,9 +6,10 @@
 
 Account Kit owns identities, password credentials, sessions, emailed links (address confirmation,
 password reset, email change and invitations) and admission. CapacityLens owns companies,
-memberships, roles and every scheduling table. The two meet only through the Kit's configuration in
+memberships, roles and every scheduling table. The integration uses the Kit's configuration in
 `apps/backend/config/account_kit.ts` and `apps/backend/config/admission.ts`, and the callbacks in
-`apps/backend/app/services/account_kit/`.
+`apps/backend/app/services/account_kit/`, as well as ordinary calls to the Kit's public API from
+application controllers and services.
 
 Both sides share one process, one SQLite file and one migration ledger. There is no separate
 account service or database.
@@ -44,8 +45,12 @@ the company and becomes its Owner.
 ## Member-to-resource links
 
 The `account_member_resources` control table links one member to one scheduled person for avatar
-presentation. It has no foreign keys into scheduling data: member removal, resource purge and
-imports reconcile it explicitly in their owning transaction. The ordinary read surface exposes only
+presentation. It has no foreign keys into scheduling data: member removal unlinks the association.
+Ordinary product writes keep resource kind immutable; the database cleanup trigger also removes a
+link if a stored person resource changes to another kind. The scheduling graph uses database
+triggers to reject cross-company references; control links are instead validated transactionally.
+Imports preserve valid links and check their references in the import transaction. Archived and
+anonymised resources and their links remain stored. The ordinary read surface exposes only
 `{ resourceId, imageUrl }` for active, validated links.
 
 ## Known accepted limits
