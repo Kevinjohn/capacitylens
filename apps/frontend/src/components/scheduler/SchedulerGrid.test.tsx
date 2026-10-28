@@ -55,7 +55,7 @@ function dataset(): AppData {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   useStore.getState().replaceAll(dataset());
   useStore.getState().setActiveAccount(ACC);
   useStore.getState().setOriginDate("2026-06-01");
@@ -65,6 +65,7 @@ beforeEach(() => {
   useStore.getState().setUtilizationPref({ key: "showTotal", value: true });
   useStore.getState().clearFilters();
   useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }));
+  await useStore.getState().refreshPlanning();
 });
 
 describe("SchedulerGrid", () => {
@@ -406,7 +407,7 @@ describe("SchedulerGrid visible-window utilisation", () => {
 });
 
 describe("SchedulerGrid account-local day rollover", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.useFakeTimers();
     const data = dataset();
     data.accounts = data.accounts.map((account) => ({ ...account, timezone: "Pacific/Kiritimati" }));
@@ -428,6 +429,7 @@ describe("SchedulerGrid account-local day rollover", () => {
     useStore.setState((state) => ({
       ui: { ...state.ui, originDate: "2026-06-01", focusDate: "2026-06-01", zoom: 1 },
     }));
+    await useStore.getState().refreshPlanning();
   });
 
   afterEach(() => {

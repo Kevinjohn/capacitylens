@@ -144,6 +144,7 @@ describe("CapacityOverviewTable date style", () => {
   it("re-reads column headers when the date style changes with a stable model", async () => {
     await resetStoreWithAccount("account");
     useStore.getState().replaceAll({ ...data, accounts: [makeAccount({ id: "account", dateStyle: "day-month" })] });
+    await useStore.getState().refreshPlanning();
     renderTable();
     expect(screen.getByRole("columnheader", { name: /10 – 13 Sep/ })).toBeInTheDocument();
 

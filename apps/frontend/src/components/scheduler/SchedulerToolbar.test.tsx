@@ -252,6 +252,7 @@ describe("SchedulerToolbar discipline and client ordering", () => {
   it("pins Internal before alphabetically ordered clients", async () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
     useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
+    await useStore.getState().refreshPlanning();
     await useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
     await useStore.getState().addClient({ name: "LexCorp", color: "#222" });
     render(<SchedulerToolbar />);
@@ -265,6 +266,7 @@ describe("SchedulerToolbar project and activity ordering", () => {
   it("orders projects by effective client name, then effective project name", async () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
     useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
+    await useStore.getState().refreshPlanning();
     const queen = await requireCreated(
       useStore.getState().addClient({ name: "Queen Consolidated", color: "#111", isPrivate: true, codeName: "Xavier" }),
     );
