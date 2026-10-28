@@ -89,18 +89,19 @@ This is the short, present-tense record of decisions that constrain future work.
 - A planning mutation is identified by a client-minted UUID recorded with the audit row in the
   same transaction. A later lookup answers "committed at revision N" or "unknown"; absence while the
   request may still be executing is not failure. Reusing a committed identity returns 409.
-- Undo and redo are typed inverse operations held page-locally in the browser. Hard-deleted planning
-  rows are kept in a server tombstone table bound to session, actor and company so that restore
-  is one atomic operation under current authority and hidden fields never leave the server.
+- Undo and redo are typed inverse operations held page-locally in the browser. Deleted planning
+  rows remain in their own tables under package-managed soft deletion, bound to a session, actor
+  and company through the recovery ledger. Restore is one atomic operation under current authority;
+  internal deletion fields and hidden values never leave the server.
   Restoration groups are removed in the same transaction as anonymisation and import.
   A change to a client or project privacy or code-name field, or to an activity kind, also clears that company's
-  pending tombstones in the change transaction. Those saved before-images can contain names or
+  pending tombstones in the change transaction. Those retained records can contain names or
   relationships that should no longer be restorable under the new visibility rules. Unchanged
   privacy fields and ordinary settings edits keep the groups. Changing this rule later requires
-  a way to prove old hidden before-images remain safe to restore.
-  Before a change clears pending recovery copies, one confirmation shows the number of saved
+  a way to prove old hidden recovery data remains safe to restore.
+  Before a change clears pending recovery data, one confirmation shows the number of saved
   deleted records: “This change clears N restorable items”. Links to surviving rows are excluded.
-  Zero-item and no-change saves skip the warning. Cancellation leaves data and copies unchanged;
+  Zero-item and no-change saves skip the warning. Cancellation leaves data and recovery unchanged;
   confirmation stays bound to the original company revision and current cleanup count.
   Undo and redo write audit rows. History survives a same-revision refetch and is cleared by an
   external revision change, a context change or a reload. There is no cross-device undo.

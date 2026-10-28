@@ -87,6 +87,7 @@ export async function applyBetaAccountTransfer(
   if (portableFingerprint(current, accountId) === fingerprint(prepared.data))
     return { imported: prepared.imported, changed: false, revision }
 
+  await trx.from('deleted_groups').where('account_id', accountId).delete()
   for (const key of [...INSERT_ORDER].reverse())
     await trx.from(TABLE_NAMES[key]).where('account_id', accountId).delete()
   const account = prepared.data.accounts[0]!
@@ -105,7 +106,6 @@ export async function applyBetaAccountTransfer(
             .map((row) => encodeRow(TABLE_NAMES[key], row as unknown as Record<string, unknown>))
         )
   }
-  await trx.from('deleted_groups').where('account_id', accountId).delete()
   await writeAudit(trx, {
     accountId,
     actorId,

@@ -16,8 +16,9 @@ const REQUEST_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 const MEMBER_VIEW_DURATION_MS = 15 * 60_000;
 const RESOURCE_NAME = "Bruce Wayne Packaged Schedule";
-// The baseline and member-view control migration install the current native schema.
-const MIGRATION_COUNT = 2;
+// The baseline is followed by planning deletion ownership, the member-view control migration and
+// legacy recovery conversion.
+const MIGRATION_COUNT = 4;
 
 function message(error) {
   return error instanceof Error ? error.message : String(error);

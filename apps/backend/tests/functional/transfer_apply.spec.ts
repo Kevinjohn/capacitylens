@@ -141,6 +141,8 @@ test.group('beta transfer apply', (group) => {
     assert,
   }) => {
     const { cookie, userId } = await resetAuthenticatedData(client)
+    const selected = await document()
+    selected.data.accounts[0]!.name += ' restored'
     const selectedDelete = await deleteForRestoration(client, cookie)
     const foreignDelete = await deleteForRestoration(client, cookie, 'a-loft')
     const now = new Date().toISOString()
@@ -160,8 +162,6 @@ test.group('beta transfer apply', (group) => {
       role: 'viewer',
       created_at: now,
     })
-    const selected = await document()
-    selected.data.accounts[0]!.name += ' restored'
     const foreignBefore = await readState('a-loft', true)
     const preservedTables = [
       'memberships',
@@ -206,9 +206,17 @@ test.group('beta transfer apply', (group) => {
       .send()
     restore.assertStatus(409)
     const selectedAfter = await readState(accountId, true)
-    assert.isUndefined(
-      selectedAfter.allocations.find((row) => row.id === selectedDelete.allocationId)
+    assert.deepEqual(
+      selectedAfter.allocations.find((row) => row.id === selectedDelete.allocationId),
+      selected.data.allocations.find((row) => row.id === selectedDelete.allocationId)
     )
+    const importedRow = await db
+      .from('allocations')
+      .where('id', selectedDelete.allocationId)
+      .first()
+    assert.isDefined(importedRow)
+    assert.isNull(importedRow.deleted_at)
+    assert.isNull(importedRow.deletion_group_id)
   })
 
   test('wrong document, revision, company and action cannot spend the proof', async ({
@@ -321,6 +329,7 @@ test.group('beta transfer apply', (group) => {
     const before = await readState(accountId, true)
     const groupBefore = await db.from('deleted_groups').where('group_id', deletion.groupId).first()
     const rowsBefore = await db.from('deleted_rows').where('group_id', deletion.groupId)
+    const retainedBefore = await db.from('allocations').where('id', deletion.allocationId).first()
     const markerBefore = await db
       .from('planning_mutations')
       .where({
@@ -329,6 +338,8 @@ test.group('beta transfer apply', (group) => {
       })
       .first()
     const baseRevision = await revision()
+    assert.isNotNull(retainedBefore.deleted_at)
+    assert.equal(retainedBefore.deletion_group_id, deletion.groupId)
     const actionProof = await proof(client, cookie, { baseRevision, document: full })
     await db.rawQuery(
       "CREATE TRIGGER fail_transfer_audit BEFORE INSERT ON audit_entries WHEN NEW.action = 'import' BEGIN SELECT RAISE(ABORT, 'forced transfer failure'); END"
@@ -344,6 +355,10 @@ test.group('beta transfer apply', (group) => {
       assert.deepEqual(
         await db.from('deleted_rows').where('group_id', deletion.groupId),
         rowsBefore
+      )
+      assert.deepEqual(
+        await db.from('allocations').where('id', deletion.allocationId).first(),
+        retainedBefore
       )
       assert.deepEqual(
         await db

@@ -45,7 +45,7 @@ test.group('M1 database contract', (group) => {
     await insertTenantFixture()
   })
 
-  test('creates the complete fresh baseline, including identity and control tables', async ({
+  test('creates the complete fresh schema, including identity and control tables', async ({
     assert,
   }) => {
     const journal = await db.from('adonis_schema').orderBy('id').select('name')
@@ -53,7 +53,9 @@ test.group('M1 database contract', (group) => {
       journal.map((row) => row.name),
       [
         'database/migrations/202610120001_create_capacitylens_baseline',
+        'database/migrations/202610270001_planning_soft_delete_ownership',
         'database/migrations/202610270001_replace_legacy_masquerades_with_package',
+        'database/migrations/202610270002_convert_planning_delete_snapshots',
       ]
     )
     const rows = await db.from('sqlite_master').select('name').where('type', 'table')

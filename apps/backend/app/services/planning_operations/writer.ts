@@ -18,6 +18,7 @@ import { BatchRequestError } from '#services/planning_operations/errors'
 import { createServerRevision } from '#services/planning_operations/revision'
 import { validateEntityRow } from '#validators/entities/index'
 import type { BatchCapabilities } from '#services/planning_operations/data_policy'
+import { isRetainedTable, retainedQuery } from './retained_rows.js'
 
 /** A safe refusal whose caller must roll back the enclosing planning transaction. */
 export class PlanningOperationError extends Error {
@@ -115,6 +116,7 @@ export async function writeRow(
     throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
   if (
     mode === 'create' &&
+    !isRetainedTable(table) &&
     (await trx.from(TABLE_NAMES[table]).select('id').where('id', id).first())
   )
     throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
@@ -162,6 +164,24 @@ export async function writeRow(
     }
   }
   if (mode === 'create') {
+    if (isRetainedTable(table)) {
+      const prior = await trx
+        .from(TABLE_NAMES[table])
+        .select('account_id', 'deleted_at', 'deletion_group_id')
+        .where('id', id)
+        .first()
+      if (prior) {
+        if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id)
+          throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
+        const purged = await retainedQuery(trx, accountId, table)
+          .onlyTrashed()
+          .where('id', id)
+          .where('deletion_group_id', String(prior.deletion_group_id))
+          .forceDelete()
+        if (purged !== 1)
+          throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
+      }
+    }
     await trx.table(TABLE_NAMES[table]).insert(encodeRow(TABLE_NAMES[table], clean))
     ;(data[table] as unknown as Row[]).push(clean as Row)
   } else {

@@ -45,13 +45,15 @@ The suites cover the frontend, backend and shared workspace packages.
   create, move, resize, reassign, duplicate, repeat, grouped creation, archive/unarchive, update
   Undo/Redo, stale-edit refusal, lost-response
   commitment lookup and sign-out cache clearing. The schedule uses the controller for bookings,
-  and Undo and Redo cover booking changes only. Server tests cover session-bound allocation deletion and restoration through the typed
-  routes: each delete saves the removed rows as a group that only the deleting session can restore,
-  once, with the original row and timestamps, and invalidating that session removes its groups.
-  Time-off,
-  closure and catalogue deletion still refuse typed restoration, and complete typed Undo remains
-  unfinished; later identity-link integration is separate from this milestone, which uses the
-  existing real authentication.
+  and Undo and Redo cover booking changes only. Server tests cover session-bound deletion and restoration of bookings,
+  time off, closures, phases and disciplines through the typed routes. Deleted rows stay hidden
+  from reads and exports. Only the deleting session can restore each group once, with the original
+  IDs and timestamps. Tests cover fresh Redo handles, uncertain-response lookup, surviving-child
+  links, failed-transaction rollback and cleanup after sign-out, revocation, expiry, credential
+  changes, privacy changes, anonymisation and import. Old groups cannot affect restored,
+  replacement or newer-deleted rows. Catalogue and resource screens keep their archive controls.
+  Server recovery tests do not establish complete screen-level Undo coverage.
+
 - Axe finds common problems such as missing names and low contrast. It does not replace testing
   with assistive technology.
 - Mutation testing covers only the pure scheduling and helper code, not the server or React

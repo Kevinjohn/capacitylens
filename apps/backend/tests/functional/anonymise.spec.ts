@@ -79,10 +79,7 @@ async function seedOtherCompanyRestoration(actorId: string) {
     group_id: groupId,
     entity: 'allocations',
     row_id: 'fixture-other-company-allocation',
-    payload_json: JSON.stringify({
-      kind: 'row',
-      row: { id: 'fixture-other-company-allocation', note: 'Other company saved note' },
-    }),
+    payload_json: JSON.stringify({ kind: 'row' }),
   })
   await db.table('planning_mutations').insert({
     account_id: 'a-loft',
@@ -200,6 +197,7 @@ test.group('company anonymisation', (group) => {
     )
     assert.isNull(await db.from('deleted_groups').where('group_id', deleted.groupId).first())
     assert.lengthOf(await db.from('deleted_rows').where('group_id', deleted.groupId), 0)
+    assert.isNull(await db.from('allocations').where('id', deleted.allocation.id).first())
     assert.lengthOf(
       await db.from('audit_entries').where({ account_id: accountId, action: 'anonymise' }),
       1
@@ -317,6 +315,7 @@ test.group('company anonymisation', (group) => {
     }
     assert.lengthOf(await db.from('deleted_groups').where('account_id', accountId), 0)
     assert.lengthOf(await db.from('deleted_rows').where('group_id', selectedDelete.groupId), 0)
+    assert.isNull(await db.from('allocations').where('id', selectedDelete.allocation.id).first())
     assert.isDefined(
       await db
         .from('planning_mutations')
