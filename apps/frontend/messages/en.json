@@ -662,6 +662,7 @@
   "form_external_descriptor_placeholder": "e.g. Print, Overflow dev",
   "form_external_err_company_required": "Company name is required.",
   "form_external_err_changed": "This external party changed while you were editing. Close and reopen the form, then re-apply your changes.",
+  "form_allocation_err_changed": "The schedule changed while you were editing. Close and reopen the form, then re-apply your changes.",
   "form_timeoff_err_changed": "This time off changed while you were editing. Close and reopen the form, then re-apply your changes.",
   "palette_dialog_label": "Command palette",
   "palette_search_aria": "Search pages, people, projects…",

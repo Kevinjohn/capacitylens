@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { getMasqueradeContextToken } from "@/auth/masqueradeContext";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { TeamInvitation, TeamMember as Member } from "@/account/teamAccessClient";
@@ -111,6 +112,14 @@ interface MemberDirectoryStateInput {
 }
 
 function useMemberDirectoryState(input: MemberDirectoryStateInput) {
+  const mounted = useRef(true);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const actionContext = getMasqueradeContextToken();
   const directoryState = useTeamDirectory({
     enabled: input.enabled,
     activeAccountId: input.activeAccountId,
@@ -124,7 +133,10 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     if (!input.activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return input.activeAccountId;
   };
-  const isActiveAccount = (accountId: string): boolean => useStore.getState().activeAccountId === accountId;
+  const isActiveAccount = (accountId: string): boolean =>
+    mounted.current &&
+    useStore.getState().activeAccountId === accountId &&
+    getMasqueradeContextToken() === actionContext;
   const closeActiveAccount = (): void => {
     if (useStore.getState().activeAccountId !== input.activeAccountId) return;
     input.setActiveAccount(null);

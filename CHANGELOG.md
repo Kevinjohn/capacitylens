@@ -15,6 +15,11 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Preserve a newly opened form and its unsaved draft when an earlier save finishes.
+- Refuse allocation saves based on an obsolete planning revision instead of overwriting concurrent changes.
+- Keep invitation intent and delayed member feedback within their originating principal and action context.
+- Preserve committed-operation logging warnings after the following planning refresh.
+
 - Return to sign-in after a committed password change even when its dialog was dismissed.
 - Stop surviving development-server descendants when their launcher exits.
 - Preserve interrupted development identities and explain supported operator admission recovery.

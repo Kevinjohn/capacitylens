@@ -1,3 +1,4 @@
+import { useAuth } from "@/auth/authContext";
 import { m } from "@/i18n";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,10 +16,13 @@ import type { TeamMember } from "@/account/teamAccessClient";
 /** Shows member administration only for authenticated server mode after the members read authorizes it. Ordinary controls exclude ownership changes, which use the transfer ceremony. */
 export function MembersSection() {
   const activeAccountId = useStore((state) => state.activeAccountId);
-  return <AccountMembersSection key={activeAccountId ?? "no-active-account"} activeAccountId={activeAccountId} />;
+  const { user } = useAuth();
+  const generation = useStore((state) => (state.masquerade.kind === "inactive" ? 0 : state.masquerade.generation));
+  const scope = JSON.stringify([user?.id ?? null, activeAccountId, generation]);
+  return <AccountMembersSection key={scope} activeAccountId={activeAccountId} />;
 }
 
-// Remount on company changes so drafts, action locks and bearer links cannot survive across tenants.
+// Member intent belongs to one principal, company and projection lifetime.
 function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
   const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeAccountId);
 

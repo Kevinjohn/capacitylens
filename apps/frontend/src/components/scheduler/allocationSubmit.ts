@@ -23,6 +23,7 @@ type CommandInput = Omit<AllocationModalSnapshot, "editId" | "repeatUntilMinimum
   > & {
     fail: FieldError["fail"];
     canEdit: boolean;
+    isCurrentDraft?: () => boolean;
     onClose: () => void;
     setConfirmDelete: (value: boolean) => void;
     /** True while this dialog's typed write is in flight; a second submit is ignored. */
@@ -194,6 +195,10 @@ export function createAllocationCommands(input: CommandInput) {
   const validateDraft = () => parseAllocationCommandDraft(input);
   const submit = async () => {
     if (!input.canEdit) return;
+    if (input.editing && input.isCurrentDraft && !input.isCurrentDraft()) {
+      input.fail(null, m.form_allocation_err_changed());
+      return;
+    }
     const draft = validateDraft();
     if (
       !draft ||
