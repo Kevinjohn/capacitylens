@@ -106,10 +106,14 @@ export default class MembersController {
       ])
       const denied = new Set(restrictions.map((row) => String(row.principal_id)))
       const memberIds = new Set(rows.map((row) => String(row.user_id)))
+      const resourceFields = await readMemberResourceFields(
+        trx,
+        accountId,
+        rows.map((row) => String(row.user_id))
+      )
       const members = []
       for (const row of rows) {
         const userId = String(row.user_id)
-        const resourceFields = await readMemberResourceFields(trx, accountId, userId)
         members.push({
           userId,
           role: row.role,
@@ -121,7 +125,7 @@ export default class MembersController {
           email: row.email ?? null,
           signInConfirmed: tracking.enabled ? tracking.confirmations.has(userId) : null,
           isSelf: actor.actorId === userId,
-          ...resourceFields,
+          ...resourceFields.get(userId),
         })
       }
       for (const row of restrictions) {

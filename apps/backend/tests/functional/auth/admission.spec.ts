@@ -101,6 +101,34 @@ test.group('admission and membership completion', (group) => {
     await expectStatus(planning(api, cookie), 200)
   })
 
+  test('operator admission recovery preserves credentials after bootstrap stops partway', async ({
+    client: api,
+    assert,
+  }) => {
+    const recoveryEmail = 'admin@admin.admin'
+    await createIdentity(recoveryEmail, { name: 'Bruce Wayne', password, admitted: false })
+    const firstSignIn = await signIn(api, recoveryEmail, password)
+    const pending = await as(firstSignIn.cookie).get(api, '/api/admission')
+    pending.assertStatus(200)
+    assert.isFalse(pending.body().decision.admitted)
+    assert.isFalse(pending.body().decision.requirements.invitation.met)
+
+    const admission = await app.container.make(AccountAdmission)
+    await admission.operator.grantInvitation({ email: recoveryEmail, role: 'admin' })
+    const invited = await as(firstSignIn.cookie).get(api, '/api/admission')
+    invited.assertStatus(200)
+    assert.isFalse(invited.body().decision.admitted)
+    assert.isTrue(invited.body().decision.requirements.invitation.met)
+    await admission.operator.approve({ email: recoveryEmail })
+
+    const secondSignIn = await signIn(api, recoveryEmail, password)
+    const admitted = await as(secondSignIn.cookie).get(api, '/api/admission')
+    admitted.assertStatus(200)
+    assert.isTrue(admitted.body().decision.admitted)
+    const recoveryUsers = await db.from('users').where('email', recoveryEmail).select('id')
+    assert.equal(recoveryUsers.length, 1)
+  })
+
   test('evidence without an assignable role completes as Viewer, never as Owner', async ({
     client: api,
     assert,

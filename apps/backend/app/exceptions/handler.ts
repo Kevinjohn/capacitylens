@@ -223,7 +223,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       return
     const dependencyFailure = Boolean(kitResponse)
     const errorType = kitResponse ? 'account_kit_failure' : classifyLogError(error)
-    if (!dependencyFailure && errorType !== 'unexpected') return
+    if (!dependencyFailure && errorType !== 'unexpected' && errorType !== 'database_constraint')
+      return
 
     reportPrivateFailure(
       ctx,
@@ -232,7 +233,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         errorType,
         method: safeRequestMethod(ctx.request.method()),
         path: safeRoutePattern(ctx.route?.pattern),
-        status: kitResponse?.status ?? 500,
+        status: errorType === 'database_constraint' ? 400 : (kitResponse?.status ?? 500),
       },
       'HTTP request failed'
     )
