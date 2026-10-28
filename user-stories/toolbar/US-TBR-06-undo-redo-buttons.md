@@ -1,6 +1,6 @@
 # US-TBR-06 — Undo / Redo toolbar buttons
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/restoration-cleanup.spec.ts`, `e2e/toolbar.spec.ts` → "undoes and redoes with the toolbar buttons, disabled when the stack is empty"
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "undoes and redoes with the toolbar buttons, disabled when the stack is empty"
 
 ## Goal
 

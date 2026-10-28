@@ -3,9 +3,9 @@
 **Area:** Allocation editor · **Persona:** Studio manager · **Linked tests:**
 `e2e/allocation.spec.ts` → "deletes an allocation from the edit dialog and ⌘Z restores it" ·
 `e2e/features.spec.ts` → "undo restores a deleted allocation" ·
+`e2e/restoration-cleanup.spec.ts` → "privacy cleanup warns once, preserves the cancelled draft and skips warning after Restore is cleared" ·
 `apps/frontend/src/components/scheduler/AllocationModal.edit.test.tsx` ·
-`apps/backend/tests/functional/planning/restoration.spec.ts` (server restoration only; the schedule
-does not use it yet)
+`apps/backend/tests/functional/planning/restoration.spec.ts`
 
 ## Goal
 

@@ -231,9 +231,9 @@ describe("AllocationModal edit", () => {
   });
 
   it("preserves an untouched historical multiline note but saves a direct note edit as one line", async () => {
-    const alice = person("Diana Prince");
+    const diana = person("Diana Prince");
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...alice, workingDays: [...alice.workingDays] }),
+      useStore.getState().addResource({ ...diana, workingDays: [...diana.workingDays] }),
     );
     const allocation = requireCreated(
       await useStore.getState().addAllocation({

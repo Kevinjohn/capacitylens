@@ -241,6 +241,16 @@ test.group('direct member resource association', (group) => {
     outside.assertStatus(409)
     const wrongKind = await put(ownerId, 'r-external', null)
     wrongKind.assertStatus(409)
+    const revisionRowBeforeLink = await db
+      .from('company_planning_revisions')
+      .where('account_id', 'a-studio')
+      .first()
+    const revisionBeforeLink = Number(revisionRowBeforeLink?.revision)
+    const auditCountBeforeLink = await db
+      .from('audit_entries')
+      .where({ account_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
+      .count('* as total')
+    assert.equal(Number(auditCountBeforeLink[0].total), 0)
     const linked = await put(ownerId, 'r-clark', null)
     linked.assertStatus(200)
     const revision = (linked.body() as { revision: string }).revision
@@ -249,10 +259,12 @@ test.group('direct member resource association', (group) => {
       .where('account_id', 'a-studio')
       .first()
     const revisionAfterLink = Number(revisionRowAfterLink?.revision)
+    assert.equal(revisionAfterLink, revisionBeforeLink + 1)
     const auditCountAfterLink = await db
       .from('audit_entries')
       .where({ account_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
       .count('* as total')
+    assert.equal(Number(auditCountAfterLink[0].total), 1)
     const repeatLink = () =>
       withSession(
         client

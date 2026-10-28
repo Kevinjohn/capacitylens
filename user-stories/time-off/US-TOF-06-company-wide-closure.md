@@ -19,7 +19,7 @@ the usual capacity conflict.
 
 **Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`).
 
-1. Choose **Add company closure**. The company-closure form opens.
+1. Under **Company closures**, choose **Add closure**. The company-closure form opens.
 2. Enter a name and set the inclusive **Start** and **End** dates to overlap a seeded allocation.
 3. Save. The named closure appears in the company-closures list.
 4. Open **Schedule** (`/`) and click **Today**. The named closure band spans the tracked-resource
