@@ -74,8 +74,48 @@ steps or treat experimental checks as a new support commitment.
 nvm use
 corepack enable
 pnpm install
+cp apps/backend/.env.example apps/backend/.env
+cd apps/backend
+node ace.js generate:key --show
+```
+
+Copy the generated value into `APP_KEY` in `apps/backend/.env`, then return to the repository root
+and generate an authentication secret of at least 32 characters:
+
+```bash
+cd ../..
+openssl rand -hex 32
+```
+
+Copy that output into `CAPACITYLENS_SECRET` in `apps/backend/.env`. The example key is a placeholder;
+do not use it as a local secret or commit your `.env` file. Initialize the local SQLite database
+and run its migrations before starting the full-stack development servers:
+
+```bash
+mkdir -p apps/backend/tmp
+pnpm --dir apps/backend exec node ace.js app:upgrade
 pnpm run dev
 ```
+
+For local sign-in without email, set `CAPACITYLENS_CREATE_ADMIN_ADMIN=true` and choose a local
+`CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` of 15–128 characters in `apps/backend/.env`. This
+development convenience is refused in production.
+
+The development bootstrap uses the reserved local identity `admin@admin.admin`. If startup reports
+that this identity exists but is not admitted, do not reset its password or adopt an account by email
+alone. First set `CAPACITYLENS_CREATE_ADMIN_ADMIN=false` temporarily and start the local server.
+Sign in as the reserved identity and inspect `GET /api/admission`. Confirm the identity came from an
+interrupted bootstrap in this local database. Stop the development server before running only the
+command for an unmet requirement from `apps/backend/`:
+
+```bash
+node ace.js account-kit:admission:grant-invitation admin@admin.admin --role admin
+node ace.js account-kit:admission:approve admin@admin.admin
+```
+
+These commands preserve the existing identity and password. If you cannot verify the identity's
+origin, stop and use a fresh local database instead of changing its admission. Restart with
+`CAPACITYLENS_CREATE_ADMIN_ADMIN=true` after the required admission steps succeed.
 
 `pnpm run dev:demo` starts the temporary in-memory demo without SQLite or authentication. The
 workspace contains the web app, the pure `@capacitylens/shared` domain package, and the server.

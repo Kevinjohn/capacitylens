@@ -31,10 +31,5 @@ The keyboard path (**⌘Z** / **⌘⇧Z**, see US-TBR-07) is fast for power user
   time off, catalogue edits and imports, do not enter it and do not enable the buttons.
 - ✅ The global **⌘Z** / **⌘⇧Z** shortcut still performs the same undo/redo and is ignored while typing in a text field — that keyboard path and its typing guard are covered by **US-TBR-07**.
 
-- ✅ An actual client/project privacy or code-name change, or activity-kind change, asks once before
-  clearing pending company-wide deleted-item recovery: **This change clears N restorable items**.
-  It skips the confirmation for zero items or unchanged relevant fields. Cancelling keeps the draft
-  and recovery copies; confirming saves and clears them together. Ordinary edits keep the copies.
-
 **Documentation:** [Clients and projects](../../docs-src/using/projects.md),
 [Activities](../../docs-src/using/activities.md).

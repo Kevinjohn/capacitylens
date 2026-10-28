@@ -78,9 +78,10 @@ the inactive member directory. Owner and self protections apply to both actions.
 4. The application opens with a non-blocking **How CapacityLens works** region
    (`data-testid="product-orientation"`) above the page. It explains the week-by-week people and
    work model and says CapacityLens does not manage tasks, tickets or deadlines. **Got it**
-   dismisses it for this person and company on this device. It has no sidebar action for reopening.
+   dismisses it for this person and company on this device. The sidebar's **How CapacityLens works**
+   action (`data-testid="product-orientation-reopen"`) reopens and focuses it.
    The versioned preference is implemented by
-   `src/lib/productOrientation.ts`; it is never in `AppData` or an export.
+   `apps/frontend/src/lib/productOrientation.ts`; it is never in `AppData` or an export.
 5. Every application page shows a **Getting started** progress bar (`data-testid="getting-started-progress"`)
    from 0 to 5. Its card (`data-testid="getting-started"`) opens by default on Schedule and can be
    shown or hidden from the bar on any page. The five independent milestones are **Add someone to
@@ -548,10 +549,10 @@ weeks"). Then icon-only **Prev**/**Next** chevron buttons (accessible names "Pre
 `aria-label`, hover titles "Back one week"/"Forward one week" — the words no longer show) and a
 text **Today** button. The **Jump to date** date input is HIDDEN from the toolbar as of #173 (a
 deliberate product decision — people rarely look far ahead, and a month list is the likely future
-affordance); its component (`src/components/scheduler/JumpToDateInput.tsx`) is retained, gated
+affordance); its component (`apps/frontend/src/components/scheduler/JumpToDateInput.tsx`) is retained, gated
 behind `SHOW_JUMP_TO_DATE` in `SchedulerToolbar.tsx`, and its behaviour is covered by
-`src/components/scheduler/JumpToDateInput.test.tsx` plus the `goToDate` tests in
-`src/store/useStore.test.ts` rather than through the toolbar UI.
+`apps/frontend/src/components/scheduler/JumpToDateInput.test.tsx` plus the `goToDate` tests in
+`apps/frontend/src/store/useStore.test.ts` rather than through the toolbar UI.
 The week dropdown opens below its trigger so all five options, including **1 week**, are immediately
 visible without scrolling.
 **Navigation always re-anchors the grid's left edge to the week start** (the account
@@ -616,10 +617,10 @@ account and NOT in export) — like the theme and bar-label toggles. On → narr
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See _Weekend
 columns_ above.
 
-**Date format (account-level).** Settings → **Date format** has a control labelled
+**Date format (company-level).** Settings → **Date format** has a control labelled
 `Date format`, with four options shown as samples: **9 Sep** (default), **9th Sep**, **Sep 9**,
-**Sep 9th**. It is **account data** — stored on the account, omitted from Settings JSON exports, changed by an editor
-or above and applied to every member; a viewer sees the control disabled. It sets day/month order and
+**Sep 9th**. It is **company data** — stored with the company and included in supported portable
+exports, changed by an editor or above and applied to every member; a viewer sees the control disabled. It sets day/month order and
 whether the day number carries an ordinal on planning dates, including single calendar dates and
 ranges, and takes effect without a reload. A standalone range crossing a year carries the year at
 both ends. The Overview's ordered week-column headers are the deliberate narrow exception:
@@ -945,7 +946,7 @@ An accept is refused (403) while **Disable Access** applies to that address. An 
 expired link shows `invite-error`: **This invitation is invalid or has expired. Ask the person who
 invited you for a new link.** In the in-memory demo build (`VITE_CAPACITYLENS_DEMO=1`) the page
 shows **Invite links work only when CapacityLens is connected to a server.** and makes no request.
-The link page is `src/components/invites/InviteAccept.tsx`; the create UI is the Members section
+The link page is `apps/frontend/src/components/invites/InviteAccept.tsx`; the create UI is the Members section
 below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
@@ -1107,7 +1108,7 @@ while the administrative directory keeps listing them),
 503 `MAIL_UNAVAILABLE` without email delivery; 400 for `owner` from every caller — ownership is
 transferred, never invited). Admission uses `GET /api/admission/requests` and
 `POST /api/admission/:userId/approve|reject|revoke` (Owner/Admin). The management UI is
-`src/components/team/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
+`apps/frontend/src/components/team/MembersSection.tsx`, composed by `apps/frontend/src/components/team/TeamAccessView.tsx`;
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
 
@@ -1140,7 +1141,7 @@ load onto the login wall); every previous session ends. An invalid / already-use
 shows _"This reset link is invalid, already used, or expired. Request a new one from the sign-in
 page."_ — the token is single-use and expires after one hour. The endpoint returns **400** with
 `code: "INVALID_TOKEN"` for invalid, consumed and expired proofs. In local/demo mode the page shows
-a short "server mode only" note and makes no request. The page is `src/auth/ResetPassword.tsx`.
+a short "server mode only" note and makes no request. The page is `apps/frontend/src/auth/ResetPassword.tsx`.
 
 **Viewer read-only mode (server + auth-on).** On an auth-on, server-backed deploy a member's account
 **role** (`owner` | `admin` | `editor` | `viewer`) drives the UI. `GET /api/accounts` now returns
@@ -1172,24 +1173,26 @@ to **viewer**, the whole app goes **read-only**:
   company; a stale missing target is a no-op, while an existing foreign target is rejected. The
   in-memory demo remains editable without a membership role. Persisted writes require an authenticated
   company member and CapacityLens never queues changes for later.
-  The provider is `src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
-  `src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
+  The provider is `apps/frontend/src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
+  `apps/frontend/src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
   spec `e2e/viewer.auth.spec.ts`.
 
 **Demo identity (not real auth).** The `VITE_CAPACITYLENS_DEMO=1` build opens straight on the
 company picker; there is no sign-in step and no Sign out. The sidebar and Account page show the
-fictional **Bruce Wayne** identity from `src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
+fictional **Bruce Wayne** identity from `apps/frontend/src/lib/fakeAuth.ts` (avatar: `apps/frontend/src/assets/avatar-demo.svg`).
 Scheduling data remains in memory and resets when the page reloads.
 
 **Product orientation.** The application shell can show a normal-flow region headed **How
 CapacityLens works** (`data-testid="product-orientation"`) for every role and for the no-company
 Account view. It does not hide navigation or page content. **Got it** dismisses it with a versioned,
 per-person and per-company device preference (`capacitylens/productOrientation/v1/...`); storage
-failure leaves it dismissed for the current mount. There is no sidebar action for reopening it;
-eligible entry can show it again when its preference is absent. Sources: `src/components/ProductOrientation.tsx`,
-`src/components/useProductOrientation.ts`, `src/lib/productOrientation.ts`; coverage:
-`src/components/AppShell.productOrientation.test.tsx`, `src/components/ProductOrientation.test.tsx`,
-`src/lib/productOrientation.test.ts`, and `e2e/product-orientation.spec.ts`.
+failure leaves it dismissed for the current mount. The sidebar action **How CapacityLens works**
+(`data-testid="product-orientation-reopen"`) is available to reopen and focus the region. Sources:
+`apps/frontend/src/components/ProductOrientation.tsx`,
+`apps/frontend/src/components/useProductOrientation.ts`, `apps/frontend/src/lib/productOrientation.ts`;
+coverage: `apps/frontend/src/components/AppShell.productOrientation.test.tsx`,
+`apps/frontend/src/components/ProductOrientation.test.tsx`,
+`apps/frontend/src/lib/productOrientation.test.ts`, and `e2e/product-orientation.spec.ts`.
 
 ## Command palette
 

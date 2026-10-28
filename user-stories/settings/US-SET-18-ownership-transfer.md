@@ -14,7 +14,7 @@ Let the current Owner transfer company ownership to an eligible Admin in one con
 
 Ownership carries authority to replace the company's data or anonymise all its people. The Owner makes this decision
 and the interface must state its immediate effect: the selected Admin becomes Owner and the current
-Owner becomes Admin. The nominated Admin does not separately authenticate or consent to the change.
+Owner becomes Admin. The selected Admin does not separately authenticate or consent to the change.
 
 ## How (end-to-end)
 
@@ -28,7 +28,8 @@ Kyle is an active, unrestricted Admin in the same company.
    contains active, unrestricted Admins of this company.
 3. Bruce selects **Transfer ownership**. The confirmation says Selina will become Owner and Bruce
    will become Admin. Bruce confirms this exact action with his password;
-   a recent sign-in does not replace this step. On confirmation, both roles change immediately in one transaction. The final
+   a recent sign-in does not replace this step. On confirmation, both roles change immediately in one
+   transaction. The final
    submit retains `data-testid="ownership-transfer-complete"`.
 4. The company member list and Bruce's available company access refresh to reflect the new roles.
    If the response is uncertain, retrying the same command returns its original result; it does not
@@ -40,8 +41,9 @@ Kyle is an active, unrestricted Admin in the same company.
   active, unrestricted Admin in the same company.
 - The one confirmation clearly states that the selected Admin becomes Owner and the caller becomes
   Admin. Both role changes commit atomically, with exactly one active Owner before and after.
-- There is no nominee consent, pending request, expiry, or recovery ceremony. The Owner's
-  confirmation is the authorization for this immediate handover.
+- There is no nominee consent, pending request or expiry. The Owner's confirmation authorizes this
+  immediate handover. If the outcome is uncertain, the Owner can verify the roles and retry the same
+  command without transferring ownership a second time.
 - The card is available only to the Owner. The server refuses unauthorized, stale-owner,
   masquerading, ineligible-target and malformed requests without changing either role.
 - `POST /api/accounts/:accountId/ownership-transfer` accepts `{toUserId, proofId}` and returns **200**

@@ -47,3 +47,8 @@ occurrences remain.
   atomic mutation and one Undo restores the complete deleted tail.
 - ✅ Editing a linked occurrence retains its series membership and never modifies future siblings.
 - ✅ Legacy repeat batches remain independent: no series is inferred or backfilled.
+- ✅ A client/project privacy or code-name change, or an activity-kind change, asks once before it
+  clears pending company-wide deleted-item recovery: **This change clears N restorable items**. It
+  skips confirmation when no items will be cleared or when relevant values are unchanged. Cancelling
+  keeps the draft and recovery copies; confirming saves the change and clears them atomically.
+  Ordinary edits preserve the recovery copies.
