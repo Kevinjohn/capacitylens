@@ -1,12 +1,53 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildBody, decide, parseResults } from "./report-workflow-outcome.mjs";
+import { buildBody, decide, parseResults, publishOutcome } from "./report-workflow-outcome.mjs";
 
 const TIP = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const OLDER = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 const results = (entries) => Object.entries(entries).map(([job, result]) => ({ job, result }));
+const context = (run, job = "secrets") => ({
+  workflow: "security",
+  eventName: "schedule",
+  ref: "refs/heads/main",
+  headSha: TIP,
+  runUrl: `https://github.com/o/r/actions/runs/${run}`,
+  run,
+  job,
+});
+
+function githubIssues(initial = [], listOverrides = []) {
+  let nextNumber = initial.reduce((maximum, issue) => Math.max(maximum, issue.number), 0) + 1;
+  const issues = new Map(initial.map((issue) => [issue.number, { ...issue, comments: [] }]));
+  const calls = [];
+  const runGh = (args) => {
+    calls.push(args);
+    if (args[0] === "label") return "";
+    if (args[0] === "issue" && args[1] === "list") {
+      if (listOverrides.length > 0) return listOverrides.shift().join("\n");
+      return [...issues.values()]
+        .filter((issue) => issue.open)
+        .map((issue) => String(issue.number))
+        .join("\n");
+    }
+    if (args[0] === "issue" && args[1] === "create") {
+      const issue = { number: nextNumber++, open: true, body: args.at(-1), comments: [] };
+      issues.set(issue.number, issue);
+      return `https://github.com/o/r/issues/${issue.number}`;
+    }
+    if (args[0] === "issue" && args[1] === "comment") {
+      issues.get(Number(args[2])).comments.push(args.at(-1));
+      return "";
+    }
+    if (args[0] === "issue" && args[1] === "close") {
+      issues.get(Number(args[2])).open = false;
+      return "";
+    }
+    throw new Error(`Unexpected gh invocation: ${args.join(" ")}`);
+  };
+  return { issues, calls, runGh };
+}
 
 test("a clean run files nothing when no report is open", () => {
   const decision = decide({
@@ -127,4 +168,56 @@ test("the body links the run and says so when no job accounts for the failure", 
   assert.match(body, /https:\/\/github\.com\/o\/r\/actions\/runs\/1/);
   assert.match(body, /none reported/);
   assert.match(body, /closes itself/);
+});
+
+test("overlapping first failures converge after stale initial lists while retaining both runs' evidence", () => {
+  const github = githubIssues([], [[1], [2]]);
+  const failureA = { action: "open", jobs: ["secrets"], reason: "the workflow failed" };
+  const failureB = { action: "open", jobs: ["sbom"], reason: "the workflow failed" };
+
+  // Both runners decided to open from the same empty initial list. Their post-create issue-list
+  // reads are each stale and show only their own report, leaving two open issues temporarily.
+  publishOutcome({ decision: failureA, context: context(101), existingIssueNumbers: [], runGh: github.runGh });
+  publishOutcome({ decision: failureB, context: context(102), existingIssueNumbers: [], runGh: github.runGh });
+  assert.deepEqual(
+    [...github.issues.values()].filter((issue) => issue.open).map(({ number }) => number),
+    [1, 2],
+  );
+
+  // The next scheduled/push run sees both, comments on the oldest, and closes the duplicate.
+  publishOutcome({
+    decision: { action: "comment", jobs: ["secrets"], reason: "the workflow failed" },
+    context: context(103),
+    existingIssueNumbers: [1, 2],
+    runGh: github.runGh,
+  });
+
+  const openIssues = [...github.issues.values()].filter((issue) => issue.open);
+  assert.deepEqual(
+    openIssues.map(({ number }) => number),
+    [1],
+  );
+  assert.match(openIssues[0].body, /runs\/101/);
+  assert.match(openIssues[0].comments.join("\n"), /runs\/103/);
+  assert.equal(github.issues.get(2).open, false);
+  assert.match(github.issues.get(2).body, /runs\/102/);
+  assert.match(github.issues.get(2).body, /sbom/);
+});
+
+test("a repeat failure comments on the oldest open report and closes visible duplicates", () => {
+  const github = githubIssues([
+    { number: 41, open: true, body: "first failure history" },
+    { number: 42, open: true, body: "second failure history" },
+  ]);
+  publishOutcome({
+    decision: { action: "comment", jobs: ["secrets"], reason: "the workflow failed" },
+    context: context(103),
+    existingIssueNumbers: [42, 41],
+    runGh: github.runGh,
+  });
+
+  assert.equal(github.issues.get(41).open, true);
+  assert.match(github.issues.get(41).comments.join("\n"), /runs\/103/);
+  assert.equal(github.issues.get(42).open, false);
+  assert.match(github.issues.get(42).comments.join("\n"), /in favor of #41/);
 });
