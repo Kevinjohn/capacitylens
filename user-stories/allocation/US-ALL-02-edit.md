@@ -10,6 +10,8 @@ Change an existing allocation's hours, dates, status or note and see the bar upd
 
 Plans change constantly — a booking stretches, drops to part-time, becomes tentative, or gains a note. The manager needs to adjust an existing booking in place rather than delete and recreate it, keeping its identity (and undo history) intact.
 
+**Documentation:** [Schedule and change work — Edit, duplicate or delete a booking](../../docs-src/using/schedule-work.md#edit-duplicate-or-delete-a-booking)
+
 ## How (end-to-end)
 
 **Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. The seed has a _Wireframes_ bar on **Bruce Wayne**.
@@ -30,5 +32,6 @@ Plans change constantly — a booking stretches, drops to part-time, becomes ten
 - ✅ Adding a **Note** adds a trailing `•` marker to the bar label (and the note shows in the hover popover).
 - ✅ Saving another field without editing a historical multiline note preserves that stored note exactly; directly editing **Note** adopts the field's single-line value.
 - ✅ An attributed All-projects allocation reopens with its project selected and keeps the attribution when another field changes. A legacy unattributed All-projects allocation reopens as **No specific project** and stays unattributed unless explicitly assigned.
+- ✅ Creating an activity inline in the edit form does not by itself make the allocation stale. If another session changes the allocation while the form is open, Save is refused with **The schedule changed while you were editing**; close and reopen the current allocation, then reapply the intended changes.
 - ✅ Edit uses the same responsive 25/75 label/control layout as create, including its **Assignee**
   row, while keeping every existing value and omitting the create-only **Repeat** controls.
