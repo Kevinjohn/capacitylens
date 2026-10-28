@@ -92,8 +92,8 @@ position, turns the list into one options object with a named type ending in `Op
 singleton. Optional means absent, not `null`.
 
 Results with several outcomes are a discriminated union on `kind`, named `<Thing>Result` or
-`<Thing>Outcome`; `OwnershipTransferOutcome` in `packages/shared/src/account/ownershipTransfer.ts`
-is the pattern, and callers `switch` on `kind`. `status` is the lifecycle state of a thing, never
+`<Thing>Outcome`; `LifecycleAncestryResult` in `packages/shared/src/domain/lifecycle/ancestry.ts`
+is the pattern, and callers branch on `kind`. `status` is the lifecycle state of a thing, never
 the outcome of a call. `ok` belongs to `ValidationResult` and to wire shapes. In-memory lookups
 return `undefined`, as `Array.find` does; database lookups return `null`, as SQL does; do not
 convert one into the other at a boundary. Async functions return `Promise<T>` under the same
