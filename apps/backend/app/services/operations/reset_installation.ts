@@ -34,8 +34,9 @@ export async function resetInstallation(input: {
   ) {
     throw new Error('Reset destination or its sidecars already exist; choose a new database path');
   }
-  // The operator callback mutates this record; a plain let would read as its initial value in the
-  // catch block, because the assignments happen inside the callback.
+  // The operator callback mutates this record. Separate `let` bindings would be narrowed to their
+  // initial values across the callback, so the lint rule reports the catch-block reads as
+  // impossible; a mutable record keeps those reads typed as they really are.
   const progress: {
     archivePath: string | undefined;
     snapshotPath: string | undefined;
