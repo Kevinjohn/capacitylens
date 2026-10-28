@@ -41,11 +41,23 @@ test("picking a company shows guidance that can be dismissed and reopened from t
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
-  await page.getByRole("button", { name: "Expand menu" }).click();
+
+  // Open the mobile sidebar with its keyboard shortcut before clicking the persistent trigger.
+  await page.keyboard.press("Control+b");
+  await expect(page.getByRole("button", { name: "Collapse menu" })).toBeVisible();
+  await expect(reopen).toBeVisible();
+  await reopen.click();
+  await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeFocused();
+  await page.getByRole("button", { name: "Got it" }).click();
+  const expandMenu = page.getByRole("button", { name: "Expand menu" });
+  await expect(page.getByTestId("product-orientation")).toHaveCount(0);
+  await expect(expandMenu).toBeFocused();
+
+  await expandMenu.click();
   await expect(reopen).toBeVisible();
   await reopen.click();
   await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeFocused();
   await page.getByRole("button", { name: "Got it" }).click();
   await expect(page.getByTestId("product-orientation")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Expand menu" })).toBeFocused();
+  await expect(expandMenu).toBeFocused();
 });

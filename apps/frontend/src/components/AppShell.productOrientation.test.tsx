@@ -144,6 +144,14 @@ describe("AppShell product orientation", () => {
     renderShell();
     const user = userEvent.setup();
     const menuTrigger = screen.getByRole("button", { name: "Expand menu" });
+    await user.keyboard("{Control>}b{/Control}");
+    const orientationAction = screen.getByRole("button", { name: "How CapacityLens works" });
+    expect(screen.getByRole("button", { name: "Collapse menu" })).toBeInTheDocument();
+    await user.click(orientationAction);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "How CapacityLens works" })).toHaveFocus());
+    await user.click(screen.getByRole("button", { name: "Got it" }));
+    await waitFor(() => expect(menuTrigger).toHaveFocus());
+
     await user.click(menuTrigger);
     await user.click(screen.getByRole("button", { name: "How CapacityLens works" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "How CapacityLens works" })).toHaveFocus());

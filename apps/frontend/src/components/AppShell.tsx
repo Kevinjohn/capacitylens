@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, Ref } from "react";
 import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { GettingStarted } from "./GettingStarted";
 import { Toaster } from "sonner";
@@ -62,13 +62,13 @@ function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.get
   }
 }
 
-function MobileSidebarTrigger({ onActivate }: { onActivate: (trigger: HTMLButtonElement) => void }) {
+function MobileSidebarTrigger({ triggerRef }: { triggerRef: Ref<HTMLButtonElement> }) {
   const { openMobile } = useSidebar();
   return (
     <SidebarTrigger
+      ref={triggerRef}
       aria-expanded={openMobile}
       aria-label={openMobile ? m.nav_collapse_menu() : m.nav_expand_menu()}
-      onClick={(event) => onActivate(event.currentTarget)}
     />
   );
 }
@@ -193,9 +193,7 @@ function GatedApp({
             masqueradeBanner={masqueradeBanner}
             navigate={navigate}
             orientation={orientation}
-            onMobileSidebarTriggerActivate={(trigger) => {
-              mobileSidebarTrigger.current = trigger;
-            }}
+            mobileSidebarTriggerRef={mobileSidebarTrigger}
           />
           {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
           <RotateHint />
@@ -257,10 +255,10 @@ function GatedMain({
   masqueradeBanner,
   navigate,
   orientation,
-  onMobileSidebarTriggerActivate,
+  mobileSidebarTriggerRef,
 }: Pick<GatedAppProps, "hydrated" | "persistError" | "masqueradeBanner" | "navigate"> & {
   orientation: ReturnType<typeof useProductOrientation>;
-  onMobileSidebarTriggerActivate: (trigger: HTMLButtonElement) => void;
+  mobileSidebarTriggerRef: Ref<HTMLButtonElement>;
 }) {
   const loader = <AppShellLoader />;
   const projectionChanging = useStore(
@@ -270,7 +268,7 @@ function GatedMain({
   return (
     <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
       <div className="border-b border-line p-2 md:hidden">
-        <MobileSidebarTrigger onActivate={onMobileSidebarTriggerActivate} />
+        <MobileSidebarTrigger triggerRef={mobileSidebarTriggerRef} />
       </div>
       {masqueradeBanner && <MasqueradeBanner banner={masqueradeBanner} navigate={navigate} />}
       {persistError && (
