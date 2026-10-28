@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { m } from "@/i18n";
 import { useAuth } from "@/auth/authContext";
 import { useStore } from "@/store/useStore";
@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import { useOwnershipTransfer } from "./useOwnershipTransfer";
 import type { OwnershipTransferController } from "./useOwnershipTransfer";
 import { ActionProofDialog } from "@/auth/ActionProofDialog";
-
-const PENDING_KEY = "capacitylens/ownership-action-proof";
 
 function TransferForm({
   controller,
@@ -107,48 +105,10 @@ export function OwnershipTransferCard() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState("");
   const [proofTarget, setProofTarget] = useState<string | null>(null);
-  const [readyProof, setReadyProof] = useState<{ target: string; id: string } | null>(null);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { refreshAuth } = useAuth();
   const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("capacitylensActionConfirmed") !== "1") return;
-    if (!activeAccountId) return;
-    const saved = sessionStorage.getItem(PENDING_KEY);
-    if (!saved) return;
-    const timer = window.setTimeout(() => {
-      sessionStorage.removeItem(PENDING_KEY);
-      const url = new URL(window.location.href);
-      url.searchParams.delete("capacitylensActionConfirmed");
-      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
-      try {
-        const pending: unknown = JSON.parse(saved);
-        if (
-          !pending ||
-          typeof pending !== "object" ||
-          !("accountId" in pending) ||
-          pending.accountId !== activeAccountId ||
-          !("target" in pending) ||
-          typeof pending.target !== "string" ||
-          !("proofId" in pending) ||
-          typeof pending.proofId !== "string"
-        )
-          throw new Error("Ownership confirmation could not be resumed.");
-        setSelected(pending.target);
-        setReadyProof({ target: pending.target, id: pending.proofId });
-        setOpen(true);
-      } catch {
-        useStore.getState().setNotice(m.reauth_failed(), "error");
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [activeAccountId]);
-  const requestTransfer = (target: string) => {
-    if (readyProof?.target === target) {
-      setReadyProof(null);
-      void controller.transfer(target, readyProof.id);
-    } else setProofTarget(target);
-  };
+  const requestTransfer = (target: string) => setProofTarget(target);
   if (!controller.available) return null;
 
   return (

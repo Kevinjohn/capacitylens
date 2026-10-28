@@ -14,8 +14,6 @@ import { Modal } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 import { SettingsSection } from "./SettingsSection";
 
-const PENDING_PROOF_KEY = "capacitylens/company-anonymise-action-proof";
-
 /** Confirms anonymising all people against the active native session. */
 export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean }) {
   const accountId = useStore((state) => state.activeAccountId);
@@ -24,7 +22,6 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
   const role = useRole();
   const [confirming, setConfirming] = useState(false);
   const [proving, setProving] = useState(false);
-  const [readyProof, setReadyProof] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [requiresReload, setRequiresReload] = useState(false);
   const generation = useRef(0);
@@ -38,46 +35,12 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
       previous = state.activeAccountId;
       generation.current += 1;
       if (leavingCompany) {
-        sessionStorage.removeItem(PENDING_PROOF_KEY);
-        setReadyProof(null);
         setProving(false);
         setConfirming(false);
         setRequiresReload(false);
       }
     });
   }, []);
-
-  useEffect(() => {
-    const saved = sessionStorage.getItem(PENDING_PROOF_KEY);
-    if (new URLSearchParams(window.location.search).get("capacitylensActionConfirmed") !== "1") {
-      if (saved) sessionStorage.removeItem(PENDING_PROOF_KEY);
-      return;
-    }
-    if (!saved || !accountId) return;
-    const timer = window.setTimeout(() => {
-      sessionStorage.removeItem(PENDING_PROOF_KEY);
-      const url = new URL(window.location.href);
-      url.searchParams.delete("capacitylensActionConfirmed");
-      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
-      try {
-        const pending: unknown = JSON.parse(saved);
-        if (
-          !pending ||
-          typeof pending !== "object" ||
-          !("accountId" in pending) ||
-          pending.accountId !== accountId ||
-          !("proofId" in pending) ||
-          typeof pending.proofId !== "string"
-        )
-          throw new Error("Company confirmation could not be resumed.");
-        setReadyProof(pending.proofId);
-        setConfirming(true);
-      } catch {
-        setNotice(m.reauth_failed(), "error");
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [accountId, setNotice]);
 
   if (!allowed || !accountId || (serverMode && role !== "owner")) return null;
 
@@ -180,7 +143,6 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
           onClose={() => {
             if (busy) return;
             setConfirming(false);
-            setReadyProof(null);
           }}
           footer={
             <Button
@@ -188,7 +150,6 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
               variant="outline"
               onClick={() => {
                 setConfirming(false);
-                setReadyProof(null);
               }}
               disabled={busy}
             >
@@ -206,11 +167,7 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
               variant="destructive"
               disabled={busy}
               onClick={() => {
-                if (readyProof) {
-                  const proofId = readyProof;
-                  setReadyProof(null);
-                  void submit(proofId);
-                } else if (serverMode) setProving(true);
+                if (serverMode) setProving(true);
                 else anonymiseDemo();
               }}
             >

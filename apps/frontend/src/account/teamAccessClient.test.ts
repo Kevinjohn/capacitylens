@@ -292,6 +292,14 @@ describe("rejectionMessage", () => {
 });
 
 describe("teamAccessClient admission requests", () => {
+  it.each([
+    { userId: "bruce", email: null, requestedAt: null },
+    { userId: "bruce", email: "bruce@wayne.test", requestedAt: "not-a-date" },
+  ])("rejects an admission page with a malformed required row", async (row) => {
+    vi.spyOn(accountClient, "listAdmissionRequests").mockResolvedValue(json({ items: [row], nextCursor: null }));
+    await expect(teamAccessClient.listAdmissionRequests()).resolves.toMatchObject({ kind: "invalid" });
+  });
+
   it("reads every page of pending, declined and revoked records", async () => {
     const row = (userId: string) => ({ userId, email: `${userId}@wayne.test`, requestedAt: null });
     const list = vi.spyOn(accountClient, "listAdmissionRequests").mockImplementation(async (status, cursor) => {

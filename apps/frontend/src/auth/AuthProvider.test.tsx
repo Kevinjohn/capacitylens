@@ -313,43 +313,55 @@ function registerServerModeTest06() {
       principal: { id: "real-principal", name: "Bruce Wayne", email: "bruce@example.test" },
       authMode: "password-only",
     });
-    const { AuthProvider, useStore } = await freshProvider();
-    const { makeAccount, makeAppData } = await import("@/test/fixtures");
-    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
-      const url = input instanceof Request ? input.url : String(input);
-      if (!url.includes("/api/accounts/a-studio/planning")) throw new Error(`Unexpected read: ${url}`);
-      return me(200, {
-        accountId: "a-studio",
-        revision: 1,
-        authority: {
-          actorId: "real-principal",
-          effectiveActorId: "target-user",
-          role: "viewer",
-          canWrite: false,
-          canSeePrivateNames: false,
-          canSeeTimeOffNote: false,
-        },
-        data: makeAppData({ accounts: [makeAccount({ id: "a-studio", name: "Wayne Enterprises" })] }),
-      });
+    vi.doMock("@/data/planning/volatilePlanningTransport", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/data/planning/volatilePlanningTransport")>();
+      const { createPlanningTransport } = await import("@/data/planning/planningTransport");
+      return { ...actual, createStorePlanningTransport: () => createPlanningTransport() };
     });
-    vi.stubGlobal("fetch", fetchSpy);
-    expect(useStore.getState().activeAccountId).toBeNull();
-    expect(useStore.getState().accountSummaries).toEqual([]);
+    try {
+      const { AuthProvider, useStore } = await freshProvider();
+      const { makeAccount, makeAppData } = await import("@/test/fixtures");
+      const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+        const url = input instanceof Request ? input.url : String(input);
+        if (!url.includes("/api/accounts/a-studio/planning")) throw new Error(`Unexpected read: ${url}`);
+        return me(200, {
+          accountId: "a-studio",
+          revision: 1,
+          authority: {
+            actorId: "real-principal",
+            effectiveActorId: "target-user",
+            role: "viewer",
+            canWrite: false,
+            canSeePrivateNames: false,
+            canSeeTimeOffNote: false,
+          },
+          data: makeAppData({ accounts: [makeAccount({ id: "a-studio", name: "Wayne Enterprises" })] }),
+        });
+      });
+      vi.stubGlobal("fetch", fetchSpy);
+      expect(useStore.getState().activeAccountId).toBeNull();
+      expect(useStore.getState().accountSummaries).toEqual([]);
 
-    render(
-      <AuthProvider>
-        <div>member-content</div>
-      </AuthProvider>,
-    );
+      render(
+        <AuthProvider>
+          <div>member-content</div>
+        </AuthProvider>,
+      );
 
-    expect(await screen.findByText("member-content")).toBeInTheDocument();
-    expect(useStore.getState().activeAccountId).toBe("a-studio");
-    expect(useStore.getState().accountSummaries).toEqual([
-      { id: "a-studio", name: "Wayne Enterprises", role: "viewer" },
-    ]);
-    expect(useStore.getState().masquerade.kind).toBe("active");
-    expect(authBootstrapMocks.masqueradeStatus).toHaveBeenCalledWith(undefined);
-    expect(fetchSpy).toHaveBeenCalled();
+      expect(await screen.findByText("member-content")).toBeInTheDocument();
+      expect(useStore.getState().activeAccountId).toBe("a-studio");
+      expect(useStore.getState().accountSummaries).toEqual([
+        { id: "a-studio", name: "Wayne Enterprises", role: "viewer" },
+      ]);
+      expect(useStore.getState().masquerade.kind).toBe("active");
+      expect(authBootstrapMocks.masqueradeStatus).toHaveBeenCalledWith(undefined);
+      expect(fetchSpy).toHaveBeenCalled();
+    } finally {
+      vi.doMock("@/data/planning/volatilePlanningTransport", async (importOriginal) => {
+        const actual = await importOriginal<typeof import("@/data/planning/volatilePlanningTransport")>();
+        return { ...actual, createStorePlanningTransport: actual.createVolatilePlanningTransport };
+      });
+    }
   });
 
   it("rejects an active masquerade whose auth mode is off", async () => {
@@ -411,7 +423,7 @@ function registerServerModeTest10() {}
 function registerServerModeTest12() {}
 
 function registerServerModeTest13() {
-  it("DEFECT A — a password-only 401 lands on the sign-in wall without a degraded notice", async () => {
+  it("uses the password sign-in wall for an explicit password-mode 401", async () => {
     // A 401 always offers a way in, never a terminal 'invalid configuration' screen.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -434,7 +446,7 @@ function registerServerModeTest13() {
 }
 
 function registerServerModeTest14() {
-  it("DEFECT A — a 401 with an empty / HTML / non-JSON body falls back to the password sign-in wall (proxy)", async () => {
+  it("shows the password sign-in wall with a degraded notice for a non-JSON 401", async () => {
     // A proxy returning a plain-HTML 401 (or an empty body) must land on a usable sign-in form, not a
     // dead-end error screen with no way to authenticate.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
@@ -457,7 +469,7 @@ function registerServerModeTest14() {
 }
 
 function registerServerModeTest15() {
-  it("DEFECT A — a 401 with a junk authMode value falls back to the password sign-in wall WITH the degraded notice", async () => {
+  it("shows the password sign-in wall with a degraded notice for an unknown auth mode", async () => {
     // Distinct from an omitted authMode (old-server compat, no notice): here the field is present
     // but neither 'password' nor 'sso', a genuinely untrustworthy body, not a version-skew case.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
@@ -477,7 +489,7 @@ function registerServerModeTest15() {
 }
 
 function registerServerModeTest16() {
-  it("DEFECT A — a NON-401 failure is unchanged: it still renders the retryable auth error boundary", async () => {
+  it("keeps the retryable auth error boundary for non-401 failures", async () => {
     // The lenient 401 handling is scoped to 401 only. A genuinely unexpected status stays fail-closed.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(

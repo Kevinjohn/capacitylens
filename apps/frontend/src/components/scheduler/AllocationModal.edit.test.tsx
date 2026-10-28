@@ -83,7 +83,7 @@ describe("AllocationModal edit", () => {
     "reverse-maps and saves an $caseName allocation",
     async ({ activityKind, allocationProjectId, expectedScope, activityName }: AllocationScopeCaseInput) => {
       const resource = await requireCreated(
-        useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+        useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
       );
       const activity = await resolveScopeActivity(activityKind, activityName);
       const allocation = requireCreated(
@@ -143,7 +143,7 @@ describe("AllocationModal edit", () => {
 
   it("clears attributed All-projects work when its scope changes", async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const activity = await requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
     const allocation = requireCreated(
@@ -172,7 +172,7 @@ describe("AllocationModal edit", () => {
 
   it("shows an unmatched hours value and preserves it through an unrelated save", async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
@@ -208,7 +208,7 @@ describe("AllocationModal edit", () => {
 
   it("replaces an unmatched hours value when a listed option is chosen", async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
@@ -231,7 +231,7 @@ describe("AllocationModal edit", () => {
   });
 
   it("preserves an untouched historical multiline note but saves a direct note edit as one line", async () => {
-    const alice = person("Alice");
+    const alice = person("Diana Prince");
     const resource = await requireCreated(
       useStore.getState().addResource({ ...alice, workingDays: [...alice.workingDays] }),
     );
@@ -269,7 +269,7 @@ describe("AllocationModal edit", () => {
 
   it("keeps the modal open and surfaces the reason when deletion is rejected", async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
@@ -304,7 +304,7 @@ describe("AllocationModal edit", () => {
 
   it("offers one-or-future deletion for a linked occurrence and closes after the atomic removal", async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const seriesId = "series-weekly";
     const [earlier, selected, later] = requireCreated(
@@ -360,7 +360,7 @@ describe("AllocationModal edit", () => {
 
   it("deletes only the selected linked occurrence when that scope is chosen", async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const [selected, later] = requireCreated(
       await useStore.getState().addAllocations([
@@ -404,9 +404,11 @@ describe("AllocationModal edit", () => {
 
   it("reassigns an allocation to another resource", async () => {
     const a = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
-    const b = await requireCreated(useStore.getState().addResource({ ...person("Bob"), workingDays: [1, 2, 3, 4, 5] }));
+    const b = await requireCreated(
+      useStore.getState().addResource({ ...person("Clark Kent"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const alloc = requireCreated(
       await useStore.getState().addAllocation({
         resourceId: a.id,
@@ -420,7 +422,7 @@ describe("AllocationModal edit", () => {
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
-    await chooseOption(user, "Assignee", "Bob");
+    await chooseOption(user, "Assignee", "Clark Kent");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     const reassigned = required(
@@ -432,8 +434,12 @@ describe("AllocationModal edit", () => {
 
   it("rejects reassigning a normal allocation to a zero-overlap person", async () => {
     await useStore.getState().updateAccount(ACC, { workingDays: [2] });
-    const source = await requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [2] }));
-    const destination = await requireCreated(useStore.getState().addResource({ ...person("Bob"), workingDays: [1] }));
+    const source = await requireCreated(
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [2] }),
+    );
+    const destination = await requireCreated(
+      useStore.getState().addResource({ ...person("Clark Kent"), workingDays: [1] }),
+    );
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
         resourceId: source.id,
@@ -448,7 +454,7 @@ describe("AllocationModal edit", () => {
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
-    await chooseOption(user, "Assignee", "Bob");
+    await chooseOption(user, "Assignee", "Clark Kent");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
@@ -463,8 +469,10 @@ describe("AllocationModal edit", () => {
 
   it("rejects reassigning even an ignored allocation to a zero-overlap person (decision 6)", async () => {
     await useStore.getState().updateAccount(ACC, { workingDays: [2] });
-    const source = await requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [2] }));
-    await useStore.getState().addResource({ ...person("Bob"), workingDays: [1] });
+    const source = await requireCreated(
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [2] }),
+    );
+    await useStore.getState().addResource({ ...person("Clark Kent"), workingDays: [1] });
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
         resourceId: source.id,
@@ -479,7 +487,7 @@ describe("AllocationModal edit", () => {
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
-    await chooseOption(user, "Assignee", "Bob");
+    await chooseOption(user, "Assignee", "Clark Kent");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
@@ -493,7 +501,7 @@ describe("AllocationModal edit", () => {
 
   it("snaps the project to the placeholder bound project when reassigned, restricting options", async () => {
     const a = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     await useStore.getState().addResource({
       kind: "placeholder",
@@ -678,7 +686,7 @@ describe("AllocationModal edit", () => {
 
   it("duplicates the current validated form values without changing the saved allocation", async () => {
     const a = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const alloc = requireCreated(
       await useStore.getState().addAllocation({
@@ -722,7 +730,7 @@ describe("AllocationModal edit", () => {
 
   it("keeps Duplicate for an unlinked all-projects allocation and hides it for a linked occurrence", async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const activity = await requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
     const oneOff = requireCreated(
@@ -759,7 +767,7 @@ describe("AllocationModal edit", () => {
 
   it("rejects duplicating a zero-hour block after the account switches to Hours mode", async () => {
     const a = await requireCreated(
-      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      useStore.getState().addResource({ ...person("Diana Prince"), workingDays: [1, 2, 3, 4, 5] }),
     );
     await useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
     const alloc = requireCreated(

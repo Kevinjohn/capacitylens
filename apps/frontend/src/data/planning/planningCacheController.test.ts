@@ -1,16 +1,21 @@
 import { createStore } from "zustand/vanilla";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { AppData } from "@capacitylens/shared/types/entities";
+import type { Account, AppData } from "@capacitylens/shared/types/entities";
 import type { PlanningIntent, PlanningMutationSuccess } from "@capacitylens/backend/planning";
 import { createPlanningCacheController, createPlanningCacheState } from "./planningCacheController";
 import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from "./planningCacheController";
 import { setMasqueradeContextToken } from "@/auth/masqueradeContext";
+import { makeAccount } from "@/test/fixtures";
 
 const context = { identity: "actor-1", companyId: "company-1" };
 const intent = { operation: "allocation.update", id: "allocation-1", changes: { startDate: "2026-10-21" } } as const;
 const inverse = { operation: "allocation.update", id: "allocation-1", changes: { startDate: "2026-10-20" } } as const;
 const makeState = (): PlanningCacheState => createPlanningCacheState();
+const canonicalData = (accountOverrides: Partial<Account> = {}): AppData => ({
+  ...emptyAppData(),
+  accounts: [makeAccount({ id: context.companyId, ...accountOverrides })],
+});
 const success = (mutationId: string, revision: number): PlanningMutationSuccess => ({
   status: "committed",
   mutationId,
@@ -22,7 +27,7 @@ const success = (mutationId: string, revision: number): PlanningMutationSuccess 
 function harness(transport: PlanningTransport) {
   const store = createStore<PlanningCacheState>(() => makeState());
   const snapshots: PlanningSnapshot[] = [];
-  let serverSnapshot: PlanningSnapshot = { revision: 0, canWrite: true, data: emptyAppData() };
+  let serverSnapshot: PlanningSnapshot = { revision: 0, canWrite: true, data: canonicalData() };
   const read = vi.fn(async (clientContext: Parameters<PlanningTransport["read"]>[0], signal: AbortSignal) => {
     const snapshot = snapshots.shift();
     if (snapshot) {
@@ -66,7 +71,7 @@ describe("planning cache controller", () => {
     const h = harness({ execute, read: vi.fn(), lookup: vi.fn() });
     setMasqueradeContextToken("captured-idle-context");
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 3, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
 
     const draft = h.controller.begin({ timezone: "Etc/GMT" });
     setMasqueradeContextToken("new-active-context");
@@ -82,12 +87,12 @@ describe("planning cache controller", () => {
     const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 409, code: "STALE_REVISION" });
     const read = vi
       .fn<PlanningTransport["read"]>()
-      .mockResolvedValue({ revision: 4, canWrite: true, data: emptyAppData() });
+      .mockResolvedValue({ revision: 4, canWrite: true, data: canonicalData() });
     const h = harness({ execute, read, lookup: vi.fn<PlanningTransport["lookup"]>() });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 3, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
     const draft = h.controller.begin({ timezone: "Etc/GMT" });
-    await h.readSnapshot({ revision: 4, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 4, canWrite: true, data: canonicalData() });
     expect(draft.baseRevision).toBe(3);
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({ code: "STALE_REVISION" });
     expect(execute).toHaveBeenCalledTimes(1);
@@ -102,7 +107,7 @@ describe("planning cache controller", () => {
       .mockResolvedValue({ status: "unknown", mutationId: "mutation-1" });
     const h = harness({ execute, read: vi.fn<PlanningTransport["read"]>(), lookup });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 8, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 8, canWrite: true, data: canonicalData() });
     const draft = h.controller.begin({ timezone: "Etc/GMT" });
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({ uncertain: true });
     expect(h.state().planning.pending?.execution.mutationId).toBe("mutation-1");
@@ -126,7 +131,7 @@ describe("planning cache controller", () => {
         .mockResolvedValueOnce({ status: "committed", mutationId: "mutation-1", revision: 9 });
       const h = harness({ execute, read: vi.fn<PlanningTransport["read"]>(), lookup });
       h.controller.setContext(context);
-      await h.readSnapshot({ revision: 8, canWrite: true, data: emptyAppData() });
+      await h.readSnapshot({ revision: 8, canWrite: true, data: canonicalData() });
       await expect(h.controller.execute(h.controller.begin({}), intent, inverse)).rejects.toMatchObject({
         status: 408,
         uncertain: true,
@@ -138,7 +143,7 @@ describe("planning cache controller", () => {
       await expect(h.controller.reconcile()).resolves.toBe(false);
       expect(h.state().planning.pending?.execution).toBe(original);
       expect(() => h.controller.begin({})).toThrow();
-      await h.readSnapshot({ revision: 9, canWrite: true, data: emptyAppData() });
+      await h.readSnapshot({ revision: 9, canWrite: true, data: canonicalData() });
       await expect(h.controller.reconcile()).resolves.toBe(true);
       expect(h.state().planning.status).toBe("ready");
       expect(h.state().planning.pending).toBeNull();
@@ -158,7 +163,7 @@ describe("planning cache controller", () => {
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 0, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 0, canWrite: true, data: canonicalData() });
     for (let index = 0; index < 51; index += 1) await h.controller.execute(h.controller.begin({}), intent, inverse);
     expect(h.state().planning.history.past).toHaveLength(50);
     for (let index = 0; index < 50; index += 1) await expect(h.controller.undo()).resolves.toBe(true);
@@ -178,13 +183,13 @@ describe("planning cache controller", () => {
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     const draft = h.controller.begin({});
     await h.controller.execute(draft, intent, inverse);
     expect(h.state().planning.history.past).toHaveLength(1);
-    await h.readSnapshot({ revision: 2, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData() });
     expect(h.state().planning.history.past).toHaveLength(1);
-    await h.readSnapshot({ revision: 3, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
     expect(h.state().planning.history.past).toHaveLength(0);
   });
 
@@ -222,7 +227,7 @@ describe("planning cache controller", () => {
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     const first = h.controller.begin({});
     await expect(h.controller.execute(first, intent, inverse)).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" });
     expect(h.state().planning.context).toEqual(context);
@@ -248,15 +253,15 @@ describe("planning cache controller", () => {
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     const draft = h.controller.begin({ timezone: "Etc/GMT" });
     const write = h.controller.execute(draft, intent, inverse);
-    await h.readSnapshot({ revision: 2, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData() });
     expect(h.state().planning.history.past).toHaveLength(0);
     release(success("mutation-1", 2));
     await write;
     expect(h.state().planning.history.past).toHaveLength(1);
-    await h.readSnapshot({ revision: 3, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
     expect(h.state().planning.history.past).toHaveLength(0);
   });
 
@@ -264,13 +269,15 @@ describe("planning cache controller", () => {
     const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 409, code: "STALE_REVISION" });
     const h = harness({
       execute,
-      read: vi.fn<PlanningTransport["read"]>().mockResolvedValue({ revision: 2, canWrite: true, data: emptyAppData() }),
+      read: vi
+        .fn<PlanningTransport["read"]>()
+        .mockResolvedValue({ revision: 2, canWrite: true, data: canonicalData() }),
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     const gesture = h.controller.begin({ startDate: "2026-10-26", endDate: "2026-10-30" });
-    await h.readSnapshot({ revision: 2, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData() });
     const finalIntent = {
       operation: "settings.update",
       changes: { timezone: "Europe/Paris" },
@@ -289,12 +296,12 @@ describe("planning cache controller", () => {
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData(), accessKey: "owner:private" });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData(), accessKey: "owner:private" });
     await h.controller.execute(h.controller.begin({}), intent, inverse);
     const draft = h.controller.begin({ captured: true });
     expect(h.state().planning.history.past).toHaveLength(1);
     await expect(
-      h.readSnapshot({ revision: 2, canWrite: true, data: emptyAppData(), accessKey: "editor:public" }),
+      h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData(), accessKey: "editor:public" }),
     ).resolves.toBe(true);
     expect(h.state().planning.history.past).toHaveLength(0);
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toThrow();
@@ -313,7 +320,7 @@ describe("planning cache controller", () => {
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     await h.controller.execute(h.controller.begin({}), intent, inverse);
     expect(await h.controller.undo()).toBe(true);
     expect(await h.controller.redo()).toBe(true);
@@ -329,7 +336,7 @@ describe("planning cache controller", () => {
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     await expect(h.controller.execute(h.controller.begin({}), intent, inverse)).rejects.toMatchObject({
       code: "NO_CHANGE",
     });
@@ -341,7 +348,7 @@ describe("planning cache controller", () => {
     const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue(new TypeError("offline"));
     const read = vi
       .fn()
-      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: emptyAppData() })
+      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: canonicalData() })
       .mockRejectedValue(new TypeError("read unavailable"));
     const lookup = vi.fn<PlanningTransport["lookup"]>(async (_context, mutationId) => ({
       status: "committed",
@@ -377,11 +384,11 @@ describe("planning cache controller", () => {
     const anonymousIdentity = Symbol("anonymous");
     const anonymous = { identity: anonymousIdentity, companyId: "company-1" };
     h.controller.setContext(anonymous);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     const write = h.controller.execute(h.controller.begin({}), intent, inverse).catch(() => undefined);
     h.controller.setContext({ identity: anonymousIdentity, companyId: "company-2" });
     h.controller.setContext(anonymous);
-    await h.readSnapshot({ revision: 7, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 7, canWrite: true, data: canonicalData() });
     release(success("mutation-1", 2));
     await write;
     expect(h.state().planning.revision).toBe(7);
@@ -408,13 +415,13 @@ describe("planning cache controller", () => {
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    const cached = { ...emptyAppData(), accounts: [{ id: "company-1" } as never] };
+    const cached = canonicalData();
     await expect(
       h.readSnapshot({ revision: 4, canWrite: true, data: cached, accessKey: "owner:private" }),
     ).resolves.toBe(true);
     expect(h.state().data.accounts).toHaveLength(1);
     await expect(
-      h.readSnapshot({ revision: 3, canWrite: true, data: emptyAppData(), accessKey: "viewer:public" }),
+      h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData(), accessKey: "viewer:public" }),
     ).resolves.toBe(false);
     expect(h.state().data).toEqual(emptyAppData());
     expect(h.state().planning.revision).toBeNull();
@@ -432,8 +439,8 @@ describe("planning cache controller", () => {
     }));
     const read = vi
       .fn()
-      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: emptyAppData() })
-      .mockResolvedValueOnce({ revision: 2, canWrite: true, data: emptyAppData() });
+      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: canonicalData() })
+      .mockResolvedValueOnce({ revision: 2, canWrite: true, data: canonicalData() });
     const h = harness({ execute, read, lookup });
     h.controller.setContext(context);
     await h.controller.refresh();
@@ -447,7 +454,7 @@ describe("planning cache controller", () => {
   it("keeps acknowledged writes locked until every operation receives a canonical refresh", async () => {
     const read = vi
       .fn()
-      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: emptyAppData() })
+      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: canonicalData() })
       .mockRejectedValueOnce(new TypeError("read unavailable"));
     const execute = vi.fn<PlanningTransport["execute"]>((_context, execution) =>
       Promise.resolve(success(execution.mutationId, 2)),
@@ -471,8 +478,8 @@ describe("planning cache controller", () => {
       .mockRejectedValue({ status: 409, code: "MUTATION_ID_REUSED" });
     const read = vi
       .fn()
-      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: emptyAppData() })
-      .mockResolvedValueOnce({ revision: 2, canWrite: true, data: emptyAppData() });
+      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: canonicalData() })
+      .mockResolvedValueOnce({ revision: 2, canWrite: true, data: canonicalData() });
     const lookup = vi.fn<PlanningTransport["lookup"]>(async (_context, mutationId) => ({
       status: "committed",
       mutationId,
@@ -491,7 +498,7 @@ describe("planning cache controller", () => {
   it("keeps a refresh scoped for every 403, including membership loss", async () => {
     const read = vi
       .fn()
-      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: emptyAppData() })
+      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: canonicalData() })
       .mockRejectedValueOnce({ status: 403, code: "AUTHORIZATION_DENIED" })
       .mockRejectedValueOnce({ status: 403, code: "ACCOUNT_MEMBERSHIP_LOST" });
     const h = harness({
@@ -535,7 +542,7 @@ describe("planning cache controller", () => {
     const read = vi.fn<PlanningTransport["read"]>(async () => ({
       revision: ++revision,
       canWrite: true,
-      data: emptyAppData(),
+      data: canonicalData(),
     }));
     const h = harness({ execute, read, lookup });
     h.controller.setContext(context);
@@ -573,11 +580,11 @@ async function uncertainHarness() {
   const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue(new TypeError("response lost"));
   const read = vi
     .fn<PlanningTransport["read"]>()
-    .mockResolvedValue({ revision: 2, canWrite: true, data: emptyAppData(), accessKey: "owner" });
+    .mockResolvedValue({ revision: 2, canWrite: true, data: canonicalData(), accessKey: "owner" });
   const lookup = vi.fn<PlanningTransport["lookup"]>();
   const h = harness({ execute, read, lookup });
   h.controller.setContext(context);
-  await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData(), accessKey: "owner" });
+  await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData(), accessKey: "owner" });
   await expect(h.controller.execute(h.controller.begin({}), intent, inverse)).rejects.toMatchObject({
     uncertain: true,
   });
@@ -634,11 +641,11 @@ describe("planning reconciliation races", () => {
     await h.readSnapshot({
       revision: 3,
       canWrite: true,
-      data: { ...emptyAppData(), accounts: [{ id: "company-1", name: "Wayne confidential" } as never] },
+      data: canonicalData({ name: "Wayne confidential" }),
       accessKey: "owner",
     });
     h.lookup.mockResolvedValueOnce({ status: "committed", mutationId: "mutation-1", revision: 2 });
-    h.read.mockResolvedValueOnce({ revision: 2, canWrite: true, data: emptyAppData(), accessKey: "editor" });
+    h.read.mockResolvedValueOnce({ revision: 2, canWrite: true, data: canonicalData(), accessKey: "editor" });
     await h.controller.reconcile();
     expect(h.state().data).toEqual(emptyAppData());
     expect(h.state().planning.pending).toBeNull();
@@ -689,7 +696,7 @@ describe("planning reconciliation races", () => {
       // Start a distinct operation so its submitted intent drives lookup eligibility.
       h.controller.setContext(null);
       h.controller.setContext(context);
-      await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+      await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
       await expect(h.controller.execute(h.controller.begin({}), action, inverse)).rejects.toMatchObject({
         uncertain: true,
       });
@@ -717,15 +724,15 @@ describe("planning lookup history boundaries", () => {
       });
     const read = vi
       .fn<PlanningTransport["read"]>()
-      .mockResolvedValueOnce({ revision: 2, canWrite: true, data: emptyAppData() })
-      .mockResolvedValueOnce({ revision: 3, canWrite: true, data: emptyAppData() })
-      .mockResolvedValueOnce({ revision: 4, canWrite: true, data: emptyAppData() });
+      .mockResolvedValueOnce({ revision: 2, canWrite: true, data: canonicalData() })
+      .mockResolvedValueOnce({ revision: 3, canWrite: true, data: canonicalData() })
+      .mockResolvedValueOnce({ revision: 4, canWrite: true, data: canonicalData() });
     const lookup = vi
       .fn<PlanningTransport["lookup"]>()
       .mockResolvedValueOnce({ status: "committed", mutationId: "mutation-2", revision: 3 });
     const h = harness({ execute, read, lookup });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     await h.controller.execute(h.controller.begin({}), remove, restore);
     await expect(h.controller.undo()).rejects.toMatchObject({ uncertain: true });
     await h.controller.reconcile();
@@ -781,7 +788,7 @@ describe.each(["receipt", "lookup"] as const)("planning %s completion context", 
         const lookup = vi.fn<PlanningTransport["lookup"]>();
         const h = harness({ execute, read, lookup });
         h.controller.setContext(context);
-        await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData(), accessKey: "owner" });
+        await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData(), accessKey: "owner" });
         await h.controller.execute(h.controller.begin({}), intent, inverse);
         if (action === "redo") await h.controller.undo();
         const baseRevision = h.state().planning.revision;
@@ -805,7 +812,7 @@ describe.each(["receipt", "lookup"] as const)("planning %s completion context", 
         delayed.resolve({
           revision,
           canWrite: true,
-          data: emptyAppData(),
+          data: canonicalData(),
           accessKey: change === "authority change" ? "editor" : "owner",
         });
         await expect(completion).resolves.toBe(action === "execute" ? null : false);
@@ -831,7 +838,7 @@ describe("planning commitment-only completion", () => {
       const lookup = vi.fn<PlanningTransport["lookup"]>();
       const h = harness({ execute, read, lookup });
       h.controller.setContext(context);
-      await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+      await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
       await h.controller.execute(h.controller.begin({}), intent, inverse);
       if (action === "redo") await h.controller.undo();
       const baseRevision = h.state().planning.revision;
@@ -847,7 +854,7 @@ describe("planning commitment-only completion", () => {
       expect(h.state().planning.pending?.commitment?.revision).toBe(revision);
       expect(h.state().planning.status).toBe("error");
       expect(() => h.controller.begin({})).toThrow();
-      read.mockResolvedValueOnce({ revision, canWrite: true, data: emptyAppData() });
+      read.mockResolvedValueOnce({ revision, canWrite: true, data: canonicalData() });
       await expect(h.controller.reconcile()).resolves.toBe(true);
       expect(h.state().planning.pending).toBeNull();
       expect(h.state().planning.status).toBe("ready");
@@ -866,7 +873,7 @@ describe("planning commitment-only completion", () => {
     }));
     const h = harness({ execute, lookup, read: vi.fn<PlanningTransport["read"]>() });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     await expect(h.controller.execute(h.controller.begin({}), intent, inverse)).rejects.toMatchObject({
       uncertain: true,
     });
@@ -889,7 +896,7 @@ describe.each(["receipt", "lookup"] as const)("planning activity history via %s"
       const lookup = vi.fn<PlanningTransport["lookup"]>();
       const h = harness({ execute, read, lookup });
       h.controller.setContext(context);
-      await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+      await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
       await h.controller.execute(h.controller.begin({}), intent, inverse);
       await h.controller.execute(h.controller.begin({}), intent, inverse);
       await h.controller.undo();
@@ -904,7 +911,7 @@ describe.each(["receipt", "lookup"] as const)("planning activity history via %s"
         operation: "catalogue.update",
         entity: { entity: "activities", id: "activity-1", changes: { ...changes, name: "Office" } },
       };
-      read.mockResolvedValueOnce({ revision: 5, canWrite: true, data: emptyAppData() });
+      read.mockResolvedValueOnce({ revision: 5, canWrite: true, data: canonicalData() });
       if (proof === "lookup") {
         execute.mockRejectedValueOnce(new TypeError("response lost"));
         lookup.mockImplementationOnce(async (_context, mutationId) => ({
@@ -950,11 +957,11 @@ describe("canonical planning write capability", () => {
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 0, canWrite: true, data: emptyAppData() });
+    await h.readSnapshot({ revision: 0, canWrite: true, data: canonicalData() });
     await h.controller.execute(h.controller.begin({}), intent, inverse);
     expect(h.state().planning.history.past).toHaveLength(1);
     const draft = h.controller.begin({});
-    await h.readSnapshot({ revision: 1, canWrite: false, data: emptyAppData() });
+    await h.readSnapshot({ revision: 1, canWrite: false, data: canonicalData() });
     expect(h.state().planning.history.past).toHaveLength(0);
     expect(() => h.controller.begin({})).toThrow(/read-only/);
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toThrow();

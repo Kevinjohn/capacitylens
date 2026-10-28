@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { GettingStarted } from "./GettingStarted";
@@ -62,10 +62,14 @@ function buildMasqueradeBannerContent(masquerade: ReturnType<typeof useStore.get
   }
 }
 
-function MobileSidebarTrigger() {
+function MobileSidebarTrigger({ onActivate }: { onActivate: (trigger: HTMLButtonElement) => void }) {
   const { openMobile } = useSidebar();
   return (
-    <SidebarTrigger aria-expanded={openMobile} aria-label={openMobile ? m.nav_collapse_menu() : m.nav_expand_menu()} />
+    <SidebarTrigger
+      aria-expanded={openMobile}
+      aria-label={openMobile ? m.nav_collapse_menu() : m.nav_expand_menu()}
+      onClick={(event) => onActivate(event.currentTarget)}
+    />
   );
 }
 
@@ -140,6 +144,7 @@ function GatedApp({
   masqueradeBanner,
   navigate,
 }: GatedAppProps) {
+  const mobileSidebarTrigger = useRef<HTMLButtonElement | null>(null);
   const { user } = useAuth();
   const orientation = useProductOrientation({
     userId: user?.id ?? null,
@@ -177,9 +182,21 @@ function GatedApp({
             navLinks={navLinks}
             demoAuthActive={demoAuthActive}
             sidebarOpen={sidebarOpen}
+            onShowOrientation={(trigger, mobile) =>
+              orientation.show(mobile ? (mobileSidebarTrigger.current ?? trigger) : trigger)
+            }
           />
           {/* prettier-ignore */}
-          <GatedMain hydrated={hydrated} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} orientation={orientation} />
+          <GatedMain
+            hydrated={hydrated}
+            persistError={persistError}
+            masqueradeBanner={masqueradeBanner}
+            navigate={navigate}
+            orientation={orientation}
+            onMobileSidebarTriggerActivate={(trigger) => {
+              mobileSidebarTrigger.current = trigger;
+            }}
+          />
           {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
           <RotateHint />
         </SidebarProvider>
@@ -193,7 +210,10 @@ function GatedSidebar({
   navLinks,
   demoAuthActive,
   sidebarOpen,
-}: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "sidebarOpen">) {
+  onShowOrientation,
+}: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "sidebarOpen"> & {
+  onShowOrientation: (trigger: HTMLButtonElement, mobile: boolean) => void;
+}) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
@@ -224,6 +244,7 @@ function GatedSidebar({
         onSwitchAccount={() =>
           void chooseAnotherAccountAfterLoadFailure({ accountRoute: accountRoute, navigate: navigate })
         }
+        onShowOrientation={onShowOrientation}
         open={sidebarOpen}
       />
     </>
@@ -236,8 +257,10 @@ function GatedMain({
   masqueradeBanner,
   navigate,
   orientation,
+  onMobileSidebarTriggerActivate,
 }: Pick<GatedAppProps, "hydrated" | "persistError" | "masqueradeBanner" | "navigate"> & {
   orientation: ReturnType<typeof useProductOrientation>;
+  onMobileSidebarTriggerActivate: (trigger: HTMLButtonElement) => void;
 }) {
   const loader = <AppShellLoader />;
   const projectionChanging = useStore(
@@ -247,7 +270,7 @@ function GatedMain({
   return (
     <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
       <div className="border-b border-line p-2 md:hidden">
-        <MobileSidebarTrigger />
+        <MobileSidebarTrigger onActivate={onMobileSidebarTriggerActivate} />
       </div>
       {masqueradeBanner && <MasqueradeBanner banner={masqueradeBanner} navigate={navigate} />}
       {persistError && (

@@ -164,21 +164,20 @@ type AdmissionPage = { requests: AdmissionRequest[]; nextCursor: string | null }
 function parseAdmissionPage(status: AdmissionStatus) {
   return (value: unknown): AdmissionPage | null => {
     if (!isRecord(value) || !Array.isArray(value.items) || !isNullableString(value.nextCursor ?? null)) return null;
-    const requests = value.items.flatMap((item: unknown) => {
-      if (!isRecord(item) || (typeof item.userId !== "string" && typeof item.userId !== "number")) return [];
-      if (typeof item.email !== "string" || !isNullableString(item.requestedAt)) return [];
+    const requests: AdmissionRequest[] = [];
+    for (const item of value.items as unknown[]) {
+      if (!isRecord(item) || (typeof item.userId !== "string" && typeof item.userId !== "number")) return null;
+      if (typeof item.email !== "string" || !isNullableString(item.requestedAt)) return null;
       const invitation = isRecord(item.invitation) ? item.invitation : null;
       const role = invitation && typeof invitation.role === "string" ? invitation.role : null;
-      return [
-        {
-          userId: String(item.userId),
-          email: item.email,
-          requestedAt: item.requestedAt,
-          invitedRole: role,
-          approval: status,
-        },
-      ];
-    });
+      requests.push({
+        userId: String(item.userId),
+        email: item.email,
+        requestedAt: item.requestedAt,
+        invitedRole: role,
+        approval: status,
+      });
+    }
     return { requests, nextCursor: typeof value.nextCursor === "string" ? value.nextCursor : null };
   };
 }

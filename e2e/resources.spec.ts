@@ -80,14 +80,14 @@ test("adds a person and shows them in the list and schedule", async ({ page }) =
   await openApp(page, "Wayne Enterprises", "/resources");
   await page.getByRole("button", { name: "Add resource" }).click();
 
-  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Dana Lee");
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Oliver Queen");
   await page.getByLabel("Role").fill("Motion Designer");
   await selectShadOption(page.getByLabel("Discipline"), { label: "Design" });
   await page.getByRole("button", { name: "Save" }).click();
 
-  await expect(page.getByText("Dana Lee")).toBeVisible();
+  await expect(page.getByText("Oliver Queen")).toBeVisible();
   await page.getByRole("link", { name: "Schedule" }).click();
-  await expect(page.getByTestId("scheduler-row").filter({ hasText: "Dana Lee" })).toBeVisible();
+  await expect(page.getByTestId("scheduler-row").filter({ hasText: "Oliver Queen" })).toBeVisible();
 });
 
 test("keeps resource details compact and the working-days table aligned without narrow-screen overflow", async ({
