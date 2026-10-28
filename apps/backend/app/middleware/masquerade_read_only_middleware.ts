@@ -43,46 +43,31 @@ export default class MasqueradeReadOnlyMiddleware {
     }
     captureMasqueradeContext(ctx, mode)
 
-    const isControl = isEnd
-    const isSignOut = method === 'POST' && path === '/api/auth/sign-out'
     const contextToken = ctx.request.header('X-Masquerade-Context')
-    if (unsafe && !isSignOut && (typeof contextToken !== 'string' || !contextToken))
+    if (unsafe && (typeof contextToken !== 'string' || !contextToken))
       return sendContextError(ctx, 'MASQUERADE_CONTEXT_REQUIRED')
     if (typeof contextToken === 'string' && contextToken !== mode.contextToken)
       return sendContextError(ctx, 'MASQUERADE_CONTEXT_CHANGED')
-    // Start and stop re-check the token in their package operation; this early check also
-    // prevents malformed bodies and route discovery from bypassing stale-context handling.
-    if (unsafe && !isSignOut && !mode.contextToken)
-      return sendContextError(ctx, 'MASQUERADE_CONTEXT_CHANGED')
-    if (mode.isMasquerading) {
-      if (unsafe && !isControl && !isSignOut)
-        return ctx.response.forbidden({
-          error: 'Masquerade is read-only.',
-          code: 'MASQUERADE_READ_ONLY',
-        })
-      if (path.startsWith('/api/auth/') && !isSignOut)
-        return ctx.response.forbidden({
-          error: 'Masquerade is read-only.',
-          code: 'MASQUERADE_READ_ONLY',
-        })
-      if (
-        /^\/api\/(?:accounts|orgs|members|invitations|invites|identity|joining|company-join|admission|diagnostics)(?:\/|$)/.test(
+    // Start re-checks the token in its package operation; this early check also prevents
+    // malformed bodies and route discovery from bypassing stale-context handling.
+    if (unsafe && !mode.contextToken) return sendContextError(ctx, 'MASQUERADE_CONTEXT_CHANGED')
+    // Status, End and sign-out returned above, so every remaining unsafe request is a product write.
+    if (
+      mode.isMasquerading &&
+      (unsafe ||
+        path.startsWith('/api/auth/') ||
+        (/^\/api\/(?:accounts|orgs|members|invitations|invites|identity|joining|company-join|admission|diagnostics)(?:\/|$)/.test(
           path
         ) &&
-        !(
-          method === 'GET' && /^\/api\/accounts\/[^/]+\/planning(?:\/mutations\/[^/]+)?$/.test(path)
-        )
-      )
-        return ctx.response.forbidden({
-          error: 'Masquerade is read-only.',
-          code: 'MASQUERADE_READ_ONLY',
-        })
-    }
-    if (
-      (method === 'POST' && path === '/api/auth/sign-in') ||
-      path.startsWith('/api/auth/register')
+          !(
+            method === 'GET' &&
+            /^\/api\/accounts\/[^/]+\/planning(?:\/mutations\/[^/]+)?$/.test(path)
+          )))
     )
-      return next()
+      return ctx.response.forbidden({
+        error: 'Masquerade is read-only.',
+        code: 'MASQUERADE_READ_ONLY',
+      })
     return next()
   }
 }

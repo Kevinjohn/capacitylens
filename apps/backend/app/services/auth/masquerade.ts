@@ -35,7 +35,7 @@ export function masqueradeService() {
   return servicePromise
 }
 
-/** Current package mode, with product display details resolved under the verified actor transaction. */
+/** Current package mode with product display details, read outside any product transaction. */
 export async function currentMasquerade(ctx: HttpContext) {
   const service = await masqueradeService()
   try {
