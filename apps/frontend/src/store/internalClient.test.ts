@@ -14,7 +14,7 @@ function expectPresent<T>(value: T | null | undefined, message: string): T {
 
 function addsAccountWithBuiltinClient(): void {
   const a = expectPresent(
-    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#2d75da" }),
     "Expected the test account to be created.",
   );
   const internal = s().data.clients.filter((c) => c.builtin && c.accountId === a.id);
@@ -22,7 +22,7 @@ function addsAccountWithBuiltinClient(): void {
   expect(internal[0]?.name).toBe("Internal");
 
   const b = expectPresent(
-    s().addAccount({ name: "Beta Co", color: "#111111" }),
+    s().addAccount({ name: "Beta Co", color: "#2d75da" }),
     "Expected the second test account to be created.",
   );
   expect(s().data.clients.filter((c) => c.builtin)).toHaveLength(2);
@@ -31,7 +31,7 @@ function addsAccountWithBuiltinClient(): void {
 
 async function rejectsBuiltinRename(): Promise<void> {
   const a = expectPresent(
-    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#2d75da" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
@@ -51,7 +51,7 @@ async function rejectsBuiltinRename(): Promise<void> {
 
 async function renamesNormalClient(): Promise<void> {
   const a = expectPresent(
-    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#2d75da" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
@@ -67,7 +67,7 @@ async function renamesNormalClient(): Promise<void> {
 
 async function stripsAddedBuiltinFlag(): Promise<void> {
   const a = expectPresent(
-    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#2d75da" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
@@ -85,7 +85,7 @@ async function stripsAddedBuiltinFlag(): Promise<void> {
 
 async function stripsPromotedBuiltinFlag(): Promise<void> {
   const a = expectPresent(
-    s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
+    s().addAccount({ name: "Ferris Co", color: "#2d75da" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
