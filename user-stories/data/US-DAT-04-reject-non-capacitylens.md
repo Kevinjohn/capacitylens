@@ -14,26 +14,24 @@ Import replaces everything, so feeding it a random JSON or a non-CapacityLens fi
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open. Prepare a file that is **not** recognisable CapacityLens data. Use one of:
-
-- a plain-text/garbage file (e.g. contents `hello world`, which isn't even valid JSON), or
-- a JSON object with none of CapacityLens's entity keys, e.g. `{ "hello": "world" }`.
-  (Note: a file like `{ "resources": [] }` _would_ be accepted — the guard recognises any of `resources`, `disciplines`, `clients`, `projects`, `phases`, `activities`, `allocations`, `timeOff` as an array — so the test file must contain none of those keys as arrays.)
+**Precondition:** Prepare unrelated JSON or a beta transfer with a deliberately unsupported schema
+version or invalid table set. A different supported product release may still produce a valid file
+and is not a rejection fixture.
 
 1. Note the current data (e.g. Clients shows _Queen Consolidated_ and _LexCorp_; the Schedule has the seed bars).
 2. Open **Settings** → **Import and export**, expand it, click **Import JSON** and choose the
-   non-CapacityLens file.
-3. Observe the result — no confirmation dialog appears; instead a notice toast is shown.
+   unsupported file.
+3. Observe the specific validation notice. The importer does not prepare a replacement or open
+   the confirmation step.
 
 ## Acceptance criteria
 
-- ✅ Choosing an unrecognised file shows a rejection toast naming the SPECIFIC reason — **"This file is not CapacityLens data."** for a JSON object with none of CapacityLens's entity keys, or **"That file isn't valid JSON."** for a non-JSON/garbage file — and does **not** open the "Import data?" confirmation dialog. (The toast surfaces the real reason rather than one generic message, so the manager knows what was wrong with the file.)
+- ✅ An unsupported schema or table set is rejected with the reason supplied by validation; malformed or invalid data is not silently repaired. No replacement confirmation appears.
 - ✅ The current dataset is fully preserved — no entities are removed or changed (the Clients list still shows _Queen Consolidated_ and _LexCorp_; the seed schedule is intact). There is no silent wipe.
 - ✅ A subsequent valid import still works normally (the failed attempt doesn't leave the import flow stuck).
 
 For the beta preparation contract, unsupported format/schema versions, malformed values,
 duplicate IDs, invalid references and incorrect scope fail before a replacement can be prepared.
-The parser does not guess a legacy format, remap IDs or repair invalid rows. The current Settings
-importer remains on its legacy format pending backend writer replacement. See the [accepted
+The parser does not guess a legacy format, remap IDs or repair invalid rows. See the [accepted
 replacement map for issue #1482](https://github.com/Kevinjohn/capacitylens/issues/1482#issuecomment-6276475651)
 and [implementation issue #1520](https://github.com/Kevinjohn/capacitylens/issues/1520).

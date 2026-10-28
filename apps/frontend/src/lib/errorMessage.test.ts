@@ -71,7 +71,7 @@ describe("errorMessage", () => {
 });
 
 describe("domainErrorMessage", () => {
-  // Assert each domain code’s exact translated copy so one code cannot silently fall through to another message.
+  // Assert exact translated copy for the fixed-message cases below.
   const fixedMessageCases: Array<[DomainErrorCode, string]> = [
     ["record_wrong_account", "That record does not belong to the active company."],
     ["reference_wrong_account", "That change references data outside the active company."],

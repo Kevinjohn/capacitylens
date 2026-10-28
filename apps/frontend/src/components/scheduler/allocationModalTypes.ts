@@ -9,7 +9,7 @@ export type AllocationModalProps =
       onClose: () => void;
     };
 
-/** Resolved resource and attribution values needed before an allocation save. */
+/** Resolved resource, working week and scheduling inputs used to derive effective allocation values. */
 export interface EffectiveAllocationInput {
   resource: Resource | undefined;
   effectiveWeek: EffectiveWorkingWeek | undefined;

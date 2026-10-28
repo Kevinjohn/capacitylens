@@ -10,9 +10,9 @@ After a confirmed import has replaced the dataset, pressing ⌘Z leaves the impo
 
 ## Why
 
-Undo and Redo currently cover booking changes only. An import is not a booking change, so ⌘Z must
-not appear to reverse it, and the import confirmation and toast do not promise an undo. Export the
-current data first if you may need it back.
+Imports replace a whole dataset and have no inverse in page-local history, so ⌘Z must not reverse
+one. The import confirmation and toast do not promise an undo. Export the current data first if you
+may need it back.
 
 ## How (end-to-end)
 

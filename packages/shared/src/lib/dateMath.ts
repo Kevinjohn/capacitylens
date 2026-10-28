@@ -147,8 +147,7 @@ function createCalendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
   } catch (e) {
     // A malformed IANA timeZone makes the Intl.DateTimeFormat constructor throw a RangeError,
     // which would otherwise crash "today" resolution and with it the whole forward-window
-    // utilisation calc. The client path can still hold an un-sanitised `account.timezone`
-    // (sanitizeAccount only runs on the server write path), so degrade to the local date,
+    // utilisation calc. A legacy or transient caller may supply an invalid zone, so use the local date,
     // but warn, never silently, so a bad zone is discoverable instead of masked.
     formatter = null;
     if (!warnedInvalidTimeZones.has(timeZone) && warnedInvalidTimeZones.size < MAX_INVALID_TIMEZONE_WARNINGS) {
@@ -168,10 +167,10 @@ function createCalendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
 
 /** The calendar date at an instant, as a date-only ISO string (impure by default, reads the
  * system clock).
- * When `timeZone` is given, the calendar date is derived in that zone via
+ * When a nonempty `timeZone` is given, the calendar date is derived in that zone via
  * Intl.DateTimeFormat, so midnight UTC on 2026-06-11 is still 2026-06-10 in
- * America/New_York. Falls back to the local date when `timeZone` is absent or invalid (a
- * malformed IANA identifier). Distinct invalid-timeZone failures are warned individually up
+ * America/New_York. An absent or empty zone selects the local date. An invalid nonempty
+ * IANA identifier falls back to the local date. Distinct invalid-zone failures are warned individually up
  * to a bounded limit, then one aggregate warning records that further values are suppressed.
  * A resolved calendar date outside the four-digit ISO year domain (e.g. an absurd system
  * clock) still throws RangeError, same as `toISODate`. That's a real upstream bug, not a

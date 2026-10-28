@@ -53,3 +53,15 @@ describe("account working days", () => {
     expect(orderedWeekdays(0)).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 });
+
+it("rejects sparse weekday input at both unknown-input boundaries", () => {
+  const leading = new Array<number>(2);
+  leading[1] = 1;
+  const middle = new Array<number>(3);
+  middle[0] = 1;
+  middle[2] = 5;
+  for (const days of [new Array<number>(1), leading, middle]) {
+    expect(isWeekdaySet(days)).toBe(false);
+    expect(normalizeAccountWorkingDays(days, 0)).toEqual([0, 1, 2, 3, 4]);
+  }
+});

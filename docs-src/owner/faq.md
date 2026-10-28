@@ -22,7 +22,8 @@ Yes. Once their row in **Team & access** shows **Admin**, send them
 ## Why is the Admin invitation still pending?
 
 They have not accepted it yet. Ask whether the email arrived; if not, select **Resend** under
-**Outstanding invites**. Once they accept, approve them under **Waiting for approval**.
+**Outstanding invites**. After accepting, they must select **Ask for access** before their request
+appears under **Waiting for approval**. Once it appears, approve them.
 
 ## Does an Admin invitation transfer ownership?
 
@@ -53,7 +54,7 @@ language.
 
 The app keeps the company and its members while you can anonymise resource details. To retire the
 installation and its data, ask the installer.
-[Anonymise the company](/owner/responsibilities#anonymise-the-company)
+[Anonymise all people](/owner/responsibilities#anonymise-all-people)
 
 ## Why am I asked to confirm my sign-in?
 

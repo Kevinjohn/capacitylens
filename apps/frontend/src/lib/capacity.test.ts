@@ -718,8 +718,8 @@ function registerUtilizationWindowTests() {
   const r = makeResource();
   it("does not exceed 100% for a full booking that merely spans a weekend", () => {
     // Mon 06-01 .. Sun 06-14: 10 working days × 8h = 80h available. A continuous
-    // 8h/day allocation across the whole window books weekend days too, but those
-    // hours must not inflate the ratio. A fully-booked person reads as 100%, not 140%.
+    // 8h/day allocation spans the whole window but works only the normal working days.
+    // A fully-booked person reads as 100%; the spanned weekend adds no work.
     const allocs = [
       makeAlloc({
         startDate: "2026-06-01",
@@ -1401,3 +1401,45 @@ describe("formatCapacityAdvisory", () => {
     );
   });
 });
+
+it("reports a real sub-nanohour overload in both the day marker and proposal advisory", () => {
+  const resource = makeResource();
+  const allocation = makeAlloc({ hoursPerDay: 8 + 1e-10 });
+  expect(dayCapacity({ resource, date: "2026-06-01", allocations: [allocation], timeOff: [] }).over).toBe(true);
+  expect(
+    capacityAdvisory({
+      resource,
+      proposal: makeProposal(resource)({
+        startDate: "2026-06-01",
+        endDate: "2026-06-01",
+        hoursPerDay: 1e-10,
+        ignoreWeekends: false,
+      }),
+      otherAllocations: [makeAlloc({ hoursPerDay: 8 })],
+      timeOff: [],
+    }).overDays,
+  ).toBe(1);
+});
+
+it.each([[8 + 2 ** -49], [8 + 2 ** -49, ...Array<number>(100).fill(0)], [8, 1e-20]].map((hours) => [hours]))(
+  "preserves actual positive excess through marker and advisory despite zero operands: %j",
+  (hours) => {
+    const resource = makeResource();
+    const allocations = hours.map((hoursPerDay, index) => makeAlloc({ id: `exact-${index}`, hoursPerDay }));
+    expect(dayCapacity({ resource, date: "2026-06-01", allocations, timeOff: [] }).over).toBe(true);
+    const proposalHours = hours.at(-1) ?? 0;
+    expect(
+      capacityAdvisory({
+        resource,
+        proposal: makeProposal(resource)({
+          startDate: "2026-06-01",
+          endDate: "2026-06-01",
+          hoursPerDay: proposalHours,
+          ignoreWeekends: false,
+        }),
+        otherAllocations: allocations.slice(0, -1),
+        timeOff: [],
+      }).overDays,
+    ).toBe(1);
+  },
+);

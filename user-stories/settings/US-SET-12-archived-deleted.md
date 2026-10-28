@@ -37,6 +37,8 @@ personal details and dependent notes unrecoverable through Undo.
   this exact action with a fresh proof; the editable demo applies it in page memory without sign-in.
 - ✅ Clients, projects and activities can be archived and restored. They have no anonymise action.
 - ✅ An Editor may archive and restore through planning controls but cannot anonymise a resource.
-  Viewers cannot edit. The built-in **Internal** client cannot be archived.
+  The inline restore view exposes only the identity details needed to choose an eligible record;
+  Admins retain the fuller inactive-data view. Viewers cannot edit. The built-in **Internal** client
+  cannot be archived.
 - ✅ The editable demo applies the same visible transitions in temporary memory. Refresh resets it.
   Persisted actions require the authenticated member's server-side authority.

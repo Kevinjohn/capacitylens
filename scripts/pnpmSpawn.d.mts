@@ -1,4 +1,11 @@
-import type { ChildProcess, SpawnOptions, SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
+import type {
+  ChildProcess,
+  SpawnOptions,
+  SpawnSyncOptions,
+  SpawnSyncOptionsWithStringEncoding,
+  SpawnSyncOptionsWithBufferEncoding,
+  SpawnSyncReturns,
+} from "node:child_process";
 
 /**
  * Builds a child environment with color output disabled.
@@ -15,7 +22,15 @@ export function spawnPnpm(args: readonly string[], options?: SpawnOptions): Chil
 /**
  * Synchronously spawns pnpm with the supplied literal arguments and options.
  */
-export function spawnPnpmSync(args: readonly string[], options?: SpawnSyncOptions): SpawnSyncReturns<Buffer>;
+export function spawnPnpmSync(
+  args: readonly string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+): SpawnSyncReturns<string>;
+export function spawnPnpmSync(
+  args: readonly string[],
+  options?: SpawnSyncOptionsWithBufferEncoding,
+): SpawnSyncReturns<Buffer>;
+export function spawnPnpmSync(args: readonly string[], options?: SpawnSyncOptions): SpawnSyncReturns<string | Buffer>;
 
 /**
  * Describes exit status and failure details from a synchronous child process.

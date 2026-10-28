@@ -3,27 +3,35 @@ import env from '#start/env'
 const defaultOrigins =
   'http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273'
 
-export const corsOrigins = (env.get('CAPACITYLENS_CORS_ORIGIN') ?? defaultOrigins)
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean)
-  .map((origin) => {
-    if (origin === '*')
-      throw new Error('CORS requires explicit origins when credentials are enabled')
-    const parsed = new URL(origin)
-    if (
-      !['http:', 'https:'].includes(parsed.protocol) ||
-      parsed.username ||
-      parsed.password ||
-      parsed.pathname !== '/' ||
-      parsed.search ||
-      parsed.hash
-    )
-      throw new Error(
-        `Invalid CORS origin ${JSON.stringify(origin)}: expected a bare HTTP(S) origin`
+/** Resolves the finite development defaults; production cross-origin access is explicit. */
+export function resolveCorsOrigins(configured: string | undefined, environment: string) {
+  return (configured ?? (environment === 'production' ? '' : defaultOrigins))
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .map((origin) => {
+      if (origin === '*')
+        throw new Error('CORS requires explicit origins when credentials are enabled')
+      const parsed = new URL(origin)
+      if (
+        !['http:', 'https:'].includes(parsed.protocol) ||
+        parsed.username ||
+        parsed.password ||
+        parsed.pathname !== '/' ||
+        parsed.search ||
+        parsed.hash
       )
-    return parsed.origin
-  })
+        throw new Error(
+          `Invalid CORS origin ${JSON.stringify(origin)}: expected a bare HTTP(S) origin`
+        )
+      return parsed.origin
+    })
+}
+
+export const corsOrigins = resolveCorsOrigins(
+  env.get('CAPACITYLENS_CORS_ORIGIN'),
+  env.get('NODE_ENV')
+)
 
 interface TrustedOriginInput {
   origin?: string

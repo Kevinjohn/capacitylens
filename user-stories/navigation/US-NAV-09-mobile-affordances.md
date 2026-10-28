@@ -27,7 +27,7 @@ phone-ish size (≤ 767px wide, or ≤ 480px tall for landscape).
    An off-canvas dialog named **Sidebar** opens with labelled navigation links.
 4. Choose **Projects**. The URL changes to `/projects` and the off-canvas sidebar closes.
 5. Rotate the phone to **landscape**. The persistent sidebar is a narrow icons-only mode: no link labels, no company block, no Data
-   section — just the toggle and nine icons (hover/long-press shows each section name).
+   section — just the toggle and icons for the destinations available to this role (hover/long-press shows each section name).
 6. Tap any icon-mode destination (say, the folder = Projects). The Projects list loads and the
    URL changes to `/projects`; the sidebar remains collapsed.
 7. Click the **Expand menu** toggle. The expanded menu shows each link with its icon and label.
@@ -47,9 +47,9 @@ phone-ish size (≤ 767px wide, or ≤ 480px tall for landscape).
   labelled links, and choosing one navigates and closes the sheet.
 - ✅ In compact landscape (> 767px wide but ≤ 480px tall), the persistent sidebar starts in icon
   mode when no choice is stored. On a normal desktop it starts open.
-- ✅ Icon mode: link labels and the account block are hidden; nine destination icons show —
-  seven working destinations, then the pinned **Team & access** / **Settings** pair below the
-  divider — each revealing its section label as an instant hover label to its right.
+- ✅ Icon mode: link labels and the account block are hidden; each destination available to this
+  role shows an icon and reveals its section label as an instant hover label to its right. The
+  pinned **Team & access** / **Settings** pair remains below the divider.
 - ✅ Activating an icon-mode destination navigates directly and leaves the sidebar collapsed.
 - ✅ Icon-mode destinations remain keyboard-focusable links with the same accessible label as
   their expanded form. Their decorative SVGs and the separate drag/click **SidebarRail** are

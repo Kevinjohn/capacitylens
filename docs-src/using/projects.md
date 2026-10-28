@@ -53,7 +53,8 @@ Select the delete icon in the row and confirm **Archive client?** or **Archive p
 a client hides its projects and their bookings from Schedule. Archiving a project hides every
 booking made under it, including All-projects bookings that count towards it. Nothing is lost.
 
-Owners and Admins see **Archived clients** and **Archived projects** at the bottom of each page.
+Admins see the full inactive-data view. Editors can restore eligible archived clients and projects
+from the inline archive, which exposes only the identity details needed to choose the record.
 Select **Restore** to bring the item and its bookings back. Archiving keeps the records and their
 links; clients and projects have no anonymise action.
 

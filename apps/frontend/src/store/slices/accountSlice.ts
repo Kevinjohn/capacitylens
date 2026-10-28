@@ -1,4 +1,5 @@
 import type { StateCreator } from "zustand";
+import { isPresetColor } from "@capacitylens/shared/lib/color";
 import { newId } from "@capacitylens/shared/lib/id";
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { m } from "@/i18n";
@@ -43,6 +44,7 @@ interface AccountActionContext {
 function createAddAccountAction({ internals, set }: AccountActionContext): StoreState["addAccount"] {
   const { createGuardedValueAction, assertWorkingDays, snapColor, mutate } = internals;
   return createGuardedValueAction((input: Draft<Account>): Account | null => {
+    if (!isPresetColor(input.color)) throw new Error("A colour must be selected from the available swatches.");
     const timestamps = stamp();
     const weekStartsOn = input.weekStartsOn ?? 1;
     if (input.workingDays != null) assertWorkingDays(input.workingDays);

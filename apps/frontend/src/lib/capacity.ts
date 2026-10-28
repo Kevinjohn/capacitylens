@@ -1,7 +1,7 @@
 import { eachDayISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { resolveAllocatedHoursForWeekday, resolveAvailableHoursForWeekday } from "./capacity/availability";
+import { resolveAllocationLoadForWeekday, resolveAvailableHoursForWeekday } from "./capacity/availability";
 
 export * from "./capacity/availability";
 export * from "./capacity/advisory";
@@ -70,7 +70,7 @@ export function buildDayCapacity({
     weekday: weekday,
     effectiveWeek: effectiveWeek,
   });
-  const allocated = resolveAllocatedHoursForWeekday({
+  const load = resolveAllocationLoadForWeekday({
     resource: resource,
     date: date,
     allocations: allocations,
@@ -79,9 +79,9 @@ export function buildDayCapacity({
   });
   return {
     date,
-    allocated,
+    allocated: load.hours,
     available,
-    over: hasOverCapacity(allocated, available),
+    over: hasOverCapacity(load.components, available),
   };
 }
 

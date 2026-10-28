@@ -19,6 +19,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
     }
   }
+  'api.planning.archive': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/accounts/:accountId/planning/archive'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
+    }
+  }
   'api.planning.lookup': {
     methods: ["GET","HEAD"]
     pattern: '/api/accounts/:accountId/planning/mutations/:mutationId'

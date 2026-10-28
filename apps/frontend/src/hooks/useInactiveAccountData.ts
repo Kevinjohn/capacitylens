@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { useCan } from "@/auth/permissionContext";
+import { useAuth } from "@/auth/authContext";
+import { useCan, useRole } from "@/auth/permissionContext";
 import { isServerConfigured } from "@/data/apiConfig";
 import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "@/data/fetchInactiveSlice";
 import { resolveErrorMessage } from "@/lib/errorMessage";
@@ -17,6 +18,10 @@ export function useInactiveAccountData(): {
 } {
   const server = isServerConfigured();
   const mayViewInactive = useCan("anonymise");
+  const role = useRole();
+  const { user } = useAuth();
+  const planning = useStore((state) => state.planning);
+  const masquerade = useStore((state) => state.masquerade);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
   const localData = useInactiveScopedData();
@@ -29,8 +34,30 @@ export function useInactiveAccountData(): {
   const [reloadKey, setReloadKey] = useState(0);
   const generation = useRef(0);
   // A fresh object on any request-key transition prevents an A → B → A render from resurfacing A's prior response.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- these values intentionally define the request identity
-  const requestIdentity = useMemo(() => ({}), [activeAccountId, mayViewInactive, reloadKey]);
+  const requestIdentity = useMemo(
+    () => ({
+      activeAccountId,
+      mayViewInactive,
+      reloadKey,
+      role,
+      principalId: user?.id,
+      context: planning.context,
+      accessKey: planning.accessKey,
+      revision: planning.revision,
+      masquerade,
+    }),
+    [
+      activeAccountId,
+      mayViewInactive,
+      reloadKey,
+      role,
+      user?.id,
+      planning.context,
+      planning.accessKey,
+      planning.revision,
+      masquerade,
+    ],
+  );
   const reload = useCallback(() => setReloadKey((value) => value + 1), []);
 
   useEffect(

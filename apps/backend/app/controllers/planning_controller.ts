@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { errors as vineErrors } from '@vinejs/vine'
 import {
   readPlanning,
+  readArchiveRecovery,
   mutatePlanning,
   lookupPlanningMutation,
   validatePlanningMutationId,
@@ -113,6 +114,14 @@ export default class PlanningController {
   async show(ctx: HttpContext) {
     try {
       return await readPlanning(ctx, String(ctx.params.accountId))
+    } catch (error) {
+      return sendRefusal(error, ctx)
+    }
+  }
+
+  async archive(ctx: HttpContext) {
+    try {
+      return await readArchiveRecovery(ctx, String(ctx.params.accountId))
     } catch (error) {
       return sendRefusal(error, ctx)
     }

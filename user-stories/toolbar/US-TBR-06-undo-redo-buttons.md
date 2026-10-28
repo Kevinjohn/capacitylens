@@ -4,7 +4,7 @@
 
 ## Goal
 
-Reverse and re-apply the last booking change straight from the toolbar — a visible **Undo** / **Redo** pair the manager can see and click, with no need to know the keyboard shortcut.
+Reverse and re-apply eligible acknowledged planning changes from the toolbar — a visible **Undo** / **Redo** pair the manager can see and click, with no need to know the keyboard shortcut.
 
 ## Why
 
@@ -27,8 +27,9 @@ The keyboard path (**⌘Z** / **⌘⇧Z**, see US-TBR-07) is fast for power user
 - ✅ After a reversible edit (delete the **Brand System** bar, total `allocation-bar` count drops by one) the **Undo** button becomes **enabled**.
 - ✅ Clicking **Undo** restores the exact bar (count returns to the original) and **enables** the **Redo** button.
 - ✅ Clicking **Redo** re-applies the delete (count drops by one again).
-- ✅ The buttons act on booking (allocation) history only. Other changes, such as archiving,
-  time off, catalogue edits and imports, do not enter it and do not enable the buttons.
+- ✅ The buttons use page-local history for eligible acknowledged typed planning changes. Imports and
+  irreversible privacy actions have no inverse and do not enter it; a genuine remote change or
+  context switch clears history.
 - ✅ The global **⌘Z** / **⌘⇧Z** shortcut still performs the same undo/redo and is ignored while typing in a text field — that keyboard path and its typing guard are covered by **US-TBR-07**.
 
 **Documentation:** [Clients and projects](../../docs-src/using/projects.md),

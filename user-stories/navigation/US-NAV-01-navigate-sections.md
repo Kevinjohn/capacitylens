@@ -6,13 +6,14 @@
 
 ## Goal
 
-Reach every part of CapacityLens from the left sidebar, so each section's screen actually loads.
+Reach every part of CapacityLens using the sidebar as the primary navigation, while routes and the
+command palette remain available as alternate ways to reach a permitted section.
 
 ## Why
 
-The sidebar is the only way around the app. If any link is mis-wired or a screen
-fails to render, that whole area of the tool is unreachable — and a manager can't
-trust the schedule they can't navigate to. This story proves the available routes are live.
+The sidebar makes the main sections visible and easy to reach. If a link is mis-wired or a screen
+fails to render, that area is harder to find; direct links and the command palette also provide
+navigation paths. This story proves the available routes are live.
 
 ## How (end-to-end)
 

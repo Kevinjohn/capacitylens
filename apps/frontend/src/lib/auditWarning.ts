@@ -1,10 +1,10 @@
-/** Window event used to publish a server audit warning. */
+/** Window event used to publish a supplementary server logging warning. */
 export const AUDIT_WARNING_EVENT = "capacitylens:audit-warning";
 
-/** The response header an API server sets when audit delivery became degraded. */
+/** The response header an API server sets when supplementary server logging failed after the change committed. */
 export const AUDIT_WARNING_HEADER = "x-capacitylens-audit-warning";
 
-/** Notify mounted operational-warning surfaces that audit delivery became degraded. */
+/** Notify mounted operational-warning surfaces that supplementary server logging failed after the change committed. */
 export function announceAuditWarning(): void {
   const dispatchTarget = globalThis as { dispatchEvent?: (event: Event) => boolean };
   if (typeof dispatchTarget.dispatchEvent === "function") {

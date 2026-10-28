@@ -152,9 +152,7 @@ export function writeStoredBarLabelPrefs(preferences: BarLabelPreferences): void
 
 const SIDEBAR_STORAGE_KEY = `${STORAGE_KEY_PREFIX}sidebar`;
 
-/** The widest viewport still treated as a phone. Single-sourced here because two separate
- * breakpoint consumers key off it: the sidebar's first-run default below and the
- * `useIsMobile` hook (hooks/useIsMobile.ts). */
+/** The mobile-sheet breakpoint used by `useIsMobile`; first-run sidebar collapse uses its own viewport query. */
 export const PHONE_MAX_WIDTH_PX = 767;
 
 // First-run navigation collapses on small or short landscape viewports to preserve schedule space; this is separate from the mobile-sheet breakpoint.

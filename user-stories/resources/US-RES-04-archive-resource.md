@@ -21,7 +21,7 @@ so the seed bars and time off are in view. **Bruce Wayne** has both allocations
 5. Click the **Archive Bruce Wayne** icon again, then click **Archive** to confirm.
 6. Go back to **Schedule** (click **Today** if needed) and observe Bruce is gone (hidden, not
    destroyed — his record + allocations + time off are retained).
-7. Press **⌘Z**. Bruce stays archived: Undo and Redo currently cover booking changes only.
+7. Use **Undo** if the acknowledged archive is still in the current page's history; **Redo** reapplies it.
 
 ## Why
 
@@ -39,5 +39,6 @@ action; there is no permanent deletion.
 - ✅ After confirming **Archive**, the **Bruce Wayne** row disappears from Resources, and on
   **Schedule** Bruce's row, allocation bars and time-off block are all hidden — but the records are
   **retained** (not cascade-deleted), and Bruce appears under the appropriate archive group.
-- ✅ Pressing **⌘Z** leaves Bruce archived; **Restore** from the resource archive sections brings him
-  back with all of his allocations and time off.
+- ✅ **Restore** from the resource archive sections brings Bruce back with all of his allocations
+  and time off. An eligible acknowledged archive or restore can also be reversed from page-local
+  Undo/Redo history.

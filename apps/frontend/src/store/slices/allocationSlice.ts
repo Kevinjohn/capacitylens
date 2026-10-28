@@ -5,7 +5,7 @@ import type { PlanningIntent } from "@capacitylens/backend/planning";
 import { assertAllocationWithinResourceAvailability, assertDateRange } from "@capacitylens/shared/domain/mutations";
 import { assertAllocationPlacement } from "@capacitylens/shared/domain/placement";
 import { newId } from "@capacitylens/shared/lib/id";
-import { clampHoursPerDay, emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import { emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { Allocation, AppData, ID } from "@capacitylens/shared/types/entities";
@@ -51,6 +51,11 @@ const PAGE_IDENTITY = Symbol("page planning identity");
 
 // A delete's Undo uses the server's restoration handle, which the controller fills from the receipt.
 const RESTORE_FROM_RECEIPT: PlanningIntent = { operation: "planning.restoreGroup", restorationGroupId: "" };
+
+function assertSuppliedHours(hours: number): void {
+  if (!Number.isFinite(hours) || hours < 0 || hours > 24)
+    throw new Error("Hours per day must be a finite number between 0 and 24.");
+}
 
 /**
  * Publishes the controller's company slice without replacing rows belonging to other companies.
@@ -225,10 +230,10 @@ export function createAllocationSlice(
       const accountId = requireAccount();
       if (blockedByViewer()) return null;
       const data = get().data;
-      const clamped = inputs.map((input) => ({ ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay) }));
-      validateNewAllocations(internals, data, accountId, clamped);
+      for (const input of inputs) assertSuppliedHours(input.hoursPerDay);
+      validateNewAllocations(internals, data, accountId, inputs);
       // Row ids are minted here, on the typed command path; the server assigns any series id.
-      return { accountId, data, drafts: clamped.map((fields) => ({ id: newId(), fields })) };
+      return { accountId, data, drafts: inputs.map((fields) => ({ id: newId(), fields })) };
     };
 
     return {
@@ -237,8 +242,7 @@ export function createAllocationSlice(
       addAllocation: async (input) => {
         const prepared = prepareNew([input]);
         if (!prepared) return { kind: "blocked" };
-        const [draft] = prepared.drafts;
-        if (!draft) throw new Error("Allocation creation produced no row.");
+        const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
         await send(requireCommand(buildAllocationCreate({ ...prepared, args: draft })));
         const [created] = createdRows(get, [draft.id]);
         if (!created) throw new Error("Allocation creation produced no row.");
@@ -262,9 +266,9 @@ export function createAllocationSlice(
       duplicateAllocation: async (sourceId, input) => {
         const prepared = prepareNew([input]);
         if (!prepared) return { kind: "blocked" };
-        const [draft] = prepared.drafts;
+        const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
         const original = resolveOwnedRow(prepared.data, "allocations", sourceId);
-        if (!draft || !original) throw new Error("The allocation to duplicate no longer exists.");
+        if (!original) throw new Error("The allocation to duplicate no longer exists.");
         await send(
           requireCommand(
             buildAllocationDuplicate({ ...prepared, original, args: { sourceId, id: draft.id, fields: draft.fields } }),
@@ -278,12 +282,9 @@ export function createAllocationSlice(
         const data = get().data;
         const existing = resolveOwnedRow(data, "allocations", id);
         if (!existing || blockedByViewer()) return false;
-        // Clamp first (same shared clamp as creation and import) so validation sees the value
-        // that would actually be stored. A drag-resize rescale past 24h must land on 24 like
-        // every other write boundary, not reject after the fact.
-        const changes: Patch<Allocation> =
-          patch.hoursPerDay !== undefined ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) } : patch;
+        const changes: Patch<Allocation> = patch;
         const effective = applyPatch(existing, changes);
+        assertSuppliedHours(effective.hoursPerDay);
         // Validate the merged row so unrelated edits cannot preserve invalid external-resource
         // load that the server would reject.
         assertAllocation(

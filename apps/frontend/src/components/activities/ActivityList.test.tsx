@@ -475,3 +475,29 @@ describe("ActivityList", () => {
     expect(useStore.getState().data.activities).toHaveLength(0);
   });
 });
+
+it("clears the old phase when moving an activity to another project", async () => {
+  const user = userEvent.setup();
+  const client = await requireCreated(useStore.getState().addClient({ name: "Wayne Enterprises", color: "#2d75da" }));
+  const project = await requireCreated(
+    useStore.getState().addProject({ name: "Watchtower", clientId: client.id, color: "#2d75da" }),
+  );
+  const next = await requireCreated(
+    useStore.getState().addProject({ name: "Batmobile", clientId: client.id, color: "#2d75da" }),
+  );
+  const phase = await requireCreated(useStore.getState().addPhase({ name: "Discovery", projectId: project.id }));
+  const activity = await requireCreated(
+    useStore.getState().addActivity({ name: "Design", kind: "project", projectId: project.id, phaseId: phase.id }),
+  );
+  render(<ActivityList />);
+  await user.click(screen.getByRole("button", { name: "Edit Design" }));
+  const dialog = screen.getByRole("dialog", { name: "Edit activity" });
+  fireEvent.keyDown(within(dialog).getByLabelText("Project"), { key: "ArrowDown" });
+  fireEvent.click(screen.getByRole("option", { name: "Wayne Enterprises / Batmobile" }));
+  await user.click(within(dialog).getByRole("button", { name: "Save" }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(useStore.getState().data.activities.find((row) => row.id === activity.id)).toMatchObject({
+    projectId: next.id,
+    phaseId: null,
+  });
+});

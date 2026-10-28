@@ -140,9 +140,9 @@ router.post('/api/test/reset', async ({ request, response }) => {
   return { ok: true }
 })
 router.get('*', async ({ request, response }) => {
-  const path = request.url().split('?', 1)[0] ?? request.url()
+  const path = request.url().split('?', 1)[0]
   if (path.startsWith('/api/')) return response.notFound({ error: 'Not found' })
-  const lastSegment = path.split('/').at(-1) ?? ''
+  const lastSegment = path.slice(path.lastIndexOf('/') + 1)
   if (
     path.startsWith('/assets/') ||
     (path !== '/' && path.endsWith('/')) ||

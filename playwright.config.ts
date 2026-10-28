@@ -33,6 +33,8 @@ const reportPhase = parseReportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
 // their own Vite proxies and API targets.
 const devWebServer = {
   command: "pnpm run dev:demo",
+  // The default fixture deliberately has no optional deployment provenance or feedback address.
+  env: { VITE_CAPACITYLENS_BUILD_SHA: "", VITE_CAPACITYLENS_FEEDBACK_MAILTO: "" },
   url: `http://localhost:${WEB_PORT}`,
   // Never reuse: Playwright identifies a running server by URL, not persistence mode. Reusing a
   // server-mode process would run in-memory demo specs against the wrong backend. Each run starts

@@ -7,7 +7,13 @@ import { encodeRow } from '#services/state_repository'
 /** Writes the complete first company inside the caller's transaction. */
 export async function createInitialCompany(
   trx: TransactionClientContract,
-  input: { name: string; ownerId: string; actorId: string | null }
+  input: {
+    name: string
+    ownerId: string
+    actorId: string | null
+    weekStartsOn?: 0 | 1
+    timezone?: string
+  }
 ) {
   const name = input.name
   const accountId = crypto.randomUUID()
@@ -19,7 +25,8 @@ export async function createInitialCompany(
       name,
       color: FALLBACK_PRESET_COLOR,
       schedulingMode: 'days',
-      weekStartsOn: 1,
+      weekStartsOn: input.weekStartsOn ?? 1,
+      timezone: input.timezone ?? null,
       workingDays: [1, 2, 3, 4, 5],
       disciplinesEnabled: false,
       placeholdersEnabled: false,

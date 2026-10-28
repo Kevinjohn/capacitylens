@@ -26,13 +26,13 @@ async function allocationSetup() {
 }
 
 function registerAtomicAllocationPart1(): void {
-  it("shares the single/bulk path, mints unique rows, clamps hours and records one typed history step", async () => {
+  it("shares the single/bulk path, mints unique rows, preserves valid hours and records one typed history step", async () => {
     const { draft } = await allocationSetup();
     const legacyPast = state().past;
     const historyBefore = typedHistory().past.length;
     const created = requireCreated(
       await state().addAllocations([
-        draft({ hoursPerDay: 99 }),
+        draft({ hoursPerDay: 24 }),
         draft({ startDate: "2026-06-08", endDate: "2026-06-10" }),
       ]),
     );
@@ -83,7 +83,7 @@ function registerAtomicAllocationPart2(): void {
 function registerAtomicAllocationPart3(): void {
   it("rejects cross-account references and a placeholder/project mismatch atomically", async () => {
     const first = await allocationSetup();
-    const secondAccount = state().addAccount({ name: "Other", color: "#111111" });
+    const secondAccount = state().addAccount({ name: "Other", color: "#2d75da" });
     expect(secondAccount).not.toBeNull();
     if (!secondAccount) throw new Error("Expected second account");
     state().setActiveAccount(secondAccount.id);
@@ -350,20 +350,20 @@ describe("repeat-series allocation mutations", () => {
   });
 });
 
-describe("updateAllocation clamp ordering", () => {
-  it("clamps an over-day hours patch before validation instead of rejecting it", async () => {
+describe("updateAllocation input validation", () => {
+  it("rejects an over-day hours patch without changing the allocation", async () => {
     const { draft } = await allocationSetup();
     const allocation = requireCreated(await state().addAllocation(draft({})));
 
-    await state().updateAllocation(allocation.id, { hoursPerDay: 99 });
+    await expect(state().updateAllocation(allocation.id, { hoursPerDay: 99 })).rejects.toThrow();
 
     expect(state().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
-      hoursPerDay: 24,
+      hoursPerDay: 8,
     });
     expect(state().notice).toBeNull();
   });
 
-  it("still rejects a non-zero-hours write onto an external resource after clamping", async () => {
+  it("still rejects a non-zero-hours write onto an external resource with valid supplied hours", async () => {
     const { draft } = await allocationSetup();
     const allocation = requireCreated(await state().addAllocation(draft({})));
 
@@ -376,9 +376,28 @@ describe("updateAllocation clamp ordering", () => {
       },
     }));
 
-    await expect(state().updateAllocation(allocation.id, { hoursPerDay: 99 })).rejects.toThrow(/external/);
+    await expect(state().updateAllocation(allocation.id, { hoursPerDay: 8 })).rejects.toThrow(/external/);
 
     const row = state().data.allocations.find(({ id }) => id === allocation.id);
     expect(row?.hoursPerDay).not.toBe(0);
   });
+});
+
+it.each([-1, 24.01, Number.NaN, Infinity])(
+  "rejects raw invalid allocation hours %s before a write",
+  async (hoursPerDay) => {
+    const { draft } = await allocationSetup();
+    const before = state().planning;
+    await expect(state().addAllocation(draft({ hoursPerDay }))).rejects.toThrow();
+    expect(state().data.allocations).toHaveLength(0);
+    expect(state().planning).toBe(before);
+  },
+);
+
+it.each([0, 0.5, 24])("preserves valid raw allocation hours %s on create and update", async (hoursPerDay) => {
+  const { draft } = await allocationSetup();
+  const allocation = requireCreated(await state().addAllocation(draft({ hoursPerDay })));
+  expect(allocation.hoursPerDay).toBe(hoursPerDay);
+  await state().updateAllocation(allocation.id, { hoursPerDay });
+  expect(state().data.allocations.find((row) => row.id === allocation.id)?.hoursPerDay).toBe(hoursPerDay);
 });

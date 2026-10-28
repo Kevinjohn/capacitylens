@@ -1,3 +1,4 @@
+import { activeOnly, archiveRecovery } from '@capacitylens/shared/domain/lifecycle'
 import type { HttpContext } from '@adonisjs/core/http'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Bouncer } from '@adonisjs/bouncer'
@@ -94,7 +95,23 @@ export function readPlanning(ctx: HttpContext, accountId: string): Promise<Plann
     const { authority } = await currentAuthority(ctx, trx, accountId)
     const revision = await getPlanningRevision(trx, accountId)
     const data = await readStateWithClient(trx, accountId, true)
-    return { accountId, revision, authority, data: transformState(data, accountId, authority.role) }
+    return {
+      accountId,
+      revision,
+      authority,
+      data: transformState(activeOnly(data), accountId, authority.role),
+    }
+  })
+}
+
+/** Read only recoverable identities under current transactional write authority. */
+export function readArchiveRecovery(ctx: HttpContext, accountId: string) {
+  return withActor(ctx, async (_actor, trx) => {
+    const { authority } = await currentAuthority(ctx, trx, accountId)
+    if (!authority.canWrite)
+      throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.')
+    const data = await readStateWithClient(trx, accountId, true)
+    return archiveRecovery(data, accountId, authority.role)
   })
 }
 
@@ -223,8 +240,8 @@ export function mutatePlanning(
       origin_session_id: restoration.replacementGroupId ? actor.sessionId : null,
     })
     const changed = projectionChanges(
-      transformState(before, accountId, authority.role),
-      transformState(after, accountId, authority.role)
+      transformState(activeOnly(before), accountId, authority.role),
+      transformState(activeOnly(after), accountId, authority.role)
     )
     await writeAudit(trx, {
       accountId,

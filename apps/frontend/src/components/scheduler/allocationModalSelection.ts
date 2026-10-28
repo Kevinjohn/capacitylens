@@ -118,7 +118,7 @@ function buildWorkingWeekValues({ input, external, validDaysOver }: BuildWorking
   };
 }
 
-/** Combines selected resource, activity, and project into validated allocation fields. */
+/** Resolves effective dates and hours plus flags for invalid or excessive scheduling spans. */
 export function buildEffectiveAllocationValues({
   resource,
   effectiveWeek,

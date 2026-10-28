@@ -133,7 +133,7 @@ describe("planning authority publication", () => {
     expect(readPlanningProblem(state.planning)).toBe("refused");
   });
 
-  it("settles an uncertain write through its commitment lookup on the next refresh", async () => {
+  it("looks up an uncertain write on refresh and keeps an unknown result uncertain", async () => {
     const allocation = await seedTypedAllocation();
     failure.execute = new TypeError("response lost");
     await expect(useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-03" })).rejects.toThrow(
@@ -146,6 +146,10 @@ describe("planning authority publication", () => {
     await useStore.getState().refreshPlanning();
 
     expect(lookups.count).toBe(1);
+    expect(useStore.getState().planning.status).toBe("uncertain");
+    expect(useStore.getState().data.allocations.find((row) => row.id === allocation.id)?.endDate).toBe(
+      allocation.endDate,
+    );
   });
 });
 

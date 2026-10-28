@@ -24,7 +24,7 @@ Review_) and allocations.
 2. Read the dialog: it explains the project will be hidden from the schedule and can be restored
    from **Archived projects** below the list.
 3. Click **Archive** to confirm. The dialog closes and **Project Watchtower** leaves the Projects list.
-4. Press **⌘Z**. Project Watchtower stays archived: Undo and Redo currently cover booking changes only.
+4. Use **Undo** if the acknowledged archive is still in the current page's history; **Redo** reapplies it.
 
 ## Acceptance criteria
 
@@ -38,4 +38,4 @@ Review_) and allocations.
   intact, including after an ordinary allocation drag or edit.
 - ✅ Archived projects surface under **Archived projects**, where they can be restored. No
   permanent deletion exists.
-- ✅ Pressing **⌘Z** leaves the project archived; **Restore** from Archived projects brings it back.
+- ✅ **Restore** from Archived projects brings the project back. An eligible acknowledged archive or restore can also be reversed from page-local Undo/Redo history.

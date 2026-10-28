@@ -158,5 +158,17 @@
   {
     "path": "docs-src/screenshots/steps/using_invitation_preview.png",
     "sha256": "e9d9fa0aff25ec96dc60a09e1f06f42b6de094c8b0ccd23cbe11853fdaa21046"
+  },
+  {
+    "path": "docs-src/screenshots/flows/company_first_run_setup.jpg",
+    "sha256": "5b5e34f057be1e695f5da615fa29fbf60282df276f89dbf5221c727e48ae3896"
+  },
+  {
+    "path": "docs-src/screenshots/flows/diagnostics.jpg",
+    "sha256": "aa132fc6520c215682fbdb9a81c1721f7de7f24f8296d5ee1875020bd01af3b0"
+  },
+  {
+    "path": "docs-src/screenshots/flows/editor_archive_restore.jpg",
+    "sha256": "4dffaf167d4bb62650565018d402391e664e28f65477cb3fad9eba135a0bfc72"
   }
 ]
