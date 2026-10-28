@@ -28,7 +28,11 @@ describe("SPA content security policy", () => {
     // Each location-level Cache-Control declaration cancels nginx's inherited add_header set.
     // Pin the shared policy include inside every static/SPA-serving block rather than merely
     // finding the required CSP text somewhere else in the configuration.
-    for (const declaration of ["location ^~ /assets/ {", "location ~ ^/(invite|reset-password)/ {", "location / {"]) {
+    for (const declaration of [
+      "location ^~ /assets/ {",
+      "location ~ ^/(invite|reset-password|verify-email)/ {",
+      "location / {",
+    ]) {
       expect(locationBlock(nginx, declaration)).toContain("include /etc/nginx/capacitylens-security-headers.conf;");
     }
   });

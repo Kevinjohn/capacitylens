@@ -188,8 +188,9 @@ export function resolveAllocationLoadForWeekday({
       })
     )
       continue;
-    sum += allocation.hoursPerDay;
-    components = addCapacityHours(components, allocation.hoursPerDay);
+    const hoursPerDay = allocation.hoursPerDay;
+    sum += hoursPerDay;
+    components = addCapacityHours(components, hoursPerDay);
   }
   warnOnNonFiniteCapacity(sum);
   return { hours: sum, components };
