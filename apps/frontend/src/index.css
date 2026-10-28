@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'sonner/dist/styles.css';
+@import "tailwindcss";
+@import "sonner/dist/styles.css";
 
 /* ShadCN's `dark:` utilities key off `.dark` by default; CapacityLens uses
    `[data-theme="dark"]` on <html>. Point the variant at the existing theme attribute. */
@@ -191,7 +191,7 @@
   --sidebar-ring: var(--c-brand);
 }
 
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   --c-base: #0e1016;
   --c-surface: #161922;
   --c-elevated: #1d212c;
@@ -311,7 +311,7 @@
 
 /* The global focus treatment defaults unknown controls to 4px. Segmented items retain the same
    nested radius they use at rest, sourced from the track's single per-size variable. */
-[data-segmented-control] [data-slot='toggle-group-item']:focus-visible {
+[data-segmented-control] [data-slot="toggle-group-item"]:focus-visible {
   position: relative;
   z-index: 20;
   border-radius: var(--segment-radius);
@@ -328,7 +328,7 @@ body {
   font-family:
     system-ui,
     -apple-system,
-    'Segoe UI',
+    "Segoe UI",
     Roboto,
     Helvetica,
     Arial,
@@ -359,15 +359,15 @@ h3 {
   textarea,
   summary,
   [tabindex],
-  [contenteditable]:not([contenteditable='false'])
+  [contenteditable]:not([contenteditable="false"])
 ):focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-input[type='checkbox'],
-input[type='radio'] {
+input[type="checkbox"],
+input[type="radio"] {
   accent-color: var(--color-brand);
 }
 
@@ -409,7 +409,7 @@ body[data-scroll-locked] {
   overflow: hidden;
   overscroll-behavior: contain;
 }
-body[data-scroll-locked]:not([data-scroll-lock-gap-mode='padding']) {
+body[data-scroll-locked]:not([data-scroll-lock-gap-mode="padding"]) {
   padding-left: var(--scroll-lock-body-left, 0px);
   padding-top: var(--scroll-lock-body-top, 0px);
   padding-right: var(--scroll-lock-body-right, 0px);
@@ -417,7 +417,7 @@ body[data-scroll-locked]:not([data-scroll-lock-gap-mode='padding']) {
   margin-top: 0;
   margin-right: var(--removed-body-scroll-bar-size, 0px);
 }
-body[data-scroll-locked][data-scroll-lock-gap-mode='padding'] {
+body[data-scroll-locked][data-scroll-lock-gap-mode="padding"] {
   padding-right: var(--removed-body-scroll-bar-size, 0px);
 }
 .right-scroll-bar-position {
@@ -438,12 +438,10 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]) {
 body[data-scroll-locked]:not([data-scroll-lock-no-important]):not([data-scroll-lock-no-relative]) {
   position: relative !important;
 }
-body[data-scroll-locked]:not([data-scroll-lock-no-important]):not(
-    [data-scroll-lock-gap-mode='padding']
-  ) {
+body[data-scroll-locked]:not([data-scroll-lock-no-important]):not([data-scroll-lock-gap-mode="padding"]) {
   margin-right: var(--removed-body-scroll-bar-size, 0px) !important;
 }
-body[data-scroll-locked]:not([data-scroll-lock-no-important])[data-scroll-lock-gap-mode='padding'] {
+body[data-scroll-locked]:not([data-scroll-lock-no-important])[data-scroll-lock-gap-mode="padding"] {
   padding-right: var(--removed-body-scroll-bar-size, 0px) !important;
 }
 body[data-scroll-locked]:not([data-scroll-lock-no-important]) .with-scroll-bars-hidden {
@@ -458,18 +456,12 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]) .width-before-scro
 body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scroll-bar {
   margin-right: var(--removed-body-scroll-bar-size, 0px) !important;
 }
-body[data-scroll-locked]:not([data-scroll-lock-no-important])
-  .right-scroll-bar-position
-  .right-scroll-bar-position,
-body[data-scroll-locked]:not([data-scroll-lock-no-important]).right-scroll-bar-position
-  .right-scroll-bar-position {
+body[data-scroll-locked]:not([data-scroll-lock-no-important]) .right-scroll-bar-position .right-scroll-bar-position,
+body[data-scroll-locked]:not([data-scroll-lock-no-important]).right-scroll-bar-position .right-scroll-bar-position {
   right: 0 !important;
 }
-body[data-scroll-locked]:not([data-scroll-lock-no-important])
-  .width-before-scroll-bar
-  .width-before-scroll-bar,
-body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scroll-bar
-  .width-before-scroll-bar {
+body[data-scroll-locked]:not([data-scroll-lock-no-important]) .width-before-scroll-bar .width-before-scroll-bar,
+body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scroll-bar .width-before-scroll-bar {
   margin-right: 0 !important;
 }
 
@@ -521,16 +513,16 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scrol
 /* AppSidebar supplies navigation spacing through these custom properties. Fallbacks
    support standalone mounts; item height stays fixed so the collapsed icon rail
    remains square. Scheduler geometry is defined in components/scheduler/layout.ts. */
-[data-slot='sidebar-menu'] {
+[data-slot="sidebar-menu"] {
   row-gap: var(--nav-menu-gap-y, 0.25rem);
 }
 
-[data-slot='sidebar-group'] {
+[data-slot="sidebar-group"] {
   padding-block: var(--nav-section-pad-y, 0.5rem);
 }
 
-[data-slot='sidebar-content'],
-[data-slot='sidebar-footer'] {
+[data-slot="sidebar-content"],
+[data-slot="sidebar-footer"] {
   row-gap: var(--nav-section-gap-y, 0.5rem);
 }
 
@@ -548,7 +540,7 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scrol
 /* Drawing time off dims work and highlights existing absences while a new range is
    placed. The grid attribute drives the visual change; inert is applied to the bars
    layer so other memoized rows do not rerender. */
-[data-draw-mode='timeoff'] .scheduler-bar {
+[data-draw-mode="timeoff"] .scheduler-bar {
   opacity: 0.2;
   /* A neutral fill makes background bookings read as inert while time off is being drawn. Important overrides the allocation's inline fill. */
   background-color: var(--color-muted-foreground) !important;
@@ -557,7 +549,7 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scrol
     background-color 0.15s ease;
 }
 
-[data-draw-mode='timeoff'] .scheduler-timeoff-block {
+[data-draw-mode="timeoff"] .scheduler-timeoff-block {
   /* Time-off highlights sit above sibling work bars within the lane stacking context. */
   z-index: 3;
   color: var(--color-timeoff-selected-ink);
@@ -573,7 +565,7 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scrol
     box-shadow 0.15s ease;
 }
 
-[data-draw-mode='timeoff'] .scheduler-closure-band {
+[data-draw-mode="timeoff"] .scheduler-closure-band {
   /* Closure bands share the personal time-off highlight because both represent unavailable time. Important overrides the inline background colour while retaining its hatch image. */
   color: var(--color-timeoff-selected-ink);
   background-color: var(--color-timeoff-selected) !important;
@@ -586,12 +578,12 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scrol
 }
 
 /* The separate closure-label layer needs its own text colour because it cannot inherit from the highlighted band. Keep the fill and glow on the band. */
-[data-draw-mode='timeoff'] .scheduler-closure-label-layer {
+[data-draw-mode="timeoff"] .scheduler-closure-label-layer {
   color: var(--color-timeoff-selected-ink);
 }
 
 /* Portalled allocation popovers sit outside the inert bars layer, so time-off draw mode must hide any lingering popover through the grid attribute. */
-body:has([data-draw-mode='timeoff']) .scheduler-alloc-popover {
+body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   display: none;
 }
 

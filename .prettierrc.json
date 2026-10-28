@@ -8,6 +8,12 @@
         "printWidth": 80,
         "singleQuote": false
       }
+    },
+    {
+      "files": "**/*.css",
+      "options": {
+        "singleQuote": false
+      }
     }
   ]
 }
