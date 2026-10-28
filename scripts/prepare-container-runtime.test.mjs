@@ -126,7 +126,7 @@ test('the web image copies the Vite output consumed by the root standalone build
       build.indexOf('pnpm --dir apps/backend build'),
   );
   const sync = await readFile(join(repository, 'scripts/sync-adonis-public.mjs'), 'utf8');
-  const syncedSource = /await cp\(new URL\("([^"]+)"/.exec(sync)?.[1];
+  const syncedSource = /await cp\(new URL\('([^']+)'/.exec(sync)?.[1];
   assert.ok(syncedSource);
   assert.equal(
     fileURLToPath(

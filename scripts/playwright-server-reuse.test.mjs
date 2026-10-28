@@ -39,6 +39,6 @@ test('the standard profile waits for real database readiness through both Vite p
   ]);
   assert.match(
     viteConfigSource,
-    /"\/health":\s*{[\s\S]*?target: `http:\/\/localhost:\$\{devApiPort\}`/,
+    /'\/health':\s*{[\s\S]*?target: `http:\/\/localhost:\$\{devApiPort\}`/,
   );
 });
