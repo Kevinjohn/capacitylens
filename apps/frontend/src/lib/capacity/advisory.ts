@@ -28,6 +28,9 @@ export type CapacityAllocationInput = Pick<Allocation, "resourceId" | "startDate
  * or clone those buckets. Externally supplied scalar entries are treated as exact hourly values. */
 export type CapacityLoadByDay = Map<ISODate, number>;
 const loadComponents = new WeakMap<CapacityLoadByDay, Map<ISODate, readonly number[]>>();
+/** The exact components behind a day's bucket entry; a scalar-only entry is treated as exact. */
+const componentsOn = (byDay: CapacityLoadByDay, day: ISODate): readonly number[] =>
+  loadComponents.get(byDay)?.get(day) ?? [byDay.get(day) ?? 0];
 
 interface AddCapacityLoadInput {
   byDay: CapacityLoadByDay;
@@ -69,8 +72,7 @@ export function addCapacityLoad({
       componentsByDay = new Map();
       loadComponents.set(byDay, componentsByDay);
     }
-    const components = componentsByDay.get(day) ?? [byDay.get(day) ?? 0];
-    componentsByDay.set(day, addCapacityHours(components, allocation.hoursPerDay));
+    componentsByDay.set(day, addCapacityHours(componentsOn(byDay, day), allocation.hoursPerDay));
     byDay.set(day, (byDay.get(day) ?? 0) + allocation.hoursPerDay);
   }
 }
@@ -162,13 +164,7 @@ function tallyAdvisory({
     // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over, exactly like the per-day over-marker.
     const available = working ? scheduledCapacity : 0;
-    if (
-      hasOverCapacity(
-        addCapacityHours(loadComponents.get(loadByDay)?.get(day) ?? [loadByDay.get(day) ?? 0], proposal.hoursPerDay),
-        available,
-      )
-    )
-      overDays++;
+    if (hasOverCapacity(addCapacityHours(componentsOn(loadByDay, day), proposal.hoursPerDay), available)) overDays++;
   }
   return { overDays, timeOffDays };
 }
