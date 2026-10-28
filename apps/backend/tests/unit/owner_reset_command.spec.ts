@@ -1,203 +1,203 @@
-import { test } from '@japa/runner'
-import { operatorFixture, seedOwner, withOperatorServer } from './operator_command_support.js'
+import { test } from '@japa/runner';
+import { operatorFixture, seedOwner, withOperatorServer } from './operator_command_support.js';
 
-const args = ['owner:reset-password', 'bruce@wayne.example', '--confirm-server-stopped']
+const args = ['owner:reset-password', 'bruce@wayne.example', '--confirm-server-stopped'];
 
 test('the unaudited Account Kit reset-link command is not registered', ({ assert, test: t }) => {
-  t.timeout(90000)
-  const f = operatorFixture()
+  t.timeout(90000);
+  const f = operatorFixture();
   try {
-    const discovered = f.command(['list'])
-    assert.equal(discovered.status, 0, discovered.output)
-    assert.include(discovered.output, 'owner:reset-password')
-    assert.include(discovered.output, 'account-kit:admission:bootstrap')
-    assert.notInclude(discovered.output, 'account-kit:reset-link')
+    const discovered = f.command(['list']);
+    assert.equal(discovered.status, 0, discovered.output);
+    assert.include(discovered.output, 'owner:reset-password');
+    assert.include(discovered.output, 'account-kit:admission:bootstrap');
+    assert.notInclude(discovered.output, 'account-kit:reset-link');
 
-    const attempted = f.command(['account-kit:reset-link', '--help'])
-    assert.notEqual(attempted.status, 0, attempted.output)
-    assert.notInclude(attempted.output, '/reset-password/')
+    const attempted = f.command(['account-kit:reset-link', '--help']);
+    assert.notEqual(attempted.status, 0, attempted.output);
+    assert.notInclude(attempted.output, '/reset-password/');
   } finally {
-    f.cleanup()
+    f.cleanup();
   }
-})
+});
 
 test('owner command prints an audited single-use link without changing the credential', ({
   assert,
   test: t,
 }) => {
-  t.timeout(90000)
-  const f = operatorFixture()
+  t.timeout(90000);
+  const f = operatorFixture();
   try {
-    const init = f.command(['app:upgrade'])
-    assert.equal(init.status, 0, init.output)
-    const database = f.inspect()
-    seedOwner(database)
-    database.close()
+    const init = f.command(['app:upgrade']);
+    assert.equal(init.status, 0, init.output);
+    const database = f.inspect();
+    seedOwner(database);
+    database.close();
     const first = f.command([
       'owner:reset-password',
       '  Bruce@Wayne.EXAMPLE ',
       '--confirm-server-stopped',
-    ])
-    assert.equal(first.status, 0, first.output)
-    const firstResult = JSON.parse(first.output.trim()) as { link: string; accountIds: string[] }
-    assert.deepEqual(firstResult.accountIds, ['a-studio'])
-    assert.match(firstResult.link, /^http:\/\/localhost:8787\/reset-password\//)
-    const second = f.command(args)
-    assert.equal(second.status, 0, second.output)
-    const secondResult = JSON.parse(second.output.trim()) as { link: string }
-    assert.notEqual(firstResult.link, secondResult.link)
-    const inspect = f.inspect()
-    const audits = inspect.prepare('SELECT * FROM audit_entries').all()
-    assert.lengthOf(audits, 2)
-    assert.equal(audits[0]!.actor_id, null)
-    assert.equal(audits[0]!.action, 'identity.owner_recovery_issued')
-    assert.notInclude(JSON.stringify(audits), firstResult.link.split('/').at(-1)!)
-    assert.equal(inspect.prepare('SELECT password FROM users').get()!.password, 'old-credential')
-    inspect.close()
+    ]);
+    assert.equal(first.status, 0, first.output);
+    const firstResult = JSON.parse(first.output.trim()) as { link: string; accountIds: string[] };
+    assert.deepEqual(firstResult.accountIds, ['a-studio']);
+    assert.match(firstResult.link, /^http:\/\/localhost:8787\/reset-password\//);
+    const second = f.command(args);
+    assert.equal(second.status, 0, second.output);
+    const secondResult = JSON.parse(second.output.trim()) as { link: string };
+    assert.notEqual(firstResult.link, secondResult.link);
+    const inspect = f.inspect();
+    const audits = inspect.prepare('SELECT * FROM audit_entries').all();
+    assert.lengthOf(audits, 2);
+    assert.equal(audits[0]!.actor_id, null);
+    assert.equal(audits[0]!.action, 'identity.owner_recovery_issued');
+    assert.notInclude(JSON.stringify(audits), firstResult.link.split('/').at(-1)!);
+    assert.equal(inspect.prepare('SELECT password FROM users').get()!.password, 'old-credential');
+    inspect.close();
   } finally {
-    f.cleanup()
+    f.cleanup();
   }
-})
+});
 
 test('owner command refuses missing stop intent, non-owner targets and concurrent writers', ({
   assert,
   test: t,
 }) => {
-  t.timeout(90000)
-  const f = operatorFixture()
+  t.timeout(90000);
+  const f = operatorFixture();
   try {
-    assert.equal(f.command(['app:upgrade']).status, 0)
-    const database = f.inspect()
-    seedOwner(database)
-    assert.notEqual(f.command(args.slice(0, -1)).status, 0)
-    database.exec('BEGIN IMMEDIATE')
-    const locked = f.command(args)
-    assert.notEqual(locked.status, 0, locked.output)
-    assert.match(locked.output, /Another process holds/)
-    database.exec('ROLLBACK')
-    database.prepare("UPDATE memberships SET role='admin'").run()
-    database.close()
-    const denied = f.command(args)
-    assert.notEqual(denied.status, 0, denied.output)
-    assert.notInclude(denied.output, 'bruce@wayne.example')
-    const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
-    inspect.close()
+    assert.equal(f.command(['app:upgrade']).status, 0);
+    const database = f.inspect();
+    seedOwner(database);
+    assert.notEqual(f.command(args.slice(0, -1)).status, 0);
+    database.exec('BEGIN IMMEDIATE');
+    const locked = f.command(args);
+    assert.notEqual(locked.status, 0, locked.output);
+    assert.match(locked.output, /Another process holds/);
+    database.exec('ROLLBACK');
+    database.prepare("UPDATE memberships SET role='admin'").run();
+    database.close();
+    const denied = f.command(args);
+    assert.notEqual(denied.status, 0, denied.output);
+    assert.notInclude(denied.output, 'bruce@wayne.example');
+    const inspect = f.inspect();
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0);
+    inspect.close();
   } finally {
-    f.cleanup()
+    f.cleanup();
   }
-})
+});
 
 test('an audit failure never prints the issued link', ({ assert, test: t }) => {
-  t.timeout(90000)
-  const f = operatorFixture()
+  t.timeout(90000);
+  const f = operatorFixture();
   try {
-    assert.equal(f.command(['app:upgrade']).status, 0)
-    const database = f.inspect()
-    seedOwner(database)
-    database.close()
-    const first = f.command(args)
-    assert.equal(first.status, 0, first.output)
-    const inspect = f.inspect()
+    assert.equal(f.command(['app:upgrade']).status, 0);
+    const database = f.inspect();
+    seedOwner(database);
+    database.close();
+    const first = f.command(args);
+    assert.equal(first.status, 0, first.output);
+    const inspect = f.inspect();
     inspect.exec(
       "CREATE TRIGGER fail_operator_audit BEFORE INSERT ON audit_entries BEGIN SELECT RAISE(ABORT, 'operator audit failed'); END"
-    )
-    inspect.close()
-    const failed = f.command(args)
-    const after = f.inspect()
-    assert.notEqual(failed.status, 0)
-    assert.notInclude(failed.output, '/reset-password/')
-    assert.equal(after.prepare('SELECT COUNT(*) AS n FROM audit_entries').get()!.n, 1)
-    after.close()
+    );
+    inspect.close();
+    const failed = f.command(args);
+    const after = f.inspect();
+    assert.notEqual(failed.status, 0);
+    assert.notInclude(failed.output, '/reset-password/');
+    assert.equal(after.prepare('SELECT COUNT(*) AS n FROM audit_entries').get()!.n, 1);
+    after.close();
   } finally {
-    f.cleanup()
+    f.cleanup();
   }
-})
+});
 
 test('a sole-owned company permits recovery even when another company has joint Owners', ({
   assert,
   test: t,
 }) => {
-  t.timeout(90000)
-  const f = operatorFixture()
+  t.timeout(90000);
+  const f = operatorFixture();
   try {
-    assert.equal(f.command(['app:upgrade']).status, 0)
-    const database = f.inspect()
-    seedOwner(database)
-    const now = new Date().toISOString()
+    assert.equal(f.command(['app:upgrade']).status, 0);
+    const database = f.inspect();
+    seedOwner(database);
+    const now = new Date().toISOString();
     database
       .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
-      .run('a-loft', 'Stark Industries', '#6366f1', now, now)
+      .run('a-loft', 'Stark Industries', '#6366f1', now, now);
     database
       .prepare(
         'INSERT INTO users (id,email,email_verified_at,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
       )
-      .run('tony', 'tony@stark.example', now, 'Tony Stark', 'credential', now, now)
+      .run('tony', 'tony@stark.example', now, 'Tony Stark', 'credential', now, now);
     for (const id of ['bruce', 'tony'])
       database
         .prepare(
           'INSERT INTO memberships (id,account_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
         )
-        .run(`joint-${id}`, 'a-loft', id, 'owner', 'active', now, now)
-    database.close()
-    const recovered = f.command(args)
-    assert.equal(recovered.status, 0, recovered.output)
-    assert.deepEqual(JSON.parse(recovered.output.trim()).accountIds, ['a-studio'])
-    const inspect = f.inspect()
-    inspect.prepare("DELETE FROM memberships WHERE account_id='a-studio'").run()
-    inspect.close()
-    const refused = f.command(args)
-    assert.notEqual(refused.status, 0)
-    assert.match(refused.output, /sole active Owner/)
+        .run(`joint-${id}`, 'a-loft', id, 'owner', 'active', now, now);
+    database.close();
+    const recovered = f.command(args);
+    assert.equal(recovered.status, 0, recovered.output);
+    assert.deepEqual(JSON.parse(recovered.output.trim()).accountIds, ['a-studio']);
+    const inspect = f.inspect();
+    inspect.prepare("DELETE FROM memberships WHERE account_id='a-studio'").run();
+    inspect.close();
+    const refused = f.command(args);
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.output, /sole active Owner/);
   } finally {
-    f.cleanup()
+    f.cleanup();
   }
-})
+});
 
 test('a failure writing the second company audit rolls back every audit and prints no link', ({
   assert,
   test: t,
 }) => {
-  t.timeout(90000)
-  const f = operatorFixture()
+  t.timeout(90000);
+  const f = operatorFixture();
   try {
-    assert.equal(f.command(['app:upgrade']).status, 0)
-    const database = f.inspect()
-    seedOwner(database)
-    const now = new Date().toISOString()
+    assert.equal(f.command(['app:upgrade']).status, 0);
+    const database = f.inspect();
+    seedOwner(database);
+    const now = new Date().toISOString();
     database
       .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
-      .run('a-loft', 'Stark Industries', '#6366f1', now, now)
+      .run('a-loft', 'Stark Industries', '#6366f1', now, now);
     database
       .prepare(
         'INSERT INTO memberships (id,account_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
       )
-      .run('second-owner', 'a-loft', 'bruce', 'owner', 'active', now, now)
+      .run('second-owner', 'a-loft', 'bruce', 'owner', 'active', now, now);
     database.exec(
       "CREATE TRIGGER fail_second_audit BEFORE INSERT ON audit_entries WHEN NEW.account_id='a-studio' BEGIN SELECT RAISE(ABORT, 'second audit failed'); END"
-    )
-    database.close()
-    const result = f.command(args)
-    assert.notEqual(result.status, 0)
-    assert.notInclude(result.output, '/reset-password/')
-    const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM audit_entries').get()!.n, 0)
-    inspect.close()
+    );
+    database.close();
+    const result = f.command(args);
+    assert.notEqual(result.status, 0);
+    assert.notInclude(result.output, '/reset-password/');
+    const inspect = f.inspect();
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM audit_entries').get()!.n, 0);
+    inspect.close();
   } finally {
-    f.cleanup()
+    f.cleanup();
   }
-})
+});
 
 test('the issued owner link redeems once through the normal HTTP flow and ends every sign-in', async ({
   assert,
   test: t,
 }) => {
-  t.timeout(90000)
-  const f = operatorFixture()
+  t.timeout(90000);
+  const f = operatorFixture();
   try {
-    assert.equal(f.command(['app:upgrade']).status, 0)
-    const database = f.inspect()
-    seedOwner(database)
+    assert.equal(f.command(['app:upgrade']).status, 0);
+    const database = f.inspect();
+    seedOwner(database);
     database
       .prepare(
         'INSERT INTO account_sessions (user_id,handle_hash,created_at,last_seen_at,expires_at) VALUES (?,?,?,?,?)'
@@ -208,22 +208,22 @@ test('the issued owner link redeems once through the normal HTTP flow and ends e
         new Date().toISOString(),
         new Date().toISOString(),
         '2999-01-01T00:00:00.000Z'
-      )
-    database.close()
-    const issued = f.command(args)
-    assert.equal(issued.status, 0, issued.output)
-    const token = new URL(JSON.parse(issued.output.trim()).link).pathname.split('/').at(-1)!
+      );
+    database.close();
+    const issued = f.command(args);
+    assert.equal(issued.status, 0, issued.output);
+    const token = new URL(JSON.parse(issued.output.trim()).link).pathname.split('/').at(-1)!;
     await withOperatorServer(f, async (origin) => {
       const reset = () =>
         fetch(`${origin}/api/auth/reset-password`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify({ token, newPassword: 'owner-recovered-password-2026' }),
-        })
-      const redeemed = await reset()
-      assert.equal(redeemed.status, 200)
-      const replayed = await reset()
-      assert.notEqual(replayed.status, 200)
+        });
+      const redeemed = await reset();
+      assert.equal(redeemed.status, 200);
+      const replayed = await reset();
+      assert.notEqual(replayed.status, 200);
       const signin = await fetch(`${origin}/api/auth/sign-in`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -231,17 +231,17 @@ test('the issued owner link redeems once through the normal HTTP flow and ends e
           email: 'bruce@wayne.example',
           password: 'owner-recovered-password-2026',
         }),
-      })
-      assert.equal(signin.status, 200)
-    })
-    const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
+      });
+      assert.equal(signin.status, 200);
+    });
+    const inspect = f.inspect();
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0);
     assert.equal(
       inspect
         .prepare('SELECT COUNT(*) AS n FROM account_sessions WHERE handle_hash = ?')
         .get('b'.repeat(64))!.n,
       0
-    )
+    );
     assert.equal(
       inspect
         .prepare(
@@ -249,39 +249,39 @@ test('the issued owner link redeems once through the normal HTTP flow and ends e
         )
         .get()!.n,
       1
-    )
-    inspect.close()
+    );
+    inspect.close();
   } finally {
-    f.cleanup()
+    f.cleanup();
   }
-}).timeout(90000)
+}).timeout(90000);
 
 test('owner recovery refuses invalid configuration, addresses and non-disk paths without minting', ({
   assert,
   test: t,
 }) => {
-  t.timeout(90000)
-  const f = operatorFixture()
+  t.timeout(90000);
+  const f = operatorFixture();
   try {
-    assert.equal(f.command(['app:upgrade']).status, 0)
-    const database = f.inspect()
-    seedOwner(database)
-    database.close()
+    assert.equal(f.command(['app:upgrade']).status, 0);
+    const database = f.inspect();
+    seedOwner(database);
+    database.close();
     for (const overrides of [
       { CAPACITYLENS_PUBLIC_URL: 'https://capacity.example.test/path' },
       { CAPACITYLENS_DB: ':memory:' },
       { CAPACITYLENS_DB: `${f.databasePath}.missing` },
     ])
-      assert.notEqual(f.command(args, overrides).status, 0)
+      assert.notEqual(f.command(args, overrides).status, 0);
     assert.notEqual(
       f.command(['owner:reset-password', 'invalid@@wayne.example', '--confirm-server-stopped'])
         .status,
       0
-    )
-    const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
-    inspect.close()
+    );
+    const inspect = f.inspect();
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0);
+    inspect.close();
   } finally {
-    f.cleanup()
+    f.cleanup();
   }
-})
+});

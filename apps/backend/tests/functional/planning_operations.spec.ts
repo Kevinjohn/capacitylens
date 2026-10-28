@@ -1,15 +1,15 @@
-import { test } from '@japa/runner'
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { freshDatabase } from '../helpers/fresh_database.js'
-import db from '@adonisjs/lucid/services/db'
-import { randomUUID } from 'node:crypto'
-import { readState, readStateWithClient, resetState } from '#services/state_repository'
+import { test } from '@japa/runner';
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import { freshDatabase } from '../helpers/fresh_database.js';
+import db from '@adonisjs/lucid/services/db';
+import { randomUUID } from 'node:crypto';
+import { readState, readStateWithClient, resetState } from '#services/state_repository';
 import {
   executePlanningIntent as applyPlanningIntent,
   PlanningOperationError,
-} from '#services/planning_operations/execute'
-import type { PlanningIntent } from '#validators/planning_operations'
-import type { BatchCapabilities } from '#services/planning_operations/data_policy'
+} from '#services/planning_operations/execute';
+import type { PlanningIntent } from '#validators/planning_operations';
+import type { BatchCapabilities } from '#services/planning_operations/data_policy';
 
 const owner: BatchCapabilities = {
   role: 'owner',
@@ -17,7 +17,7 @@ const owner: BatchCapabilities = {
   canAnonymise: true,
   canSeePrivateNames: true,
   canSeeTimeOffNote: true,
-}
+};
 
 async function executePlanningIntent(
   trx: TransactionClientContract,
@@ -25,20 +25,20 @@ async function executePlanningIntent(
   intent: PlanningIntent,
   capabilities: BatchCapabilities
 ) {
-  const data = await readStateWithClient(trx, accountId, true)
+  const data = await readStateWithClient(trx, accountId, true);
   return applyPlanningIntent(trx, accountId, intent, capabilities, data, {
     actorId: 'u-bruce',
     sessionId: 1,
     mutationId: randomUUID(),
-  })
+  });
 }
 
 test.group('typed planning writers', (group) => {
-  group.setup(() => freshDatabase())
+  group.setup(() => freshDatabase());
 
   test('creates and patches a closure while preserving its other fields', async ({ assert }) => {
-    await resetState('single')
-    const id = randomUUID()
+    await resetState('single');
+    const id = randomUUID();
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -50,7 +50,7 @@ test.group('typed planning writers', (group) => {
         },
         owner
       )
-    )
+    );
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -62,18 +62,18 @@ test.group('typed planning writers', (group) => {
         },
         owner
       )
-    )
-    const state = await readState('a-studio', true)
-    const row = state.closures.find((item) => item.id === id)
-    assert.equal(row?.name, 'Founders Day')
-    assert.equal(row?.startDate, '2026-10-20')
-    assert.equal(row?.endDate, '2026-10-21')
-    assert.equal(row?.accountId, 'a-studio')
-  })
+    );
+    const state = await readState('a-studio', true);
+    const row = state.closures.find((item) => item.id === id);
+    assert.equal(row?.name, 'Founders Day');
+    assert.equal(row?.startDate, '2026-10-20');
+    assert.equal(row?.endDate, '2026-10-21');
+    assert.equal(row?.accountId, 'a-studio');
+  });
 
   test('rejects an invalid reference without persisting the row', async ({ assert }) => {
-    await resetState('single')
-    const id = randomUUID()
+    await resetState('single');
+    const id = randomUUID();
     await assert.rejects(
       () =>
         db.transaction((trx) =>
@@ -94,17 +94,17 @@ test.group('typed planning writers', (group) => {
           )
         ),
       PlanningOperationError
-    )
-    const state = await readState('a-studio', true)
-    assert.isUndefined(state.timeOff.find((row) => row.id === id))
-  })
+    );
+    const state = await readState('a-studio', true);
+    assert.isUndefined(state.timeOff.find((row) => row.id === id));
+  });
 
   test('rolls back every repeat entry when a later one fails', async ({ assert }) => {
-    await resetState('single')
-    const initialState = await readState('a-studio', true)
-    const resourceId = initialState.resources[0]!.id
-    const firstId = randomUUID()
-    const secondId = randomUUID()
+    await resetState('single');
+    const initialState = await readState('a-studio', true);
+    const resourceId = initialState.resources[0]!.id;
+    const firstId = randomUUID();
+    const secondId = randomUUID();
     const intent: PlanningIntent = {
       operation: 'timeOff.repeat',
       entries: [
@@ -123,23 +123,23 @@ test.group('typed planning writers', (group) => {
           type: 'holiday',
         },
       ],
-    }
+    };
     await assert.rejects(() =>
       db.transaction((trx) => executePlanningIntent(trx, 'a-studio', intent, owner))
-    )
-    const state = await readState('a-studio', true)
-    const rows = state.timeOff
-    assert.isFalse(rows.some((row) => row.id === firstId || row.id === secondId))
-  })
+    );
+    const state = await readState('a-studio', true);
+    const rows = state.timeOff;
+    assert.isFalse(rows.some((row) => row.id === firstId || row.id === secondId));
+  });
 
   test('permits Editor settings but reserves capacity access for Admin', async ({ assert }) => {
-    await resetState('single')
+    await resetState('single');
     const editor: BatchCapabilities = {
       ...owner,
       role: 'editor',
       canSeePrivateNames: false,
       canSeeTimeOffNote: false,
-    }
+    };
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -150,11 +150,11 @@ test.group('typed planning writers', (group) => {
         },
         editor
       )
-    )
-    const state = await readState('a-studio', true)
-    const account = state.accounts[0]
-    assert.equal(account?.weekStartsOn, 0)
-    assert.equal(account?.timezone, 'Europe/London')
+    );
+    const state = await readState('a-studio', true);
+    const account = state.accounts[0];
+    assert.equal(account?.weekStartsOn, 0);
+    assert.equal(account?.timezone, 'Europe/London');
     await assert.rejects(
       () =>
         db.transaction((trx) =>
@@ -169,13 +169,13 @@ test.group('typed planning writers', (group) => {
           )
         ),
       PlanningOperationError
-    )
-  })
+    );
+  });
 
   test('keeps an owner-only private name when an Editor changes its colour', async ({ assert }) => {
-    await resetState('single')
-    const before = await readState('a-studio', true)
-    const id = randomUUID()
+    await resetState('single');
+    const before = await readState('a-studio', true);
+    const id = randomUUID();
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -195,8 +195,8 @@ test.group('typed planning writers', (group) => {
         },
         owner
       )
-    )
-    const editor: BatchCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false }
+    );
+    const editor: BatchCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -207,21 +207,21 @@ test.group('typed planning writers', (group) => {
         },
         editor
       )
-    )
-    const after = await readState('a-studio', true)
-    const row = after.clients.find((client) => client.id === id)
-    assert.equal(row?.name, 'Bruce Wayne')
-    assert.equal(row?.codeName, 'Boardroom')
-    assert.equal(row?.isPrivate, true)
-  })
+    );
+    const after = await readState('a-studio', true);
+    const row = after.clients.find((client) => client.id === id);
+    assert.equal(row?.name, 'Bruce Wayne');
+    assert.equal(row?.codeName, 'Boardroom');
+    assert.equal(row?.isPrivate, true);
+  });
 
   test('lets an Editor create a public catalogue row without privacy controls', async ({
     assert,
   }) => {
-    await resetState('single')
-    const before = await readState('a-studio', true)
-    const id = randomUUID()
-    const editor: BatchCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false }
+    await resetState('single');
+    const before = await readState('a-studio', true);
+    const id = randomUUID();
+    const editor: BatchCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -236,29 +236,29 @@ test.group('typed planning writers', (group) => {
         },
         editor
       )
-    )
-    const after = await readState('a-studio', true)
-    const created = after.clients.find((row) => row.id === id)
-    assert.equal(created?.name, 'Wayne Foundation')
-    assert.isNotTrue(created?.isPrivate)
-  })
+    );
+    const after = await readState('a-studio', true);
+    const created = after.clients.find((row) => row.id === id);
+    assert.equal(created?.name, 'Wayne Foundation');
+    assert.isNotTrue(created?.isPrivate);
+  });
 
   test('allows a later repeat on a nonworking Sunday and mints a shared series ID', async ({
     assert,
   }) => {
-    await resetState('single')
-    const before = await readState('a-studio', true)
+    await resetState('single');
+    const before = await readState('a-studio', true);
     const source = before.allocations.find((allocation) => {
-      const resource = before.resources.find((row) => row.id === allocation.resourceId)
+      const resource = before.resources.find((row) => row.id === allocation.resourceId);
       return (
         resource?.kind === 'person' &&
         resource.workingDays.includes(1) &&
         resource.firstAvailableDate === null &&
         resource.lastAvailableDate === null
-      )
-    })!
-    const firstId = randomUUID()
-    const laterId = randomUUID()
+      );
+    })!;
+    const firstId = randomUUID();
+    const laterId = randomUUID();
     await assert.rejects(
       () =>
         db.transaction((trx) =>
@@ -274,7 +274,7 @@ test.group('typed planning writers', (group) => {
           )
         ),
       PlanningOperationError
-    )
+    );
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -289,12 +289,12 @@ test.group('typed planning writers', (group) => {
         },
         owner
       )
-    )
-    const after = await readState('a-studio', true)
-    const first = after.allocations.find((row) => row.id === firstId)
-    const later = after.allocations.find((row) => row.id === laterId)
-    assert.equal(first?.seriesId, later?.seriesId)
-    assert.isString(first?.seriesId)
-    assert.equal(later?.note, source.note)
-  })
-})
+    );
+    const after = await readState('a-studio', true);
+    const first = after.allocations.find((row) => row.id === firstId);
+    const later = after.allocations.find((row) => row.id === laterId);
+    assert.equal(first?.seriesId, later?.seriesId);
+    assert.isString(first?.seriesId);
+    assert.equal(later?.note, source.note);
+  });
+});

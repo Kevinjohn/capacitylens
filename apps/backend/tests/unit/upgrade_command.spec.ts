@@ -1,4 +1,4 @@
-import { test } from '@japa/runner'
+import { test } from '@japa/runner';
 import {
   cpSync,
   copyFileSync,
@@ -7,21 +7,21 @@ import {
   rmSync,
   symlinkSync,
   writeFileSync,
-} from 'node:fs'
-import { mkdtemp, rm, stat } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
-import { DatabaseSync } from 'node:sqlite'
-import { openNativeDatabase } from '#services/backup/native'
-import { ensurePrivateBackupDirectory, writeOneShotSnapshot } from '#services/backup/snapshot'
-import { preMigrationBackupDirectory } from '../../commands/app_upgrade.js'
-import { scratchBackendFilter } from './operator_command_support.js'
+} from 'node:fs';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
+import { openNativeDatabase } from '#services/backup/native';
+import { ensurePrivateBackupDirectory, writeOneShotSnapshot } from '#services/backup/snapshot';
+import { preMigrationBackupDirectory } from '../../commands/app_upgrade.js';
+import { scratchBackendFilter } from './operator_command_support.js';
 
-const appRoot = process.cwd()
+const appRoot = process.cwd();
 
 function command(root: string, databasePath: string, args: string[], backupDir?: string) {
-  const web = args.includes('bin/server.ts')
+  const web = args.includes('bin/server.ts');
   const child = spawnSync(process.execPath, args, {
     cwd: root,
     encoding: 'utf8',
@@ -44,151 +44,153 @@ function command(root: string, databasePath: string, args: string[], backupDir?:
       CAPACITYLENS_SECRET: 'capacitylens-test-secret-0123456789abcdef',
       CAPACITYLENS_PUBLIC_URL: 'http://127.0.0.1',
     },
-  })
-  if (child.error) throw child.error
-  return { status: child.status, output: `${child.stdout}\n${child.stderr}` }
+  });
+  if (child.error) throw child.error;
+  return { status: child.status, output: `${child.stdout}\n${child.stderr}` };
 }
 
 const ace = (root: string, databasePath: string, name: string, backupDir?: string) =>
-  command(root, databasePath, ['ace.js', name], backupDir)
+  command(root, databasePath, ['ace.js', name], backupDir);
 
 function journal(databasePath: string) {
-  const database = openNativeDatabase(databasePath, { readonly: true, fileMustExist: true })
+  const database = openNativeDatabase(databasePath, { readonly: true, fileMustExist: true });
   try {
     return database.prepare('SELECT name FROM adonis_schema ORDER BY id').all() as Array<{
-      name: string
-    }>
+      name: string;
+    }>;
   } finally {
-    database.close()
+    database.close();
   }
 }
 
 function tables(databasePath: string) {
-  const database = openNativeDatabase(databasePath, { readonly: true, fileMustExist: true })
+  const database = openNativeDatabase(databasePath, { readonly: true, fileMustExist: true });
   try {
     return (
       database.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{
-        name: string
+        name: string;
       }>
-    ).map(({ name }) => name)
+    ).map(({ name }) => name);
   } finally {
-    database.close()
+    database.close();
   }
 }
 
 /** Copy the backend so a test can add pending migrations after the baseline. */
 function scratchApp(root: string, migrations: Record<string, string>) {
-  const scratch = join(root, 'backend')
-  cpSync(appRoot, scratch, { recursive: true, filter: scratchBackendFilter })
-  symlinkSync(join(appRoot, 'node_modules'), join(scratch, 'node_modules'), 'dir')
+  const scratch = join(root, 'backend');
+  cpSync(appRoot, scratch, { recursive: true, filter: scratchBackendFilter });
+  symlinkSync(join(appRoot, 'node_modules'), join(scratch, 'node_modules'), 'dir');
   for (const [name, source] of Object.entries(migrations))
-    writeFileSync(join(scratch, `database/migrations/${name}.ts`), source)
-  return scratch
+    writeFileSync(join(scratch, `database/migrations/${name}.ts`), source);
+  return scratch;
 }
 
 function preMigrationSnapshots(dir: string) {
-  return readdirSync(dir).filter((name) => /^capacitylens-pre-migration-utc-[\d-]+\.db$/.test(name))
+  return readdirSync(dir).filter((name) =>
+    /^capacitylens-pre-migration-utc-[\d-]+\.db$/.test(name)
+  );
 }
 
 test('native upgrade initializes a fresh database without a snapshot', ({
   assert,
   test: testCase,
 }) => {
-  testCase.timeout(40_000)
-  const root = mkdtempSync(join(tmpdir(), 'capacitylens-upgrade-fresh-'))
+  testCase.timeout(40_000);
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-upgrade-fresh-'));
   try {
-    const dbPath = join(root, 'live.db')
-    const result = ace(appRoot, dbPath, 'app:upgrade')
-    assert.equal(result.status, 0, result.output)
-    assert.lengthOf(journal(dbPath), 4)
-    assert.isFalse(result.output.includes('Pre-upgrade backup written'))
-    const repeated = ace(appRoot, dbPath, 'app:upgrade')
-    assert.equal(repeated.status, 0, repeated.output)
-    assert.match(repeated.output, /Already up to date/)
-    assert.lengthOf(journal(dbPath), 4)
+    const dbPath = join(root, 'live.db');
+    const result = ace(appRoot, dbPath, 'app:upgrade');
+    assert.equal(result.status, 0, result.output);
+    assert.lengthOf(journal(dbPath), 4);
+    assert.isFalse(result.output.includes('Pre-upgrade backup written'));
+    const repeated = ace(appRoot, dbPath, 'app:upgrade');
+    assert.equal(repeated.status, 0, repeated.output);
+    assert.match(repeated.output, /Already up to date/);
+    assert.lengthOf(journal(dbPath), 4);
   } finally {
-    rmSync(root, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true });
   }
-})
+});
 
 test('native upgrade backs up an existing database before migrating and refuses a failed backup', ({
   assert,
   test: testCase,
 }) => {
-  testCase.timeout(90_000)
-  const root = mkdtempSync(join(tmpdir(), 'capacitylens-upgrade-pending-'))
+  testCase.timeout(90_000);
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-upgrade-pending-'));
   try {
-    const dbPath = join(root, 'live.db')
-    const init = ace(appRoot, dbPath, 'app:upgrade')
-    assert.equal(init.status, 0, init.output)
+    const dbPath = join(root, 'live.db');
+    const init = ace(appRoot, dbPath, 'app:upgrade');
+    assert.equal(init.status, 0, init.output);
     const scratch = scratchApp(root, {
       '202610210001_add_upgrade_table': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_added', (table) => table.increments('id')) } }\n`,
-    })
+    });
 
-    const blockedDir = join(root, 'occupied')
-    writeFileSync(blockedDir, 'not a directory')
-    const blocked = ace(scratch, dbPath, 'app:upgrade', blockedDir)
-    assert.notEqual(blocked.status, 0, blocked.output)
-    assert.isNotNull(blocked.status, blocked.output)
-    assert.lengthOf(journal(dbPath), 4)
-    assert.notInclude(tables(dbPath), 'upgrade_added')
+    const blockedDir = join(root, 'occupied');
+    writeFileSync(blockedDir, 'not a directory');
+    const blocked = ace(scratch, dbPath, 'app:upgrade', blockedDir);
+    assert.notEqual(blocked.status, 0, blocked.output);
+    assert.isNotNull(blocked.status, blocked.output);
+    assert.lengthOf(journal(dbPath), 4);
+    assert.notInclude(tables(dbPath), 'upgrade_added');
 
-    const upgrade = ace(scratch, dbPath, 'app:upgrade')
-    assert.equal(upgrade.status, 0, upgrade.output)
-    assert.match(upgrade.output, /Pre-upgrade backup written/)
-    assert.lengthOf(journal(dbPath), 5)
-    assert.include(tables(dbPath), 'upgrade_added')
-    const backups = join(root, 'live.db.backups')
-    const [snapshot, ...others] = preMigrationSnapshots(backups)
-    assert.isDefined(snapshot)
-    assert.lengthOf(others, 0)
-    assert.lengthOf(journal(join(backups, snapshot!)), 4)
-    assert.notInclude(tables(join(backups, snapshot!)), 'upgrade_added')
+    const upgrade = ace(scratch, dbPath, 'app:upgrade');
+    assert.equal(upgrade.status, 0, upgrade.output);
+    assert.match(upgrade.output, /Pre-upgrade backup written/);
+    assert.lengthOf(journal(dbPath), 5);
+    assert.include(tables(dbPath), 'upgrade_added');
+    const backups = join(root, 'live.db.backups');
+    const [snapshot, ...others] = preMigrationSnapshots(backups);
+    assert.isDefined(snapshot);
+    assert.lengthOf(others, 0);
+    assert.lengthOf(journal(join(backups, snapshot!)), 4);
+    assert.notInclude(tables(join(backups, snapshot!)), 'upgrade_added');
   } finally {
-    rmSync(root, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true });
   }
-})
+});
 
 test('masquerade migration retires legacy tokens and preserves historical audit entries', ({
   assert,
   test: testCase,
 }) => {
-  testCase.timeout(90_000)
-  const root = mkdtempSync(join(tmpdir(), 'capacitylens-masquerade-upgrade-'))
+  testCase.timeout(90_000);
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-masquerade-upgrade-'));
   try {
-    const dbPath = join(root, 'legacy.db')
-    const scratch = scratchApp(root, {})
-    const migrationName = '202610270001_replace_legacy_masquerades_with_package.ts'
-    const scratchMigration = join(scratch, 'database/migrations', migrationName)
-    rmSync(scratchMigration)
+    const dbPath = join(root, 'legacy.db');
+    const scratch = scratchApp(root, {});
+    const migrationName = '202610270001_replace_legacy_masquerades_with_package.ts';
+    const scratchMigration = join(scratch, 'database/migrations', migrationName);
+    rmSync(scratchMigration);
     const baseline = command(scratch, dbPath, [
       'ace.js',
       'migration:run',
       '--force',
       '--no-schema-generate',
-    ])
-    assert.equal(baseline.status, 0, baseline.output)
+    ]);
+    assert.equal(baseline.status, 0, baseline.output);
 
-    const database = new DatabaseSync(dbPath)
-    const now = new Date().toISOString()
+    const database = new DatabaseSync(dbPath);
+    const now = new Date().toISOString();
     database
       .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
-      .run('a-studio', 'Wayne Enterprises', '#123456', now, now)
+      .run('a-studio', 'Wayne Enterprises', '#123456', now, now);
     database
       .prepare(
         'INSERT INTO users (id,email,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?)'
       )
-      .run('bruce', 'bruce@wayne.example', 'Bruce Wayne', null, now, now)
+      .run('bruce', 'bruce@wayne.example', 'Bruce Wayne', null, now, now);
     database
       .prepare(
         'INSERT INTO users (id,email,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?)'
       )
-      .run('clark', 'clark@wayne.example', 'Clark Kent', null, now, now)
+      .run('clark', 'clark@wayne.example', 'Clark Kent', null, now, now);
     const session = database
       .prepare(
         'INSERT INTO account_sessions (user_id,handle_hash,created_at,last_seen_at,expires_at) VALUES (?,?,?,?,?)'
       )
-      .run('bruce', 'a'.repeat(64), now, now, '2999-01-01T00:00:00.000Z')
+      .run('bruce', 'a'.repeat(64), now, now, '2999-01-01T00:00:00.000Z');
     database
       .prepare(
         'INSERT INTO masquerades (id,created_at,updated_at,account_id,session_id,actor_user_id,role,target_user_id,token,started_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
@@ -204,7 +206,7 @@ test('masquerade migration retires legacy tokens and preserves historical audit 
         'clark',
         'retired-bearer-token',
         now
-      )
+      );
     database
       .prepare(
         'INSERT INTO audit_entries (id,account_id,actor_id,action,entity,entity_id,details,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)'
@@ -219,128 +221,128 @@ test('masquerade migration retires legacy tokens and preserves historical audit 
         JSON.stringify({ reason: 'support' }),
         now,
         now
-      )
-    database.close()
+      );
+    database.close();
 
-    copyFileSync(join(appRoot, 'database/migrations', migrationName), scratchMigration)
+    copyFileSync(join(appRoot, 'database/migrations', migrationName), scratchMigration);
     const upgraded = command(scratch, dbPath, [
       'ace.js',
       'migration:run',
       '--force',
       '--no-schema-generate',
-    ])
-    assert.equal(upgraded.status, 0, upgraded.output)
-    const migrated = openNativeDatabase(dbPath, { readonly: true })
+    ]);
+    assert.equal(upgraded.status, 0, upgraded.output);
+    const migrated = openNativeDatabase(dbPath, { readonly: true });
     try {
       const names = (
         migrated.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{
-          name: string
+          name: string;
         }>
-      ).map(({ name }) => name)
-      assert.notInclude(names, 'masquerades')
-      assert.include(names, 'masquerade_modes')
-      assert.include(names, 'masquerade_events')
+      ).map(({ name }) => name);
+      assert.notInclude(names, 'masquerades');
+      assert.include(names, 'masquerade_modes');
+      assert.include(names, 'masquerade_events');
       const history = (
         migrated.prepare('SELECT id,action,entity_id,details FROM audit_entries').all() as Array<{
-          id: string
-          action: string
-          entity_id: string
-          details: string
+          id: string;
+          action: string;
+          entity_id: string;
+          details: string;
         }>
-      ).find(({ id }) => id === 'historical-audit')
+      ).find(({ id }) => id === 'historical-audit');
       assert.deepEqual(history, {
         id: 'historical-audit',
         action: 'masquerade-started',
         entity_id: 'clark',
         details: JSON.stringify({ reason: 'support' }),
-      })
+      });
     } finally {
-      migrated.close()
+      migrated.close();
     }
   } finally {
-    rmSync(root, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true });
   }
-})
+});
 
 test('upgrade refuses schema drift on an otherwise complete database', ({
   assert,
   test: testCase,
 }) => {
-  testCase.timeout(40_000)
-  const root = mkdtempSync(join(tmpdir(), 'capacitylens-upgrade-drift-'))
+  testCase.timeout(40_000);
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-upgrade-drift-'));
   try {
-    const dbPath = join(root, 'live.db')
-    const init = ace(appRoot, dbPath, 'app:upgrade')
-    assert.equal(init.status, 0, init.output)
-    const database = openNativeDatabase(dbPath)
-    database.prepare('DROP TRIGGER clients_account_immutable').run()
-    database.close()
-    const drift = ace(appRoot, dbPath, 'app:upgrade')
-    assert.isNotNull(drift.status, drift.output)
-    assert.notEqual(drift.status, 0, drift.output)
-    assert.match(drift.output, /Database schema drift/)
+    const dbPath = join(root, 'live.db');
+    const init = ace(appRoot, dbPath, 'app:upgrade');
+    assert.equal(init.status, 0, init.output);
+    const database = openNativeDatabase(dbPath);
+    database.prepare('DROP TRIGGER clients_account_immutable').run();
+    database.close();
+    const drift = ace(appRoot, dbPath, 'app:upgrade');
+    assert.isNotNull(drift.status, drift.output);
+    assert.notEqual(drift.status, 0, drift.output);
+    assert.match(drift.output, /Database schema drift/);
   } finally {
-    rmSync(root, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true });
   }
-})
+});
 
 test('a failing later migration rolls back its own DDL after an earlier file commits', ({
   assert,
   test: testCase,
 }) => {
-  testCase.timeout(90_000)
-  const root = mkdtempSync(join(tmpdir(), 'capacitylens-upgrade-failure-'))
+  testCase.timeout(90_000);
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-upgrade-failure-'));
   try {
-    const dbPath = join(root, 'live.db')
-    const init = ace(appRoot, dbPath, 'app:upgrade')
-    assert.equal(init.status, 0, init.output)
+    const dbPath = join(root, 'live.db');
+    const init = ace(appRoot, dbPath, 'app:upgrade');
+    assert.equal(init.status, 0, init.output);
     const scratch = scratchApp(root, {
       '202610210001_commit_before_failure': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_committed', (table) => table.increments('id')) } }\n`,
       '202610210002_fail_after_ddl': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_rolled_back', (table) => table.increments('id')); this.schema.raw('SELECT * FROM table_that_does_not_exist') } }\n`,
-    })
+    });
 
-    const upgrade = ace(scratch, dbPath, 'app:upgrade')
-    assert.notEqual(upgrade.status, 0, upgrade.output)
-    assert.lengthOf(journal(dbPath), 5)
-    assert.include(tables(dbPath), 'upgrade_committed')
-    assert.notInclude(tables(dbPath), 'upgrade_rolled_back')
-    const [snapshot] = preMigrationSnapshots(join(root, 'live.db.backups'))
-    assert.isDefined(snapshot)
-    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!)), 4)
+    const upgrade = ace(scratch, dbPath, 'app:upgrade');
+    assert.notEqual(upgrade.status, 0, upgrade.output);
+    assert.lengthOf(journal(dbPath), 5);
+    assert.include(tables(dbPath), 'upgrade_committed');
+    assert.notInclude(tables(dbPath), 'upgrade_rolled_back');
+    const [snapshot] = preMigrationSnapshots(join(root, 'live.db.backups'));
+    assert.isDefined(snapshot);
+    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!)), 4);
   } finally {
-    rmSync(root, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true });
   }
-})
+});
 
 test('upgrade fallback creates a private backup directory without changing its parent', async ({
   assert,
 }) => {
-  const root = await mkdtemp(join(tmpdir(), 'capacitylens-upgrade-'))
+  const root = await mkdtemp(join(tmpdir(), 'capacitylens-upgrade-'));
   try {
-    const databasePath = join(root, 'live.db')
-    const database = openNativeDatabase(databasePath)
+    const databasePath = join(root, 'live.db');
+    const database = openNativeDatabase(databasePath);
     try {
-      database.prepare('CREATE TABLE entries (id INTEGER PRIMARY KEY)').run()
-      const parent = await stat(root)
-      const parentMode = parent.mode & 0o777
-      const dir = preMigrationBackupDirectory(databasePath)
-      const file = join(dir, 'capacitylens-pre-migration.db')
-      ensurePrivateBackupDirectory(dir)
-      await writeOneShotSnapshot({ database, dir, file })
-      const afterParent = await stat(root)
-      const backupDirectory = await stat(dir)
-      const backupFile = await stat(file)
-      assert.equal(afterParent.mode & 0o777, parentMode)
-      assert.equal(backupDirectory.mode & 0o777, 0o700)
-      assert.equal(backupFile.mode & 0o777, 0o600)
+      database.prepare('CREATE TABLE entries (id INTEGER PRIMARY KEY)').run();
+      const parent = await stat(root);
+      const parentMode = parent.mode & 0o777;
+      const dir = preMigrationBackupDirectory(databasePath);
+      const file = join(dir, 'capacitylens-pre-migration.db');
+      ensurePrivateBackupDirectory(dir);
+      await writeOneShotSnapshot({ database, dir, file });
+      const afterParent = await stat(root);
+      const backupDirectory = await stat(dir);
+      const backupFile = await stat(file);
+      assert.equal(afterParent.mode & 0o777, parentMode);
+      assert.equal(backupDirectory.mode & 0o777, 0o700);
+      assert.equal(backupFile.mode & 0o777, 0o600);
       assert.equal(
         preMigrationBackupDirectory(databasePath, join(root, 'configured')),
         join(root, 'configured')
-      )
+      );
     } finally {
-      database.close()
+      database.close();
     }
   } finally {
-    await rm(root, { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true });
   }
-})
+});

@@ -1,4 +1,4 @@
-import { configApp } from '@adonisjs/eslint-config'
+import { configApp } from '@adonisjs/eslint-config';
 
 export default configApp(
   { languageOptions: { parserOptions: { tsconfigRootDir: import.meta.dirname } } },
@@ -55,4 +55,4 @@ export default configApp(
       ],
     },
   }
-)
+);

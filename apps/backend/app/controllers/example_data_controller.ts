@@ -1,13 +1,13 @@
-import type { HttpContext } from '@adonisjs/core/http'
-import { buildExampleCompany, countExampleRows } from '@capacitylens/shared/data/exampleCompany'
-import { todayISO } from '@capacitylens/shared/lib/dateMath'
-import { encodeRow, readStateWithClient } from '#services/state_repository'
-import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
-import { withActor } from '#services/auth/current_actor'
-import { writeAudit } from '#services/audit'
-import { BatchRequestError } from '#services/planning_operations/errors'
-import { assertCompanyAction } from '#services/auth/authorization'
-import { advancePlanningRevision } from '#services/planning_revision'
+import type { HttpContext } from '@adonisjs/core/http';
+import { buildExampleCompany, countExampleRows } from '@capacitylens/shared/data/exampleCompany';
+import { todayISO } from '@capacitylens/shared/lib/dateMath';
+import { encodeRow, readStateWithClient } from '#services/state_repository';
+import { TABLE_NAMES } from '#services/planning_operations/entity_policy';
+import { withActor } from '#services/auth/current_actor';
+import { writeAudit } from '#services/audit';
+import { BatchRequestError } from '#services/planning_operations/errors';
+import { assertCompanyAction } from '#services/auth/authorization';
+import { advancePlanningRevision } from '#services/planning_revision';
 
 const INSERT_ORDER = [
   'clients',
@@ -18,18 +18,18 @@ const INSERT_ORDER = [
   'activities',
   'allocations',
   'timeOff',
-] as const
+] as const;
 
 export default class ExampleDataController {
   async store(ctx: HttpContext) {
-    const { params, response, logger } = ctx
-    const accountId = params.accountId
+    const { params, response, logger } = ctx;
+    const accountId = params.accountId;
     try {
       const added = await withActor(ctx, async (_actor, trx) => {
-        const actor = await assertCompanyAction(accountId, 'write', trx)
-        const state = await readStateWithClient(trx, accountId, true)
-        const account = state.accounts[0]
-        if (!account) throw new BatchRequestError('Company not found.', 404)
+        const actor = await assertCompanyAction(accountId, 'write', trx);
+        const state = await readStateWithClient(trx, accountId, true);
+        const account = state.accounts[0];
+        if (!account) throw new BatchRequestError('Company not found.', 404);
         if (
           state.resources.length > 0 ||
           state.clients.some((client) => client.builtin !== true) ||
@@ -41,14 +41,14 @@ export default class ExampleDataController {
             409,
             undefined,
             'EXAMPLE_DATA_COMPANY_NOT_EMPTY'
-          )
+          );
         const sample = buildExampleCompany({
           accountId,
           referenceDate: todayISO(account.timezone ?? undefined),
           weekStartsOn: account.weekStartsOn ?? 1,
-        })
+        });
         for (const key of INSERT_ORDER) {
-          const rows = sample[key]
+          const rows = sample[key];
           if (rows.length > 0)
             await trx
               .table(TABLE_NAMES[key])
@@ -56,7 +56,7 @@ export default class ExampleDataController {
                 rows.map((row) =>
                   encodeRow(TABLE_NAMES[key], row as unknown as Record<string, unknown>)
                 )
-              )
+              );
         }
         await writeAudit(trx, {
           accountId,
@@ -65,23 +65,23 @@ export default class ExampleDataController {
           entity: 'account',
           entityId: accountId,
           fields: Object.keys(sample),
-        })
-        await advancePlanningRevision(trx, accountId)
-        return countExampleRows(sample)
-      })
+        });
+        await advancePlanningRevision(trx, accountId);
+        return countExampleRows(sample);
+      });
       try {
-        logger.info({ accountId, added }, 'Example data committed')
+        logger.info({ accountId, added }, 'Example data committed');
       } catch {
-        response.header('x-capacitylens-audit-warning', 'true')
+        response.header('x-capacitylens-audit-warning', 'true');
       }
-      return response.created({ added })
+      return response.created({ added });
     } catch (error) {
       if (error instanceof BatchRequestError)
         return response.status(error.status).send({
           error: error.message,
           ...(error.code ? { code: error.code } : {}),
-        })
-      throw error
+        });
+      throw error;
     }
   }
 }

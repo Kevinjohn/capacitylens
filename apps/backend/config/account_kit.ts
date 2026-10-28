@@ -1,19 +1,19 @@
-import { publicOrigin } from '#config/public_origin'
-import app from '@adonisjs/core/services/app'
-import env from '#start/env'
-import { createActionUrls, createMailNotifications, defineConfig } from 'adonisjs-account-kit'
-import { withAdmissionCleanup, withInvitationEvidence } from 'adonisjs-account-kit/admission'
+import { publicOrigin } from '#config/public_origin';
+import app from '@adonisjs/core/services/app';
+import env from '#start/env';
+import { createActionUrls, createMailNotifications, defineConfig } from 'adonisjs-account-kit';
+import { withAdmissionCleanup, withInvitationEvidence } from 'adonisjs-account-kit/admission';
 import {
   MIN_PASSWORD_LENGTH,
   MAX_PASSWORD_INPUT_CODE_UNITS,
-} from '@capacitylens/shared/domain/password'
+} from '@capacitylens/shared/domain/password';
 import {
   authorize,
   onCredentialsChangedTransaction,
   onInvitationAccepted,
-} from '#services/account_kit/policy'
-import { registrationDisplayName, users } from '#services/account_kit/users'
-import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry'
+} from '#services/account_kit/policy';
+import { registrationDisplayName, users } from '#services/account_kit/users';
+import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry';
 
 export default defineConfig({
   users,
@@ -59,4 +59,4 @@ export default defineConfig({
   onInvitationAccepted: withInvitationEvidence(onInvitationAccepted),
   onAccountDeletingTransaction: withAdmissionCleanup(),
   onCredentialsChangedTransaction,
-})
+});

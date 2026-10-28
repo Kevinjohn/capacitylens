@@ -1,8 +1,8 @@
-import { randomUUID } from 'node:crypto'
-import { test } from '@japa/runner'
-import { freshDatabase } from '../../helpers/fresh_database.js'
-import { readState } from '#services/state_repository'
-import type { AppData } from '@capacitylens/shared/types/entities'
+import { randomUUID } from 'node:crypto';
+import { test } from '@japa/runner';
+import { freshDatabase } from '../../helpers/fresh_database.js';
+import { readState } from '#services/state_repository';
+import type { AppData } from '@capacitylens/shared/types/entities';
 import {
   accountId,
   configureAuth,
@@ -10,20 +10,20 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from './helpers.js'
+} from './helpers.js';
 
-const otherAccountId = 'a-loft'
+const otherAccountId = 'a-loft';
 const requestBody = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
   intent,
-})
+});
 
 test.group('typed bulk writer tenant isolation', (group) => {
-  group.setup(() => freshDatabase())
+  group.setup(() => freshDatabase());
   group.each.setup(async () => {
-    await resetPlanningFixture()
-  })
+    await resetPlanningFixture();
+  });
 
   for (const scenario of [
     {
@@ -81,25 +81,25 @@ test.group('typed bulk writer tenant isolation', (group) => {
       assert,
       cleanup,
     }) => {
-      configureAuth(cleanup)
-      const { cookie } = await signIn(client)
-      const beforeOwn = await readState(accountId, true)
-      const path = typeof scenario.path === 'string' ? scenario.path : scenario.path(beforeOwn)
-      const intent = scenario.intent(beforeOwn)
-      const beforeOther = await readState(otherAccountId, true)
+      configureAuth(cleanup);
+      const { cookie } = await signIn(client);
+      const beforeOwn = await readState(accountId, true);
+      const path = typeof scenario.path === 'string' ? scenario.path : scenario.path(beforeOwn);
+      const intent = scenario.intent(beforeOwn);
+      const beforeOther = await readState(otherAccountId, true);
       const own = await session(client.post(`/api/accounts/${accountId}/${path}`), cookie)
         .json(requestBody(0, intent))
-        .send()
-      own.assertStatus(200)
-      assert.notDeepEqual(await readState(accountId, true), beforeOwn)
-      assert.deepEqual(await readState(otherAccountId, true), beforeOther)
+        .send();
+      own.assertStatus(200);
+      assert.notDeepEqual(await readState(accountId, true), beforeOwn);
+      assert.deepEqual(await readState(otherAccountId, true), beforeOther);
 
       const foreign = await session(client.post(`/api/accounts/${otherAccountId}/${path}`), cookie)
         .json(requestBody(0, intent))
-        .send()
-      foreign.assertStatus(403)
-      assert.deepEqual(await readState(otherAccountId, true), beforeOther)
-    })
+        .send();
+      foreign.assertStatus(403);
+      assert.deepEqual(await readState(otherAccountId, true), beforeOther);
+    });
   }
 
   test("planning restore-group changes only the caller's company", async ({
@@ -107,39 +107,39 @@ test.group('typed bulk writer tenant isolation', (group) => {
     assert,
     cleanup,
   }) => {
-    configureAuth(cleanup)
-    const { cookie } = await signIn(client)
-    const initial = await readState(accountId, true)
-    const id = initial.allocations[0]!.id
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const initial = await readState(accountId, true);
+    const id = initial.allocations[0]!.id;
     const removed = await session(
       client.post(`/api/accounts/${accountId}/allocations/delete-group`),
       cookie
     )
       .json(requestBody(0, { operation: 'allocation.deleteGroup', ids: [id] }))
-      .send()
-    removed.assertStatus(200)
+      .send();
+    removed.assertStatus(200);
     const groupId = (removed.body() as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId
-    const intent = { operation: 'planning.restoreGroup', restorationGroupId: groupId }
-    const beforeOwn = await readState(accountId, true)
-    const beforeOther = await readState(otherAccountId, true)
+      .replacementGroupId;
+    const intent = { operation: 'planning.restoreGroup', restorationGroupId: groupId };
+    const beforeOwn = await readState(accountId, true);
+    const beforeOther = await readState(otherAccountId, true);
     const restored = await session(
       client.post(`/api/accounts/${accountId}/planning/restore-group`),
       cookie
     )
       .json(requestBody(1, intent))
-      .send()
-    restored.assertStatus(200)
-    assert.notDeepEqual(await readState(accountId, true), beforeOwn)
-    assert.deepEqual(await readState(otherAccountId, true), beforeOther)
+      .send();
+    restored.assertStatus(200);
+    assert.notDeepEqual(await readState(accountId, true), beforeOwn);
+    assert.deepEqual(await readState(otherAccountId, true), beforeOther);
 
     const foreign = await session(
       client.post(`/api/accounts/${otherAccountId}/planning/restore-group`),
       cookie
     )
       .json(requestBody(0, intent))
-      .send()
-    foreign.assertStatus(403)
-    assert.deepEqual(await readState(otherAccountId, true), beforeOther)
-  })
-})
+      .send();
+    foreign.assertStatus(403);
+    assert.deepEqual(await readState(otherAccountId, true), beforeOther);
+  });
+});

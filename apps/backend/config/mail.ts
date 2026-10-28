@@ -1,11 +1,11 @@
-import env from '#start/env'
-import { defineConfig, transports } from '@adonisjs/mail'
+import env from '#start/env';
+import { defineConfig, transports } from '@adonisjs/mail';
 
-const host = env.get('CAPACITYLENS_MAIL_HOST')?.trim()
-const from = env.get('CAPACITYLENS_MAIL_FROM')?.trim()
-const user = env.get('CAPACITYLENS_MAIL_USER')?.trim()
-const password = env.get('CAPACITYLENS_MAIL_PASSWORD')
-const port = Number(env.get('CAPACITYLENS_MAIL_PORT'))
+const host = env.get('CAPACITYLENS_MAIL_HOST')?.trim();
+const from = env.get('CAPACITYLENS_MAIL_FROM')?.trim();
+const user = env.get('CAPACITYLENS_MAIL_USER')?.trim();
+const password = env.get('CAPACITYLENS_MAIL_PASSWORD');
+const port = Number(env.get('CAPACITYLENS_MAIL_PORT'));
 
 if (
   host &&
@@ -19,7 +19,7 @@ if (
 ) {
   throw new Error(
     'Email delivery requires complete CAPACITYLENS_MAIL_HOST, PORT, USER, PASSWORD and FROM settings.'
-  )
+  );
 }
 
 export default defineConfig({
@@ -38,4 +38,4 @@ export default defineConfig({
       socketTimeout: 10_000,
     }),
   },
-})
+});

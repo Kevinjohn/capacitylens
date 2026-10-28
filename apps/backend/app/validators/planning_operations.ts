@@ -1,10 +1,10 @@
-import type { HttpErrorBody, ProductErrorCode } from '@capacitylens/shared/api/httpErrors'
-import vine from '@vinejs/vine'
-import type { Infer } from '@vinejs/vine/types'
+import type { HttpErrorBody, ProductErrorCode } from '@capacitylens/shared/api/httpErrors';
+import vine from '@vinejs/vine';
+import type { Infer } from '@vinejs/vine/types';
 import {
   externalCapacityDefaults,
   placeholderCapacityDefaults,
-} from '@capacitylens/shared/types/entities'
+} from '@capacitylens/shared/types/entities';
 import type {
   Account,
   Activity,
@@ -17,123 +17,123 @@ import type {
   Project,
   Resource,
   TimeOff,
-} from '@capacitylens/shared/types/entities'
-import { isValidISODate } from '@capacitylens/shared/lib/integrity'
-import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays'
-import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color'
-import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl'
+} from '@capacitylens/shared/types/entities';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
+import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
+import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import {
   hasDisallowedChars,
   MAX_NAME_LENGTH,
   MAX_NOTE_LENGTH,
   normalizeUserText,
   unicodeCharacterCount,
-} from '@capacitylens/shared/lib/strings'
+} from '@capacitylens/shared/lib/strings';
 
-const uuid = () => vine.string().uuid()
+const uuid = () => vine.string().uuid();
 // Existing rows retain their stable identifiers during the transport transition.
-const entityId = () => vine.string().regex(/^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/)
-const number = () => vine.number({ strict: true })
-const boolean = () => vine.boolean({ strict: true })
+const entityId = () => vine.string().regex(/^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/);
+const number = () => vine.number({ strict: true });
+const boolean = () => vine.boolean({ strict: true });
 const userText = (multiline = false, required = false) =>
   vine.string().use(
     vine.createRule((value, _options, field) => {
-      if (typeof value !== 'string') return
-      const canonical = value.normalize('NFC')
+      if (typeof value !== 'string') return;
+      const canonical = value.normalize('NFC');
       if (hasDisallowedChars(canonical, { multiline })) {
-        field.report('Text contains unsupported characters.', 'text', field)
-        return
+        field.report('Text contains unsupported characters.', 'text', field);
+        return;
       }
-      const maximum = multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH
-      const normalized = normalizeUserText(canonical, { multiline })
+      const maximum = multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH;
+      const normalized = normalizeUserText(canonical, { multiline });
       if (required && normalized.length === 0) {
-        field.report('Text is required.', 'text', field)
-        return
+        field.report('Text is required.', 'text', field);
+        return;
       }
       if (unicodeCharacterCount(normalized) > maximum) {
-        field.report('Text is too long.', 'text', field)
+        field.report('Text is too long.', 'text', field);
       }
     })()
-  )
-const nullableUserText = (multiline = false) => userText(multiline).nullable()
-const nameText = () => userText(false, true)
-const nullableId = () => entityId().nullable()
+  );
+const nullableUserText = (multiline = false) => userText(multiline).nullable();
+const nameText = () => userText(false, true);
+const nullableId = () => entityId().nullable();
 const calendarDate = () =>
   vine.string().use(
     vine.createRule((value, _options, field) => {
-      if (typeof value === 'string' && isValidISODate(value)) return
-      field.report('The {{ field }} field must be a valid calendar date.', 'date', field)
+      if (typeof value === 'string' && isValidISODate(value)) return;
+      field.report('The {{ field }} field must be a valid calendar date.', 'date', field);
     })()
-  )
+  );
 const revision = () =>
   number()
     .min(0)
     .use(
       vine.createRule((value, _options, field) => {
-        if (Number.isSafeInteger(value)) return
-        field.report('The {{ field }} field must be a safe integer.', 'safeInteger', field)
+        if (Number.isSafeInteger(value)) return;
+        field.report('The {{ field }} field must be a safe integer.', 'safeInteger', field);
       })()
-    )
-const hours = () => number().min(0).max(24)
-const weekday = vine.enum([0, 1, 2, 3, 4, 5, 6] as const)
+    );
+const hours = () => number().min(0).max(24);
+const weekday = vine.enum([0, 1, 2, 3, 4, 5, 6] as const);
 const presetColor = (allowNeutral = false) =>
   vine.string().use(
     vine.createRule((value, _options, field) => {
-      if (isPresetColor(value) || (allowNeutral && value === NEUTRAL_COLOR)) return
-      field.report('The color must be a preset color.', 'presetColor', field)
+      if (isPresetColor(value) || (allowNeutral && value === NEUTRAL_COLOR)) return;
+      field.report('The color must be a preset color.', 'presetColor', field);
     })()
-  )
+  );
 const resourceAvatar = () =>
   vine
     .string()
     .use(
       vine.createRule((value, _options, field) => {
-        const parsed = parseResourceAvatarUrl(value)
-        if (value === null || (parsed !== null && parsed !== undefined)) return
-        field.report('Avatar URL must be HTTPS without embedded credentials.', 'avatarUrl', field)
+        const parsed = parseResourceAvatarUrl(value);
+        if (value === null || (parsed !== null && parsed !== undefined)) return;
+        field.report('Avatar URL must be HTTPS without embedded credentials.', 'avatarUrl', field);
       })()
     )
-    .nullable()
+    .nullable();
 const weekdays = () =>
   vine.array(weekday).use(
     vine.createRule((value, _options, field) => {
-      if (isWeekdaySet(value)) return
-      field.report('Weekdays must be distinct values from 0 to 6.', 'weekdays', field)
+      if (isWeekdaySet(value)) return;
+      field.report('Weekdays must be distinct values from 0 to 6.', 'weekdays', field);
     })()
-  )
+  );
 
 const dateRange = vine.createRule((value, _options, field) => {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return
-  const { startDate, endDate } = value as { startDate?: unknown; endDate?: unknown }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+  const { startDate, endDate } = value as { startDate?: unknown; endDate?: unknown };
   if (typeof startDate === 'string' && typeof endDate === 'string' && startDate > endDate) {
-    field.report('The end date must be on or after the start date.', 'dateRange', field)
+    field.report('The end date must be on or after the start date.', 'dateRange', field);
   }
-})
+});
 
 const operationMatches = (value: unknown, operation: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
-  (value as { operation?: unknown }).operation === operation
+  (value as { operation?: unknown }).operation === operation;
 
 const operationStartsWith = (value: unknown, prefix: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
   typeof (value as { operation?: unknown }).operation === 'string' &&
-  (value as { operation: string }).operation.startsWith(prefix)
+  (value as { operation: string }).operation.startsWith(prefix);
 
 const entityMatches = (value: unknown, entity: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
-  (value as { entity?: unknown }).entity === entity
+  (value as { entity?: unknown }).entity === entity;
 
 const meta = () => ({
   mutationId: uuid(),
   baseRevision: revision(),
   confirmedRestorationCount: revision().optional(),
-})
+});
 
 const allocationCreate = vine
   .object({
@@ -149,7 +149,7 @@ const allocationCreate = vine
     task: nullableUserText().optional(),
     ignoreWeekends: boolean().nullable().optional(),
   })
-  .use(dateRange())
+  .use(dateRange());
 
 const allocationChanges = vine
   .object({
@@ -164,7 +164,7 @@ const allocationChanges = vine
     task: nullableUserText().optional(),
     ignoreWeekends: boolean().nullable().optional(),
   })
-  .use(dateRange())
+  .use(dateRange());
 
 const requireChanges = (allowedFields: readonly string[]) =>
   vine.createRule((value, _options, field) => {
@@ -173,26 +173,26 @@ const requireChanges = (allowedFields: readonly string[]) =>
       typeof value === 'object' &&
       Object.keys(value).some((key) => allowedFields.includes(key))
     )
-      return
-    field.report('At least one writable field is required.', 'emptyChanges', field)
-  })()
+      return;
+    field.report('At least one writable field is required.', 'emptyChanges', field);
+  })();
 
 const occurrence = vine
   .object({ id: uuid(), startDate: calendarDate(), endDate: calendarDate() })
-  .use(dateRange())
+  .use(dateRange());
 
 const distinctOccurrenceIds = vine.createRule((value, _options, field) => {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
   const { sourceAllocationId, occurrences } = value as {
-    sourceAllocationId?: unknown
-    occurrences?: unknown
-  }
-  if (!Array.isArray(occurrences) || typeof sourceAllocationId !== 'string') return
+    sourceAllocationId?: unknown;
+    occurrences?: unknown;
+  };
+  if (!Array.isArray(occurrences) || typeof sourceAllocationId !== 'string') return;
   const ids = occurrences.map((item) =>
     item !== null && typeof item === 'object' && !Array.isArray(item)
       ? (item as { id?: unknown }).id
       : undefined
-  )
+  );
   if (
     ids.some((id) => typeof id !== 'string' || id === sourceAllocationId) ||
     new Set(ids).size !== ids.length
@@ -201,41 +201,41 @@ const distinctOccurrenceIds = vine.createRule((value, _options, field) => {
       'Occurrence IDs must be distinct from the source and each other.',
       'distinctIds',
       field
-    )
+    );
   }
-})
+});
 
 const uniqueArrayIds = (property: 'ids' | 'entries' | 'allocations') =>
   vine.createRule((value, _options, field) => {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) return
-    const items = (value as Record<string, unknown>)[property]
-    if (!Array.isArray(items)) return
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+    const items = (value as Record<string, unknown>)[property];
+    if (!Array.isArray(items)) return;
     const ids = items.map((item) =>
       property === 'ids'
         ? item
         : item !== null && typeof item === 'object' && !Array.isArray(item)
           ? (item as { id?: unknown }).id
           : undefined
-    )
+    );
     if (ids.some((id) => typeof id !== 'string') || new Set(ids).size !== ids.length) {
-      field.report('Entity IDs must be unique.', 'distinctIds', field)
+      field.report('Entity IDs must be unique.', 'distinctIds', field);
     }
-  })()
+  })();
 
 const duplicateIdIsDistinct = vine.createRule((value, _options, field) => {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
   const { sourceAllocationId, occurrence: duplicate } = value as {
-    sourceAllocationId?: unknown
-    occurrence?: { id?: unknown }
-  }
+    sourceAllocationId?: unknown;
+    occurrence?: { id?: unknown };
+  };
   if (
     typeof sourceAllocationId === 'string' &&
     typeof duplicate?.id === 'string' &&
     sourceAllocationId !== duplicate.id
   )
-    return
-  field.report('The duplicated allocation must have a new ID.', 'distinctIds', field)
-})
+    return;
+  field.report('The duplicated allocation must have a new ID.', 'distinctIds', field);
+});
 
 const allocationIntent = vine
   .union([
@@ -309,17 +309,17 @@ const allocationIntent = vine
   ])
   .otherwise((_value, field) =>
     field.report('Unsupported allocation operation.', 'unsupportedOperation', field)
-  )
+  );
 
 export const allocationMutationValidator = vine.compile(
   vine.object({ ...meta(), intent: allocationIntent })
-)
+);
 
-const nameAndColor = { name: nameText(), color: presetColor() }
+const nameAndColor = { name: nameText(), color: presetColor() };
 const privateName = {
   isPrivate: boolean().nullable().optional(),
   codeName: nullableUserText().optional(),
-}
+};
 
 const catalogueCreate = vine.union([
   vine.union.if(
@@ -368,14 +368,14 @@ const catalogueCreate = vine.union([
         color: presetColor().nullable(),
         sortOrder: number().use(
           vine.createRule((value, _options, field) => {
-            if (Number.isSafeInteger(value)) return
-            field.report('Sort order must be a safe integer.', 'safeInteger', field)
+            if (Number.isSafeInteger(value)) return;
+            field.report('Sort order must be a safe integer.', 'safeInteger', field);
           })()
         ),
       }),
     })
   ),
-])
+]);
 
 const catalogueChanges = vine.union([
   vine.union.if(
@@ -448,8 +448,8 @@ const catalogueChanges = vine.union([
           sortOrder: number()
             .use(
               vine.createRule((value, _options, field) => {
-                if (Number.isSafeInteger(value)) return
-                field.report('Sort order must be a safe integer.', 'safeInteger', field)
+                if (Number.isSafeInteger(value)) return;
+                field.report('Sort order must be a safe integer.', 'safeInteger', field);
               })()
             )
             .optional(),
@@ -457,7 +457,7 @@ const catalogueChanges = vine.union([
         .use(requireChanges(['name', 'color', 'sortOrder'])),
     })
   ),
-])
+]);
 
 const catalogueDelete = vine.union([
   vine.union.if(
@@ -465,7 +465,7 @@ const catalogueDelete = vine.union([
     vine.object({ entity: vine.literal('phases'), id: entityId() })
   ),
   vine.union.else(vine.object({ entity: vine.literal('disciplines'), id: entityId() })),
-])
+]);
 
 const catalogueLifecycleEntity = vine.union([
   vine.union.if(
@@ -477,7 +477,7 @@ const catalogueLifecycleEntity = vine.union([
     vine.object({ entity: vine.literal('projects'), id: entityId() })
   ),
   vine.union.else(vine.object({ entity: vine.literal('activities'), id: entityId() })),
-])
+]);
 
 const catalogueIntent = vine.union([
   vine.union.if(
@@ -500,11 +500,11 @@ const catalogueIntent = vine.union([
   vine.union.else(
     vine.object({ operation: vine.literal('catalogue.delete'), entity: catalogueDelete })
   ),
-])
+]);
 
 export const catalogueMutationValidator = vine.compile(
   vine.object({ ...meta(), intent: catalogueIntent })
-)
+);
 
 const resourceFields = {
   kind: vine.enum(['person', 'placeholder', 'external'] as const),
@@ -518,8 +518,8 @@ const resourceFields = {
     .max(24)
     .use(
       vine.createRule((value, _options, field) => {
-        if (typeof value === 'number' && value > 0) return
-        field.report('Working hours must be greater than zero.', 'positiveHours', field)
+        if (typeof value === 'number' && value > 0) return;
+        field.report('Working hours must be greater than zero.', 'positiveHours', field);
       })()
     ),
   workingDays: weekdays(),
@@ -529,7 +529,7 @@ const resourceFields = {
   isFavourite: boolean().nullable(),
   firstAvailableDate: calendarDate().nullable(),
   lastAvailableDate: calendarDate().nullable(),
-}
+};
 const resourceChanges = {
   name: resourceFields.name.optional(),
   role: resourceFields.role.optional(),
@@ -545,7 +545,7 @@ const resourceChanges = {
   isFavourite: resourceFields.isFavourite.optional(),
   firstAvailableDate: resourceFields.firstAvailableDate.optional(),
   lastAvailableDate: resourceFields.lastAvailableDate.optional(),
-}
+};
 
 const resourceIntent = vine.union([
   vine.union.if(
@@ -555,20 +555,20 @@ const resourceIntent = vine.union([
       id: uuid(),
       fields: vine.object(resourceFields).use(
         vine.createRule((value, _options, field) => {
-          if (value === null || typeof value !== 'object' || Array.isArray(value)) return
-          const fields = value as Record<string, unknown>
+          if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+          const fields = value as Record<string, unknown>;
           if (
             fields.kind === 'person' &&
             Array.isArray(fields.workingDays) &&
             fields.workingDays.length === 0
           ) {
-            field.report('A person must have at least one working day.', 'workingDays', field)
+            field.report('A person must have at least one working day.', 'workingDays', field);
           }
           if (
             fields.kind !== 'placeholder' &&
             (typeof fields.name !== 'string' || normalizeUserText(fields.name).length === 0)
           ) {
-            field.report('A person or external resource name is required.', 'name', field)
+            field.report('A person or external resource name is required.', 'name', field);
           }
           if (
             typeof fields.firstAvailableDate === 'string' &&
@@ -579,22 +579,22 @@ const resourceIntent = vine.union([
               'First available date cannot follow last available date.',
               'dateRange',
               field
-            )
+            );
           }
           if (fields.kind === 'external' && fields.color !== NEUTRAL_COLOR) {
-            field.report('External resources must use the neutral color.', 'resourceColor', field)
+            field.report('External resources must use the neutral color.', 'resourceColor', field);
           }
           const defaults =
             fields.kind === 'external'
               ? externalCapacityDefaults()
               : fields.kind === 'placeholder'
                 ? placeholderCapacityDefaults()
-                : undefined
+                : undefined;
           if (defaults) {
-            const defaultValues = defaults as unknown as Record<string, unknown>
+            const defaultValues = defaults as unknown as Record<string, unknown>;
             for (const key of ['workingDays', 'halfDays'] as const) {
               if (JSON.stringify(fields[key]) !== JSON.stringify(defaultValues[key])) {
-                field.report(`${key} must match the resource kind defaults.`, key, field)
+                field.report(`${key} must match the resource kind defaults.`, key, field);
               }
             }
             if (
@@ -607,20 +607,20 @@ const resourceIntent = vine.union([
                 'External capacity fields must match defaults.',
                 'externalDefaults',
                 field
-              )
+              );
             }
             if (fields.kind === 'placeholder' && fields.engagement !== 'studio') {
-              field.report('Placeholder engagement must match defaults.', 'engagement', field)
+              field.report('Placeholder engagement must match defaults.', 'engagement', field);
             }
           }
-          const halfDays = fields.halfDays
-          const workingDays = fields.workingDays
+          const halfDays = fields.halfDays;
+          const workingDays = fields.workingDays;
           if (
             Array.isArray(halfDays) &&
             Array.isArray(workingDays) &&
             !halfDays.every((day) => workingDays.includes(day))
           ) {
-            field.report('Half days must be included in working days.', 'halfDays', field)
+            field.report('Half days must be included in working days.', 'halfDays', field);
           }
         })()
       ),
@@ -636,16 +636,16 @@ const resourceIntent = vine.union([
         .use(requireChanges(Object.keys(resourceChanges)))
         .use(
           vine.createRule((value, _options, field) => {
-            if (value === null || typeof value !== 'object' || Array.isArray(value)) return
-            const changes = value as Record<string, unknown>
-            const halfDays = changes.halfDays
-            const workingDays = changes.workingDays
+            if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+            const changes = value as Record<string, unknown>;
+            const halfDays = changes.halfDays;
+            const workingDays = changes.workingDays;
             if (
               Array.isArray(halfDays) &&
               Array.isArray(workingDays) &&
               !halfDays.every((day) => workingDays.includes(day))
             ) {
-              field.report('Half days must be included in working days.', 'halfDays', field)
+              field.report('Half days must be included in working days.', 'halfDays', field);
             }
           })()
         ),
@@ -657,11 +657,11 @@ const resourceIntent = vine.union([
       id: entityId(),
     })
   ),
-])
+]);
 
 export const resourceMutationValidator = vine.compile(
   vine.object({ ...meta(), intent: resourceIntent })
-)
+);
 
 const timeOffCreate = vine
   .object({
@@ -672,7 +672,7 @@ const timeOffCreate = vine
     type: vine.enum(['holiday', 'sick', 'unpaid', 'other'] as const),
     note: nullableUserText(true).optional(),
   })
-  .use(dateRange())
+  .use(dateRange());
 const timeOffOccurrence = vine
   .object({
     id: uuid(),
@@ -682,7 +682,7 @@ const timeOffOccurrence = vine
     type: vine.enum(['holiday', 'sick', 'unpaid', 'other'] as const),
     note: nullableUserText(true).optional(),
   })
-  .use(dateRange())
+  .use(dateRange());
 
 const timeOffIntent = vine.union([
   vine.union.if(
@@ -725,22 +725,22 @@ const timeOffIntent = vine.union([
     })
   ),
   vine.union.else(vine.object({ operation: vine.literal('timeOff.delete'), id: entityId() })),
-])
+]);
 
 export const timeOffMutationValidator = vine.compile(
   vine.object({ ...meta(), intent: timeOffIntent })
-)
+);
 
 const closureFields = {
   name: nameText(),
   startDate: calendarDate(),
   endDate: calendarDate(),
-}
+};
 const closureChanges = {
   name: closureFields.name.optional(),
   startDate: closureFields.startDate.optional(),
   endDate: closureFields.endDate.optional(),
-}
+};
 const closureIntent = vine.union([
   vine.union.if(
     (value) => operationMatches(value, 'closure.create'),
@@ -762,11 +762,11 @@ const closureIntent = vine.union([
     })
   ),
   vine.union.else(vine.object({ operation: vine.literal('closure.delete'), id: entityId() })),
-])
+]);
 
 export const closureMutationValidator = vine.compile(
   vine.object({ ...meta(), intent: closureIntent })
-)
+);
 
 const settingsChanges = {
   name: nameText().optional(),
@@ -781,13 +781,13 @@ const settingsChanges = {
       vine.createRule((value, _options, field) => {
         if (typeof value === 'string' && value.length <= 128) {
           try {
-            new Intl.DateTimeFormat(undefined, { timeZone: value })
-            return
+            new Intl.DateTimeFormat(undefined, { timeZone: value });
+            return;
           } catch {
             // Report unsupported timezone values below.
           }
         }
-        field.report('The timezone must be supported.', 'timezone', field)
+        field.report('The timezone must be supported.', 'timezone', field);
       })()
     )
     .nullable()
@@ -799,8 +799,8 @@ const settingsChanges = {
   workingDays: weekdays()
     .use(
       vine.createRule((value, _options, field) => {
-        if (value === null || (Array.isArray(value) && value.length > 0)) return
-        field.report('Working days must contain a working day.', 'workingDays', field)
+        if (value === null || (Array.isArray(value) && value.length > 0)) return;
+        field.report('Working days must contain a working day.', 'workingDays', field);
       })()
     )
     .nullable()
@@ -818,16 +818,16 @@ const settingsChanges = {
     .enum(['day-month', 'day-ordinal-month', 'month-day', 'month-day-ordinal'] as const)
     .nullable()
     .optional(),
-}
+};
 
 const settingsIntent = vine.object({
   operation: vine.literal('settings.update'),
   changes: vine.object(settingsChanges).use(requireChanges(Object.keys(settingsChanges))),
-})
+});
 
 export const settingsMutationValidator = vine.compile(
   vine.object({ ...meta(), intent: settingsIntent })
-)
+);
 
 const planningIntent = vine.union([
   vine.union.if(
@@ -840,7 +840,7 @@ const planningIntent = vine.union([
   vine.union.if((value) => operationStartsWith(value, 'timeOff.'), timeOffIntent),
   vine.union.if((value) => operationStartsWith(value, 'closure.'), closureIntent),
   vine.union.else(settingsIntent),
-])
+]);
 
 /**
  * Validate a planning intent. Account scope and authorization come from the authenticated server
@@ -850,71 +850,71 @@ const planningIntent = vine.union([
  */
 export const planningMutationValidator = vine.compile(
   vine.object({ ...meta(), intent: planningIntent })
-)
+);
 
-export type PlanningMutationInput = Infer<typeof planningMutationValidator>
-export type PlanningIntent = PlanningMutationInput['intent']
-export type AllocationIntent = Extract<PlanningIntent, { operation: `allocation.${string}` }>
+export type PlanningMutationInput = Infer<typeof planningMutationValidator>;
+export type PlanningIntent = PlanningMutationInput['intent'];
+export type AllocationIntent = Extract<PlanningIntent, { operation: `allocation.${string}` }>;
 
 /** Metadata is added when an intent is executed, never stored in the forward/inverse intent. */
 export interface PlanningExecution<TIntent = PlanningIntent> {
-  mutationId: string
-  baseRevision: number
-  intent: TIntent
-  confirmedRestorationCount?: number
+  mutationId: string;
+  baseRevision: number;
+  intent: TIntent;
+  confirmedRestorationCount?: number;
 }
 
 /** A history entry stores ordinary inputs; every Undo and Redo gets new execution metadata. */
 export interface PlanningHistoryEntry<TIntent = PlanningIntent> {
-  forward: TIntent
-  inverse: TIntent
+  forward: TIntent;
+  inverse: TIntent;
 }
 
 type PlanningRowByEntity = {
-  accounts: Account
-  disciplines: Discipline
-  resources: Resource
-  clients: Client
-  projects: Project
-  phases: Phase
-  activities: Activity
-  allocations: Allocation
-  timeOff: TimeOff
-  closures: Closure
-}
+  accounts: Account;
+  disciplines: Discipline;
+  resources: Resource;
+  clients: Client;
+  projects: Project;
+  phases: Phase;
+  activities: Activity;
+  allocations: Allocation;
+  timeOff: TimeOff;
+  closures: Closure;
+};
 
 export type ProjectedPlanningRow = {
-  [Entity in AppDataKey]: { entity: Entity; row: PlanningRowByEntity[Entity] }
-}[AppDataKey]
+  [Entity in AppDataKey]: { entity: Entity; row: PlanningRowByEntity[Entity] };
+}[AppDataKey];
 
 export interface PlanningMutationSuccess {
-  status: 'committed'
-  mutationId: string
+  status: 'committed';
+  mutationId: string;
   /** The account revision advances exactly once for a committed mutation. */
-  revision: number
+  revision: number;
   /** Destructive writes retain a server-side inverse; restore consumes its handle. */
   restoration:
     | { consumedGroupId: null; replacementGroupId: string }
     | { consumedGroupId: string; replacementGroupId: null }
-    | { consumedGroupId: null; replacementGroupId: null }
+    | { consumedGroupId: null; replacementGroupId: null };
   projection:
     | {
-        mode: 'patch'
-        history: 'retain'
+        mode: 'patch';
+        history: 'retain';
         changed: {
-          upserts: ProjectedPlanningRow[]
-          removed: Array<{ entity: AppDataKey; id: string }>
-        }
+          upserts: ProjectedPlanningRow[];
+          removed: Array<{ entity: AppDataKey; id: string }>;
+        };
       }
-    | { mode: 'refetch'; history: 'clear' }
+    | { mode: 'refetch'; history: 'clear' };
 }
 
 /** A commitment lookup never returns a prior response or a before-image. */
 export type PlanningMutationLookup =
   | { status: 'committed'; mutationId: string; revision: number; restorationGroupId?: string }
-  | { status: 'unknown'; mutationId: string }
+  | { status: 'unknown'; mutationId: string };
 
-export const mutationLookupValidator = vine.compile(vine.object({ mutationId: uuid() }))
+export const mutationLookupValidator = vine.compile(vine.object({ mutationId: uuid() }));
 export const mutationLookupReplyValidator = vine.compile(
   vine.union([
     vine.union.if(
@@ -932,8 +932,8 @@ export const mutationLookupReplyValidator = vine.compile(
     ),
     vine.union.else(vine.object({ status: vine.literal('unknown'), mutationId: uuid() })),
   ])
-)
-export type MutationLookupInput = Infer<typeof mutationLookupValidator>
+);
+export type MutationLookupInput = Infer<typeof mutationLookupValidator>;
 
 /** Product planning refusal codes; Kit codes retain their own contract. */
 export const planningMutationErrorCodes = [
@@ -946,10 +946,10 @@ export const planningMutationErrorCodes = [
   'NO_CHANGE',
   'RESTORATION_CONFIRMATION_REQUIRED',
   'RESTORATION_CONFIRMATION_STALE',
-] as const satisfies readonly ProductErrorCode[]
+] as const satisfies readonly ProductErrorCode[];
 
 /** Flat command failure body; conflicts use HTTP 409. */
-export type PlanningMutationFailure = HttpErrorBody
+export type PlanningMutationFailure = HttpErrorBody;
 
 export const planningMutationFailureValidator = vine.compile(
   vine.object({
@@ -959,21 +959,21 @@ export const planningMutationFailureValidator = vine.compile(
     committed: vine.boolean({ strict: true }).optional(),
     restorableItemCount: revision().optional(),
   })
-)
-export type PlanningMutationFailureInput = Infer<typeof planningMutationFailureValidator>
+);
+export type PlanningMutationFailureInput = Infer<typeof planningMutationFailureValidator>;
 
 /** A pre-transaction check only; callers must read and compare under the write transaction. */
 export class StalePlanningRevisionError extends Error {
-  readonly statusCode = 409
-  readonly code = 'STALE_REVISION' as const
+  readonly statusCode = 409;
+  readonly code = 'STALE_REVISION' as const;
 
   constructor(
     readonly mutationId: string,
     readonly baseRevision: number,
     readonly currentRevision: number
   ) {
-    super('The planning revision changed before this mutation was applied.')
-    this.name = 'StalePlanningRevisionError'
+    super('The planning revision changed before this mutation was applied.');
+    this.name = 'StalePlanningRevisionError';
   }
 }
 
@@ -984,6 +984,6 @@ export function assertPlanningBaseRevision(
   mutationId: string
 ): void {
   if (baseRevision !== currentRevision) {
-    throw new StalePlanningRevisionError(mutationId, baseRevision, currentRevision)
+    throw new StalePlanningRevisionError(mutationId, baseRevision, currentRevision);
   }
 }

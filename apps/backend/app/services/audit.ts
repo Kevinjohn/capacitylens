@@ -1,18 +1,18 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 
 export async function writeAudit(
   trx: TransactionClientContract,
   input: {
-    accountId: string
-    actorId: string
-    action: string
-    entity: string
-    entityId: string
-    fields: string[]
-    cascadeCounts?: Record<string, number>
+    accountId: string;
+    actorId: string;
+    action: string;
+    entity: string;
+    entityId: string;
+    fields: string[];
+    cascadeCounts?: Record<string, number>;
   }
 ) {
-  const now = new Date().toISOString()
+  const now = new Date().toISOString();
   await trx.table('audit_entries').insert({
     id: crypto.randomUUID(),
     account_id: input.accountId,
@@ -26,5 +26,5 @@ export async function writeAudit(
     }),
     created_at: now,
     updated_at: now,
-  })
+  });
 }

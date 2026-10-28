@@ -1,4 +1,4 @@
-import { defineConfig } from '@adonisjs/static'
+import { defineConfig } from '@adonisjs/static';
 
 export default defineConfig({
   enabled: true,
@@ -10,6 +10,6 @@ export default defineConfig({
       'Cache-Control': path.includes('/assets/')
         ? 'public, max-age=31536000, immutable'
         : 'no-store',
-    }
+    };
   },
-})
+});

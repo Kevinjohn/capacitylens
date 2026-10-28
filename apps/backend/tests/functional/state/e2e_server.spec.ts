@@ -1,9 +1,9 @@
-import { spawn } from 'node:child_process'
-import { test } from '@japa/runner'
-import { portInUse, terminateProcessTree } from '../../../../../scripts/devProcesses.mjs'
-import { ports } from '../../../../../scripts/ports.mjs'
+import { spawn } from 'node:child_process';
+import { test } from '@japa/runner';
+import { portInUse, terminateProcessTree } from '../../../../../scripts/devProcesses.mjs';
+import { ports } from '../../../../../scripts/ports.mjs';
 
-const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 async function waitForReadiness(
   child: ReturnType<typeof spawn>,
@@ -13,78 +13,79 @@ async function waitForReadiness(
 ) {
   for (let attempt = 0; attempt < 200; attempt++) {
     if (child.exitCode !== null || child.signalCode !== null) {
-      throw new Error(`The ${flavour} E2E server exited before readiness. ${output()}`)
+      throw new Error(`The ${flavour} E2E server exited before readiness. ${output()}`);
     }
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(1000) })
-      if (response.ok && (flavour !== 'auth' || output().includes('Auth E2E fixture ready'))) return
+      const response = await fetch(url, { signal: AbortSignal.timeout(1000) });
+      if (response.ok && (flavour !== 'auth' || output().includes('Auth E2E fixture ready')))
+        return;
     } catch {
-      await wait(100)
-      continue
+      await wait(100);
+      continue;
     }
-    await wait(100)
+    await wait(100);
   }
-  throw new Error(`The ${flavour} E2E server did not become ready. ${output()}`)
+  throw new Error(`The ${flavour} E2E server did not become ready. ${output()}`);
 }
 
 async function waitForPortRelease(port: number) {
   for (let attempt = 0; attempt < 50; attempt++) {
-    if (!(await portInUse(port))) return true
-    await wait(100)
+    if (!(await portInUse(port))) return true;
+    await wait(100);
   }
-  return false
+  return false;
 }
 
 function signalOwnedProcessGroup(child: ReturnType<typeof spawn>, signal: NodeJS.Signals) {
-  if (process.platform === 'win32' || child.pid === undefined) return
+  if (process.platform === 'win32' || child.pid === undefined) return;
   try {
-    process.kill(-child.pid, signal)
+    process.kill(-child.pid, signal);
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESRCH') {
-      return
+      return;
     }
-    throw error
+    throw error;
   }
 }
 
 async function stop(child: ReturnType<typeof spawn>, port: number) {
-  if (child.pid === undefined) return
+  if (child.pid === undefined) return;
   if (child.exitCode === null && child.signalCode === null) {
-    await terminateProcessTree(child, { graceMs: 5000, forceMs: 1000 })
+    await terminateProcessTree(child, { graceMs: 5000, forceMs: 1000 });
   } else {
-    signalOwnedProcessGroup(child, 'SIGTERM')
+    signalOwnedProcessGroup(child, 'SIGTERM');
   }
-  if (await waitForPortRelease(port)) return
-  signalOwnedProcessGroup(child, 'SIGKILL')
-  await waitForPortRelease(port)
+  if (await waitForPortRelease(port)) return;
+  signalOwnedProcessGroup(child, 'SIGKILL');
+  await waitForPortRelease(port);
 }
 
 test('both E2E server flavours require sign-in and refuse installation reset', async ({
   assert,
 }) => {
   for (const flavour of ['db', 'auth'] as const) {
-    const lane = ports()
-    const port = flavour === 'db' ? lane.dbApi : lane.authApi
+    const lane = ports();
+    const port = flavour === 'db' ? lane.dbApi : lane.authApi;
     const child = spawn(process.execPath, ['scripts/e2e-server.mjs', flavour], {
       cwd: new URL('../../../', import.meta.url),
       detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    });
 
-    let output = ''
+    let output = '';
     const capture = (chunk: Buffer) => {
-      output = (output + chunk.toString()).slice(-12_000)
-    }
-    child.stdout?.on('data', capture)
-    child.stderr?.on('data', capture)
+      output = (output + chunk.toString()).slice(-12_000);
+    };
+    child.stdout?.on('data', capture);
+    child.stderr?.on('data', capture);
     try {
-      await waitForReadiness(child, `http://127.0.0.1:${port}/health/ready`, flavour, () => output)
-      const resetUrl = `http://127.0.0.1:${port}/api/test/reset`
+      await waitForReadiness(child, `http://127.0.0.1:${port}/health/ready`, flavour, () => output);
+      const resetUrl = `http://127.0.0.1:${port}/api/test/reset`;
       {
-        const anonymousReset = await fetch(resetUrl, { method: 'POST' })
-        assert.equal(anonymousReset.status, 401, 'reset rejects unauthenticated callers')
-        const anonymousState = await fetch(`http://127.0.0.1:${port}/api/state`)
-        assert.equal(anonymousState.status, 401, 'persistent state requires sign-in')
+        const anonymousReset = await fetch(resetUrl, { method: 'POST' });
+        assert.equal(anonymousReset.status, 401, 'reset rejects unauthenticated callers');
+        const anonymousState = await fetch(`http://127.0.0.1:${port}/api/state`);
+        assert.equal(anonymousState.status, 401, 'persistent state requires sign-in');
 
         const signedIn = await fetch(`http://127.0.0.1:${port}/api/auth/sign-in`, {
           method: 'POST',
@@ -93,33 +94,33 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
             email: 'admin@admin.admin',
             password: 'auth-e2e-password-2026',
           }),
-        })
+        });
         assert.equal(
           signedIn.status,
           200,
           'the disposable administrator signs in after fixture readiness'
-        )
+        );
         const cookie = signedIn.headers
           .getSetCookie()
           .map((value) => value.split(';', 1)[0])
-          .join('; ')
-        assert.isNotEmpty(cookie, 'password sign-in creates a native session cookie')
+          .join('; ');
+        assert.isNotEmpty(cookie, 'password sign-in creates a native session cookie');
 
         const contextResponse = await fetch(`http://127.0.0.1:${port}/api/masquerade`, {
           headers: { cookie, 'sec-fetch-site': 'same-origin' },
-        })
-        assert.equal(contextResponse.status, 200, 'signed-in requests resolve their context')
-        const context = (await contextResponse.json()) as { contextToken?: unknown }
-        assert.isString(context.contextToken, 'signed-in requests receive a context token')
+        });
+        assert.equal(contextResponse.status, 200, 'signed-in requests resolve their context');
+        const context = (await contextResponse.json()) as { contextToken?: unknown };
+        assert.isString(context.contextToken, 'signed-in requests receive a context token');
 
         const session = await fetch(`http://127.0.0.1:${port}/api/auth/me`, {
           headers: { cookie },
-        })
+        });
         assert.equal(
           session.status,
           200,
           'the database-backed session authenticates the next request'
-        )
+        );
 
         const memberlessReset = await fetch(resetUrl, {
           method: 'POST',
@@ -129,19 +130,19 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
             'X-Masquerade-Context': context.contextToken as string,
           },
           body: JSON.stringify({ seed: true }),
-        })
+        });
         assert.equal(
           memberlessReset.status,
           403,
           'an authenticated administrator cannot reset the fixture over HTTP'
-        )
+        );
       }
     } finally {
-      await stop(child, port)
+      await stop(child, port);
       assert.isTrue(
         await waitForPortRelease(port),
         `${flavour} E2E server should release port ${port}`
-      )
+      );
     }
   }
-})
+});

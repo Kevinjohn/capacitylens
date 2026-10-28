@@ -1,5 +1,5 @@
-import { spawn } from 'node:child_process'
-import { once } from 'node:events'
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 
 /**
  * From another process, as a concurrent writer would, takes SQLite's write lock, holds it for
@@ -33,9 +33,9 @@ setTimeout(() => {
       JSON.stringify(statements),
     ],
     { stdio: ['ignore', 'pipe', 'inherit'] }
-  )
-  await once(holder.stdout!, 'data')
+  );
+  await once(holder.stdout!, 'data');
   return once(holder, 'exit').then(([code]) => {
-    if (code !== 0) throw new Error(`The write-lock holder exited with ${code}.`)
-  })
+    if (code !== 0) throw new Error(`The write-lock holder exited with ${code}.`);
+  });
 }

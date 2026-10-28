@@ -5,6 +5,6 @@ export class BatchRequestError extends Error {
     readonly current?: Record<string, unknown>,
     readonly code?: string
   ) {
-    super(message)
+    super(message);
   }
 }

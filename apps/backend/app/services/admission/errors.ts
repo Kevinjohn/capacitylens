@@ -6,26 +6,26 @@ export class AdmissionError extends Error {
     readonly code: string,
     readonly decision?: Record<string, unknown>
   ) {
-    super(message)
+    super(message);
   }
 }
 
 /** Refuses malformed admission input before any product write. */
 export function invalidAdmission(message = 'Invalid admission request.'): never {
-  throw new AdmissionError(message, 400, 'INVALID_INPUT')
+  throw new AdmissionError(message, 400, 'INVALID_INPUT');
 }
 
 /** Refuses a request that lacks current company authority or proof. */
 export function forbiddenAdmission(message = 'Admission is not permitted.'): never {
-  throw new AdmissionError(message, 403, 'FORBIDDEN')
+  throw new AdmissionError(message, 403, 'FORBIDDEN');
 }
 
 /** Conceals a missing or cross-company control record. */
 export function missingAdmission(message = 'Invitation not found.'): never {
-  throw new AdmissionError(message, 404, 'NOT_FOUND')
+  throw new AdmissionError(message, 404, 'NOT_FOUND');
 }
 
 /** Refuses stale or already completed admission without replay. */
 export function conflictingAdmission(message = 'Invitation has already been used.'): never {
-  throw new AdmissionError(message, 409, 'CONFLICT')
+  throw new AdmissionError(message, 409, 'CONFLICT');
 }

@@ -1,19 +1,19 @@
-import { indexEntities } from '@adonisjs/core/generators'
-import { defineConfig } from '@adonisjs/core/app'
-import { indexPolicies } from '@adonisjs/bouncer'
-import { generateRegistry } from '@tuyau/core/hooks'
+import { indexEntities } from '@adonisjs/core/generators';
+import { defineConfig } from '@adonisjs/core/app';
+import { indexPolicies } from '@adonisjs/bouncer';
+import { generateRegistry } from '@tuyau/core/hooks';
 
 async function accountKitCommands() {
-  const commands = await import('adonisjs-account-kit/commands')
+  const commands = await import('adonisjs-account-kit/commands');
   return {
     getMetaData: async () => {
-      const metadata = await commands.getMetaData()
+      const metadata = await commands.getMetaData();
       return metadata.filter(
         (commandMetadata) => commandMetadata.commandName !== 'account-kit:reset-link'
-      )
+      );
     },
     getCommand: commands.getCommand,
-  }
+  };
 }
 
 export default defineConfig({
@@ -142,4 +142,4 @@ export default defineConfig({
       generateRegistry({ validationErrorType: false }),
     ],
   },
-})
+});

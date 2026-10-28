@@ -1,4 +1,4 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 
 /** Reads same-company person candidates for an administrator's member directory. */
 export async function readResourceCandidates(trx: TransactionClientContract, accountId: string) {
@@ -7,8 +7,8 @@ export async function readResourceCandidates(trx: TransactionClientContract, acc
     .where({ account_id: accountId, kind: 'person' })
     .whereNull('archived_at')
     .whereNull('deleted_at')
-    .select('id', 'name', 'role')
-  return rows.map((row) => ({ resourceId: String(row.id), label: String(row.name ?? row.role) }))
+    .select('id', 'name', 'role');
+  return rows.map((row) => ({ resourceId: String(row.id), label: String(row.name ?? row.role) }));
 }
 
 /** Adds only same-company association fields to an authorized member row. */
@@ -24,7 +24,7 @@ export async function readMemberResourceFields(
         'resource.account_id',
         '=',
         'link.account_id'
-      )
+      );
     })
     .where({ 'link.account_id': accountId, 'link.user_id': userId })
     .select(
@@ -34,8 +34,8 @@ export async function readMemberResourceFields(
       'resource.archived_at',
       'resource.deleted_at'
     )
-    .first()
-  const resourceStatus = !link ? null : link.deleted_at || link.archived_at ? 'archived' : 'active'
+    .first();
+  const resourceStatus = !link ? null : link.deleted_at || link.archived_at ? 'archived' : 'active';
   return {
     resourceLink: link
       ? {
@@ -45,5 +45,5 @@ export async function readMemberResourceFields(
           resourceStatus,
         }
       : null,
-  }
+  };
 }
