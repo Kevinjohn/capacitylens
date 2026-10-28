@@ -152,9 +152,9 @@ const runServerImport = async (
     );
     if (!ownsContext(context)) return;
     if (response.ok) await completeImport(response, context);
-    else if (response.status === 408 || response.status >= 500)
+    else if (response.status === 408 || response.status >= 500) {
       await reconcileUnknownOutcome(context);
-    else {
+    } else {
       const message =
         (await readApiError(response)) ?? m.data_import_failed({ status: response.status });
       if (ownsContext(context)) setNotice(message, 'error');
@@ -208,8 +208,9 @@ export function useServerImport() {
       if (!transaction.requiresReload) setBusy(false);
     } catch (error) {
       // Report a failed import-start boundary and release busy state so recovery controls remain usable.
-      if (useStore.getState().activeAccountId === accountId)
+      if (useStore.getState().activeAccountId === accountId) {
         setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), 'error');
+      }
       setBusy(false);
     } finally {
       if (!transaction.requiresReload) importInFlightRef.current = false;

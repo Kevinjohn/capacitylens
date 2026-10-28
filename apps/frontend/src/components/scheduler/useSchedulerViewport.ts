@@ -51,14 +51,15 @@ function useTimelineMeasurements(scrollRef: RefObject<HTMLDivElement | null>) {
     const readMeasurements = () => ({
       width: element.clientWidth,
       height: element.clientHeight,
-      rootFontSize: parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
+      rootFontSize: Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
     });
     const measure = () => {
       const { width, height, rootFontSize } = readMeasurements();
       if (width !== measuredWidth) setTimelineWidth((measuredWidth = width));
       if (height !== measuredHeight) setTimelineHeight((measuredHeight = height));
-      if (rootFontSize !== measuredRootFontSize)
+      if (rootFontSize !== measuredRootFontSize) {
         setRootFontSizePx((measuredRootFontSize = rootFontSize));
+      }
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
@@ -69,8 +70,9 @@ function useTimelineMeasurements(scrollRef: RefObject<HTMLDivElement | null>) {
         width === measuredWidth &&
         height === measuredHeight &&
         rootFontSize === measuredRootFontSize
-      )
+      ) {
         return;
+      }
       clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(measure, 0);
     });
@@ -184,8 +186,9 @@ function useViewportAlignment(input: ViewportAlignmentInput) {
       !didScrollRef.current ||
       previousGeom === geometry ||
       previousGeom.totalWidth <= 0
-    )
+    ) {
       return;
+    }
     if (ui.recenterToken !== previousRecenter) return;
     const leftDate = resolveLeftEdgeDate(previousGeom, days, element.scrollLeft);
     if (leftDate === undefined) return;

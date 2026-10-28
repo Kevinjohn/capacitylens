@@ -70,8 +70,9 @@ export function canAdministerAccount(role: Role, action: AccountAdminAction): bo
  * other.
  */
 export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean {
-  if (!canAdministerAccount(actorRole, 'manage-members') || !isAccountRole(targetRole))
+  if (!canAdministerAccount(actorRole, 'manage-members') || !isAccountRole(targetRole)) {
     return false;
+  }
   return targetRole !== 'owner';
 }
 
@@ -118,8 +119,9 @@ export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf:
  * identity that spans workspaces use {@link canAdministerIdentityAcrossWorkspaces}.
  */
 export function canAdministerIdentity(actorRole: Role, targetRole: Role): boolean {
-  if (!canAdministerAccount(actorRole, 'manage-members') || !isAccountRole(targetRole))
+  if (!canAdministerAccount(actorRole, 'manage-members') || !isAccountRole(targetRole)) {
     return false;
+  }
   return targetRole !== 'owner' || actorRole === 'owner';
 }
 

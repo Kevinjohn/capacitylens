@@ -216,8 +216,9 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const dispatchServer = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return;
-      if (verb !== 'anonymise' || entity !== 'resources')
+      if (verb !== 'anonymise' || entity !== 'resources') {
         throw new Error('Unsupported anonymisation target.');
+      }
       const reloaded = await dispatchServerLifecycle(
         { activeAccountId, planningContext: useStore.getState().planning.context, setNotice },
         id,

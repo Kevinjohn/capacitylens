@@ -45,8 +45,9 @@ export function SwitchField({
     />
   );
   let fieldContent: ReactNode = control;
-  if (layout === 'label-control')
+  if (layout === 'label-control') {
     fieldContent = <div className="flex min-h-9 items-center">{control}</div>;
+  }
   if (descriptionInControl) {
     fieldContent = (
       <FieldContent className="min-h-9 justify-center">

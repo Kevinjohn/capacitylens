@@ -193,7 +193,7 @@ describe('canViewCapacityOverview(role, access) — account setting policy', () 
 
 describe('isAtLeast(role, min) — tier comparison', () => {
   // The full 4×4 oracle, written from the strict hierarchy viewer<editor<admin<owner.
-  const EXPECTED: Record<Role, Record<Role, boolean>> = {
+  const TIER_ORACLE: Record<Role, Record<Role, boolean>> = {
     owner: { owner: true, admin: true, editor: true, viewer: true },
     admin: { owner: false, admin: true, editor: true, viewer: true },
     editor: { owner: false, admin: false, editor: true, viewer: true },
@@ -201,7 +201,7 @@ describe('isAtLeast(role, min) — tier comparison', () => {
   };
   for (const role of ROLES) {
     for (const min of ROLES) {
-      const expected = EXPECTED[role][min];
+      const expected = TIER_ORACLE[role][min];
       it(`isAtLeast('${role}', '${min}') === ${expected}`, () => {
         expect(isAtLeast(role, min)).toBe(expected);
       });

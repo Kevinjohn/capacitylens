@@ -193,9 +193,9 @@ function parseRgb(hex: string): RgbChannels | null {
   if (!HEX_COLOR_RE.test(normalized)) return null;
   const body = normalized.slice(1);
   return {
-    red: parseInt(body.slice(0, 2), 16),
-    green: parseInt(body.slice(2, 4), 16),
-    blue: parseInt(body.slice(4, 6), 16),
+    red: Number.parseInt(body.slice(0, 2), 16),
+    green: Number.parseInt(body.slice(2, 4), 16),
+    blue: Number.parseInt(body.slice(4, 6), 16),
   };
 }
 

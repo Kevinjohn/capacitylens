@@ -146,8 +146,9 @@ function useExportAction() {
       let exported = data;
       if (serverMode) {
         if (!activeAccountId) throw new Error('Choose a company before exporting.');
-        if (role === null || can(role, 'anonymise'))
+        if (role === null || can(role, 'anonymise')) {
           exported = await fetchInactiveSlice(activeAccountId);
+        }
       }
       if (!activeAccountId) throw new Error('Choose a company before exporting.');
       const completeness = role === null || canSeePrivateNames(role) ? 'full' : 'redacted';
@@ -199,8 +200,9 @@ function usePendingImport(
       if (
         selection !== selectionRef.current ||
         useStore.getState().activeAccountId !== activeAccountId
-      )
+      ) {
         return;
+      }
       setPending({ accountId: activeAccountId, document: parsed, name: file.name });
     } catch (error) {
       // Only the latest file selection may report a parse failure, or a stale read could overwrite a newer import choice.
@@ -349,8 +351,9 @@ export function ImportExport() {
           !Number.isSafeInteger(value.baseRevision) ||
           !('proofId' in value) ||
           typeof value.proofId !== 'string'
-        )
+        ) {
           throw new Error('Import confirmation could not be resumed.');
+        }
         setReturnedProof({ id: value.proofId, baseRevision: value.baseRevision as number });
       } catch {
         setNotice(m.data_import_failed({ status: 0 }), 'error');
@@ -383,18 +386,20 @@ export function ImportExport() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId: activeAccountId, document: pendingImport.document }),
       });
-      if (!response.ok)
+      if (!response.ok) {
         throw new Error(
           (await readApiError(response)) ?? m.data_import_failed({ status: response.status }),
         );
+      }
       const result: unknown = await response.json();
       if (
         !result ||
         typeof result !== 'object' ||
         !('baseRevision' in result) ||
         !Number.isSafeInteger(result.baseRevision)
-      )
+      ) {
         throw new Error(m.data_import_failed({ status: 0 }));
+      }
       if (!isCurrent()) return;
       const revision = result.baseRevision as number;
       if (returnedProof && returnedProof.baseRevision !== revision) {

@@ -145,8 +145,9 @@ export function validateDateRange(
   startDate?: ISODate | null,
   endDate?: ISODate | null,
 ): ValidationResult {
-  if (!startDate || !endDate)
+  if (!startDate || !endDate) {
     return toResult([{ code: 'date_required', message: 'Start and end dates are required.' }]);
+  }
   if (!isValidISODate(startDate) || !isValidISODate(endDate)) {
     return toResult([
       {
@@ -155,13 +156,14 @@ export function validateDateRange(
       },
     ]);
   }
-  if (endDate < startDate)
+  if (endDate < startDate) {
     return toResult([
       {
         code: 'date_reversed',
         message: 'End date cannot be before the start date.',
       },
     ]);
+  }
   // Enforce the span bound before callers can allocate one entry per day.
   if (daysInclusive(startDate, endDate) > MAX_SPAN_DAYS) {
     return toResult([
@@ -286,15 +288,17 @@ function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt
     allocations: data.allocations
       .filter((allocation) => !removedActivityIds.has(allocation.activityId))
       .map((allocation) => {
-        if (allocation.projectId === null || !removedProjectIds.has(allocation.projectId))
+        if (allocation.projectId === null || !removedProjectIds.has(allocation.projectId)) {
           return allocation;
+        }
         const remaining = { ...allocation };
         remaining.projectId = null;
         return { ...remaining, updatedAt };
       }),
     resources: data.resources.map((resource) => {
-      if (resource.projectId === null || !removedProjectIds.has(resource.projectId))
+      if (resource.projectId === null || !removedProjectIds.has(resource.projectId)) {
         return resource;
+      }
       const remaining = { ...resource };
       remaining.projectId = null;
       return { ...remaining, updatedAt };

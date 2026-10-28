@@ -60,8 +60,9 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
       );
       return;
     }
-    if (newPassword !== confirmPassword)
+    if (newPassword !== confirmPassword) {
       return fail('confirm', m.settings_security_err_password_mismatch());
+    }
     const requestGeneration = ++generation.current;
     setBusy(true);
     try {
@@ -83,8 +84,9 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
     } catch (cause) {
       // Log authentication-service failure, but publish it only while the password-change request owns the form.
       console.error('SecuritySection: password change failed', cause);
-      if (requestGeneration === generation.current)
+      if (requestGeneration === generation.current) {
         fail('current', m.settings_security_err_password_outcome_unknown());
+      }
     } finally {
       setBusy(false);
     }

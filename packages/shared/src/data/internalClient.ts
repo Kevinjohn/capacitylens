@@ -133,8 +133,9 @@ function collectBuiltinsByAccount(clients: Client[]): Map<ID, IndexedClient[]> {
       !isStringValue(client.id) ||
       !isStringValue(client.accountId) ||
       client.builtin !== true
-    )
+    ) {
       return;
+    }
     const rows = builtinsByAccount.get(client.accountId);
     const entry = { client, index };
     if (rows) rows.push(entry);

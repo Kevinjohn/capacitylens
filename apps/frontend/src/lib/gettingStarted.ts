@@ -59,8 +59,9 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
     if (
       !people.has(allocation.resourceId) ||
       coherentActivities.get(allocation.activityId) !== true
-    )
+    ) {
       return false;
+    }
     const activity = activities.get(allocation.activityId);
     return (
       activity?.kind !== 'repeatable' ||

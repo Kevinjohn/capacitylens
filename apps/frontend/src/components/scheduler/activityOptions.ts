@@ -73,8 +73,9 @@ export function buildActivityOptions({
   const phaseById = new Map(phases.map((phase) => [phase.id, phase.name]));
   const projectNamesById = new Map(projects.map((project) => [project.id, project.name]));
   const nameCountsByName = new Map<string, number>();
-  for (const activity of eligible)
+  for (const activity of eligible) {
     nameCountsByName.set(activity.name, (nameCountsByName.get(activity.name) ?? 0) + 1);
+  }
 
   const resolved = eligible.map((activity) => {
     if (nameCountsByName.get(activity.name) === 1) {
@@ -85,8 +86,9 @@ export function buildActivityOptions({
   });
 
   const labelCountsByLabel = new Map<string, number>();
-  for (const { baseLabel } of resolved)
+  for (const { baseLabel } of resolved) {
     labelCountsByLabel.set(baseLabel, (labelCountsByLabel.get(baseLabel) ?? 0) + 1);
+  }
   const occurrenceCountsByLabel = new Map<string, number>();
   resolved.sort(
     (left, right) =>

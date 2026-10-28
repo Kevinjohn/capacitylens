@@ -163,8 +163,9 @@ function createReconcileUnknownMutation({
         accountIsActive: isActiveAccount(accountId),
         accessResult: accessResult,
       })
-    )
+    ) {
       return;
+    }
     if (accessResult?.kind === 'left') {
       setNotice(m.settings_members_reconcile_company_access({ message }), 'warning');
       return;

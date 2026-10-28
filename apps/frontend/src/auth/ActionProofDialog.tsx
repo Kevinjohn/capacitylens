@@ -54,8 +54,9 @@ export function ActionProofDialog({
         typeof result !== 'object' ||
         !('proofId' in result) ||
         typeof result.proofId !== 'string'
-      )
+      ) {
         throw new Error('Action confirmation returned no proof.');
+      }
       onConfirmed(result.proofId);
     } catch (cause) {
       console.error('Action confirmation failed', cause);

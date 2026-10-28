@@ -40,8 +40,9 @@ export function seedForCurrentWeek(referenceDate = todayISO()): AppData {
   const week = startOfWeekISO(referenceDate);
   const shift = (date: string) => {
     const shifted = addDaysISO(week, dayIndex(date, SEED_WEEK));
-    if (!isValidISODate(shifted))
+    if (!isValidISODate(shifted)) {
       throw new RangeError('The demo week cannot extend beyond the supported date range.');
+    }
     return shifted;
   };
   const data = seed();

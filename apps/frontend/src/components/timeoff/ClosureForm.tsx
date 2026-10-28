@@ -101,14 +101,15 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
         }
         await update(closure.id, patch);
       } else {
-        if ((await add(patch)).kind === 'blocked') return;
+        const result = await add(patch);
+        if (result.kind === 'blocked') return;
       }
       onClose();
-    } catch (error) {
+    } catch (cause) {
       // Surface the rejected closure write at the form boundary so invalid data remains correctable.
       fail(
         null,
-        error instanceof Error ? resolveErrorMessage(error) : m.form_closure_err_save_failed(),
+        cause instanceof Error ? resolveErrorMessage(cause) : m.form_closure_err_save_failed(),
       );
     }
   };

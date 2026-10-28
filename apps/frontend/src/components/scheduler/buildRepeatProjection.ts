@@ -40,8 +40,9 @@ type ProjectionInput = Pick<
 
 function resolveProjectionContext(input: ProjectionInput) {
   const { activityId, create, repeat, resourceId, selectedEffectiveWeek, selectedResource } = input;
-  if (!create || repeat === 'none' || !selectedResource || selectedEffectiveWeek === undefined)
+  if (!create || repeat === 'none' || !selectedResource || selectedEffectiveWeek === undefined) {
     return null;
+  }
   if (!resourceId || !activityId) return null;
   return { activityId, repeat, resourceId, selectedEffectiveWeek, selectedResource };
 }
@@ -135,7 +136,8 @@ export function buildRepeatProjection(input: ProjectionInput) {
   if (
     !selectedActivity ||
     !validateAllocationAssignment(context.selectedResource, selectedEffectiveProjectId).ok
-  )
+  ) {
     return null;
+  }
   return buildProjection(input, context);
 }

@@ -39,7 +39,7 @@ describe('resolveColumnFit', () => {
     expect(resolveColumnFit(2000, 1, 22)).toEqual({ dayWidth: 391, weekWidth: 2000 });
     expect(resolveColumnFit(50, 1, 22).dayWidth).toBe(MIN_DAY_WIDTH);
     expect(resolveColumnFit(1064, 1, 0).dayWidth).toBe(152);
-    expect(resolveColumnFit(1064, 1, NaN).dayWidth).toBe(152);
+    expect(resolveColumnFit(1064, 1, Number.NaN).dayWidth).toBe(152);
   });
 
   it('clamps to MIN for tiny / many-week views and non-positive widths', () => {
@@ -50,11 +50,11 @@ describe('resolveColumnFit', () => {
 
   it('falls back to MIN for a non-finite (NaN) available width, without propagating NaN', () => {
     // Reject non-finite measured widths before they propagate NaN through geometry.
-    expect(resolveColumnFit(NaN, 4)).toEqual({
+    expect(resolveColumnFit(Number.NaN, 4)).toEqual({
       dayWidth: MIN_DAY_WIDTH,
       weekWidth: MIN_DAY_WIDTH * 7,
     });
-    expect(Number.isFinite(resolveColumnFit(NaN, 4).dayWidth)).toBe(true);
+    expect(Number.isFinite(resolveColumnFit(Number.NaN, 4).dayWidth)).toBe(true);
   });
 
   it('exposes the expected zoom levels', () => {

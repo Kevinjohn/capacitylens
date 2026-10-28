@@ -271,14 +271,14 @@ function registerWeekendAwareResizeScenarios(): void {
 
 function registerWeekendAwareResizeEdgeScenarios(): void {
   it('never widens a weekend-only range while pinning an over-dragged edge', () => {
-    const range: DateRange = { startDate: '2026-06-06', endDate: '2026-06-07' };
+    const pinnedRange: DateRange = { startDate: '2026-06-06', endDate: '2026-06-07' };
 
     expect(
-      applyGesture({ mode: 'resize-start', range: range, deltaDays: 99, options: wd }),
-    ).toEqual(range);
-    expect(applyGesture({ mode: 'resize-end', range: range, deltaDays: -99, options: wd })).toEqual(
-      range,
-    );
+      applyGesture({ mode: 'resize-start', range: pinnedRange, deltaDays: 99, options: wd }),
+    ).toEqual(pinnedRange);
+    expect(
+      applyGesture({ mode: 'resize-end', range: pinnedRange, deltaDays: -99, options: wd }),
+    ).toEqual(pinnedRange);
   });
 
   it('does not invert a one-day resize when the opposite edge is non-working', () => {

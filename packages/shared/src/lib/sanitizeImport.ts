@@ -68,13 +68,15 @@ function sanitizeResource(record: Record<string, unknown>): void {
     record.color = snapToPresetColor(record.color);
   }
   if (isPlaceholder) cleanField({ record, field: 'name' });
-  else
+  else {
     cleanRequiredField(record, 'name', kind === 'external' ? 'Unnamed company' : 'Unnamed person');
+  }
   // Optional roles persist as blank strings; only absent or malformed roles need a default.
   if (typeof record.role === 'string') cleanField({ record, field: 'role' });
   else record.role = 'Team member';
-  if (record.isFavourite !== undefined && typeof record.isFavourite !== 'boolean')
+  if (record.isFavourite !== undefined && typeof record.isFavourite !== 'boolean') {
     delete record.isFavourite;
+  }
   repairResourceAvailability(record);
   repairLifecycleFieldsInPlace(record);
 }

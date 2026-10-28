@@ -218,11 +218,13 @@ function createSubmit(input: SubmitInput) {
       if (saved?.kind === 'blocked') {
         return;
       }
-      if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId)
+      if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) {
         input.onClose();
+      }
     } catch (e) {
-      if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId)
+      if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) {
         input.fail(null, resolveErrorMessage(e));
+      }
     } finally {
       finishResourceSubmit(input);
     }

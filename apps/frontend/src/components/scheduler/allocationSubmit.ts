@@ -136,8 +136,9 @@ function parseAllocationCommandDraft(input: CommandInput): ValidatedDraft | null
 }
 
 function rejectsNewPlacement({ command, draft, newPlacement }: RejectNewPlacementInput): boolean {
-  if (!newPlacement || !command.selectedResource || command.selectedEffectiveWeek === undefined)
+  if (!newPlacement || !command.selectedResource || command.selectedEffectiveWeek === undefined) {
     return false;
+  }
   if (command.selectedEffectiveWeek.kind !== 'days') {
     command.fail('resource', m.form_allocation_err_no_effective_working_days());
     return true;
@@ -149,8 +150,9 @@ function rejectsNewPlacement({ command, draft, newPlacement }: RejectNewPlacemen
     effectiveWeek: command.selectedEffectiveWeek,
     closures: command.data.closures,
   });
-  if (blocked === 'non-working')
+  if (blocked === 'non-working') {
     command.fail('startDate', m.form_allocation_err_start_non_working());
+  }
   if (blocked === 'time-off') command.fail('startDate', m.form_allocation_err_start_time_off());
   return blocked !== null;
 }
@@ -166,7 +168,8 @@ async function saveDraft(input: CommandInput, draft: ValidatedDraft): Promise<bo
     return true;
   }
   if (input.repeat === 'none') {
-    return (await input.addAllocation(draft)).kind === 'created';
+    const result = await input.addAllocation(draft);
+    return result.kind === 'created';
   }
   if (!input.selectedResource || input.selectedEffectiveWeek === undefined) {
     throw new Error('The selected resource could not be resolved for repeat projection.');
@@ -183,7 +186,8 @@ async function saveDraft(input: CommandInput, draft: ValidatedDraft): Promise<bo
     effectiveWeek: input.selectedEffectiveWeek,
   });
   // One typed group write creates the repeated set; the server assigns its series id.
-  return (await input.addAllocations(drafts)).kind === 'created';
+  const result = await input.addAllocations(drafts);
+  return result.kind === 'created';
 }
 
 function reportSaveError(input: CommandInput, error: unknown): void {
@@ -210,8 +214,9 @@ export function createAllocationCommands(input: CommandInput) {
         draft,
         newPlacement: !input.editing || input.editing.resourceId !== draft.resourceId,
       })
-    )
+    ) {
       return;
+    }
     try {
       if (await saveDraft(input, draft)) input.onClose();
     } catch (e) {
@@ -224,8 +229,8 @@ export function createAllocationCommands(input: CommandInput) {
     const draft = validateDraft();
     if (!draft || rejectsNewPlacement({ command: input, draft, newPlacement: true })) return;
     try {
-      if ((await input.duplicateAllocation(input.editing.id, draft)).kind === 'created')
-        input.onClose();
+      const result = await input.duplicateAllocation(input.editing.id, draft);
+      if (result.kind === 'created') input.onClose();
     } catch (e) {
       // Surface a failed duplication at form level without closing the dialog.
       input.fail(

@@ -94,7 +94,8 @@ function headersWithMasqueradeContext(
   const token = getMasqueradeContextToken();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(requestOptions.headers).forEach((value, name) => headers.set(name, value));
-  if (!headers.has('X-Masquerade-Context') && token !== null)
+  if (!headers.has('X-Masquerade-Context') && token !== null) {
     headers.set('X-Masquerade-Context', token);
+  }
   return headers;
 }

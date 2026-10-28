@@ -86,10 +86,12 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
-      if (String(url).endsWith('/api/transfer/preview'))
+      if (String(url).endsWith('/api/transfer/preview')) {
         return Response.json({ baseRevision: 7, imported: 5, changed: true });
-      if (String(url).endsWith('/api/auth/action-proof/password'))
+      }
+      if (String(url).endsWith('/api/auth/action-proof/password')) {
         return Response.json({ proofId: 'proof-7' });
+      }
       if (String(url).endsWith('/api/transfer/apply')) return applyResponse;
       throw new Error(`Unexpected request: ${url}`);
     }),
@@ -155,8 +157,9 @@ describe('beta import and export', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(useStore.getState().notice?.tone).toBe('error');
     const releaseRecovery = useStore.getState().suspendPlanningCommands();
-    if (!releaseRecovery)
+    if (!releaseRecovery) {
       throw new Error('The selected context was not available for authority recovery.');
+    }
     releaseRecovery();
   });
 
@@ -264,10 +267,11 @@ describe('beta import and export', () => {
     expect(after.accounts.find((row) => row.id === 'a-loft')).toEqual(
       before.accounts.find((row) => row.id === 'a-loft'),
     );
-    for (const key of SCOPED_KEYS)
+    for (const key of SCOPED_KEYS) {
       expect(after[key].filter((row) => row.accountId === 'a-loft')).toEqual(
         before[key].filter((row) => row.accountId === 'a-loft'),
       );
+    }
     expect(
       after.resources.filter((row) => row.accountId === accountId).map((row) => row.id),
     ).toEqual(incoming.data.resources.map((row) => row.id));
@@ -283,8 +287,9 @@ describe('beta import and export', () => {
     await useStore.getState().deleteAllocation(allocation.id);
     const history = useStore.getState().planning.history.past;
     const inverse = history.at(-1)?.inverse;
-    if (inverse?.operation !== 'planning.restoreGroup')
+    if (inverse?.operation !== 'planning.restoreGroup') {
       throw new Error('The delete has no restoration handle.');
+    }
 
     const incoming = document();
     incoming.data.allocations = incoming.data.allocations.filter((row) => row.id !== allocation.id);
@@ -392,12 +397,15 @@ describe('beta import and export', () => {
         const path = String(url);
         const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
         requests.push({ url: path, body });
-        if (path.endsWith('/api/transfer/preview'))
+        if (path.endsWith('/api/transfer/preview')) {
           return Response.json({ baseRevision: 7, imported: 5, changed: true });
-        if (path.endsWith('/api/auth/action-proof/password'))
+        }
+        if (path.endsWith('/api/auth/action-proof/password')) {
           return Response.json({ proofId: 'proof-7' });
-        if (path.endsWith('/api/transfer/apply'))
+        }
+        if (path.endsWith('/api/transfer/apply')) {
           return Response.json({ imported: 5, changed: true, revision: 8 });
+        }
         throw new Error(`Unexpected request: ${path}`);
       }),
     );
@@ -461,12 +469,15 @@ describe('beta import and export', () => {
         const path = String(url);
         const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
         requests.push({ url: path, body });
-        if (path.endsWith('/api/transfer/preview'))
+        if (path.endsWith('/api/transfer/preview')) {
           return new Promise<Response>((resolve) => previews.push(resolve));
-        if (path.endsWith('/api/auth/action-proof/password'))
+        }
+        if (path.endsWith('/api/auth/action-proof/password')) {
           return Promise.resolve(Response.json({ proofId: 'proof-b' }));
-        if (path.endsWith('/api/transfer/apply'))
+        }
+        if (path.endsWith('/api/transfer/apply')) {
           return Promise.resolve(Response.json({ imported: 5, changed: true, revision: 23 }));
+        }
         throw new Error(`Unexpected request: ${path}`);
       }),
     );
@@ -506,8 +517,9 @@ describe('beta import and export', () => {
     window.history.replaceState(null, '', '/settings?capacitylensActionConfirmed=1');
     const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
       void _init;
-      if (String(url).endsWith('/api/transfer/preview'))
+      if (String(url).endsWith('/api/transfer/preview')) {
         return Response.json({ baseRevision: 7, imported: 5, changed: false });
+      }
       return Response.json({ imported: 5, changed: false, revision: 7 });
     });
     vi.stubGlobal('fetch', fetchMock);

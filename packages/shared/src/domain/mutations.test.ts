@@ -814,8 +814,9 @@ const registerAssertAllocationRefsPart5 = (world: () => AppData) => {
     };
     repeatable.projectId = null;
     const projectActivity = world().activities[0];
-    if (projectActivity === undefined)
+    if (projectActivity === undefined) {
       throw new Error('World fixture must include a project activity.');
+    }
     const data: AppData = {
       ...world(),
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1'), project('foreign', A2, 'c2')],
@@ -1341,8 +1342,9 @@ const registerRemapAndValidateImportPart1 = (incoming: () => AppData) => {
     expect(skipped).toBe(0);
     const p = data.projects[0];
     const t = data.activities[0];
-    if (p === undefined || t === undefined)
+    if (p === undefined || t === undefined) {
       throw new Error('Import must retain the project and activity.');
+    }
     expect(p.id).not.toBe('src-p');
     expect(p.accountId).toBe(A1);
     expect(t.projectId).toBe(p.id);

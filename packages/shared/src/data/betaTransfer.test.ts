@@ -264,8 +264,9 @@ describe('beta-native transfer', () => {
       (row) => row.kind === 'project' && row.projectId !== placeholder?.projectId,
     );
     const booking = document.data.allocations.find((row) => row.resourceId === placeholder?.id);
-    if (!placeholder || !differentProjectActivity || !booking)
+    if (!placeholder || !differentProjectActivity || !booking) {
       throw new Error('Expected a placeholder fixture booking');
+    }
     booking.activityId = differentProjectActivity.id;
     booking.projectId = null;
     expect(() => prepareBetaImport(document, context)).toThrow(/bound project/i);

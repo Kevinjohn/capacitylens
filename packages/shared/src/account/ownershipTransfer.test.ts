@@ -126,8 +126,9 @@ describe('ownership transfer state machine', () => {
     const terminal = STATES.filter((state) => !isLiveOwnershipTransferState(state));
     expect(terminal).toHaveLength(5);
     for (const state of terminal) {
-      for (const action of ACTIONS)
+      for (const action of ACTIONS) {
         expect(canTransitionOwnershipTransfer(state, action)).toBe(false);
+      }
     }
   });
 

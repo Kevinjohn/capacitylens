@@ -27,12 +27,13 @@ export function BetaImportPreview({ document, context, onPrepared }: BetaImportP
     }
   }, [document, context]);
 
-  if (!preview.prepared)
+  if (!preview.prepared) {
     return (
       <p role="alert" className="break-words text-sm">
         {preview.error}
       </p>
     );
+  }
   const prepared = preview.prepared;
   const count = SCOPED_KEYS.reduce((total, key) => total + prepared.data[key].length, 0);
   return (

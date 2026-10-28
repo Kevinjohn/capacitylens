@@ -83,11 +83,12 @@ export const authClient = {
           },
         })
         .safe();
-      if (received.response && !received.response.ok)
+      if (received.response && !received.response.ok) {
         return {
           data: null,
           error: readErrorMessage(received.response.payload, received.response.status),
         };
+      }
       if (!error) return { data, error: null };
       if (received.response) return { data: null, error: null };
       // Before a response, callers still receive the native fetch or abort failure.

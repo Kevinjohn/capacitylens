@@ -183,11 +183,7 @@ function registerMovedSchedulerTests201012() {
   });
 }
 
-function registerMovedSchedulerTests201013(
-  buildDanglingActivityData: () => AppData,
-  assertDanglingActivityFiltersDoNotThrow: (data: AppData) => void,
-  buildDanglingActivityModel: (data: AppData) => GroupModel[],
-) {
+function registerMovedSchedulerTests201013() {
   it('a dangling activityId does not throw when project/client/activity-kind filters are active, and is filtered out', () => {
     const d = buildDanglingActivityData();
     assertDanglingActivityFiltersDoNotThrow(d);
@@ -654,11 +650,7 @@ function registerMutationTestingGapFillMiddleTests() {
   describe('company closures', registerCompanyClosureTests);
   registerMovedSchedulerTests201011();
   registerMovedSchedulerTests201012();
-  registerMovedSchedulerTests201013(
-    buildDanglingActivityData,
-    assertDanglingActivityFiltersDoNotThrow,
-    buildDanglingActivityModel,
-  );
+  registerMovedSchedulerTests201013();
   registerMovedSchedulerTests201014();
   registerMovedSchedulerTests201015();
   registerMovedSchedulerTests201016();

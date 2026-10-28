@@ -66,8 +66,9 @@ export function InviteAccept() {
 }
 
 function initialState(token: string | undefined): State {
-  if (!isServerConfigured())
+  if (!isServerConfigured()) {
     return { kind: 'failed', message: m.invite_local_mode({ app: APP_NAME }) };
+  }
   return token ? { kind: 'checking' } : { kind: 'failed', message: m.invite_err_missing_token() };
 }
 
@@ -85,12 +86,13 @@ function useInvitePreview(token: string | undefined) {
           return;
         }
         const preview = response.ok ? parsePreview(await response.json().catch(() => null)) : null;
-        if (current)
+        if (current) {
           setState(
             preview
               ? { kind: 'form', preview }
               : { kind: 'failed', message: m.invite_err_invalid() },
           );
+        }
       })
       .catch((failure: unknown) => {
         console.warn('InviteAccept: preview failed', failure);

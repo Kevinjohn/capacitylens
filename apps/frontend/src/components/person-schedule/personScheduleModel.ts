@@ -96,8 +96,9 @@ function collectSeriesMetadata(
     if (!allocation.seriesId) continue;
     const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
     const current = seriesEndByKey.get(key);
-    if (current === undefined || allocation.endDate > current)
+    if (current === undefined || allocation.endDate > current) {
       seriesEndByKey.set(key, allocation.endDate);
+    }
   }
   return invalidRecords;
 }
@@ -151,8 +152,9 @@ function listAllocationEntries(
 ): PersonScheduleEntry[] {
   const entries: PersonScheduleEntry[] = [];
   for (const allocation of input.data.allocations) {
-    if (allocation.accountId !== input.accountId || allocation.resourceId !== input.resource.id)
+    if (allocation.accountId !== input.accountId || allocation.resourceId !== input.resource.id) {
       continue;
+    }
     if (!hasRenderableDateRange(allocation) || !overlapsWindow(allocation, input.window)) continue;
     entries.push(buildAllocationEntry(allocation, input, context));
   }

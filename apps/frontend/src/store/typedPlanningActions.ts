@@ -47,10 +47,12 @@ export function createTypedPlanningActions(
 ) {
   const accountId = () => {
     const id = get().activeAccountId;
-    if (!id || !get().data.accounts.some((row) => row.id === id))
+    if (!id || !get().data.accounts.some((row) => row.id === id)) {
       throw new Error('No active company is selected.');
-    if (get().activeAccountLoadFailed === id)
+    }
+    if (get().activeAccountLoadFailed === id) {
       throw new Error('The active account is not loaded — cannot mutate scoped data.');
+    }
     return id;
   };
   const blocked = blockedByViewer;
@@ -222,8 +224,9 @@ export function createTypedPlanningActions(
           accountId: companyId,
           args: { id: newId(), fields },
         });
-        if (!command || command.intent.operation !== 'timeOff.create')
+        if (!command || command.intent.operation !== 'timeOff.create') {
           throw new Error('The time-off entry could not be prepared.');
+        }
         return command.intent.timeOff;
       });
       await send({
@@ -242,7 +245,7 @@ export function createTypedPlanningActions(
       const companyId = accountId();
       if (blocked()) return;
       const original = owned('timeOff', id, companyId);
-      if (original)
+      if (original) {
         await send(
           buildTimeOffUpdate({
             data: get().data,
@@ -252,6 +255,7 @@ export function createTypedPlanningActions(
           }),
           original,
         );
+      }
     },
     deleteTimeOff: async (id: string) => {
       const companyId = accountId();
@@ -275,7 +279,7 @@ export function createTypedPlanningActions(
       const companyId = accountId();
       if (blocked()) return;
       const original = owned('closures', id, companyId);
-      if (original)
+      if (original) {
         await send(
           buildClosureUpdate({
             data: get().data,
@@ -285,6 +289,7 @@ export function createTypedPlanningActions(
           }),
           original,
         );
+      }
     },
     deleteClosure: async (id: string) => {
       const companyId = accountId();
@@ -294,17 +299,19 @@ export function createTypedPlanningActions(
     updateAccount: async (id: string, patch: Patch<Account>) => {
       const companyId = accountId();
       if (blocked()) return;
-      if (id !== companyId)
+      if (id !== companyId) {
         throw new Error('Cannot update a company other than the active company.');
+      }
       const original = get().data.accounts.find((row) => row.id === id);
       if (!original) return;
       if (
         patch.workingDays != null &&
         (!isWeekdaySet(patch.workingDays) || patch.workingDays.length === 0)
-      )
+      ) {
         throw new Error(
           'At least one working day is required, using unique whole-number weekdays from 0 to 6.',
         );
+      }
       const changes =
         patch.workingDays == null
           ? patch

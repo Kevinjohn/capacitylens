@@ -219,8 +219,9 @@ describe('MembersSection — transient directory state', () => {
     );
     await waitFor(() => expect(result.current.directory.kind).toBe('ready'));
     const readyDirectory = result.current.directory;
-    if (readyDirectory.kind !== 'ready')
+    if (readyDirectory.kind !== 'ready') {
       throw new Error('Expected an authorized directory fixture.');
+    }
 
     act(() => result.current.reload());
 

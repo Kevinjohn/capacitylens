@@ -122,8 +122,9 @@ function assertRepeatProjection(
   }
 
   const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
-  if (calendarSpan < 1)
+  if (calendarSpan < 1) {
     throw new RangeError('Repeat projection requires a valid inclusive date range.');
+  }
   if (
     !usesCalendarSpan &&
     lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWeekends ?? undefined)
@@ -220,7 +221,7 @@ export function buildRepeatingAllocationAdvisory({
     ) {
       nonEffectiveStartAllocations += 1;
     }
-    if (shared)
+    if (shared) {
       addCapacityLoad({
         byDay: shared.load,
         resource: resource,
@@ -229,7 +230,7 @@ export function buildRepeatingAllocationAdvisory({
         end: shared.window.end,
         effectiveWeek: effectiveWeek,
       });
-    else rebuiltLoad.push(draft);
+    } else rebuiltLoad.push(draft);
   }
   return { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations };
 }

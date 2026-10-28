@@ -50,8 +50,9 @@ function buildProjectOptions({
     const client = clients.find((candidate) => candidate.id === project.clientId);
     return { value: project.id, label: client ? `${client.name} / ${project.name}` : project.name };
   });
-  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId))
+  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId)) {
     return options;
+  }
 
   const rawProject = rawProjects.find((project) => project.id === activity.projectId);
   const rawClient = rawProject && rawClients.find((client) => client.id === rawProject.clientId);
@@ -151,8 +152,9 @@ function useProjectOptions(activity?: Activity) {
     () => buildProjectOptions({ projects, clients }),
     [projects, clients],
   );
-  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId))
+  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId)) {
     return baseOptions;
+  }
   return buildProjectOptions({
     projects,
     clients,
@@ -197,7 +199,8 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         }
         await update(activity.id, patch);
       } else {
-        if ((await add(patch)).kind === 'blocked') return;
+        const result = await add(patch);
+        if (result.kind === 'blocked') return;
       }
       onClose();
     } catch (e) {

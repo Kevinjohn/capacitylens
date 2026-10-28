@@ -164,8 +164,9 @@ export function defaultTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
 }
 
 function addCalendarMonthsClamped(date: ISODate, months: number): ISODate {
-  if (!Number.isSafeInteger(months))
+  if (!Number.isSafeInteger(months)) {
     throw new RangeError('Calendar-month offset must be a safe integer.');
+  }
   const { year, month, day } = parseDateParts(date);
   const absoluteMonth = (year - 1) * MONTHS_PER_YEAR + (month - 1) + months;
   const lastAbsoluteMonth = LAST_SUPPORTED_YEAR * MONTHS_PER_YEAR - 1;

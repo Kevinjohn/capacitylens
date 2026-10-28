@@ -33,8 +33,9 @@ export function CompanySetup({
         body: JSON.stringify({ name }),
       });
       if (response.status === 409 && (await onConflict())) return;
-      if (!response.ok)
+      if (!response.ok) {
         throw new Error((await readApiError(response)) ?? 'Company setup failed. Try again.');
+      }
       await onCreated();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Company setup failed. Try again.');

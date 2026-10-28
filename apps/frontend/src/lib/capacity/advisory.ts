@@ -68,8 +68,9 @@ export function addCapacityLoad({
         ignoreWorkingDays: allocation.ignoreWeekends ?? undefined,
         dayIsWorking: isWorkingDay(effectiveWeek, day),
       })
-    )
+    ) {
       continue;
+    }
     byDay.set(day, (byDay.get(day) ?? 0) + allocation.hoursPerDay);
   }
 }
@@ -93,7 +94,7 @@ export function bucketCapacityLoad({
   effectiveWeek,
 }: BucketCapacityLoadInput): CapacityLoadByDay {
   const byDay: CapacityLoadByDay = new Map();
-  for (const allocation of allocations)
+  for (const allocation of allocations) {
     addCapacityLoad({
       byDay: byDay,
       resource: resource,
@@ -102,6 +103,7 @@ export function bucketCapacityLoad({
       end: end,
       effectiveWeek: effectiveWeek,
     });
+  }
   return byDay;
 }
 
@@ -157,8 +159,9 @@ function tallyAdvisory({
         ignoreWorkingDays: proposal.ignoreWeekends ?? undefined,
         dayIsWorking: working,
       })
-    )
+    ) {
       continue;
+    }
     // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over, exactly like the per-day over-marker.
     const available = working ? scheduledCapacity : 0;

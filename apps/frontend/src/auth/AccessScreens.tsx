@@ -60,8 +60,9 @@ function heading(gate: AccessGate) {
 
 function GateContent(props: AccessScreenProps) {
   if (props.gate === 'verify-email') return <VerifyEmailStep />;
-  if (props.gate === 'admission')
+  if (props.gate === 'admission') {
     return <AdmissionStep admission={props.admission} onRefresh={props.onRefresh} />;
+  }
   return <MembershipStep onRefresh={props.onRefresh} />;
 }
 
@@ -122,11 +123,11 @@ function VerifyEmailStep() {
         onClick={() =>
           void step.run(async () => {
             const { error } = await authClient.sendEmailVerification();
-            if (error)
+            if (error) {
               step.setError(
                 error.code === 'MAIL_UNAVAILABLE' ? m.limited_mail_unavailable() : error.message,
               );
-            else step.setNotice(m.limited_verify_sent());
+            } else step.setNotice(m.limited_verify_sent());
           })
         }
       >
@@ -147,8 +148,9 @@ function AdmissionStep({
   const step = useStep();
   // Approval cannot admit someone who lacks invitation evidence or an allowed address.
   if (admission?.domainRefused) return <p className="text-sm">{m.limited_admission_domain()}</p>;
-  if (admission?.invitationMissing)
+  if (admission?.invitationMissing) {
     return <p className="text-sm">{m.limited_admission_invitation()}</p>;
+  }
   const refused =
     admission?.approvalStatus === 'rejected' || admission?.approvalStatus === 'revoked';
   if (refused) return <p className="text-sm">{m.limited_admission_refused()}</p>;

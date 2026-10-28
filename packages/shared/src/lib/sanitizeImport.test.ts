@@ -121,7 +121,7 @@ function registerImportedRecordBasics(): void {
     expect(
       sanitizeImportedRecord('resources', { workingHoursPerDay: 999 }).workingHoursPerDay,
     ).toBe(24);
-    expect(sanitizeImportedRecord('allocations', { hoursPerDay: NaN }).hoursPerDay).toBe(8);
+    expect(sanitizeImportedRecord('allocations', { hoursPerDay: Number.NaN }).hoursPerDay).toBe(8);
   });
 
   it('clamps a NEGATIVE allocation hours/day to 0 (matching the store clamp), not the fallback', () => {
@@ -157,7 +157,9 @@ function registerImportedResourceTests(): void {
   it('repairs a discipline sortOrder: junk / NaN → 0, keeps a valid integer', () => {
     expect(sanitizeImportedRecord('disciplines', { sortOrder: 5, name: 'D' }).sortOrder).toBe(5);
     expect(sanitizeImportedRecord('disciplines', { sortOrder: 'x', name: 'D' }).sortOrder).toBe(0);
-    expect(sanitizeImportedRecord('disciplines', { sortOrder: NaN, name: 'D' }).sortOrder).toBe(0);
+    expect(
+      sanitizeImportedRecord('disciplines', { sortOrder: Number.NaN, name: 'D' }).sortOrder,
+    ).toBe(0);
     expect(sanitizeImportedRecord('disciplines', { sortOrder: 1.5, name: 'D' }).sortOrder).toBe(0);
     expect(
       sanitizeImportedRecord('disciplines', { sortOrder: Number.MAX_SAFE_INTEGER + 1, name: 'D' })

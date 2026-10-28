@@ -31,7 +31,7 @@ describe('visible-window lane projection', () => {
     },
   );
 
-  function projectWindow({ partiallyExposesNextColumn }: ProjectWindowOptions) {
+  function projectWindow({ partiallyExposesNextColumn: exposesNextColumn }: ProjectWindowOptions) {
     const data = {
       ...emptyAppData(),
       resources: [makeResource({ id: 'r1', accountId: 'acct-test', name: 'Diana Prince' })],
@@ -73,7 +73,7 @@ describe('visible-window lane projection', () => {
         start: '2026-05-06',
         end: '2026-06-02',
         accountWorkingDays: [1, 2, 3, 4, 5],
-        partiallyExposesNextColumn,
+        partiallyExposesNextColumn: exposesNextColumn,
       })
         .flatMap((group) => group.rows)
         .find((candidate) => candidate.resource.id === 'r1'),
@@ -149,7 +149,7 @@ describe('visible-window lane projection', () => {
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: false, placeholdersEnabled: true, externalEnabled: true },
     });
-    const projectWindow = (start: ISODate, end: ISODate) =>
+    const windowRow = (start: ISODate, end: ISODate) =>
       requireValue(
         applyVisibleUtilization({
           model: base,
@@ -163,11 +163,11 @@ describe('visible-window lane projection', () => {
         'scheduler row',
       );
 
-    const septemberRow = projectWindow('2026-09-14', '2026-09-27');
+    const septemberRow = windowRow('2026-09-14', '2026-09-27');
     expect(septemberRow.rowHeight).toBe(46);
     expect(new Set(septemberRow.bars.map((bar) => bar.top))).toEqual(new Set([10]));
 
-    const augustRow = projectWindow('2026-08-17', '2026-08-30');
+    const augustRow = windowRow('2026-08-17', '2026-08-30');
     expect(augustRow.rowHeight).toBe(76);
     expect(new Set(augustRow.bars.slice(0, 2).map((bar) => bar.top)).size).toBe(2);
   });

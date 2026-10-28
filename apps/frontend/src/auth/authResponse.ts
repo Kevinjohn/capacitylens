@@ -58,8 +58,9 @@ const APPROVAL_STATUSES = new Set(['pending', 'approved', 'rejected', 'revoked']
 
 /** Reads the Account Kit decision the limited screen explains; null when the field is malformed. */
 function parseAdmission(value: unknown): { admitted: boolean; summary: AdmissionSummary } | null {
-  if (!isRecord(value) || typeof value.admitted !== 'boolean' || !isRecord(value.requirements))
+  if (!isRecord(value) || typeof value.admitted !== 'boolean' || !isRecord(value.requirements)) {
     return null;
+  }
   const { requirements } = value;
   const approval = isRecord(requirements.approval) ? requirements.approval : {};
   const status =
@@ -97,8 +98,9 @@ export function invalidResponse(): AuthStatusResult {
 
 function parsePassResult(body: unknown): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
-  if (!fields || !isAuthMode(fields.authMode) || fields.authMode === 'off')
+  if (!fields || !isAuthMode(fields.authMode) || fields.authMode === 'off') {
     return invalidResponse();
+  }
   const authMode = fields.authMode;
   const user = parseAuthUser({ value: fields.user, requireEmail: true });
   if (!user) {
@@ -111,8 +113,9 @@ function parsePassResult(body: unknown): AuthStatusResult {
     !admission ||
     typeof fields.emailVerified !== 'boolean' ||
     typeof fields.membershipRequired !== 'boolean'
-  )
+  ) {
     return invalidResponse();
+  }
   const accessGate = resolveAccessGate(fields, admission.admitted);
   const next: Extract<AuthStatusResult, { kind: 'pass' }> = {
     kind: 'pass',

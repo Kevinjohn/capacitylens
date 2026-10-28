@@ -60,8 +60,9 @@ function stripDisallowedCharacters(value: string): string {
   let cleaned = '';
   for (const character of value.normalize('NFC')) {
     // Preserve newlines and tabs until whitespace normalization; multiline mode retains newlines and converts tabs to spaces.
-    if (character === '\n' || character === '\t' || !DISALLOWED.test(character))
+    if (character === '\n' || character === '\t' || !DISALLOWED.test(character)) {
       cleaned += character;
+    }
   }
   return cleaned;
 }
@@ -86,8 +87,9 @@ export function parseUserName(value: unknown): string | null {
     !normalized ||
     hasDisallowedChars(canonical) ||
     unicodeCharacterCount(normalized) > MAX_NAME_LENGTH
-  )
+  ) {
     return null;
+  }
   return normalized;
 }
 

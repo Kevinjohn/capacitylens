@@ -63,8 +63,9 @@ function buildMemberResourceView(
 /** Account-admin control linking a login member to one eligible person Resource. */
 export function MemberResourceLink(props: MemberResourceLinkProps) {
   const { member, myRole, linkedResourceIds, resourceCandidates, dialog = false } = props;
-  if (myRole !== 'owner' && myRole !== 'admin')
+  if (myRole !== 'owner' && myRole !== 'admin') {
     return dialog ? <div /> : <td className="py-2 px-4" />;
+  }
   const view = buildMemberResourceView(member, linkedResourceIds, resourceCandidates);
 
   if (!dialog) return <MemberResourceCell linked={Boolean(member.resourceLink)} view={view} />;

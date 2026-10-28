@@ -203,7 +203,7 @@ export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
       title={timeOff ? m.form_timeoff_edit_title() : m.form_timeoff_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        submit().catch((error: unknown) => fail(null, resolveErrorMessage(error)));
+        submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
       }}
       onEdit={clear}
       footer={<FormActions onCancel={onClose} />}

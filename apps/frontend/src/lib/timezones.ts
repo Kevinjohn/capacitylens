@@ -26,8 +26,9 @@ function warnRuntimeFallback(message: string, error?: unknown): void {
   if (
     warnedRuntimeFallbacks.has(message) ||
     warnedRuntimeFallbacks.size >= MAX_RUNTIME_FALLBACK_WARNINGS
-  )
+  ) {
     return;
+  }
   warnedRuntimeFallbacks.add(message);
   if (error === undefined) {
     console.warn(message);

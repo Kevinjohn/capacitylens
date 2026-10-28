@@ -31,7 +31,7 @@ interface LayersProps extends Omit<ResourceLaneProps, 'geom' | 'resourceId' | 'r
   indexAt: (x: number) => number;
 }
 
-const BarsLayer = memo(function BarsLayer({
+const BarsLayer = memo(function BarsLayerComponent({
   bars,
   geometry,
   indexAt,
@@ -183,7 +183,7 @@ function ResourceLaneLayers(props: LayersProps) {
 }
 
 /** Displays one resource's dated bars and handles lane interactions. */
-export const ResourceLane = memo(function ResourceLane({
+export const ResourceLane = memo(function ResourceLaneComponent({
   geom: geometry,
   placeholder = false,
   ...props

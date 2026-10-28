@@ -54,13 +54,13 @@ describe('volatile planning transport', () => {
 
   it('advances the revision only when allocations changed outside the transport', async () => {
     const { transport, read, write } = harness(makeAppData({ allocations: [makeAllocation()] }));
-    const first = (await transport.read(context, signal)).revision;
-    expect((await transport.read(context, signal)).revision).toBe(first);
+    const { revision: first } = await transport.read(context, signal);
+    await expect(transport.read(context, signal)).resolves.toHaveProperty('revision', first);
 
     // A legacy cascade, such as deleting the booked resource, removes the row without a typed write.
     write({ ...read(), allocations: [] });
 
-    expect((await transport.read(context, signal)).revision).toBe(first + 1);
+    await expect(transport.read(context, signal)).resolves.toHaveProperty('revision', first + 1);
   });
 
   it('answers a lookup with the commitment and restoration handle of a committed write', async () => {
@@ -120,14 +120,14 @@ describe('volatile planning transport', () => {
         ],
       });
       const before = structuredClone(read());
-      const revision = (await transport.read(context, signal)).revision;
+      const { revision } = await transport.read(context, signal);
       await expect(
         run('restore', { operation: 'planning.restoreGroup', restorationGroupId }),
       ).rejects.toMatchObject({
         status: 409,
       });
       expect(read()).toEqual(before);
-      expect((await transport.read(context, signal)).revision).toBe(revision);
+      await expect(transport.read(context, signal)).resolves.toHaveProperty('revision', revision);
       await expect(transport.lookup(context, 'restore', signal)).resolves.toEqual({
         status: 'unknown',
         mutationId: 'restore',
@@ -181,7 +181,7 @@ describe('demo Restore cleanup', () => {
     );
     const deleted = await h.run('delete', { operation: 'allocation.delete', id: original.id });
     const group = deleted.restoration.replacementGroupId;
-    const revision = (await h.transport.read(context, signal)).revision;
+    const { revision } = await h.transport.read(context, signal);
     const intent = {
       operation: 'catalogue.update',
       entity: { entity: 'activities', id: activity.id, changes: { kind: 'repeatable' } },
@@ -208,7 +208,7 @@ describe('demo Restore cleanup', () => {
       makeAppData({ allocations: [original], activities: [activity], resources: [makeResource()] }),
     );
     const deleted = await h.run('delete', { operation: 'allocation.delete', id: original.id });
-    const revision = (await h.transport.read(context, signal)).revision;
+    const { revision } = await h.transport.read(context, signal);
     await expect(
       h.transport.execute(
         context,
@@ -223,7 +223,7 @@ describe('demo Restore cleanup', () => {
         signal,
       ),
     ).rejects.toMatchObject({ code: 'NO_CHANGE' });
-    expect((await h.transport.read(context, signal)).revision).toBe(revision);
+    await expect(h.transport.read(context, signal)).resolves.toHaveProperty('revision', revision);
     await expect(h.transport.lookup(context, 'unchanged', signal)).resolves.toEqual({
       status: 'unknown',
       mutationId: 'unchanged',

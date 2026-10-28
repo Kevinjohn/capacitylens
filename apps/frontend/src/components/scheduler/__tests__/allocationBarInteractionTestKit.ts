@@ -115,8 +115,9 @@ export function getStoredAllocation(allocationId: Allocation['id']): Allocation 
 /** Reads the current screen-reader announcement and fails when absent. */
 export function getSrAnnouncement() {
   const announcement = useStore.getState().srAnnouncement;
-  if (!announcement)
+  if (!announcement) {
     throw new Error('Expected the allocation edit to produce a screen-reader announcement.');
+  }
   return announcement;
 }
 

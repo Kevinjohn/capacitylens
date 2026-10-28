@@ -71,8 +71,9 @@ type Direction = 1 | -1;
 function snapToWorkingDay(date: ISODate, workingDays: Weekday[], direction: Direction): ISODate {
   let weekday = weekdayOf(date);
   for (let offset = 0; offset < 7; offset++) {
-    if (workingDays.includes(weekday))
+    if (workingDays.includes(weekday)) {
       return offset === 0 ? date : addDaysISO(date, offset * direction);
+    }
     weekday = ((weekday + direction + 7) % 7) as Weekday;
   }
   return addDaysISO(date, 7 * direction);

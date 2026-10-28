@@ -70,12 +70,13 @@ type Fixture = Awaited<ReturnType<typeof setup>>;
 
 async function startRequest(fixture: Fixture, stage: RequestStage): Promise<unknown> {
   if (stage === 'read') return fixture.controller.refresh();
-  if (stage === 'execute')
+  if (stage === 'execute') {
     return fixture.controller.execute(
       fixture.controller.begin({ startDate: '2026-10-20' }),
       update,
       inverse,
     );
+  }
   fixture.execute.mockRejectedValueOnce(new TypeError('Response lost'));
   await fixture.controller
     .execute(fixture.controller.begin({ startDate: '2026-10-20' }), update, inverse)
@@ -95,13 +96,14 @@ describe('planning request access boundaries', () => {
       const fixture = await setup();
       const publications: boolean[] = [];
       fixture.store.subscribe((state) => {
-        if (state.planning.context === null)
+        if (state.planning.context === null) {
           publications.push(
             state.data.clients.length === 0 &&
               state.planning.history.past.length === 0 &&
               state.planning.history.future.length === 0 &&
               state.planning.pending === null,
           );
+        }
       });
       rejectStage(fixture, stage, new PlanningControllerError('Access ended', undefined, 401));
       await startRequest(fixture, stage).catch((error: unknown) => error);

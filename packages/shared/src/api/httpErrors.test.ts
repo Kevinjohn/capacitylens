@@ -30,18 +30,21 @@ describe('flat HTTP failure boundary', () => {
     ).toEqual({ error: 'Fallback' });
   });
   it('narrows safe restoration counts and rejects fractional, infinite and string counts', () => {
-    for (const count of [0, 3])
+    for (const count of [0, 3]) {
       expect(
         readHttpErrorBody({ restorableItemCount: count }, 'Fallback').restorableItemCount,
       ).toBe(count);
-    for (const count of [-1, 0.5, Infinity, '3', Number.MAX_SAFE_INTEGER + 1])
+    }
+    for (const count of [-1, 0.5, Infinity, '3', Number.MAX_SAFE_INTEGER + 1]) {
       expect(
         readHttpErrorBody({ restorableItemCount: count }, 'Fallback').restorableItemCount,
       ).toBeUndefined();
+    }
   });
   it('handles absent and non-object bodies', () => {
-    for (const value of [null, undefined, [], 'error'])
+    for (const value of [null, undefined, [], 'error']) {
       expect(readHttpErrorBody(value, 'Fallback')).toEqual({ error: 'Fallback' });
+    }
   });
 });
 
@@ -64,10 +67,10 @@ function productTypeContracts() {
     error: 'Confirm',
     code: 'RESTORATION_CONFIRMATION_REQUIRED',
   };
-  // @ts-expect-error Ordinary validation has no restoration metadata.
   const misplacedCount: ProductHttpErrorBody = {
     error: 'Invalid',
     code: 'VALIDATION_ERROR',
+    // @ts-expect-error Ordinary validation has no restoration metadata.
     restorableItemCount: 2,
   };
   return [validation, registered, wrongStatus, unsupported, missingCount, misplacedCount];

@@ -132,14 +132,16 @@ export class MasqueradeController {
     this.startPendingGeneration = null;
     if (this.generation !== generation) return false;
     if (useStore.getState().masquerade.kind !== 'inactive') return false;
-    if (flush.kind !== 'clean' || !useStore.getState().planningReadyForReplacement())
+    if (flush.kind !== 'clean' || !useStore.getState().planningReadyForReplacement()) {
       return this.fail(
         'Finish loading or resolving company changes before starting a member view.',
       );
-    if (!this.acquireSuspension())
+    }
+    if (!this.acquireSuspension()) {
       return this.fail(
         'Finish loading or resolving company changes before starting a member view.',
       );
+    }
     useStore
       .getState()
       .setMasquerade({ kind: 'starting', pending: { accountId, targetUserId }, generation });
@@ -228,12 +230,14 @@ export class MasqueradeController {
     const state = runtime.state;
     if (!state) return false;
     const generation = runtime.generation;
-    if (useStore.getState().activeAccountId === null)
+    if (useStore.getState().activeAccountId === null) {
       return this.loadColdProjection(state, generation);
-    if (!this.acquireSuspension())
+    }
+    if (!this.acquireSuspension()) {
       return this.fail(
         'Finish loading or resolving company changes before retrying the member view.',
       );
+    }
     try {
       const projected = await this.dependencies.reproject(state.accountId, false);
       if (!this.ownsRuntime(generation, runtime.kind)) return false;
@@ -420,8 +424,9 @@ export class MasqueradeController {
         useStore.getState().setMasquerade({ kind: 'inactive' });
         return;
       }
-      if (current.kind === 'active' || current.kind === 'starting')
+      if (current.kind === 'active' || current.kind === 'starting') {
         this.restoreServerEndedProjection();
+      }
       return;
     }
     await this.adoptActiveStatus(status);
@@ -477,21 +482,24 @@ export class MasqueradeController {
     try {
       const name = await this.dependencies.readBootstrapAccount(state.accountId);
       if (!this.ownsRuntime(generation, 'starting')) return false;
-      if (name === null)
+      if (name === null) {
         return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+      }
       useStore.getState().setAccountSummaries({
         list: [{ id: state.accountId, name, role: state.effectiveRole }],
         complete: true,
       });
       useStore.getState().setActiveAccount(state.accountId);
       if (!(await this.dependencies.reproject(state.accountId, false))) {
-        if (this.ownsRuntime(generation, 'starting'))
+        if (this.ownsRuntime(generation, 'starting')) {
           return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+        }
         return false;
       }
       if (!this.ownsRuntime(generation, 'starting')) return false;
-      if (!this.acquireSuspension())
+      if (!this.acquireSuspension()) {
         return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+      }
       useStore.getState().clearUndoHistory();
       publishMasqueradeAccount(state);
       const loadedName =

@@ -228,8 +228,9 @@ describe('PermissionProvider membership invalidation', () => {
     );
     expect(resolvedRoleCall).toBeGreaterThanOrEqual(0);
     const resolvedRoleInvocationOrder = setActiveRole.mock.invocationCallOrder[resolvedRoleCall];
-    if (resolvedRoleInvocationOrder === undefined)
+    if (resolvedRoleInvocationOrder === undefined) {
       throw new Error('resolved role call was not recorded');
+    }
     expect(adoptStatus.mock.invocationCallOrder[0]).toBeLessThan(resolvedRoleInvocationOrder);
   });
 });

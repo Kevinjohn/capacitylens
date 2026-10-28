@@ -18,16 +18,16 @@ export function checkOrdinaryRequestContracts() {
   const state: RequestArgs<Routes['api.state']> = {
     query: { accountId: 'a-studio', includeInactive: '1' },
   };
-  // @ts-expect-error Sign-in requires a password.
   const missingPassword: RequestArgs<Routes['api.auth.sign-in']> = {
+    // @ts-expect-error Sign-in requires a password.
     body: { email: 'clark@wayne.example' },
   };
   const missingName: RequestArgs<Routes['api.auth.sign-up']> = {
     // @ts-expect-error The generated sign-up body requires the display name.
     body: { email: 'clark@wayne.example', password: 'secret' },
   };
-  // @ts-expect-error Admission status is a generated finite union.
   const invalidStatus: RequestArgs<Routes['api.admission.index']> = {
+    // @ts-expect-error Admission status is a generated finite union.
     query: { status: 'unknown' },
   };
   // @ts-expect-error State's inactive flag is the literal wire value.

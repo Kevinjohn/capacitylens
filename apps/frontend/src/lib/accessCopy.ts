@@ -47,8 +47,9 @@ function resolveAccessState(input: AccessCopyInput): AccessCopyResult {
   if (input.experience === 'demo') return { kind: 'demo' };
   if (input.permissionStatus === 'pending') return { kind: 'checking' };
   if (input.permissionStatus === 'not-applicable') return { kind: 'not-applicable' };
-  if (input.permissionStatus === 'unavailable' || input.role === null)
+  if (input.permissionStatus === 'unavailable' || input.role === null) {
     return { kind: 'unavailable' };
+  }
   return { kind: 'role', role: input.role };
 }
 

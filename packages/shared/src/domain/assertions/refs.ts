@@ -86,8 +86,9 @@ function createScopedRefsContext(
         ? (resolveValidationRow({ data, table, id: record[field], ...lookupOptions }) as
             ScopedEntity | undefined)
         : undefined;
-    if (unchanged(field) && (resolved === undefined || belongsToAccount(resolved, accountId)))
+    if (unchanged(field) && (resolved === undefined || belongsToAccount(resolved, accountId))) {
       return;
+    }
     if (
       resolved === undefined ||
       !belongsToAccount(resolved, accountId) ||
@@ -152,15 +153,17 @@ function assertActivityPhase(context: ScopedRefsContext): void {
       : undefined;
   const ownedPhase = phase && belongsToAccount(phase, accountId) ? phase : undefined;
   if (unchanged('phaseId') && unchanged('projectId')) {
-    if (phase && !ownedPhase)
+    if (phase && !ownedPhase) {
       throwDomainError(
         'activity_phase_wrong_account',
         'Activity phase must belong to this company.',
       );
+    }
     return;
   }
-  if (!ownedPhase)
+  if (!ownedPhase) {
     throwDomainError('activity_phase_wrong_account', 'Activity phase must belong to this company.');
+  }
   if (!present('projectId')) {
     throwDomainError(
       'activity_phase_project_required',
@@ -192,8 +195,9 @@ function assertResourceRefs(context: ScopedRefsContext): void {
   const hasKind = mergedKind !== undefined && mergedKind !== null;
   const mergedAvatarUrl = supplied('avatarUrl') ? record.avatarUrl : previous?.avatarUrl;
   if (mergedAvatarUrl != null) {
-    if (mergedKind !== 'person')
+    if (mergedKind !== 'person') {
       throwDomainError('resource_avatar_url_forbidden', 'Only a person can have an avatar URL.');
+    }
     const avatarUrl = parseResourceAvatarUrl(mergedAvatarUrl);
     if (avatarUrl !== mergedAvatarUrl) {
       throwDomainError(

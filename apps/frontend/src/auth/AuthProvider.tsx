@@ -76,8 +76,9 @@ function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
       masqueradeController.invalidate();
       queryClient.clear();
       useStore.getState().clearPlanning();
-    } else if (next.kind === 'pass')
+    } else if (next.kind === 'pass') {
       bindStoredAccountCommandsToIdentity(next.user?.id ?? 'auth-off');
+    }
     setStatus(next);
     return next;
   }, []);
@@ -104,8 +105,9 @@ function useAuthRevalidation({
   }, [serverMode, checkAuth]);
   const previousAuthLossVersion = useRef(planningAuthLossVersion);
   useEffect(() => {
-    if (serverMode && planningAuthLossVersion !== previousAuthLossVersion.current)
+    if (serverMode && planningAuthLossVersion !== previousAuthLossVersion.current) {
       void refreshAuth();
+    }
     previousAuthLossVersion.current = planningAuthLossVersion;
   }, [serverMode, planningAuthLossVersion, refreshAuth]);
   useEffect(() => {
@@ -115,8 +117,9 @@ function useAuthRevalidation({
       // A returning tab must reconcile its planning revision after identity has been checked.
       // A refused identity clears the private cache in checkAuth, so it cannot start a read.
       void checkAuth('keep-previous').then((next) => {
-        if (next?.kind === 'pass' && useStore.getState().activeAccountId !== null)
+        if (next?.kind === 'pass' && useStore.getState().activeAccountId !== null) {
           return useStore.getState().refreshPlanning();
+        }
       });
     };
     window.addEventListener('focus', revalidateVisibleSession);
@@ -275,7 +278,7 @@ function AuthenticatedAppProvider({
   const confirmingAddress =
     status.accessGate === 'verify-email' &&
     resolvePublicAuthEntry(window.location.pathname) === 'email-verification';
-  if (status.accessGate && !confirmingAddress)
+  if (status.accessGate && !confirmingAddress) {
     return (
       <AccessScreen
         gate={status.accessGate}
@@ -287,36 +290,47 @@ function AuthenticatedAppProvider({
         }}
       />
     );
-  if (confirmingAddress)
+  }
+  if (confirmingAddress) {
     return (
       <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>
     );
-  if (status.companySetupRequired)
+  }
+  if (status.companySetupRequired) {
     return (
       <CompanySetup
         onSignOut={signOut}
         onConflict={async () => {
           // A conflict may be another tab's success or an installation that this identity cannot own.
           const response = await accountClient.listWorkspaces();
-          if (!response.ok)
+          if (!response.ok) {
             throw new Error('Could not verify company access. Refresh the page to try again.');
+          }
           const companies: unknown = await response.json();
           const company: unknown =
             Array.isArray(companies) && companies.length === 1 ? companies[0] : null;
-          if (!isRecord(company) || company.role !== 'owner' || typeof company.id !== 'string')
+          if (!isRecord(company) || company.role !== 'owner' || typeof company.id !== 'string') {
             return false;
+          }
           const next = await checkAuth('report-error');
-          if (!next || next.kind !== 'pass' || next.companySetupRequired)
+          if (!next || next.kind !== 'pass' || next.companySetupRequired) {
             throw new Error('Could not refresh company access. Refresh the page to try again.');
+          }
           return true;
         }}
         onCreated={async () => {
           const next = await checkAuth('report-error');
-          if (!next || next.kind === 'error' || (next.kind === 'pass' && next.companySetupRequired))
+          if (
+            !next ||
+            next.kind === 'error' ||
+            (next.kind === 'pass' && next.companySetupRequired)
+          ) {
             throw new Error('Company created; session refresh failed. Try refreshing the page.');
+          }
         }}
       />
     );
+  }
   return (
     <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>
   );

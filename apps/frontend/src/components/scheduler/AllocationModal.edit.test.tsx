@@ -49,10 +49,11 @@ async function resolveScopeActivity(
   activityKind: AllocationScopeCaseInput['activityKind'],
   activityName: string,
 ) {
-  if (activityKind !== 'project')
+  if (activityKind !== 'project') {
     return requireCreated(
       useStore.getState().addActivity({ name: activityName, kind: activityKind }),
     );
+  }
   return required(
     useStore.getState().data.activities.find((candidate) => candidate.id === 't1'),
     'Expected the seeded project activity.',
@@ -375,8 +376,9 @@ describe('AllocationModal edit', () => {
     expect(earlier).toBeDefined();
     expect(selected).toBeDefined();
     expect(later).toBeDefined();
-    if (!earlier || !selected || !later)
+    if (!earlier || !selected || !later) {
       throw new Error('Expected all repeated allocations to be created.');
+    }
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={selected.id} onClose={onClose} />);

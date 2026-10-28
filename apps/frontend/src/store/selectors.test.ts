@@ -237,9 +237,9 @@ describe('calendar primitive selectors', () => {
   });
 
   it('returns the active account calendar values', () => {
-    const data = accounts({ timezone: 'Europe/London', weekStartsOn: 0 });
-    expect(resolveTimeZone(data, 'a1')).toBe('Europe/London');
-    expect(resolveWeekStart(data, 'a1')).toBe(0);
+    const appData = accounts({ timezone: 'Europe/London', weekStartsOn: 0 });
+    expect(resolveTimeZone(appData, 'a1')).toBe('Europe/London');
+    expect(resolveWeekStart(appData, 'a1')).toBe(0);
   });
 
   it('derives legacy account working days from week start and preserves an explicit selection', () => {
@@ -306,16 +306,16 @@ describe('hasResourceEngagementGrouping', () => {
 
 describe('hasVisibleTaskFieldInSchedule', () => {
   it('defaults off and remains account-scoped', () => {
-    const data = {
+    const appData = {
       ...emptyAppData(),
       accounts: [
         { ...makeAccount({ id: 'a1' }), showTaskFieldInSchedule: true },
         { ...makeAccount({ id: 'a2' }), showTaskFieldInSchedule: false },
       ],
     };
-    expect(hasVisibleTaskFieldInSchedule(data, 'a1')).toBe(true);
-    expect(hasVisibleTaskFieldInSchedule(data, 'a2')).toBe(false);
-    expect(hasVisibleTaskFieldInSchedule({ ...data, accounts: [] }, 'a1')).toBe(false);
+    expect(hasVisibleTaskFieldInSchedule(appData, 'a1')).toBe(true);
+    expect(hasVisibleTaskFieldInSchedule(appData, 'a2')).toBe(false);
+    expect(hasVisibleTaskFieldInSchedule({ ...appData, accounts: [] }, 'a1')).toBe(false);
   });
 });
 

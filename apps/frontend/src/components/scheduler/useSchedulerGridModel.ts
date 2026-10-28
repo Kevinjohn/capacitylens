@@ -114,7 +114,7 @@ function useSchedulerModelProjection({
   visibleStart,
   visibleEnd,
   rowLaneLayout,
-  partiallyExposesNextColumn,
+  partiallyExposesNextColumn: exposesNextColumn,
 }: SchedulerModelProjectionInput) {
   const modelPreferences = useMemo(
     () => buildModelPreferences(accountPrefs, accountWorkingDays),
@@ -144,7 +144,7 @@ function useSchedulerModelProjection({
         accountWorkingDays,
         blocksMode: accountPrefs.blocksMode,
         laneLayout: rowLaneLayout,
-        partiallyExposesNextColumn,
+        partiallyExposesNextColumn: exposesNextColumn,
       }),
     [
       staticModel,
@@ -154,7 +154,7 @@ function useSchedulerModelProjection({
       accountWorkingDays,
       accountPrefs.blocksMode,
       rowLaneLayout,
-      partiallyExposesNextColumn,
+      exposesNextColumn,
     ],
   );
 }

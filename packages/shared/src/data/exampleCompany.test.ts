@@ -39,8 +39,9 @@ describe('buildExampleCompany', () => {
     ]);
     expect(data.timeOff).toHaveLength(1);
     expect(countExampleRows(data)).toBe(15);
-    for (const rows of Object.values(data) as { accountId: string }[][])
+    for (const rows of Object.values(data) as { accountId: string }[][]) {
       for (const row of rows) expect(row.accountId).toBe(ACCOUNT);
+    }
   });
 
   it('mints fresh unique ids on every call', () => {
@@ -77,8 +78,9 @@ describe('buildExampleCompany rules', () => {
   it('follows the activity, project and colour rules', () => {
     const data = build();
     const colourOf = new Map(data.disciplines.map((row) => [row.id, row.color]));
-    for (const person of data.resources)
+    for (const person of data.resources) {
       expect(person.color).toBe(colourOf.get(person.disciplineId ?? ''));
+    }
     for (const row of [...data.disciplines, ...data.resources, ...data.clients, ...data.projects]) {
       expect(isPresetColor(row.color)).toBe(true);
     }

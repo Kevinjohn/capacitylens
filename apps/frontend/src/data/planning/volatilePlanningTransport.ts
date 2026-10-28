@@ -59,8 +59,9 @@ function rowId(value: unknown): string {
 
 function slice(data: AppData, companyId: string): AppData {
   const next = { ...data, accounts: data.accounts.filter((row) => row.id === companyId) };
-  for (const key of SCOPED_KEYS)
+  for (const key of SCOPED_KEYS) {
     Object.assign(next, { [key]: data[key].filter((row) => row.accountId === companyId) });
+  }
   return next;
 }
 
@@ -77,12 +78,14 @@ function normalizeColor(key: AppDataKey, fields: object, current?: Row): object 
   if (
     !('color' in fields) ||
     !['accounts', 'clients', 'projects', 'disciplines', 'resources'].includes(key)
-  )
+  ) {
     return fields;
+  }
   const color = fields.color;
   if (key === 'disciplines' && color === null) return fields;
-  if (typeof color !== 'string')
+  if (typeof color !== 'string') {
     throw invalid('A colour must be selected from the available swatches.');
+  }
   const kind = 'kind' in fields ? fields.kind : current?.kind;
   return {
     ...fields,
@@ -150,10 +153,12 @@ function deleteRows(
   return groupId;
 }
 function restore(data: AppData, group: Group): void {
-  if (group.rows.some((row) => rows(data, group.key).some((current) => current.id === row.id)))
+  if (group.rows.some((row) => rows(data, group.key).some((current) => current.id === row.id))) {
     throw conflict();
-  for (const link of group.links)
+  }
+  for (const link of group.links) {
     if (find(data, link.key, link.id)[link.field] !== null) throw conflict();
+  }
   for (const row of group.rows) {
     try {
       if (group.key === 'allocations') {
@@ -179,8 +184,9 @@ function restore(data: AppData, group: Group): void {
         assertAllocationPlacement({ allocation, resource, accountWorkingDays });
       }
       if (group.key === 'phases') assertScopedRefs(data, group.companyId, 'phases', row);
-      if (group.key === 'timeOff')
+      if (group.key === 'timeOff') {
         assertResourceExists(data, group.companyId, String(row.resourceId));
+      }
     } catch (error) {
       if (error instanceof DomainError) throw conflict();
       throw error;
@@ -214,33 +220,36 @@ function lifecycle(
   action: 'archive' | 'unarchive',
 ): void {
   const current = find(data, key, id);
-  const changed =
+  const updated =
     action === 'archive'
       ? archive(current as never, touchAfter(current.updatedAt))
       : unarchive(current as never);
-  patch(data, key, id, changed);
+  patch(data, key, id, updated);
 }
 
 function assertWorkingPattern(resource: Resource): void {
-  if (!isWeekdaySet(resource.workingDays) || resource.workingDays.length === 0)
+  if (!isWeekdaySet(resource.workingDays) || resource.workingDays.length === 0) {
     throw invalid(
       'At least one working day is required, using unique whole-number weekdays from 0 to 6.',
     );
+  }
   if (
     !isWeekdaySet(resource.halfDays) ||
     resource.halfDays.some((day) => !resource.workingDays.includes(day))
-  )
+  ) {
     throw invalid('Half days must be unique whole-number weekdays contained in the working week.');
+  }
   const [availabilityCode] = validateResourceAvailabilityPair(
     resource.firstAvailableDate,
     resource.lastAvailableDate,
   ).codes;
-  if (availabilityCode)
+  if (availabilityCode) {
     throw invalid(
       availabilityCode === 'date_reversed'
         ? 'End date cannot be before the start date.'
         : 'Availability dates must be valid calendar dates (YYYY-MM-DD).',
     );
+  }
 }
 
 function validateCatalogue(
@@ -251,12 +260,14 @@ function validateCatalogue(
   previous?: Row,
 ): void {
   const merged = { ...previous, ...fields };
-  if ((key === 'clients' || key === 'projects') && !hasUsablePrivateCodeName(merged))
+  if ((key === 'clients' || key === 'projects') && !hasUsablePrivateCodeName(merged)) {
     throw invalid(`A private ${key === 'clients' ? 'client' : 'project'} requires a code name.`);
-  if (key === 'clients' && previous && isBuiltinClient(previous as never))
+  }
+  if (key === 'clients' && previous && isBuiltinClient(previous as never)) {
     throw invalid('The Internal client is built in and cannot be renamed.');
+  }
   assertScopedRefs(data, companyId, key, key === 'activities' ? merged : fields, previous);
-  if (key === 'activities' && previous)
+  if (key === 'activities' && previous) {
     assertActivityProjectAllowsDependents(
       data,
       companyId,
@@ -264,6 +275,7 @@ function validateCatalogue(
       merged as unknown as Activity,
       previous as unknown as Activity,
     );
+  }
 }
 
 function validateResource(
@@ -276,8 +288,9 @@ function validateResource(
   assertScopedRefs(data, companyId, 'resources', fields, previous);
   if (merged.kind === 'placeholder') {
     const defaults = placeholderCapacityDefaults();
-    if (Object.hasOwn(fields, 'engagement') && merged.engagement !== 'studio')
+    if (Object.hasOwn(fields, 'engagement') && merged.engagement !== 'studio') {
       throw invalid('A placeholder must use Studio engagement.');
+    }
     for (const key of ['workingDays', 'halfDays'] as const) {
       if (!Object.hasOwn(fields, key)) continue;
       const actual = merged[key];
@@ -286,8 +299,9 @@ function validateResource(
         !Array.isArray(actual) ||
         actual.length !== expected.length ||
         actual.some((day, index) => day !== expected[index])
-      )
+      ) {
         throw invalid(`A placeholder's ${key} must match its default working pattern.`);
+      }
     }
   }
   assertWorkingPattern(merged);
@@ -321,8 +335,9 @@ function validateTimeOff(
 
 function validateClosure(fields: Record<string, unknown>, previous?: Row): void {
   const merged = { ...previous, ...fields };
-  if (typeof merged.name !== 'string' || merged.name.trim().length === 0)
+  if (typeof merged.name !== 'string' || merged.name.trim().length === 0) {
     throw new DomainError('closure_name_required', 'Closure name is required.');
+  }
   assertDateRange(merged.startDate as string | undefined, merged.endDate as string | undefined);
 }
 
@@ -342,8 +357,9 @@ function apply(
       break;
     case 'allocation.createGroup': {
       const seriesId = newId();
-      for (const row of intent.allocations)
+      for (const row of intent.allocations) {
         insert(data, 'allocations', rowId(row.id), { ...row, seriesId }, companyId);
+      }
       break;
     }
     case 'allocation.update':
@@ -355,8 +371,9 @@ function apply(
       const occurrences =
         intent.operation === 'allocation.duplicate' ? [intent.occurrence] : intent.occurrences;
       const seriesId = intent.operation === 'allocation.repeat' ? newId() : null;
-      for (const row of occurrences)
+      for (const row of occurrences) {
         insert(data, 'allocations', row.id, { ...source, ...row, seriesId }, companyId);
+      }
       break;
     }
     case 'allocation.delete':
@@ -391,16 +408,19 @@ function apply(
         ((entity === 'clients' || entity === 'projects') &&
           ('isPrivate' in changes || 'codeName' in changes)) ||
         (entity === 'activities' && 'kind' in changes);
-      if (refetch && !Object.keys(changes).some((field) => previous[field] !== current[field]))
+      if (refetch && !Object.keys(changes).some((field) => previous[field] !== current[field])) {
         throw new PlanningControllerError(
           'The operation does not change planning data.',
           'NO_CHANGE',
           400,
         );
+      }
       if (entity === 'activities' && 'kind' in changes && changes.kind !== 'project') {
-        for (const row of rows(data, 'allocations'))
-          if (row.activityId === id && row.projectId !== null)
+        for (const row of rows(data, 'allocations')) {
+          if (row.activityId === id && row.projectId !== null) {
             patch(data, 'allocations', row.id, { projectId: null });
+          }
+        }
       }
       break;
     }
@@ -491,10 +511,12 @@ function changed(
     const oldRows = new Map(rows(before, key).map((row) => [row.id, row]));
     const newRows = new Map(rows(after, key).map((row) => [row.id, row]));
     // apply() replaces only affected rows, so reference identity identifies exact upserts.
-    for (const row of newRows.values())
+    for (const row of newRows.values()) {
       if (oldRows.get(row.id) !== row) upserts.push({ entity: key, row });
-    for (const row of oldRows.values())
+    }
+    for (const row of oldRows.values()) {
       if (!newRows.has(row.id)) removed.push({ entity: key, id: row.id });
+    }
   }
   return { upserts, removed } as unknown as Extract<
     PlanningMutationSuccess['projection'],
@@ -525,8 +547,9 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
       company.revision += 1;
       company.pendingRefetch = false;
       for (const [id, group] of groups) if (group.companyId === companyId) groups.delete(id);
-      for (const [id, commitment] of commitments)
+      for (const [id, commitment] of commitments) {
         if (commitment.companyId === companyId) commitments.delete(id);
+      }
       return company.revision;
     },
     async read(context) {
@@ -544,20 +567,23 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
       // N9/N10 still mutate the demo store directly; include those page-memory edits in the
       // next typed command's validation even when no explicit planning read intervened.
       const visible = slice(readData(), context.companyId);
-      if (!company.pendingRefetch && JSON.stringify(visible) !== JSON.stringify(company.data))
+      if (!company.pendingRefetch && JSON.stringify(visible) !== JSON.stringify(company.data)) {
         company.data = visible;
-      if (commitments.has(execution.mutationId))
+      }
+      if (commitments.has(execution.mutationId)) {
         throw new PlanningControllerError(
           'This planning change was already committed.',
           'MUTATION_ID_REUSED',
           409,
         );
-      if (execution.baseRevision !== company.revision)
+      }
+      if (execution.baseRevision !== company.revision) {
         throw new PlanningControllerError(
           'The schedule changed before this edit was saved.',
           'STALE_REVISION',
           409,
         );
+      }
       const before = company.data;
       const after = { ...before };
       const draftGroups = new Map(groups);
@@ -566,8 +592,9 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
         result = apply(after, context.companyId, execution.intent, draftGroups);
       } catch (error) {
         // Local domain assertions are definitive rejections, not uncertain network outcomes.
-        if (error instanceof DomainError)
+        if (error instanceof DomainError) {
           throw new PlanningControllerError(error.message, error.code.toUpperCase(), 400);
+        }
         throw error;
       }
       if (result.clearsRestoration) {
@@ -577,7 +604,7 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
         if (
           execution.confirmedRestorationCount !== undefined &&
           execution.confirmedRestorationCount !== count
-        )
+        ) {
           throw new PlanningControllerError(
             'The restorable items changed. Review this change again.',
             'RESTORATION_CONFIRMATION_STALE',
@@ -585,7 +612,8 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
             false,
             count,
           );
-        if (count > 0 && execution.confirmedRestorationCount === undefined)
+        }
+        if (count > 0 && execution.confirmedRestorationCount === undefined) {
           throw new PlanningControllerError(
             `This change clears ${count} restorable items`,
             'RESTORATION_CONFIRMATION_REQUIRED',
@@ -593,10 +621,13 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
             false,
             count,
           );
+        }
       }
-      if (result.clearsRestoration)
-        for (const [id, group] of draftGroups)
+      if (result.clearsRestoration) {
+        for (const [id, group] of draftGroups) {
           if (group.companyId === context.companyId) draftGroups.delete(id);
+        }
+      }
       company.data = after;
       company.revision += 1;
       company.pendingRefetch = result.refetch;

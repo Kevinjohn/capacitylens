@@ -25,19 +25,21 @@ function resolveResourceStatus({
 }
 
 function requestResourceLinkChange(member: TeamMember, workspaceId: string, resourceId: string) {
-  if (resourceId !== '')
+  if (resourceId !== '') {
     return teamAccessClient.setMemberResourceLink({
       workspaceId,
       principalId: member.userId,
       resourceId,
       expectedRevision: member.resourceLink?.revision ?? null,
     });
-  if (member.resourceLink)
+  }
+  if (member.resourceLink) {
     return teamAccessClient.clearMemberResourceLink(
       workspaceId,
       member.userId,
       member.resourceLink.revision,
     );
+  }
   return Promise.resolve({ kind: 'ok', value: true, status: 204 } as const);
 }
 
@@ -92,11 +94,11 @@ export function useMemberResourceLinkRequest({
     void requestResourceLinkChange(member, workspaceId, resourceId)
       .then((result) => {
         if (!current()) return;
-        if (result.kind === 'unknown' || result.kind === 'invalid')
+        if (result.kind === 'unknown' || result.kind === 'invalid') {
           setError(m.settings_member_resource_unknown());
-        else if (result.kind === 'rejected')
+        } else if (result.kind === 'rejected') {
           setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
-        else setExpectedResourceId(resourceId === '' ? null : resourceId);
+        } else setExpectedResourceId(resourceId === '' ? null : resourceId);
         if (result.kind !== 'rejected') invalidateResourceAvatars();
       })
       .catch((cause: unknown) => {

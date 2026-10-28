@@ -78,7 +78,7 @@ describe('endDateForSpan is the inverse of spanDays', () => {
     // RangeError when the modal hint formats it).
     expect(endDateForSpan('2026-06-01', 9_999_999, opts)).toBe(capped);
     expect(/^\d{4}-\d{2}-\d{2}$/.test(capped)).toBe(true);
-    expect(endDateForSpan('2026-06-01', NaN, opts)).toBe('2026-06-01');
+    expect(endDateForSpan('2026-06-01', Number.NaN, opts)).toBe('2026-06-01');
   });
 
   it('does not derive a five-digit year near the upper ISO-date boundary', () => {

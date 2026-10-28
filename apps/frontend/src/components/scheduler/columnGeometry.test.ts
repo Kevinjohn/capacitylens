@@ -42,8 +42,7 @@ describe('buildColumnGeometry — minimise OFF reproduces the uniform index*dayW
   });
 
   it('xForDateInGeom / widthForDates reproduce the uniform index*dayWidth pixel values', () => {
-    for (let i = 0; i < WEEK.length; i++) {
-      const day = WEEK[i];
+    for (const [i, day] of WEEK.entries()) {
       expect(day).toBeDefined();
       if (!day) throw new Error('Expected a date for every week index.');
       expect(geom.xForDateInGeom(day)).toBe(i * 48);
@@ -103,7 +102,7 @@ describe('buildColumnGeometry — minimise ON narrows the weekend columns', () =
   });
 
   it('degrades to full-width weekends when weekendWidth is unmeasured (NaN / 0)', () => {
-    for (const bad of [NaN, 0, -5]) {
+    for (const bad of [Number.NaN, 0, -5]) {
       const geomBad = buildColumnGeometry(WEEK, 48, { minimiseWeekends: true, weekendWidth: bad });
       expect(geomBad.widths.every((w) => w === 48)).toBe(true);
       expect(geomBad.offsets.every((o) => Number.isFinite(o))).toBe(true);

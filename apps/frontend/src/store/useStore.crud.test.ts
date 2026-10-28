@@ -801,7 +801,7 @@ function registerDateRangeGuard8(): void {
       }),
     );
     expect(zero.workingHoursPerDay).toBe(8);
-    await s().updateResource(over.id, { workingHoursPerDay: NaN });
+    await s().updateResource(over.id, { workingHoursPerDay: Number.NaN });
     expect(
       requireValue(
         s().data.resources.find((r) => r.id === over.id),

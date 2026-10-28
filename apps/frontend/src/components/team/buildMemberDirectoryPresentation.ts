@@ -39,10 +39,11 @@ export function buildMemberDirectoryPresentation(members: Member[] | null) {
   const mayManageSignInTracking = myRole !== undefined && can(myRole, 'manageMemberSignInTracking');
   // Active and inactive members use the same role-first presentation order, independent of server join-date ordering. Inactive rows remain available through a disclosure.
   const grouped = { active: [] as Member[], inactive: [] as Member[] };
-  for (const member of members ?? [])
+  for (const member of members ?? []) {
     grouped[member.status === 'active' && !member.accessDisabled ? 'active' : 'inactive'].push(
       member,
     );
+  }
   const activeMembers = members ? grouped.active.sort(compareMembers) : null;
   const inactiveMembers = grouped.inactive.sort(compareMembers);
 

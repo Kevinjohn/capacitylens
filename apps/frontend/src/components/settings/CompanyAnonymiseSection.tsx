@@ -68,8 +68,9 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
           pending.accountId !== accountId ||
           !('proofId' in pending) ||
           typeof pending.proofId !== 'string'
-        )
+        ) {
           throw new Error('Company confirmation could not be resumed.');
+        }
         setReadyProof(pending.proofId);
         setConfirming(true);
       } catch {
@@ -102,8 +103,9 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
   };
 
   const submit = async (proofId: string) => {
-    if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== accountId)
+    if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== accountId) {
       return;
+    }
     inFlight.current = true;
     const submittedGeneration = generation.current;
     const stillCurrent = () =>
@@ -143,8 +145,9 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
         reloadPage();
         return;
       }
-      if (response.status === 408 || response.status >= 500)
+      if (response.status === 408 || response.status >= 500) {
         throw new Error(`HTTP ${response.status} left the operation outcome uncertain.`);
+      }
       const message =
         (await readApiError(response)) ??
         m.settings_archived_err_action({ status: response.status });

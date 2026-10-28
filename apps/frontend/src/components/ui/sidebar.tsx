@@ -88,7 +88,9 @@ function SidebarProvider({
   );
 
   const toggleSidebar = React.useCallback(() => {
-    return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
+    return isMobile
+      ? setOpenMobile((current) => !current)
+      : setOpen((current) => !current);
   }, [isMobile, setOpen, setOpenMobile]);
 
   useSidebarKeyboardShortcut(toggleSidebar);
@@ -126,14 +128,16 @@ function useSidebarKeyboardShortcut(toggleSidebar: () => void) {
       if (
         event.key !== SIDEBAR_KEYBOARD_SHORTCUT ||
         (!event.metaKey && !event.ctrlKey)
-      )
+      ) {
         return;
+      }
       if (
         event.isComposing ||
         isTextEntryShortcutOwner(event.target) ||
         hasOpenModal()
-      )
+      ) {
         return;
+      }
       event.preventDefault();
       toggleSidebar();
     };

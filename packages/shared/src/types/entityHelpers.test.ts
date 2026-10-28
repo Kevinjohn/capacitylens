@@ -22,7 +22,7 @@ describe('entity helpers through the public facade', () => {
     expect(isScopedEntityKey('unknown')).toBe(false);
   });
 
-  it.each([NaN, Infinity, -Infinity])(
+  it.each([Number.NaN, Infinity, -Infinity])(
     'clamps non-finite allocation hours (%s) to zero',
     (hours) => {
       expect(clampHoursPerDay(hours)).toBe(0);

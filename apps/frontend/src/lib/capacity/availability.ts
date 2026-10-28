@@ -49,10 +49,16 @@ export function resolveScheduledHoursOnDay(
     resource.kind === 'person' &&
     resource.firstAvailableDate &&
     date < resource.firstAvailableDate
-  )
+  ) {
     return 0;
-  if (resource.kind === 'person' && resource.lastAvailableDate && date > resource.lastAvailableDate)
+  }
+  if (
+    resource.kind === 'person' &&
+    resource.lastAvailableDate &&
+    date > resource.lastAvailableDate
+  ) {
     return 0;
+  }
   return resolveScheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
@@ -116,13 +122,20 @@ export function resolveAvailableHoursForWeekday({
     resource.kind === 'person' &&
     resource.firstAvailableDate &&
     date < resource.firstAvailableDate
-  )
+  ) {
     return 0;
-  if (resource.kind === 'person' && resource.lastAvailableDate && date > resource.lastAvailableDate)
+  }
+  if (
+    resource.kind === 'person' &&
+    resource.lastAvailableDate &&
+    date > resource.lastAvailableDate
+  ) {
     return 0;
+  }
   if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
-  if (isUnavailable({ resource: resource, date: date, timeOff: timeOff, closures: closures }))
+  if (isUnavailable({ resource: resource, date: date, timeOff: timeOff, closures: closures })) {
     return 0;
+  }
   return resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek);
 }
 
@@ -201,8 +214,9 @@ export function resolveAllocatedHoursForWeekday({
     if (
       allocation.resourceId !== resource.id ||
       !isWithin(date, allocation.startDate, allocation.endDate)
-    )
+    ) {
       continue;
+    }
     // `none` must stay explicit: passing [] to allocationWorksOnDay would mean calendar-day load.
     // Ignore working days bypasses both calendars; a normal allocation with no effective days
     // loads nothing anywhere.
@@ -212,8 +226,9 @@ export function resolveAllocatedHoursForWeekday({
         ignoreWorkingDays: allocation.ignoreWeekends ?? undefined,
         dayIsWorking: dayIsWorking,
       })
-    )
+    ) {
       continue;
+    }
     sum += allocation.hoursPerDay;
   }
   warnOnNonFiniteCapacity(sum);

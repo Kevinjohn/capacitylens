@@ -37,8 +37,9 @@ export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
     const next = value as TimeOffRepeatChoice;
     if (repeat === 'none' && next !== 'none') {
       repeatUntilIsSuggested.current = true;
-      if (isValidISODate(input.startDate))
+      if (isValidISODate(input.startDate)) {
         setRepeatUntil(defaultTimeOffRepeatUntilDate(input.startDate));
+      }
     } else if (next === 'none') {
       repeatUntilIsSuggested.current = false;
       setRepeatUntil('');

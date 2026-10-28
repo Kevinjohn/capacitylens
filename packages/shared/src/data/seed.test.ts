@@ -42,8 +42,9 @@ describe('runtime demo seed', () => {
     const fixedStart = fixed.allocations[0]?.startDate;
     expect(currentStart).toBeDefined();
     expect(fixedStart).toBeDefined();
-    if (currentStart === undefined || fixedStart === undefined)
+    if (currentStart === undefined || fixedStart === undefined) {
       throw new Error('Seed must include an allocation.');
+    }
     expect(current.allocations.map((row) => dayIndex(row.startDate, currentStart))).toEqual(
       fixed.allocations.map((row) => dayIndex(row.startDate, fixedStart)),
     );

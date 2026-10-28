@@ -183,13 +183,13 @@ describe.each([
 ] as const)(
   'resolveWeekStartSnapTarget — sub-pixel left edge near a Monday boundary (%s)',
   (_label, opts) => {
-    const geom = buildColumnGeometry(DAYS, DAY_W, opts);
-    const mondayOffset = geom.xForDateInGeom('2026-06-08');
-    const prevMonday = geom.xForDateInGeom('2026-06-01');
+    const geometry = buildColumnGeometry(DAYS, DAY_W, opts);
+    const mondayOffset = geometry.xForDateInGeom('2026-06-08');
+    const prevMonday = geometry.xForDateInGeom('2026-06-01');
 
     it('a position a sub-pixel BELOW the Monday boundary stays on that Monday (no week-back jump)', () => {
       const target = resolveWeekStartSnapTarget({
-        geom: geom,
+        geom: geometry,
         days: DAYS,
         scrollLeft: mondayOffset - 0.4,
         weekStartsOn: 1,
@@ -202,7 +202,7 @@ describe.each([
     it('a position a sub-pixel ABOVE the Monday boundary also stays on that Monday (no-op)', () => {
       expect(
         resolveWeekStartSnapTarget({
-          geom: geom,
+          geom: geometry,
           days: DAYS,
           scrollLeft: mondayOffset + 0.4,
           weekStartsOn: 1,
@@ -211,22 +211,27 @@ describe.each([
     });
 
     it('a genuinely mid-week (integer Wed) left edge still FLOORS to that week’s Monday', () => {
-      const wedX = geom.xForDateInGeom('2026-06-10');
+      const wedX = geometry.xForDateInGeom('2026-06-10');
       expect(
-        resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: wedX, weekStartsOn: 1 }),
+        resolveWeekStartSnapTarget({
+          geom: geometry,
+          days: DAYS,
+          scrollLeft: wedX,
+          weekStartsOn: 1,
+        }),
       ).toBe(mondayOffset);
     });
   },
 );
 
 describe('resolveWeekStartSnapTarget — minimised-weekend geometry', () => {
-  const geom = buildColumnGeometry(DAYS, DAY_W, ON);
+  const geometry = buildColumnGeometry(DAYS, DAY_W, ON);
 
   it('floors to the correct INTEGER week-start offset across narrowed weekends', () => {
-    const wedX = geom.xForDateInGeom('2026-06-10');
-    const mondayOfWeek2 = geom.xForDateInGeom('2026-06-08');
+    const wedX = geometry.xForDateInGeom('2026-06-10');
+    const mondayOfWeek2 = geometry.xForDateInGeom('2026-06-08');
     const target = resolveWeekStartSnapTarget({
-      geom: geom,
+      geom: geometry,
       days: DAYS,
       scrollLeft: wedX,
       weekStartsOn: 1,
@@ -235,6 +240,6 @@ describe('resolveWeekStartSnapTarget — minimised-weekend geometry', () => {
     // Snap targets use integer geometry offsets so zoom anchoring does not drift.
     expect(Number.isInteger(target as number)).toBe(true);
 
-    expect(target).toBe(geom.xForDateInGeom(startOfWeekISO('2026-06-10', 1)));
+    expect(target).toBe(geometry.xForDateInGeom(startOfWeekISO('2026-06-10', 1)));
   });
 });

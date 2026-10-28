@@ -104,8 +104,9 @@ function buildIdMaps(rows: ImportTables): ImportIdMaps {
   ) as ImportIdMaps;
   for (const key of SCOPED_KEYS) {
     for (const entity of rows[key]) {
-      if (typeof entity.id === 'string' && !idMaps[key].has(entity.id))
+      if (typeof entity.id === 'string' && !idMaps[key].has(entity.id)) {
         idMaps[key].set(entity.id, newId());
+      }
     }
   }
   return idMaps;
@@ -189,10 +190,12 @@ function repairHierarchy(brought: ImportTables): void {
   brought.phases = brought.phases.filter((phase) => has(projectIds, phase.projectId));
   const phaseIds = idSet(brought.phases);
   for (const resource of brought.resources) {
-    if (resource.disciplineId !== null && !has(disciplineIds, resource.disciplineId))
+    if (resource.disciplineId !== null && !has(disciplineIds, resource.disciplineId)) {
       resource.disciplineId = null;
-    if (resource.projectId !== null && !has(projectIds, resource.projectId))
+    }
+    if (resource.projectId !== null && !has(projectIds, resource.projectId)) {
       resource.projectId = null;
+    }
   }
   repairActivities(brought, projectIds, phaseIds);
 }
@@ -267,10 +270,12 @@ function repairAllocation(
   let repaired = attributionIsInvalid({ allocation, resource, activity, context })
     ? withoutAllocationAttribution(allocation)
     : allocation;
-  if (!validateAllocationAssignment(resource, effectiveProjectId(repaired, activity)).ok)
+  if (!validateAllocationAssignment(resource, effectiveProjectId(repaired, activity)).ok) {
     return undefined;
-  if (isExternalResource(resource) && repaired.hoursPerDay !== 0)
+  }
+  if (isExternalResource(resource) && repaired.hoursPerDay !== 0) {
     repaired = { ...repaired, hoursPerDay: 0 };
+  }
   return eraseDeletedResourceNote(repaired, resource);
 }
 

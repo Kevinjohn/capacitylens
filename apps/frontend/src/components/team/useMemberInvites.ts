@@ -148,9 +148,9 @@ function createResendInvite({
           fail(null, resolveRejectionMessage(result, m.settings_invite_resend_failed()));
           return;
         }
-        if (result.value.emailed)
+        if (result.value.emailed) {
           setNotice(m.settings_invite_resent({ email: invitation.preauthEmail }));
-        else setNotice(m.settings_invite_not_emailed(), 'warning');
+        } else setNotice(m.settings_invite_not_emailed(), 'warning');
         void reloadInvites();
       } catch (e) {
         console.warn('Invitation resend failed', e);

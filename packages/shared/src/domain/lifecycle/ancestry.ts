@@ -117,8 +117,9 @@ export function inspectAncestry({
     // diagnose it. Generic writes independently reject the broken reference.
     if (typeof parentId !== 'string') continue;
     const parent = lookup(relation.parent, parentId);
-    if (!parent || (typeof row.accountId === 'string' && parent.accountId !== row.accountId))
+    if (!parent || (typeof row.accountId === 'string' && parent.accountId !== row.accountId)) {
       continue;
+    }
     if (isLifecycleEntityKey(relation.parent)) {
       const state = lifecycleStatus(parent);
       if (state !== 'active') {

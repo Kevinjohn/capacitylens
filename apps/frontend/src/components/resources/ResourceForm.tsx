@@ -56,8 +56,9 @@ function useProjectOptions({
       }),
     [projects, clients],
   );
-  if (!resource?.projectId || projects.some((project) => project.id === resource.projectId))
+  if (!resource?.projectId || projects.some((project) => project.id === resource.projectId)) {
     return baseOptions;
+  }
   const rawProject = rawProjects.find((project) => project.id === resource.projectId);
   const rawClient = rawProject && rawClients.find((client) => client.id === rawProject.clientId);
   const label = rawProject
@@ -70,10 +71,11 @@ function useProjectOptions({
 
 type ResolveFormTitleOptions = { resource: Resource | undefined; isPlaceholder: boolean };
 function resolveFormTitle({ resource, isPlaceholder }: ResolveFormTitleOptions) {
-  if (resource)
+  if (resource) {
     return isPlaceholder
       ? m.form_resource_edit_placeholder_title()
       : m.form_resource_edit_resource_title();
+  }
   return isPlaceholder
     ? m.form_resource_add_placeholder_title()
     : m.form_resource_add_resource_title();
@@ -272,7 +274,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
       title={resolveFormTitle({ resource: resource, isPlaceholder: isPlaceholder })}
       onClose={onClose}
       onSubmit={() => {
-        submit().catch((error: unknown) => fail(null, resolveErrorMessage(error)));
+        submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
       }}
       footer={<FormActions onCancel={onClose} disabled={submitting} />}
     >

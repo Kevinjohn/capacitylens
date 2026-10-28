@@ -104,8 +104,9 @@ export async function initializePlanningServerHarness(key: string, companyId: st
 
   const context: PlanningClientContext = { identity: `browser-session:${key}`, companyId };
   controller.setContext(context);
-  if (!(await controller.refresh()))
+  if (!(await controller.refresh())) {
     throw new Error('The authenticated planning snapshot could not be loaded.');
+  }
   return view(store.getState());
 }
 

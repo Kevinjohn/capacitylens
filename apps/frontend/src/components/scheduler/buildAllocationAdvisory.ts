@@ -45,8 +45,9 @@ function canBuildAdvisory(input: AdvisoryInput) {
     selectedEffectiveWeek === undefined ||
     !startDate ||
     !endDate
-  )
+  ) {
     return false;
+  }
   const span = daysInclusive(startDate, endDate);
   return span >= 1 && span <= MAX_SPAN_DAYS;
 }

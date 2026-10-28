@@ -115,8 +115,9 @@ describe('planning command suspension', () => {
     }));
     expect(useStore.getState().planningReadyForReplacement()).toBe(false);
     const releaseRecovery = useStore.getState().suspendPlanningCommands();
-    if (!releaseRecovery)
+    if (!releaseRecovery) {
       throw new Error('The unsettled selected context could not be claimed for recovery.');
+    }
     expect(useStore.getState().suspendPlanningCommands()).toBeNull();
     releaseRecovery();
     expect(useStore.getState().planningReadyForReplacement()).toBe(false);

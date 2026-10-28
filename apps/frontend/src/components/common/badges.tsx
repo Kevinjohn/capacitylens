@@ -16,7 +16,7 @@ export function ColorSwatch({ color }: { color: string }) {
 // All props are primitives, so the default shallow prop compare is exact, memoised to skip
 // re-rendering every row's avatar when an unrelated sibling in a list (e.g. SchedulerGrid) updates.
 /** Shows a person or entity avatar with the supplied name and colour. */
-export const Avatar = memo(function Avatar({
+export const Avatar = memo(function AvatarComponent({
   name,
   color,
   size = 28,

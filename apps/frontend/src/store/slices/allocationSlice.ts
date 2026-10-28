@@ -151,8 +151,9 @@ function validateNewAllocations(
     const resource = data.resources.find(
       (candidate) => candidate.accountId === accountId && candidate.id === allocation.resourceId,
     );
-    if (resource)
+    if (resource) {
       assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
+    }
   }
 }
 
@@ -170,8 +171,9 @@ function assertAvailabilityAfterPlacementChange(
     account?.workingDays,
     account?.weekStartsOn ?? 1,
   );
-  if (resource)
+  if (resource) {
     assertAllocationPlacement({ allocation: effective, existing, resource, accountWorkingDays });
+  }
 }
 
 function requireCommand(command: PlanningCommand | null): PlanningCommand {
@@ -252,8 +254,9 @@ export function createAllocationSlice(
       );
     };
     const send = async (command: PlanningCommand, original: unknown = null): Promise<void> => {
-      if (commandsSuspended())
+      if (commandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
+      }
       const receipt = await controller.execute(
         controller.begin(original),
         command.intent,
@@ -293,8 +296,9 @@ export function createAllocationSlice(
         if (!prepared) return { kind: 'blocked' };
         const allocations = prepared.drafts.map((draft) => {
           const command = requireCommand(buildAllocationCreate({ ...prepared, args: draft }));
-          if (command.intent.operation !== 'allocation.create')
+          if (command.intent.operation !== 'allocation.create') {
             throw new Error('Unexpected allocation command.');
+          }
           return command.intent.allocation;
         });
         const ids = prepared.drafts.map((draft) => draft.id);
@@ -421,8 +425,9 @@ export function createAllocationSlice(
           planning.context?.companyId !== companyId ||
           planning.pending !== null ||
           commandLocks.size > 0
-        )
+        ) {
           return null;
+        }
         const epoch = contextEpoch;
         const token = Symbol('planning suspension');
         commandLocks.add(token);
@@ -434,10 +439,11 @@ export function createAllocationSlice(
       replaceAfterDemoImport: (data) => {
         const companyId = get().activeAccountId;
         const account = data.accounts.find((row) => row.id === companyId);
-        if (!companyId || !account || !transport.resetAfterDemoImport)
+        if (!companyId || !account || !transport.resetAfterDemoImport) {
           throw new Error(
             'A demo import requires the selected company and page-memory planning transport.',
           );
+        }
         const revision = transport.resetAfterDemoImport(companyId, data);
         const planning = controller.invalidateAfterDemoImport(
           { identity: PAGE_IDENTITY, companyId },

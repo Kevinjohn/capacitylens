@@ -46,9 +46,9 @@ describe('spawnPnpm', () => {
         stderr += chunk;
       });
       const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
-        (resolve, reject) => {
+        (settle, reject) => {
           child.once('error', reject);
-          child.once('close', (code, signal) => resolve({ code, signal }));
+          child.once('close', (code, signal) => settle({ code, signal }));
         },
       );
 

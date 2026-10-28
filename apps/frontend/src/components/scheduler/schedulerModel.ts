@@ -308,8 +308,9 @@ function createSchedulerRowBuilder({
       if (!allocation.seriesId || !isValidISODate(allocation.endDate)) return;
       const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
       const current = seriesEndByKey.get(key);
-      if (current === undefined || allocation.endDate > current)
+      if (current === undefined || allocation.endDate > current) {
         seriesEndByKey.set(key, allocation.endDate);
+      }
     },
   });
   const closures = data.closures.filter(includeRenderableDateRange);

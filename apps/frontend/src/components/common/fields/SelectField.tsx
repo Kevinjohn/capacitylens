@@ -46,12 +46,13 @@ function buildOptionGroups(options: Option[]): OptionGroup[] {
     const previous = groups.at(-1);
     const key = option.groupKey ?? option.groupLabel;
     if (previous && previous.key === key) previous.options.push(option);
-    else
+    else {
       groups.push({
         ...(key ? { key } : {}),
         ...(option.groupLabel ? { label: option.groupLabel } : {}),
         options: [option],
       });
+    }
     return groups;
   }, []);
 }

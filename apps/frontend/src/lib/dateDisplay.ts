@@ -213,8 +213,9 @@ function crossesYear(date: ISODate, counterpart: ISODate): boolean {
   // `date` itself reaches date-fns `format`, which surfaces an invalid one as a RangeError. The
   // counterpart never does, so an unvalidated one would silently decide "different year" through a
   // NaN comparison and print a year nobody asked for, the same upstream bug, made invisible.
-  if (!Number.isFinite(counterpartYear))
+  if (!Number.isFinite(counterpartYear)) {
     throw new RangeError(`Invalid counterpart date: ${counterpart}`);
+  }
   return parseDate(date).getFullYear() !== counterpartYear;
 }
 

@@ -34,9 +34,9 @@ function buildMonthSpans(days: string[]): Span[] {
 function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
   const blocks: Span[] = [];
   days.forEach((day, i) => {
-    if (i === 0 || weekdayOf(day) === weekStartsOn)
+    if (i === 0 || weekdayOf(day) === weekStartsOn) {
       blocks.push({ key: day, label: formatDayMonth(day), days: 1, start: i });
-    else {
+    } else {
       const currentBlock = blocks[blocks.length - 1];
       if (currentBlock) currentBlock.days += 1;
     }
@@ -47,9 +47,9 @@ function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
 type ResolveDayClassOptions = { weekStart: boolean; isToday: boolean; weekend: boolean };
 function resolveDayClass({ weekStart, isToday, weekend }: ResolveDayClassOptions): string {
   let stateClass = 'text-muted-foreground';
-  if (isToday)
+  if (isToday) {
     stateClass = 'bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]';
-  else if (weekend) stateClass = 'bg-weekend text-muted-foreground';
+  } else if (weekend) stateClass = 'bg-weekend text-muted-foreground';
   return `flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? 'border-l border-line' : ''} ${stateClass}`;
 }
 
@@ -157,7 +157,7 @@ function DateMonthTier({ months, geometry, alignVisibleMonths }: DateMonthTierPr
 }
 
 /** Renders date and week labels for the visible schedule columns. */
-export const DateHeader = memo(function DateHeader({
+export const DateHeader = memo(function DateHeaderComponent({
   days,
   geom: geometry,
   visibleWeeks,

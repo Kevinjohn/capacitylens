@@ -1450,7 +1450,7 @@ describe('devAssertFinite (DEV-only console.warn on a non-finite allocation)', (
   it('ignores a legacy non-finite workingHoursPerDay because full-day capacity is fixed', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     availableHoursOnDay({
-      resource: makeResource({ workingHoursPerDay: NaN }),
+      resource: makeResource({ workingHoursPerDay: Number.NaN }),
       date: '2026-06-01',
       timeOff: [],
     });
@@ -1464,7 +1464,7 @@ describe('devAssertFinite (DEV-only console.warn on a non-finite allocation)', (
       makeAlloc({
         startDate: '2026-06-01',
         endDate: '2026-06-01',
-        hoursPerDay: NaN,
+        hoursPerDay: Number.NaN,
       }),
     ];
     allocatedHoursOnDay({ resource: r, date: '2026-06-01', allocations: allocs });

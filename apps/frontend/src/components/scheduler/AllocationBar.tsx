@@ -180,7 +180,7 @@ function useBarLabelText(bar: BarLayout) {
  * click and unmount tear those effects down. The first move pins virtualisation until teardown.
  * `onEdit` must remain stable so memoisation can skip untouched sibling bars during a drag.
  */
-export const AllocationBar = memo(function AllocationBar(props: AllocationBarProps) {
+export const AllocationBar = memo(function AllocationBarComponent(props: AllocationBarProps) {
   const { bar, indexAtClientX, onEdit } = props;
   const canEdit = useCanEdit();
   const gesture = useAllocationGesture({

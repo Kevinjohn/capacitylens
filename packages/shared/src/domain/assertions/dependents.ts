@@ -144,8 +144,9 @@ function assertResourceProjectAllowsDependentsWithOptions({
     existing !== undefined &&
     merged.kind === existing.kind &&
     merged.projectId === existing.projectId
-  )
+  ) {
     return;
+  }
   assertAllocationPairStaysValid({
     data,
     accountId,
@@ -256,8 +257,9 @@ function assertActivityProjectAllowsDependentsWithOptions({
     existing !== undefined &&
     merged.kind === existing.kind &&
     merged.projectId === existing.projectId
-  )
+  ) {
     return;
+  }
   assertAllocationPairStaysValid({
     data,
     accountId,

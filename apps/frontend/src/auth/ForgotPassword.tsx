@@ -35,13 +35,14 @@ export function ForgotPassword() {
       setBusy(false);
     }
   };
-  if (phase === 'sent')
+  if (phase === 'sent') {
     return (
       <p className="mt-3 text-sm" role="status" data-testid="forgot-password-confirmation">
         {m.login_reset_confirmation()}
       </p>
     );
-  if (phase === 'closed')
+  }
+  if (phase === 'closed') {
     return (
       <Button
         className="mt-3"
@@ -53,6 +54,7 @@ export function ForgotPassword() {
         {m.login_forgot_password()}
       </Button>
     );
+  }
   return (
     <form className="mt-3 flex flex-col gap-3" onSubmit={(event) => void submit(event)} noValidate>
       <Field>

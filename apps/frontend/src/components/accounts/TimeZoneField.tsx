@@ -55,9 +55,9 @@ function TimeZoneMenu({
             placeholder={m.picker_timezone_search()}
             aria-label={m.picker_timezone_search()}
             value={query}
-            onValueChange={(value) => {
-              setQuery(value);
-              if (value.length <= MAX_LOCAL_QUERY_CODE_UNITS) setQueryTooLong(false);
+            onValueChange={(nextQuery) => {
+              setQuery(nextQuery);
+              if (nextQuery.length <= MAX_LOCAL_QUERY_CODE_UNITS) setQueryTooLong(false);
             }}
             onPaste={(event) => {
               setQueryTooLong(rejectOverlongQueryPaste(event));

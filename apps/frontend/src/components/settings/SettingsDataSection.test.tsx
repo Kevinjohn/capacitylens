@@ -185,9 +185,9 @@ describe('Settings example data', () => {
 describe('Company-wide people anonymisation', () => {
   it('offers the clearly named server action to an Owner, but not an Admin or Editor', () => {
     const owner = renderSection({ role: 'owner' });
-    const section = screen.getByTestId('settings-company-anonymise');
-    expect(section).toBeInTheDocument();
-    expect(section).toHaveTextContent('Anonymise all people');
+    const anonymise = screen.getByTestId('settings-company-anonymise');
+    expect(anonymise).toBeInTheDocument();
+    expect(anonymise).toHaveTextContent('Anonymise all people');
     owner.unmount();
     const admin = renderSection({ role: 'admin' });
     expect(screen.queryByTestId('settings-company-anonymise')).not.toBeInTheDocument();
@@ -198,13 +198,13 @@ describe('Company-wide people anonymisation', () => {
 
   it('explains that anonymising all people leaves catalogue records unchanged', async () => {
     renderSection({ role: 'owner' });
-    const section = screen.getByTestId('settings-company-anonymise');
+    const anonymise = screen.getByTestId('settings-company-anonymise');
     const user = userEvent.setup();
-    await user.click(within(section).getByRole('button', { name: 'About Anonymise all people' }));
+    await user.click(within(anonymise).getByRole('button', { name: 'About Anonymise all people' }));
     const help = screen.getByRole('dialog', { name: 'Anonymise all people' });
     expect(help).toHaveTextContent('clients, projects, activities and planning links');
     await user.click(within(help).getByRole('button', { name: 'Close' }));
-    await user.click(within(section).getByRole('button', { name: 'Anonymise all people' }));
+    await user.click(within(anonymise).getByRole('button', { name: 'Anonymise all people' }));
     const confirmation = screen.getByRole('dialog', { name: 'Anonymise all people?' });
     expect(confirmation).toHaveTextContent('Clients, projects and activities stay unchanged.');
     expect(confirmation).toHaveTextContent('The company, its members and planning links remain.');

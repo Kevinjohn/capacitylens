@@ -87,8 +87,9 @@ function resolveRepeatRange(startDate: ISODate, calendarTimeZone: string) {
 
 function resolveInitialDaysOfWork(seed: AllocationModalSeed): number {
   const { editing, initialCapacityHours, initialDaysOver } = seed;
-  if (editing)
+  if (editing) {
     return roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, FULL_DAY_HOURS));
+  }
   return roundDays(
     initialCapacityHours > 0 ? initialCapacityHours / FULL_DAY_HOURS : initialDaysOver,
   );

@@ -57,28 +57,30 @@ export function useInactiveAccountData(): {
         if (
           generation.current === requestGeneration &&
           useStore.getState().activeAccountId === activeAccountId
-        )
+        ) {
           setServerData({ accountId: activeAccountId, reloadKey, requestIdentity, data });
+        }
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || generation.current !== requestGeneration) return;
         setServerData(null);
         if (error instanceof InactiveSliceHttpError && error.status === 403) return;
-        if (error instanceof InactiveSliceHttpError)
+        if (error instanceof InactiveSliceHttpError) {
           setNotice(
             error.serverMessage ?? m.settings_archived_err_load({ status: error.status }),
             'error',
           );
-        else if (error instanceof InactiveSliceShapeError)
+        } else if (error instanceof InactiveSliceShapeError) {
           setNotice(m.settings_archived_err_incomplete(), 'error');
-        else setNotice(m.settings_err_server({ error: resolveErrorMessage(error) }), 'error');
+        } else setNotice(m.settings_err_server({ error: resolveErrorMessage(error) }), 'error');
       });
     return () => controller.abort();
   }, [activeAccountId, mayViewInactive, reloadKey, requestIdentity, server, setNotice]);
 
   if (!mayViewInactive) return { data: null, mayViewInactive, reload };
   if (!server) return { data: localData, mayViewInactive, reload };
-  if (serverData?.accountId !== activeAccountId || serverData.requestIdentity !== requestIdentity)
+  if (serverData?.accountId !== activeAccountId || serverData.requestIdentity !== requestIdentity) {
     return { data: null, mayViewInactive, reload };
+  }
   return { data: serverData.data, mayViewInactive, reload };
 }

@@ -42,10 +42,11 @@ export function VerifyEmail() {
       .inspectEmailVerification(token)
       .then(({ data, error: failure }) => {
         // Only the server's answer about the link is authoritative; an outage is not an invalid link.
-        if (current)
+        if (current) {
           setState(
             failure && failure.status !== 400 ? 'unavailable' : data?.valid ? 'form' : 'invalid',
           );
+        }
       })
       .catch((failure: unknown) => {
         console.warn('VerifyEmail: link inspection failed', failure);

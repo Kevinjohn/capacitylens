@@ -77,12 +77,12 @@ describe('assertAllocationPlacement', () => {
 describe('changed allocation placement', () => {
   it.each(changedPlacements)(
     'checks availability when the $field field changes',
-    ({ next, existing, resource, code }) => {
+    ({ next, existing, resource: subject, code }) => {
       expect(() =>
         assertAllocationPlacement({
           allocation: next,
           existing,
-          resource,
+          resource: subject,
           accountWorkingDays: [1, 2, 3, 4, 5],
         }),
       ).toThrowError(

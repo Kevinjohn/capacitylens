@@ -729,8 +729,9 @@ function registerBuildSchedulerModelTest23() {
     const firstResource = d.resources[0];
     expect(firstAllocation).toBeDefined();
     expect(firstResource).toBeDefined();
-    if (!firstAllocation || !firstResource)
+    if (!firstAllocation || !firstResource) {
       throw new Error('Expected the base scheduler fixture rows.');
+    }
     const corrupt = { ...firstAllocation, startDate: '2026-6-1' };
     d.allocations[0] = corrupt;
     const corruptTimeOff = {
@@ -1466,7 +1467,6 @@ function registerMovedSchedulerTests14852(
 }
 
 function registerMovedSchedulerTests14853(
-  withInternal: () => AppData,
   internalId: string,
   internalBarIds: (model: GroupModel[]) => string[],
 ) {
@@ -1488,7 +1488,7 @@ function registerMovedSchedulerTests14853(
 }
 
 type BuildDanglingOptions = { filters?: ReturnType<typeof buildEmptyFilters> };
-function registerMovedSchedulerTests14854(withInternal: () => AppData, internalId: string) {
+function registerMovedSchedulerTests14854(internalId: string) {
   it('does not bucket an unattributed dangling-activity allocation under any client or project', () => {
     const data = withInternal();
     data.allocations.push(
@@ -1584,9 +1584,9 @@ describe('built-in Internal client bucketing + filter', () => {
 
   registerMovedSchedulerTests14852(buildInternal, internalBarIds);
 
-  registerMovedSchedulerTests14853(withInternal, internalId, internalBarIds);
+  registerMovedSchedulerTests14853(internalId, internalBarIds);
 
-  registerMovedSchedulerTests14854(withInternal, internalId);
+  registerMovedSchedulerTests14854(internalId);
 });
 
 function buildInternalAndRepeatableData(): AppData {
@@ -1645,8 +1645,9 @@ describe('internal-work bars', () => {
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       }),
     );
-    for (const id of ['aIntProj', 'aIntNoProj', 'aRep', 'aRepAttributedInternal', 'a1'])
+    for (const id of ['aIntProj', 'aIntNoProj', 'aRep', 'aRepAttributedInternal', 'a1']) {
       expect(ids).toContain(id);
+    }
   });
 });
 

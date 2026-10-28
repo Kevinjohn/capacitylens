@@ -247,7 +247,7 @@ function registerSourceCalendarTest() {
       );
     });
 
-    expect(parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(
+    expect(Number.parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(
       renderedWidth('2026-06-04', '2026-06-05'),
       5,
     );
@@ -328,7 +328,7 @@ function registerSourceCalendarTest() {
         new MouseEvent('pointermove', { clientX: startX, clientY: 125, bubbles: true }),
       );
     });
-    expect(parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(
+    expect(Number.parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(
       renderedWidth('2026-06-08', '2026-06-12'),
       5,
     );
@@ -411,8 +411,11 @@ function registerSourceCalendarTest() {
     });
 
     const style = (bar as HTMLElement).style;
-    expect(parseFloat(style.left)).toBeCloseTo(renderedLeft('2026-06-15', '2026-06-19'), 5);
-    expect(parseFloat(style.width)).toBeCloseTo(renderedWidth('2026-06-15', '2026-06-19'), 5);
+    expect(Number.parseFloat(style.left)).toBeCloseTo(renderedLeft('2026-06-15', '2026-06-19'), 5);
+    expect(Number.parseFloat(style.width)).toBeCloseTo(
+      renderedWidth('2026-06-15', '2026-06-19'),
+      5,
+    );
 
     act(() => {
       document.dispatchEvent(
@@ -498,7 +501,7 @@ function registerSourceCalendarTest() {
       );
     });
 
-    expect(parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(
+    expect(Number.parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(
       renderedWidth('2026-06-04', '2026-06-12'),
       5,
     );
@@ -574,7 +577,7 @@ function registerSourceCalendarTest() {
       );
     });
 
-    expect(parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(
+    expect(Number.parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(
       renderedWidth('2026-06-04', '2026-06-07'),
       5,
     );
@@ -642,7 +645,7 @@ function registerWeekendPreviewTests() {
     });
     // The preview width reflects the extended 7-day span (06-02..06-08), not the raw 5-day
     // bar: matching what the commit produces, so the bar doesn't jump on release.
-    const previewedWidth = parseFloat((bar as HTMLElement).style.width);
+    const previewedWidth = Number.parseFloat((bar as HTMLElement).style.width);
 
     expect(previewedWidth).toBeGreaterThan(6 * dayWidth - 12);
   });

@@ -49,8 +49,9 @@ function resolveInitialDaysOver({
   if (
     initialUsesWorkingSpan &&
     lacksEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWeekends)
-  )
+  ) {
     return 1;
+  }
   if (!initialUsesWorkingSpan) return Math.max(1, daysInclusive(initialStart, seedEnd));
   const workingDays = initialEffectiveWeek?.kind === 'days' ? initialEffectiveWeek.days : undefined;
   return Math.max(

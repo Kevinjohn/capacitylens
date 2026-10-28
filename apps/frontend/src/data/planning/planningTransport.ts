@@ -361,11 +361,13 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             signal,
           }),
         );
-        if (snapshot.accountId !== context.companyId)
+        if (snapshot.accountId !== context.companyId) {
           throw new PlanningControllerError("The server returned another company's planning data.");
+        }
         const authority = snapshot.authority;
-        if (typeof authority.canWrite !== 'boolean')
+        if (typeof authority.canWrite !== 'boolean') {
           throw new PlanningControllerError('The server returned an invalid planning authority.');
+        }
         return {
           revision: snapshot.revision,
           canWrite: authority.canWrite,

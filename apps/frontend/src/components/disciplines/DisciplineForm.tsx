@@ -23,10 +23,7 @@ export function DisciplineForm({
   const update = useStore((state) => state.updateDiscipline);
   // Append new disciplines after the maximum sortOrder so gaps from deleted disciplines cannot collide. Edits retain the existing order.
   const disciplines = useActiveScopedData().disciplines;
-  const nextSortOrder = disciplines.reduce(
-    (max, discipline) => Math.max(max, discipline.sortOrder + 1),
-    0,
-  );
+  const nextSortOrder = disciplines.reduce((max, item) => Math.max(max, item.sortOrder + 1), 0);
   const [name, setName] = useState(discipline?.name ?? '');
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline);
   const sortOrder = discipline?.sortOrder ?? nextSortOrder;
@@ -48,7 +45,8 @@ export function DisciplineForm({
         }
         await update(discipline.id, { name: trimmed, color, sortOrder });
       } else {
-        if ((await add({ name: trimmed, color, sortOrder })).kind === 'blocked') return;
+        const result = await add({ name: trimmed, color, sortOrder });
+        if (result.kind === 'blocked') return;
       }
       onClose();
     } catch (e) {

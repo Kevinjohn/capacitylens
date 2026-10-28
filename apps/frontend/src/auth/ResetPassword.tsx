@@ -53,8 +53,9 @@ function resolvePasswordValidationError(
   const lengthFailure = passwordLengthFailure(password);
   if (lengthFailure === 'too-short') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
   if (lengthFailure === 'too-long') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
-  if (passwordLengthFailure(confirm) === 'too-long')
+  if (passwordLengthFailure(confirm) === 'too-long') {
     return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
+  }
   if (password !== confirm) return m.reset_err_mismatch();
   return null;
 }
@@ -207,10 +208,10 @@ export function ResetPassword() {
         ),
       );
       setState({ kind: 'form' });
-    } catch (error) {
+    } catch (cause) {
       // A pre-response transport error (server down, DNS, offline), surface a generic, actionable
       // message rather than a dead end, and log the real cause for debugging.
-      console.error('ResetPassword: reset request failed', error);
+      console.error('ResetPassword: reset request failed', cause);
       setError(null);
       setState({ kind: 'unknown' });
     }

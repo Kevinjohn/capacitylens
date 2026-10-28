@@ -57,8 +57,9 @@ function ownedRow<K extends AppDataKey>(
   accountId: string,
   id: string,
 ): OwnedRow<K> | undefined {
-  if (key === 'accounts')
+  if (key === 'accounts') {
     return data.accounts.find((row) => row.id === id) as OwnedRow<K> | undefined;
+  }
   return data[key].find(
     (row) => 'accountId' in row && row.accountId === accountId && row.id === id,
   ) as OwnedRow<K> | undefined;
@@ -130,8 +131,9 @@ export function buildAllocationDuplicate(
     original.id !== args.sourceId ||
     original.accountId !== accountId ||
     !ownedRow(data, 'allocations', accountId, args.sourceId)
-  )
+  ) {
     return null;
+  }
   const command = buildAllocationCreate({ data, accountId, args });
   if (!command || command.intent.operation !== 'allocation.create') return null;
   const created = command.intent.allocation;

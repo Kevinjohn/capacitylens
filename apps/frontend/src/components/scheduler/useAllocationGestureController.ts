@@ -66,8 +66,9 @@ function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID)
   if (
     mode === 'move' ||
     hasEffectiveDaysFor({ resourceId, ignoreWeekends: bar.allocation.ignoreWeekends })
-  )
+  ) {
     return false;
+  }
   useStore.getState().setNotice(m.scheduler_toast_no_effective_days_gesture(), 'error');
   return true;
 }
@@ -285,8 +286,11 @@ function commitPointerGesture(
   const effectiveResourceId = targetResourceId ?? resourceId;
   if (refuseIneffectiveResize(options.bar, mode, effectiveResourceId)) return;
   const result = resolveCommitDates({ options, mode, deltaDays, resourceId: effectiveResourceId });
-  if (refuseBlockedCommit({ options, mode, resourceId: effectiveResourceId, dates: result.dates }))
+  if (
+    refuseBlockedCommit({ options, mode, resourceId: effectiveResourceId, dates: result.dates })
+  ) {
     return;
+  }
   void savePointerCommit({ options, effectiveResourceId, targetResourceId, result });
 }
 

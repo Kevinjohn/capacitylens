@@ -79,8 +79,9 @@ describe('computeWindow', () => {
     const lastHeight = heights[w.last];
     expect(lastTop).toBeDefined();
     expect(lastHeight).toBeDefined();
-    if (above === undefined || lastTop === undefined || lastHeight === undefined)
+    if (above === undefined || lastTop === undefined || lastHeight === undefined) {
       throw new Error('Expected the resolved virtual window bounds.');
+    }
     const below = layout.total - (lastTop + lastHeight);
     expect(above + renderedHeight + below).toBe(10000);
 
@@ -148,8 +149,9 @@ function registerWindowBoundaryTests() {
     expect(firstTop).toBeDefined();
     expect(lastTop).toBeDefined();
     expect(lastHeight).toBeDefined();
-    if (firstTop === undefined || lastTop === undefined || lastHeight === undefined)
+    if (firstTop === undefined || lastTop === undefined || lastHeight === undefined) {
       throw new Error('Expected the resolved virtual window bounds.');
+    }
     const below = layout.total - (lastTop + lastHeight);
     expect(firstTop + rendered + below).toBe(620);
   });

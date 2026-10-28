@@ -333,8 +333,9 @@ function registerServerModeTest06() {
     const { makeAccount, makeAppData } = await import('@/test/fixtures');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (!url.includes('/api/accounts/a-studio/planning'))
+      if (!url.includes('/api/accounts/a-studio/planning')) {
         throw new Error(`Unexpected read: ${url}`);
+      }
       return me(200, {
         accountId: 'a-studio',
         revision: 1,
@@ -1318,8 +1319,9 @@ it('adopts a same-principal company created in another browser only after confir
 it('keeps a conflicting setup refusal visible when the principal has no company access', async () => {
   vi.stubEnv('VITE_CAPACITYLENS_DEMO', '0');
   const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
-    if (options?.method === 'POST')
+    if (options?.method === 'POST') {
       return me(409, { error: 'First company setup is unavailable for this installation.' });
+    }
     if (String(url).endsWith('/api/accounts')) return me(200, []);
     return me(200, {
       authMode: 'password-only',

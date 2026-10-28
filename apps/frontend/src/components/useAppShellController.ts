@@ -122,8 +122,9 @@ function useSingleAccountReload(input: SingleAccountReloadInput) {
     // Production has no picker to fall back on, so a later close of the sole company (for example a
     // failed access refresh) must be able to enter it again instead of leaving a bare loading screen.
     if (serverMode && activeAccountId !== null) singleAccountReloadHandled.current = false;
-    if ((!serverMode && !reloadNavigation) || !hydrated || singleAccountReloadHandled.current)
+    if ((!serverMode && !reloadNavigation) || !hydrated || singleAccountReloadHandled.current) {
       return;
+    }
     if (accountSummaries.length === 0) return;
 
     const account = resolveSingleAccountForReload({
@@ -198,10 +199,12 @@ function useBeforeUnloadWarning(input: BeforeUnloadWarningInput) {
 }
 
 function showNoticeToast(notice: NonNullable<StoreState['notice']>, clear: () => void) {
-  if (notice.tone === 'error')
+  if (notice.tone === 'error') {
     return toast.error(notice.message, { duration: Infinity, onDismiss: clear });
-  if (notice.tone === 'warning')
+  }
+  if (notice.tone === 'warning') {
     return toast(notice.message, { duration: Infinity, onDismiss: clear });
+  }
   return toast(notice.message, { duration: 4000, onDismiss: clear, onAutoClose: clear });
 }
 
@@ -252,8 +255,9 @@ function applyHistoryShortcutEffect(event: KeyboardEvent, input: HistoryShortcut
   if (useStore.getState().dirtyForm) return;
   event.preventDefault();
   (event.shiftKey ? input.redo() : input.undo()).catch((error: unknown) => {
-    if (!isShownByPlanningState(error))
+    if (!isShownByPlanningState(error)) {
       useStore.getState().setNotice(resolveErrorMessage(error), 'error');
+    }
   });
 }
 

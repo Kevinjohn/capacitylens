@@ -50,8 +50,9 @@ function createWorkVisibility({
   };
   const hasMatchingActivity = (allocation: Allocation): boolean => {
     if (filters.activityId) return allocation.activityId === filters.activityId;
-    if (filters.activityKind)
+    if (filters.activityKind) {
       return activitiesById.get(allocation.activityId)?.kind === filters.activityKind;
+    }
     return true;
   };
   const passesTentativeFilter = (allocation: Allocation): boolean =>

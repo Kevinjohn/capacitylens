@@ -56,13 +56,14 @@ function ExampleDataSection() {
         const message =
           (await readApiError(response)) ??
           m.settings_example_data_failed({ status: response.status });
-        if (ownsContext())
+        if (ownsContext()) {
           setNotice(
             keepBlocked
               ? `${message} ${m.settings_example_data_unknown_reload_required()}`
               : message,
             'error',
           );
+        }
         return;
       }
       const accepted = await useStore.getState().refreshPlanning({ fresh: true });

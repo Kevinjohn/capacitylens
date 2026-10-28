@@ -106,24 +106,26 @@ export function CapacityOverviewRoute() {
     resolveCapacityOverviewAccess(state.data, state.activeAccountId),
   );
   const decision = resolveCapacityOverviewAccessDecision({ role, status, access });
-  if (decision === 'pending')
+  if (decision === 'pending') {
     return (
       <p role="status" className="p-6 text-sm text-muted-foreground">
         {m.app_loading()}
       </p>
     );
+  }
   return decision === 'allowed' ? <CapacityOverviewView /> : <Navigate to="/" replace />;
 }
 
 /** Renders diagnostics only for authorized owners or administrators. */
 export function DiagnosticsRoute() {
   const decision = useDiagnosticsAccessDecision();
-  if (decision === 'pending')
+  if (decision === 'pending') {
     return (
       <p role="status" className="p-6 text-sm text-muted-foreground">
         {m.app_loading()}
       </p>
     );
+  }
   return decision === 'allowed' ? <DiagnosticsView /> : <Navigate to="/" replace />;
 }
 

@@ -85,7 +85,7 @@ function validateDocument(value: unknown): BetaExportDocument {
   const account = accountRows[0];
   assert(account, 'data.accounts', 'must contain exactly one account');
   const accountId = account.id;
-  for (const key of scoped)
+  for (const key of scoped) {
     (data[key] as Array<{ accountId: string }>).forEach((row, i) =>
       assert(
         row.accountId === accountId,
@@ -93,16 +93,19 @@ function validateDocument(value: unknown): BetaExportDocument {
         'does not match the exported account',
       ),
     );
+  }
   if (value.completeness === 'full') {
-    for (const key of ['clients', 'projects'] as const)
+    for (const key of ['clients', 'projects'] as const) {
       data[key].forEach((row, i) => {
-        if (row.isPrivate === true)
+        if (row.isPrivate === true) {
           assert(
             hasUsablePrivateCodeName(row as unknown as Record<string, unknown>),
             `data.${key}[${i}].codeName`,
             'a full private export must include its code name',
           );
+        }
       });
+    }
   }
   validateBetaReferences(data);
   return {

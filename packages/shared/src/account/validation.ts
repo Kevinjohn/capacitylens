@@ -40,8 +40,9 @@ export function isAccountEmail(value: string): boolean {
     utf8ByteLength(value) > MAX_EMAIL_LENGTH ||
     utf8ByteLength(normalized) > MAX_EMAIL_LENGTH ||
     value !== value.trim()
-  )
+  ) {
     return false;
+  }
   if (hasDisallowedChars(value)) return false;
   return /^[^@\s]+@[^@\s]+$/.test(value);
 }

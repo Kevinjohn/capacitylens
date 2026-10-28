@@ -46,8 +46,9 @@ export function AdmissionRequestsPanel() {
     setError(null);
     try {
       const result = await teamAccessClient.decideAdmission(request.userId, decision);
-      if (result.kind !== 'ok')
+      if (result.kind !== 'ok') {
         setError(resolveRejectionMessage(result, m.settings_admission_failed()));
+      }
       await load();
     } catch (failure) {
       console.warn('AdmissionRequestsPanel: decision failed', failure);

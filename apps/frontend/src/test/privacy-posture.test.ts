@@ -105,8 +105,9 @@ describe('P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
   it('keeps the SMTP adapter in the backend manifest', () => {
     for (const manifest of manifests) {
       for (const dependency of ['nodemailer', '@adonisjs/mail']) {
-        if (manifest.deps.includes(dependency))
+        if (manifest.deps.includes(dependency)) {
           expect(manifest.name).toBe('apps/backend/package.json');
+        }
       }
     }
     expect(

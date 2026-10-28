@@ -191,8 +191,9 @@ function validateRepeat(input: AllocationDraftValidationInput, fail: Fail): bool
 function validateEffectiveHours(input: AllocationDraftValidationInput, fail: Fail): boolean {
   const { effHoursPerDay: hoursPerDay, isBlocks, isDays, isExternal } = input;
   if (isExternal || isBlocks) return true;
-  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0 && hoursPerDay <= MAX_HOURS_PER_DAY)
+  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0 && hoursPerDay <= MAX_HOURS_PER_DAY) {
     return true;
+  }
   if (isDays) {
     fail('daysOfWork', m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }));
   } else {

@@ -58,6 +58,7 @@ export async function retireBrowserSnapshots(): Promise<void> {
   const failures = results
     .filter((result) => result.status === 'rejected')
     .map((result) => result.reason as unknown);
-  if (failures.length > 0)
+  if (failures.length > 0) {
     throw new AggregateError(failures, 'Retired browser storage could not be fully removed.');
+  }
 }

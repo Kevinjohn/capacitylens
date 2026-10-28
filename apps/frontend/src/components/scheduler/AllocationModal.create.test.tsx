@@ -205,9 +205,9 @@ describe('AllocationModal create', () => {
       if (scope === 'Ferris / Lightning') {
         expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent(scope);
       }
-      if (expectedProjectId)
+      if (expectedProjectId) {
         expect(lastAdvisoryProposal()).toHaveProperty('projectId', expectedProjectId);
-      else expect(lastAdvisoryProposal()).not.toHaveProperty('projectId');
+      } else expect(lastAdvisoryProposal()).not.toHaveProperty('projectId');
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
       const allocation = useStore.getState().data.allocations[0];

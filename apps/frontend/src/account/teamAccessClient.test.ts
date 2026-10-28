@@ -343,10 +343,11 @@ describe('teamAccessClient admission requests', () => {
     const list = vi
       .spyOn(accountClient, 'listAdmissionRequests')
       .mockImplementation(async (status, cursor) => {
-        if (status === 'pending')
+        if (status === 'pending') {
           return cursor
             ? json({ items: [row('dick')], nextCursor: null })
             : json({ items: [row('jason')], nextCursor: 'next' });
+        }
         if (status === 'rejected') return json({ items: [row('selina')], nextCursor: null });
         return json({ items: [], nextCursor: null });
       });

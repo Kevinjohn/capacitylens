@@ -6,7 +6,6 @@ import { buildEmptyFilters } from '@/store/useStore';
 import { makeAllocation, makeResource, requireValue } from '@/test/fixtures';
 import { isCreationStartBlocked } from './creationAvailability';
 import { buildSchedulerModel } from './schedulerModel';
-import type { GroupModel } from './schedulerModel';
 import { buildColumnGeometry } from './columnGeometry';
 import {
   DEFAULT_ACCOUNT_WORKING_DAYS,
@@ -187,7 +186,7 @@ function registerMovedSchedulerTests201024() {
   });
 }
 
-function registerMovedSchedulerTests201025(withThirdResource: () => AppData) {
+function registerMovedSchedulerTests201025() {
   it('utilization/overSoon are IDENTICAL to calling the capacity functions directly, for every resource in a multi-resource model', () => {
     const d = withThirdResource();
     const visStart = '2026-06-02';
@@ -234,29 +233,9 @@ function registerMovedSchedulerTests201025(withThirdResource: () => AppData) {
   });
 }
 
-function registerMovedSchedulerTests201026({
-  alloc,
-  buildBucketComparisonData,
-  buildBucketComparisonModel,
-  assertBucketComparisonResource,
-  assertBucketComparisonSummary,
-}: {
-  alloc: (input: AllocationTestInput) => Allocation;
-  buildBucketComparisonData: (alloc: (input: AllocationTestInput) => Allocation) => AppData;
-  buildBucketComparisonModel: (data: AppData, visStart: ISODate, visEnd: ISODate) => GroupModel[];
-  assertBucketComparisonResource: (input: {
-    resourceId: string;
-    d: AppData;
-    rows: ReturnType<typeof buildSchedulerModel>[number]['rows'];
-    visStart: ISODate;
-    visEnd: ISODate;
-  }) => void;
-  assertBucketComparisonSummary: (
-    rows: ReturnType<typeof buildSchedulerModel>[number]['rows'],
-  ) => void;
-}) {
+function registerMovedSchedulerTests201026() {
   it('dayStates and utilization are EXACTLY those of capacity.ts scanning the unbucketed lists', () => {
-    const d = buildBucketComparisonData(alloc);
+    const d = buildBucketComparisonData();
     const visStart = '2026-06-02';
     const visEnd = '2026-06-06';
     const model = buildBucketComparisonModel(d, visStart, visEnd);
@@ -267,7 +246,7 @@ function registerMovedSchedulerTests201026({
     assertBucketComparisonSummary(rows);
   });
 }
-function buildBucketComparisonData(alloc: (input: AllocationTestInput) => Allocation) {
+function buildBucketComparisonData() {
   const d = dataset();
   d.allocations = [
     // A booking that covers the complete timeline must be clipped to queried dates rather than dropped for having off-window endpoints.
@@ -549,14 +528,8 @@ function registerMutationTestingGapFillLateTests() {
   registerMovedSchedulerTests201022();
   registerMovedSchedulerTests201023();
   registerMovedSchedulerTests201024();
-  registerMovedSchedulerTests201025(withThirdResource);
-  registerMovedSchedulerTests201026({
-    alloc,
-    buildBucketComparisonData,
-    buildBucketComparisonModel,
-    assertBucketComparisonResource,
-    assertBucketComparisonSummary,
-  });
+  registerMovedSchedulerTests201025();
+  registerMovedSchedulerTests201026();
 }
 
 describe(

@@ -46,13 +46,13 @@ describe('dialog scroll locking under the application CSP', () => {
     );
     const innerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
     restoreViewport = () => {
-      if (clientWidth)
+      if (clientWidth) {
         Object.defineProperty(
           document.documentElement,
           'clientWidth',
           clientWidth,
         );
-      else Reflect.deleteProperty(document.documentElement, 'clientWidth');
+      } else Reflect.deleteProperty(document.documentElement, 'clientWidth');
       if (innerWidth) Object.defineProperty(window, 'innerWidth', innerWidth);
       else Reflect.deleteProperty(window, 'innerWidth');
     };

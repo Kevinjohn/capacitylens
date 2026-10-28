@@ -6,9 +6,10 @@ import { ConnectionError } from './ConnectionError';
 import { RotateHint } from './RotateHint';
 import { m } from '@/i18n';
 
-const StorageRecovery = lazy(async () => ({
-  default: (await import('./StorageRecovery')).StorageRecovery,
-}));
+const StorageRecovery = lazy(async () => {
+  const module = await import('./StorageRecovery');
+  return { default: module.StorageRecovery };
+});
 
 function LoadingBoundary() {
   return (
@@ -60,13 +61,14 @@ export function AppEntryGate({
   onChooseAnotherAccount,
   children,
 }: AppEntryGateProps) {
-  if (connectionError)
+  if (connectionError) {
     return (
       <FocusableStage>
         <ConnectionError />
       </FocusableStage>
     );
-  if (loadError)
+  }
+  if (loadError) {
     return (
       <Suspense fallback={<LoadingBoundary />}>
         <FocusableStage>
@@ -74,6 +76,7 @@ export function AppEntryGate({
         </FocusableStage>
       </Suspense>
     );
+  }
   if (!hydrated) return <LoadingBoundary />;
 
   if (activeAccountLoadFailed !== null && activeAccountLoadFailed === activeAccountId) {

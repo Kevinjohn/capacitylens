@@ -3,6 +3,7 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
+import unicorn from 'eslint-plugin-unicorn';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import { readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
@@ -273,6 +274,45 @@ export default defineConfig([
         project: ['./packages/shared/tsconfig.test.json'],
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+  },
+
+  // Rules the backend inherits from the AdonisJS preset, applied here so the three packages read
+  // the same way. `curly` is `multi-line` rather than the preset's `all`: eslint-config-prettier
+  // turns the preset's own `curly` off, and one-line guard clauses stay, as the Google TypeScript
+  // style guide allows. `eqeqeq` ignores null because `!= null` deliberately covers both absences:
+  // in-memory lookups return undefined and database lookups return null.
+  {
+    files: ['apps/frontend/src/**/*.{ts,tsx}', 'packages/shared/src/**/*.{ts,tsx,mts,cts}'],
+    plugins: { unicorn },
+    rules: {
+      curly: ['error', 'multi-line'],
+      eqeqeq: ['error', 'always', { null: 'ignore' }],
+      'one-var': ['error', 'never'],
+      // ignoreOnInitialization keeps `const row = requireValue(rows.find((row) => …))`, where the
+      // inner name only exists while the outer binding is being created.
+      '@typescript-eslint/no-shadow': ['error', { ignoreOnInitialization: true }],
+      '@typescript-eslint/naming-convention': [
+        'error',
+        {
+          selector: 'variable',
+          format: ['camelCase', 'UPPER_CASE', 'PascalCase'],
+          leadingUnderscore: 'allow',
+        },
+        { selector: 'typeLike', format: ['PascalCase'] },
+        { selector: 'class', format: ['PascalCase'] },
+        {
+          selector: 'interface',
+          format: ['PascalCase'],
+          custom: { regex: '^I[A-Z]', match: false },
+        },
+      ],
+      'unicorn/no-await-expression-member': 'error',
+      'unicorn/no-for-loop': 'error',
+      'unicorn/no-instanceof-builtins': 'error',
+      'unicorn/prefer-module': 'error',
+      'unicorn/prefer-node-protocol': 'error',
+      'unicorn/prefer-number-properties': 'error',
     },
   },
 

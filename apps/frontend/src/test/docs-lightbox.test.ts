@@ -168,8 +168,9 @@ describe('docs image lightbox', () => {
     homeLink.current = { setAttribute: vi.fn() };
     const onReady = listeners.get('DOMContentLoaded');
     expect(typeof onReady).toBe('function');
-    if (typeof onReady !== 'function')
+    if (typeof onReady !== 'function') {
       throw new Error('The file home link must wait for the page markup');
+    }
     onReady();
 
     expect(querySelector).toHaveBeenCalledWith('.cl-standalone-not-found a');
@@ -219,8 +220,9 @@ const runtime = readFileSync(join(ROOT, 'scripts/docs-lightbox.js'), 'utf8');
 const publishedRuntimeMatch = readFileSync(join(SITE, 'index.html'), 'utf8').match(
   /<script\b[^>]*data-cl-keep[^>]*>([\s\S]*?)<\/script>/,
 );
-if (publishedRuntimeMatch === null)
+if (publishedRuntimeMatch === null) {
   throw new Error('Published docs must contain the retained lightbox runtime');
+}
 const publishedRuntime = capture(publishedRuntimeMatch, 1);
 
 function keyboardFixture(source: string, open: boolean[]) {

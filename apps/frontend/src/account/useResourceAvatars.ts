@@ -15,16 +15,23 @@ export function invalidateResourceAvatars(): void {
 }
 
 function parseProjection(body: unknown): ReadonlyMap<string, string> {
-  if (!body || typeof body !== 'object' || !Array.isArray((body as { avatars?: unknown }).avatars))
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    !Array.isArray((body as { avatars?: unknown }).avatars)
+  ) {
     throw new Error('Resource avatars returned an invalid response.');
+  }
   const next = new Map<string, string>();
   for (const row of (body as { avatars: unknown[] }).avatars) {
-    if (!row || typeof row !== 'object')
+    if (!row || typeof row !== 'object') {
       throw new Error('Resource avatars returned an invalid row.');
+    }
     const { resourceId, imageUrl } = row as Record<string, unknown>;
     const parsed = parseResourceAvatarUrl(imageUrl);
-    if (typeof resourceId !== 'string' || !resourceId || parsed === null || parsed === undefined)
+    if (typeof resourceId !== 'string' || !resourceId || parsed === null || parsed === undefined) {
       throw new Error('Resource avatars returned an unsafe row.');
+    }
     next.set(resourceId, parsed);
   }
   return next;
@@ -58,8 +65,9 @@ export function useResourceAvatars(accountId: string | null): ReadonlyMap<string
         if (requestEpoch.current === epoch) setProjection({ accountId, avatars });
       })
       .catch((error: unknown) => {
-        if (requestEpoch.current === epoch)
+        if (requestEpoch.current === epoch) {
           console.error('Could not load scheduled-person avatars', error);
+        }
       });
   }, [accountId]);
 

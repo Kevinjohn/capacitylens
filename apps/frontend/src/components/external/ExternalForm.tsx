@@ -80,7 +80,10 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
           return;
         }
         await update(resource.id, patch);
-      } else if ((await add(patch)).kind === 'blocked') return;
+      } else {
+        const result = await add(patch);
+        if (result.kind === 'blocked') return;
+      }
       onClose();
     } catch (e) {
       // Surface store rejection inside the external-resource form so invalid writes cannot fail silently.

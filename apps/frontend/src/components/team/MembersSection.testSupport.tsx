@@ -84,8 +84,9 @@ export function mockApi(
     const method = init?.method ?? 'GET';
     for (const [key, handler] of Object.entries(routes)) {
       const space = key.indexOf(' ');
-      if (method === key.slice(0, space) && u.endsWith(key.slice(space + 1)))
+      if (method === key.slice(0, space) && u.endsWith(key.slice(space + 1))) {
         return handler(u, init);
+      }
     }
 
     return new Response(null, { status: 204 });
@@ -199,10 +200,9 @@ export async function saveRoleVia(user: User, row: HTMLElement, option: string):
 
 /** Finds a rendered member row whose email matches the supplied pattern. */
 export async function waitForMemberRow(email: RegExp): Promise<HTMLElement> {
+  const rows = await screen.findAllByTestId('member-row');
   return requireValue(
-    (await screen.findAllByTestId('member-row')).find((candidate) =>
-      within(candidate).queryByText(email),
-    ),
+    rows.find((candidate) => within(candidate).queryByText(email)),
     `a member row matching ${email}`,
   );
 }

@@ -188,8 +188,9 @@ function assertNullableText(
   options: { multiline?: boolean } = {},
 ): void {
   assert(nullable(value[field], isString), `${path}.${field}`, 'must be a string or null');
-  if (typeof value[field] === 'string')
+  if (typeof value[field] === 'string') {
     assertText(value, field, path, { allowEmpty: true, ...options });
+  }
 }
 
 function assertNullableId(value: Row, field: string, path: string): void {
@@ -227,12 +228,13 @@ export function validateRow(
   assert(isId(row.id), `${path}.id`, 'must be a bounded non-empty id without whitespace');
   assert(isTimestamp(row.createdAt), `${path}.createdAt`, 'must be an ISO timestamp');
   assert(isTimestamp(row.updatedAt), `${path}.updatedAt`, 'must be an ISO timestamp');
-  if (key !== 'accounts')
+  if (key !== 'accounts') {
     assert(
       isId(row.accountId),
       `${path}.accountId`,
       'must be a bounded non-empty id without whitespace',
     );
+  }
   // Private-name projections add two quotation marks to the stored code name.
   const nameMaximum =
     options.redacted && row.isPrivate === true ? MAX_NAME_LENGTH + 2 : MAX_NAME_LENGTH;
@@ -284,8 +286,9 @@ export function validateRow(
         'externalEnabled',
         'inlineActivityCreateEnabled',
         'showTaskFieldInSchedule',
-      ])
+      ]) {
         assert(nullable(row[field], isBoolean), `${path}.${field}`, 'must be boolean or null');
+      }
       assert(
         nullable(row.capacityOverviewAccess, (v) =>
           isOneOf(v, ['owner_admin', 'owner_admin_editor', 'everyone']),
@@ -354,42 +357,47 @@ export function validateRow(
         `${path}.isFavourite`,
         'must be boolean or null',
       );
-      for (const field of ['firstAvailableDate', 'lastAvailableDate'])
+      for (const field of ['firstAvailableDate', 'lastAvailableDate']) {
         assert(
           nullable(row[field], isValidISODate),
           `${path}.${field}`,
           'must be a valid date or null',
         );
+      }
       assertNullableTimestamp(row, 'archivedAt', path);
       assertNullableTimestamp(row, 'deletedAt', path);
       if (row.kind === 'person' || row.kind === 'external') assertText(row, 'name', path);
-      if (row.kind === 'person')
+      if (row.kind === 'person') {
         assert(
           row.workingDays.length > 0 && (row.workingHoursPerDay as number) > 0,
           path,
           'a person must have working days and positive daily capacity',
         );
-      if (row.kind !== 'placeholder')
+      }
+      if (row.kind !== 'placeholder') {
         assert(
           row.projectId === null,
           `${path}.projectId`,
           'only a placeholder may be bound to a project',
         );
+      }
       if (row.kind !== 'person') {
         assert(row.avatarUrl === null, `${path}.avatarUrl`, 'only a person may have an avatar URL');
-        for (const field of ['firstAvailableDate', 'lastAvailableDate'])
+        for (const field of ['firstAvailableDate', 'lastAvailableDate']) {
           assert(
             row[field] === null,
             `${path}.${field}`,
             'only a person may have availability dates',
           );
+        }
       }
-      if (row.kind === 'person' && row.avatarUrl !== null)
+      if (row.kind === 'person' && row.avatarUrl !== null) {
         assert(
           parseResourceAvatarUrl(row.avatarUrl) === row.avatarUrl,
           `${path}.avatarUrl`,
           'must be a canonical credential-free HTTPS URL',
         );
+      }
       if (row.kind === 'placeholder') {
         assert(
           row.engagement === 'studio',
@@ -432,12 +440,13 @@ export function validateRow(
       assert(nullable(row.builtin, isBoolean), `${path}.builtin`, 'must be boolean or null');
       assertNullableTimestamp(row, 'archivedAt', path);
       assertNullableTimestamp(row, 'deletedAt', path);
-      if (row.builtin === true)
+      if (row.builtin === true) {
         assert(
           (row.isPrivate === null || row.isPrivate === false) && row.codeName === null,
           path,
           'Internal must remain public and have no code name',
         );
+      }
       break;
     case 'projects':
       assertText(row, 'name', path, { maxLength: nameMaximum });
@@ -472,8 +481,9 @@ export function validateRow(
       );
       break;
     case 'allocations':
-      for (const field of ['resourceId', 'activityId'])
+      for (const field of ['resourceId', 'activityId']) {
         assert(isId(row[field]), `${path}.${field}`, 'must be a bounded id');
+      }
       assertNullableId(row, 'projectId', path);
       assertNullableId(row, 'seriesId', path);
       assert(
@@ -538,13 +548,14 @@ export function projectBetaData(data: AppData, accountId: string): AppData {
         : source.filter((row): row is Row => isRecord(row) && row.accountId === accountId);
     (projected as unknown as Record<string, unknown>)[key] = selected.map((input) => {
       const copy: Row = {};
-      for (const field of FIELDS[key] as readonly string[])
+      for (const field of FIELDS[key] as readonly string[]) {
         if (own(input, field)) {
           const fieldValue = input[field];
           copy[field] = Array.isArray(fieldValue)
             ? (fieldValue as unknown[]).map((item: unknown) => item)
             : fieldValue;
         }
+      }
       return copy;
     });
   }

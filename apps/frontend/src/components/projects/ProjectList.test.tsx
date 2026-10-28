@@ -61,12 +61,15 @@ describe('ProjectList', () => {
             : client,
         ),
       projects: useStore.getState().data.projects.map((project) => {
-        if (project.id === alphaZuluProject.id)
+        if (project.id === alphaZuluProject.id) {
           return { ...project, isPrivate: true, codeName: 'Zulu Project' };
-        if (project.id === zuluBravoProject.id)
+        }
+        if (project.id === zuluBravoProject.id) {
           return { ...project, isPrivate: true, codeName: 'Bravo Project' };
-        if (project.id === betaZuluProject.id)
+        }
+        if (project.id === betaZuluProject.id) {
           return { ...project, isPrivate: true, codeName: 'Alpha Project' };
+        }
         return project;
       }),
     });

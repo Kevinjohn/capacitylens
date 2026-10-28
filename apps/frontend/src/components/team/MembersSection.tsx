@@ -31,8 +31,9 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   // Privileged controls stay fail-closed until the current account's members read authorizes this
   // section. A 403 remains hidden, and a switch cannot briefly expose the next account's form while
   // its authorization request is still pending.
-  if (orchestration.directory.kind === 'loading' || orchestration.directory.kind === 'hidden')
+  if (orchestration.directory.kind === 'loading' || orchestration.directory.kind === 'hidden') {
     return null;
+  }
   if (orchestration.directory.kind === 'error') {
     return (
       <MembersErrorCard
@@ -207,11 +208,11 @@ function MemberDirectory({
   members: TeamMember[];
 }) {
   let activeContent = null;
-  if (members.length === 0)
+  if (members.length === 0) {
     activeContent = (
       <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
     );
-  else if (directory.activeMembers)
+  } else if (directory.activeMembers) {
     activeContent = (
       <MembersTable
         rows={directory.activeMembers}
@@ -220,6 +221,7 @@ function MemberDirectory({
         allMembers={members}
       />
     );
+  }
   let disclosureIcon = <ChevronRight data-icon="inline-start" />;
   if (directory.inactiveOpen) disclosureIcon = <ChevronDown data-icon="inline-start" />;
   return (

@@ -94,8 +94,9 @@ function resolveColumnWidth(input: ColumnWidthInput): number {
   const isWeekend = input.weekday === 0 || input.weekday === 6;
   if (input.minimiseActive && isWeekend) return input.narrowWidth;
   let receivesExtra = input.weekday < input.extraPixels;
-  if (input.minimiseActive)
+  if (input.minimiseActive) {
     receivesExtra = input.weekday > 0 && input.weekday - 1 < input.extraPixels;
+  }
   return input.dayWidth + (receivesExtra ? 1 : 0);
 }
 
@@ -174,9 +175,9 @@ function createGeometryAccessors(
       if (
         requireDenseValue(input.offsets, middleIndex, 'Column geometry offsets must be dense.') <=
         px
-      )
+      ) {
         lowerIndex = middleIndex;
-      else upperIndex = middleIndex - 1;
+      } else upperIndex = middleIndex - 1;
     }
     return lowerIndex;
   };

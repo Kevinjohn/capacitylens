@@ -206,18 +206,15 @@ async function saveProject({
     await update(project.id, { name: trimmed, clientId, color, ...privacy });
     return true;
   }
-  return (
-    (
-      await add({
-        name: trimmed,
-        clientId,
-        color,
-        ...(privacy.isPrivate && privacy.codeName
-          ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
-          : {}),
-      })
-    ).kind === 'created'
-  );
+  const result = await add({
+    name: trimmed,
+    clientId,
+    color,
+    ...(privacy.isPrivate && privacy.codeName
+      ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
+      : {}),
+  });
+  return result.kind === 'created';
 }
 
 function ProjectFormFields({

@@ -156,7 +156,8 @@ export function canViewCapacityOverview(
   access: CapacityOverviewAccess | undefined,
 ): boolean {
   if (access === 'everyone') return true;
-  if (access === 'owner_admin_editor')
+  if (access === 'owner_admin_editor') {
     return role === 'owner' || role === 'admin' || role === 'editor';
+  }
   return role === 'owner' || role === 'admin';
 }

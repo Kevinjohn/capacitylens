@@ -94,8 +94,9 @@ function archivedAncestor(
     ancestor.table === 'clients'
       ? m.settings_archived_type_clients()
       : m.settings_archived_type_projects();
-  if (ancestor.state === 'deleted')
+  if (ancestor.state === 'deleted') {
     return { name, message: m.list_hidden_by_deleted_parent({ type: noun, name }) };
+  }
   return {
     name,
     href: `/${ancestor.table}#archived-${ancestor.id}`,
@@ -105,13 +106,14 @@ function archivedAncestor(
 
 function buildArchivedRows(data: AppData, entity: ArchivedEntity): ArchivedRowModel[] {
   const indexes = new Map<AppDataKey, Map<string, LifecycleAncestryRow>>();
-  for (const key of ['resources', 'clients', 'projects', 'activities', 'phases'] as const)
+  for (const key of ['resources', 'clients', 'projects', 'activities', 'phases'] as const) {
     indexes.set(
       key,
       new Map(
         data[key].map((candidate) => [candidate.id, candidate as unknown as LifecycleAncestryRow]),
       ),
     );
+  }
   return entityConfig[entity]
     .list(data)
     .filter((row) => lifecycleStatus(row) !== 'deleted')
@@ -311,8 +313,9 @@ export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
       (error) => setNotice(resolveErrorMessage(error), 'error'),
     );
   const onAnonymise = (model: ArchivedRowModel) => {
-    if (entity === 'resources' && mayAnonymise && !locked())
+    if (entity === 'resources' && mayAnonymise && !locked()) {
       setAnonymising({ accountId: activeAccountId, row: model.row });
+    }
   };
 
   if (!mayViewInactive || !data || rows.length === 0) return null;

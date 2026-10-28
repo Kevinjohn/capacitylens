@@ -213,8 +213,9 @@ function useInvitationQueryEffects({
     setDirectory,
   ]);
   useEffect(() => {
-    if (membersQuery.data?.kind === 'ok' && invitationsQuery.error)
+    if (membersQuery.data?.kind === 'ok' && invitationsQuery.error) {
       fail(null, m.settings_err_server({ error: resolveErrorMessage(invitationsQuery.error) }));
+    }
   }, [invitationsQuery.error, membersQuery.data, fail]);
 }
 

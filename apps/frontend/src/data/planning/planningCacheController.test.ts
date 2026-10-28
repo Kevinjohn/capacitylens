@@ -187,11 +187,13 @@ describe('planning cache controller', () => {
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 0, canWrite: true, data: emptyAppData() });
-    for (let index = 0; index < 51; index += 1)
+    for (let index = 0; index < 51; index += 1) {
       await h.controller.execute(h.controller.begin({}), intent, inverse);
+    }
     expect(h.state().planning.history.past).toHaveLength(50);
-    for (let index = 0; index < 50; index += 1)
+    for (let index = 0; index < 50; index += 1) {
       await expect(h.controller.undo()).resolves.toBe(true);
+    }
     await expect(h.controller.undo()).resolves.toBe(false);
     expect(h.state().planning.history.future).toHaveLength(50);
     await expect(h.controller.redo()).resolves.toBe(true);
@@ -920,8 +922,9 @@ describe.each(['receipt', 'lookup'] as const)('planning %s completion context', 
           expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision }),
         );
         if (change === 'sign-out') h.controller.setContext(null);
-        if (change === 'company switch')
+        if (change === 'company switch') {
           h.controller.setContext({ ...context, companyId: 'company-2' });
+        }
         delayed.resolve({
           revision,
           canWrite: true,

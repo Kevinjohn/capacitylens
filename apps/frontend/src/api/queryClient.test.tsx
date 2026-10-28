@@ -77,20 +77,20 @@ describe('account query cache scope', () => {
       { principalId: 'bruce', accountId: 'wayne', masqueradeGeneration: 2 },
     ],
   ])('clears data when the %s changes', (_label, previous, next) => {
-    const client = new QueryClient();
-    client.setQueryData(['private'], { name: 'Wayne Enterprises' });
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(['private'], { name: 'Wayne Enterprises' });
 
-    expect(clearQueryCacheForScopeChange(client, previous, next)).toBe(true);
-    expect(client.getQueryData(['private'])).toBeUndefined();
+    expect(clearQueryCacheForScopeChange(queryClient, previous, next)).toBe(true);
+    expect(queryClient.getQueryData(['private'])).toBeUndefined();
   });
 
   it('keeps cached data when the entire identity scope is unchanged', () => {
-    const client = new QueryClient();
+    const queryClient = new QueryClient();
     const scope = { principalId: 'bruce', accountId: 'wayne', masqueradeGeneration: 1 } as const;
-    client.setQueryData(['private'], { name: 'Wayne Enterprises' });
+    queryClient.setQueryData(['private'], { name: 'Wayne Enterprises' });
 
-    expect(clearQueryCacheForScopeChange(client, scope, scope)).toBe(false);
-    expect(client.getQueryData(['private'])).toEqual({ name: 'Wayne Enterprises' });
+    expect(clearQueryCacheForScopeChange(queryClient, scope, scope)).toBe(false);
+    expect(queryClient.getQueryData(['private'])).toEqual({ name: 'Wayne Enterprises' });
   });
 });
 

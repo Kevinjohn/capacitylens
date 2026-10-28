@@ -122,8 +122,9 @@ export function OwnershipTransferCard() {
   const { refreshAuth } = useAuth();
   const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('capacitylensActionConfirmed') !== '1')
+    if (new URLSearchParams(window.location.search).get('capacitylensActionConfirmed') !== '1') {
       return;
+    }
     if (!activeAccountId) return;
     const saved = sessionStorage.getItem(PENDING_KEY);
     if (!saved) return;
@@ -143,8 +144,9 @@ export function OwnershipTransferCard() {
           typeof pending.target !== 'string' ||
           !('proofId' in pending) ||
           typeof pending.proofId !== 'string'
-        )
+        ) {
           throw new Error('Ownership confirmation could not be resumed.');
+        }
         setSelected(pending.target);
         setReadyProof({ target: pending.target, id: pending.proofId });
         setOpen(true);

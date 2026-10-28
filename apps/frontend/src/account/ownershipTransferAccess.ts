@@ -14,8 +14,9 @@ function parseReceipt(value: unknown): OwnershipTransferReceipt | null {
     !isRecord(value) ||
     typeof value.fromUserId !== 'string' ||
     typeof value.toUserId !== 'string'
-  )
+  ) {
     return null;
+  }
   return { fromUserId: value.fromUserId, toUserId: value.toUserId };
 }
 

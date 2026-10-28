@@ -53,8 +53,9 @@ export function resolveVirtualWindow({
   const itemCount = heights.length;
   if (itemCount === 0) return { first: 0, last: -1 };
   const { tops, total } = layout;
-  if (tops.length !== itemCount)
+  if (tops.length !== itemCount) {
     throw new Error('Virtual layout tops must align with row heights.');
+  }
 
   // Without a measured viewport, render all rows rather than hiding content before layout. A fitting list also needs no windowing.
   if (viewportHeight <= 0 || total <= viewportHeight + overscanPx) {
@@ -82,9 +83,9 @@ export function resolveVirtualWindow({
   high = itemCount;
   while (low < high) {
     const middle = low + Math.floor((high - low) / 2);
-    if (requireRowValue(tops, middle, 'Virtual layout tops must be dense.') < bottom)
+    if (requireRowValue(tops, middle, 'Virtual layout tops must be dense.') < bottom) {
       low = middle + 1;
-    else high = middle;
+    } else high = middle;
   }
   const last = low - 1;
 

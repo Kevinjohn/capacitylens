@@ -25,8 +25,9 @@ export function useDiagnosticsController() {
       .catch(() => {
         // An unavailable diagnostics read is itself represented in the fixed projection. The
         // caught error is intentionally not rendered or copied, because it may contain internals.
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
           setObservation({ response: null, observedAt: new Date().toISOString() });
+        }
       });
     return () => controller.abort();
   }, [serverMode]);

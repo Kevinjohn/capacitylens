@@ -42,10 +42,12 @@ function parseBootstrapPrincipal(
     !value.id ||
     typeof value.email !== 'string' ||
     !value.email
-  )
+  ) {
     return null;
-  if (value.name !== undefined && value.name !== null && typeof value.name !== 'string')
+  }
+  if (value.name !== undefined && value.name !== null && typeof value.name !== 'string') {
     return null;
+  }
   return {
     id: value.id,
     ...(typeof value.name === 'string' || value.name === null ? { name: value.name } : {}),

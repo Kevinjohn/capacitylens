@@ -86,15 +86,17 @@ function parseMemberResourceStatus(
 
 function parseMemberResourceLink(value: unknown): TeamMember['resourceLink'] | undefined {
   if (value === undefined || value === null) return null;
-  if (!isRecord(value) || typeof value.resourceId !== 'string' || value.resourceId.length === 0)
+  if (!isRecord(value) || typeof value.resourceId !== 'string' || value.resourceId.length === 0) {
     return undefined;
+  }
   if (typeof value.revision !== 'string' || value.revision.length === 0) return undefined;
   if (
     value.resourceName !== undefined &&
     value.resourceName !== null &&
     typeof value.resourceName !== 'string'
-  )
+  ) {
     return undefined;
+  }
   const resourceStatus = parseMemberResourceStatus(value.resourceStatus);
   if (resourceStatus === undefined) return undefined;
   return {
@@ -136,10 +138,15 @@ function parseResourceCandidates(
 
 function parseMembers(value: unknown): TeamDirectory | null {
   if (!isRecord(value) || !Array.isArray(value.members)) return null;
-  if (value.signInTrackingEnabled !== undefined && typeof value.signInTrackingEnabled !== 'boolean')
+  if (
+    value.signInTrackingEnabled !== undefined &&
+    typeof value.signInTrackingEnabled !== 'boolean'
+  ) {
     return null;
-  if (value.resourceCandidates !== undefined && !Array.isArray(value.resourceCandidates))
+  }
+  if (value.resourceCandidates !== undefined && !Array.isArray(value.resourceCandidates)) {
     return null;
+  }
   const signInTrackingEnabled = value.signInTrackingEnabled === true;
   const members = parseDirectoryMembers(value.members);
   if (members === null) return null;
@@ -161,8 +168,9 @@ function parseInvitation(row: unknown): TeamInvitation | null {
     typeof row.preauthEmail !== 'string' ||
     !isTimestamp(row.expiresAt) ||
     !isTimestamp(row.createdAt)
-  )
+  ) {
     return null;
+  }
   return {
     id,
     role: row.role,
@@ -202,11 +210,13 @@ function parseAdmissionPage(status: AdmissionStatus) {
       !isRecord(value) ||
       !Array.isArray(value.items) ||
       !isNullableString(value.nextCursor ?? null)
-    )
+    ) {
       return null;
+    }
     const requests = value.items.flatMap((item: unknown) => {
-      if (!isRecord(item) || (typeof item.userId !== 'string' && typeof item.userId !== 'number'))
+      if (!isRecord(item) || (typeof item.userId !== 'string' && typeof item.userId !== 'number')) {
         return [];
+      }
       if (typeof item.email !== 'string' || !isNullableString(item.requestedAt)) return [];
       const invitation = isRecord(item.invitation) ? item.invitation : null;
       const role = invitation && typeof invitation.role === 'string' ? invitation.role : null;
