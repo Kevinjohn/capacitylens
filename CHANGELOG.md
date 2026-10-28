@@ -29,6 +29,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Pin Lucid soft deletes to the verified 0.1.1-alpha release archive.
+
 - Adopt the pinned Lucid soft-delete alpha for backend lifecycle models, with strict UTC timestamp serialization and tenant-scoped integration checks. Archive controls and planning restoration behavior are unchanged.
 - Set new and password-replacement hashes to the OWASP-minimum scrypt profile for the 16 MiB memory target. Legacy hashes remain verifiable, but sign-in does not automatically rehash them.
 
