@@ -1111,8 +1111,12 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     deletion.assertStatus(200)
     const before = await readState(accountId, true)
     const target = before.projects.find((row) => !row.isPrivate)!
+    const retainedAllocation = await db.from('allocations').where('id', allocationId!).first()
+    assert.isNotNull(retainedAllocation?.deleted_at)
     const other = randomUUID()
     const consumed = randomUUID()
+    const otherRowIds = [randomUUID(), randomUUID()]
+    const consumedRowId = randomUUID()
     for (const [id, consumedInstant] of [
       [other, null],
       [consumed, new Date().toISOString()],
@@ -1129,14 +1133,14 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       await db.table('deleted_rows').multiInsert([
         {
           group_id: id,
-          entity: 'closures',
-          row_id: randomUUID(),
+          entity: 'allocations',
+          row_id: id === other ? otherRowIds[0]! : consumedRowId,
           payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
           group_id: id,
-          entity: 'phases',
-          row_id: randomUUID(),
+          entity: 'allocations',
+          row_id: id === other ? otherRowIds[1]! : randomUUID(),
           payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
@@ -1147,6 +1151,17 @@ test.group('typed catalogue and time-off restoration', (suite) => {
         },
       ])
     }
+    const retainedFixtureRow = (id: string, groupId: string) => ({
+      ...retainedAllocation,
+      id,
+      deletion_group_id: groupId,
+    })
+    await db
+      .table('allocations')
+      .insert([
+        ...otherRowIds.map((id) => retainedFixtureRow(id, other)),
+        retainedFixtureRow(consumedRowId, consumed),
+      ])
     const mutationId = randomUUID()
     const intent = {
       operation: 'catalogue.update',
