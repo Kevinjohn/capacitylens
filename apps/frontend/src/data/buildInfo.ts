@@ -26,7 +26,7 @@ export interface ServerDiagnostics {
   backup: { newestSnapshotAt: string | null };
 }
 
-/** Browser facts a support report may carry; none identifies a person or a company. */
+/** Local browser inputs; the report projection omits the caller-controlled user agent. */
 export interface BrowserDiagnostics {
   userAgent: string;
   /** CSS-pixel viewport, e.g. `1280×800`. */
@@ -131,8 +131,8 @@ function readMatching(value: string, pattern: RegExp): string {
 // Restrict browser facts to fixed shapes so support reports cannot carry arbitrary private text.
 function readBrowserProjection(browser: BrowserDiagnostics): BrowserDiagnostics {
   return {
-    // A user agent may carry a crawler URL or contact address; such a string is dropped whole.
-    userAgent: readMatching(browser.userAgent, /^(?!.*(?::\/\/|@))[\x20-\x7e]{1,512}$/),
+    // User agents are caller-controlled text and can contain private names; omit them entirely.
+    userAgent: UNKNOWN,
     viewport: readMatching(browser.viewport, /^\d{1,5}×\d{1,5}$/),
     timeZone: readMatching(browser.timeZone, /^[A-Za-z0-9_+\-/]{1,64}$/),
     language: readMatching(browser.language, /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/),
@@ -143,7 +143,7 @@ function readBrowserProjection(browser: BrowserDiagnostics): BrowserDiagnostics 
 export function readBrowserDiagnostics(): BrowserDiagnostics {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return {
-    userAgent: navigator.userAgent || UNKNOWN,
+    userAgent: UNKNOWN,
     viewport: `${window.innerWidth}×${window.innerHeight}`,
     timeZone: timeZone || UNKNOWN,
     language: navigator.language || UNKNOWN,

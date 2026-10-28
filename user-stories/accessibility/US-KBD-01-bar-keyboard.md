@@ -11,7 +11,7 @@ and hear what the bar is when it's focused.
 
 Drag-and-drop is mouse-first. A keyboard-only or screen-reader user still needs to
 schedule and adjust work. Each bar is a focusable control with arrow-key equivalents
-of the drag gestures, and its accessible name announces the activity, hours, applicable status annotation
+of the drag gestures, and its accessible name announces the activity, applicable status annotation
 and dates plus the available shortcuts. Confirmed is the implicit default when no status annotation
 is spoken, so the timeline remains concise while being fully operable without pointing.
 
@@ -24,8 +24,9 @@ stays on screen.
 
 1. Press **Tab** repeatedly until the **Wireframes** allocation bar is focused
    (it shows a visible focus ring).
-2. With the bar focused, read its accessible name (screen reader, or DevTools
-   accessibility pane): it announces activity, `Nh per day`, any applicable status annotation, and `start to end`
+2. With a capacity-counting, non-External allocation bar focused outside Blocks mode, read its
+   accessible name (screen reader, or DevTools accessibility pane): it announces activity, `Nh per
+day`, any applicable status annotation, and `start to end`
    dates, including "Enter to edit; arrow keys to move, Shift+arrow to resize."
 3. Press **Enter** — the allocation editor (Edit allocation modal) opens. Press
    **Escape** to close it and return focus to the bar.
@@ -40,7 +41,7 @@ stays on screen.
 - ✅ **Enter** (or **Space**) opens the allocation editor for that bar.
 - ✅ **→ / ←** move the bar one day later / earlier.
 - ✅ **Shift+→ / Shift+←** resize the bar's end out / in by one day.
-- ✅ The bar's `aria-label` announces activity, hours/day, any applicable status annotation and
+- ✅ Outside Blocks mode, a non-External bar's `aria-label` announces activity, hours/day, any applicable status annotation and
   names the shortcuts ("Enter to edit; arrow keys to move, Shift+arrow to resize.").
 - ✅ A keyboard resize that would invert the range (end before start) is ignored — the
   bar stays put rather than producing an invalid allocation.

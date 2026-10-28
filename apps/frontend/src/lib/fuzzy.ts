@@ -1,5 +1,5 @@
 // Rank command-palette matches by prefix, word boundary, substring and subsequence,
-// then by shorter folded names and lexical order. Preserve original text for display.
+// then by shorter original labels and lexical order. Matching folds accents; display retains original text.
 
 /** Folds canonically decomposable diacritics and case for consistent search comparisons.
  * Pure and total for string input, including lone surrogates.

@@ -91,6 +91,13 @@ export function planChecks(
     workspaceChanged ||
     sharedMetadataChanged ||
     paths.some(
+      (path) =>
+        path.startsWith("apps/frontend/src/") &&
+        codeFile.test(path) &&
+        !frontendTest.test(path) &&
+        !present.includes(path),
+    ) ||
+    paths.some(
       (path) => path.startsWith("apps/frontend/") && !path.startsWith("apps/frontend/src/") && !path.endsWith(".md"),
     );
   const scriptTests = [

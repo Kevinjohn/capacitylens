@@ -7,7 +7,7 @@ import {
 import type { Invitation } from 'adonisjs-account-kit/types'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
-import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
+import { MAX_NAME_LENGTH, unicodeCharacterCount } from '@capacitylens/shared/lib/strings'
 import env from '#start/env'
 import { FirstCompanyPendingError } from '#models/user'
 import { assertCompanyAction } from '#services/auth/authorization'
@@ -156,7 +156,7 @@ export default class InvitationsController {
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     if (
       !name ||
-      name.length > MAX_NAME_LENGTH ||
+      unicodeCharacterCount(name) > MAX_NAME_LENGTH ||
       typeof body.password !== 'string' ||
       passwordLengthFailure(body.password)
     )

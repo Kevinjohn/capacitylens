@@ -1,5 +1,12 @@
 import { expect, test } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, createFixturePerson, signUpUser } from "./authTestSupport";
+import {
+  AUTH_API,
+  AUTH_PASSWORD,
+  bootstrapOrg,
+  createFixturePerson,
+  seedFixtureMember,
+  signUpUser,
+} from "./authTestSupport";
 import { waitForAppLanding } from "./browserTestSupport";
 
 const suffix = Date.now();
@@ -74,4 +81,41 @@ test("an Owner archives, restores and anonymises a resource, then anonymises all
     expect(scrubbed?.role).toBe("Removed resource");
     expect(scrubbed?.avatarUrl).toBeNull();
   }
+});
+
+// The authenticated counterpart to archived.spec.ts proves reload discovery and restoration as Editor.
+test("an Editor rediscovers an archived resource after reload and restores it inline", async ({ page, request }) => {
+  const stamp = Date.now();
+  const owner = await signUpUser(`archive-owner-${stamp}@capacitylens.dev`);
+  const editor = await signUpUser(`archive-editor-${stamp}@capacitylens.dev`);
+  const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Archive ${stamp}`);
+  await createFixturePerson(request, owner.cookie, accountId, {
+    id: crypto.randomUUID(),
+    name: "Barry Allen",
+    role: "Designer",
+  });
+  seedFixtureMember(accountId, editor.email, "editor");
+  await page.goto("/");
+  await page.getByLabel("Email").fill(editor.email);
+  await page.getByLabel("Password").fill(AUTH_PASSWORD);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
+  await page.getByRole("link", { name: "Resources", exact: true }).click();
+  const active = page.getByTestId("resource-row").filter({ hasText: "Barry Allen" });
+  await active.getByRole("button", { name: "Archive Barry Allen" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Archive resource?" })
+    .getByRole("button", { name: "Archive", exact: true })
+    .click();
+  await expect(active).toHaveCount(0);
+  await page.reload();
+  const archived = page.getByTestId("archived-row").filter({ hasText: "Barry Allen" });
+  await expect(archived).toBeVisible();
+  await expect(archived.getByRole("button", { name: /Anonymise/ })).toHaveCount(0);
+  await expect(archived.getByText("Designer", { exact: true })).toHaveCount(0);
+  await archived.getByRole("button", { name: "Restore Barry Allen" }).click();
+  await expect(archived).toHaveCount(0);
+  await expect(active).toBeVisible();
+  await page.getByRole("link", { name: "Schedule", exact: true }).click();
+  await expect(page.getByTestId("scheduler-row").filter({ hasText: "Barry Allen" })).toBeVisible();
 });

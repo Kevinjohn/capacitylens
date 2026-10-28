@@ -19,7 +19,7 @@ import { DomainError } from "@capacitylens/shared/domain/errors";
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import { assertAllocationPlacement } from "@capacitylens/shared/domain/placement";
 import { normalizeAccountWorkingDays, isWeekdaySet } from "@capacitylens/shared/lib/accountWorkingDays";
-import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/color";
+import { NEUTRAL_COLOR, isPresetColor, snapToPresetColor } from "@capacitylens/shared/lib/color";
 import type { Activity, Allocation, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { isServerConfigured } from "@/data/apiConfig";
 import { stamp, touchAfter } from "@/store/revisions";
@@ -63,6 +63,8 @@ function normalizeColor(key: AppDataKey, fields: object, current?: Row): object 
   if (key === "disciplines" && color === null) return fields;
   if (typeof color !== "string") throw invalid("A colour must be selected from the available swatches.");
   const kind = "kind" in fields ? fields.kind : current?.kind;
+  if (key === "accounts" && !isPresetColor(color))
+    throw invalid("A colour must be selected from the available swatches.");
   return {
     ...fields,
     color: key === "resources" && kind === "external" && color === NEUTRAL_COLOR ? color : snapToPresetColor(color),

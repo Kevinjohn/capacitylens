@@ -19,10 +19,8 @@ export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntit
   return data;
 }
 
-/** Clamp an allocation's hours/day into [0, MAX_HOURS_PER_DAY]; a non-finite value → 0. The
- * one rule shared by the store write boundary (every allocation write) and the import
- * sanitiser, so the two can never drift. 0 is legal (a 'blocks' booking carries 0 load);
- * a day can't exceed 24h. */
+/** Clamp computed gesture hours and legacy repair values into [0, MAX_HOURS_PER_DAY].
+ * Ordinary allocation writes validate supplied values instead of repairing them. */
 export function clampHoursPerDay(hours: number): number {
   return Number.isFinite(hours) ? Math.max(0, Math.min(hours, MAX_HOURS_PER_DAY)) : 0;
 }

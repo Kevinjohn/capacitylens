@@ -32,18 +32,19 @@ invitation alone does not supply that proof. Only an
 administrator can Enable Access. Archive retains an inactive membership; remove ends it and records
 the same restriction, so the person cannot rejoin on their own. Enable Access restores a removed
 person with the role they held when removed; it does not reactivate an archived membership.
-Invites reuse the P1.9 single-use link: the secret token is shown once at creation, stored only as a
-one-way hash, and never read back, so listing or revoking invites can never leak a live, role-bearing
-link.
+Invitations use a single-use emailed link. The bearer is delivered by email and stored only as a
+one-way hash; the app never displays or returns the link. Listing and revoking invitations cannot
+leak a live, role-bearing bearer.
 
 An Owner or Admin can also associate one active member with one active person Resource. Team & access
 shows the resource name or **None** and offers a separate link icon that opens a centered Resource-link
 dialog with the selector ready. A selection saves immediately, and a linked member has a
 **Remove link to resource** action. The association does not grant access or create
 schedule data. Archived or disabled members and Resources retain an existing association for
-status and removal, but cannot be new or changed targets. When the member has a validated sign-in
-picture, the schedule uses it only if the person has no explicit avatar URL; inactive endpoints show
-no derived picture. Unlinking returns the person to their explicit avatar, or initials when none is set.
+status and removal, but cannot be new or changed targets. When the active linked member has a
+validated avatar URL, the schedule uses it only if the person has no explicit avatar URL; inactive
+endpoints show no derived picture. Unlinking returns the person to their explicit avatar, or initials
+when none is set.
 
 When creating an invitation, an Owner or Admin may choose **Link to Resource** or leave the
 default **No Resource linked**. The choice is not reserved. On admission CapacityLens links the
@@ -100,10 +101,10 @@ the non-blocking product orientation if it is open.
    Access** (`data-testid="member-disable"`), **Archive user** (`data-testid="member-archive"`) and
    **Remove** — each behind an explicit confirmation naming C. Once access is disabled, C's row moves into
    the **No longer active** group and offers **Enable Access** (`data-testid="member-enable"`). Every
-   request C makes to this company is refused immediately, while C may still use another company.
-   If B removes C, the restriction stays visible and can still be enabled. Enable restores the
-   existing role only when a membership remains active; otherwise C needs an invitation or a separate
-   membership restore. Archive or removal without Disable Access permits a later invitation.
+   request C makes to this company is refused immediately. If B removes C, the restriction stays
+   visible and can still be enabled. Enable recreates the membership with its retained role. Archiving
+   remains distinct: it requires **Restore membership** before access returns. Removal records an
+   access restriction and requires **Enable Access** to restore the removed member.
 6. B selects the primary **Invite someone** button (`data-testid="invite-open"`) above the member
    table to open a centered dialog, then picks a role (`data-testid="invite-role"`), fills the
    required **Email** (`data-testid="invite-preauth"`), checks the selected role's visible

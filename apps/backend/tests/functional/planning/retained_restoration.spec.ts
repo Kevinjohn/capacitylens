@@ -11,6 +11,8 @@ import {
   session,
   signIn,
 } from './helpers.js'
+import { withTransaction } from '#services/with_transaction'
+import { countRestorableItems } from '#services/planning_operations/restoration'
 import { encodeRow, readState } from '#services/state_repository'
 
 const tables = {
@@ -185,6 +187,7 @@ test.group('retained restoration reads', (suite) => {
     assert.exists(restoredRowBeforeReuse)
     assert.equal(restoredRowBeforeReuse.deletion_group_id, groupId)
 
+    assert.equal(await withTransaction((trx) => countRestorableItems(trx, accountId)), 1)
     const reused = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
       .json({
         mutationId: randomUUID(),
@@ -201,6 +204,7 @@ test.group('retained restoration reads', (suite) => {
     const ledgerAfterReuse = await db.from('deleted_rows').where('group_id', groupId).first()
     assert.deepEqual(JSON.parse(ledgerAfterReuse.payload_json), { kind: 'row' })
 
+    assert.equal(await withTransaction((trx) => countRestorableItems(trx, accountId)), 0)
     const beforeRefusal = await readState(accountId, true)
     const refused = await session(
       client.post(`/api/accounts/${accountId}/planning/restore-group`),

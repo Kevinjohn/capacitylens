@@ -3,7 +3,7 @@ import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { effectiveWeekIncludes } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { hasAllocationLoadOnDay, hasOverCapacity } from "./primitives";
+import { addCapacityHours, hasAllocationLoadOnDay, hasOverCapacity } from "./primitives";
 import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from "./availability";
 
 /** Capacity impact summary for a proposed allocation. */
@@ -23,8 +23,11 @@ export type CapacityAllocationInput = Pick<Allocation, "resourceId" | "startDate
 /** Existing load in hours, keyed by the ISO day it lands on, for one resource. Building this once
  * is what makes an advisory O(window + load) instead of O(windowDays × allocations), and lets a
  * batch of advisories over the same resource (a repeat projection) share a single bucket instead
- * of rebuilding a growing one per generated allocation. */
+ * of rebuilding a growing one per generated allocation. Exact addition components stay with buckets
+ * produced by `bucketCapacityLoad` and changed through `addCapacityLoad`; do not directly mutate
+ * or clone those buckets. Externally supplied scalar entries are treated as exact hourly values. */
 export type CapacityLoadByDay = Map<ISODate, number>;
+const loadComponents = new WeakMap<CapacityLoadByDay, Map<ISODate, readonly number[]>>();
 
 interface AddCapacityLoadInput {
   byDay: CapacityLoadByDay;
@@ -61,6 +64,13 @@ export function addCapacityLoad({
       })
     )
       continue;
+    let componentsByDay = loadComponents.get(byDay);
+    if (!componentsByDay) {
+      componentsByDay = new Map();
+      loadComponents.set(byDay, componentsByDay);
+    }
+    const components = componentsByDay.get(day) ?? [byDay.get(day) ?? 0];
+    componentsByDay.set(day, addCapacityHours(components, allocation.hoursPerDay));
     byDay.set(day, (byDay.get(day) ?? 0) + allocation.hoursPerDay);
   }
 }
@@ -152,7 +162,13 @@ function tallyAdvisory({
     // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over, exactly like the per-day over-marker.
     const available = working ? scheduledCapacity : 0;
-    if (hasOverCapacity((loadByDay.get(day) ?? 0) + proposal.hoursPerDay, available)) overDays++;
+    if (
+      hasOverCapacity(
+        addCapacityHours(loadComponents.get(loadByDay)?.get(day) ?? [loadByDay.get(day) ?? 0], proposal.hoursPerDay),
+        available,
+      )
+    )
+      overDays++;
   }
   return { overDays, timeOffDays };
 }

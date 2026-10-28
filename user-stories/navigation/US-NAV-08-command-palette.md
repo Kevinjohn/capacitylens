@@ -19,8 +19,9 @@ couple of keystrokes navigate faster than any menu when you already know what yo
 **Precondition:** Seeded app open at Schedule (`/`), Wayne Enterprises tenant active.
 
 1. Press **⌘K** (macOS) or **Ctrl+K** (Windows/Linux). The command palette opens centred near the top of the page. The search field is focused.
-2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (up to 11 fixed
-   application routes, including **Team & access** and **Account**, listed with their paths).
+2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (the routes
+   currently available to your role, including **Team & access** and **Account**, listed with
+   their paths).
    **Disciplines** is omitted when the company turns that feature off. **Overview** appears only when
    the company's access setting allows your role to open it, matching the sidebar; the route remains
    authorization-guarded if opened directly.

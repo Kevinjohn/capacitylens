@@ -1,3 +1,4 @@
+import { parseUserName } from '@capacitylens/shared/lib/strings'
 import { createInitialCompany } from '#services/initial_company_defaults'
 import { isAdmitted } from '#services/account_kit/policy'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
@@ -13,8 +14,8 @@ export async function initializeCompany(input: {
 }) {
   operatorDatabasePath(input.confirmServerStopped)
   const email = normalizeAccountEmail(input.email)
-  const name = input.companyName.trim()
-  if (!isAccountEmail(email) || !name || name.length > 200)
+  const name = parseUserName(input.companyName)
+  if (!isAccountEmail(email) || name === null)
     throw new Error('Refusing invalid email or company name')
   return withOperatorDatabase(async () => {
     await assertSchemaIntegrity()

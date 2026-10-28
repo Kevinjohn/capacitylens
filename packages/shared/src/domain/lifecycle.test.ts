@@ -204,7 +204,7 @@ const RESOURCE_BASE: Resource = {
   id: "a1b2c3d4-0000-4000-8000-000000000000",
   accountId: "acc-1",
   kind: "person",
-  name: "Ada Lovelace",
+  name: "Barbara Gordon",
   role: "Senior Designer",
   disciplineId: "disc-1",
   employmentType: "permanent",
@@ -230,8 +230,8 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
   it("scrubs a named person's name → 'Removed person #…', original name gone", () => {
     const result = obfuscateResource(makeResource());
     expect(result.name?.startsWith("Removed person #")).toBe(true);
-    expect(result.name).not.toContain("Ada Lovelace");
-    expect(result.name).not.toContain("Ada");
+    expect(result.name).not.toContain("Barbara Gordon");
+    expect(result.name).not.toContain("Barbara");
   });
 
   it("scrubs both free-text display fields and preserves non-PII fields", () => {
@@ -260,7 +260,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     const snapshot = structuredClone(input);
     const result = obfuscateResource(input);
     expect(input).toEqual(snapshot);
-    expect(input.name).toBe("Ada Lovelace");
+    expect(input.name).toBe("Barbara Gordon");
     expect(result).not.toBe(input);
   });
 

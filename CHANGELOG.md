@@ -15,6 +15,15 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Let Editors restore archived records from a limited identity list while keeping inactive details and private names protected.
+- Keep archived planning records out of ordinary planning reads and mutation replies.
+- Enforce administrative authority for example data and inactive exports, and allow administrators to clear retained links for disabled or restricted members.
+- Apply the shared name rules consistently, accept up to 100 Unicode code points, and save the chosen first-company week start and time zone atomically.
+- Clear an activity's old phase when changing projects; match searches across names and roles; keep generated labels distinct and list ordering stable.
+- Show a neutral colour for ordinary resources without a discipline, reject invalid supplied scheduling values, and distinguish real small capacity excess from floating-point noise.
+- Keep identifying user-agent text out of diagnostics and verification-link bearers out of the supplied proxy access logs.
+- Align setup, lifecycle, privacy, import, diagnostics and operator guidance with current behavior.
+
 - Return to sign-in after a committed password change even when its dialog was dismissed.
 - Stop surviving development-server descendants when their launcher exits.
 - Preserve interrupted development identities and explain supported operator admission recovery.

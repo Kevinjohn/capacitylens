@@ -295,7 +295,7 @@ export async function unconsumedGroupId(
  * surviving-child links are not items. An expired sign-in's groups wait only for pruning.
  */
 export async function countRestorableItems(trx: TransactionClientContract, accountId: string) {
-  const result = await trx
+  const markers = await trx
     .from('deleted_rows')
     .join('deleted_groups', 'deleted_groups.group_id', 'deleted_rows.group_id')
     .join('account_sessions', 'account_sessions.id', 'deleted_groups.session_id')
@@ -303,9 +303,18 @@ export async function countRestorableItems(trx: TransactionClientContract, accou
     .whereNull('deleted_groups.consumed_at')
     .where('account_sessions.expires_at', '>', new Date().toISOString())
     .whereRaw("json_extract(deleted_rows.payload_json, '$.kind') = ?", ['row'])
-    .count('* as total')
-    .first()
-  return Number(result?.total ?? 0)
+    .select('deleted_rows.entity', 'deleted_rows.row_id', 'deleted_rows.group_id')
+  let total = 0
+  for (const marker of markers) {
+    if (!isRetainedTable(marker.entity)) continue
+    const row = await retainedQuery(trx, accountId, marker.entity)
+      .onlyTrashed()
+      .where('id', marker.row_id)
+      .where('deletion_group_id', marker.group_id)
+      .first()
+    if (row) total++
+  }
+  return total
 }
 
 /** Carries only the count required for an explicit, revision-bound cleanup decision. */

@@ -26,7 +26,7 @@ allocations.
 2. Read the dialog: it explains the client's work will be hidden from the schedule and can be restored
    from **Archived clients** below the list.
 3. Click **Archive** to confirm. The dialog closes and **Queen Consolidated** leaves the Clients list.
-4. Press **⌘Z**. Queen Consolidated stays archived: Undo and Redo currently cover booking changes only.
+4. Use **Undo** if the acknowledged archive is still in the current page's history; **Redo** reapplies it.
 
 ## Acceptance criteria
 
@@ -38,4 +38,4 @@ allocations.
   keeps its own active status.
 - ✅ Archived clients surface under **Archived clients**, where they can be restored. No permanent
   deletion exists.
-- ✅ Pressing **⌘Z** leaves the client archived; **Restore** from Archived clients brings it back.
+- ✅ **Restore** from Archived clients brings the client back. An eligible acknowledged archive or restore can also be reversed from page-local Undo/Redo history.

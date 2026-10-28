@@ -54,8 +54,7 @@ export const FIXTURE_CLIENT: Client = {
   codeName: "Fixture Nightwing",
   // A generic fixture must remain a regular client: the built-in Internal client can only be
   // created and repaired by the account lifecycle path.
-  // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
-  // proves the optional archivedAt/deletedAt columns persist a present value, not just absence.
+  // Present lifecycle fields exercise consumers that read archived and retained-deletion fixtures.
   archivedAt: TS1,
   deletedAt: TS2,
   createdAt: TS1,
@@ -82,8 +81,7 @@ export const FIXTURE_PROJECT: Project = {
   color: "#2d75da",
   isPrivate: true,
   codeName: "Fixture Aurora",
-  // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
-  // proves the optional archivedAt/deletedAt columns persist a present value, not just absence.
+  // Present lifecycle fields exercise consumers that read archived and retained-deletion fixtures.
   archivedAt: TS1,
   deletedAt: TS2,
   createdAt: TS1,
@@ -116,8 +114,7 @@ export const FIXTURE_RESOURCE: Resource = {
   projectId: "fix-p1",
   color: "#3ace6b",
   isFavourite: true,
-  // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
-  // proves the optional archivedAt/deletedAt columns persist a present value, not just absence.
+  // Present lifecycle fields exercise consumers that read archived and retained-deletion fixtures.
   archivedAt: TS1,
   deletedAt: TS2,
   createdAt: TS1,

@@ -40,8 +40,8 @@ const ACCOUNT_ENUM_FIELDS: { readonly [K in AccountEnumField]: readonly unknown[
 };
 
 /** Sanitize the optional calendar fields of an account record in place.
- * Called by the server write path; the import path doesn't re-import accounts. Retired account
- * preferences are not listed above: the server's write-column whitelist drops them before this runs.
+ * Retained legacy repair helper; current server writes and Beta imports validate strictly instead.
+ * Only the fields listed above are repaired here.
  * `storedWeekStartsOn` is the row's persisted week start, used to repair an empty or malformed
  * workingDays value when the payload itself omits the (immutable, restored-later) field, without
  * it a Sunday-start account's repair would silently produce the Monday-start default. */

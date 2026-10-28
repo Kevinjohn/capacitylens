@@ -43,9 +43,10 @@ covers each action. If a company has no Owner at all, follow
 
 Three separate things can look like a [person](/reference/glossary#person) in the interface:
 
-- A **sign-in identity**: the email and password, or company login, someone uses to reach
-  CapacityLens. One identity can belong to several companies.
-- A **member**: that identity's role in one company, created by
+- A **sign-in identity**: the email and password someone uses to reach CapacityLens. A production
+  installation contains one company; the in-memory demo has two fictional companies and no sign-in
+  identities.
+- A **member**: that identity's role in the installation's company, created by
   [inviting them](/admin/invite-teammates).
 - A **person** on the schedule: a row that can receive bookings and time off.
 

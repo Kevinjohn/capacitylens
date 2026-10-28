@@ -74,3 +74,12 @@ describe("InviteAccept outcomes", () => {
     });
   });
 });
+
+it.each(["not json", JSON.stringify({ role: "editor" })])(
+  "reports an unreadable or malformed successful preview as unavailable",
+  async (body) => {
+    vi.spyOn(accountClient, "previewInvitation").mockResolvedValue(new Response(body, { status: 200 }));
+    renderPage();
+    expect(await screen.findByTestId("invite-error")).toHaveTextContent("Could not check this invitation right now");
+  },
+);
