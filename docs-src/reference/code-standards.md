@@ -17,7 +17,8 @@ Prettier owns whitespace, quoting and line breaks. The root `.prettierrc.json` s
 and a 100-column width. `apps/backend/.prettierrc.cjs` spreads `@adonisjs/prettier-config` and
 keeps semicolons, which the repository uses everywhere. The shadcn primitives in
 `apps/frontend/src/components/ui/` keep the upstream 80-column width and double quotes so
-registry diffs show substantive changes. Style is not reviewable: if Prettier produced it, it is correct.
+registry diffs show substantive changes, and stylesheets keep double quotes. Style is not
+reviewable: if Prettier produced it, it is correct.
 
 ESLint owns the mechanical rules, run by `pnpm run lint` and again on staged files before each
 commit.
