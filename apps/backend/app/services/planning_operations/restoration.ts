@@ -148,6 +148,7 @@ export async function restoreGroup(
     actor_id: identity.actorId,
     session_id: identity.sessionId,
   };
+  // Lucid types the update result as rows; SQLite reports the affected count.
   const consumed = Number(
     await trx
       .from('deleted_groups')

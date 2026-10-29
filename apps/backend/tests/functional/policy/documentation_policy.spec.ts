@@ -329,7 +329,7 @@ test.group('M5 documentation and policy contracts', () => {
 
   test('keeps the product name and literal plural marker out of localized copy', ({ assert }) => {
     const brand = read('packages/shared/src/brand.ts').match(
-      /export const APP_NAME = "([^"]+)"/
+      /export const APP_NAME = '([^']+)'/
     )?.[1];
     assert.isDefined(brand, 'Expected the shared brand module to export APP_NAME');
     const messages = Object.values(

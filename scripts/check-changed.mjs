@@ -55,7 +55,8 @@ const relativeTo = (prefix) => (path) => path.slice(prefix.length);
 /** List the script test files that import `scripts/<name>.mjs`, whatever they are called. */
 function scriptTestsImporting(path) {
   const scripts = new URL('scripts/', pathToFileURL(root));
-  const specifier = `./${path.slice('scripts/'.length)}"`;
+  // Prettier keeps every import specifier single-quoted, so the closing quote is part of the match.
+  const specifier = `./${path.slice('scripts/'.length)}'`;
   return readdirSync(scripts)
     .filter(
       (name) =>
