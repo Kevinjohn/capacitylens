@@ -175,10 +175,18 @@ preview again before retrying.
 ### Beta transfer contract {#beta-transfer-contract}
 
 Import replaces the selected company's scheduling records and supported settings atomically. It
-keeps the IDs in the file and existing member-to-person links, which means every linked person
+keeps scheduling IDs in the file and existing member-to-person links, which means every linked person
 must still be present. Another company's data stays in place. An import cannot be undone. Export
 before replacing data if you may need the current version. The temporary demo performs the same
-strict file checks in page memory; refreshing restores the demo seed.
+strict file checks in page memory and refuses scheduling IDs already used by another demo
+company; refreshing restores the demo seed.
+
+A full beta export also restores into a fresh installation. Create its Owner and company first,
+then import the unchanged file while signed in as that Owner. The company ID and every row's
+company scope bind to the selected destination; scheduling IDs and relationships stay unchanged.
+The imported company name and settings replace the setup values. Destination members and sign-in
+records remain in place; invite other people again and link members to imported people as needed.
+See [Install without Docker](/self-hosting/install-without-docker) for the fresh setup steps.
 
 ### Anonymise all people
 

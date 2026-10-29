@@ -6,7 +6,7 @@
 
 ## Goal
 
-Replace one company's planning records and supported settings from a full beta export, after a preview and explicit confirmation. Preserve stable entity IDs and existing member-to-person links. Leave other companies and sign-in records unchanged.
+Replace one company's planning records and supported settings from a full beta export, after a preview and explicit confirmation. Preserve stable entity IDs and existing member-to-person links. Allow restoration into a freshly installed company while leaving other companies and destination sign-in records unchanged.
 
 ## Why
 
@@ -24,10 +24,11 @@ Import is a full replacement, not a merge. A mistaken destination or file can er
 
 ## Acceptance criteria
 
-- The file has `format: "capacitylens-beta"`, schema version `1`, `completeness: "full"`, exactly one company and all scoped tables. Malformed, redacted, foreign, dangling or invalid data is refused without changing records; values are not repaired or remapped.
+- The file has `format: "capacitylens-beta"`, schema version `1`, `completeness: "full"`, exactly one company and all scoped tables. Malformed, redacted, foreign, dangling or invalid data is refused without changing records; values are not repaired. Every source row must belong to the company declared in the document.
 - The preview and confirmation name the file, show record counts and state that the selected company's data will be replaced. Cancel performs no replacement or proof spend.
 - Only the Owner can import in a signed-in installation. A recent sign-in alone is insufficient. Each proof binds one action, principal, native session, company, document and revision; it cannot authorize another import or ownership transfer.
-- A valid changed import retains IDs and member links, replaces supported company settings and scheduling rows atomically, clears deleted restoration groups, and records one planning revision and one audit entry. An unchanged import records neither.
+- A full export from another installation can replace a newly created company without editing the file. Only the company ID and row company scope bind to the selected destination; scheduling IDs, Internal client ID and relationships stay unchanged. Destination sign-in and membership records remain in place.
+- A valid changed import retains scheduling IDs and existing member links, replaces supported company settings and scheduling rows atomically, clears deleted restoration groups, and records one planning revision and one audit entry. An unchanged import records neither.
 - A stale revision or failed partial write leaves the previous company data in place. On failure the proof remains unspent, so the Owner can retry the same exact operation while it remains valid.
-- The temporary demo applies the same strict document in page memory without a sign-in or server request. Other demo companies remain unchanged, and refresh restores the demo seed.
+- The temporary demo applies the same strict document in page memory without a sign-in or server request. A file whose scheduling IDs collide with another demo company is refused without changing either company. Other demo companies remain unchanged, and refresh restores the demo seed.
 - The import is not undoable. The browser's device preferences and identity, membership, session and admission records are never part of the transfer file.

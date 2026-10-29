@@ -218,13 +218,27 @@ describe('beta-native transfer', () => {
     expect((error as Error).cause).toBeInstanceOf(SyntaxError);
   });
 
-  it('requires a full export and exact account scope, and rejects redacted imports', () => {
+  it('requires a full export and rejects redacted imports', () => {
     const redacted = buildBetaExport(original, { accountId, completeness: 'redacted' });
     expect(() => prepareBetaImport(redacted, context)).toThrow(/full/i);
-    const otherScope = { ...context, accountId: 'different' };
-    expect(() =>
-      prepareBetaImport(buildBetaExport(original, { accountId, completeness: 'full' }), otherScope),
-    ).toThrow(BetaTransferError);
+  });
+
+  it('restores an unchanged full document into a new company without changing scheduling IDs or links', () => {
+    const document = buildBetaExport(original, { accountId, completeness: 'full' });
+    const before = structuredClone(document);
+    const destinationId = 'new-company';
+    const prepared = prepareBetaImport(document, { ...context, accountId: destinationId });
+    expect(prepared.data.accounts).toEqual([{ ...document.data.accounts[0], id: destinationId }]);
+    for (const key of APP_DATA_KEYS) {
+      if (key === 'accounts') continue;
+      expect(prepared.data[key]).toEqual(
+        document.data[key].map((row) => ({ ...row, accountId: destinationId })),
+      );
+    }
+    expect(prepared.data.clients.find((row) => row.builtin)?.id).toBe(
+      document.data.clients.find((row) => row.builtin)?.id,
+    );
+    expect(document).toEqual(before);
   });
 
   it('serializes a caller-projected redacted document without inventing names or exposing code names', () => {

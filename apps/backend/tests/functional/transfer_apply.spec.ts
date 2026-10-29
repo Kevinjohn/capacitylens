@@ -6,7 +6,12 @@ import { readState } from '#services/state_repository';
 import { getPlanningRevision } from '#services/planning_revision';
 import { withTransaction } from '#services/with_transaction';
 import hash from '@adonisjs/core/services/hash';
-import { asDataOwner, resetAuthenticatedData } from '../helpers/authenticated_data_fixture.js';
+import { seed } from '@capacitylens/shared/data/seed';
+import {
+  asDataOwner,
+  createFixtureCompanyForOwner,
+  resetAuthenticatedData,
+} from '../helpers/authenticated_data_fixture.js';
 import { freshDatabase } from '../helpers/fresh_database.js';
 import type { ApiClient } from '@japa/api-client';
 import { signIn } from '../helpers/identities.js';
@@ -69,6 +74,53 @@ test.group('beta transfer apply', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
     await db.from('account_member_resources').delete();
+  });
+
+  test('restores a full source export into a fresh company and retains destination authority', async ({
+    client,
+    assert,
+  }) => {
+    const full = buildBetaExport(seed(), { accountId: 'a-loft', completeness: 'full' });
+    const original = structuredClone(full);
+    const { cookie, userId } = await resetAuthenticatedData(client, false);
+    await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', accountId);
+    const memberships = await db.from('memberships').select('*');
+    const identities = await db.from('users').select('*');
+    const admissions = await db.from('account_admissions').select('*');
+    const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+      .json({ accountId, document: full })
+      .send();
+    preview.assertStatus(200);
+    const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
+    const actionProof = await proof(client, cookie, { baseRevision, document: full });
+    const result = await apply(client, cookie, full, baseRevision, actionProof);
+    result.assertStatus(200);
+    assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
+    const expected = structuredClone(full.data);
+    expected.accounts[0]!.id = accountId;
+    for (const key of [
+      'clients',
+      'disciplines',
+      'projects',
+      'phases',
+      'resources',
+      'activities',
+      'allocations',
+      'timeOff',
+      'closures',
+    ] as const) {
+      for (const row of expected[key]) row.accountId = accountId;
+    }
+    assert.deepEqual(await readState(accountId, true), expected);
+    assert.deepEqual(await db.from('memberships').select('*'), memberships);
+    assert.deepEqual(await db.from('users').select('*'), identities);
+    assert.deepEqual(await db.from('account_admissions').select('*'), admissions);
+    assert.deepEqual(full, original);
+    const repeatPreview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+      .json({ accountId, document: full })
+      .send();
+    repeatPreview.assertStatus(200);
+    assert.isFalse((repeatPreview.body() as { changed: boolean }).changed);
   });
 
   test('requires exact action proof even immediately after owner sign-in', async ({

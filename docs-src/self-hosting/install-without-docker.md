@@ -116,5 +116,22 @@ multiple identities were created before the company, browser setup refuses rathe
 an Owner. Resolving that uncommon state currently needs the hosting operator's stopped-server
 `company:initialize` initializer. This is a limitation, not an extra installation step. A second company is never created.
 
+## Restore planning from a beta JSON export
+
+On the source installation, sign in as its Owner and use **Settings → Data and support → Import
+and export → Export JSON**. Keep the downloaded full `capacitylens-beta` version `1` document
+unchanged. A redacted file or an older alpha export cannot restore this installation.
+
+After completing the fresh Owner and company setup above, open **Import JSON** in the same section
+on the destination. Select the file, choose **Continue**, review the replacement and select
+**Replace data**. Confirm with the destination Owner's password. The source company's scheduling
+records, relationships, name and supported settings replace the new company's initial data.
+Scheduling IDs stay unchanged; the destination company keeps its own ID and sign-in records.
+
+Check the imported people, catalogue, schedule and company settings. Add or edit an allocation,
+then reload to check persistence. Invite other members again and link them to imported people as
+needed: JSON transfers do not include identities, passwords, memberships or sessions. Keep the
+source installation and export until you have verified the destination.
+
 Continue with [TLS and networking](/self-hosting/tls-and-networking),
 [Monitoring](/self-hosting/monitoring), and [Verify and hand over](/self-hosting/verify-and-hand-over).

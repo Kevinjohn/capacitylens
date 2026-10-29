@@ -1,4 +1,4 @@
-import { APP_DATA_KEYS } from '../types/entityKeys.js';
+import { APP_DATA_KEYS, SCOPED_KEYS } from '../types/entityKeys.js';
 import type { AppData, ScopedEntityKey } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
@@ -150,7 +150,7 @@ export function parseBetaExport(json: string): BetaExportDocument {
   return validateDocument(raw);
 }
 
-/** Validate a full document against the selected destination account and member resource links. */
+/** Validate a full source document and bind its company scope to the selected destination. */
 export function prepareBetaImport(
   document: unknown,
   context: BetaImportContext,
@@ -162,15 +162,16 @@ export function prepareBetaImport(
   );
   const validated = validateDocument(document);
   assert(validated.completeness === 'full', 'completeness', 'only full exports can be imported');
-  const importedAccount = validated.data.accounts[0];
+  const data = validated.data;
+  const importedAccount = data.accounts[0];
   assert(importedAccount, 'data.accounts', 'must contain exactly one account');
-  assert(
-    importedAccount.id === context.accountId,
-    'data.accounts[0].id',
-    'must exactly match the destination account',
-  );
+  // Validate source scope before rebinding; scheduling IDs and their relationships stay portable.
+  importedAccount.id = context.accountId;
+  for (const key of SCOPED_KEYS) {
+    for (const row of data[key]) row.accountId = context.accountId;
+  }
   const personIds = new Set(
-    validated.data.resources.filter((row) => row.kind === 'person').map((row) => row.id),
+    data.resources.filter((row) => row.kind === 'person').map((row) => row.id),
   );
   for (const [i, link] of context.memberResourceLinks.entries()) {
     assert(
@@ -185,6 +186,6 @@ export function prepareBetaImport(
     );
   }
   let imported = 0;
-  for (const key of APP_DATA_KEYS) imported += validated.data[key].length;
-  return { data: validated.data, imported };
+  for (const key of APP_DATA_KEYS) imported += data[key].length;
+  return { data, imported };
 }
