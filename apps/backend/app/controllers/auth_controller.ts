@@ -5,20 +5,19 @@ import {
   InvalidCredentialsError,
   InvalidSessionError,
   RegistrationEmailAlreadyRegisteredError,
-  ThrottledError,
 } from 'adonisjs-account-kit/errors';
 import type { CurrentAccountInput } from 'adonisjs-account-kit/types';
 import env from '#start/env';
 import { FirstCompanyPendingError } from '#models/user';
 import { requiresFirstCompanySetup } from '#services/first_company_setup';
+import { signInWithPassword } from '#services/auth/password_sign_in';
+import { buildUserProjection } from '#services/auth/user_projection';
 import {
   accountInput,
   admissionDecision,
   sessionGuard,
   withActor,
-  type CurrentActor,
 } from '#services/auth/current_actor';
-import { recordMemberSignIn } from '#services/membership/sign_in_tracking';
 import { errors as vineErrors } from '@vinejs/vine';
 import { signInValidator, signUpValidator } from '#validators/auth_requests';
 import { isCommittedFailure } from '#services/account_kit/committed';
@@ -36,57 +35,6 @@ function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
       : 'Invalid sign-up details.';
 }
 
-function userProjection(actor: Pick<CurrentActor, 'userId' | 'email' | 'displayName'>) {
-  return {
-    id: actor.userId,
-    name: actor.displayName ?? undefined,
-    email: actor.email,
-    image: null,
-  };
-}
-
-function logSignInOutcome(ctx: HttpContext, outcome: 'success' | 'failure' | 'throttled') {
-  if (env.get('CAPACITYLENS_LOG') !== '1') return;
-  try {
-    const fields = { event: 'auth.sign_in', outcome };
-    if (outcome === 'failure' || outcome === 'throttled') {
-      ctx.logger.warn(fields, 'Authentication outcome');
-    } else {
-      ctx.logger.info(fields, 'Authentication outcome');
-    }
-  } catch {
-    console.error('Authentication outcome logging failed');
-  }
-}
-
-/** Signs in through the Account Kit and records the observed sign-in for tracked companies. */
-export async function signInWithPassword(ctx: HttpContext, email: string, password: string) {
-  try {
-    await accountKit.authentication.login(
-      {
-        email,
-        password,
-        clientKey: ctx.request.ip(),
-        sessionLabel: ctx.request.header('user-agent')?.slice(0, 200),
-      },
-      sessionGuard(ctx)
-    );
-  } catch (error) {
-    if (error instanceof InvalidCredentialsError) logSignInOutcome(ctx, 'failure');
-    if (error instanceof ThrottledError) logSignInOutcome(ctx, 'throttled');
-    throw error;
-  }
-  logSignInOutcome(ctx, 'success');
-  return withActor(
-    ctx,
-    async (actor, trx) => {
-      await recordMemberSignIn(actor.userId, trx);
-      return userProjection(actor);
-    },
-    { limited: true }
-  );
-}
-
 export default class AuthController {
   /**
    * The signed-in identity and what it may reach: a confirmed address, admission, company setup
@@ -101,7 +49,7 @@ export default class AuthController {
           const admitted = actor.emailVerified && admission.admitted;
           return {
             authMode: 'password-only',
-            user: userProjection(actor),
+            user: buildUserProjection(actor),
             canCreateAccount: false,
             emailVerified: actor.emailVerified,
             admission,

@@ -108,7 +108,6 @@ interface MemberDirectoryStateInput {
   fail: ReturnType<typeof useFieldError>['fail'];
   setNotice: StoreState['setNotice'];
   setActiveAccount: StoreState['setActiveAccount'];
-  viewState: ReturnType<typeof useMemberViewState>;
 }
 
 function useMemberDirectoryState(input: MemberDirectoryStateInput) {
@@ -249,7 +248,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     fail,
     setNotice,
     setActiveAccount,
-    viewState,
   });
   useEffect(() => {
     const unauthorized =

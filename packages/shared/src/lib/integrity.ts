@@ -191,11 +191,14 @@ export function allocationAttributionAllowed(kind: unknown): boolean {
 }
 
 /** Return a fresh row with allocation-level attribution removed and, when supplied, restamped. */
-export function withoutAllocationAttribution<T extends object>(row: T, updatedAt?: unknown): T {
-  const cleared = { ...row } as T & { projectId?: unknown; updatedAt?: unknown };
-  Object.assign(cleared, { projectId: null });
-  if (updatedAt !== undefined) cleared.updatedAt = updatedAt;
-  return cleared;
+export function withoutAllocationAttribution<T extends Pick<Allocation, 'projectId' | 'updatedAt'>>(
+  row: T,
+  updatedAt?: Allocation['updatedAt'],
+): Omit<T, 'projectId' | 'updatedAt'> & {
+  projectId: null;
+  updatedAt: Allocation['updatedAt'];
+} {
+  return { ...row, projectId: null, updatedAt: updatedAt ?? row.updatedAt };
 }
 
 /** Check that a project-attributed placeholder allocation matches its bound project.

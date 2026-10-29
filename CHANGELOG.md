@@ -15,6 +15,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Correct company settings help to say disciplines start off in a new company.
 - Preserve a newly opened form and its unsaved draft when an earlier save finishes.
 - Refuse allocation saves based on an obsolete planning revision instead of overwriting concurrent changes.
 - Keep invitation intent and delayed member feedback within their originating principal and action context.

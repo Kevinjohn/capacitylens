@@ -20,6 +20,39 @@ import {
   safeRoutePattern,
 } from '#services/logging_safety';
 
+type ParserFailure = 'unsupported-encoding' | 'invalid-json' | 'invalid-json-shape';
+
+function classifyParserFailure(error: unknown): ParserFailure | undefined {
+  if (
+    error instanceof Error &&
+    'status' in error &&
+    error.status === 415 &&
+    error.message.startsWith('Unsupported Content-Encoding:')
+  ) {
+    return 'unsupported-encoding';
+  }
+  if (
+    error instanceof SyntaxError &&
+    'status' in error &&
+    error.status === 400 &&
+    'body' in error &&
+    typeof error.body === 'string'
+  ) {
+    return 'invalid-json';
+  }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    error.status === 422 &&
+    'message' in error &&
+    error.message === 'Invalid JSON, only supports object and array'
+  ) {
+    return 'invalid-json-shape';
+  }
+  return undefined;
+}
+
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
    * In debug mode, the exception handler will display verbose errors
@@ -122,37 +155,20 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         code: 'VALIDATION_ERROR',
       } satisfies ProductValidationFailure['body']);
     }
-    if (
-      error instanceof Error &&
-      'status' in error &&
-      error.status === 415 &&
-      error.message.startsWith('Unsupported Content-Encoding:')
-    ) {
+    const parserFailure = classifyParserFailure(error);
+    if (parserFailure === 'unsupported-encoding') {
       return ctx.response.status(415).send({
         error: 'Unsupported media type.',
         code: 'UNSUPPORTED_MEDIA_TYPE',
       } satisfies ProductHttpErrorBody);
     }
-    if (
-      error instanceof SyntaxError &&
-      'status' in error &&
-      error.status === 400 &&
-      'body' in error &&
-      typeof error.body === 'string'
-    ) {
+    if (parserFailure === 'invalid-json') {
       return ctx.response.badRequest({
         error: 'Request body must be valid JSON.',
         code: 'INVALID_JSON',
       } satisfies ProductHttpErrorBody);
     }
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'status' in error &&
-      error.status === 422 &&
-      'message' in error &&
-      error.message === 'Invalid JSON, only supports object and array'
-    ) {
+    if (parserFailure === 'invalid-json-shape') {
       return ctx.response.badRequest({
         error: 'Request JSON must be an object or array.',
         code: 'INVALID_JSON_SHAPE',
@@ -217,21 +233,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     if (kitResponse && kitResponse.status < 500) return;
     if (
       error instanceof vineErrors.E_VALIDATION_ERROR ||
-      (error instanceof SyntaxError &&
-        'status' in error &&
-        error.status === 400 &&
-        'body' in error &&
-        typeof error.body === 'string') ||
-      (typeof error === 'object' &&
-        error !== null &&
-        'status' in error &&
-        error.status === 422 &&
-        'message' in error &&
-        error.message === 'Invalid JSON, only supports object and array') ||
-      (error instanceof Error &&
-        'status' in error &&
-        error.status === 415 &&
-        error.message.startsWith('Unsupported Content-Encoding:')) ||
+      classifyParserFailure(error) !== undefined ||
       (typeof error === 'object' &&
         error !== null &&
         'code' in error &&

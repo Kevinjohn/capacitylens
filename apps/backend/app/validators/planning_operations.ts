@@ -964,29 +964,3 @@ export const planningMutationFailureValidator = vine.compile(
   })
 );
 export type PlanningMutationFailureInput = Infer<typeof planningMutationFailureValidator>;
-
-/** A stale-revision conflict; the authoritative comparison occurs under the write transaction. */
-export class StalePlanningRevisionError extends Error {
-  readonly statusCode = 409;
-  readonly code = 'STALE_REVISION' as const;
-
-  constructor(
-    readonly mutationId: string,
-    readonly baseRevision: number,
-    readonly currentRevision: number
-  ) {
-    super('The planning revision changed before this mutation was applied.');
-    this.name = 'StalePlanningRevisionError';
-  }
-}
-
-/** Throw the conflict contract when the caller's captured revision is no longer current. */
-export function assertPlanningBaseRevision(
-  baseRevision: number,
-  currentRevision: number,
-  mutationId: string
-): void {
-  if (baseRevision !== currentRevision) {
-    throw new StalePlanningRevisionError(mutationId, baseRevision, currentRevision);
-  }
-}

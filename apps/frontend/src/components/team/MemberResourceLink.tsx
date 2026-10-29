@@ -98,7 +98,9 @@ function MemberResourceEditor({
   workspaceId,
   reload,
   view,
-}: MemberResourceLinkProps & { view: MemberResourceView }) {
+}: Pick<MemberResourceLinkProps, 'member' | 'workspaceId' | 'reload'> & {
+  view: MemberResourceView;
+}) {
   const { pending, error, statusMessage, change } = useMemberResourceLinkRequest({
     member,
     workspaceId,
