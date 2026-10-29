@@ -1,16 +1,16 @@
-import { useFormLifetimeClose } from "@/hooks/useFormLifetimeClose";
-import { useState } from "react";
-import { todayISO } from "@capacitylens/shared/lib/dateMath";
-import type { Closure } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { isStaleEdit } from "@/lib/isStaleEdit";
-import { parseText } from "@/lib/validation";
-import { resolveTimeZone } from "@/store/selectors";
-import { useStore } from "@/store/useStore";
-import { DateField, FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
-import { FieldError } from "@/components/ui/field";
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
+import { useState } from 'react';
+import { todayISO } from '@capacitylens/shared/lib/dateMath';
+import type { Closure } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { isStaleEdit } from '@/lib/isStaleEdit';
+import { parseText } from '@/lib/validation';
+import { resolveTimeZone } from '@/store/selectors';
+import { useStore } from '@/store/useStore';
+import { DateField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { FieldError } from '@/components/ui/field';
 
 type ClosureFormFieldsProps = {
   name: string;
@@ -33,7 +33,7 @@ function ClosureFormFields(props: ClosureFormFieldsProps) {
         onChange={props.onNameChange}
         autoFocus
         required
-        invalid={props.errorField === "name"}
+        invalid={props.errorField === 'name'}
         describedById={props.errorId}
         layout="label-control"
       />
@@ -43,7 +43,7 @@ function ClosureFormFields(props: ClosureFormFieldsProps) {
           value={props.startDate}
           onChange={props.onStartDateChange}
           required
-          invalid={props.errorField === "dates"}
+          invalid={props.errorField === 'dates'}
           describedById={props.errorId}
         />
         <DateField
@@ -51,11 +51,14 @@ function ClosureFormFields(props: ClosureFormFieldsProps) {
           value={props.endDate}
           onChange={props.onEndDateChange}
           required
-          invalid={props.errorField === "dates"}
+          invalid={props.errorField === 'dates'}
           describedById={props.errorId}
         />
       </div>
-      <FieldError id={props.errorId} tabIndex={props.error && props.errorField === null ? -1 : undefined}>
+      <FieldError
+        id={props.errorId}
+        tabIndex={props.error && props.errorField === null ? -1 : undefined}
+      >
         {props.error}
       </FieldError>
       <RequiredLegend />
@@ -64,13 +67,19 @@ function ClosureFormFields(props: ClosureFormFieldsProps) {
 }
 
 /** Creates or edits a company closure with guarded date fields. */
-export function ClosureForm({ closure, onClose: close }: { closure?: Closure; onClose: () => void }) {
+export function ClosureForm({
+  closure,
+  onClose: close,
+}: {
+  closure?: Closure;
+  onClose: () => void;
+}) {
   const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addClosure);
   const update = useStore((state) => state.updateClosure);
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const today = todayISO(calendarTimeZone);
-  const [name, setName] = useState(closure?.name ?? "");
+  const [name, setName] = useState(closure?.name ?? '');
   const [startDate, setStartDate] = useState(closure?.startDate ?? today);
   const [endDate, setEndDate] = useState(closure?.endDate ?? today);
   const fieldError = useFieldError();
@@ -78,14 +87,16 @@ export function ClosureForm({ closure, onClose: close }: { closure?: Closure; on
   useFieldErrorFocus(fieldError);
 
   const submit = async () => {
-    const cleanName = parseText(name, fail, { requiredMessage: m.form_closure_err_name_required() });
+    const cleanName = parseText(name, fail, {
+      requiredMessage: m.form_closure_err_name_required(),
+    });
     if (!cleanName) return;
     if (!startDate || !endDate) {
-      fail("dates", m.form_closure_err_dates_required());
+      fail('dates', m.form_closure_err_dates_required());
       return;
     }
     if (endDate < startDate) {
-      fail("dates", m.form_closure_err_end_before_start());
+      fail('dates', m.form_closure_err_end_before_start());
       return;
     }
 
@@ -98,12 +109,16 @@ export function ClosureForm({ closure, onClose: close }: { closure?: Closure; on
         }
         await update(closure.id, patch);
       } else {
-        if ((await add(patch)).kind === "blocked") return;
+        const result = await add(patch);
+        if (result.kind === 'blocked') return;
       }
       onClose();
-    } catch (error) {
+    } catch (cause) {
       // Surface the rejected closure write at the form boundary so invalid data remains correctable.
-      fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_closure_err_save_failed());
+      fail(
+        null,
+        cause instanceof Error ? resolveErrorMessage(cause) : m.form_closure_err_save_failed(),
+      );
     }
   };
 

@@ -1,21 +1,28 @@
-import { useStore } from "@/store/useStore";
-import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
-import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from "@/store/selectors";
-import { useActiveScopedData } from "@/store/useScopedData";
-import { useEntityListState } from "@/hooks/useEntityListState";
-import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";
-import { formatShortDate, formatShortDateEndpoint, formatDayCount } from "@/lib/dateDisplay";
-import { TimeOffForm } from "./TimeOffForm";
-import { buildTimeOffGroups } from "./timeOffView";
-import type { TimeOffGroup } from "./timeOffView";
-import type { TimeOff } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { Fragment, useMemo } from "react";
-import { Calendar } from "lucide-react";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
-import { useConfirmDelete } from "@/hooks/useConfirmDelete";
-import { CompanyClosureSection } from "./CompanyClosureSection";
-import { useCalendarToday } from "@/components/scheduler/useCalendarToday";
+import { useStore } from '@/store/useStore';
+import { startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from '@/store/selectors';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { useEntityListState } from '@/hooks/useEntityListState';
+import {
+  AddButton,
+  ConfirmDialog,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+  ListPage,
+} from '@/components/common/ui';
+import { formatShortDate, formatShortDateEndpoint, formatDayCount } from '@/lib/dateDisplay';
+import { TimeOffForm } from './TimeOffForm';
+import { buildTimeOffGroups } from './timeOffView';
+import type { TimeOffGroup } from './timeOffView';
+import type { TimeOff } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import { Fragment, useMemo } from 'react';
+import { Calendar } from 'lucide-react';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
+import { useConfirmDelete } from '@/hooks/useConfirmDelete';
+import { CompanyClosureSection } from './CompanyClosureSection';
+import { useCalendarToday } from '@/components/scheduler/useCalendarToday';
 
 interface PersonalTimeOffSectionProps {
   groups: TimeOffGroup[];
@@ -44,11 +51,11 @@ function PersonalTimeOffSection({ groups, onAdd, onEdit, onDelete }: PersonalTim
   );
 }
 
-function TimeOffGroups({ groups, onEdit, onDelete }: Omit<PersonalTimeOffSectionProps, "onAdd">) {
+function TimeOffGroups({ groups, onEdit, onDelete }: Omit<PersonalTimeOffSectionProps, 'onAdd'>) {
   return (
     <div className="flex flex-col gap-6" data-testid="timeoff-groups">
       {groups.map((group) => {
-        const groupKey = group.kind === "resource" ? `resource-${group.resourceId}` : group.kind;
+        const groupKey = group.kind === 'resource' ? `resource-${group.resourceId}` : group.kind;
         const headingId = `timeoff-group-${encodeURIComponent(groupKey)}`;
         return (
           <section
@@ -56,7 +63,7 @@ function TimeOffGroups({ groups, onEdit, onDelete }: Omit<PersonalTimeOffSection
             aria-labelledby={headingId}
             data-testid="timeoff-group"
             data-group-kind={group.kind}
-            data-resource-id={group.kind === "resource" ? group.resourceId : undefined}
+            data-resource-id={group.kind === 'resource' ? group.resourceId : undefined}
           >
             <h3 id={headingId} className="mb-2 text-sm font-semibold">
               {group.name}
@@ -100,12 +107,19 @@ function TimeOffItem({ timeOff, resourceName, separated, onEdit, onDelete }: Tim
       <Item size="sm" role="listitem" data-testid="timeoff-row" className="rounded-none">
         <ItemContent>
           <span className="text-sm text-muted-foreground">
-            {formatShortDate(timeOff.startDate)} · {formatDayCount(timeOff.startDate, timeOff.endDate)}
+            {formatShortDate(timeOff.startDate)} ·{' '}
+            {formatDayCount(timeOff.startDate, timeOff.endDate)}
           </span>
         </ItemContent>
         <ItemActions>
-          <EditButton label={m.list_timeoff_edit_aria(labelContext)} onClick={() => onEdit(timeOff)} />
-          <DeleteButton label={m.list_timeoff_delete_aria(labelContext)} onClick={() => onDelete(timeOff)} />
+          <EditButton
+            label={m.list_timeoff_edit_aria(labelContext)}
+            onClick={() => onEdit(timeOff)}
+          />
+          <DeleteButton
+            label={m.list_timeoff_delete_aria(labelContext)}
+            onClick={() => onDelete(timeOff)}
+          />
         </ItemActions>
       </Item>
     </Fragment>
@@ -116,11 +130,16 @@ function TimeOffItem({ timeOff, resourceName, separated, onEdit, onDelete }: Tim
 export function TimeOffList() {
   const data = useActiveScopedData();
   const resources = data.resources;
-  const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
+  const placeholdersEnabled = useStore((state) =>
+    hasPlaceholdersEnabled(state.data, state.activeAccountId),
+  );
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
-  const calendarWeekStartsOn = useStore((state) => resolveWeekStart(state.data, state.activeAccountId));
+  const calendarWeekStartsOn = useStore((state) =>
+    resolveWeekStart(state.data, state.activeAccountId),
+  );
   const deleteEntity = useStore((state) => state.deleteTimeOff);
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<TimeOff>();
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
+    useEntityListState<TimeOff>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
 
   const today = useCalendarToday(calendarTimeZone);

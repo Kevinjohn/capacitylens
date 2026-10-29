@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
-import type { ID } from "@capacitylens/shared/types/entities";
-import { useStore } from "@/store/useStore";
+import { useEffect, useRef } from 'react';
+import type { ID } from '@capacitylens/shared/types/entities';
+import { useStore } from '@/store/useStore';
 
 /** Focus action that locates an allocation within the active account. */
 export type ScheduleAllocationFocus = (allocationId: ID, accountId: ID | null) => void;
@@ -19,10 +19,10 @@ export function useAllocationFocus(): ScheduleAllocationFocus {
     focusRafRef.current = requestAnimationFrame(() => {
       focusRafRef.current = 0;
       if (useStore.getState().activeAccountId !== accountId) return;
-      const element = Array.from(document.querySelectorAll<HTMLElement>("[data-alloc-id]")).find(
+      const element = Array.from(document.querySelectorAll<HTMLElement>('[data-alloc-id]')).find(
         (candidate) => candidate.dataset.allocId === allocationId,
       );
-      element?.scrollIntoView({ block: "nearest", inline: "nearest" });
+      element?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       element?.focus({ preventScroll: true });
     });
   };

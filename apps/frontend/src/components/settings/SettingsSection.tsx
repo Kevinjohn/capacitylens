@@ -1,11 +1,11 @@
-import { useContext, useId, useState } from "react";
-import type { ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
-import { cn } from "@/lib/cn";
-import { SectionHelp } from "@/components/common/ui";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SettingsGroupContext } from "./settingsGroupContext";
-import { SettingsRow } from "./SettingsRow";
+import { useContext, useId, useState } from 'react';
+import type { ReactNode } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { SectionHelp } from '@/components/common/ui';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SettingsGroupContext } from './settingsGroupContext';
+import { SettingsRow } from './SettingsRow';
 
 function SettingsSectionTitle({
   title,
@@ -30,7 +30,10 @@ function SettingsSectionTitle({
       aria-controls={contentId}
       onClick={toggleOpen}
     >
-      <ChevronRight aria-hidden="true" className={cn("size-4 transition-transform", { "rotate-90": open })} />
+      <ChevronRight
+        aria-hidden="true"
+        className={cn('size-4 transition-transform', { 'rotate-90': open })}
+      />
       {title}
     </button>
   );
@@ -68,7 +71,18 @@ export function SettingsSection({
   if (grouped) {
     return (
       <SettingsRow
-        {...{ title, help, description, danger, collapsible, expanded, contentId, contentClassName, id, testId }}
+        {...{
+          title,
+          help,
+          description,
+          danger,
+          collapsible,
+          expanded,
+          contentId,
+          contentClassName,
+          id,
+          testId,
+        }}
         titleContent={
           <SettingsSectionTitle
             title={title}
@@ -89,10 +103,14 @@ export function SettingsSection({
       id={id}
       tabIndex={id ? -1 : undefined}
       data-testid={testId}
-      className={cn({ "border-danger/40": danger, "py-4": collapsible, "gap-0": collapsible && !open })}
+      className={cn({
+        'border-danger/40': danger,
+        'py-4': collapsible,
+        'gap-0': collapsible && !open,
+      })}
     >
       <CardHeader className="flex items-center gap-0">
-        <CardTitle className={cn("flex-1", { "text-danger": danger })}>
+        <CardTitle className={cn('flex-1', { 'text-danger': danger })}>
           <h2>
             <SettingsSectionTitle
               title={title}
@@ -108,7 +126,7 @@ export function SettingsSection({
         </CardAction>
       </CardHeader>
       {expanded && (
-        <CardContent id={contentId} className={cn("flex flex-col gap-3", contentClassName)}>
+        <CardContent id={contentId} className={cn('flex flex-col gap-3', contentClassName)}>
           {children}
         </CardContent>
       )}

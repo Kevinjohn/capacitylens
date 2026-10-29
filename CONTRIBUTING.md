@@ -261,10 +261,13 @@ closed or removed on success and failure. This command does not build, publish o
 
 ## Formatting
 
-Prettier owns whitespace, quoting and line breaks. The project uses `printWidth: 120`, except for
-the vendored shadcn primitives in `apps/frontend/src/components/ui/`, which retain the upstream 80-column width
-so registry diffs show substantive changes instead of reflow noise. Everything else is stock. Run
-`pnpm run format` before committing — `pnpm run gate` fails on unformatted files.
+Prettier owns whitespace, quoting and line breaks. The root `.prettierrc.json` sets single quotes
+and a 100-column width, matching the AdonisJS preset; the vendored shadcn primitives in
+`apps/frontend/src/components/ui/` retain the upstream 80-column width and double quotes so
+registry diffs show substantive changes instead of reflow noise, and stylesheets keep double quotes.
+`apps/backend/.prettierrc.cjs` spreads the AdonisJS
+preset and keeps semicolons, which the repository uses everywhere. Run `pnpm run format` before
+committing: `pnpm run gate` fails on unformatted files.
 
 Use clear names, small result shapes and explicit module boundaries. Style is not reviewable: if
 Prettier produced it, it is correct. Reach for `// prettier-ignore` only when a hand-aligned block

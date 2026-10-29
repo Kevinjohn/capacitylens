@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ['v*']
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
       APP_KEY: capacitylens-container-test-key-0123456789abcdef
       CAPACITYLENS_SECRET: capacitylens-container-test-secret-0123456789abcdef
       CAPACITYLENS_PUBLIC_URL: https://127.0.0.1:8080
-      WEB_PORT: "8080"
+      WEB_PORT: '8080'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from 'react';
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 /** Shows a failed account load with available recovery actions. */
 export function AccountLoadRecovery({
@@ -30,7 +30,10 @@ export function AccountLoadRecovery({
   };
 
   return (
-    <main className="flex min-h-full items-center justify-center bg-canvas p-6" data-testid="account-load-recovery">
+    <main
+      className="flex min-h-full items-center justify-center bg-canvas p-6"
+      data-testid="account-load-recovery"
+    >
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>

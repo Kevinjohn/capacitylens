@@ -1,13 +1,13 @@
-import { defineConfig } from '@adonisjs/auth'
-import type { InferAuthenticators } from '@adonisjs/auth/types'
-import { sessionGuard, sessionUserProvider } from '@adonisjs/auth/session'
+import { defineConfig } from '@adonisjs/auth';
+import type { InferAuthenticators } from '@adonisjs/auth/types';
+import { sessionGuard, sessionUserProvider } from '@adonisjs/auth/session';
 
 /** The raw session provider shared with the Masquerade Account Kit adapter. */
-export const sessionUsers = sessionUserProvider({ model: () => import('#models/user') })
+export const sessionUsers = sessionUserProvider({ model: () => import('#models/user') });
 
 type AuthConfig = {
-  web: ReturnType<typeof sessionGuard>
-}
+  web: ReturnType<typeof sessionGuard>;
+};
 
 const authConfig: ReturnType<typeof defineConfig<AuthConfig>> = defineConfig({
   default: 'web',
@@ -17,9 +17,9 @@ const authConfig: ReturnType<typeof defineConfig<AuthConfig>> = defineConfig({
       provider: sessionUsers,
     }),
   },
-})
+});
 
-export default authConfig
+export default authConfig;
 
 declare module '@adonisjs/auth/types' {
   export interface Authenticators extends InferAuthenticators<typeof authConfig> {}

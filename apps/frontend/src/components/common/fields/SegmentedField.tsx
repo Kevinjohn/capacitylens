@@ -1,15 +1,15 @@
-import { useId } from "react";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { SegmentedControl } from "@/components/common/SegmentedControl";
+import { useId } from 'react';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import type {
   SegmentedDensity,
   SegmentedGeometry,
   SegmentedOption,
   SegmentedSize,
   SegmentedVariant,
-} from "@/components/common/SegmentedControl";
-import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
-import type { ProductFieldLayout } from "./fieldTypes";
+} from '@/components/common/SegmentedControl';
+import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps';
+import type { ProductFieldLayout } from './fieldTypes';
 
 /** Labelled segmented option set that shares the product field layouts. */
 export function SegmentedField<T extends string | number>({
@@ -19,13 +19,13 @@ export function SegmentedField<T extends string | number>({
   options,
   ariaLabel,
   controlClassName,
-  geometry = "gapped",
+  geometry = 'gapped',
   fullWidth = false,
-  size = "md",
-  density = "default",
+  size = 'md',
+  density = 'default',
   disabled = false,
-  layout = "stacked",
-  variant = "recessed",
+  layout = 'stacked',
+  variant = 'recessed',
 }: {
   label: string;
   value: T;

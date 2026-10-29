@@ -1,101 +1,102 @@
-import '#start/planning_routes'
-import env from '#start/env'
-import db from '@adonisjs/lucid/services/db'
-import { statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
-import { listSnapshots, type FileIdentity } from '#services/backup/retention'
-import router from '@adonisjs/core/services/router'
-import logger from '@adonisjs/core/services/logger'
-import { checkDatabase, readState, resetState } from '#services/state_repository'
-import { withActor } from '#services/auth/current_actor'
-import { activeCompanyRole } from '#services/auth/authorization'
-import { fileURLToPath } from 'node:url'
-import { healthChecks } from '#start/health'
-import { registerAuthRoutes } from '#start/auth_routes'
-import { registerMembershipRoutes } from '#start/membership_routes'
-import { registerAdmissionRoutes } from '#start/admission_routes'
-import { registerMasqueradeRoutes } from '#start/masquerade_routes'
-import { registerOwnershipRoutes } from '#start/ownership_routes'
-import { registerCompanyRoutes } from '#start/company_routes'
-import { registerTransferRoutes } from '#start/transfer_routes'
-import { registerExportRoutes } from '#start/export_routes'
-import { registerAnonymiseRoutes } from '#start/anonymise_routes'
-import { registerExampleDataRoutes } from '#start/example_data_routes'
-import { registerGettingStartedRoutes } from '#start/getting_started_routes'
+import '#start/planning_routes';
+import env from '#start/env';
+import db from '@adonisjs/lucid/services/db';
+import { statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { listSnapshots, type FileIdentity } from '#services/backup/retention';
+import router from '@adonisjs/core/services/router';
+import logger from '@adonisjs/core/services/logger';
+import { checkDatabase, readState, resetState } from '#services/state_repository';
+import { withActor } from '#services/auth/current_actor';
+import { activeCompanyRole } from '#services/auth/authorization';
+import { fileURLToPath } from 'node:url';
+import { healthChecks } from '#start/health';
+import { registerAuthRoutes } from '#start/auth_routes';
+import { registerMembershipRoutes } from '#start/membership_routes';
+import { registerAdmissionRoutes } from '#start/admission_routes';
+import { registerMasqueradeRoutes } from '#start/masquerade_routes';
+import { registerOwnershipRoutes } from '#start/ownership_routes';
+import { registerCompanyRoutes } from '#start/company_routes';
+import { registerTransferRoutes } from '#start/transfer_routes';
+import { registerExportRoutes } from '#start/export_routes';
+import { registerAnonymiseRoutes } from '#start/anonymise_routes';
+import { registerExampleDataRoutes } from '#start/example_data_routes';
+import { registerGettingStartedRoutes } from '#start/getting_started_routes';
 
-registerCompanyRoutes()
-registerTransferRoutes()
-registerExportRoutes()
-registerAnonymiseRoutes()
-registerExampleDataRoutes()
-registerGettingStartedRoutes()
-registerAuthRoutes()
-registerMembershipRoutes()
-registerAdmissionRoutes()
-registerMasqueradeRoutes()
-registerOwnershipRoutes()
+registerCompanyRoutes();
+registerTransferRoutes();
+registerExportRoutes();
+registerAnonymiseRoutes();
+registerExampleDataRoutes();
+registerGettingStartedRoutes();
+registerAuthRoutes();
+registerMembershipRoutes();
+registerAdmissionRoutes();
+registerMasqueradeRoutes();
+registerOwnershipRoutes();
 
-router.get('/api/health', () => ({ ok: true })).as('api.health')
-router.get('/health/live', () => ({ ok: true }))
+router.get('/api/health', () => ({ ok: true })).as('api.health');
+router.get('/health/live', () => ({ ok: true }));
 router.get('/health/ready', async ({ response }) => {
   try {
-    const report = await healthChecks.run()
-    return report.isHealthy ? response.ok(report) : response.serviceUnavailable(report)
+    const report = await healthChecks.run();
+    return report.isHealthy ? response.ok(report) : response.serviceUnavailable(report);
   } catch {
-    return response.serviceUnavailable({ isHealthy: false, status: 'error', checks: [] })
+    return response.serviceUnavailable({ isHealthy: false, status: 'error', checks: [] });
   }
-})
+});
 router.get('/api/meta', async () => {
-  const state = await readState()
-  return { hasData: state.accounts.length > 0 }
-})
+  const state = await readState();
+  return { hasData: state.accounts.length > 0 };
+});
 router
   .get('/api/diagnostics', async (ctx) => {
-    const { response } = ctx
+    const { response } = ctx;
     // Release level and backup timing are administration facts: Owners and Admins only.
     const administers = await withActor(ctx, async (actor, trx) => {
       const memberships = await trx
         .from('memberships')
         .where({ user_id: actor.userId, status: 'active' })
-        .select('account_id')
+        .select('account_id');
       for (const membership of memberships) {
-        const role = await activeCompanyRole(actor.userId, String(membership.account_id), trx)
-        if (role === 'owner' || role === 'admin') return true
+        const role = await activeCompanyRole(actor.userId, String(membership.account_id), trx);
+        if (role === 'owner' || role === 'admin') return true;
       }
-      return false
-    })
-    if (!administers)
-      return response.forbidden({ error: 'Diagnostics are limited to Owners and Admins.' })
+      return false;
+    });
+    if (!administers) {
+      return response.forbidden({ error: 'Diagnostics are limited to Owners and Admins.' });
+    }
     try {
-      await checkDatabase()
+      await checkDatabase();
       const lastMigration = await db
         .from('adonis_schema')
         .select('name')
         .orderBy('id', 'desc')
-        .first()
-      let newestSnapshotAt: string | null = null
-      const backupDir = env.get('CAPACITYLENS_BACKUP_DIR')
+        .first();
+      let newestSnapshotAt: string | null = null;
+      const backupDir = env.get('CAPACITYLENS_BACKUP_DIR');
       if (backupDir) {
         try {
-          const connectionConfig = db.getRawConnection(db.primaryConnectionName)?.config
+          const connectionConfig = db.getRawConnection(db.primaryConnectionName)?.config;
           const databasePath =
             connectionConfig?.client === 'better-sqlite3'
               ? (connectionConfig.connection.filename as string)
-              : null
-          let databaseIdentity: FileIdentity | null = null
+              : null;
+          let databaseIdentity: FileIdentity | null = null;
           if (databasePath && databasePath !== ':memory:') {
-            const file = statSync(databasePath, { bigint: true })
-            databaseIdentity = { path: resolve(databasePath), device: file.dev, inode: file.ino }
+            const file = statSync(databasePath, { bigint: true });
+            databaseIdentity = { path: resolve(databasePath), device: file.dev, inode: file.ino };
           }
           const newestMtime = listSnapshots(backupDir, databaseIdentity)
             .map((file) => statSync(join(backupDir, file)).mtimeMs)
             .reduce<number | null>(
               (newest, mtime) => (newest === null ? mtime : Math.max(newest, mtime)),
               null
-            )
-          newestSnapshotAt = newestMtime === null ? null : new Date(newestMtime).toISOString()
+            );
+          newestSnapshotAt = newestMtime === null ? null : new Date(newestMtime).toISOString();
         } catch {
-          logger.warn('Diagnostics could not inspect completed snapshots')
+          logger.warn('Diagnostics could not inspect completed snapshots');
         }
       }
       return {
@@ -105,9 +106,9 @@ router
           schema: { migration: lastMigration?.name ?? null },
           backup: { newestSnapshotAt },
         },
-      }
+      };
     } catch {
-      logger.warn('Diagnostics could not read database state')
+      logger.warn('Diagnostics could not read database state');
       return response.serviceUnavailable({
         server: {
           connectivity: 'ok',
@@ -115,14 +116,15 @@ router
           schema: { migration: null },
           backup: { newestSnapshotAt: null },
         },
-      })
+      });
     }
   })
-  .as('api.diagnostics')
+  .as('api.diagnostics');
 router.post('/api/test/reset', async ({ request, response }) => {
-  if (!env.get('CAPACITYLENS_ALLOW_RESET'))
-    return response.forbidden({ error: 'Reset is disabled.' })
-  const body = request.body() as unknown
+  if (!env.get('CAPACITYLENS_ALLOW_RESET')) {
+    return response.forbidden({ error: 'Reset is disabled.' });
+  }
+  const body = request.body() as unknown;
   if (
     body !== undefined &&
     (body === null ||
@@ -130,25 +132,27 @@ router.post('/api/test/reset', async ({ request, response }) => {
       Array.isArray(body) ||
       Object.keys(body).some((key) => key !== 'seed') ||
       ('seed' in body && body.seed !== true && body.seed !== false && body.seed !== 'single'))
-  )
-    return response.badRequest({ error: 'Invalid reset request.' })
+  ) {
+    return response.badRequest({ error: 'Invalid reset request.' });
+  }
   const requestedSeed =
     body !== undefined && typeof body === 'object' && 'seed' in body
       ? (body.seed as boolean | 'single')
-      : false
-  await resetState(requestedSeed)
-  return { ok: true }
-})
+      : false;
+  await resetState(requestedSeed);
+  return { ok: true };
+});
 router.get('*', async ({ request, response }) => {
-  const path = request.url().split('?', 1)[0]
-  if (path.startsWith('/api/')) return response.notFound({ error: 'Not found' })
-  const lastSegment = path.slice(path.lastIndexOf('/') + 1)
+  const path = request.url().split('?', 1)[0];
+  if (path.startsWith('/api/')) return response.notFound({ error: 'Not found' });
+  const lastSegment = path.slice(path.lastIndexOf('/') + 1);
   if (
     path.startsWith('/assets/') ||
     (path !== '/' && path.endsWith('/')) ||
     lastSegment.includes('.')
-  )
-    return response.notFound('Not found')
-  response.header('Cache-Control', 'no-store')
-  return response.download(fileURLToPath(new URL('../public/index.html', import.meta.url)))
-})
+  ) {
+    return response.notFound('Not found');
+  }
+  response.header('Cache-Control', 'no-store');
+  return response.download(fileURLToPath(new URL('../public/index.html', import.meta.url)));
+});

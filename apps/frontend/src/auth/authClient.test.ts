@@ -1,195 +1,245 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock("@/data/apiConfig", () => ({ API_BASE: "https://api.example.test" }));
+vi.mock('@/data/apiConfig', () => ({ API_BASE: 'https://api.example.test' }));
 
-import { authClient } from "./authClient";
+import { authClient } from './authClient';
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-describe("product auth client", () => {
+describe('product auth client', () => {
   it("posts password sign-in with session credentials for the backend's same-site CSRF boundary", async () => {
-    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
     let sent: Request | undefined;
     const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
       sent = new Request(input, init).clone();
-      return Response.json({ user: { id: "u1", name: "Bruce Wayne", email: "bruce@example.test", image: null } });
+      return Response.json({
+        user: { id: 'u1', name: 'Bruce Wayne', email: 'bruce@example.test', image: null },
+      });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
 
-    const result = await authClient.signIn.email({ email: "bruce@example.test", password: "correct horse" });
+    const result = await authClient.signIn.email({
+      email: 'bruce@example.test',
+      password: 'correct horse',
+    });
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    if (!sent) throw new Error("Expected captured request");
+    if (!sent) throw new Error('Expected captured request');
     const request = sent;
-    expect(request.url).toBe("https://api.example.test/api/auth/sign-in");
-    expect(request.method).toBe("POST");
-    expect(request.credentials).toBe("include");
+    expect(request.url).toBe('https://api.example.test/api/auth/sign-in');
+    expect(request.method).toBe('POST');
+    expect(request.credentials).toBe('include');
     expect(timeout).toHaveBeenCalledWith(15_000);
-    expect(await request.json()).toEqual({ email: "bruce@example.test", password: "correct horse" });
-    expect(request.headers.get("content-type")).toBe("application/json");
-    expect(request.headers.has("x-xsrf-token")).toBe(false);
+    expect(await request.json()).toEqual({
+      email: 'bruce@example.test',
+      password: 'correct horse',
+    });
+    expect(request.headers.get('content-type')).toBe('application/json');
+    expect(request.headers.has('x-xsrf-token')).toBe(false);
     expect(result).toEqual({
-      data: { user: { id: "u1", name: "Bruce Wayne", email: "bruce@example.test", image: null } },
+      data: { user: { id: 'u1', name: 'Bruce Wayne', email: 'bruce@example.test', image: null } },
       error: null,
     });
   });
 
-  it("preserves native fetch and abort failures before a response", async () => {
-    for (const failure of [new TypeError("Network unavailable"), new DOMException("Aborted", "AbortError")]) {
+  it('preserves native fetch and abort failures before a response', async () => {
+    for (const failure of [
+      new TypeError('Network unavailable'),
+      new DOMException('Aborted', 'AbortError'),
+    ]) {
       const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(failure);
-      vi.stubGlobal("fetch", fetchMock);
-      await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).rejects.toBe(failure);
+      vi.stubGlobal('fetch', fetchMock);
+      await expect(
+        authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+      ).rejects.toBe(failure);
       expect(fetchMock).toHaveBeenCalledOnce();
     }
   });
 
-  it("keeps null success for malformed JSON", async () => {
+  it('keeps null success for malformed JSON', async () => {
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi
         .fn<typeof fetch>()
-        .mockResolvedValue(new Response("invalid json", { headers: { "content-type": "application/json" } })),
+        .mockResolvedValue(
+          new Response('invalid json', { headers: { 'content-type': 'application/json' } }),
+        ),
     );
-    await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
+    await expect(
+      authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+    ).resolves.toEqual({
       data: null,
       error: null,
     });
   });
 
-  it("keeps null success for an empty successful response", async () => {
-    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 })));
-    await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
-      data: null,
-      error: null,
-    });
-  });
-
-  it("keeps null success when the sign-in response body stream rejects", async () => {
+  it('keeps null success for an empty successful response', async () => {
     vi.stubGlobal(
-      "fetch",
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 })),
+    );
+    await expect(
+      authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+    ).resolves.toEqual({
+      data: null,
+      error: null,
+    });
+  });
+
+  it('keeps null success when the sign-in response body stream rejects', async () => {
+    vi.stubGlobal(
+      'fetch',
       vi.fn<typeof fetch>().mockResolvedValue(
         new Response(
           new ReadableStream({
             start(controller) {
-              controller.error(new TypeError("Body disconnected"));
+              controller.error(new TypeError('Body disconnected'));
             },
           }),
-          { headers: { "content-type": "application/json" } },
+          { headers: { 'content-type': 'application/json' } },
         ),
       ),
     );
 
-    await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
+    await expect(
+      authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+    ).resolves.toEqual({
       data: null,
       error: null,
     });
   });
 
-  it.each([401, 403, 503])("keeps HTTP %s when its sign-in response body stream rejects", async (status) => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn<typeof fetch>().mockResolvedValue(
-        new Response(
-          new ReadableStream({
-            start(controller) {
-              controller.error(new TypeError("Body disconnected"));
-            },
-          }),
-          { status, headers: { "content-type": "application/json" } },
+  it.each([401, 403, 503])(
+    'keeps HTTP %s when its sign-in response body stream rejects',
+    async (status) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn<typeof fetch>().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new TypeError('Body disconnected'));
+              },
+            }),
+            { status, headers: { 'content-type': 'application/json' } },
+          ),
         ),
-      ),
-    );
+      );
 
-    await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
-      data: null,
-      error: { message: `Authentication request failed (${status}).`, status },
-    });
-  });
+      await expect(
+        authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+      ).resolves.toEqual({
+        data: null,
+        error: { message: `Authentication request failed (${status}).`, status },
+      });
+    },
+  );
 
-  it("reads a flat JSON refusal independently of the response content type", async () => {
+  it('reads a flat JSON refusal independently of the response content type', async () => {
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn<typeof fetch>().mockResolvedValue(
-        new Response(JSON.stringify({ error: "Sign-in refused.", code: "REFUSED" }), {
+        new Response(JSON.stringify({ error: 'Sign-in refused.', code: 'REFUSED' }), {
           status: 403,
-          headers: { "content-type": "text/plain" },
+          headers: { 'content-type': 'text/plain' },
         }),
       ),
     );
 
-    await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
+    await expect(
+      authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+    ).resolves.toEqual({
       data: null,
-      error: { message: "Sign-in refused.", code: "REFUSED", status: 403 },
+      error: { message: 'Sign-in refused.', code: 'REFUSED', status: 403 },
     });
   });
 
-  it("maps flat API errors without losing status or code", async () => {
+  it('maps flat API errors without losing status or code', async () => {
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi
         .fn<typeof fetch>()
         .mockResolvedValue(
-          Response.json({ error: "Invalid email or password.", code: "INVALID_CREDENTIALS" }, { status: 401 }),
+          Response.json(
+            { error: 'Invalid email or password.', code: 'INVALID_CREDENTIALS' },
+            { status: 401 },
+          ),
         ),
     );
 
-    await expect(authClient.signIn.email({ email: "x@example.test", password: "wrong" })).resolves.toEqual({
+    await expect(
+      authClient.signIn.email({ email: 'x@example.test', password: 'wrong' }),
+    ).resolves.toEqual({
       data: null,
-      error: { message: "Invalid email or password.", code: "INVALID_CREDENTIALS", status: 401 },
+      error: { message: 'Invalid email or password.', code: 'INVALID_CREDENTIALS', status: 401 },
     });
   });
 
-  it("gives malformed error bodies a status-specific fallback", async () => {
-    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(Response.json({}, { status: 503 })));
+  it('gives malformed error bodies a status-specific fallback', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(Response.json({}, { status: 503 })),
+    );
 
-    await expect(authClient.requestPasswordReset("bruce@example.test")).resolves.toEqual({
+    await expect(authClient.requestPasswordReset('bruce@example.test')).resolves.toEqual({
       data: null,
-      error: { message: "Authentication request failed (503).", status: 503 },
+      error: { message: 'Authentication request failed (503).', status: 503 },
     });
   });
 
-  it("uses native recovery, password-change, and sign-out routes", async () => {
+  it('uses native recovery, password-change, and sign-out routes', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }));
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
 
-    await authClient.requestPasswordReset("bruce@example.test");
-    await authClient.resetPassword({ token: "single-use-token", newPassword: "new-password" });
-    await authClient.changePassword({ currentPassword: "current-password", newPassword: "new-password" });
+    await authClient.requestPasswordReset('bruce@example.test');
+    await authClient.resetPassword({ token: 'single-use-token', newPassword: 'new-password' });
+    await authClient.changePassword({
+      currentPassword: 'current-password',
+      newPassword: 'new-password',
+    });
     await authClient.signOut();
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      "https://api.example.test/api/auth/request-reset",
-      "https://api.example.test/api/auth/reset-password",
-      "https://api.example.test/api/auth/change-password",
-      "https://api.example.test/api/auth/sign-out",
+      'https://api.example.test/api/auth/request-reset',
+      'https://api.example.test/api/auth/reset-password',
+      'https://api.example.test/api/auth/change-password',
+      'https://api.example.test/api/auth/sign-out',
     ]);
     expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
-      { email: "bruce@example.test" },
-      { token: "single-use-token", newPassword: "new-password" },
-      { currentPassword: "current-password", newPassword: "new-password" },
+      { email: 'bruce@example.test' },
+      { token: 'single-use-token', newPassword: 'new-password' },
+      { currentPassword: 'current-password', newPassword: 'new-password' },
       {},
     ]);
   });
 });
 
-it("retains unknown HTTP codes and safe operation metadata", async () => {
+it('retains unknown HTTP codes and safe operation metadata', async () => {
   const decision = { admitted: false, requirements: { invitation: { met: false } } };
   vi.stubGlobal(
-    "fetch",
+    'fetch',
     vi
       .fn<typeof fetch>()
       .mockResolvedValue(
         Response.json(
-          { error: "Follow-up failed", code: "DEPENDENCY_FUTURE_CODE", committed: true, decision },
+          { error: 'Follow-up failed', code: 'DEPENDENCY_FUTURE_CODE', committed: true, decision },
           { status: 503 },
         ),
       ),
   );
-  await expect(authClient.signIn.email({ email: "bruce@wayne.example", password: "secret" })).resolves.toMatchObject({
+  await expect(
+    authClient.signIn.email({ email: 'bruce@wayne.example', password: 'secret' }),
+  ).resolves.toMatchObject({
     data: null,
-    error: { status: 503, message: "Follow-up failed", code: "DEPENDENCY_FUTURE_CODE", committed: true, decision },
+    error: {
+      status: 503,
+      message: 'Follow-up failed',
+      code: 'DEPENDENCY_FUTURE_CODE',
+      committed: true,
+      decision,
+    },
   });
 });

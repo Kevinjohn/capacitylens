@@ -1,4 +1,4 @@
-import type { LaneLayout } from "@/lib/lanePacking";
+import type { LaneLayout } from '@/lib/lanePacking';
 
 // Fixed pixel geometry for the scheduler. dayWidth is dynamic (zoom) and lives in
 // the store; everything here is constant.
@@ -45,7 +45,8 @@ const NAV_MENU_GAP_Y = 4;
 const NAV_SECTION_PAD_Y = 8;
 const NAV_SECTION_GAP_Y = 8;
 
-const resolveRoomySize = (value: number, scale: number = DENSITY_SCALE): number => Math.round(value * scale);
+const resolveRoomySize = (value: number, scale: number = DENSITY_SCALE): number =>
+  Math.round(value * scale);
 
 /** Spacing dimensions shared by scheduler rows and navigation. */
 export interface SchedulerDensity {

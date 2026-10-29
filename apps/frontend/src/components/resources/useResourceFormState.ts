@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { Resource, ResourceEngagement, Weekday } from "@capacitylens/shared/types/entities";
+import { useState } from 'react';
+import type { Resource, ResourceEngagement, Weekday } from '@capacitylens/shared/types/entities';
 
 /** Tracks editable resource fields and their validation state. */
 export function useResourceFormState(resource?: Resource) {
@@ -38,20 +38,20 @@ export function useResourceFormState(resource?: Resource) {
 
 function buildInitialTextState(resource?: Resource) {
   return {
-    name: resource?.name ?? "",
-    role: resource?.role ?? "",
-    disciplineId: resource?.disciplineId ?? "",
-    projectId: resource?.projectId ?? "",
+    name: resource?.name ?? '',
+    role: resource?.role ?? '',
+    disciplineId: resource?.disciplineId ?? '',
+    projectId: resource?.projectId ?? '',
   };
 }
 
 function buildInitialCapacityState(resource?: Resource) {
   return {
-    engagement: resource?.engagement ?? "studio",
+    engagement: resource?.engagement ?? 'studio',
     workingDays: resource?.workingDays ?? [1, 2, 3, 4, 5],
     halfDays: resource?.halfDays ?? [],
-    firstAvailableDate: resource?.firstAvailableDate ?? "",
-    lastAvailableDate: resource?.lastAvailableDate ?? "",
+    firstAvailableDate: resource?.firstAvailableDate ?? '',
+    lastAvailableDate: resource?.lastAvailableDate ?? '',
   };
 }
 

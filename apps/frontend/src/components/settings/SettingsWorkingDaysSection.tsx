@@ -1,14 +1,14 @@
-import { m } from "@/i18n";
-import type { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { resolveWeekdayLabel, resolveWeekdayShortLabel } from "@/lib/weekdays";
-import type { listAccountWorkingDays } from "@/store/selectors";
-import type { StoreState } from "@/store/useStore";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
-import { SettingsSection } from "./SettingsSection";
+import { m } from '@/i18n';
+import type { orderedWeekdays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { resolveWeekdayLabel, resolveWeekdayShortLabel } from '@/lib/weekdays';
+import type { listAccountWorkingDays } from '@/store/selectors';
+import type { StoreState } from '@/store/useStore';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { SettingsSection } from './SettingsSection';
 
 type WorkingDays = ReturnType<typeof listAccountWorkingDays>;
-type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => Promise<void>;
+type UpdateSetting = (patch: Parameters<StoreState['updateAccount']>[1]) => Promise<void>;
 
 function WorkingDayCheckbox({
   canEdit,
@@ -31,7 +31,11 @@ function WorkingDayCheckbox({
   const disabled = !canEdit || isOnlyWorkingDay;
 
   return (
-    <Field orientation="horizontal" data-disabled={disabled || undefined} className="justify-center gap-0">
+    <Field
+      orientation="horizontal"
+      data-disabled={disabled || undefined}
+      className="justify-center gap-0"
+    >
       <FieldLabel
         htmlFor={id}
         data-disabled={disabled || undefined}
@@ -98,7 +102,9 @@ export function SettingsWorkingDaysSection({
           ))}
         </div>
         {workingDays.length === 1 && (
-          <FieldDescription id={workingDaysMinimumId}>{m.settings_working_days_min_one()}</FieldDescription>
+          <FieldDescription id={workingDaysMinimumId}>
+            {m.settings_working_days_min_one()}
+          </FieldDescription>
         )}
       </FieldSet>
     </SettingsSection>

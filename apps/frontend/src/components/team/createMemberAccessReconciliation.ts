@@ -1,29 +1,32 @@
-import { m } from "@/i18n";
-import { teamAccessClient } from "@/account/teamAccessClient";
-import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
-import { useStore } from "@/store/useStore";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import type { MemberActionDependencies } from "./MemberActionDependencies";
-import type { useTeamDirectory } from "./useTeamDirectory";
+import { m } from '@/i18n';
+import { teamAccessClient } from '@/account/teamAccessClient';
+import { refreshAccountSummaries } from '@/auth/useAccountSummaries';
+import { useStore } from '@/store/useStore';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import type { MemberActionDependencies } from './MemberActionDependencies';
+import type { useTeamDirectory } from './useTeamDirectory';
 
-type CallerAccessRefreshResult = { kind: "active" } | { kind: "left" } | { kind: "failed" };
+type CallerAccessRefreshResult = { kind: 'active' } | { kind: 'left' } | { kind: 'failed' };
 
 interface MemberAccessDependencies extends Pick<
   MemberActionDependencies,
-  "requestAccountId" | "isActiveAccount" | "fail" | "setNotice"
+  'requestAccountId' | 'isActiveAccount' | 'fail' | 'setNotice'
 > {
   activeAccountId: string | null;
   invalidateMemberships: () => void;
   refreshAuth: () => Promise<void>;
   closeActiveAccount: () => void;
-  replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>["replaceAuthorizedDirectory"];
+  replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>['replaceAuthorizedDirectory'];
 }
 
 type HasAuthoritativeAccountSummaryOptions = {
   summaries: Awaited<ReturnType<typeof refreshAccountSummaries>>;
   accountId: string;
 };
-function hasAuthoritativeAccountSummary({ summaries, accountId }: HasAuthoritativeAccountSummaryOptions) {
+function hasAuthoritativeAccountSummary({
+  summaries,
+  accountId,
+}: HasAuthoritativeAccountSummaryOptions) {
   return summaries !== null && summaries.some((account) => account.id === accountId);
 }
 
@@ -36,31 +39,36 @@ function createRefreshCallerAccess({
   setNotice,
 }: Pick<
   MemberAccessDependencies,
-  "activeAccountId" | "invalidateMemberships" | "refreshAuth" | "closeActiveAccount" | "isActiveAccount" | "setNotice"
+  | 'activeAccountId'
+  | 'invalidateMemberships'
+  | 'refreshAuth'
+  | 'closeActiveAccount'
+  | 'isActiveAccount'
+  | 'setNotice'
 >) {
   return async (): Promise<CallerAccessRefreshResult> => {
     const accountId = activeAccountId;
-    if (!accountId) return { kind: "failed" };
+    if (!accountId) return { kind: 'failed' };
     invalidateMemberships();
     await refreshAuth();
-    if (!isActiveAccount(accountId)) return { kind: "left" };
+    if (!isActiveAccount(accountId)) return { kind: 'left' };
     const summaries = await refreshAccountSummaries();
-    if (!isActiveAccount(accountId)) return { kind: "left" };
+    if (!isActiveAccount(accountId)) return { kind: 'left' };
     if (summaries === null) {
       closeActiveAccount();
-      setNotice(m.settings_members_access_refresh_failed(), "error");
-      return { kind: "failed" };
+      setNotice(m.settings_members_access_refresh_failed(), 'error');
+      return { kind: 'failed' };
     }
     if (!hasAuthoritativeAccountSummary({ summaries: summaries, accountId: accountId })) {
       closeActiveAccount();
-      return { kind: "left" };
+      return { kind: 'left' };
     }
     const accepted = await useStore.getState().refreshPlanning();
-    if (!isActiveAccount(accountId)) return { kind: "left" };
-    if (accepted) return { kind: "active" };
+    if (!isActiveAccount(accountId)) return { kind: 'left' };
+    if (accepted) return { kind: 'active' };
     closeActiveAccount();
-    setNotice(m.settings_members_access_refresh_failed(), "error");
-    return { kind: "failed" };
+    setNotice(m.settings_members_access_refresh_failed(), 'error');
+    return { kind: 'failed' };
   };
 }
 
@@ -70,25 +78,28 @@ async function reloadAuthorizedDirectory({
   isActiveAccount,
   setNotice,
   replaceAuthorizedDirectory,
-}: Pick<MemberAccessDependencies, "isActiveAccount" | "setNotice" | "replaceAuthorizedDirectory"> & {
+}: Pick<
+  MemberAccessDependencies,
+  'isActiveAccount' | 'setNotice' | 'replaceAuthorizedDirectory'
+> & {
   accountId: string;
   message: string;
-}): Promise<{ kind: "ready" } | { kind: "stale" } | { kind: "failed"; error: unknown }> {
+}): Promise<{ kind: 'ready' } | { kind: 'stale' } | { kind: 'failed'; error: unknown }> {
   try {
     const [memberResult, inviteResult] = await Promise.all([
       teamAccessClient.listMembers(accountId),
       teamAccessClient.listInvitations(accountId),
     ]);
-    if (!isActiveAccount(accountId)) return { kind: "stale" };
-    if (memberResult.kind !== "ok" || inviteResult.kind !== "ok") {
-      return { kind: "failed", error: new Error(m.settings_members_err_authoritative_reload()) };
+    if (!isActiveAccount(accountId)) return { kind: 'stale' };
+    if (memberResult.kind !== 'ok' || inviteResult.kind !== 'ok') {
+      return { kind: 'failed', error: new Error(m.settings_members_err_authoritative_reload()) };
     }
     replaceAuthorizedDirectory(memberResult.value, inviteResult.value);
-    setNotice(m.settings_members_reconcile_directory({ message }), "warning");
-    return { kind: "ready" };
+    setNotice(m.settings_members_reconcile_directory({ message }), 'warning');
+    return { kind: 'ready' };
   } catch (error) {
     // Return a typed failed reconciliation result so its owner can decide the visible recovery policy.
-    return { kind: "failed", error };
+    return { kind: 'failed', error };
   }
 }
 
@@ -96,14 +107,23 @@ type ResolveCallerAccessOptions = {
   callerAccessMayHaveChanged: boolean;
   refreshCallerAccess: ReturnType<typeof createRefreshCallerAccess>;
 };
-async function resolveCallerAccess({ callerAccessMayHaveChanged, refreshCallerAccess }: ResolveCallerAccessOptions) {
+async function resolveCallerAccess({
+  callerAccessMayHaveChanged,
+  refreshCallerAccess,
+}: ResolveCallerAccessOptions) {
   if (!callerAccessMayHaveChanged) return null;
   return refreshCallerAccess();
 }
 
-type ShouldStopReconciliationOptions = { accountIsActive: boolean; accessResult: CallerAccessRefreshResult | null };
-function shouldStopReconciliation({ accountIsActive, accessResult }: ShouldStopReconciliationOptions) {
-  return !accountIsActive || accessResult?.kind === "failed";
+type ShouldStopReconciliationOptions = {
+  accountIsActive: boolean;
+  accessResult: CallerAccessRefreshResult | null;
+};
+function shouldStopReconciliation({
+  accountIsActive,
+  accessResult,
+}: ShouldStopReconciliationOptions) {
+  return !accountIsActive || accessResult?.kind === 'failed';
 }
 
 function createReconcileUnknownMutation({
@@ -115,7 +135,7 @@ function createReconcileUnknownMutation({
   refreshCallerAccess,
 }: Pick<
   MemberAccessDependencies,
-  "requestAccountId" | "isActiveAccount" | "fail" | "setNotice" | "replaceAuthorizedDirectory"
+  'requestAccountId' | 'isActiveAccount' | 'fail' | 'setNotice' | 'replaceAuthorizedDirectory'
 > & {
   refreshCallerAccess: ReturnType<typeof createRefreshCallerAccess>;
 }) {
@@ -129,9 +149,16 @@ function createReconcileUnknownMutation({
       callerAccessMayHaveChanged: callerAccessMayHaveChanged,
       refreshCallerAccess: refreshCallerAccess,
     });
-    if (shouldStopReconciliation({ accountIsActive: isActiveAccount(accountId), accessResult: accessResult })) return;
-    if (accessResult?.kind === "left") {
-      setNotice(m.settings_members_reconcile_company_access({ message }), "warning");
+    if (
+      shouldStopReconciliation({
+        accountIsActive: isActiveAccount(accountId),
+        accessResult: accessResult,
+      })
+    ) {
+      return;
+    }
+    if (accessResult?.kind === 'left') {
+      setNotice(m.settings_members_reconcile_company_access({ message }), 'warning');
       return;
     }
     const reloadResult = await reloadAuthorizedDirectory({
@@ -141,9 +168,9 @@ function createReconcileUnknownMutation({
       setNotice,
       replaceAuthorizedDirectory,
     });
-    if (reloadResult.kind !== "failed" || !isActiveAccount(accountId)) return;
-    if (accessResult?.kind === "active") {
-      setNotice(m.settings_members_reconcile_access({ message }), "warning");
+    if (reloadResult.kind !== 'failed' || !isActiveAccount(accountId)) return;
+    if (accessResult?.kind === 'active') {
+      setNotice(m.settings_members_reconcile_access({ message }), 'warning');
       return;
     }
     fail(

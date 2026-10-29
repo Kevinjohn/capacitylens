@@ -1,56 +1,67 @@
-import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { isServerConfigured } from "@/data/apiConfig";
-import { useStore } from "@/store/useStore";
-import type { AccountSummary } from "@/store/useStore";
-import { isAccountRole } from "@capacitylens/shared/account/types";
-import { accountClient } from "@/account/accountClient";
-import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
-import { m } from "@/i18n";
-import { useAuth } from "./authContext";
-import { api, scopeQueryKey } from "@/api/queryClient";
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { isServerConfigured } from '@/data/apiConfig';
+import { useStore } from '@/store/useStore';
+import type { AccountSummary } from '@/store/useStore';
+import { isAccountRole } from '@capacitylens/shared/account/types';
+import { accountClient } from '@/account/accountClient';
+import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
+import { m } from '@/i18n';
+import { useAuth } from './authContext';
+import { api, scopeQueryKey } from '@/api/queryClient';
 
 // The picker needs the server directory before a tenant is selected because the loaded tenant slice cannot enumerate other companies. Demo mode derives its directory from local accounts.
 
 // Validate directory entries before publication. Unknown roles remain selectable but
 // fail closed without claiming an authoritative Viewer membership.
 function parseAccountSummary(entry: unknown): AccountSummary | null {
-  if (typeof entry !== "object" || entry === null) return null;
+  if (typeof entry !== 'object' || entry === null) return null;
   const summaryRecord = entry as { id?: unknown; name?: unknown; role?: unknown };
-  if (typeof summaryRecord.id !== "string" || summaryRecord.id.length === 0) return null;
-  if (typeof summaryRecord.name !== "string") return null;
+  if (typeof summaryRecord.id !== 'string' || summaryRecord.id.length === 0) return null;
+  if (typeof summaryRecord.name !== 'string') return null;
   if (!isAccountRole(summaryRecord.role)) {
-    console.warn("fetchAccountSummaries: /api/accounts returned an unrecognized role; marking it unavailable");
-    return { id: summaryRecord.id, name: summaryRecord.name, role: "viewer", roleStatus: "unavailable" };
+    console.warn(
+      'fetchAccountSummaries: /api/accounts returned an unrecognized role; marking it unavailable',
+    );
+    return {
+      id: summaryRecord.id,
+      name: summaryRecord.name,
+      role: 'viewer',
+      roleStatus: 'unavailable',
+    };
   }
   return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role };
 }
 
 type AccountSummaryParseOutcome =
-  | { kind: "accepted"; valid: AccountSummary[]; complete: boolean; droppedCount: number }
-  | { kind: "rejected"; droppedCount: number };
+  | { kind: 'accepted'; valid: AccountSummary[]; complete: boolean; droppedCount: number }
+  | { kind: 'rejected'; droppedCount: number };
 
 function parseAccountSummaryList(body: unknown): AccountSummaryParseOutcome {
   if (!Array.isArray(body)) {
     console.warn(
-      "fetchAccountSummaries: /api/accounts returned a non-array body; reporting null (callers keep their existing list)",
+      'fetchAccountSummaries: /api/accounts returned a non-array body; reporting null (callers keep their existing list)',
     );
-    return { kind: "rejected", droppedCount: 0 };
+    return { kind: 'rejected', droppedCount: 0 };
   }
-  const valid = body.map(parseAccountSummary).filter((state): state is AccountSummary => state !== null);
+  const valid = body
+    .map(parseAccountSummary)
+    .filter((state): state is AccountSummary => state !== null);
   const droppedCount = body.length - valid.length;
   if (droppedCount > 0) {
     console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/accounts row(s)`);
   }
-  if (body.length > 0 && valid.length === 0) return { kind: "rejected", droppedCount };
+  if (body.length > 0 && valid.length === 0) return { kind: 'rejected', droppedCount };
   if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
-    console.warn("fetchAccountSummaries: /api/accounts returned duplicate account identities; reporting null");
-    return { kind: "rejected", droppedCount };
+    console.warn(
+      'fetchAccountSummaries: /api/accounts returned duplicate account identities; reporting null',
+    );
+    return { kind: 'rejected', droppedCount };
   }
   return {
-    kind: "accepted",
+    kind: 'accepted',
     valid,
-    complete: droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable"),
+    complete: droppedCount === 0 && valid.every((summary) => summary.roleStatus !== 'unavailable'),
     droppedCount,
   };
 }
@@ -65,15 +76,18 @@ function applyLiveAccountSummaryEffects(options: ApplyLiveAccountSummaryEffectsO
   onCompleteness?.(complete);
 }
 
-function applyAccountSummaryParseEffects(outcome: AccountSummaryParseOutcome, acceptEffects: () => boolean): void {
+function applyAccountSummaryParseEffects(
+  outcome: AccountSummaryParseOutcome,
+  acceptEffects: () => boolean,
+): void {
   if (outcome.droppedCount > 0 && acceptEffects()) {
-    useStore.getState().setNotice(m.picker_accounts_incomplete(), "warning");
+    useStore.getState().setNotice(m.picker_accounts_incomplete(), 'warning');
   }
 }
 
 function reportAccountSummaryFailure(error: unknown): null {
   console.warn(
-    "fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)",
+    'fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)',
     error,
   );
   return null;
@@ -92,14 +106,14 @@ export async function fetchAccountSummaries(requestOptions?: {
     if (!res.ok) {
       if (res.status === 409 && acceptEffects()) {
         useStore.getState().setAccountSummaries({ list: [], complete: false, ambiguous: true });
-        useStore.getState().setNotice(m.picker_multiple_companies_error(), "warning");
+        useStore.getState().setNotice(m.picker_multiple_companies_error(), 'warning');
       }
       return null;
     }
     const body: unknown = await res.json();
     const parsed = parseAccountSummaryList(body);
     applyAccountSummaryParseEffects(parsed, acceptEffects);
-    if (parsed.kind === "rejected") return null;
+    if (parsed.kind === 'rejected') return null;
     applyLiveAccountSummaryEffects({
       complete: parsed.complete,
       onCompleteness: requestOptions?.onCompleteness,
@@ -124,7 +138,8 @@ export async function refreshAccountSummaries(requestOptions?: {
 }): Promise<AccountSummary[] | null> {
   const callerAcceptsEffects = requestOptions?.acceptEffects ?? (() => true);
   const requestId = useStore.getState().beginAccountSummariesRequest();
-  const requestIsCurrent = () => callerAcceptsEffects() && useStore.getState().accountSummariesRequestId === requestId;
+  const requestIsCurrent = () =>
+    callerAcceptsEffects() && useStore.getState().accountSummariesRequestId === requestId;
   const completeness = { value: false };
   const list = await fetchAccountSummaries({
     ...requestOptions,
@@ -148,7 +163,7 @@ export async function refreshAccountSummaries(requestOptions?: {
       // Internal membership repair: the authoritative directory proved this account is no longer
       // accessible, so close it synchronously before publishing the explanatory notice.
       useStore.getState().setActiveAccount(null);
-      useStore.getState().setNotice(m.notice_company_access_removed(), "warning");
+      useStore.getState().setNotice(m.notice_company_access_removed(), 'warning');
     }
   }
   return list;
@@ -166,23 +181,22 @@ export function useAccountSummaries({
   // Re-key the server request owner on the active account so a switch / sign-in re-pulls the list
   // (a freshly accepted invite or a just-created org then appears). Harmless in the demo build.
   const activeAccountId = useStore((state) => state.activeAccountId);
-  const masqueradeActive = useStore((state) => state.masquerade.kind !== "inactive");
+  const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const membershipRevision = useStore((state) => state.membershipRevision);
   const masqueradeGeneration = useStore((state) =>
-    state.masquerade.kind === "inactive" ? 0 : state.masquerade.generation,
+    state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
   const { user } = useAuth();
   const accountRouteKey = api.api.accounts.index.queryKey({});
   useQuery<AccountSummary[] | null>({
-    queryKey: scopeQueryKey({ principalId: user?.id ?? null, accountId: activeAccountId, masqueradeGeneration }, [
-      "account-summaries",
-      membershipRevision,
-      ...accountRouteKey,
-    ]),
+    queryKey: scopeQueryKey(
+      { principalId: user?.id ?? null, accountId: activeAccountId, masqueradeGeneration },
+      ['account-summaries', membershipRevision, ...accountRouteKey],
+    ),
     enabled: serverMode && !masqueradeActive && (activeAccountId === null || refreshActiveAccount),
     // Keep refresh triggers aligned with the existing effect dependencies; focus alone must not
     // silently change the picker list.
-    refetchOnMount: "always",
+    refetchOnMount: 'always',
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) =>
       refreshAccountSummaries({
@@ -199,7 +213,11 @@ export function useAccountSummaries({
     // pure `can` keeps local fully editable). Kept in lockstep on every
     // add/delete so the picker reflects changes without a fetch.
     useStore.getState().setAccountSummaries({
-      list: localAccounts.map((allocation) => ({ id: allocation.id, name: allocation.name, role: "owner" as const })),
+      list: localAccounts.map((allocation) => ({
+        id: allocation.id,
+        name: allocation.name,
+        role: 'owner' as const,
+      })),
     });
   }, [serverMode, localAccounts]);
 }

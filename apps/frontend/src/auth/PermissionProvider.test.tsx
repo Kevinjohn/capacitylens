@@ -1,26 +1,29 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PermissionProvider } from "./PermissionProvider";
-import { AuthContext } from "./authContext";
-import type { AuthContextValue } from "./authContext";
-import { useCanEdit, usePermissionStatus, useRole } from "./permissionContext";
-import { makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
-import { useStore } from "@/store/useStore";
-import { useAccountSummaries } from "./useAccountSummaries";
-import * as accountTransition from "./accountTransition";
-import type { MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PermissionProvider } from './PermissionProvider';
+import { AuthContext } from './authContext';
+import type { AuthContextValue } from './authContext';
+import { useCanEdit, usePermissionStatus, useRole } from './permissionContext';
+import { makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
+import { useStore } from '@/store/useStore';
+import { useAccountSummaries } from './useAccountSummaries';
+import * as accountTransition from './accountTransition';
+import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 
 const permissionMocks = vi.hoisted(() => ({
-  masqueradeStatus: vi.fn<() => Promise<MasqueradeStatus>>(async () => ({ active: false, contextToken: "idle" })),
+  masqueradeStatus: vi.fn<() => Promise<MasqueradeStatus>>(async () => ({
+    active: false,
+    contextToken: 'idle',
+  })),
 }));
-vi.mock("./masqueradeApi", () => ({
+vi.mock('./masqueradeApi', () => ({
   masqueradeApi: { status: permissionMocks.masqueradeStatus },
 }));
 
 const auth: AuthContextValue = {
-  authMode: "password-only",
-  user: { id: "u1" },
+  authMode: 'password-only',
+  user: { id: 'u1' },
   canCreateAccount: false,
   refreshAuth: async () => {},
   signOut: async () => {},
@@ -30,7 +33,7 @@ function Probe() {
   const role = useRole();
   const status = usePermissionStatus();
   const editable = useCanEdit();
-  return <div>{`${status}:${role ?? "none"}:${editable ? "edit" : "read"}`}</div>;
+  return <div>{`${status}:${role ?? 'none'}:${editable ? 'edit' : 'read'}`}</div>;
 }
 
 function renderProvider() {
@@ -54,7 +57,9 @@ function SharedDirectoryProvider() {
 
 function renderSharedDirectoryProvider() {
   return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
       <AuthContext.Provider value={auth}>
         <SharedDirectoryProvider />
       </AuthContext.Provider>
@@ -74,7 +79,9 @@ function deferred<T>() {
 
 function accountResponse(id: string, role: string) {
   return new Response(
-    JSON.stringify([{ id, name: id === "a-studio" ? "Wayne Enterprises" : "Stark Industries", role }]),
+    JSON.stringify([
+      { id, name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries', role },
+    ]),
     {
       status: 200,
     },
@@ -84,87 +91,92 @@ function accountResponse(id: string, role: string) {
 function addSecondAccount() {
   useStore.getState().replaceAll(
     makeAppData({
-      accounts: [makeAccount({ id: "acct-test" }), makeAccount({ id: "a-studio", name: "Wayne Enterprises" })],
+      accounts: [
+        makeAccount({ id: 'acct-test' }),
+        makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' }),
+      ],
     }),
   );
-  useStore.getState().setActiveAccount("acct-test");
+  useStore.getState().setActiveAccount('acct-test');
 }
 
 beforeEach(async () => {
-  permissionMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false, contextToken: "idle" });
+  permissionMocks.masqueradeStatus
+    .mockReset()
+    .mockResolvedValue({ active: false, contextToken: 'idle' });
   await resetStoreWithAccount();
-  useStore.setState({ masquerade: { kind: "inactive" } });
-  vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
+  useStore.setState({ masquerade: { kind: 'inactive' } });
+  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
 });
 
 afterEach(() => {
-  useStore.setState({ masquerade: { kind: "inactive" } });
+  useStore.setState({ masquerade: { kind: 'inactive' } });
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
 
-describe("PermissionProvider authenticated lookup posture", () => {
-  it("uses the active target role without requesting account membership", async () => {
+describe('PermissionProvider authenticated lookup posture', () => {
+  it('uses the active target role without requesting account membership', async () => {
     useStore.setState({
-      activeAccountId: "a-studio",
+      activeAccountId: 'a-studio',
       masquerade: {
-        kind: "active",
+        kind: 'active',
         generation: 4,
         state: {
-          accountId: "a-studio",
-          targetUserId: "u-viewer",
-          targetName: "Selina Kyle",
-          effectiveRole: "viewer",
-          startedAt: "2026-09-01T10:00:00.000Z",
-          expiresAt: "2999-09-01T10:15:00.000Z",
-          token: "session-token",
+          accountId: 'a-studio',
+          targetUserId: 'u-viewer',
+          targetName: 'Selina Kyle',
+          effectiveRole: 'viewer',
+          startedAt: '2026-09-01T10:00:00.000Z',
+          expiresAt: '2999-09-01T10:15:00.000Z',
+          token: 'session-token',
         },
       },
     });
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
 
     renderProvider();
 
-    expect(await screen.findByText("resolved:viewer:read")).toBeInTheDocument();
+    expect(await screen.findByText('resolved:viewer:read')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
   });
 
-  it("is read-only immediately while role lookup is pending", async () => {
+  it('is read-only immediately while role lookup is pending', async () => {
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn(() => new Promise<Response>(() => {})),
     );
     renderProvider();
 
-    expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
-    await waitFor(() => expect(useStore.getState().activeRole).toBe("viewer"));
-    expect(useStore.getState().activeRoleStatus).toBe("pending");
+    expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
+    await waitFor(() => expect(useStore.getState().activeRole).toBe('viewer'));
+    expect(useStore.getState().activeRoleStatus).toBe('pending');
   });
 
-  it("stays read-only when role lookup fails or returns malformed data", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+  it('stays read-only when role lookup fails or returns malformed data', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     renderProvider();
 
-    expect(await screen.findByText("unavailable:viewer:read")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("viewer");
-    expect(useStore.getState().activeRoleStatus).toBe("unavailable");
+    expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('viewer');
+    expect(useStore.getState().activeRoleStatus).toBe('unavailable');
   });
 });
 
-describe("PermissionProvider refresh behavior", () => {
-  it("enables editing only after a concrete write-tier role resolves", async () => {
+describe('PermissionProvider refresh behavior', () => {
+  it('enables editing only after a concrete write-tier role resolves', async () => {
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi.fn().mockResolvedValue(
         new Response(
           JSON.stringify([
             {
               id: useStore.getState().activeAccountId,
-              name: "Wayne Enterprises",
-              role: "editor",
+              name: 'Wayne Enterprises',
+              role: 'editor',
             },
           ]),
           { status: 200 },
@@ -173,14 +185,14 @@ describe("PermissionProvider refresh behavior", () => {
     );
     renderProvider();
 
-    expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
-    expect(await screen.findByText("resolved:editor:edit")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("editor");
+    expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
+    expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('editor');
   });
 });
 
-describe("PermissionProvider membership invalidation", () => {
-  it("starts the directory read only after status resolves and adopts status before publishing the role", async () => {
+describe('PermissionProvider membership invalidation', () => {
+  it('starts the directory read only after status resolves and adopts status before publishing the role', async () => {
     let resolveStatus!: (status: { active: false; contextToken: string }) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(
       () =>
@@ -192,116 +204,120 @@ describe("PermissionProvider membership invalidation", () => {
       .fn()
       .mockResolvedValue(
         new Response(
-          JSON.stringify([{ id: useStore.getState().activeAccountId, name: "Wayne Enterprises", role: "owner" }]),
+          JSON.stringify([
+            { id: useStore.getState().activeAccountId, name: 'Wayne Enterprises', role: 'owner' },
+          ]),
           { status: 200 },
         ),
       );
-    vi.stubGlobal("fetch", fetchMock);
-    const adoptStatus = vi.spyOn(accountTransition, "adoptMasqueradeStatus");
-    const setActiveRole = vi.spyOn(useStore.getState(), "setActiveRole");
+    vi.stubGlobal('fetch', fetchMock);
+    const adoptStatus = vi.spyOn(accountTransition, 'adoptMasqueradeStatus');
+    const setActiveRole = vi.spyOn(useStore.getState(), 'setActiveRole');
 
     renderProvider();
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(useStore.getState().activeRoleStatus).toBe("pending");
+    expect(useStore.getState().activeRoleStatus).toBe('pending');
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
-    resolveStatus({ active: false, contextToken: "idle" });
+    resolveStatus({ active: false, contextToken: 'idle' });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
+    expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
 
     const resolvedRoleCall = setActiveRole.mock.calls.findIndex(
-      ([role, status]) => role === "owner" && status === "resolved",
+      ([role, status]) => role === 'owner' && status === 'resolved',
     );
     expect(resolvedRoleCall).toBeGreaterThanOrEqual(0);
     const resolvedRoleInvocationOrder = setActiveRole.mock.invocationCallOrder[resolvedRoleCall];
-    if (resolvedRoleInvocationOrder === undefined) throw new Error("resolved role call was not recorded");
+    if (resolvedRoleInvocationOrder === undefined) {
+      throw new Error('resolved role call was not recorded');
+    }
     expect(adoptStatus.mock.invocationCallOrder[0]).toBeLessThan(resolvedRoleInvocationOrder);
   });
 });
 
-describe("PermissionProvider membership generation", () => {
-  it("re-resolves the active role when a membership mutation invalidates its projections", async () => {
-    let role = "owner";
+describe('PermissionProvider membership generation', () => {
+  it('re-resolves the active role when a membership mutation invalidates its projections', async () => {
+    let role = 'owner';
     const fetchMock = vi.fn(
       async () =>
         new Response(
           JSON.stringify([
             {
               id: useStore.getState().activeAccountId,
-              name: "Wayne Enterprises",
+              name: 'Wayne Enterprises',
               role,
             },
           ]),
           { status: 200 },
         ),
     );
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
     renderProvider();
 
-    expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
-    role = "admin";
+    expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
+    role = 'admin';
     act(() => useStore.getState().invalidateMemberships());
 
-    expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
-    expect(await screen.findByText("resolved:admin:edit")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("admin");
+    expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
+    expect(await screen.findByText('resolved:admin:edit')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('admin');
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("shares one account-directory read per membership generation with the shell hook", async () => {
-    let role = "owner";
+  it('shares one account-directory read per membership generation with the shell hook', async () => {
+    let role = 'owner';
     const fetchMock = vi.fn(
       async () =>
         new Response(
           JSON.stringify([
             {
               id: useStore.getState().activeAccountId,
-              name: "Wayne Enterprises",
+              name: 'Wayne Enterprises',
               role,
             },
           ]),
           { status: 200 },
         ),
     );
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
     renderSharedDirectoryProvider();
 
-    expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
+    expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    role = "admin";
+    role = 'admin';
     act(() => useStore.getState().invalidateMemberships());
 
-    expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
-    expect(await screen.findByText("resolved:admin:edit")).toBeInTheDocument();
+    expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
+    expect(await screen.findByText('resolved:admin:edit')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 
-describe("PermissionProvider account-switch safety", () => {
-  it("fails closed in context and store immediately after switching from an owner account", async () => {
+describe('PermissionProvider account-switch safety', () => {
+  it('fails closed in context and store immediately after switching from an owner account', async () => {
     addSecondAccount();
     const b = deferred<Response>();
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(accountResponse("acct-test", "owner"))
+        .mockResolvedValueOnce(accountResponse('acct-test', 'owner'))
         .mockImplementationOnce(() => b.promise),
     );
     renderProvider();
 
-    expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
-    act(() => useStore.getState().setActiveAccount("a-studio"));
+    expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
+    act(() => useStore.getState().setActiveAccount('a-studio'));
 
-    expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("viewer");
-    expect(useStore.getState().activeRoleStatus).toBe("pending");
+    expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('viewer');
+    expect(useStore.getState().activeRoleStatus).toBe('pending');
 
-    await act(async () => b.resolve(accountResponse("a-studio", "editor")));
-    expect(await screen.findByText("resolved:editor:edit")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("editor");
-    expect(useStore.getState().activeRoleStatus).toBe("resolved");
+    await act(async () => b.resolve(accountResponse('a-studio', 'editor')));
+    expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('editor');
+    expect(useStore.getState().activeRoleStatus).toBe('resolved');
   });
 
   it("does not adopt an old account's delayed masquerade status after a switch", async () => {
@@ -309,25 +325,25 @@ describe("PermissionProvider account-switch safety", () => {
     const aStatus = deferred<{ active: false; contextToken: string }>();
     permissionMocks.masqueradeStatus
       .mockImplementationOnce(() => aStatus.promise)
-      .mockResolvedValueOnce({ active: false, contextToken: "idle" });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(accountResponse("a-studio", "editor")));
-    const adoptStatus = vi.spyOn(accountTransition, "adoptMasqueradeStatus");
+      .mockResolvedValueOnce({ active: false, contextToken: 'idle' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(accountResponse('a-studio', 'editor')));
+    const adoptStatus = vi.spyOn(accountTransition, 'adoptMasqueradeStatus');
     renderProvider();
 
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
-    act(() => useStore.getState().setActiveAccount("a-studio"));
-    expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
-    expect(await screen.findByText("resolved:editor:edit")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("editor");
+    act(() => useStore.getState().setActiveAccount('a-studio'));
+    expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
+    expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('editor');
 
-    await act(async () => aStatus.resolve({ active: false, contextToken: "idle" }));
+    await act(async () => aStatus.resolve({ active: false, contextToken: 'idle' }));
     expect(adoptStatus).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("resolved:editor:edit")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("editor");
+    expect(screen.getByText('resolved:editor:edit')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('editor');
   });
 
-  it("ignores a delayed active status after a local controller transition", async () => {
-    await resetStoreWithAccount("a-studio");
+  it('ignores a delayed active status after a local controller transition', async () => {
+    await resetStoreWithAccount('a-studio');
     let resolveStatus!: (status: MasqueradeStatus) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(
       () =>
@@ -336,10 +352,10 @@ describe("PermissionProvider account-switch safety", () => {
         }),
     );
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    const { masqueradeController } = await import("./masqueradeController");
+    vi.stubGlobal('fetch', fetchMock);
+    const { masqueradeController } = await import('./masqueradeController');
     const inactiveProjection = useStore.getState().masquerade;
-    const adoptStatus = vi.spyOn(accountTransition, "adoptMasqueradeStatus");
+    const adoptStatus = vi.spyOn(accountTransition, 'adoptMasqueradeStatus');
     renderProvider();
 
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
@@ -350,14 +366,14 @@ describe("PermissionProvider account-switch safety", () => {
     await act(async () =>
       resolveStatus({
         active: true,
-        accountId: "a-studio",
-        targetUserId: "u-viewer",
-        targetName: "Selina Kyle",
-        effectiveRole: "viewer",
-        startedAt: "2026-09-01T10:00:00.000Z",
-        expiresAt: "2026-09-01T10:15:00.000Z",
-        token: "stale-mode-token",
-        contextToken: "stale-mode-token",
+        accountId: 'a-studio',
+        targetUserId: 'u-viewer',
+        targetName: 'Selina Kyle',
+        effectiveRole: 'viewer',
+        startedAt: '2026-09-01T10:00:00.000Z',
+        expiresAt: '2026-09-01T10:15:00.000Z',
+        token: 'stale-mode-token',
+        contextToken: 'stale-mode-token',
       }),
     );
 
@@ -367,25 +383,25 @@ describe("PermissionProvider account-switch safety", () => {
   });
 });
 
-describe("PermissionProvider stale directory safety", () => {
+describe('PermissionProvider stale directory safety', () => {
   it("keeps B authoritative when A's delayed directory response resolves later", async () => {
     addSecondAccount();
     const a = deferred<Response>();
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(() => a.promise)
-      .mockResolvedValueOnce(accountResponse("a-studio", "admin"));
-    vi.stubGlobal("fetch", fetchMock);
+      .mockResolvedValueOnce(accountResponse('a-studio', 'admin'));
+    vi.stubGlobal('fetch', fetchMock);
     renderProvider();
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    act(() => useStore.getState().setActiveAccount("a-studio"));
-    expect(await screen.findByText("resolved:admin:edit")).toBeInTheDocument();
-    await act(async () => a.resolve(accountResponse("acct-test", "owner")));
+    act(() => useStore.getState().setActiveAccount('a-studio'));
+    expect(await screen.findByText('resolved:admin:edit')).toBeInTheDocument();
+    await act(async () => a.resolve(accountResponse('acct-test', 'owner')));
 
-    expect(screen.getByText("resolved:admin:edit")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("admin");
-    expect(useStore.getState().activeRoleStatus).toBe("resolved");
+    expect(screen.getByText('resolved:admin:edit')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('admin');
+    expect(useStore.getState().activeRoleStatus).toBe('resolved');
   });
 
   it("does not let a stale A directory rejection overwrite B's role", async () => {
@@ -394,77 +410,77 @@ describe("PermissionProvider stale directory safety", () => {
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(() => a.promise)
-      .mockResolvedValueOnce(accountResponse("a-studio", "owner"));
-    vi.stubGlobal("fetch", fetchMock);
+      .mockResolvedValueOnce(accountResponse('a-studio', 'owner'));
+    vi.stubGlobal('fetch', fetchMock);
     renderProvider();
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    act(() => useStore.getState().setActiveAccount("a-studio"));
-    expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
-    await act(async () => a.reject(new Error("A timed out")));
+    act(() => useStore.getState().setActiveAccount('a-studio'));
+    expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
+    await act(async () => a.reject(new Error('A timed out')));
 
-    expect(screen.getByText("resolved:owner:edit")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("owner");
-    expect(useStore.getState().activeRoleStatus).toBe("resolved");
+    expect(screen.getByText('resolved:owner:edit')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('owner');
+    expect(useStore.getState().activeRoleStatus).toBe('resolved');
   });
 });
 
-describe("PermissionProvider fail-closed responses", () => {
-  it("fails closed for an absent or malformed active membership and clears only after a complete list proves absence", async () => {
+describe('PermissionProvider fail-closed responses', () => {
+  it('fails closed for an absent or malformed active membership and clears only after a complete list proves absence', async () => {
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(accountResponse("other", "owner"))
-        .mockResolvedValueOnce(accountResponse("acct-test", "unknown-role")),
+        .mockResolvedValueOnce(accountResponse('other', 'owner'))
+        .mockResolvedValueOnce(accountResponse('acct-test', 'unknown-role')),
     );
     renderProvider();
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(screen.getByText("not-applicable:none:edit")).toBeInTheDocument();
+    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
-    expect(useStore.getState().activeRoleStatus).toBe("not-applicable");
+    expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
 
-    act(() => useStore.getState().setActiveAccount("acct-test"));
-    expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
-    expect(await screen.findByText("unavailable:viewer:read")).toBeInTheDocument();
-    expect(useStore.getState().activeAccountId).toBe("acct-test");
-    expect(useStore.getState().activeRole).toBe("viewer");
-    expect(useStore.getState().activeRoleStatus).toBe("unavailable");
+    act(() => useStore.getState().setActiveAccount('acct-test'));
+    expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
+    expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
+    expect(useStore.getState().activeAccountId).toBe('acct-test');
+    expect(useStore.getState().activeRole).toBe('viewer');
+    expect(useStore.getState().activeRoleStatus).toBe('unavailable');
   });
 
-  it("does not request permissions in off, demo, or null-account modes", async () => {
+  it('does not request permissions in off, demo, or null-account modes', async () => {
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal('fetch', fetchMock);
 
     const offView = render(
-      <AuthContext.Provider value={{ ...auth, authMode: "off" }}>
+      <AuthContext.Provider value={{ ...auth, authMode: 'off' }}>
         <PermissionProvider>
           <Probe />
         </PermissionProvider>
       </AuthContext.Provider>,
     );
-    expect(screen.getByText("not-applicable:none:edit")).toBeInTheDocument();
+    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
-    expect(useStore.getState().activeRoleStatus).toBe("not-applicable");
+    expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
 
-    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const demoView = renderProvider();
-    expect(screen.getAllByText("not-applicable:none:edit")).toHaveLength(2);
+    expect(screen.getAllByText('not-applicable:none:edit')).toHaveLength(2);
     expect(useStore.getState().activeRole).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
 
     offView.unmount();
     demoView.unmount();
-    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
     act(() => useStore.getState().setActiveAccount(null));
     renderProvider();
-    expect(screen.getByText("not-applicable:none:edit")).toBeInTheDocument();
+    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
-    expect(useStore.getState().activeRoleStatus).toBe("not-applicable");
+    expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
   });

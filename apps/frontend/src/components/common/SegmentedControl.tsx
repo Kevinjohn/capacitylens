@@ -1,18 +1,18 @@
-import type { ReactNode } from "react";
-import { cn } from "@/lib/cn";
-import { useMarkFormDirty } from "./formDirty";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { ReactNode } from 'react';
+import { cn } from '@/lib/cn';
+import { useMarkFormDirty } from './formDirty';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 /** One selectable segment: the value it sets and the label shown on its button. */
 export type SegmentedOption<T> = { value: T; label: ReactNode; title?: string };
 /** Whether segments appear separated or connected. */
-export type SegmentedGeometry = "gapped" | "connected";
+export type SegmentedGeometry = 'gapped' | 'connected';
 /** Supported segment control size tokens. */
-export type SegmentedSize = "sm" | "md" | "lg";
+export type SegmentedSize = 'sm' | 'md' | 'lg';
 /** Supported spacing density for segment controls. */
-export type SegmentedDensity = "default" | "compact";
+export type SegmentedDensity = 'default' | 'compact';
 /** Recessed segments use elevation for selection; outline segments use a border and tint. Outline remains the primitive default. */
-export type SegmentedVariant = "outline" | "recessed";
+export type SegmentedVariant = 'outline' | 'recessed';
 
 interface SegmentedControlProps<T> {
   value: T;
@@ -41,39 +41,39 @@ interface SegmentedControlProps<T> {
 }
 
 function encodeValue(value: string | number): string {
-  return `${typeof value === "number" ? "n" : "s"}:${String(value)}`;
+  return `${typeof value === 'number' ? 'n' : 's'}:${String(value)}`;
 }
 
 // Outline selection needs an opaque border in addition to its tint so the active state remains visible. Preserve selected colours on hover because the unselected hover rule would otherwise override them.
 const selectedSegmentClass = [
-  "data-[state=on]:bg-brand-soft data-[state=on]:text-brand-soft-ink",
-  "data-[state=on]:hover:bg-brand-soft data-[state=on]:hover:text-brand-soft-ink",
-  "data-[state=on]:border-brand",
-].join(" ");
+  'data-[state=on]:bg-brand-soft data-[state=on]:text-brand-soft-ink',
+  'data-[state=on]:hover:bg-brand-soft data-[state=on]:hover:text-brand-soft-ink',
+  'data-[state=on]:border-brand',
+].join(' ');
 
 // Nested-radius contract: padding is always 2px; the item radius is therefore exactly the track
 // radius minus 2px at every size. Inactive items reserve the selected border with transparent ink,
 // so moving selection cannot change either the track width or an item's box by 2px.
 const sizeClasses: Record<SegmentedSize, { radius: string; item: string }> = {
-  sm: { radius: "[--segment-radius:4px]", item: "h-6 px-3 text-[12.5px]" },
-  md: { radius: "[--segment-radius:5px]", item: "h-7 px-[15px] text-[13.5px]" },
-  lg: { radius: "[--segment-radius:6px]", item: "h-8 px-4 text-[14.5px]" },
+  sm: { radius: '[--segment-radius:4px]', item: 'h-6 px-3 text-[12.5px]' },
+  md: { radius: '[--segment-radius:5px]', item: 'h-7 px-[15px] text-[13.5px]' },
+  lg: { radius: '[--segment-radius:6px]', item: 'h-8 px-4 text-[14.5px]' },
 };
 
 // Connected segments clear adjacent inset separators around the active border to prevent doubled edges.
 const connectedItemClass = [
-  "not-first:shadow-[inset_1px_0_0_var(--color-line)]",
-  "data-[state=on]:shadow-none [[data-state=on]+&]:shadow-none",
-].join(" ");
+  'not-first:shadow-[inset_1px_0_0_var(--color-line)]',
+  'data-[state=on]:shadow-none [[data-state=on]+&]:shadow-none',
+].join(' ');
 
 // Use the item's real border for the recessed hairline: combining an inset hairline with the reserved transparent border would expose a white ring.
-const recessedTrackClass = "border-line bg-muted shadow-none";
+const recessedTrackClass = 'border-line bg-muted shadow-none';
 const recessedSegmentClass = [
-  "font-medium text-muted-foreground hover:bg-transparent hover:text-ink",
-  "data-[state=on]:bg-surface data-[state=on]:text-brand-soft-ink data-[state=on]:border-line",
-  "data-[state=on]:hover:bg-surface data-[state=on]:hover:text-brand-soft-ink",
-  "data-[state=on]:shadow-[0_1px_2px_rgba(20,22,26,0.10)]",
-].join(" ");
+  'font-medium text-muted-foreground hover:bg-transparent hover:text-ink',
+  'data-[state=on]:bg-surface data-[state=on]:text-brand-soft-ink data-[state=on]:border-line',
+  'data-[state=on]:hover:bg-surface data-[state=on]:hover:text-brand-soft-ink',
+  'data-[state=on]:shadow-[0_1px_2px_rgba(20,22,26,0.10)]',
+].join(' ');
 
 function buildSegmentClass({
   size,
@@ -81,17 +81,20 @@ function buildSegmentClass({
   geometry,
   fullWidth,
   variant,
-}: Pick<Required<SegmentedControlProps<string>>, "size" | "density" | "geometry" | "fullWidth" | "variant">) {
+}: Pick<
+  Required<SegmentedControlProps<string>>,
+  'size' | 'density' | 'geometry' | 'fullWidth' | 'variant'
+>) {
   return cn(
-    "min-w-0 shrink-0 rounded-(--segment-radius) border border-transparent leading-none shadow-none data-[state=on]:relative data-[state=on]:z-10",
+    'min-w-0 shrink-0 rounded-(--segment-radius) border border-transparent leading-none shadow-none data-[state=on]:relative data-[state=on]:z-10',
     sizeClasses[size].item,
-    density === "compact" && "px-1.5 tracking-tighter",
-    variant === "recessed" ? recessedSegmentClass : selectedSegmentClass,
+    density === 'compact' && 'px-1.5 tracking-tighter',
+    variant === 'recessed' ? recessedSegmentClass : selectedSegmentClass,
     // Connected separators and their shadow reset belong to the outline treatment, where items
     // carry real borders that would otherwise double up. On a recessed track the separators draw
     // rules through a surface that has none, and the reset cancels the lift that carries selection.
-    geometry === "connected" && variant !== "recessed" && connectedItemClass,
-    fullWidth && "flex-1 basis-0 min-w-0 justify-center truncate",
+    geometry === 'connected' && variant !== 'recessed' && connectedItemClass,
+    fullWidth && 'flex-1 basis-0 min-w-0 justify-center truncate',
   );
 }
 
@@ -104,19 +107,19 @@ export function SegmentedControl<T extends string | number>({
   ariaLabelledby,
   ariaDescribedby,
   className,
-  geometry = "gapped",
+  geometry = 'gapped',
   fullWidth = false,
-  size = "md",
-  density = "default",
+  size = 'md',
+  density = 'default',
   disabled = false,
-  variant = "outline",
+  variant = 'outline',
 }: SegmentedControlProps<T>) {
   const markDirty = useMarkFormDirty();
-  const recessed = variant === "recessed";
+  const recessed = variant === 'recessed';
   return (
     <ToggleGroup
       type="single"
-      variant={recessed ? "default" : "outline"}
+      variant={recessed ? 'default' : 'outline'}
       data-segmented-control
       data-geometry={geometry}
       data-density={density}
@@ -126,11 +129,11 @@ export function SegmentedControl<T extends string | number>({
       aria-labelledby={ariaLabelledby}
       aria-describedby={ariaDescribedby}
       className={cn(
-        "h-auto rounded-[calc(var(--segment-radius)+2px)] border border-input bg-background p-[2px] shadow-xs",
+        'h-auto rounded-[calc(var(--segment-radius)+2px)] border border-input bg-background p-[2px] shadow-xs',
         sizeClasses[size].radius,
-        geometry === "gapped" ? "gap-0.5" : "gap-0",
+        geometry === 'gapped' ? 'gap-0.5' : 'gap-0',
         recessed && recessedTrackClass,
-        fullWidth && "flex w-full",
+        fullWidth && 'flex w-full',
         className,
       )}
       value={encodeValue(value)}

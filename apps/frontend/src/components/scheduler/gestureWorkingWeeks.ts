@@ -1,9 +1,12 @@
-import { effectiveWorkingWeek, lacksEffectiveWorkingDays } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import type { ID, ISODate, Weekday } from "@capacitylens/shared/types/entities";
-import { listAccountWorkingDays } from "@/store/selectors";
-import { useStore } from "@/store/useStore";
-import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from "./creationAvailability";
+import {
+  effectiveWorkingWeek,
+  lacksEffectiveWorkingDays,
+} from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import type { ID, ISODate, Weekday } from '@capacitylens/shared/types/entities';
+import { listAccountWorkingDays } from '@/store/selectors';
+import { useStore } from '@/store/useStore';
+import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from './creationAvailability';
 
 function readResource(resourceId: ID) {
   const state = useStore.getState();
@@ -31,7 +34,10 @@ interface EffectiveDaysQuery {
 export function hasEffectiveDaysFor({ resourceId, ignoreWeekends }: EffectiveDaysQuery) {
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return true;
-  return !lacksEffectiveWorkingDays(effectiveWorkingWeek(resource, accountWorkingDays), ignoreWeekends ?? undefined);
+  return !lacksEffectiveWorkingDays(
+    effectiveWorkingWeek(resource, accountWorkingDays),
+    ignoreWeekends ?? undefined,
+  );
 }
 
 interface DropStartQuery {
@@ -48,7 +54,8 @@ interface DropStartWorkingDaysQuery {
 
 interface PreviewDropQuery {
   workingDays: Weekday[] | undefined;
-  result: { kind: "blocked" } | { kind: "unchanged" } | { kind: "ready"; dates: { startDate: ISODate } };
+  result:
+    { kind: 'blocked' } | { kind: 'unchanged' } | { kind: 'ready'; dates: { startDate: ISODate } };
   isReassignment: boolean;
   ignoreWeekends: boolean | null | undefined;
 }
@@ -69,17 +76,30 @@ export function isDropStartBlocked({ resourceId, date, ignoreWeekends }: DropSta
 
 /** The preview already resolved the destination's effective week for this gesture frame. Keep the
  * gate on that snapshot rather than resolving the same resource and store state a second time. */
-export function isDropStartBlockedForWorkingDays({ workingDays, date, ignoreWeekends }: DropStartWorkingDaysQuery) {
+export function isDropStartBlockedForWorkingDays({
+  workingDays,
+  date,
+  ignoreWeekends,
+}: DropStartWorkingDaysQuery) {
   if (ignoreWeekends || workingDays === undefined) return false;
   return !workingDays.includes(weekdayOf(date));
 }
 
 /** Apply the destination start gate to the effective week already memoised for this preview. */
-export function isPreviewDropBlocked({ workingDays, result, isReassignment, ignoreWeekends }: PreviewDropQuery) {
+export function isPreviewDropBlocked({
+  workingDays,
+  result,
+  isReassignment,
+  ignoreWeekends,
+}: PreviewDropQuery) {
   if (!isReassignment || workingDays === undefined) return false;
-  if (result.kind === "blocked") return true;
-  if (result.kind !== "ready") return false;
-  return isDropStartBlockedForWorkingDays({ workingDays, date: result.dates.startDate, ignoreWeekends });
+  if (result.kind === 'blocked') return true;
+  if (result.kind !== 'ready') return false;
+  return isDropStartBlockedForWorkingDays({
+    workingDays,
+    date: result.dates.startDate,
+    ignoreWeekends,
+  });
 }
 
 /** Memoises each lane's working week for one gesture so preview math uses a stable snapshot. Clear the map at start and teardown; commits and keyboard actions re-read live calendars. */

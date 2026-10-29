@@ -1,6 +1,6 @@
-import { useId } from "react";
-import type { ReactNode } from "react";
-import { SettingsGroupContext } from "./settingsGroupContext";
+import { useId } from 'react';
+import type { ReactNode } from 'react';
+import { SettingsGroupContext } from './settingsGroupContext';
 
 /** Groups related settings under one labelled section. */
 export function SettingsGroup({

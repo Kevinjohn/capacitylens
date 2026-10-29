@@ -1,21 +1,21 @@
-import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { spawnSync } from 'node:child_process';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   assertEntryBundleWithinBudget,
   ENTRY_GZIP_LIMIT_BYTES,
   ENTRY_RAW_LIMIT_BYTES,
-} from "../../../scripts/bundleBudget.mjs";
+} from '../../../scripts/bundleBudget.mjs';
 
-const repositoryRoot = resolve(process.cwd(), "../..");
+const repositoryRoot = resolve(process.cwd(), '../..');
 
-describe("bundle budget entry selection", () => {
+describe('bundle budget entry selection', () => {
   let directory: string | null = null;
 
   const requireDirectory = (): string => {
-    if (directory === null) throw new Error("test fixture directory was not created");
+    if (directory === null) throw new Error('test fixture directory was not created');
     return directory;
   };
 
@@ -24,58 +24,63 @@ describe("bundle budget entry selection", () => {
   });
 
   const arrange = (html: string) => {
-    directory = mkdtempSync(join(tmpdir(), "capacitylens-bundle-budget-"));
-    mkdirSync(join(directory, "scripts"), { recursive: true });
-    mkdirSync(join(directory, "dist/assets"), { recursive: true });
-    cpSync(resolve(repositoryRoot, "scripts/bundleBudget.mjs"), join(directory, "scripts/bundleBudget.mjs"));
+    directory = mkdtempSync(join(tmpdir(), 'capacitylens-bundle-budget-'));
+    mkdirSync(join(directory, 'scripts'), { recursive: true });
+    mkdirSync(join(directory, 'dist/assets'), { recursive: true });
     cpSync(
-      resolve(repositoryRoot, "scripts/check-bundle-budget.mjs"),
-      join(directory, "scripts/check-bundle-budget.mjs"),
+      resolve(repositoryRoot, 'scripts/bundleBudget.mjs'),
+      join(directory, 'scripts/bundleBudget.mjs'),
     );
-    writeFileSync(join(directory, "dist/index.html"), html);
-    writeFileSync(join(directory, "dist/assets/app.js"), "export const app = true\n");
-    writeFileSync(join(directory, "dist/assets/shim.js"), "export const shim = true\n");
+    cpSync(
+      resolve(repositoryRoot, 'scripts/check-bundle-budget.mjs'),
+      join(directory, 'scripts/check-bundle-budget.mjs'),
+    );
+    writeFileSync(join(directory, 'dist/index.html'), html);
+    writeFileSync(join(directory, 'dist/assets/app.js'), 'export const app = true\n');
+    writeFileSync(join(directory, 'dist/assets/shim.js'), 'export const shim = true\n');
   };
 
-  it("accepts one module entry regardless of attribute order and quote style", () => {
+  it('accepts one module entry regardless of attribute order and quote style', () => {
     arrange(`<script src='/assets/app.js' crossorigin type='module'></script>`);
-    const result = spawnSync(process.execPath, ["scripts/check-bundle-budget.mjs"], {
+    const result = spawnSync(process.execPath, ['scripts/check-bundle-budget.mjs'], {
       cwd: requireDirectory(),
-      encoding: "utf8",
+      encoding: 'utf8',
     });
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("/assets/app.js");
+    expect(result.stdout).toContain('/assets/app.js');
   });
 
-  it("refuses to guess when two module entries are present", () => {
+  it('refuses to guess when two module entries are present', () => {
     arrange(`
       <script type="module" src="/assets/shim.js"></script>
       <script type="module" src="/assets/app.js"></script>
     `);
-    const result = spawnSync(process.execPath, ["scripts/check-bundle-budget.mjs"], {
+    const result = spawnSync(process.execPath, ['scripts/check-bundle-budget.mjs'], {
       cwd: requireDirectory(),
-      encoding: "utf8",
+      encoding: 'utf8',
     });
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain("expected exactly one JavaScript module entry");
-    expect(result.stderr).toContain("found 2");
+    expect(result.stderr).toContain('expected exactly one JavaScript module entry');
+    expect(result.stderr).toContain('found 2');
   });
 });
 
-describe("bundle budget boundaries", () => {
-  it("accepts an entry at both boundaries", () => {
-    expect(() => assertEntryBundleWithinBudget(ENTRY_RAW_LIMIT_BYTES, ENTRY_GZIP_LIMIT_BYTES)).not.toThrow();
+describe('bundle budget boundaries', () => {
+  it('accepts an entry at both boundaries', () => {
+    expect(() =>
+      assertEntryBundleWithinBudget(ENTRY_RAW_LIMIT_BYTES, ENTRY_GZIP_LIMIT_BYTES),
+    ).not.toThrow();
   });
 
-  it("rejects an entry above the raw boundary", () => {
-    expect(() => assertEntryBundleWithinBudget(ENTRY_RAW_LIMIT_BYTES + 1, ENTRY_GZIP_LIMIT_BYTES)).toThrow(
-      /Bundle budget exceeded/,
-    );
+  it('rejects an entry above the raw boundary', () => {
+    expect(() =>
+      assertEntryBundleWithinBudget(ENTRY_RAW_LIMIT_BYTES + 1, ENTRY_GZIP_LIMIT_BYTES),
+    ).toThrow(/Bundle budget exceeded/);
   });
 
-  it("rejects an entry above the gzip boundary", () => {
-    expect(() => assertEntryBundleWithinBudget(ENTRY_RAW_LIMIT_BYTES, ENTRY_GZIP_LIMIT_BYTES + 1)).toThrow(
-      /Bundle budget exceeded/,
-    );
+  it('rejects an entry above the gzip boundary', () => {
+    expect(() =>
+      assertEntryBundleWithinBudget(ENTRY_RAW_LIMIT_BYTES, ENTRY_GZIP_LIMIT_BYTES + 1),
+    ).toThrow(/Bundle budget exceeded/);
   });
 });

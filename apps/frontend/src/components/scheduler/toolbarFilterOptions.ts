@@ -1,6 +1,6 @@
-import type { AppData } from "@capacitylens/shared/types/entities";
-import { byName, createClientProjectDisplayNameComparator } from "@/lib/displayOrder";
-import { byDisciplineOrder } from "@/store/selectors";
+import type { AppData } from '@capacitylens/shared/types/entities';
+import { byName, createClientProjectDisplayNameComparator } from '@/lib/displayOrder';
+import { byDisciplineOrder } from '@/store/selectors';
 
 /** One entity option in a {@link FilterSelect}, the stored id and the text the menu shows. */
 export interface FilterOption {
@@ -32,7 +32,9 @@ export function buildFilterOptions(
       // correctable instead of rendering an empty select over an empty grid.
       .filter(
         (project) =>
-          selectedClientId === null || project.clientId === selectedClientId || project.id === selectedProjectId,
+          selectedClientId === null ||
+          project.clientId === selectedClientId ||
+          project.id === selectedProjectId,
       )
       .sort(createClientProjectDisplayNameComparator(data.clients))
       .map((project) => {
@@ -44,7 +46,11 @@ export function buildFilterOptions(
         };
       }),
 
-    internalActivities: data.activities.filter((activity) => activity.kind === "internal").sort(byName),
-    repeatableActivities: data.activities.filter((activity) => activity.kind === "repeatable").sort(byName),
+    internalActivities: data.activities
+      .filter((activity) => activity.kind === 'internal')
+      .sort(byName),
+    repeatableActivities: data.activities
+      .filter((activity) => activity.kind === 'repeatable')
+      .sort(byName),
   };
 }

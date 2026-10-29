@@ -1,18 +1,18 @@
-import { useFormLifetimeClose } from "@/hooks/useFormLifetimeClose";
-import { PlanningSaveCancelledError } from "@/data/planning/PlanningSaveCancelledError";
-import { useState } from "react";
-import { useStore } from "@/store/useStore";
-import { useFieldError } from "@/hooks/useFieldError";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { validatePresetColor, parseName } from "@/lib/validation";
-import { isStaleEdit } from "@/lib/isStaleEdit";
-import { m } from "@/i18n";
-import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
-import { PrivateNameFields } from "@/components/common/PrivateNameFields";
-import { usePrivateNameFields } from "@/components/common/usePrivateNameFields";
-import { FieldError } from "@/components/ui/field";
-import { DEFAULT_COLORS } from "@/lib/palette";
-import type { Client } from "@capacitylens/shared/types/entities";
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
+import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
+import { useState } from 'react';
+import { useStore } from '@/store/useStore';
+import { useFieldError } from '@/hooks/useFieldError';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { validatePresetColor, parseName } from '@/lib/validation';
+import { isStaleEdit } from '@/lib/isStaleEdit';
+import { m } from '@/i18n';
+import { ColorField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { PrivateNameFields } from '@/components/common/PrivateNameFields';
+import { usePrivateNameFields } from '@/components/common/usePrivateNameFields';
+import { FieldError } from '@/components/ui/field';
+import { DEFAULT_COLORS } from '@/lib/palette';
+import type { Client } from '@capacitylens/shared/types/entities';
 
 function ClientFormFields({
   name,
@@ -42,16 +42,21 @@ function ClientFormFields({
         autoFocus={!privateNameFields.protectedName}
         required
         disabled={privateNameFields.protectedName}
-        invalid={errorField === "name"}
+        invalid={errorField === 'name'}
         describedById={errorId}
         layout="label-control"
       />
-      <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} layout="label-control" />
+      <PrivateNameFields
+        fields={privateNameFields}
+        errorField={errorField}
+        errorId={errorId}
+        layout="label-control"
+      />
       <ColorField
         label={m.form_client_colour_label()}
         value={color}
         onChange={onColorChange}
-        invalid={errorField === "color"}
+        invalid={errorField === 'color'}
         describedById={errorId}
         layout="label-control"
       />
@@ -66,7 +71,7 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
   const onClose = useFormLifetimeClose(close);
   const addClient = useStore((state) => state.addClient);
   const updateClient = useStore((state) => state.updateClient);
-  const [name, setName] = useState(client?.name ?? "");
+  const [name, setName] = useState(client?.name ?? '');
   const [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client);
   const { error, errorField, errorId, fail } = useFieldError();
   const privateNameFields = usePrivateNameFields(client, fail);
@@ -93,7 +98,7 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
             ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
             : {}),
         });
-        if (result.kind === "blocked") return;
+        if (result.kind === 'blocked') return;
       }
       onClose();
     } catch (e) {

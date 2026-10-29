@@ -1,12 +1,12 @@
-import type { AppData, ID } from "@capacitylens/shared/types/entities";
+import type { AppData, ID } from '@capacitylens/shared/types/entities';
 import {
   BETA_EXPORT_FORMAT,
   BETA_EXPORT_SCHEMA_VERSION,
   parseBetaExport,
-} from "@capacitylens/shared/data/betaTransfer";
-import { readApiError } from "@/lib/readApiError";
-import { apiReadRouteUrl } from "@/api/queryClient";
-import { apiFetch, API_BULK_TIMEOUT_MS } from "./requestTimeout";
+} from '@capacitylens/shared/data/betaTransfer';
+import { readApiError } from '@/lib/readApiError';
+import { apiReadRouteUrl } from '@/api/queryClient';
+import { apiFetch, API_BULK_TIMEOUT_MS } from './requestTimeout';
 
 // The shared inactive-slice reader validates the complete tenant projection so backup and lifecycle views cannot accept a partial response.
 
@@ -23,7 +23,7 @@ export class InactiveSliceHttpError extends Error {
   constructor(status: number, serverMessage: string | undefined) {
     // The raw message is a developer-grade fallback; callers surface their own i18n sentence.
     super(serverMessage ?? `GET /api/state?includeInactive=1 failed (${status})`);
-    this.name = "InactiveSliceHttpError";
+    this.name = 'InactiveSliceHttpError';
     this.status = status;
     this.serverMessage = serverMessage;
   }
@@ -36,8 +36,8 @@ export class InactiveSliceHttpError extends Error {
  */
 export class InactiveSliceShapeError extends Error {
   constructor() {
-    super("The server returned a structurally incomplete slice (missing or non-array tables).");
-    this.name = "InactiveSliceShapeError";
+    super('The server returned a structurally incomplete slice (missing or non-array tables).');
+    this.name = 'InactiveSliceShapeError';
   }
 }
 
@@ -48,8 +48,8 @@ export class InactiveSliceShapeError extends Error {
  */
 export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): Promise<AppData> {
   const res = await apiFetch(
-    apiReadRouteUrl("api.state", { query: { accountId, includeInactive: "1" } }),
-    { credentials: "include", ...(signal ? { signal } : {}) },
+    apiReadRouteUrl('api.state', { query: { accountId, includeInactive: '1' } }),
+    { credentials: 'include', ...(signal ? { signal } : {}) },
     // The complete (archived + soft-deleted) slice is the heaviest read the app makes, the bulk
     // tier, not the interactive 15s, so a large tenant's export/backup isn't aborted mid-flight.
     API_BULK_TIMEOUT_MS,
@@ -63,7 +63,7 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
       JSON.stringify({
         format: BETA_EXPORT_FORMAT,
         schemaVersion: BETA_EXPORT_SCHEMA_VERSION,
-        completeness: "redacted",
+        completeness: 'redacted',
         data: body,
       }),
     );

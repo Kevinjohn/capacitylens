@@ -1,14 +1,14 @@
-import { Fragment } from "react";
-import { Link } from "react-router-dom";
-import type { ArchiveRecoveryRow } from "@capacitylens/shared/domain/lifecycle";
-import { useArchiveRecovery } from "@/hooks/useArchiveRecovery";
-import { useLifecycleActions } from "@/hooks/useLifecycleActions";
-import { useExclusiveAction } from "@/hooks/useExclusiveAction";
-import { Button } from "@/components/ui/button";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
-import { useStore } from "@/store/useStore";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { m } from "@/i18n";
+import { Fragment } from 'react';
+import { Link } from 'react-router-dom';
+import type { ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
+import { useArchiveRecovery } from '@/hooks/useArchiveRecovery';
+import { useLifecycleActions } from '@/hooks/useLifecycleActions';
+import { useExclusiveAction } from '@/hooks/useExclusiveAction';
+import { Button } from '@/components/ui/button';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
+import { useStore } from '@/store/useStore';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { m } from '@/i18n';
 
 const headings = {
   resources: () => m.list_resources_archived_heading(),
@@ -24,7 +24,7 @@ const groups = {
 };
 
 /** Shows only identity labels and existing typed restore actions, without inactive details. */
-export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow["entity"] }) {
+export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow['entity'] }) {
   const { data, error } = useArchiveRecovery();
   const actions = useLifecycleActions();
   const { busy, run } = useExclusiveAction();
@@ -37,14 +37,20 @@ export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow[
       {selected.map((row, index) => (
         <Fragment key={row.id}>
           {index > 0 && <ItemSeparator />}
-          <Item id={`archived-${row.id}`} size="sm" role="listitem" data-testid="archived-row" className="rounded-none">
+          <Item
+            id={`archived-${row.id}`}
+            size="sm"
+            role="listitem"
+            data-testid="archived-row"
+            className="rounded-none"
+          >
             <ItemContent className="min-w-0">
               <span className="font-medium">{row.label}</span>
               {row.parent && (
                 <span className="text-xs text-muted-foreground">
                   {m.list_hidden_by_archived_parent({
                     type:
-                      row.parent.entity === "clients"
+                      row.parent.entity === 'clients'
                         ? m.settings_archived_type_clients()
                         : m.settings_archived_type_projects(),
                     name: row.parent.label,
@@ -62,7 +68,7 @@ export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow[
                   onClick={() =>
                     run(
                       () => actions.unarchive(entity, row.id),
-                      (failure) => setNotice(resolveErrorMessage(failure), "error"),
+                      (failure) => setNotice(resolveErrorMessage(failure), 'error'),
                     )
                   }
                 >
@@ -84,11 +90,15 @@ export function ArchiveRecoverySection({ entity }: { entity: ArchiveRecoveryRow[
   );
   return (
     <section className="mt-8 space-y-3" data-testid={`archived-${entity}-section`}>
-      {entity === "resources" ? (
+      {entity === 'resources' ? (
         (Object.keys(groups) as (keyof typeof groups)[]).map((group) => {
-          const selected = rows.filter((row) => row.entity === "resources" && row.group === group);
+          const selected = rows.filter((row) => row.entity === 'resources' && row.group === group);
           return selected.length ? (
-            <section key={group} className="space-y-3" data-testid={`archived-resources-${group}-group`}>
+            <section
+              key={group}
+              className="space-y-3"
+              data-testid={`archived-resources-${group}-group`}
+            >
               <h2 className="text-lg font-semibold">
                 {groups[group]()} ({selected.length})
               </h2>

@@ -1,11 +1,18 @@
-import type { AppData, Resource, ResourceKind, SchedulingMode, ScopedEntity, ScopedEntityKey } from "./entities.js";
-import { APP_DATA_KEYS, FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from "./entityKeys.js";
+import type {
+  AppData,
+  Resource,
+  ResourceKind,
+  SchedulingMode,
+  ScopedEntity,
+  ScopedEntityKey,
+} from './entities.js';
+import { APP_DATA_KEYS, FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from './entityKeys.js';
 
 /** Does an allocation entered in this mode carry an hourly load? Blocks record placement and use
  * `blockHoursPerDay` instead of typed hours. Capacity projections, labels, reassignment, and
  * validation use this predicate for a consistent distinction. */
 export function carriesHourlyLoad(mode: SchedulingMode): boolean {
-  return mode !== "blocks";
+  return mode !== 'blocks';
 }
 
 /** Narrow a table name to the scoped-entity vocabulary in SCOPED_KEYS. */
@@ -36,7 +43,7 @@ export function clampWorkingHoursPerDay(hours: number): number {
 
 /** True for external resources, which are excluded from capacity and utilisation. */
 export function isExternalResource(resource: { kind: ResourceKind }): boolean {
-  return resource.kind === "external";
+  return resource.kind === 'external';
 }
 
 /** Inverse of {@link isExternalResource}, true when a resource participates in capacity/utilisation. */
@@ -47,16 +54,16 @@ export function isCapacityTracked(resource: { kind: ResourceKind }): boolean {
 /** True when a resource persists its own working-week pattern. Placeholders derive their live week
  * from the company calendar, while externals have no capacity at all. */
 export function hasPersonalWorkingPattern(resource: { kind: ResourceKind }): boolean {
-  return resource.kind === "person";
+  return resource.kind === 'person';
 }
 
 /** The single kind check for placeholder-specific persistence and import rules. */
 export function isPlaceholderResource(resource: { kind: ResourceKind }): boolean {
-  return resource.kind === "placeholder";
+  return resource.kind === 'placeholder';
 }
 
 // Return fresh weekday arrays so callers cannot mutate another resource’s defaults.
-function buildDefaultCapacityWorkingPattern(): Pick<Resource, "workingDays" | "halfDays"> {
+function buildDefaultCapacityWorkingPattern(): Pick<Resource, 'workingDays' | 'halfDays'> {
   return {
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
@@ -69,11 +76,11 @@ function buildDefaultCapacityWorkingPattern(): Pick<Resource, "workingDays" | "h
  * aliasing if a consumer mutates one. One source for the External form, seed, and fixtures. */
 export function externalCapacityDefaults(): Pick<
   Resource,
-  "employmentType" | "engagement" | "workingHoursPerDay" | "workingDays" | "halfDays"
+  'employmentType' | 'engagement' | 'workingHoursPerDay' | 'workingDays' | 'halfDays'
 > {
   return {
-    employmentType: "permanent",
-    engagement: "studio" as const,
+    employmentType: 'permanent',
+    engagement: 'studio' as const,
     workingHoursPerDay: FULL_DAY_HOURS,
     ...buildDefaultCapacityWorkingPattern(),
   };
@@ -83,7 +90,7 @@ export function externalCapacityDefaults(): Pick<
  * their live working week from the company calendar, so these persisted fields are deliberately
  * inert and must never copy an account's current selection. A factory gives every caller fresh
  * arrays, avoiding aliases if a consumer mutates one. */
-export function placeholderCapacityDefaults(): Pick<Resource, "workingDays" | "halfDays"> {
+export function placeholderCapacityDefaults(): Pick<Resource, 'workingDays' | 'halfDays'> {
   return buildDefaultCapacityWorkingPattern();
 }
 

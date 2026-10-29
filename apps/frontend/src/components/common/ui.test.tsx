@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { createRef } from "react";
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createRef } from 'react';
 import {
   Modal,
   ConfirmDialog,
@@ -19,17 +19,17 @@ import {
   SwitchField,
   CheckboxField,
   FormActions,
-} from "./ui";
-import { Button } from "@/components/ui/button";
-import { Toggle } from "@/components/ui/toggle";
-import { EmptyDescription } from "@/components/ui/empty";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FieldError } from "@/components/ui/field";
-import { Item } from "@/components/ui/item";
-import { Switch } from "@/components/ui/switch";
-import { useStore } from "@/store/useStore";
-import { resolveColorName, SWATCHES } from "@/lib/palette";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
+} from './ui';
+import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
+import { EmptyDescription } from '@/components/ui/empty';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FieldError } from '@/components/ui/field';
+import { Item } from '@/components/ui/item';
+import { Switch } from '@/components/ui/switch';
+import { useStore } from '@/store/useStore';
+import { resolveColorName, SWATCHES } from '@/lib/palette';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
@@ -45,26 +45,26 @@ function getRequiredElement<T extends HTMLElement>(root: ParentNode, selector: s
   return element;
 }
 
-describe("Button", () => {
+describe('Button', () => {
   registerButtonAppearanceTests();
   registerButtonFeedbackTests();
 });
 
 function registerButtonAppearanceTests() {
-  it("renders children", () => {
+  it('renders children', () => {
     render(<Button>Click me</Button>);
-    expect(screen.getByRole("button", { name: "Click me" })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Click me' })).toBeInTheDocument();
   });
 
-  it("calls onClick when clicked", async () => {
+  it('calls onClick when clicked', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
     render(<Button onClick={onClick}>Go</Button>);
-    await user.click(screen.getByRole("button", { name: "Go" }));
+    await user.click(screen.getByRole('button', { name: 'Go' }));
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it("does not call onClick when disabled", async () => {
+  it('does not call onClick when disabled', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
     render(
@@ -72,88 +72,100 @@ function registerButtonAppearanceTests() {
         Go
       </Button>,
     );
-    const btn = screen.getByRole("button", { name: "Go" });
+    const btn = screen.getByRole('button', { name: 'Go' });
     expect(btn).toBeDisabled();
     await user.click(btn);
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("renders primary variant by default", () => {
+  it('renders primary variant by default', () => {
     render(<Button>Primary</Button>);
 
-    const button = screen.getByRole("button", { name: "Primary" });
+    const button = screen.getByRole('button', { name: 'Primary' });
     expect(button).toBeInTheDocument();
     // Opacity must switch immediately when disabled clears. Transitioning every property briefly
     // creates an enabled, semi-transparent button whose text fails WCAG contrast after a request.
-    expect(button).toHaveClass("transition-colors");
-    expect(button).not.toHaveClass("transition-all");
+    expect(button).toHaveClass('transition-colors');
+    expect(button).not.toHaveClass('transition-all');
   });
 
-  it("signals enabled buttons and links as clickable without making disabled controls look enabled", () => {
+  it('signals enabled buttons and links as clickable without making disabled controls look enabled', () => {
     const { rerender } = render(
       <Button asChild>
         <a href="/archived">Archived</a>
       </Button>,
     );
-    expect(screen.getByRole("link", { name: "Archived" })).toHaveClass("[&:not(:disabled)]:cursor-pointer");
+    expect(screen.getByRole('link', { name: 'Archived' })).toHaveClass(
+      '[&:not(:disabled)]:cursor-pointer',
+    );
     rerender(<Button disabled>Disabled</Button>);
-    expect(screen.getByRole("button", { name: "Disabled" })).not.toHaveClass("cursor-pointer");
+    expect(screen.getByRole('button', { name: 'Disabled' })).not.toHaveClass('cursor-pointer');
   });
 
-  it("renders ghost variant", () => {
+  it('renders ghost variant', () => {
     render(<Button variant="ghost">Ghost</Button>);
-    expect(screen.getByRole("button", { name: "Ghost" })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ghost' })).toBeInTheDocument();
   });
 
-  it("renders danger variant", () => {
+  it('renders danger variant', () => {
     render(
       <>
         <Button>Primary</Button>
         <Button variant="danger-soft">Danger</Button>
       </>,
     );
-    expect(screen.getByRole("button", { name: "Primary" })).toHaveClass("bg-ok-strong", "text-ok-strong-ink");
-    expect(screen.getByRole("button", { name: "Danger" })).toHaveClass("bg-danger-soft", "text-danger-soft-ink");
+    expect(screen.getByRole('button', { name: 'Primary' })).toHaveClass(
+      'bg-ok-strong',
+      'text-ok-strong-ink',
+    );
+    expect(screen.getByRole('button', { name: 'Danger' })).toHaveClass(
+      'bg-danger-soft',
+      'text-danger-soft-ink',
+    );
   });
 
-  it.each(["default", "danger-soft", "destructive", "outline", "secondary", "ghost"] as const)(
-    "gives the %s variant enabled-only pressed feedback",
+  it.each(['default', 'danger-soft', 'destructive', 'outline', 'secondary', 'ghost'] as const)(
+    'gives the %s variant enabled-only pressed feedback',
     (variant) => {
       render(<Button variant={variant}>{variant}</Button>);
 
-      expect(screen.getByRole("button", { name: variant })).toHaveClass("enabled:active:scale-95");
+      expect(screen.getByRole('button', { name: variant })).toHaveClass('enabled:active:scale-95');
     },
   );
 }
 
 function registerButtonFeedbackTests() {
-  it("keeps link-styled actions out of the button press treatment", () => {
+  it('keeps link-styled actions out of the button press treatment', () => {
     render(<Button variant="link">Learn more</Button>);
 
-    expect(screen.getByRole("button", { name: "Learn more" })).not.toHaveClass("enabled:active:scale-95");
+    expect(screen.getByRole('button', { name: 'Learn more' })).not.toHaveClass(
+      'enabled:active:scale-95',
+    );
   });
 
-  it("gives icon buttons the same enabled-only pressed feedback", () => {
+  it('gives icon buttons the same enabled-only pressed feedback', () => {
     render(
       <Button size="icon" aria-label="Previous week">
         ←
       </Button>,
     );
 
-    expect(screen.getByRole("button", { name: "Previous week" })).toHaveClass("enabled:active:scale-95");
+    expect(screen.getByRole('button', { name: 'Previous week' })).toHaveClass(
+      'enabled:active:scale-95',
+    );
   });
 
-  it("does not expose the pressed transform on disabled buttons", () => {
+  it('does not expose the pressed transform on disabled buttons', () => {
     render(<Button disabled>Unavailable</Button>);
 
-    const button = screen.getByRole("button", { name: "Unavailable" });
-    expect(button).toHaveClass("enabled:active:scale-95", "disabled:pointer-events-none");
-    expect(button).not.toHaveClass("active:scale-95");
+    const button = screen.getByRole('button', { name: 'Unavailable' });
+    expect(button).toHaveClass('enabled:active:scale-95', 'disabled:pointer-events-none');
+    expect(button).not.toHaveClass('active:scale-95');
   });
 }
 
-describe("FormActions", () => {
-  it("renders the standard actions and supports a submit-label override", async () => {
+describe('FormActions', () => {
+  it('renders the standard actions and supports a submit-label override', async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
     render(
@@ -162,58 +174,62 @@ describe("FormActions", () => {
       </form>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(onCancel).toHaveBeenCalledOnce();
-    expect(screen.getByRole("button", { name: "Create" })).toHaveAttribute("type", "submit");
+    expect(screen.getByRole('button', { name: 'Create' })).toHaveAttribute('type', 'submit');
   });
 });
 
-describe("Toggle", () => {
-  it("shares the transient pressed feedback without replacing persistent selection", () => {
+describe('Toggle', () => {
+  it('shares the transient pressed feedback without replacing persistent selection', () => {
     render(
       <Toggle pressed aria-label="Work mode">
         Work
       </Toggle>,
     );
 
-    const toggle = screen.getByRole("button", { name: "Work mode" });
+    const toggle = screen.getByRole('button', { name: 'Work mode' });
     expect(toggle).toHaveClass(
-      "enabled:active:scale-95",
-      "data-[state=on]:bg-accent",
-      "data-[state=on]:text-accent-foreground",
+      'enabled:active:scale-95',
+      'data-[state=on]:bg-accent',
+      'data-[state=on]:text-accent-foreground',
     );
-    expect(toggle).toHaveAttribute("data-state", "on");
+    expect(toggle).toHaveAttribute('data-state', 'on');
   });
 
-  it("gates pressed feedback when disabled", () => {
+  it('gates pressed feedback when disabled', () => {
     render(
       <Toggle disabled aria-label="Unavailable mode">
         Unavailable
       </Toggle>,
     );
 
-    const toggle = screen.getByRole("button", { name: "Unavailable mode" });
-    expect(toggle).toHaveClass("enabled:active:scale-95", "disabled:pointer-events-none");
-    expect(toggle).not.toHaveClass("active:scale-95");
+    const toggle = screen.getByRole('button', { name: 'Unavailable mode' });
+    expect(toggle).toHaveClass('enabled:active:scale-95', 'disabled:pointer-events-none');
+    expect(toggle).not.toHaveClass('active:scale-95');
   });
 });
 
-describe("Alert", () => {
-  it("keeps destructive body copy on the opaque danger token", () => {
+describe('Alert', () => {
+  it('keeps destructive body copy on the opaque danger token', () => {
     render(
       <Alert variant="destructive">
         <AlertDescription>Save failed.</AlertDescription>
       </Alert>,
     );
 
-    expect(screen.getByRole("alert")).toHaveClass("*:data-[slot=alert-description]:text-destructive");
-    expect(screen.getByRole("alert")).not.toHaveClass("*:data-[slot=alert-description]:text-destructive/90");
+    expect(screen.getByRole('alert')).toHaveClass(
+      '*:data-[slot=alert-description]:text-destructive',
+    );
+    expect(screen.getByRole('alert')).not.toHaveClass(
+      '*:data-[slot=alert-description]:text-destructive/90',
+    );
   });
 });
 
-describe("Item", () => {
-  it("keeps fake-table rows compact without changing the default item density", () => {
+describe('Item', () => {
+  it('keeps fake-table rows compact without changing the default item density', () => {
     render(
       <>
         <Item>Default row</Item>
@@ -221,23 +237,23 @@ describe("Item", () => {
       </>,
     );
 
-    expect(screen.getByText("Default row")).toHaveClass("p-4");
-    expect(screen.getByText("Compact row")).toHaveClass("px-4", "py-1");
-    expect(screen.getByText("Compact row")).not.toHaveClass("py-3");
+    expect(screen.getByText('Default row')).toHaveClass('p-4');
+    expect(screen.getByText('Compact row')).toHaveClass('px-4', 'py-1');
+    expect(screen.getByText('Compact row')).not.toHaveClass('py-3');
   });
 });
 
-describe("Switch", () => {
-  it("uses the semantic non-text-contrast tokens instead of theme-specific overrides", () => {
+describe('Switch', () => {
+  it('uses the semantic non-text-contrast tokens instead of theme-specific overrides', () => {
     render(<Switch aria-label="Availability" />);
 
-    const control = screen.getByRole("switch", { name: "Availability" });
-    expect(control).toHaveClass("data-[state=unchecked]:bg-switch-track");
-    expect(control).not.toHaveClass("data-[state=unchecked]:bg-input");
-    expect(control.firstElementChild).toHaveClass("bg-switch-thumb");
+    const control = screen.getByRole('switch', { name: 'Availability' });
+    expect(control).toHaveClass('data-[state=unchecked]:bg-switch-track');
+    expect(control).not.toHaveClass('data-[state=unchecked]:bg-input');
+    expect(control.firstElementChild).toHaveClass('bg-switch-thumb');
   });
 
-  it("preserves the deliberate default and small track/thumb geometry", () => {
+  it('preserves the deliberate default and small track/thumb geometry', () => {
     render(
       <>
         <Switch aria-label="Default size" />
@@ -245,28 +261,32 @@ describe("Switch", () => {
       </>,
     );
 
-    const defaultSwitch = screen.getByRole("switch", { name: "Default size" });
+    const defaultSwitch = screen.getByRole('switch', { name: 'Default size' });
     expect(defaultSwitch).toHaveClass(
-      "data-[size=default]:h-6",
-      "data-[size=default]:w-10",
-      "data-[size=default]:p-0.5",
+      'data-[size=default]:h-6',
+      'data-[size=default]:w-10',
+      'data-[size=default]:p-0.5',
     );
     expect(defaultSwitch.firstElementChild).toHaveClass(
-      "group-data-[size=default]/switch:size-5",
-      "group-data-[size=default]/switch:data-[state=checked]:translate-x-4",
+      'group-data-[size=default]/switch:size-5',
+      'group-data-[size=default]/switch:data-[state=checked]:translate-x-4',
     );
 
-    const smallSwitch = screen.getByRole("switch", { name: "Small size" });
-    expect(smallSwitch).toHaveAttribute("data-size", "sm");
-    expect(smallSwitch).toHaveClass("data-[size=sm]:h-4", "data-[size=sm]:w-7", "data-[size=sm]:p-px");
+    const smallSwitch = screen.getByRole('switch', { name: 'Small size' });
+    expect(smallSwitch).toHaveAttribute('data-size', 'sm');
+    expect(smallSwitch).toHaveClass(
+      'data-[size=sm]:h-4',
+      'data-[size=sm]:w-7',
+      'data-[size=sm]:p-px',
+    );
     expect(smallSwitch.firstElementChild).toHaveClass(
-      "group-data-[size=sm]/switch:size-3",
-      "group-data-[size=sm]/switch:data-[state=checked]:translate-x-3",
+      'group-data-[size=sm]/switch:size-3',
+      'group-data-[size=sm]/switch:data-[state=checked]:translate-x-3',
     );
   });
 });
 
-describe("Modal", () => {
+describe('Modal', () => {
   registerModalPresentationTests();
   registerModalDismissalTests();
   registerModalDirtyStateTests();
@@ -278,40 +298,43 @@ describe("Modal", () => {
 });
 
 function registerModalPresentationTests() {
-  it("renders with the given title as dialog label", () => {
+  it('renders with the given title as dialog label', () => {
     render(
       <Modal title="My Modal" onClose={vi.fn()}>
         <p>Content</p>
       </Modal>,
     );
-    expect(screen.getByRole("dialog", { name: "My Modal" })).toHaveClass("bg-popover", "grid-cols-[minmax(0,1fr)]");
-    expect(screen.getByRole("dialog", { name: "My Modal" })).not.toHaveClass("bg-background");
-    expect(screen.getByText("Content").parentElement).toHaveClass("min-w-0");
+    expect(screen.getByRole('dialog', { name: 'My Modal' })).toHaveClass(
+      'bg-popover',
+      'grid-cols-[minmax(0,1fr)]',
+    );
+    expect(screen.getByRole('dialog', { name: 'My Modal' })).not.toHaveClass('bg-background');
+    expect(screen.getByText('Content').parentElement).toHaveClass('min-w-0');
   });
 
-  it("exposes the title as a navigable heading (aria-labelledby)", () => {
+  it('exposes the title as a navigable heading (aria-labelledby)', () => {
     render(
       <Modal title="Heady" onClose={vi.fn()}>
         <p>Body</p>
       </Modal>,
     );
-    expect(screen.getByRole("heading", { name: "Heady" })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Heady' })).toBeInTheDocument();
   });
 
-  it("calls onClose when Escape is pressed", () => {
+  it('calls onClose when Escape is pressed', () => {
     const onClose = vi.fn();
     render(
       <Modal title="Esc Modal" onClose={onClose}>
         <p>Body</p>
       </Modal>,
     );
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
   });
 }
 
 function registerModalDismissalTests() {
-  it("closes when the backdrop is clicked", async () => {
+  it('closes when the backdrop is clicked', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
@@ -325,9 +348,9 @@ function registerModalDismissalTests() {
   });
 
   it.each([
-    ["right-click", { button: 2 }],
-    ["macOS ctrl-click", { button: 0, ctrlKey: true }],
-  ])("does not treat a %s on the backdrop as a dismissal", async (_gesture, pointer) => {
+    ['right-click', { button: 2 }],
+    ['macOS ctrl-click', { button: 0, ctrlKey: true }],
+  ])('does not treat a %s on the backdrop as a dismissal', async (_gesture, pointer) => {
     const onClose = vi.fn();
     render(
       <Modal title="Context menu Modal" onClose={onClose}>
@@ -336,12 +359,12 @@ function registerModalDismissalTests() {
     );
 
     const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
-    fireEvent.pointerDown(backdrop, { pointerType: "mouse", ...pointer });
+    fireEvent.pointerDown(backdrop, { pointerType: 'mouse', ...pointer });
 
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("does not close when its content is clicked", async () => {
+  it('does not close when its content is clicked', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
@@ -349,13 +372,13 @@ function registerModalDismissalTests() {
         <p>Inner</p>
       </Modal>,
     );
-    await user.click(screen.getByText("Inner"));
+    await user.click(screen.getByText('Inner'));
     expect(onClose).not.toHaveBeenCalled();
   });
 }
 
 function registerModalDirtyStateTests() {
-  it("refuses an accidental backdrop/Escape dismissal once a field is edited", async () => {
+  it('refuses an accidental backdrop/Escape dismissal once a field is edited', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
@@ -364,28 +387,28 @@ function registerModalDirtyStateTests() {
       </Modal>,
     );
 
-    fireEvent.input(screen.getByLabelText("field"), { target: { value: "x" } });
+    fireEvent.input(screen.getByLabelText('field'), { target: { value: 'x' } });
     const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     await user.click(backdrop);
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("publishes one controlled dirty transition when one edit surfaces as input and change", () => {
+  it('publishes one controlled dirty transition when one edit surfaces as input and change', () => {
     const onDirtyChange = vi.fn();
     render(
       <Modal title="Controlled dirty" onClose={vi.fn()} dirty={false} onDirtyChange={onDirtyChange}>
         <input aria-label="controlled field" />
       </Modal>,
     );
-    const field = screen.getByLabelText("controlled field");
-    fireEvent.input(field, { target: { value: "x" } });
-    fireEvent.change(field, { target: { value: "x" } });
+    const field = screen.getByLabelText('controlled field');
+    fireEvent.input(field, { target: { value: 'x' } });
+    fireEvent.change(field, { target: { value: 'x' } });
     expect(onDirtyChange).toHaveBeenCalledOnce();
     expect(onDirtyChange).toHaveBeenCalledWith(true);
   });
 
-  it("guards an immediate Escape before controlled dirty state has re-rendered", () => {
+  it('guards an immediate Escape before controlled dirty state has re-rendered', () => {
     const onClose = vi.fn();
     render(
       <Modal title="Controlled dirty" onClose={onClose} dirty={false} onDirtyChange={vi.fn()}>
@@ -393,16 +416,16 @@ function registerModalDirtyStateTests() {
       </Modal>,
     );
 
-    fireEvent.input(screen.getByLabelText("controlled field"), {
-      target: { value: "x" },
+    fireEvent.input(screen.getByLabelText('controlled field'), {
+      target: { value: 'x' },
     });
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });
 }
 
 function registerModalControlDirtyTests() {
-  it("keeps one editor globally dirty while a clean overlapping Modal mounts and unmounts", () => {
+  it('keeps one editor globally dirty while a clean overlapping Modal mounts and unmounts', () => {
     type ModalsOptions = { showCleanOverlay: boolean };
     const modals = ({ showCleanOverlay }: ModalsOptions) => (
       <>
@@ -418,17 +441,17 @@ function registerModalControlDirtyTests() {
     );
     const { rerender, unmount } = render(modals({ showCleanOverlay: false }));
 
-    fireEvent.input(screen.getByLabelText("edited field"), {
-      target: { value: "unsaved" },
+    fireEvent.input(screen.getByLabelText('edited field'), {
+      target: { value: 'unsaved' },
     });
     expect(useStore.getState().dirtyForm).toBe(true);
 
     rerender(modals({ showCleanOverlay: true }));
-    expect(screen.getByRole("dialog", { name: "Clean overlay" })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Clean overlay' })).toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 
     rerender(modals({ showCleanOverlay: false }));
-    expect(screen.queryByRole("dialog", { name: "Clean overlay" })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Clean overlay' })).not.toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 
     unmount();
@@ -437,7 +460,7 @@ function registerModalControlDirtyTests() {
 }
 
 function registerModalControlNoOpTests() {
-  it("treats clicking an aria-pressed toggle (e.g. WeekdayPicker) as a dirty edit", () => {
+  it('treats clicking an aria-pressed toggle (e.g. WeekdayPicker) as a dirty edit', () => {
     const onClose = vi.fn();
     render(
       <Modal title="Toggle Modal" onClose={onClose}>
@@ -448,12 +471,12 @@ function registerModalControlNoOpTests() {
     );
     // A button-driven toggle fires no input/change event, but the guard must still
     // catch it, otherwise editing working days then pressing Escape loses the change.
-    fireEvent.click(screen.getByRole("button", { name: "Mon" }));
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("does not mark an explicitly-managed segmented control dirty when its value is unchanged", () => {
+  it('does not mark an explicitly-managed segmented control dirty when its value is unchanged', () => {
     const onClose = vi.fn();
     render(
       <Modal title="No-op segment" onClose={onClose}>
@@ -461,47 +484,47 @@ function registerModalControlNoOpTests() {
           value="week"
           onChange={vi.fn()}
           options={[
-            { value: "week", label: "Week" },
-            { value: "month", label: "Month" },
+            { value: 'week', label: 'Week' },
+            { value: 'month', label: 'Month' },
           ]}
           ariaLabel="Zoom"
         />
       </Modal>,
     );
 
-    fireEvent.click(screen.getByRole("radio", { name: "Week" }));
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(screen.getByRole('radio', { name: 'Week' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
   });
 }
 
 function registerModalControlRenderingTests() {
-  it("renders the default gapped intent through the shared radio-group primitive", () => {
+  it('renders the default gapped intent through the shared radio-group primitive', () => {
     render(
       <SegmentedControl
         value="week"
         onChange={vi.fn()}
         options={[
-          { value: "week", label: "Week" },
-          { value: "month", label: "Month" },
+          { value: 'week', label: 'Week' },
+          { value: 'month', label: 'Month' },
         ]}
         ariaLabel="Zoom"
       />,
     );
 
-    const group = screen.getByRole("radiogroup", { name: "Zoom" });
-    expect(group).toHaveAttribute("data-variant", "outline");
-    expect(group).toHaveAttribute("data-geometry", "gapped");
-    expect(group).toHaveAttribute("data-size", "md");
-    expect(group).toHaveAttribute("data-density", "default");
-    expect(screen.getByRole("radio", { name: "Week" })).toHaveAttribute("data-state", "on");
+    const group = screen.getByRole('radiogroup', { name: 'Zoom' });
+    expect(group).toHaveAttribute('data-variant', 'outline');
+    expect(group).toHaveAttribute('data-geometry', 'gapped');
+    expect(group).toHaveAttribute('data-size', 'md');
+    expect(group).toHaveAttribute('data-density', 'default');
+    expect(screen.getByRole('radio', { name: 'Week' })).toHaveAttribute('data-state', 'on');
   });
 
-  it("renders connected full-width intent without changing radio semantics", () => {
+  it('renders connected full-width intent without changing radio semantics', () => {
     const options = [
-      { value: "first", label: "First" },
-      { value: "middle", label: "Middle" },
-      { value: "last", label: "Last" },
+      { value: 'first', label: 'First' },
+      { value: 'middle', label: 'Middle' },
+      { value: 'last', label: 'Last' },
     ];
     render(
       <SegmentedControl
@@ -514,61 +537,61 @@ function registerModalControlRenderingTests() {
       />,
     );
 
-    const group = screen.getByRole("radiogroup", { name: "Positions" });
-    expect(group).toHaveAttribute("data-geometry", "connected");
-    expect(screen.getAllByRole("radio")).toHaveLength(3);
-    expect(screen.getByRole("radio", { name: "First" })).toHaveAttribute("data-state", "on");
+    const group = screen.getByRole('radiogroup', { name: 'Positions' });
+    expect(group).toHaveAttribute('data-geometry', 'connected');
+    expect(screen.getAllByRole('radio')).toHaveLength(3);
+    expect(screen.getByRole('radio', { name: 'First' })).toHaveAttribute('data-state', 'on');
   });
 }
 
 function registerModalControlMixedValueTests() {
-  it("round-trips numeric and string values that have the same display text", () => {
+  it('round-trips numeric and string values that have the same display text', () => {
     const onChange = vi.fn();
     render(
       <SegmentedControl
-        value={1 as 1 | "1"}
+        value={1 as 1 | '1'}
         onChange={onChange}
         options={[
-          { value: 1, label: "Number one" },
-          { value: "1", label: "String one" },
+          { value: 1, label: 'Number one' },
+          { value: '1', label: 'String one' },
         ]}
         ariaLabel="Mixed values"
       />,
     );
 
-    expect(screen.getByRole("radio", { name: "Number one" })).toHaveAttribute("data-state", "on");
-    fireEvent.click(screen.getByRole("radio", { name: "String one" }));
-    expect(onChange).toHaveBeenCalledWith("1");
+    expect(screen.getByRole('radio', { name: 'Number one' })).toHaveAttribute('data-state', 'on');
+    fireEvent.click(screen.getByRole('radio', { name: 'String one' }));
+    expect(onChange).toHaveBeenCalledWith('1');
   });
 
-  it("does not mark an explicitly-managed colour picker dirty when the selected swatch is re-picked", () => {
+  it('does not mark an explicitly-managed colour picker dirty when the selected swatch is re-picked', () => {
     const onClose = vi.fn();
-    const blue = "#2d75da";
+    const blue = '#2d75da';
     render(
       <Modal title="No-op colour" onClose={onClose}>
         <ColorField label="Colour" value={blue} onChange={vi.fn()} />
       </Modal>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: `Colour (${resolveColorName(blue)})` }));
-    fireEvent.click(screen.getByRole("radio", { name: resolveColorName(blue) }));
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(screen.getByRole('button', { name: `Colour (${resolveColorName(blue)})` }));
+    fireEvent.click(screen.getByRole('radio', { name: resolveColorName(blue) }));
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
   });
 }
 
 function registerModalFooterTests() {
-  it("renders optional footer", () => {
+  it('renders optional footer', () => {
     render(
       <Modal title="Footer Modal" onClose={vi.fn()} footer={<span>Footer content</span>}>
         <p>Body</p>
       </Modal>,
     );
-    expect(screen.getByText("Footer content")).toBeInTheDocument();
+    expect(screen.getByText('Footer content')).toBeInTheDocument();
   });
 
-  it("keeps focus stable and restores it when onClose identity churns mid-open", () => {
-    const trigger = document.createElement("button");
+  it('keeps focus stable and restores it when onClose identity churns mid-open', () => {
+    const trigger = document.createElement('button');
     document.body.appendChild(trigger);
     trigger.focus();
 
@@ -583,8 +606,8 @@ function registerModalFooterTests() {
         {body}
       </Modal>,
     );
-    const first = screen.getByRole("button", { name: "First" });
-    const second = screen.getByRole("button", { name: "Second" });
+    const first = screen.getByRole('button', { name: 'First' });
+    const second = screen.getByRole('button', { name: 'Second' });
     expect(document.activeElement).toBe(first);
 
     second.focus();
@@ -602,37 +625,48 @@ function registerModalFooterTests() {
   });
 }
 
-describe("ConfirmDialog", () => {
-  it("renders title and message", () => {
+describe('ConfirmDialog', () => {
+  it('renders title and message', () => {
     render(
-      <ConfirmDialog title="Really delete?" message="This cannot be undone." onConfirm={vi.fn()} onCancel={vi.fn()} />,
+      <ConfirmDialog
+        title="Really delete?"
+        message="This cannot be undone."
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
     );
-    expect(screen.getByRole("alertdialog", { name: "Really delete?" })).toHaveClass("bg-popover");
-    expect(screen.getByRole("alertdialog", { name: "Really delete?" })).not.toHaveClass("bg-background");
-    expect(screen.getByText("This cannot be undone.")).toBeInTheDocument();
+    expect(screen.getByRole('alertdialog', { name: 'Really delete?' })).toHaveClass('bg-popover');
+    expect(screen.getByRole('alertdialog', { name: 'Really delete?' })).not.toHaveClass(
+      'bg-background',
+    );
+    expect(screen.getByText('This cannot be undone.')).toBeInTheDocument();
   });
 
-  it("calls onConfirm when the confirm button is clicked", async () => {
+  it('calls onConfirm when the confirm button is clicked', async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
-    render(<ConfirmDialog title="Confirm" message="Sure?" onConfirm={onConfirm} onCancel={onCancel} />);
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    render(
+      <ConfirmDialog title="Confirm" message="Sure?" onConfirm={onConfirm} onCancel={onCancel} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
     expect(onConfirm).toHaveBeenCalledOnce();
     expect(onCancel).not.toHaveBeenCalled();
   });
 
-  it("calls onCancel when the Cancel button is clicked", async () => {
+  it('calls onCancel when the Cancel button is clicked', async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
-    render(<ConfirmDialog title="Confirm" message="Sure?" onConfirm={onConfirm} onCancel={onCancel} />);
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    render(
+      <ConfirmDialog title="Confirm" message="Sure?" onConfirm={onConfirm} onCancel={onCancel} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onCancel).toHaveBeenCalledOnce();
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
-  it("uses a custom confirmLabel", () => {
+  it('uses a custom confirmLabel', () => {
     render(
       <ConfirmDialog
         title="Remove?"
@@ -642,92 +676,94 @@ describe("ConfirmDialog", () => {
         onCancel={vi.fn()}
       />,
     );
-    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
   });
 
-  it("disables cancellation and confirmation while an async owner is busy", () => {
-    render(<ConfirmDialog title="Confirm" message="Sure?" busy onConfirm={vi.fn()} onCancel={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+  it('disables cancellation and confirmation while an async owner is busy', () => {
+    render(
+      <ConfirmDialog title="Confirm" message="Sure?" busy onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    );
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
   });
 });
 
-describe("ListPage", () => {
-  it("renders the page title", () => {
+describe('ListPage', () => {
+  it('renders the page title', () => {
     render(<ListPage title="My Page" />);
-    expect(screen.getByRole("heading", { name: "My Page" })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'My Page' })).toBeInTheDocument();
   });
 
-  it("renders children", () => {
+  it('renders children', () => {
     render(
       <ListPage title="Page">
         <p>Child content</p>
       </ListPage>,
     );
-    expect(screen.getByText("Child content")).toBeInTheDocument();
+    expect(screen.getByText('Child content')).toBeInTheDocument();
   });
 
-  it("renders Add button with default label when onAdd is provided", () => {
+  it('renders Add button with default label when onAdd is provided', () => {
     const onAdd = vi.fn();
     render(<ListPage title="Page" onAdd={onAdd} />);
-    expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
   });
 
-  it("calls onAdd when the Add button is clicked", async () => {
+  it('calls onAdd when the Add button is clicked', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
     render(<ListPage title="Page" onAdd={onAdd} />);
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(onAdd).toHaveBeenCalledOnce();
   });
 
-  it("uses a custom addLabel", () => {
+  it('uses a custom addLabel', () => {
     const onAdd = vi.fn();
     render(<ListPage title="Page" onAdd={onAdd} addLabel="New item" />);
-    expect(screen.getByRole("button", { name: "New item" })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New item' })).toBeInTheDocument();
   });
 
-  it("does not render an Add button when onAdd is not provided", () => {
+  it('does not render an Add button when onAdd is not provided', () => {
     render(<ListPage title="Page" />);
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });
 
-describe("EmptyState", () => {
-  it("renders children text", () => {
+describe('EmptyState', () => {
+  it('renders children text', () => {
     render(<EmptyState>No items yet.</EmptyState>);
-    expect(screen.getByText("No items yet.")).toBeInTheDocument();
+    expect(screen.getByText('No items yet.')).toBeInTheDocument();
   });
 
-  it("keeps EmptyDescription paragraph props and refs aligned with its DOM element", () => {
+  it('keeps EmptyDescription paragraph props and refs aligned with its DOM element', () => {
     const ref = createRef<HTMLParagraphElement>();
     render(<EmptyDescription ref={ref}>Nothing scheduled.</EmptyDescription>);
 
     expect(ref.current).toBeInstanceOf(HTMLParagraphElement);
-    expect(ref.current?.tagName).toBe("P");
+    expect(ref.current?.tagName).toBe('P');
   });
 });
 
-describe("FieldError", () => {
-  it("renders alert with the error message when children provided", () => {
+describe('FieldError', () => {
+  it('renders alert with the error message when children provided', () => {
     render(<FieldError>Name is required</FieldError>);
-    const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent("Name is required");
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Name is required');
   });
 
-  it("renders nothing when children is undefined", () => {
+  it('renders nothing when children is undefined', () => {
     const { container } = render(<FieldError />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing when children is empty string", () => {
-    const { container } = render(<FieldError>{""}</FieldError>);
+  it('renders nothing when children is empty string', () => {
+    const { container } = render(<FieldError>{''}</FieldError>);
     expect(container).toBeEmptyDOMElement();
   });
 });
 
-describe("compact product fields", () => {
-  it("lays out a privacy switch with the shared responsive label-control contract", () => {
+describe('compact product fields', () => {
+  it('lays out a privacy switch with the shared responsive label-control contract', () => {
     render(
       <SwitchField
         label="Use code name"
@@ -737,27 +773,37 @@ describe("compact product fields", () => {
         layout="label-control"
       />,
     );
-    const control = screen.getByRole("switch", { name: "Use code name" });
+    const control = screen.getByRole('switch', { name: 'Use code name' });
     const field = control.closest('[data-slot="field"]');
-    const description = screen.getByText("Hide the real name");
-    expect(field).toHaveAttribute("data-product-layout", "label-control");
+    const description = screen.getByText('Hide the real name');
+    expect(field).toHaveAttribute('data-product-layout', 'label-control');
     expect(field?.firstElementChild).toContainElement(description);
     expect(control.parentElement).not.toContainElement(description);
-    expect(control.parentElement).toHaveClass("min-h-9");
+    expect(control.parentElement).toHaveClass('min-h-9');
   });
 
-  it("lays out a checkbox with the shared responsive label-control contract", async () => {
+  it('lays out a checkbox with the shared responsive label-control contract', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
-    render(<CheckboxField label="Ignore working days" checked={false} onChange={onChange} layout="label-control" />);
-    const control = screen.getByRole("checkbox", { name: "Ignore working days" });
-    expect(control.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
-    expect(control.parentElement).toHaveClass("min-h-9");
+    render(
+      <CheckboxField
+        label="Ignore working days"
+        checked={false}
+        onChange={onChange}
+        layout="label-control"
+      />,
+    );
+    const control = screen.getByRole('checkbox', { name: 'Ignore working days' });
+    expect(control.closest('[data-slot="field"]')).toHaveAttribute(
+      'data-product-layout',
+      'label-control',
+    );
+    expect(control.parentElement).toHaveClass('min-h-9');
     await user.click(control);
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
-  it("labels a segmented field and applies the shared responsive row", () => {
+  it('labels a segmented field and applies the shared responsive row', () => {
     render(
       <SegmentedField
         label="Kind"
@@ -765,60 +811,70 @@ describe("compact product fields", () => {
         onChange={vi.fn()}
         disabled
         options={[
-          { value: "project", label: "Project" },
-          { value: "internal", label: "Internal" },
+          { value: 'project', label: 'Project' },
+          { value: 'internal', label: 'Internal' },
         ]}
         layout="label-control"
       />,
     );
-    const group = screen.getByRole("radiogroup", { name: "Kind" });
-    expect(group.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
-    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
+    const group = screen.getByRole('radiogroup', { name: 'Kind' });
+    expect(group.closest('[data-slot="field"]')).toHaveAttribute(
+      'data-product-layout',
+      'label-control',
+    );
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
   });
 });
 
-describe("TextField", () => {
-  it("renders with label and value", () => {
+describe('TextField', () => {
+  it('renders with label and value', () => {
     render(<TextField label="Full name" value="Alice" onChange={vi.fn()} />);
-    expect(screen.getByLabelText("Full name")).toHaveValue("Alice");
+    expect(screen.getByLabelText('Full name')).toHaveValue('Alice');
   });
 
-  it("calls onChange on each keystroke", async () => {
+  it('calls onChange on each keystroke', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<TextField label="Name" value="" onChange={onChange} />);
-    await user.type(screen.getByLabelText("Name"), "B");
-    expect(onChange).toHaveBeenCalledWith("B");
+    await user.type(screen.getByLabelText('Name'), 'B');
+    expect(onChange).toHaveBeenCalledWith('B');
   });
 
-  it("renders placeholder text", () => {
+  it('renders placeholder text', () => {
     render(<TextField label="Search" value="" onChange={vi.fn()} placeholder="Type here..." />);
-    expect(screen.getByPlaceholderText("Type here...")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Type here...')).toBeInTheDocument();
   });
 
-  it("opts into a responsive label-control row without changing the default layout", () => {
+  it('opts into a responsive label-control row without changing the default layout', () => {
     const { rerender } = render(<TextField label="Name" value="" onChange={vi.fn()} />);
-    expect(screen.getByLabelText("Name").closest('[data-slot="field"]')).not.toHaveAttribute("data-product-layout");
+    expect(screen.getByLabelText('Name').closest('[data-slot="field"]')).not.toHaveAttribute(
+      'data-product-layout',
+    );
 
     rerender(<TextField label="Name" value="" onChange={vi.fn()} layout="label-control" />);
-    expect(screen.getByLabelText("Name").closest('[data-slot="field"]')).toHaveAttribute(
-      "data-product-layout",
-      "label-control",
+    expect(screen.getByLabelText('Name').closest('[data-slot="field"]')).toHaveAttribute(
+      'data-product-layout',
+      'label-control',
     );
   });
 
-  it("keeps describedById conditional on invalid state by default", () => {
+  it('keeps describedById conditional on invalid state by default', () => {
     render(
       <>
-        <TextField label="Name" value="Barbara Gordon" onChange={vi.fn()} describedById="name-error" />
+        <TextField
+          label="Name"
+          value="Barbara Gordon"
+          onChange={vi.fn()}
+          describedById="name-error"
+        />
         <p id="name-error">Name has an issue.</p>
       </>,
     );
 
-    expect(screen.getByLabelText("Name")).not.toHaveAttribute("aria-describedby");
+    expect(screen.getByLabelText('Name')).not.toHaveAttribute('aria-describedby');
   });
 
-  it("supports a persistent external description alongside a conditional error description", () => {
+  it('supports a persistent external description alongside a conditional error description', () => {
     render(
       <>
         <TextField
@@ -834,70 +890,84 @@ describe("TextField", () => {
       </>,
     );
 
-    expect(screen.getByLabelText("Name")).toHaveAttribute("aria-describedby", "name-help name-error");
-  });
-});
-
-describe("NumberField", () => {
-  it("renders with label and numeric value", () => {
-    render(<NumberField label="Hours" value={8} onChange={vi.fn()} />);
-    expect(screen.getByLabelText("Hours")).toHaveValue(8);
-  });
-
-  it("calls onChange with a number on change", () => {
-    const onChange = vi.fn();
-    render(<NumberField label="Qty" value={5} onChange={onChange} />);
-    fireEvent.change(screen.getByLabelText("Qty"), { target: { value: "10" } });
-    expect(onChange).toHaveBeenCalledWith(10);
-  });
-
-  it("opts into the shared responsive label-control row", () => {
-    render(<NumberField label="Qty" value={5} onChange={vi.fn()} layout="label-control" />);
-    expect(screen.getByLabelText("Qty").closest('[data-slot="field"]')).toHaveAttribute(
-      "data-product-layout",
-      "label-control",
+    expect(screen.getByLabelText('Name')).toHaveAttribute(
+      'aria-describedby',
+      'name-help name-error',
     );
   });
 });
 
-describe("DateField", () => {
-  it("renders with label and date value", () => {
-    render(<DateField label="Start date" value="2026-06-01" onChange={vi.fn()} />);
-    expect(screen.getByLabelText("Start date")).toHaveValue("2026-06-01");
+describe('NumberField', () => {
+  it('renders with label and numeric value', () => {
+    render(<NumberField label="Hours" value={8} onChange={vi.fn()} />);
+    expect(screen.getByLabelText('Hours')).toHaveValue(8);
   });
 
-  it("calls onChange with new date string", () => {
+  it('calls onChange with a number on change', () => {
+    const onChange = vi.fn();
+    render(<NumberField label="Qty" value={5} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText('Qty'), { target: { value: '10' } });
+    expect(onChange).toHaveBeenCalledWith(10);
+  });
+
+  it('opts into the shared responsive label-control row', () => {
+    render(<NumberField label="Qty" value={5} onChange={vi.fn()} layout="label-control" />);
+    expect(screen.getByLabelText('Qty').closest('[data-slot="field"]')).toHaveAttribute(
+      'data-product-layout',
+      'label-control',
+    );
+  });
+});
+
+describe('DateField', () => {
+  it('renders with label and date value', () => {
+    render(<DateField label="Start date" value="2026-06-01" onChange={vi.fn()} />);
+    expect(screen.getByLabelText('Start date')).toHaveValue('2026-06-01');
+  });
+
+  it('calls onChange with new date string', () => {
     const onChange = vi.fn();
     render(<DateField label="End date" value="2026-06-01" onChange={onChange} />);
-    fireEvent.change(screen.getByLabelText("End date"), {
-      target: { value: "2026-07-01" },
+    fireEvent.change(screen.getByLabelText('End date'), {
+      target: { value: '2026-07-01' },
     });
-    expect(onChange).toHaveBeenCalledWith("2026-07-01");
+    expect(onChange).toHaveBeenCalledWith('2026-07-01');
   });
 
-  it("forwards optional native date boundaries", () => {
-    render(<DateField label="Repeat until" value="" onChange={vi.fn()} min="2026-06-01" max="2026-12-01" required />);
-    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("min", "2026-06-01");
-    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("max", "2026-12-01");
-    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("aria-required", "true");
+  it('forwards optional native date boundaries', () => {
+    render(
+      <DateField
+        label="Repeat until"
+        value=""
+        onChange={vi.fn()}
+        min="2026-06-01"
+        max="2026-12-01"
+        required
+      />,
+    );
+    expect(screen.getByLabelText('Repeat until')).toHaveAttribute('min', '2026-06-01');
+    expect(screen.getByLabelText('Repeat until')).toHaveAttribute('max', '2026-12-01');
+    expect(screen.getByLabelText('Repeat until')).toHaveAttribute('aria-required', 'true');
   });
 
-  it("opts into the shared responsive label-control row", () => {
-    render(<DateField label="Start date" value="2026-06-01" onChange={vi.fn()} layout="label-control" />);
-    expect(screen.getByLabelText("Start date").closest('[data-slot="field"]')).toHaveAttribute(
-      "data-product-layout",
-      "label-control",
+  it('opts into the shared responsive label-control row', () => {
+    render(
+      <DateField label="Start date" value="2026-06-01" onChange={vi.fn()} layout="label-control" />,
+    );
+    expect(screen.getByLabelText('Start date').closest('[data-slot="field"]')).toHaveAttribute(
+      'data-product-layout',
+      'label-control',
     );
   });
 });
 
 const selectFieldOptions = [
-  { value: "a", label: "Option A" },
-  { value: "b", label: "Option B" },
-  { value: "c", label: "Option C" },
+  { value: 'a', label: 'Option A' },
+  { value: 'b', label: 'Option B' },
+  { value: 'c', label: 'Option C' },
 ];
 
-describe("SelectField", () => {
+describe('SelectField', () => {
   registerSelectFieldBasics(selectFieldOptions);
   registerSelectFieldGrouping();
   registerSelectFieldValueEdges();
@@ -905,80 +975,99 @@ describe("SelectField", () => {
 });
 
 function registerSelectFieldBasics(options: typeof selectFieldOptions) {
-  it("renders all options", () => {
+  it('renders all options', () => {
     render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />);
-    const select = screen.getByLabelText("Pick one");
+    const select = screen.getByLabelText('Pick one');
     expect(select).toBeInTheDocument();
-    fireEvent.keyDown(select, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Option A" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Option B" })).toHaveAttribute("data-value", "b");
-    expect(screen.getByRole("option", { name: "Option C" })).toBeInTheDocument();
+    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Option A' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Option B' })).toHaveAttribute('data-value', 'b');
+    expect(screen.getByRole('option', { name: 'Option C' })).toBeInTheDocument();
   });
 
-  it("calls onChange when an option is selected", () => {
+  it('calls onChange when an option is selected', () => {
     const onChange = vi.fn();
     render(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />);
-    const select = screen.getByLabelText("Pick one");
+    const select = screen.getByLabelText('Pick one');
     select.focus();
-    fireEvent.keyDown(select, { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Option B" }));
-    expect(onChange).toHaveBeenCalledWith("b");
+    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('option', { name: 'Option B' }));
+    expect(onChange).toHaveBeenCalledWith('b');
   });
 
-  it("opts into a responsive label-control row without changing the default layout", () => {
-    const { rerender } = render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />);
-    expect(screen.getByLabelText("Pick one").closest('[data-slot="field"]')).not.toHaveAttribute("data-product-layout");
+  it('opts into a responsive label-control row without changing the default layout', () => {
+    const { rerender } = render(
+      <SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />,
+    );
+    expect(screen.getByLabelText('Pick one').closest('[data-slot="field"]')).not.toHaveAttribute(
+      'data-product-layout',
+    );
 
-    rerender(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} layout="label-control" />);
-    expect(screen.getByLabelText("Pick one").closest('[data-slot="field"]')).toHaveAttribute(
-      "data-product-layout",
-      "label-control",
+    rerender(
+      <SelectField
+        label="Pick one"
+        value="a"
+        onChange={vi.fn()}
+        options={options}
+        layout="label-control"
+      />,
+    );
+    expect(screen.getByLabelText('Pick one').closest('[data-slot="field"]')).toHaveAttribute(
+      'data-product-layout',
+      'label-control',
     );
   });
 
-  it("renders an optional structural separator without creating another option", () => {
+  it('renders an optional structural separator without creating another option', () => {
     const { baseElement } = render(
       <SelectField
         label="Grouped choices"
         value="internal"
         onChange={vi.fn()}
         options={[
-          { value: "internal", label: "Internal" },
-          { value: "client", label: "Client", separatorBefore: true },
+          { value: 'internal', label: 'Internal' },
+          { value: 'client', label: 'Client', separatorBefore: true },
         ]}
       />,
     );
 
-    fireEvent.keyDown(screen.getByLabelText("Grouped choices"), { key: "ArrowDown" });
-    expect(screen.getAllByRole("option")).toHaveLength(2);
-    expect(baseElement.querySelector('[data-slot="select-separator"]')).toHaveAttribute("aria-hidden", "true");
+    fireEvent.keyDown(screen.getByLabelText('Grouped choices'), { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option')).toHaveLength(2);
+    expect(baseElement.querySelector('[data-slot="select-separator"]')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
   });
 }
 
 function registerSelectFieldGrouping() {
-  it("renders contiguous options in accessible labelled groups", () => {
+  it('renders contiguous options in accessible labelled groups', () => {
     render(
       <SelectField
         label="Activities"
         value="all-projects"
         onChange={vi.fn()}
         options={[
-          { value: "all-projects", label: "Planning", groupLabel: "All projects" },
-          { value: "project", label: "Delivery", groupLabel: "Project-specific" },
+          { value: 'all-projects', label: 'Planning', groupLabel: 'All projects' },
+          { value: 'project', label: 'Delivery', groupLabel: 'Project-specific' },
         ]}
       />,
     );
 
-    fireEvent.keyDown(screen.getByLabelText("Activities"), { key: "ArrowDown" });
+    fireEvent.keyDown(screen.getByLabelText('Activities'), { key: 'ArrowDown' });
     expect(
-      within(screen.getByRole("group", { name: "All projects" })).getByRole("option", { name: "Planning" }),
+      within(screen.getByRole('group', { name: 'All projects' })).getByRole('option', {
+        name: 'Planning',
+      }),
     ).toBeInTheDocument();
     expect(
-      within(screen.getByRole("group", { name: "Project-specific" })).getByRole("option", { name: "Delivery" }),
+      within(screen.getByRole('group', { name: 'Project-specific' })).getByRole('option', {
+        name: 'Delivery',
+      }),
     ).toBeInTheDocument();
   });
 
-  it("keeps adjacent translated labels in one group when they share semantic identity", () => {
+  it('keeps adjacent translated labels in one group when they share semantic identity', () => {
     render(
       <SelectField
         label="Semantic groups"
@@ -986,31 +1075,31 @@ function registerSelectFieldGrouping() {
         onChange={vi.fn()}
         options={[
           {
-            value: "planning",
-            label: "Planning",
-            groupKey: "all-projects",
-            groupLabel: "All projects",
+            value: 'planning',
+            label: 'Planning',
+            groupKey: 'all-projects',
+            groupLabel: 'All projects',
           },
           {
-            value: "design",
-            label: "Design",
-            groupKey: "all-projects",
-            groupLabel: "Tous les projets",
+            value: 'design',
+            label: 'Design',
+            groupKey: 'all-projects',
+            groupLabel: 'Tous les projets',
           },
         ]}
       />,
     );
 
-    fireEvent.keyDown(screen.getByLabelText("Semantic groups"), { key: "ArrowDown" });
-    const group = screen.getByRole("group", { name: "All projects" });
-    expect(within(group).getByRole("option", { name: "Planning" })).toBeInTheDocument();
-    expect(within(group).getByRole("option", { name: "Design" })).toBeInTheDocument();
-    expect(screen.getAllByRole("group")).toHaveLength(1);
+    fireEvent.keyDown(screen.getByLabelText('Semantic groups'), { key: 'ArrowDown' });
+    const group = screen.getByRole('group', { name: 'All projects' });
+    expect(within(group).getByRole('option', { name: 'Planning' })).toBeInTheDocument();
+    expect(within(group).getByRole('option', { name: 'Design' })).toBeInTheDocument();
+    expect(screen.getAllByRole('group')).toHaveLength(1);
   });
 }
 
 function registerSelectFieldValueEdges() {
-  it("round-trips empty and sentinel-shaped option values without collision", () => {
+  it('round-trips empty and sentinel-shaped option values without collision', () => {
     const onChange = vi.fn();
     const { rerender } = render(
       <SelectField
@@ -1018,16 +1107,16 @@ function registerSelectFieldValueEdges() {
         value=""
         onChange={onChange}
         options={[
-          { value: "", label: "None" },
-          { value: "__capacitylens_empty__", label: "Sentinel-shaped id" },
+          { value: '', label: 'None' },
+          { value: '__capacitylens_empty__', label: 'Sentinel-shaped id' },
         ]}
       />,
     );
 
-    const select = screen.getByLabelText("Collision-safe");
-    fireEvent.keyDown(select, { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Sentinel-shaped id" }));
-    expect(onChange).toHaveBeenLastCalledWith("__capacitylens_empty__");
+    const select = screen.getByLabelText('Collision-safe');
+    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('option', { name: 'Sentinel-shaped id' }));
+    expect(onChange).toHaveBeenLastCalledWith('__capacitylens_empty__');
 
     rerender(
       <SelectField
@@ -1035,43 +1124,51 @@ function registerSelectFieldValueEdges() {
         value="__capacitylens_empty__"
         onChange={onChange}
         options={[
-          { value: "", label: "None" },
-          { value: "__capacitylens_empty__", label: "Sentinel-shaped id" },
+          { value: '', label: 'None' },
+          { value: '__capacitylens_empty__', label: 'Sentinel-shaped id' },
         ]}
       />,
     );
-    fireEvent.keyDown(select, { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "None" }));
-    expect(onChange).toHaveBeenLastCalledWith("");
+    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('option', { name: 'None' }));
+    expect(onChange).toHaveBeenLastCalledWith('');
   });
 }
 
 function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
-  it("marks a changed selection dirty inside a Modal", () => {
+  it('marks a changed selection dirty inside a Modal', () => {
     const onClose = vi.fn();
     render(
       <Modal title="Select modal" onClose={onClose}>
         <SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />
       </Modal>,
     );
-    const select = screen.getByLabelText("Pick one");
-    fireEvent.keyDown(select, { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Option B" }));
-    fireEvent.keyDown(document, { key: "Escape" });
+    const select = screen.getByLabelText('Pick one');
+    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('option', { name: 'Option B' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("renders a placeholder option when provided", () => {
-    render(<SelectField label="Choose" value="" onChange={vi.fn()} options={options} placeholder="-- Select --" />);
-    expect(screen.getByText("-- Select --")).toBeInTheDocument();
+  it('renders a placeholder option when provided', () => {
+    render(
+      <SelectField
+        label="Choose"
+        value=""
+        onChange={vi.fn()}
+        options={options}
+        placeholder="-- Select --"
+      />,
+    );
+    expect(screen.getByText('-- Select --')).toBeInTheDocument();
   });
 
-  it("surfaces a non-empty value that is absent from the supplied options", () => {
+  it('surfaces a non-empty value that is absent from the supplied options', () => {
     const onChange = vi.fn();
     const { rerender } = render(
       <SelectField label="Unresolved" value="missing-id" onChange={onChange} options={options} />,
     );
-    expect(screen.getByLabelText("Unresolved")).toHaveTextContent("missing-id");
+    expect(screen.getByLabelText('Unresolved')).toHaveTextContent('missing-id');
     expect(onChange).not.toHaveBeenCalled();
 
     rerender(
@@ -1083,103 +1180,113 @@ function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
         placeholder="Unknown selection"
       />,
     );
-    expect(screen.getByLabelText("Unresolved")).toHaveTextContent("Unknown selection");
+    expect(screen.getByLabelText('Unresolved')).toHaveTextContent('Unknown selection');
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("is disabled when disabled prop is true", () => {
+  it('is disabled when disabled prop is true', () => {
     render(<SelectField label="Locked" value="a" onChange={vi.fn()} options={options} disabled />);
-    expect(screen.getByLabelText("Locked")).toBeDisabled();
+    expect(screen.getByLabelText('Locked')).toBeDisabled();
   });
 }
 
-const colorFieldBlue = "#2d75da";
-const colorFieldRed = "#e02727";
+const colorFieldBlue = '#2d75da';
+const colorFieldRed = '#e02727';
 
-describe("ColorField", () => {
+describe('ColorField', () => {
   registerColorFieldBasicTests(colorFieldBlue, colorFieldRed);
   registerColorFieldInteractionTests(colorFieldBlue, colorFieldRed);
   registerColorFieldModalTests(colorFieldBlue, colorFieldRed);
 });
 
 function registerColorFieldBasicTests(BLUE: string, RED: string) {
-  it("renders a trigger labelled with the current value and no swatches until opened", () => {
+  it('renders a trigger labelled with the current value and no swatches until opened', () => {
     render(<ColorField label="Brand colour" value={BLUE} onChange={vi.fn()} />);
-    expect(screen.getByRole("button", { name: `Brand colour (${resolveColorName(BLUE)})` })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: `Brand colour (${resolveColorName(BLUE)})` }),
+    ).toBeInTheDocument();
 
-    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 
-  it("opts into the shared responsive label-control row", () => {
+  it('opts into the shared responsive label-control row', () => {
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} layout="label-control" />);
     expect(
-      screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }).closest('[data-slot="field"]'),
-    ).toHaveAttribute("data-product-layout", "label-control");
+      screen
+        .getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` })
+        .closest('[data-slot="field"]'),
+    ).toHaveAttribute('data-product-layout', 'label-control');
   });
 
-  it("opens the full grid of preset swatches when the trigger is clicked", async () => {
+  it('opens the full grid of preset swatches when the trigger is clicked', async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
-    const trigger = screen.getByRole("button", {
+    const trigger = screen.getByRole('button', {
       name: `Colour (${resolveColorName(BLUE)})`,
     });
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await user.click(trigger);
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("radiogroup", { name: "Colour swatches" })).toBeInTheDocument();
-    expect(screen.getAllByRole("radio")).toHaveLength(52);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('radiogroup', { name: 'Colour swatches' })).toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(52);
   });
 
-  it("toggles the swatch grid closed when its expanded trigger is clicked again", async () => {
+  it('toggles the swatch grid closed when its expanded trigger is clicked again', async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
-    const trigger = screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` });
+    const trigger = screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` });
 
     await user.click(trigger);
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
     await user.click(trigger);
 
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 
-  it("calls onChange with the chosen hex and closes the popup", async () => {
+  it('calls onChange with the chosen hex and closes the popup', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<ColorField label="Colour" value={BLUE} onChange={onChange} />);
-    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
-    await user.click(screen.getByRole("radio", { name: resolveColorName(RED) }));
+    await user.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
+    await user.click(screen.getByRole('radio', { name: resolveColorName(RED) }));
     expect(onChange).toHaveBeenCalledWith(RED);
 
-    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 }
 
 function registerColorFieldInteractionTests(BLUE: string, RED: string) {
-  it("exposes the swatches as one single-select radio group", async () => {
+  it('exposes the swatches as one single-select radio group', async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
-    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
-    expect(screen.getByRole("radio", { name: resolveColorName(BLUE) })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toHaveAttribute("aria-checked", "false");
+    await user.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
+    expect(screen.getByRole('radio', { name: resolveColorName(BLUE) })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(screen.getByRole('radio', { name: resolveColorName(RED) })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
   });
 
-  it("uses one tab stop and arrow keys to move through the swatch grid", async () => {
+  it('uses one tab stop and arrow keys to move through the swatch grid', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<ColorField label="Colour" value={BLUE} onChange={onChange} />);
-    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
-    const selected = screen.getByRole("radio", { name: resolveColorName(BLUE) });
-    const swatches = screen.getAllByRole("radio");
+    await user.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
+    const selected = screen.getByRole('radio', { name: resolveColorName(BLUE) });
+    const swatches = screen.getAllByRole('radio');
     expect(swatches.filter((button) => button.tabIndex === 0)).toEqual([selected]);
     selected.focus();
-    await user.keyboard("{ArrowRight}");
+    await user.keyboard('{ArrowRight}');
     const next = swatches[(swatches.indexOf(selected) + 1) % swatches.length];
     expect(document.activeElement).toBe(next);
     expect(onChange).toHaveBeenCalledWith(SWATCHES[(SWATCHES.indexOf(BLUE) + 1) % SWATCHES.length]);
   });
 
-  it("closes the popup on an outside click", async () => {
+  it('closes the popup on an outside click', async () => {
     const user = userEvent.setup();
     render(
       <div>
@@ -1187,13 +1294,13 @@ function registerColorFieldInteractionTests(BLUE: string, RED: string) {
         <button type="button">Outside</button>
       </div>,
     );
-    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
-    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Outside" }));
-    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
+    expect(screen.getByRole('radio', { name: resolveColorName(RED) })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Outside' }));
+    expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 
-  it("closes the popup on Escape without closing the surrounding Modal", async () => {
+  it('closes the popup on Escape without closing the surrounding Modal', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
@@ -1201,19 +1308,19 @@ function registerColorFieldInteractionTests(BLUE: string, RED: string) {
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
       </Modal>,
     );
-    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
+    await user.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
     // Move focus into the grid, then Escape: the popup must close and the keydown must
     // not reach the surrounding handler (the Modal's Escape-to-close in real use).
-    const swatch = screen.getByRole("radio", { name: resolveColorName(RED) });
+    const swatch = screen.getByRole('radio', { name: resolveColorName(RED) });
     swatch.focus();
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 }
 
 function registerColorFieldModalTests(BLUE: string, RED: string) {
-  it("dismisses only the popup, not the surrounding Modal, on a backdrop click", async () => {
+  it('dismisses only the popup, not the surrounding Modal, on a backdrop click', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
@@ -1221,15 +1328,15 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
       </Modal>,
     );
-    await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
-    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
+    expect(screen.getByRole('radio', { name: resolveColorName(RED) })).toBeInTheDocument();
     const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     await user.click(backdrop);
-    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("does NOT swallow a press on another control inside the same dialog (first click lands)", async () => {
+  it('does NOT swallow a press on another control inside the same dialog (first click lands)', async () => {
     const user = userEvent.setup();
     const onSiblingDown = vi.fn();
     render(
@@ -1240,20 +1347,23 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
         </button>
       </Modal>,
     );
-    fireEvent.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
-    expect(screen.getByRole("radio", { name: resolveColorName(RED) })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
+    expect(screen.getByRole('radio', { name: resolveColorName(RED) })).toBeInTheDocument();
     // A press on another in-dialog control must reach it while Popover handles dismissal.
-    await user.click(screen.getByTestId("sibling"));
+    await user.click(screen.getByTestId('sibling'));
     expect(onSiblingDown).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 }
 
 type RenderWorkingDayPickerOptions = {
-  onChange?: React.ComponentProps<typeof WorkingDayPicker>["onChange"];
+  onChange?: React.ComponentProps<typeof WorkingDayPicker>['onChange'];
   invalid?: boolean;
 };
-const renderWorkingDayPicker = ({ onChange = vi.fn(), invalid = false }: RenderWorkingDayPickerOptions = {}) =>
+const renderWorkingDayPicker = ({
+  onChange = vi.fn(),
+  invalid = false,
+}: RenderWorkingDayPickerOptions = {}) =>
   render(
     <WorkingDayPicker
       label="Working days"
@@ -1265,84 +1375,111 @@ const renderWorkingDayPicker = ({ onChange = vi.fn(), invalid = false }: RenderW
     />,
   );
 
-describe("WorkingDayPicker", () => {
+describe('WorkingDayPicker', () => {
   registerWorkingDayPickerLayoutTests();
   registerWorkingDayPickerStateTests();
 });
 
 function registerWorkingDayPickerLayoutTests() {
-  it("renders a full-width Monday–Sunday grid with the three choice headings written once", () => {
+  it('renders a full-width Monday–Sunday grid with the three choice headings written once', () => {
     renderWorkingDayPicker({});
-    expect(screen.getByRole("columnheader", { name: "Weekday" })).toBeInTheDocument();
-    for (const option of ["Full day", "Half day", "Not working"]) {
-      expect(screen.getByRole("columnheader", { name: option })).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Weekday' })).toBeInTheDocument();
+    for (const option of ['Full day', 'Half day', 'Not working']) {
+      expect(screen.getByRole('columnheader', { name: option })).toBeVisible();
     }
-    const table = screen.getByRole("table");
-    expect(table).toHaveClass("w-full");
-    expect(table.parentElement).toHaveClass("min-w-0", "w-full", "max-w-full", "overflow-x-auto");
-    expect(table.closest("fieldset")).toHaveClass("min-w-0");
-    expect(table.parentElement).not.toHaveClass("justify-end");
-    expect(screen.getAllByRole("radio")).toHaveLength(21);
-    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
-      const row = screen.getByRole("row", { name: new RegExp(day) });
-      expect(within(row).getByRole("radio", { name: `${day} Full day` })).toHaveAttribute("type", "radio");
-      expect(within(row).getByRole("radio", { name: `${day} Half day` })).toHaveAttribute("type", "radio");
-      expect(within(row).getByRole("radio", { name: `${day} Not working` })).toHaveAttribute("type", "radio");
+    const table = screen.getByRole('table');
+    expect(table).toHaveClass('w-full');
+    expect(table.parentElement).toHaveClass('min-w-0', 'w-full', 'max-w-full', 'overflow-x-auto');
+    expect(table.closest('fieldset')).toHaveClass('min-w-0');
+    expect(table.parentElement).not.toHaveClass('justify-end');
+    expect(screen.getAllByRole('radio')).toHaveLength(21);
+    for (const day of [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ]) {
+      const row = screen.getByRole('row', { name: new RegExp(day) });
+      expect(within(row).getByRole('radio', { name: `${day} Full day` })).toHaveAttribute(
+        'type',
+        'radio',
+      );
+      expect(within(row).getByRole('radio', { name: `${day} Half day` })).toHaveAttribute(
+        'type',
+        'radio',
+      );
+      expect(within(row).getByRole('radio', { name: `${day} Not working` })).toHaveAttribute(
+        'type',
+        'radio',
+      );
     }
   });
 
-  it("keeps long availability and weekday labels on one line for horizontal overflow", () => {
+  it('keeps long availability and weekday labels on one line for horizontal overflow', () => {
     renderWorkingDayPicker({});
-    for (const header of screen.getAllByRole("columnheader").slice(1)) {
-      expect(header).toHaveClass("whitespace-nowrap");
+    for (const header of screen.getAllByRole('columnheader').slice(1)) {
+      expect(header).toHaveClass('whitespace-nowrap');
     }
-    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
-      expect(screen.getByRole("rowheader", { name: day })).toHaveClass("whitespace-nowrap");
+    for (const day of [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ]) {
+      expect(screen.getByRole('rowheader', { name: day })).toHaveClass('whitespace-nowrap');
     }
   });
 }
 
 function registerWorkingDayPickerStateTests() {
-  it("selects full, half and non-working choices from the persisted subsets", () => {
+  it('selects full, half and non-working choices from the persisted subsets', () => {
     renderWorkingDayPicker({});
-    const monday = screen.getByRole("row", { name: /Monday/ });
-    const wednesday = screen.getByRole("row", { name: /Wednesday/ });
-    const saturday = screen.getByRole("row", { name: /Saturday/ });
-    expect(within(monday).getByRole("radio", { name: "Monday Full day" })).toBeChecked();
-    expect(within(wednesday).getByRole("radio", { name: "Wednesday Half day" })).toBeChecked();
-    expect(within(saturday).getByRole("radio", { name: "Saturday Not working" })).toBeChecked();
+    const monday = screen.getByRole('row', { name: /Monday/ });
+    const wednesday = screen.getByRole('row', { name: /Wednesday/ });
+    const saturday = screen.getByRole('row', { name: /Saturday/ });
+    expect(within(monday).getByRole('radio', { name: 'Monday Full day' })).toBeChecked();
+    expect(within(wednesday).getByRole('radio', { name: 'Wednesday Half day' })).toBeChecked();
+    expect(within(saturday).getByRole('radio', { name: 'Saturday Not working' })).toBeChecked();
   });
 
-  it("moves a weekday between mutually exclusive choices", async () => {
+  it('moves a weekday between mutually exclusive choices', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderWorkingDayPicker({ onChange: onChange });
     await user.click(
-      within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Saturday Half day" }),
+      within(screen.getByRole('row', { name: /Saturday/ })).getByRole('radio', {
+        name: 'Saturday Half day',
+      }),
     );
     expect(onChange).toHaveBeenCalledWith([1, 2, 3, 4, 5, 6], [3, 6]);
   });
 
-  it("does NOT set aria-invalid/aria-describedby on the fieldset when valid", () => {
+  it('does NOT set aria-invalid/aria-describedby on the fieldset when valid', () => {
     const { container } = renderWorkingDayPicker({});
-    const fieldset = getRequiredElement<HTMLFieldSetElement>(container, "fieldset");
-    expect(fieldset).not.toHaveAttribute("aria-invalid");
-    expect(fieldset).not.toHaveAttribute("aria-describedby");
+    const fieldset = getRequiredElement<HTMLFieldSetElement>(container, 'fieldset');
+    expect(fieldset).not.toHaveAttribute('aria-invalid');
+    expect(fieldset).not.toHaveAttribute('aria-describedby');
   });
 
-  it("marks the GROUP errored (aria-invalid + aria-describedby) when invalid, mirroring sibling fields (WCAG 3.3.1)", () => {
+  it('marks the GROUP errored (aria-invalid + aria-describedby) when invalid, mirroring sibling fields (WCAG 3.3.1)', () => {
     const { container } = renderWorkingDayPicker({ onChange: vi.fn(), invalid: true });
-    const fieldset = getRequiredElement<HTMLFieldSetElement>(container, "fieldset");
-    expect(fieldset).toHaveAttribute("aria-invalid", "true");
-    expect(fieldset).toHaveAttribute("aria-describedby", "err-1");
+    const fieldset = getRequiredElement<HTMLFieldSetElement>(container, 'fieldset');
+    expect(fieldset).toHaveAttribute('aria-invalid', 'true');
+    expect(fieldset).toHaveAttribute('aria-describedby', 'err-1');
   });
 }
 
-describe("ColorSwatch", () => {
-  it("renders a span with the given background color", () => {
+describe('ColorSwatch', () => {
+  it('renders a span with the given background color', () => {
     const { container } = render(<ColorSwatch color="#ec4899" />);
     const swatch = container.firstChild as HTMLElement;
     expect(swatch).toBeInTheDocument();
-    expect(swatch.style.backgroundColor).toBe("rgb(236, 72, 153)");
+    expect(swatch.style.backgroundColor).toBe('rgb(236, 72, 153)');
   });
 });

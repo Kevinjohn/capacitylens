@@ -1,45 +1,47 @@
-import { isRecord } from "@capacitylens/shared/lib/isRecord";
-import { CompanySetup } from "./CompanySetup";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
-import { isServerConfigured } from "@/data/apiConfig";
+import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { CompanySetup } from './CompanySetup';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { isServerConfigured } from '@/data/apiConfig';
 import {
   accountClient,
   bindStoredAccountCommandsToIdentity,
   clearStoredAccountCommands,
-} from "@/account/accountClient";
-import { resolvePublicAuthEntry } from "./authEntryRoute";
-import { useStore } from "@/store/useStore";
-import { queryClient } from "@/api/queryClient";
-import { masqueradeController } from "./masqueradeController";
-import { AuthContext } from "./authContext";
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
-import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from "./signOut";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import { buildOpenAuthResult } from "./authStatus";
-import type { AuthStatusResult } from "./authStatus";
-import { fetchAuthStatus } from "./fetchAuthStatus";
-import { AuthLoading } from "./authScreens";
-import { AccessScreen } from "./AccessScreens";
-import { useAuthContextValue } from "./useAuthContextValue";
+} from '@/account/accountClient';
+import { resolvePublicAuthEntry } from './authEntryRoute';
+import { useStore } from '@/store/useStore';
+import { queryClient } from '@/api/queryClient';
+import { masqueradeController } from './masqueradeController';
+import { AuthContext } from './authContext';
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
+import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from './signOut';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import { buildOpenAuthResult } from './authStatus';
+import type { AuthStatusResult } from './authStatus';
+import { fetchAuthStatus } from './fetchAuthStatus';
+import { AuthLoading } from './authScreens';
+import { AccessScreen } from './AccessScreens';
+import { useAuthContextValue } from './useAuthContextValue';
 
 // Auth boundary. In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
 // pure pass-through that performs no fetch at all. In server mode (the default) it asks
 // GET /api/auth/me once at boot; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so interactive auth forms never load unless a login is actually shown.
 
-const LoginScreen = lazy(() => import("./LoginScreen").then((screenModule) => ({ default: screenModule.LoginScreen })));
+const LoginScreen = lazy(() =>
+  import('./LoginScreen').then((screenModule) => ({ default: screenModule.LoginScreen })),
+);
 
-type CheckAuth = (onNull: "report-error" | "keep-previous") => Promise<AuthStatusResult | null>;
+type CheckAuth = (onNull: 'report-error' | 'keep-previous') => Promise<AuthStatusResult | null>;
 
 function useTenantAccessReady(
   status: AuthStatusResult,
-  onTenantAccessReady?: (identitySource: "live" | "open") => void,
+  onTenantAccessReady?: (identitySource: 'live' | 'open') => void,
 ) {
   const tenantAccessSignalled = useRef(false);
-  const ready = status.kind === "pass" && !status.companySetupRequired && !status.accessGate;
-  const identitySource = status.kind === "pass" ? (status.identitySource ?? "open") : "open";
+  const ready = status.kind === 'pass' && !status.companySetupRequired && !status.accessGate;
+  const identitySource = status.kind === 'pass' ? (status.identitySource ?? 'open') : 'open';
   useEffect(() => {
     if (!ready) {
       tenantAccessSignalled.current = false;
@@ -54,30 +56,34 @@ function useTenantAccessReady(
 type UseAuthStatusOptions = { serverMode: boolean };
 function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
   const [status, setStatus] = useState<AuthStatusResult>(
-    serverMode ? { kind: "checking" } : buildOpenAuthResult("off", null),
+    serverMode ? { kind: 'checking' } : buildOpenAuthResult('off', null),
   );
   const authRequestSeq = useRef(0);
   const checkAuth: CheckAuth = useCallback(async (onNull) => {
     const requestId = ++authRequestSeq.current;
     const next = await fetchAuthStatus(() => requestId === authRequestSeq.current);
     if (requestId !== authRequestSeq.current) return null;
-    if (next === null || (next.kind === "error" && onNull === "keep-previous")) {
-      if (next?.kind === "error" && onNull === "keep-previous") {
-        console.warn("AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot");
+    if (next === null || (next.kind === 'error' && onNull === 'keep-previous')) {
+      if (next?.kind === 'error' && onNull === 'keep-previous') {
+        console.warn(
+          'AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot',
+        );
       }
       return next;
     }
-    if (next.kind === "login") {
+    if (next.kind === 'login') {
       clearStoredAccountCommands();
       masqueradeController.invalidate();
       queryClient.clear();
       useStore.getState().clearPlanning();
-    } else if (next.kind === "pass") bindStoredAccountCommandsToIdentity(next.user?.id ?? "auth-off");
+    } else if (next.kind === 'pass') {
+      bindStoredAccountCommandsToIdentity(next.user?.id ?? 'auth-off');
+    }
     setStatus(next);
     return next;
   }, []);
   const refreshAuth = useCallback(async () => {
-    if (serverMode) await checkAuth("keep-previous");
+    if (serverMode) await checkAuth('keep-previous');
   }, [serverMode, checkAuth]);
   return { status, setStatus, checkAuth, refreshAuth };
 }
@@ -95,33 +101,36 @@ function useAuthRevalidation({
 }) {
   useEffect(() => {
     if (!serverMode) return;
-    void checkAuth("report-error");
+    void checkAuth('report-error');
   }, [serverMode, checkAuth]);
   const previousAuthLossVersion = useRef(planningAuthLossVersion);
   useEffect(() => {
-    if (serverMode && planningAuthLossVersion !== previousAuthLossVersion.current) void refreshAuth();
+    if (serverMode && planningAuthLossVersion !== previousAuthLossVersion.current) {
+      void refreshAuth();
+    }
     previousAuthLossVersion.current = planningAuthLossVersion;
   }, [serverMode, planningAuthLossVersion, refreshAuth]);
   useEffect(() => {
     if (!serverMode) return;
     const revalidateVisibleSession = () => {
-      if (document.visibilityState !== "visible") return;
+      if (document.visibilityState !== 'visible') return;
       // A returning tab must reconcile its planning revision after identity has been checked.
       // A refused identity clears the private cache in checkAuth, so it cannot start a read.
-      void checkAuth("keep-previous").then((next) => {
-        if (next?.kind === "pass" && useStore.getState().activeAccountId !== null)
+      void checkAuth('keep-previous').then((next) => {
+        if (next?.kind === 'pass' && useStore.getState().activeAccountId !== null) {
           return useStore.getState().refreshPlanning();
+        }
       });
     };
-    window.addEventListener("focus", revalidateVisibleSession);
-    document.addEventListener("visibilitychange", revalidateVisibleSession);
+    window.addEventListener('focus', revalidateVisibleSession);
+    document.addEventListener('visibilitychange', revalidateVisibleSession);
     const interval = window.setInterval(() => {
       if (useStore.getState().activeAccountId !== null) revalidateVisibleSession();
     }, 60_000);
     return () => {
       window.clearInterval(interval);
-      window.removeEventListener("focus", revalidateVisibleSession);
-      document.removeEventListener("visibilitychange", revalidateVisibleSession);
+      window.removeEventListener('focus', revalidateVisibleSession);
+      document.removeEventListener('visibilitychange', revalidateVisibleSession);
     };
   }, [serverMode, checkAuth]);
 }
@@ -142,11 +151,11 @@ function useAuthInvalidation({
       masqueradeController.invalidate();
       queryClient.clear();
       useStore.getState().clearPlanning();
-      setStatus({ kind: "checking" });
-      void checkAuth("report-error");
+      setStatus({ kind: 'checking' });
+      void checkAuth('report-error');
     };
-    window.addEventListener("storage", onAuthInvalidation);
-    return () => window.removeEventListener("storage", onAuthInvalidation);
+    window.addEventListener('storage', onAuthInvalidation);
+    return () => window.removeEventListener('storage', onAuthInvalidation);
   }, [serverMode, checkAuth, setStatus]);
 }
 
@@ -155,13 +164,13 @@ function LoginBoundary({
   children,
   authContextValue,
 }: {
-  status: Extract<AuthStatusResult, { kind: "login" }>;
+  status: Extract<AuthStatusResult, { kind: 'login' }>;
   children: ReactNode;
   authContextValue: ReturnType<typeof useAuthContextValue>;
 }) {
   const publicEntry = resolvePublicAuthEntry(window.location.pathname);
-  if (publicEntry === "password-reset") return <>{children}</>;
-  if (publicEntry === "invitation" || publicEntry === "email-verification") {
+  if (publicEntry === 'password-reset') return <>{children}</>;
+  if (publicEntry === 'invitation' || publicEntry === 'email-verification') {
     return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
   }
   return (
@@ -211,7 +220,7 @@ export function AuthProvider({
 }: {
   children: ReactNode;
   /** Starts tenant-data hydration after /me admits access; the callback must be idempotent under StrictMode effect replay. */
-  onTenantAccessReady?: (identitySource: "live" | "open") => void;
+  onTenantAccessReady?: (identitySource: 'live' | 'open') => void;
 }) {
   return (
     <AuthenticatedAppProvider {...(onTenantAccessReady ? { onTenantAccessReady } : {})}>
@@ -225,7 +234,7 @@ function AuthenticatedAppProvider({
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  onTenantAccessReady?: (identitySource: "live" | "open") => void;
+  onTenantAccessReady?: (identitySource: 'live' | 'open') => void;
 }) {
   const serverMode = isServerConfigured();
   const planningAuthLossVersion = useStore((state) => state.planningAuthLossVersion);
@@ -235,7 +244,7 @@ function AuthenticatedAppProvider({
   useAuthInvalidation({ serverMode, checkAuth, setStatus });
 
   useEffect(() => {
-    if (status.kind === "error") {
+    if (status.kind === 'error') {
       document.title = `${m.auth_verify_session_failed()} · ${APP_NAME}`;
     }
   }, [status.kind]);
@@ -246,19 +255,19 @@ function AuthenticatedAppProvider({
 
   const authContextValue = useAuthContextValue(status, refreshAuth, signOut);
 
-  if (status.kind === "checking") return <AuthLoading message={m.auth_checking_session()} />;
-  if (status.kind === "error") {
+  if (status.kind === 'checking') return <AuthLoading message={m.auth_checking_session()} />;
+  if (status.kind === 'error') {
     return (
       <AuthError
         message={status.message}
         retry={() => {
-          setStatus({ kind: "checking" });
-          void checkAuth("report-error");
+          setStatus({ kind: 'checking' });
+          void checkAuth('report-error');
         }}
       />
     );
   }
-  if (status.kind === "login") {
+  if (status.kind === 'login') {
     return (
       <LoginBoundary status={status} authContextValue={authContextValue}>
         {children}
@@ -267,8 +276,9 @@ function AuthenticatedAppProvider({
   }
   // The address confirmation page stays reachable from the limited screen that asks for it.
   const confirmingAddress =
-    status.accessGate === "verify-email" && resolvePublicAuthEntry(window.location.pathname) === "email-verification";
-  if (status.accessGate && !confirmingAddress)
+    status.accessGate === 'verify-email' &&
+    resolvePublicAuthEntry(window.location.pathname) === 'email-verification';
+  if (status.accessGate && !confirmingAddress) {
     return (
       <AccessScreen
         gate={status.accessGate}
@@ -276,34 +286,52 @@ function AuthenticatedAppProvider({
         {...(status.admission ? { admission: status.admission } : {})}
         onSignOut={signOut}
         onRefresh={async () => {
-          await checkAuth("report-error");
+          await checkAuth('report-error');
         }}
       />
     );
-  if (confirmingAddress)
-    return <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>;
-  if (status.companySetupRequired)
+  }
+  if (confirmingAddress) {
+    return (
+      <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>
+    );
+  }
+  if (status.companySetupRequired) {
     return (
       <CompanySetup
         onSignOut={signOut}
         onConflict={async () => {
           // A conflict may be another tab's success or an installation that this identity cannot own.
           const response = await accountClient.listWorkspaces();
-          if (!response.ok) throw new Error("Could not verify company access. Refresh the page to try again.");
+          if (!response.ok) {
+            throw new Error('Could not verify company access. Refresh the page to try again.');
+          }
           const companies: unknown = await response.json();
-          const company: unknown = Array.isArray(companies) && companies.length === 1 ? companies[0] : null;
-          if (!isRecord(company) || company.role !== "owner" || typeof company.id !== "string") return false;
-          const next = await checkAuth("report-error");
-          if (!next || next.kind !== "pass" || next.companySetupRequired)
-            throw new Error("Could not refresh company access. Refresh the page to try again.");
+          const company: unknown =
+            Array.isArray(companies) && companies.length === 1 ? companies[0] : null;
+          if (!isRecord(company) || company.role !== 'owner' || typeof company.id !== 'string') {
+            return false;
+          }
+          const next = await checkAuth('report-error');
+          if (!next || next.kind !== 'pass' || next.companySetupRequired) {
+            throw new Error('Could not refresh company access. Refresh the page to try again.');
+          }
           return true;
         }}
         onCreated={async () => {
-          const next = await checkAuth("report-error");
-          if (!next || next.kind === "error" || (next.kind === "pass" && next.companySetupRequired))
-            throw new Error("Company created; session refresh failed. Try refreshing the page.");
+          const next = await checkAuth('report-error');
+          if (
+            !next ||
+            next.kind === 'error' ||
+            (next.kind === 'pass' && next.companySetupRequired)
+          ) {
+            throw new Error('Company created; session refresh failed. Try refreshing the page.');
+          }
         }}
       />
     );
-  return <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>;
+  }
+  return (
+    <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>
+  );
 }

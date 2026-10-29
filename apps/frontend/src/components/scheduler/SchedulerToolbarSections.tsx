@@ -1,34 +1,34 @@
-import { useId, useState } from "react";
-import { ListFilter, Redo2, Trash2, Undo2 } from "lucide-react";
-import { m } from "@/i18n";
-import type { StoreState } from "@/store/useStore";
-import { hasLensFilter } from "@/store/useStore";
-import { buildRedoShortcut, buildUndoShortcut } from "@/lib/keyboardShortcuts";
-import { SegmentedControl, TogglePill } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { FilterSelect } from "./FilterSelect";
-import type { SchedulerDensity } from "./layout";
-import type { buildFilterOptions } from "./toolbarFilterOptions";
-import { ToolbarActivityFilter } from "./ToolbarActivityFilter";
-import { ToolbarDateNavigation } from "./ToolbarDateNavigation";
-import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from "@/lib/localQueryInput";
+import { useId, useState } from 'react';
+import { ListFilter, Redo2, Trash2, Undo2 } from 'lucide-react';
+import { m } from '@/i18n';
+import type { StoreState } from '@/store/useStore';
+import { hasLensFilter } from '@/store/useStore';
+import { buildRedoShortcut, buildUndoShortcut } from '@/lib/keyboardShortcuts';
+import { SegmentedControl, TogglePill } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import { FilterSelect } from './FilterSelect';
+import type { SchedulerDensity } from './layout';
+import type { buildFilterOptions } from './toolbarFilterOptions';
+import { ToolbarActivityFilter } from './ToolbarActivityFilter';
+import { ToolbarDateNavigation } from './ToolbarDateNavigation';
+import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/localQueryInput';
 
 type Options = ReturnType<typeof buildFilterOptions>;
 interface ChromeProps {
   density: SchedulerDensity;
-  zoom: StoreState["ui"]["zoom"];
-  setZoom: StoreState["setZoom"];
-  panDays: StoreState["panDays"];
-  goToToday: StoreState["goToToday"];
+  zoom: StoreState['ui']['zoom'];
+  setZoom: StoreState['setZoom'];
+  panDays: StoreState['panDays'];
+  goToToday: StoreState['goToToday'];
   canEdit: boolean;
   canUndo: boolean;
   canRedo: boolean;
-  undo: StoreState["undoPlanning"];
-  redo: StoreState["redoPlanning"];
+  undo: StoreState['undoPlanning'];
+  redo: StoreState['redoPlanning'];
   runHistoryAction: (action: () => Promise<unknown>) => void;
   filtersOpen: boolean;
   setFiltersOpen: (value: boolean | ((open: boolean) => boolean)) => void;
@@ -36,15 +36,15 @@ interface ChromeProps {
 /** Filter values, options, and callbacks used by toolbar controls. */
 export interface FiltersProps extends Options {
   disciplinesEnabled: boolean;
-  filters: StoreState["ui"]["filters"];
+  filters: StoreState['ui']['filters'];
   filtersActive: boolean;
   canEdit: boolean;
-  drawMode: StoreState["ui"]["drawMode"];
-  setDrawMode: StoreState["setDrawMode"];
+  drawMode: StoreState['ui']['drawMode'];
+  setDrawMode: StoreState['setDrawMode'];
   searchInput: string;
   onSearchChange: (value: string) => void;
   onClear: () => void;
-  setToolbarFilters: StoreState["setFilters"];
+  setToolbarFilters: StoreState['setFilters'];
 }
 
 /** Lays out the visible schedule controls at the current width. */
@@ -166,24 +166,34 @@ function ViewFilters(props: FiltersProps) {
           value={props.drawMode}
           onChange={props.setDrawMode}
           options={[
-            { value: "work", label: m.scheduler_draw_work(), title: m.scheduler_draw_work_title() },
-            { value: "timeoff", label: m.scheduler_draw_timeoff(), title: m.scheduler_draw_timeoff_title() },
+            { value: 'work', label: m.scheduler_draw_work(), title: m.scheduler_draw_work_title() },
+            {
+              value: 'timeoff',
+              label: m.scheduler_draw_timeoff(),
+              title: m.scheduler_draw_timeoff_title(),
+            },
           ]}
         />
       )}
       {hasLensFilter(props.filters) && (
-        <Field orientation="horizontal" className="w-auto gap-1.5" title={m.scheduler_show_unallocated_title()}>
+        <Field
+          orientation="horizontal"
+          className="w-auto gap-1.5"
+          title={m.scheduler_show_unallocated_title()}
+        >
           <Checkbox
             id="show-unmatched"
             checked={props.filters.showUnmatched}
-            onCheckedChange={(checked) => props.setToolbarFilters({ showUnmatched: checked === true })}
+            onCheckedChange={(checked) =>
+              props.setToolbarFilters({ showUnmatched: checked === true })
+            }
           />
           <FieldLabel htmlFor="show-unmatched">{m.scheduler_show_unallocated()}</FieldLabel>
         </Field>
       )}
       <Button
         size="sm"
-        variant={props.filtersActive ? "danger-soft" : "outline"}
+        variant={props.filtersActive ? 'danger-soft' : 'outline'}
         onClick={props.onClear}
         disabled={!props.filtersActive}
       >
@@ -221,9 +231,14 @@ export function SchedulerToolbarFilters(props: FiltersProps) {
           aria-describedby={searchTooLong ? searchErrorId : undefined}
           className="h-8 w-full"
         />
-        {searchTooLong && <FieldError id={searchErrorId}>{m.validation_text_too_long()}</FieldError>}
+        {searchTooLong && (
+          <FieldError id={searchErrorId}>{m.validation_text_too_long()}</FieldError>
+        )}
       </div>
-      <div data-testid="scheduler-filter-controls" className="ml-auto flex flex-wrap items-center justify-end gap-2">
+      <div
+        data-testid="scheduler-filter-controls"
+        className="ml-auto flex flex-wrap items-center justify-end gap-2"
+      >
         <EntityFilters {...props} />
         <ViewFilters {...props} />
       </div>

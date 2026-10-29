@@ -1,11 +1,23 @@
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import type { Allocation, Closure, ID, ISODate, TimeOff } from "@capacitylens/shared/types/entities";
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import type {
+  Allocation,
+  Closure,
+  ID,
+  ISODate,
+  TimeOff,
+} from '@capacitylens/shared/types/entities';
 
 const reportedInvalidScheduleRows = new WeakSet<object>();
 
 /** Return whether a schedule row's range can safely enter date indexing and layout paths. */
-export function hasRenderableDateRange(row: { id: string; startDate: ISODate; endDate: ISODate }): boolean {
-  return isValidISODate(row.startDate) && isValidISODate(row.endDate) && row.startDate <= row.endDate;
+export function hasRenderableDateRange(row: {
+  id: string;
+  startDate: ISODate;
+  endDate: ISODate;
+}): boolean {
+  return (
+    isValidISODate(row.startDate) && isValidISODate(row.endDate) && row.startDate <= row.endDate
+  );
 }
 
 /** Report an omitted corrupt row once for its stable object identity. */

@@ -1,5 +1,5 @@
-import { FieldLabel } from "@/components/ui/field";
-import { m } from "@/i18n";
+import { FieldLabel } from '@/components/ui/field';
+import { m } from '@/i18n';
 
 /** Marks a required field label while preserving its accessible name. */
 export function RequiredFieldLabel({

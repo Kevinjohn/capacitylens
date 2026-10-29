@@ -4,16 +4,16 @@ import type {
   KeyboardEventHandler,
   MouseEventHandler,
   PointerEventHandler,
-} from "react";
-import { Repeat2 } from "lucide-react";
-import { m } from "@/i18n";
-import { formatDayMonthEndpoint, formatDayMonthRange } from "@/lib/dateDisplay";
-import { resolveAllocationStatusAnnotation } from "@/lib/metadata";
-import { TooltipContent, TooltipRoot, TooltipTrigger } from "@/components/ui/tooltip";
-import { LAYOUT } from "./layout";
-import type { BarLayout } from "./schedulerModel";
-import { buildVisibleSpanInsets } from "./visibleSpanInsets";
-import { roundToHundredths } from "@/lib/roundToHundredths";
+} from 'react';
+import { Repeat2 } from 'lucide-react';
+import { m } from '@/i18n';
+import { formatDayMonthEndpoint, formatDayMonthRange } from '@/lib/dateDisplay';
+import { resolveAllocationStatusAnnotation } from '@/lib/metadata';
+import { TooltipContent, TooltipRoot, TooltipTrigger } from '@/components/ui/tooltip';
+import { LAYOUT } from './layout';
+import type { BarLayout } from './schedulerModel';
+import { buildVisibleSpanInsets } from './visibleSpanInsets';
+import { roundToHundredths } from '@/lib/roundToHundredths';
 
 interface AllocationBarViewProps {
   bar: BarLayout;
@@ -21,7 +21,7 @@ interface AllocationBarViewProps {
   background: string;
   ink: string;
   canEdit: boolean;
-  cursor: CSSProperties["cursor"];
+  cursor: CSSProperties['cursor'];
   dragging: boolean;
   hideHours: boolean;
   insetLeft: number;
@@ -40,11 +40,12 @@ interface AllocationBarViewProps {
   onPointerDown: PointerEventHandler<HTMLDivElement> | undefined;
 }
 
-const BAR_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");
+const BAR_LABEL_INSETS = buildVisibleSpanInsets('x', 'var(--bar-left)', 'var(--bar-width)');
 
 const allocationPopoverId = (bar: BarLayout) => `allocation-popover-${bar.allocation.id}`;
 
-const gripClass = "group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center";
+const gripClass =
+  'group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center';
 const gripLine = (
   <span
     aria-hidden
@@ -58,7 +59,7 @@ function BarContents({
   hideHours,
   labelText,
   showSeriesIcon,
-}: Pick<AllocationBarViewProps, "bar" | "canEdit" | "hideHours" | "labelText" | "showSeriesIcon">) {
+}: Pick<AllocationBarViewProps, 'bar' | 'canEdit' | 'hideHours' | 'labelText' | 'showSeriesIcon'>) {
   return (
     <>
       {canEdit && (
@@ -66,13 +67,13 @@ function BarContents({
           {gripLine}
         </span>
       )}
-      {bar.allocation.status === "tentative" && (
+      {bar.allocation.status === 'tentative' && (
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "repeating-linear-gradient(45deg, color-mix(in oklab, currentColor 16%, transparent) 0 4px, transparent 4px 8px)",
+              'repeating-linear-gradient(45deg, color-mix(in oklab, currentColor 16%, transparent) 0 4px, transparent 4px 8px)',
           }}
         />
       )}
@@ -84,12 +85,18 @@ function BarContents({
         className="pointer-events-none absolute inset-y-0 flex min-w-0 items-center justify-center gap-1 px-2.5"
         style={{ left: BAR_LABEL_INSETS.leading, right: BAR_LABEL_INSETS.trailing }}
       >
-        {showSeriesIcon && <Repeat2 aria-hidden data-testid="allocation-series-icon" className="size-3 shrink-0" />}
+        {showSeriesIcon && (
+          <Repeat2 aria-hidden data-testid="allocation-series-icon" className="size-3 shrink-0" />
+        )}
         <span className="truncate">
-          {bar.allocation.status === "completed" ? "✓ " : ""}
+          {bar.allocation.status === 'completed' ? '✓ ' : ''}
           {labelText}
-          {hideHours ? "" : m.scheduler_bar_hours_suffix({ hours: roundToHundredths(bar.allocation.hoursPerDay) })}
-          {bar.allocation.note ? " •" : ""}
+          {hideHours
+            ? ''
+            : m.scheduler_bar_hours_suffix({
+                hours: roundToHundredths(bar.allocation.hoursPerDay),
+              })}
+          {bar.allocation.note ? ' •' : ''}
         </span>
       </span>
       {canEdit && (
@@ -108,7 +115,7 @@ function BarTrigger(props: AllocationBarViewProps) {
       data-testid="allocation-bar"
       data-alloc-id={bar.allocation.id}
       data-status={bar.allocation.status}
-      role={canEdit ? "button" : "img"}
+      role={canEdit ? 'button' : 'img'}
       tabIndex={0}
       aria-label={props.ariaLabel}
       aria-describedby={props.popoverOpen && !dragging ? allocationPopoverId(bar) : undefined}
@@ -118,25 +125,25 @@ function BarTrigger(props: AllocationBarViewProps) {
       onFocus={props.onFocus}
       onBlur={props.onBlur}
       onKeyDown={props.onKeyDown}
-      className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md ${dragging ? "shadow-lg ring-black/10" : ""}`}
+      className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md ${dragging ? 'shadow-lg ring-black/10' : ''}`}
       style={{
         left: props.insetLeft,
         width: props.insetWidth,
 
-        ["--bar-left" as string]: `${props.insetLeft}px`,
-        ["--bar-width" as string]: `${props.insetWidth}px`,
+        ['--bar-left' as string]: `${props.insetLeft}px`,
+        ['--bar-width' as string]: `${props.insetWidth}px`,
         top: bar.top,
         height: LAYOUT.barHeight,
         backgroundColor: background,
         color: ink,
-        border: bar.allocation.status === "tentative" ? `1px dashed ${ink}` : undefined,
+        border: bar.allocation.status === 'tentative' ? `1px dashed ${ink}` : undefined,
         transform: translateY ? `translateY(${translateY}px)` : undefined,
-        zIndex: dragging ? "var(--z-index-drag)" : undefined,
+        zIndex: dragging ? 'var(--z-index-drag)' : undefined,
 
-        scrollMarginTop: "var(--sched-sticky-top, 44px)",
+        scrollMarginTop: 'var(--sched-sticky-top, 44px)',
         scrollMarginLeft: LAYOUT.leftColWidth,
         cursor: props.cursor,
-        touchAction: canEdit ? "none" : undefined,
+        touchAction: canEdit ? 'none' : undefined,
       }}
     >
       <TooltipTrigger asChild>
@@ -158,7 +165,10 @@ function BarPopover({
   hideHours,
   popoverFooter,
   showTaskFieldInSchedule,
-}: Pick<AllocationBarViewProps, "background" | "bar" | "hideHours" | "popoverFooter" | "showTaskFieldInSchedule">) {
+}: Pick<
+  AllocationBarViewProps,
+  'background' | 'bar' | 'hideHours' | 'popoverFooter' | 'showTaskFieldInSchedule'
+>) {
   const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status);
   return (
     <TooltipContent
@@ -188,20 +198,28 @@ function BarPopover({
       )}
       <div className="text-muted-foreground">
         {formatDayMonthRange(bar.allocation.startDate, bar.allocation.endDate)}
-        {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: roundToHundredths(bar.allocation.hoursPerDay) })}
-        {statusAnnotation ? m.scheduler_bar_pop_status({ status: statusAnnotation }) : ""}
+        {hideHours
+          ? ''
+          : m.scheduler_bar_pop_hours({ hours: roundToHundredths(bar.allocation.hoursPerDay) })}
+        {statusAnnotation ? m.scheduler_bar_pop_status({ status: statusAnnotation }) : ''}
       </div>
       {bar.seriesEnd && (
         <div className="mt-1 text-muted-foreground">
           <Repeat2 aria-hidden className="mr-1 inline size-3" />
-          {m.scheduler_bar_pop_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.startDate) })}
+          {m.scheduler_bar_pop_series({
+            end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.startDate),
+          })}
         </div>
       )}
       {showTaskFieldInSchedule && bar.allocation.task && (
-        <div className="mt-1 break-words border-t border-line pt-1 text-muted-foreground">{bar.allocation.task}</div>
+        <div className="mt-1 break-words border-t border-line pt-1 text-muted-foreground">
+          {bar.allocation.task}
+        </div>
       )}
       {bar.allocation.note && (
-        <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>
+        <div className="mt-1 border-t border-line pt-1 text-muted-foreground">
+          {bar.allocation.note}
+        </div>
       )}
     </TooltipContent>
   );

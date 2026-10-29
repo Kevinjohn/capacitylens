@@ -1,8 +1,11 @@
-import { useState } from "react";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import { clearCapacitylensLocalStorage, readCapacitylensLocalStorage } from "@/data/clearLocalStorage";
-import { downloadTextFile } from "@/lib/download";
-import { m } from "@/i18n";
+import { useState } from 'react';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import {
+  clearCapacitylensLocalStorage,
+  readCapacitylensLocalStorage,
+} from '@/data/clearLocalStorage';
+import { downloadTextFile } from '@/lib/download';
+import { m } from '@/i18n';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,9 +16,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "./ui/alert-dialog";
-import { Button } from "./ui/button";
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
+} from './ui/alert-dialog';
+import { Button } from './ui/button';
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 
 interface StorageRecoveryProps {
   onDownload?: () => void;
@@ -27,7 +30,7 @@ interface StorageResetDependencies {
   reload?: () => void;
 }
 
-type StorageRecoveryError = "download" | "reset";
+type StorageRecoveryError = 'download' | 'reset';
 
 interface StorageRecoveryActionsProps {
   resetting: boolean;
@@ -41,19 +44,22 @@ interface StorageRecoveryActionsProps {
 // eslint-disable-next-line react-refresh/only-export-components
 export class StorageResetError extends Error {
   constructor(cause?: unknown) {
-    super("Browser storage could not be reset.", { cause });
-    this.name = "StorageResetError";
+    super('Browser storage could not be reset.', { cause });
+    this.name = 'StorageResetError';
   }
 }
 
 function downloadRawStorage(): void {
   const recoveryCopy = {
-    format: "local-storage-recovery-v1",
+    format: 'local-storage-recovery-v1',
     createdAt: new Date().toISOString(),
     entries: readCapacitylensLocalStorage(),
   };
   const date = recoveryCopy.createdAt.slice(0, 10);
-  downloadTextFile(`${APP_NAME.toLowerCase()}-recovery-${date}.json`, JSON.stringify(recoveryCopy, null, 2));
+  downloadTextFile(
+    `${APP_NAME.toLowerCase()}-recovery-${date}.json`,
+    JSON.stringify(recoveryCopy, null, 2),
+  );
 }
 
 function captureAttempt<T>(operation: () => T | Promise<T>): Promise<T> {
@@ -80,7 +86,7 @@ export async function resetLocalStorage({
 }
 
 function resolveErrorMessage(error: StorageRecoveryError): string {
-  if (error === "download") return m.storage_download_error();
+  if (error === 'download') return m.storage_download_error();
   return m.storage_reset_error();
 }
 
@@ -99,11 +105,17 @@ function StorageRecoveryActions({ resetting, download, reset }: StorageRecoveryA
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{m.storage_reset_confirm_title()}</AlertDialogTitle>
-            <AlertDialogDescription>{m.storage_reset_confirm_message({ app: APP_NAME })}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {m.storage_reset_confirm_message({ app: APP_NAME })}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={resetting}>{m.form_cancel()}</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={resetting} onClick={() => void reset()}>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={resetting}
+              onClick={() => void reset()}
+            >
               {m.storage_reset_confirm_label()}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -127,7 +139,7 @@ export function StorageRecovery({
       setError(null);
     } catch {
       // Expose a failed backup download without advancing into reset.
-      setError("download");
+      setError('download');
     }
   };
 
@@ -139,7 +151,7 @@ export function StorageRecovery({
       setResetting(false);
     } catch {
       // Surface a failed reset and release busy state so recovery remains usable.
-      setError("reset");
+      setError('reset');
       setResetting(false);
     }
   };

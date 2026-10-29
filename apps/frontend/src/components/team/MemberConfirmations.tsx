@@ -1,14 +1,14 @@
-import type { Dispatch, SetStateAction } from "react";
-import { m } from "@/i18n";
-import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamMember } from "@/account/teamAccessClient";
-import { buildMemberConfirmationCopy, resolveMemberLabel } from "./memberConfirmationCopy";
-import type { MemberConfirmation } from "./memberConfirmationCopy";
+import type { Dispatch, SetStateAction } from 'react';
+import { m } from '@/i18n';
+import type { Role } from '@capacitylens/shared/domain/access';
+import type { TeamMember } from '@/account/teamAccessClient';
+import { buildMemberConfirmationCopy, resolveMemberLabel } from './memberConfirmationCopy';
+import type { MemberConfirmation } from './memberConfirmationCopy';
 
-export type { MemberConfirmation, MemberConfirmationAction } from "./memberConfirmationCopy";
-import { resolveRoleSummary } from "@/lib/accessCopy";
-import { ConfirmDialog, Modal, SelectField } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
+export type { MemberConfirmation, MemberConfirmationAction } from './memberConfirmationCopy';
+import { resolveRoleSummary } from '@/lib/accessCopy';
+import { ConfirmDialog, Modal, SelectField } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
 
 /** A pending role change for one team member. */
 export type MemberRoleEdit = { member: TeamMember; nextRole: Role };
@@ -62,7 +62,9 @@ function MemberRoleEditDialog({
           label={m.settings_member_role_label()}
           ariaLabel={m.settings_member_role_aria({ member: resolveMemberLabel(roleEdit.member) })}
           value={roleEdit.nextRole}
-          onChange={(value) => setRoleEdit((current) => (current ? { ...current, nextRole: value as Role } : current))}
+          onChange={(value) =>
+            setRoleEdit((current) => (current ? { ...current, nextRole: value as Role } : current))
+          }
           options={roleOptions}
           disabled={busy}
           layout="label-control"

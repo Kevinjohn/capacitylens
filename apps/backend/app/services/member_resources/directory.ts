@@ -1,16 +1,16 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 
 /** Keeps retained or archived resources identifiable in the member directory. */
 export interface MemberResourceLinkProjection {
-  resourceId: string
-  revision: string
-  resourceName: string | null
-  resourceStatus: 'active' | 'archived'
+  resourceId: string;
+  revision: string;
+  resourceName: string | null;
+  resourceStatus: 'active' | 'archived';
 }
 
 /** Makes an absent link explicit for every selected member. */
 export interface MemberResourceFields {
-  resourceLink: MemberResourceLinkProjection | null
+  resourceLink: MemberResourceLinkProjection | null;
 }
 
 /** Reads same-company person candidates for an administrator's member directory. */
@@ -20,8 +20,8 @@ export async function readResourceCandidates(trx: TransactionClientContract, acc
     .where({ account_id: accountId, kind: 'person' })
     .whereNull('archived_at')
     .whereNull('deleted_at')
-    .select('id', 'name', 'role')
-  return rows.map((row) => ({ resourceId: String(row.id), label: String(row.name ?? row.role) }))
+    .select('id', 'name', 'role');
+  return rows.map((row) => ({ resourceId: String(row.id), label: String(row.name ?? row.role) }));
 }
 
 /** Reads a selected set of same-company association fields, keyed by member ID. */
@@ -30,7 +30,7 @@ export async function readMemberResourceFields(
   accountId: string,
   userIds: string[]
 ) {
-  if (userIds.length === 0) return new Map<string, MemberResourceFields>()
+  if (userIds.length === 0) return new Map<string, MemberResourceFields>();
   const links = await trx
     .from('account_member_resources as link')
     .leftJoin('resources as resource', function () {
@@ -38,7 +38,7 @@ export async function readMemberResourceFields(
         'resource.account_id',
         '=',
         'link.account_id'
-      )
+      );
     })
     .where('link.account_id', accountId)
     .whereIn('link.user_id', userIds)
@@ -49,9 +49,9 @@ export async function readMemberResourceFields(
       'resource.name',
       'resource.archived_at',
       'resource.deleted_at'
-    )
-  const result = new Map<string, MemberResourceFields>()
-  for (const userId of userIds) result.set(userId, { resourceLink: null })
+    );
+  const result = new Map<string, MemberResourceFields>();
+  for (const userId of userIds) result.set(userId, { resourceLink: null });
   for (const link of links) {
     result.set(String(link.user_id), {
       resourceLink: {
@@ -60,7 +60,7 @@ export async function readMemberResourceFields(
         resourceName: link.name ?? null,
         resourceStatus: link.deleted_at || link.archived_at ? 'archived' : 'active',
       },
-    })
+    });
   }
-  return result
+  return result;
 }

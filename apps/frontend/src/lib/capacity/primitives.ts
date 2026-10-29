@@ -1,8 +1,8 @@
-import { allocationWorksOnDay } from "@capacitylens/shared/lib/dateMath";
-import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { FULL_DAY_HOURS } from "@capacitylens/shared/types/entities";
-import type { Allocation } from "@capacitylens/shared/types/entities";
+import { allocationWorksOnDay } from '@capacitylens/shared/lib/dateMath';
+import { blockHoursPerDay } from '@capacitylens/shared/lib/schedulingDays';
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
+import type { Allocation } from '@capacitylens/shared/types/entities';
 
 /** Add validated hourly load without losing the rounding residual of each addition.
  * The nonoverlapping components retain the exact sum of the supplied binary numbers.
@@ -32,9 +32,12 @@ const UNIT_ROUNDOFF = 2 ** -53;
  * Components are the exact expansion from `addCapacityHours`; a scalar is one component.
  */
 export function hasOverCapacity(allocated: number | readonly number[], available: number): boolean {
-  const components = typeof allocated === "number" ? [allocated] : allocated;
+  const components = typeof allocated === 'number' ? [allocated] : allocated;
   const total = components.reduce((sum, component) => sum + component, 0);
-  const excess = addCapacityHours(components, -available).reduce((sum, component) => sum + component, 0);
+  const excess = addCapacityHours(components, -available).reduce(
+    (sum, component) => sum + component,
+    0,
+  );
   return excess > (Math.abs(total) + Math.abs(available)) * UNIT_ROUNDOFF;
 }
 
@@ -47,9 +50,15 @@ interface ApplyCapacityModeInput {
 }
 
 /** Blocks carry placement but no hourly load. Reuse this projection across every capacity surface. */
-export function applyCapacityMode({ allocations, blocksMode }: ApplyCapacityModeInput): Allocation[] {
+export function applyCapacityMode({
+  allocations,
+  blocksMode,
+}: ApplyCapacityModeInput): Allocation[] {
   return blocksMode
-    ? allocations.map((allocation) => ({ ...allocation, hoursPerDay: BLOCK_PROJECTED_HOURS_PER_DAY }))
+    ? allocations.map((allocation) => ({
+        ...allocation,
+        hoursPerDay: BLOCK_PROJECTED_HOURS_PER_DAY,
+      }))
     : allocations;
 }
 
@@ -83,6 +92,6 @@ export function hasAllocationLoadOnDay({
   dayIsWorking,
 }: HasAllocationLoadOnDayInput): boolean {
   if (ignoreWorkingDays) return true;
-  if (effectiveWeek.kind === "none") return false;
+  if (effectiveWeek.kind === 'none') return false;
   return allocationWorksOnDay(effectiveWeek.days, false, dayIsWorking);
 }

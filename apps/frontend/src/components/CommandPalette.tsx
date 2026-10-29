@@ -1,24 +1,24 @@
-import { useId, useMemo, useState, useLayoutEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useStore } from "@/store/useStore";
+import { useId, useMemo, useState, useLayoutEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useStore } from '@/store/useStore';
 import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
   resolveCapacityOverviewAccess,
-} from "@/store/selectors";
-import { usePermissionStatus, useRole } from "@/auth/permissionContext";
-import { resolveCapacityOverviewAccessDecision } from "@/auth/capacityOverviewAccess";
-import { useActiveScopedData } from "@/store/useScopedData";
-import { m } from "@/i18n";
-import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
-import { cn } from "@/lib/cn";
-import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
-import { buildPaletteItems } from "./buildPaletteItems";
-import type { PaletteItem } from "./buildPaletteItems";
-import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
-import { FieldError } from "@/components/ui/field";
-import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from "@/lib/localQueryInput";
+} from '@/store/selectors';
+import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { resolveCapacityOverviewAccessDecision } from '@/auth/capacityOverviewAccess';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { m } from '@/i18n';
+import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from './ui/command';
+import { cn } from '@/lib/cn';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { buildPaletteItems } from './buildPaletteItems';
+import type { PaletteItem } from './buildPaletteItems';
+import { useDiagnosticsAccessDecision } from './diagnostics/useDiagnosticsAccessDecision';
+import { FieldError } from '@/components/ui/field';
+import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/localQueryInput';
 
 function groupPaletteItems(items: PaletteItem[]) {
   const sections: { title: string; items: PaletteItem[] }[] = [];
@@ -38,11 +38,16 @@ function useActiveDescendant(input: HTMLInputElement | null, list: HTMLDivElemen
     if (!input || !list) return;
     const sync = () => {
       const activeId = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]')?.id;
-      if (activeId) input.setAttribute("aria-activedescendant", activeId);
-      else input.removeAttribute("aria-activedescendant");
+      if (activeId) input.setAttribute('aria-activedescendant', activeId);
+      else input.removeAttribute('aria-activedescendant');
     };
     const observer = new MutationObserver(sync);
-    observer.observe(list, { attributes: true, attributeFilter: ["aria-selected"], childList: true, subtree: true });
+    observer.observe(list, {
+      attributes: true,
+      attributeFilter: ['aria-selected'],
+      childList: true,
+      subtree: true,
+    });
     sync();
     return () => observer.disconnect();
   }, [input, list]);
@@ -55,15 +60,27 @@ function usePaletteItems(query: string, onClose: () => void) {
   const jumpToResource = useStore((state) => state.jumpToResource);
   const setFilters = useStore((state) => state.setFilters);
   const data = useActiveScopedData();
-  const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
-  const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
-  const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
+  const disciplinesEnabled = useStore((state) =>
+    hasDisciplinesEnabled(state.data, state.activeAccountId),
+  );
+  const placeholdersEnabled = useStore((state) =>
+    hasPlaceholdersEnabled(state.data, state.activeAccountId),
+  );
+  const externalEnabled = useStore((state) =>
+    hasExternalResourcesEnabled(state.data, state.activeAccountId),
+  );
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
+  const overviewAccess = useStore((state) =>
+    resolveCapacityOverviewAccess(state.data, state.activeAccountId),
+  );
   const showCapacityOverview =
-    resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed";
-  const showDiagnostics = useDiagnosticsAccessDecision() === "allowed";
+    resolveCapacityOverviewAccessDecision({
+      role,
+      status: permissionStatus,
+      access: overviewAccess,
+    }) === 'allowed';
+  const showDiagnostics = useDiagnosticsAccessDecision() === 'allowed';
   return useMemo(
     () =>
       buildPaletteItems({
@@ -115,7 +132,9 @@ function PaletteResults({
   return (
     <CommandList ref={setListElement} label={m.palette_results_label()}>
       {items.length === 0 && (
-        <div className="px-4 py-6 text-center text-sm text-faint">{m.palette_no_results({ query })}</div>
+        <div className="px-4 py-6 text-center text-sm text-faint">
+          {m.palette_no_results({ query })}
+        </div>
       )}
       {sections.map((section) => (
         <CommandGroup key={section.title} heading={section.title}>
@@ -130,8 +149,8 @@ function PaletteResults({
               {item.sublabel && (
                 <span
                   className={cn(
-                    "shrink-0 truncate text-xs",
-                    item.id === activeValue ? "text-muted-foreground" : "text-faint",
+                    'shrink-0 truncate text-xs',
+                    item.id === activeValue ? 'text-muted-foreground' : 'text-faint',
                   )}
                 >
                   {item.sublabel}
@@ -153,13 +172,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // jump targets, their schedule row is hidden, so jumping to it would scroll to nothing.
   // Active Internal projects remain searchable. Internal activities open the management list.
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [queryTooLong, setQueryTooLong] = useState(false);
   const queryErrorId = useId();
   // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
   // know which row is active so we can drive the input's `aria-activedescendant` (see below); cmdk
   // routes its own pointer/keyboard moves through onValueChange back into this state.
-  const [activeValue, setActiveValue] = useState("");
+  const [activeValue, setActiveValue] = useState('');
 
   // Portal-backed cmdk nodes arrive after this component's first commit. Callback-ref state makes
   // their availability an explicit effect dependency for the active-descendant repair below.
@@ -181,7 +200,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       <DialogContent
         data-testid="command-palette"
         overlayProps={{
-          "data-testid": "command-palette-overlay",
+          'data-testid': 'command-palette-overlay',
           onMouseDown: (event) => {
             event.preventDefault();
             onClose();
@@ -192,11 +211,26 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         className="top-[15svh] max-h-[60dvh] max-w-xl translate-y-0 gap-0 overflow-hidden p-0"
       >
         <DialogTitle className="sr-only">{m.palette_dialog_label()}</DialogTitle>
-        <Command shouldFilter={false} loop={false} value={activeValue} onValueChange={setActiveValue}>
+        <Command
+          shouldFilter={false}
+          loop={false}
+          value={activeValue}
+          onValueChange={setActiveValue}
+        >
           <div className="flex items-center gap-3 border-b px-4 py-3">
-            <svg className="size-4 shrink-0 text-faint" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <svg
+              className="size-4 shrink-0 text-faint"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
               <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path
+                d="M10.5 10.5L14 14"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
             <div className="flex min-w-0 flex-1 flex-col">
               <CommandInput
@@ -217,9 +251,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 aria-describedby={queryTooLong ? queryErrorId : undefined}
                 data-testid="command-palette-input"
               />
-              {queryTooLong && <FieldError id={queryErrorId}>{m.validation_text_too_long()}</FieldError>}
+              {queryTooLong && (
+                <FieldError id={queryErrorId}>{m.validation_text_too_long()}</FieldError>
+              )}
             </div>
-            <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">{m.palette_esc()}</kbd>
+            <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">
+              {m.palette_esc()}
+            </kbd>
           </div>
 
           {/* Results: cmdk uses its `label` prop (not aria-label) for the listbox's accessible name. */}

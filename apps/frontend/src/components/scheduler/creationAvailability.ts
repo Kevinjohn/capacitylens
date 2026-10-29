@@ -1,9 +1,18 @@
-import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { effectiveWeekIncludes, effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { isExternalResource } from "@capacitylens/shared/types/entities";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { isOnClosure, isOnTimeOff } from "@/lib/capacity";
-import type { Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
+import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import {
+  effectiveWeekIncludes,
+  effectiveWorkingWeek,
+} from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { isExternalResource } from '@capacitylens/shared/types/entities';
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { isOnClosure, isOnTimeOff } from '@/lib/capacity';
+import type {
+  Closure,
+  ISODate,
+  Resource,
+  TimeOff,
+  Weekday,
+} from '@capacitylens/shared/types/entities';
 
 interface ResolveCreationBlockReasonInput {
   resource: Resource;
@@ -57,13 +66,16 @@ interface IsCreationStartBlockedInput {
 /** Recurring weekdays on which an allocation may start for this resource. Company closures also
  * block tracked resources; externals ignore closures and use only the company working calendar.
  * A week with no effective days returns an empty array, so every start date is blocked. */
-export function resolveEffectiveWorkingDays(resource: Resource, accountWorkingDays: Weekday[]): Weekday[] {
+export function resolveEffectiveWorkingDays(
+  resource: Resource,
+  accountWorkingDays: Weekday[],
+): Weekday[] {
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
-  return effectiveWeek.kind === "days" ? effectiveWeek.days : [];
+  return effectiveWeek.kind === 'days' ? effectiveWeek.days : [];
 }
 
 /** Distinguishes a blocked working calendar from personal time off. An allocation override may bypass calendars, but it never bypasses time off. */
-export type CreationBlockReason = "non-working" | "time-off";
+export type CreationBlockReason = 'non-working' | 'time-off';
 
 // Share an empty time-off list because move eligibility needs only calendars on the pointer hot path.
 const NO_TIME_OFF: TimeOff[] = [];
@@ -85,7 +97,9 @@ export function resolveCreationBlockReason({
     resource,
     date,
     timeOff,
-    calendarAllowsStart: resolveEffectiveWorkingDays(resource, accountWorkingDays).includes(weekdayOf(date)),
+    calendarAllowsStart: resolveEffectiveWorkingDays(resource, accountWorkingDays).includes(
+      weekdayOf(date),
+    ),
     ignoreWorkingDays,
     closures,
   });
@@ -100,11 +114,11 @@ function resolveCalendarCreationBlockReason({
   closures,
 }: ResolveCalendarCreationBlockReasonInput): CreationBlockReason | null {
   if (!ignoreWorkingDays && !calendarAllowsStart) {
-    return "non-working";
+    return 'non-working';
   }
   return (!isExternalResource(resource) && isOnTimeOff(resource.id, date, timeOff)) ||
     isOnClosure(resource, date, closures)
-    ? "time-off"
+    ? 'time-off'
     : null;
 }
 
@@ -136,7 +150,15 @@ export function isCreationStartBlockedForEffectiveWeek({
   effectiveWeek,
   closures,
 }: IsCreationStartBlockedForEffectiveWeekInput): boolean {
-  return resolveEffectiveWeekCreationBlockReason({ resource, date, timeOff, effectiveWeek, closures }) !== null;
+  return (
+    resolveEffectiveWeekCreationBlockReason({
+      resource,
+      date,
+      timeOff,
+      effectiveWeek,
+      closures,
+    }) !== null
+  );
 }
 
 /** Whether recurring company/personal calendars reject an existing allocation's proposed start.
@@ -168,7 +190,13 @@ export function isCreationStartBlocked({
   closures,
 }: IsCreationStartBlockedInput): boolean {
   return (
-    resolveCreationBlockReason({ resource, date, timeOff, accountWorkingDays, ignoreWorkingDays: false, closures }) !==
-    null
+    resolveCreationBlockReason({
+      resource,
+      date,
+      timeOff,
+      accountWorkingDays,
+      ignoreWorkingDays: false,
+      closures,
+    }) !== null
   );
 }

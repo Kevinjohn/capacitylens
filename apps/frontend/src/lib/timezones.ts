@@ -1,17 +1,17 @@
-import { m } from "@/i18n";
+import { m } from '@/i18n';
 
 /** The account default, and the only zone with bespoke display copy (see resolveTimeZoneOptionLabel). */
-export const DEFAULT_TIME_ZONE = "Etc/GMT";
+export const DEFAULT_TIME_ZONE = 'Etc/GMT';
 
 /** Common choices stay near the detected local zone in onboarding. */
 export const LIKELY_TIME_ZONES = [
   DEFAULT_TIME_ZONE,
-  "UTC",
-  "Europe/London",
-  "Europe/Paris",
-  "America/New_York",
-  "America/Los_Angeles",
-  "Asia/Tokyo",
+  'UTC',
+  'Europe/London',
+  'Europe/Paris',
+  'America/New_York',
+  'America/Los_Angeles',
+  'Asia/Tokyo',
 ] as const;
 
 // The engine's zone list is fixed for the lifetime of the page, so it is built once on first use
@@ -23,7 +23,12 @@ const warnedRuntimeFallbacks = new Set<string>();
 const MAX_RUNTIME_FALLBACK_WARNINGS = 8;
 
 function warnRuntimeFallback(message: string, error?: unknown): void {
-  if (warnedRuntimeFallbacks.has(message) || warnedRuntimeFallbacks.size >= MAX_RUNTIME_FALLBACK_WARNINGS) return;
+  if (
+    warnedRuntimeFallbacks.has(message) ||
+    warnedRuntimeFallbacks.size >= MAX_RUNTIME_FALLBACK_WARNINGS
+  ) {
+    return;
+  }
   warnedRuntimeFallbacks.add(message);
   if (error === undefined) {
     console.warn(message);
@@ -45,31 +50,33 @@ export function listSupportedTimeZones(): readonly string[] {
 export function resolveBrowserTimeZone(supportedZones = listSupportedTimeZones()): string {
   try {
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return typeof timeZone === "string" && supportedZones.includes(timeZone) ? timeZone : DEFAULT_TIME_ZONE;
+    return typeof timeZone === 'string' && supportedZones.includes(timeZone)
+      ? timeZone
+      : DEFAULT_TIME_ZONE;
   } catch (error) {
     // Unavailable browser zone detection uses the stable default and logs the runtime failure rather than breaking calendar setup.
-    warnRuntimeFallback("timezones: browser zone detection failed; using Etc/GMT", error);
+    warnRuntimeFallback('timezones: browser zone detection failed; using Etc/GMT', error);
     return DEFAULT_TIME_ZONE;
   }
 }
 
 function buildSupportedTimeZones(): string[] {
   try {
-    const zones = Intl.supportedValuesOf("timeZone");
-    const aliases = [DEFAULT_TIME_ZONE, "UTC"].filter((zone) => !zones.includes(zone));
+    const zones = Intl.supportedValuesOf('timeZone');
+    const aliases = [DEFAULT_TIME_ZONE, 'UTC'].filter((zone) => !zones.includes(zone));
     return aliases.length > 0 ? [...aliases, ...zones] : zones;
   } catch (error) {
     // Fallback for older engines
-    warnRuntimeFallback("timezones: supported zone list unavailable; using hand-list", error);
+    warnRuntimeFallback('timezones: supported zone list unavailable; using hand-list', error);
     return [
       DEFAULT_TIME_ZONE,
-      "UTC",
-      "Europe/London",
-      "Europe/Paris",
-      "America/New_York",
-      "America/Los_Angeles",
-      "Asia/Tokyo",
-      "Australia/Sydney",
+      'UTC',
+      'Europe/London',
+      'Europe/Paris',
+      'America/New_York',
+      'America/Los_Angeles',
+      'Asia/Tokyo',
+      'Australia/Sydney',
     ];
   }
 }
@@ -85,7 +92,7 @@ const abbreviationFormattersByTimeZone = new Map<string, Intl.DateTimeFormat>();
 function resolveOffsetFormatter(timeZone: string): Intl.DateTimeFormat {
   const cached = offsetFormattersByTimeZone.get(timeZone);
   if (cached) return cached;
-  const formatter = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" });
+  const formatter = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' });
   offsetFormattersByTimeZone.set(timeZone, formatter);
   return formatter;
 }
@@ -93,7 +100,7 @@ function resolveOffsetFormatter(timeZone: string): Intl.DateTimeFormat {
 function resolveAbbreviationFormatter(timeZone: string): Intl.DateTimeFormat {
   const cached = abbreviationFormattersByTimeZone.get(timeZone);
   if (cached) return cached;
-  const formatter = new Intl.DateTimeFormat("en-GB", { timeZone, timeZoneName: "short" });
+  const formatter = new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'short' });
   abbreviationFormattersByTimeZone.set(timeZone, formatter);
   return formatter;
 }
@@ -104,22 +111,22 @@ export function resolveTimeZoneAbbreviation(timeZone: string, date = new Date())
     return (
       resolveAbbreviationFormatter(timeZone)
         .formatToParts(date)
-        .find((part) => part.type === "timeZoneName")?.value ?? "UTC"
+        .find((part) => part.type === 'timeZoneName')?.value ?? 'UTC'
     );
   } catch {
     // Do not include the zone or caught error: persisted values may be private and Intl errors can
     // echo them. The bounded static breadcrumb still makes the runtime fallback diagnosable.
-    warnRuntimeFallback("timezones: abbreviation formatting failed; using UTC");
-    return "UTC";
+    warnRuntimeFallback('timezones: abbreviation formatting failed; using UTC');
+    return 'UTC';
   }
 }
 
 /** Return a friendly standalone name; option labels separately retain the IANA identifier and offset. */
 export function resolveTimeZoneDisplayName(timeZone: string): string {
   if (timeZone === DEFAULT_TIME_ZONE) return m.settings_timezone_gmt();
-  if (timeZone === "UTC") return "UTC";
-  const segment = timeZone.slice(timeZone.lastIndexOf("/") + 1);
-  return segment.replaceAll("_", " ");
+  if (timeZone === 'UTC') return 'UTC';
+  const segment = timeZone.slice(timeZone.lastIndexOf('/') + 1);
+  return segment.replaceAll('_', ' ');
 }
 
 /** Return the current UTC offset for an IANA zone in a compact, unambiguous form. */
@@ -127,24 +134,24 @@ export function resolveTimeZoneOffsetLabel(timeZone: string, date = new Date()):
   try {
     const value = resolveOffsetFormatter(timeZone)
       .formatToParts(date)
-      .find((part) => part.type === "timeZoneName")?.value;
+      .find((part) => part.type === 'timeZoneName')?.value;
 
-    if (!value || value === "GMT" || value === "UTC") return "UTC+00:00";
+    if (!value || value === 'GMT' || value === 'UTC') return 'UTC+00:00';
     const offsetPattern = /^(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?$/;
     const match = value.match(offsetPattern);
-    if (!match) return value.replace(/^GMT/, "UTC");
+    if (!match) return value.replace(/^GMT/, 'UTC');
     return value.replace(
       offsetPattern,
       (_match, sign: string, hours: string, minutes?: string) =>
-        `UTC${sign}${hours.padStart(2, "0")}:${minutes ?? "00"}`,
+        `UTC${sign}${hours.padStart(2, '0')}:${minutes ?? '00'}`,
     );
   } catch {
     // The zone list itself is validated by listSupportedTimeZones(); this is only a defensive
     // fallback for an older Intl implementation or an unexpected persisted value.
     // Do not include the zone or caught error: persisted values may be private and Intl errors can
     // echo them. The bounded static breadcrumb still makes the runtime fallback diagnosable.
-    warnRuntimeFallback("timezones: offset formatting failed; using UTC+00:00");
-    return "UTC+00:00";
+    warnRuntimeFallback('timezones: offset formatting failed; using UTC+00:00');
+    return 'UTC+00:00';
   }
 }
 
@@ -157,7 +164,8 @@ export function resolveTimeZoneOptionLabel(
   displayName = resolveTimeZoneDisplayName(timeZone),
   date = new Date(),
 ): string {
-  const identifier = displayName === timeZone || timeZone === DEFAULT_TIME_ZONE ? "" : ` — ${timeZone}`;
+  const identifier =
+    displayName === timeZone || timeZone === DEFAULT_TIME_ZONE ? '' : ` — ${timeZone}`;
   const abbreviation = resolveTimeZoneAbbreviation(timeZone, date);
   const details =
     timeZone === DEFAULT_TIME_ZONE

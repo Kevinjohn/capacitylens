@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
-import type { ID, ISODate } from "@capacitylens/shared/types/entities";
-import type { ColumnGeometry } from "./columnGeometry";
-import type { DayState } from "./schedulerModel";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
+import type { ID, ISODate } from '@capacitylens/shared/types/entities';
+import type { ColumnGeometry } from './columnGeometry';
+import type { DayState } from './schedulerModel';
 
 const DRAW_THRESHOLD_PX = 4;
 type DrawSpan = { a: number; b: number };
@@ -22,7 +22,11 @@ interface GestureInput {
   teardownRef: RefObject<(() => void) | null>;
 }
 
-function resolveCurrentIndex(input: LaneInput, laneRef: RefObject<HTMLDivElement | null>, clientX: number): number {
+function resolveCurrentIndex(
+  input: LaneInput,
+  laneRef: RefObject<HTMLDivElement | null>,
+  clientX: number,
+): number {
   const rect = laneRef.current?.getBoundingClientRect();
   return rect ? input.geometry.indexAt(clientX - rect.left) : 0;
 }
@@ -50,7 +54,8 @@ function beginGesture(input: GestureInput) {
   const { event, laneRef, latestInputRef, semanticGenerationRef, setDraw, teardownRef } = input;
   const laneInput = latestInputRef.current;
   if (!laneInput.onDraw || event.button !== 0 || teardownRef.current) return;
-  const isOtherPointer = (next: PointerEvent) => Number.isFinite(next.pointerId) && next.pointerId !== event.pointerId;
+  const isOtherPointer = (next: PointerEvent) =>
+    Number.isFinite(next.pointerId) && next.pointerId !== event.pointerId;
   const startX = event.clientX;
   const startGeneration = semanticGenerationRef.current;
   const startIndex = resolveCurrentIndex(laneInput, laneRef, startX);
@@ -63,10 +68,10 @@ function beginGesture(input: GestureInput) {
     setDraw((previous) => (previous?.b === end ? previous : { a: startIndex, b: end }));
   };
   const detach = () => {
-    document.removeEventListener("pointermove", onMove);
-    document.removeEventListener("pointerup", onUp);
-    document.removeEventListener("pointercancel", onCancel);
-    document.removeEventListener("keydown", onKeyDown);
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onCancel);
+    document.removeEventListener('keydown', onKeyDown);
     teardownRef.current = null;
   };
   const cancel = () => {
@@ -83,12 +88,12 @@ function beginGesture(input: GestureInput) {
     if (!isOtherPointer(next)) cancel();
   };
   const onKeyDown = (next: KeyboardEvent) => {
-    if (next.key === "Escape") cancel();
+    if (next.key === 'Escape') cancel();
   };
-  document.addEventListener("pointermove", onMove);
-  document.addEventListener("pointerup", onUp);
-  document.addEventListener("pointercancel", onCancel);
-  document.addEventListener("keydown", onKeyDown);
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onCancel);
+  document.addEventListener('keydown', onKeyDown);
   teardownRef.current = detach;
 }
 
@@ -117,7 +122,7 @@ export function useResourceLaneInteraction(input: LaneInput) {
   const onPointerDown = (event: ReactPointerEvent) =>
     beginGesture({ event, laneRef, latestInputRef, semanticGenerationRef, setDraw, teardownRef });
   const onPointerMove = (event: ReactPointerEvent) => {
-    if (!input.onDraw || event.pointerType !== "mouse" || event.buttons !== 0) return;
+    if (!input.onDraw || event.pointerType !== 'mouse' || event.buttons !== 0) return;
     const index = indexAt(event.clientX);
     if (input.dayStates[index]?.creationBlocked) {
       setHoverDay(null);
@@ -126,7 +131,16 @@ export function useResourceLaneInteraction(input: LaneInput) {
     setHoverDay((previous) => (previous === index ? previous : index));
   };
   const onPointerUpCapture = (event: ReactPointerEvent) => {
-    if (input.onDraw && event.pointerType === "mouse") setHoverDay(null);
+    if (input.onDraw && event.pointerType === 'mouse') setHoverDay(null);
   };
-  return { laneRef, draw, hoverDay, indexAt, onPointerDown, onPointerMove, onPointerUpCapture, setHoverDay };
+  return {
+    laneRef,
+    draw,
+    hoverDay,
+    indexAt,
+    onPointerDown,
+    onPointerMove,
+    onPointerUpCapture,
+    setHoverDay,
+  };
 }

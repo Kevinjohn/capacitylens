@@ -1,10 +1,10 @@
-import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
-import { describe, it, expect, beforeEach } from "vitest";
-import { useStore } from "./useStore";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { AppData } from "@capacitylens/shared/types/entities";
-import { FALLBACK_PRESET_COLOR } from "@capacitylens/shared/lib/color";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, requireValue } from "@/test/fixtures";
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { useStore } from './useStore';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
+import type { AppData } from '@capacitylens/shared/types/entities';
+import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, requireValue } from '@/test/fixtures';
 
 const s = () => useStore.getState();
 
@@ -13,13 +13,13 @@ beforeEach(async () => {
 });
 
 function registerImportHardening1(): void {
-  it("gives every id-less record its own fresh id (no collision on undefined)", () => {
+  it('gives every id-less record its own fresh id (no collision on undefined)', () => {
     // Two records with no id must not collapse onto a single shared id.
     const incoming = {
       ...emptyAppData(),
       clients: [
-        { accountId: "X", createdAt: "t", updatedAt: "t", name: "One", color: "#111111" },
-        { accountId: "X", createdAt: "t", updatedAt: "t", name: "Two", color: "#222222" },
+        { accountId: 'X', createdAt: 't', updatedAt: 't', name: 'One', color: '#111111' },
+        { accountId: 'X', createdAt: 't', updatedAt: 't', name: 'Two', color: '#222222' },
       ],
     } as unknown as AppData;
     s().importData(incoming);
@@ -33,87 +33,99 @@ function registerImportHardening1(): void {
 }
 
 function registerImportHardening2(): void {
-  it("sanitizes value-level fields that bypass the form validators", () => {
+  it('sanitizes value-level fields that bypass the form validators', () => {
     const incoming = {
       ...emptyAppData(),
       resources: [
         {
-          id: "r1",
-          accountId: "X",
-          createdAt: "t",
-          updatedAt: "t",
-          kind: "alien",
-          role: "Dev",
-          employmentType: "nonsense",
-          engagement: "studio" as const,
+          id: 'r1',
+          accountId: 'X',
+          createdAt: 't',
+          updatedAt: 't',
+          kind: 'alien',
+          role: 'Dev',
+          employmentType: 'nonsense',
+          engagement: 'studio' as const,
           workingHoursPerDay: -3,
           workingDays: [],
           halfDays: [],
-          color: "notacolor",
+          color: 'notacolor',
         },
       ],
     } as unknown as AppData;
     s().importData(incoming);
     const r = requireValue(
       s().data.resources.find((x) => x.accountId === DEFAULT_ACCOUNT_ID),
-      "sanitized resource",
+      'sanitized resource',
     );
-    expect(r.kind).toBe("person");
-    expect(r.employmentType).toBe("permanent");
+    expect(r.kind).toBe('person');
+    expect(r.employmentType).toBe('permanent');
     expect(r.workingHoursPerDay).toBe(8);
     expect(r.color).toBe(FALLBACK_PRESET_COLOR);
   });
 }
 
 function registerImportHardening3(): void {
-  it("returns a delta summary counting records kept vs. dropped as invalid", () => {
+  it('returns a delta summary counting records kept vs. dropped as invalid', () => {
     const incoming = {
       ...emptyAppData(),
-      clients: [{ id: "c1", accountId: "X", createdAt: "t", updatedAt: "t", name: "C", color: "#111111" }],
-      projects: [
-        { id: "p1", accountId: "X", createdAt: "t", updatedAt: "t", name: "P", clientId: "c1", color: "#222222" },
+      clients: [
+        { id: 'c1', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'C', color: '#111111' },
       ],
-      activities: [{ id: "t1", accountId: "X", createdAt: "t", updatedAt: "t", name: "T", projectId: "p1" }],
+      projects: [
+        {
+          id: 'p1',
+          accountId: 'X',
+          createdAt: 't',
+          updatedAt: 't',
+          name: 'P',
+          clientId: 'c1',
+          color: '#222222',
+        },
+      ],
+      activities: [
+        { id: 't1', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'T', projectId: 'p1' },
+      ],
       resources: [
         {
-          id: "r1",
-          accountId: "X",
-          createdAt: "t",
-          updatedAt: "t",
-          kind: "person",
-          role: "Dev",
-          employmentType: "permanent",
-          engagement: "studio" as const,
+          id: 'r1',
+          accountId: 'X',
+          createdAt: 't',
+          updatedAt: 't',
+          kind: 'person',
+          role: 'Dev',
+          employmentType: 'permanent',
+          engagement: 'studio' as const,
           workingHoursPerDay: 8,
           workingDays: [1],
           halfDays: [],
-          color: "#333333",
+          color: '#333333',
         },
       ],
       allocations: [
         {
-          id: "ok",
-          accountId: "X",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "r1",
-          activityId: "t1",
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
+          id: 'ok',
+          accountId: 'X',
+          createdAt: 't',
+          updatedAt: 't',
+          resourceId: 'r1',
+          activityId: 't1',
+          startDate: '2026-06-01',
+          endDate: '2026-06-02',
           hoursPerDay: 8,
-          status: "confirmed",
+          status: 'confirmed',
         },
         {
-          id: "bad",
-          accountId: "X",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "r1",
-          activityId: "missing",
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
+          id: 'bad',
+          accountId: 'X',
+          createdAt: 't',
+          updatedAt: 't',
+          resourceId: 'r1',
+          activityId: 'missing',
+          startDate: '2026-06-01',
+          endDate: '2026-06-02',
           hoursPerDay: 8,
-          status: "confirmed",
+          status: 'confirmed',
         },
       ],
     } as unknown as AppData;
@@ -125,39 +137,39 @@ function registerImportHardening3(): void {
 }
 
 function registerImportHardening4(): void {
-  it("does not pollute Object.prototype via a crafted __proto__ payload", () => {
+  it('does not pollute Object.prototype via a crafted __proto__ payload', () => {
     const incoming = JSON.parse(
       '{"accounts":[],"disciplines":[],"clients":[{"id":"c","accountId":"X","createdAt":"t","updatedAt":"t","name":"P","color":"#111111","__proto__":{"polluted":true}}],"projects":[],"phases":[],"activities":[],"resources":[],"allocations":[],"timeOff":[],"closures":[]}',
     ) as AppData;
     s().importData(incoming);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
-    expect(Object.prototype).not.toHaveProperty("polluted");
+    expect(Object.prototype).not.toHaveProperty('polluted');
   });
 }
 
 function registerImportHardening5(): void {
-  it("does not create a second builtin Internal client on import; re-points an Internal-owned project at the existing one", () => {
+  it('does not create a second builtin Internal client on import; re-points an Internal-owned project at the existing one', () => {
     s().replaceAll({
       ...emptyAppData(),
       accounts: [
         {
           ...NULLABLE_FIELDS.accounts,
           id: DEFAULT_ACCOUNT_ID,
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Test Co",
-          color: "#111111",
+          createdAt: 't',
+          updatedAt: 't',
+          name: 'Test Co',
+          color: '#111111',
         },
       ],
       clients: [
         {
           ...NULLABLE_FIELDS.clients,
-          id: "existing-internal",
+          id: 'existing-internal',
           accountId: DEFAULT_ACCOUNT_ID,
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Internal",
-          color: "#9c3ace",
+          createdAt: 't',
+          updatedAt: 't',
+          name: 'Internal',
+          color: '#9c3ace',
           builtin: true,
         },
       ],
@@ -168,43 +180,45 @@ function registerImportHardening5(): void {
       ...emptyAppData(),
       clients: [
         {
-          id: "src-internal",
-          accountId: "X",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Internal",
-          color: "#9c3ace",
+          id: 'src-internal',
+          accountId: 'X',
+          createdAt: 't',
+          updatedAt: 't',
+          name: 'Internal',
+          color: '#9c3ace',
           builtin: true,
         },
       ],
       projects: [
         {
-          id: "src-p",
-          accountId: "X",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Internal Project",
-          clientId: "src-internal",
-          color: "#222222",
+          id: 'src-p',
+          accountId: 'X',
+          createdAt: 't',
+          updatedAt: 't',
+          name: 'Internal Project',
+          clientId: 'src-internal',
+          color: '#222222',
         },
       ],
     } as unknown as AppData;
     s().importData(incoming);
 
-    const builtins = s().data.clients.filter((c) => c.builtin && c.accountId === DEFAULT_ACCOUNT_ID);
+    const builtins = s().data.clients.filter(
+      (c) => c.builtin && c.accountId === DEFAULT_ACCOUNT_ID,
+    );
     expect(builtins).toHaveLength(1);
-    const builtin = requireValue(builtins[0], "imported internal client");
-    expect(builtin.name).toBe("Internal");
+    const builtin = requireValue(builtins[0], 'imported internal client');
+    expect(builtin.name).toBe('Internal');
 
-    const proj = s().data.projects.find((p) => p.name === "Internal Project");
+    const proj = s().data.projects.find((p) => p.name === 'Internal Project');
     expect(proj).toBeTruthy();
-    expect(requireValue(proj, "imported internal project").clientId).toBe(builtin.id);
+    expect(requireValue(proj, 'imported internal project').clientId).toBe(builtin.id);
   });
 }
 
 function registerImportHardening6(): void {
-  it("refuses a zero-record import rather than wiping the active account", async () => {
-    await s().addClient({ name: "Keep me", color: "#123456" });
+  it('refuses a zero-record import rather than wiping the active account', async () => {
+    await s().addClient({ name: 'Keep me', color: '#123456' });
     const before = s().data.clients.filter((c) => c.accountId === DEFAULT_ACCOUNT_ID).length;
     expect(before).toBeGreaterThan(0);
     // An empty (or all-dropped) dataset would otherwise replace the slice with nothing.
@@ -214,7 +228,7 @@ function registerImportHardening6(): void {
   });
 }
 
-describe("importData hardening", () => {
+describe('importData hardening', () => {
   registerImportHardening1();
   registerImportHardening2();
   registerImportHardening3();

@@ -1,10 +1,13 @@
-import type { ClientMasqueradeEndReason, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
-import { isServerConfigured } from "@/data/apiConfig";
-import { useStore } from "@/store/useStore";
-import { masqueradeApi } from "./masqueradeApi";
+import type {
+  ClientMasqueradeEndReason,
+  MasqueradeStatus,
+} from '@capacitylens/shared/domain/masquerade';
+import { isServerConfigured } from '@/data/apiConfig';
+import { useStore } from '@/store/useStore';
+import { masqueradeApi } from './masqueradeApi';
 
 async function loadMasqueradeController() {
-  const { masqueradeController } = await import("./masqueradeController");
+  const { masqueradeController } = await import('./masqueradeController');
   return masqueradeController;
 }
 
@@ -18,12 +21,14 @@ export async function transitionAccount(accountId: string | null): Promise<boole
   // Load the controller only when an authenticated transition actually runs. This keeps demo and
   // isolated component tests from initializing the server-persistence owner merely by importing a
   // picker component, and avoids a cycle through the account-summary refresh helper.
-  return (await loadMasqueradeController()).transitionAccount(accountId);
+  const controller = await loadMasqueradeController();
+  return controller.transitionAccount(accountId);
 }
 
 /** Start a server-backed read-only member projection through the lazily loaded transition owner. */
 export async function startMasquerade(accountId: string, targetUserId: string): Promise<boolean> {
-  return (await loadMasqueradeController()).start(accountId, targetUserId);
+  const controller = await loadMasqueradeController();
+  return controller.start(accountId, targetUserId);
 }
 
 /** Adopt current server status without pulling the transition owner into the application entry chunk. */
@@ -39,7 +44,8 @@ export async function adoptMasqueradeStatus(
 
 /** Capture the current controller projection before a status request can race a local transition. */
 export async function captureMasqueradeStatusGuard(): Promise<() => boolean> {
-  return (await loadMasqueradeController()).captureStatusReconciliation();
+  const controller = await loadMasqueradeController();
+  return controller.captureStatusReconciliation();
 }
 
 /** Refresh the authoritative mode at its fixed deadline or after explicit reconciliation. */
@@ -51,13 +57,15 @@ export async function reconcileMasqueradeStatus(): Promise<void> {
 
 /** Retry the active read projection through the lazily loaded transition owner. */
 export async function retryMasqueradeProjection(): Promise<boolean> {
-  return (await loadMasqueradeController()).retryProjection();
+  const controller = await loadMasqueradeController();
+  return controller.retryProjection();
 }
 
 /** End the active projection through the lazily loaded transition owner. */
 export async function endMasquerade(
-  reason: ClientMasqueradeEndReason = "explicit",
+  reason: ClientMasqueradeEndReason = 'explicit',
   navigate?: (to: string) => void,
 ): Promise<boolean> {
-  return (await loadMasqueradeController()).end(reason, navigate);
+  const controller = await loadMasqueradeController();
+  return controller.end(reason, navigate);
 }

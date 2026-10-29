@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page } from '@playwright/test';
 
 /** Exposes the intercepted-request count and releases matching requests back to the network. */
 export interface RequestFailureGate {
@@ -26,7 +26,7 @@ export async function failRequestsUntilReleased(
     attempts += 1;
     await route.fulfill({
       status: response.status,
-      contentType: "application/json",
+      contentType: 'application/json',
       body: JSON.stringify(response.body),
     });
   });

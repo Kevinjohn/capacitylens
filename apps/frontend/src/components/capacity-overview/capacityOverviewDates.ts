@@ -1,11 +1,11 @@
-import { addDaysISO, startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
-import type { ISODate } from "@capacitylens/shared/types/entities";
+import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import type { ISODate } from '@capacitylens/shared/types/entities';
 
 /** Supported fixed horizons for the capacity overview. */
-export type CapacityOverviewHorizon = "4-weeks" | "8-weeks" | "12-weeks";
+export type CapacityOverviewHorizon = '4-weeks' | '8-weeks' | '12-weeks';
 
 /** Stable period identifiers name the current and next weeks, then use the week index for subsequent periods. */
-export type CapacityOverviewPeriodKey = "this-week" | "next-week" | `week-${number}`;
+export type CapacityOverviewPeriodKey = 'this-week' | 'next-week' | `week-${number}`;
 
 /** A dated overview period with its stable index and label. */
 export interface CapacityOverviewPeriod {
@@ -25,9 +25,9 @@ export interface BuildCapacityOverviewPeriodsInput {
 }
 
 const HORIZON_WEEKS: Record<CapacityOverviewHorizon, number> = {
-  "4-weeks": 4,
-  "8-weeks": 8,
-  "12-weeks": 12,
+  '4-weeks': 4,
+  '8-weeks': 8,
+  '12-weeks': 12,
 };
 
 /** Number of week columns a horizon displays. */
@@ -36,8 +36,8 @@ export function resolveHorizonWeekCount(horizon: CapacityOverviewHorizon): numbe
 }
 
 function buildPeriodKey(index: number): CapacityOverviewPeriodKey {
-  if (index === 0) return "this-week";
-  if (index === 1) return "next-week";
+  if (index === 0) return 'this-week';
+  if (index === 1) return 'next-week';
   return `week-${index + 1}`;
 }
 
@@ -45,7 +45,7 @@ function buildPeriodKey(index: number): CapacityOverviewPeriodKey {
 export function buildCapacityOverviewPeriods({
   today,
   weekStartsOn = 1,
-  horizon = "4-weeks",
+  horizon = '4-weeks',
 }: BuildCapacityOverviewPeriodsInput): CapacityOverviewPeriod[] {
   const currentWeekStart = startOfWeekISO(today, weekStartsOn);
   const currentWeekEnd = addDaysISO(currentWeekStart, 6);

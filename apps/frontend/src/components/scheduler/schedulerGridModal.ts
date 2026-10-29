@@ -1,7 +1,7 @@
-import { formatUtilizationPercent } from "@/lib/formatUtilizationPercent";
-import type { RowModel } from "./schedulerModel";
-import { isCapacityTracked } from "@capacitylens/shared/types/entities";
-import type { ID, ISODate } from "@capacitylens/shared/types/entities";
+import { formatUtilizationPercent } from '@/lib/formatUtilizationPercent';
+import type { RowModel } from './schedulerModel';
+import { isCapacityTracked } from '@capacitylens/shared/types/entities';
+import type { ID, ISODate } from '@capacitylens/shared/types/entities';
 
 /** The mean visible-window utilisation of the capacity-tracked rows, formatted for display, null
  * when there are none. External rows carry no capacity, so the headline and per-group figures
@@ -9,12 +9,14 @@ import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 export function buildAverageUtilizationLabel(rows: RowModel[]): string | null {
   const trackedRows = rows.filter((row) => isCapacityTracked(row.resource));
   return trackedRows.length
-    ? formatUtilizationPercent(trackedRows.reduce((sum, row) => sum + row.utilization, 0) / trackedRows.length)
+    ? formatUtilizationPercent(
+        trackedRows.reduce((sum, row) => sum + row.utilization, 0) / trackedRows.length,
+      )
     : null;
 }
 
 /** Creation, editing, and closed states for the scheduler modal. */
 export type ModalState =
-  | { kind: "edit"; allocationId: ID }
-  | { kind: "create"; resourceId: ID; startDate: ISODate; endDate: ISODate }
-  | { kind: "timeoff"; resourceId: ID; startDate: ISODate; endDate: ISODate };
+  | { kind: 'edit'; allocationId: ID }
+  | { kind: 'create'; resourceId: ID; startDate: ISODate; endDate: ISODate }
+  | { kind: 'timeoff'; resourceId: ID; startDate: ISODate; endDate: ISODate };

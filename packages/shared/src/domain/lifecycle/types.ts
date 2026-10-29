@@ -1,11 +1,11 @@
-import type { ISOTimestamp } from "../../types/entities.js";
-import { parseISOTimestamp } from "../../lib/integrity.js";
+import type { ISOTimestamp } from '../../types/entities.js';
+import { parseISOTimestamp } from '../../lib/integrity.js';
 
 /** Derive three lifecycle states from valid tombstones; no state column is persisted.
  * Active means neither timestamp is valid. Archived means archivedAt is valid and deletedAt is not.
  * Deleted means deletedAt is valid, which takes precedence over archivedAt.
  * These states define the lifecycle predicates and transitions. */
-export type LifecycleState = "active" | "archived" | "deleted";
+export type LifecycleState = 'active' | 'archived' | 'deleted';
 
 /**
  * The minimal structural shape the lifecycle machine reads and writes, the two optional tombstone
@@ -25,7 +25,12 @@ export interface LifecycleFields {
 }
 
 /** Tables with lifecycle tombstones, shared by lifecycle routing and write validation. */
-export const LIFECYCLE_ENTITY_KEYS = Object.freeze(["resources", "clients", "projects", "activities"] as const);
+export const LIFECYCLE_ENTITY_KEYS = Object.freeze([
+  'resources',
+  'clients',
+  'projects',
+  'activities',
+] as const);
 /** A tombstone-carrying table; see {@link LIFECYCLE_ENTITY_KEYS}. */
 export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number];
 /** Narrowing guard: is `entityKey` one of the tombstone-carrying tables? */
@@ -44,7 +49,7 @@ export function isValidTombstone(value: ISOTimestamp | null | undefined): value 
  * A valid deletedAt wins; otherwise a valid archivedAt means archived, and neither means active.
  * Malformed tombstones are ignored so a later valid transition can repair the row. */
 export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
-  if (isValidTombstone(entity.deletedAt)) return "deleted";
-  if (isValidTombstone(entity.archivedAt)) return "archived";
-  return "active";
+  if (isValidTombstone(entity.deletedAt)) return 'deleted';
+  if (isValidTombstone(entity.archivedAt)) return 'archived';
+  return 'active';
 }

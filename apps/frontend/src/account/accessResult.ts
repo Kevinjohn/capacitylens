@@ -1,6 +1,6 @@
-import { isIsoInstant } from "@capacitylens/shared/account/types";
-import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from "./commandOutcome";
-import { extractApiErrorMessage, readApiError } from "@/lib/readApiError";
+import { isIsoInstant } from '@capacitylens/shared/account/types';
+import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from './commandOutcome';
+import { extractApiErrorMessage, readApiError } from '@/lib/readApiError';
 
 /**
  * The shared shape of every account-administration answer, and the Response handling that produces
@@ -10,32 +10,36 @@ import { extractApiErrorMessage, readApiError } from "@/lib/readApiError";
  */
 
 export type TeamAccessResult<T> =
-  | { kind: "ok"; status: number; value: T }
-  | { kind: "rejected"; status: number; message: string | null }
-  | { kind: "unknown"; status: number; message: string | null }
-  | { kind: "invalid"; status: number; message: string };
+  | { kind: 'ok'; status: number; value: T }
+  | { kind: 'rejected'; status: number; message: string | null }
+  | { kind: 'unknown'; status: number; message: string | null }
+  | { kind: 'invalid'; status: number; message: string };
 
 /** Uses the server message only for a decoded rejection; ambiguous or undecodable outcomes use the operation fallback. An empty rejection message also falls back. */
 export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
-  return result.kind === "rejected" && result.message ? result.message : fallback;
+  return result.kind === 'rejected' && result.message ? result.message : fallback;
 }
 
 /** Checks whether an input is a valid ISO instant. */
 export const isTimestamp = isIsoInstant;
 
 /** Narrows an input to a string or null. */
-export const isNullableString = (value: unknown): value is string | null => value === null || typeof value === "string";
+export const isNullableString = (value: unknown): value is string | null =>
+  value === null || typeof value === 'string';
 
-async function parseOkBody<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
+async function parseOkBody<T>(
+  response: Response,
+  decode: (body: unknown) => T | null,
+): Promise<TeamAccessResult<T>> {
   const body: unknown = await response.json().catch(() => null);
   const value = decode(body);
   return value === null
     ? {
-        kind: "invalid",
+        kind: 'invalid',
         status: response.status,
-        message: "The server returned an invalid response.",
+        message: 'The server returned an invalid response.',
       }
-    : { kind: "ok", status: response.status, value };
+    : { kind: 'ok', status: response.status, value };
 }
 
 /** Decodes a command response and distinguishes rejection from an unknown outcome. */
@@ -45,13 +49,16 @@ export async function readCommandResult<T>(
   expectedStatus?: number,
 ): Promise<TeamAccessResult<T>> {
   if (!response.ok) {
-    const clonedMessage = typeof response.clone === "function" ? await readApiError(response) : undefined;
+    const clonedMessage =
+      typeof response.clone === 'function' ? await readApiError(response) : undefined;
     const body: unknown = await response.json().catch(() => null);
     const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
-    const unknown = commandOutcomeDecisions.get(response) ?? (await readUnknownAccountCommandOutcome(response, body));
+    const unknown =
+      commandOutcomeDecisions.get(response) ??
+      (await readUnknownAccountCommandOutcome(response, body));
     return unknown
-      ? { kind: "unknown", status: response.status, message }
-      : { kind: "rejected", status: response.status, message };
+      ? { kind: 'unknown', status: response.status, message }
+      : { kind: 'rejected', status: response.status, message };
   }
   if (expectedStatus !== undefined && response.status !== expectedStatus) {
     console.warn(
@@ -68,7 +75,7 @@ export async function readResult<T>(
 ): Promise<TeamAccessResult<T>> {
   if (!response.ok) {
     return {
-      kind: "rejected",
+      kind: 'rejected',
       status: response.status,
       message: (await readApiError(response)) ?? null,
     };

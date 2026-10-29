@@ -1,8 +1,8 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import { m } from "@/i18n";
-import { resolveRejectionMessage, teamAccessClient } from "@/account/teamAccessClient";
-import type { TeamMember } from "@/account/teamAccessClient";
-import { invalidateResourceAvatars } from "@/account/useResourceAvatars";
+import { useLayoutEffect, useRef, useState } from 'react';
+import { m } from '@/i18n';
+import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessClient';
+import { invalidateResourceAvatars } from '@/account/useResourceAvatars';
 
 interface MemberResourceLinkRequestInput {
   member: TeamMember;
@@ -10,25 +10,37 @@ interface MemberResourceLinkRequestInput {
   reload(): void;
 }
 
-type ResolveResourceStatusOptions = { expectedResourceId: string | null | undefined; reconciled: boolean };
-function resolveResourceStatus({ expectedResourceId, reconciled }: ResolveResourceStatusOptions): string {
-  if (!reconciled) return "";
+type ResolveResourceStatusOptions = {
+  expectedResourceId: string | null | undefined;
+  reconciled: boolean;
+};
+function resolveResourceStatus({
+  expectedResourceId,
+  reconciled,
+}: ResolveResourceStatusOptions): string {
+  if (!reconciled) return '';
   return expectedResourceId === null
     ? m.settings_member_resource_remove_done()
     : m.settings_member_resource_update_done();
 }
 
 function requestResourceLinkChange(member: TeamMember, workspaceId: string, resourceId: string) {
-  if (resourceId !== "")
+  if (resourceId !== '') {
     return teamAccessClient.setMemberResourceLink({
       workspaceId,
       principalId: member.userId,
       resourceId,
       expectedRevision: member.resourceLink?.revision ?? null,
     });
-  if (member.resourceLink)
-    return teamAccessClient.clearMemberResourceLink(workspaceId, member.userId, member.resourceLink.revision);
-  return Promise.resolve({ kind: "ok", value: true, status: 204 } as const);
+  }
+  if (member.resourceLink) {
+    return teamAccessClient.clearMemberResourceLink(
+      workspaceId,
+      member.userId,
+      member.resourceLink.revision,
+    );
+  }
+  return Promise.resolve({ kind: 'ok', value: true, status: 204 } as const);
 }
 
 // A request owns effects only while it is newest in the same company; reject late
@@ -46,7 +58,8 @@ function useGuardedRequest(workspaceId: string | null, reload: () => void) {
     const generation = ++requestGeneration.current;
     setPending(true);
     setError(null);
-    return () => generation === requestGeneration.current && currentWorkspace.current === activeWorkspaceId;
+    return () =>
+      generation === requestGeneration.current && currentWorkspace.current === activeWorkspaceId;
   };
   const finishRequest = (current: () => boolean) => {
     if (current()) {
@@ -61,9 +74,18 @@ function useGuardedRequest(workspaceId: string | null, reload: () => void) {
  * Request state for one member's resource link: create/update/unlink and exception dismissal.
  * `statusMessage` announces success only once the reloaded member shows the requested link.
  */
-export function useMemberResourceLinkRequest({ member, workspaceId, reload }: MemberResourceLinkRequestInput) {
-  const { pending, error, setError, beginRequest, finishRequest } = useGuardedRequest(workspaceId, reload);
-  const [expectedResourceId, setExpectedResourceId] = useState<string | null | undefined>(undefined);
+export function useMemberResourceLinkRequest({
+  member,
+  workspaceId,
+  reload,
+}: MemberResourceLinkRequestInput) {
+  const { pending, error, setError, beginRequest, finishRequest } = useGuardedRequest(
+    workspaceId,
+    reload,
+  );
+  const [expectedResourceId, setExpectedResourceId] = useState<string | null | undefined>(
+    undefined,
+  );
 
   const change = (resourceId: string) => {
     if (!workspaceId) return;
@@ -72,14 +94,15 @@ export function useMemberResourceLinkRequest({ member, workspaceId, reload }: Me
     void requestResourceLinkChange(member, workspaceId, resourceId)
       .then((result) => {
         if (!current()) return;
-        if (result.kind === "unknown" || result.kind === "invalid") setError(m.settings_member_resource_unknown());
-        else if (result.kind === "rejected")
+        if (result.kind === 'unknown' || result.kind === 'invalid') {
+          setError(m.settings_member_resource_unknown());
+        } else if (result.kind === 'rejected') {
           setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
-        else setExpectedResourceId(resourceId === "" ? null : resourceId);
-        if (result.kind !== "rejected") invalidateResourceAvatars();
+        } else setExpectedResourceId(resourceId === '' ? null : resourceId);
+        if (result.kind !== 'rejected') invalidateResourceAvatars();
       })
       .catch((cause: unknown) => {
-        console.warn("Resource link request failed", cause);
+        console.warn('Resource link request failed', cause);
         if (current()) {
           setError(m.settings_member_resource_unknown());
           invalidateResourceAvatars();
@@ -89,11 +112,16 @@ export function useMemberResourceLinkRequest({ member, workspaceId, reload }: Me
   };
 
   const reconciled =
-    !pending && expectedResourceId !== undefined && (member.resourceLink?.resourceId ?? null) === expectedResourceId;
+    !pending &&
+    expectedResourceId !== undefined &&
+    (member.resourceLink?.resourceId ?? null) === expectedResourceId;
   return {
     pending,
     error,
-    statusMessage: resolveResourceStatus({ expectedResourceId: expectedResourceId, reconciled: reconciled }),
+    statusMessage: resolveResourceStatus({
+      expectedResourceId: expectedResourceId,
+      reconciled: reconciled,
+    }),
     change,
   };
 }

@@ -1,9 +1,16 @@
-import type { Allocation, AppData, AppDataKey, ID, ScopedEntity, Weekday } from "../types/entities.js";
-import type { ValidationResult } from "../lib/integrity.js";
-import { belongsToAccount } from "./tenancy.js";
-import { throwDomainError } from "./errors.js";
-import { inspectLifecycleAncestry, lifecycleStatus } from "./lifecycle.js";
-import type { LifecycleAncestryRow, LifecycleFields } from "./lifecycle.js";
+import type {
+  Allocation,
+  AppData,
+  AppDataKey,
+  ID,
+  ScopedEntity,
+  Weekday,
+} from '../types/entities.js';
+import type { ValidationResult } from '../lib/integrity.js';
+import { belongsToAccount } from './tenancy.js';
+import { throwDomainError } from './errors.js';
+import { inspectLifecycleAncestry, lifecycleStatus } from './lifecycle.js';
+import type { LifecycleAncestryRow, LifecycleFields } from './lifecycle.js';
 
 interface ValidationRowOptions {
   data: AppData;
@@ -23,7 +30,7 @@ interface OwnedRowOptions {
 interface ValidationAllocationsForOptions {
   data: AppData;
   accountId: ID;
-  side: "resource" | "activity";
+  side: 'resource' | 'activity';
   id: ID;
   lookup?: ValidationDataLookup;
 }
@@ -58,7 +65,9 @@ export const resolveValidationRow = ({
   lookup,
 }: ValidationRowOptions): (Record<string, unknown> & { id: ID }) | undefined => {
   if (lookup) return lookup.row(table, id);
-  return (data[table] as unknown as (Record<string, unknown> & { id: ID })[]).find((row) => row.id === id);
+  return (data[table] as unknown as (Record<string, unknown> & { id: ID })[]).find(
+    (row) => row.id === id,
+  );
 };
 
 /** Fetch a row and narrow it to this account in one step. An absent row and a cross-account row both
@@ -70,7 +79,12 @@ export const resolveOwnedRow = <T extends ScopedEntity>({
   accountId,
   lookup,
 }: OwnedRowOptions): T | undefined => {
-  const row = resolveValidationRow({ data, table, id, ...(lookup === undefined ? {} : { lookup }) }) as T | undefined;
+  const row = resolveValidationRow({
+    data,
+    table,
+    id,
+    ...(lookup === undefined ? {} : { lookup }),
+  }) as T | undefined;
   return row && belongsToAccount(row, accountId) ? row : undefined;
 };
 
@@ -84,14 +98,14 @@ export const listValidationAllocations = ({
   lookup,
 }: ValidationAllocationsForOptions): readonly Allocation[] => {
   if (lookup) {
-    return side === "resource"
+    return side === 'resource'
       ? lookup.allocationsForResource(accountId, id)
       : lookup.allocationsForActivity(accountId, id);
   }
   return data.allocations.filter(
     (allocation) =>
       belongsToAccount(allocation, accountId) &&
-      (side === "resource" ? allocation.resourceId : allocation.activityId) === id,
+      (side === 'resource' ? allocation.resourceId : allocation.activityId) === id,
   );
 };
 
@@ -103,7 +117,7 @@ export const assertValid = (validation: ValidationResult): void => {
   const code = validation.codes[0];
   const message = validation.errors[0];
   if (code === undefined || message === undefined) {
-    throw new Error("Invalid validation result must include a code and message.");
+    throw new Error('Invalid validation result must include a code and message.');
   }
   throwDomainError(code, message);
 };
@@ -112,10 +126,15 @@ export const assertValid = (validation: ValidationResult): void => {
  * callers retain O(depth) point lookups; browser/store callers traverse the same bounded graph over
  * their local arrays. Inactive rows or ancestors return false; missing, malformed or cross-account
  * ancestors do not imply lifecycle state and are handled separately by integrity validation. */
-export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyActiveOptions): boolean => {
+export const isEffectivelyActive = ({
+  data,
+  table,
+  row,
+  lookup,
+}: IsEffectivelyActiveOptions): boolean => {
   const lookupOptions = lookup === undefined ? {} : { lookup };
   return (
-    lifecycleStatus(row) === "active" &&
+    lifecycleStatus(row) === 'active' &&
     inspectLifecycleAncestry(
       table,
       // The one named seam for the single cast the ancestry walk needs: an interface-typed entity
@@ -124,6 +143,6 @@ export const isEffectivelyActive = ({ data, table, row, lookup }: IsEffectivelyA
       // (id / accountId / tombstones / FK ids) is present on these rows.
       row as unknown as LifecycleAncestryRow,
       (parentTable, id) => resolveValidationRow({ data, table: parentTable, id, ...lookupOptions }),
-    ).kind === "visible"
+    ).kind === 'visible'
   );
 };

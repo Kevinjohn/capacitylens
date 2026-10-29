@@ -6,7 +6,7 @@
 // Claiming a lane (and the CPU reservation that rides with it) lives in scripts/laneClaims.mjs,
 // and scripts/with-lane.mjs is the launcher that owns both for the lifetime of a command.
 // Configurations only read the selected lane; the launcher owns its claim.
-import { availableParallelism } from "node:os";
+import { availableParallelism } from 'node:os';
 
 // Ten lanes, deliberately. The auth API base is spaced from other lane bases so each
 // checkout receives a disjoint service set.
@@ -14,11 +14,11 @@ import { availableParallelism } from "node:os";
 export const LANE_CEILING = 10;
 
 /** The launcher-selected lane key, read before configuration evaluation because global setup occurs too late to claim a lane. */
-export const LANE_ENVIRONMENT_KEY = "CAPACITYLENS_PORT_LANE";
+export const LANE_ENVIRONMENT_KEY = 'CAPACITYLENS_PORT_LANE';
 /** Environment key identifying the outer launcher’s claim so nested launchers do not release it. */
-export const LANE_CLAIM_ENVIRONMENT_KEY = "CAPACITYLENS_LANE_CLAIM";
+export const LANE_CLAIM_ENVIRONMENT_KEY = 'CAPACITYLENS_LANE_CLAIM';
 /** Environment key containing the run’s reserved worker share. */
-export const SHARE_ENVIRONMENT_KEY = "CAPACITYLENS_TEST_SHARE";
+export const SHARE_ENVIRONMENT_KEY = 'CAPACITYLENS_TEST_SHARE';
 
 // Lane 0 preserves the documented and CI endpoints.
 const BASES = Object.freeze({
@@ -46,7 +46,9 @@ export function assertLane(lane) {
 /** Map a valid lane to frozen service ports; invalid lanes throw `RangeError`. */
 export function portsForLane(lane) {
   assertLane(lane);
-  return Object.freeze(Object.fromEntries(Object.entries(BASES).map(([service, base]) => [service, base + lane])));
+  return Object.freeze(
+    Object.fromEntries(Object.entries(BASES).map(([service, base]) => [service, base + lane])),
+  );
 }
 
 /**
@@ -55,7 +57,7 @@ export function portsForLane(lane) {
  */
 export function resolveLane(environment = process.env) {
   const raw = environment[LANE_ENVIRONMENT_KEY];
-  if (raw === undefined || raw === "") return 0;
+  if (raw === undefined || raw === '') return 0;
   const lane = Number(raw);
   if (!Number.isInteger(lane)) {
     throw new RangeError(
@@ -78,10 +80,12 @@ export function ports(environment = process.env) {
  */
 export function testShare(environment = process.env) {
   const raw = environment[SHARE_ENVIRONMENT_KEY];
-  if (raw === undefined || raw === "") return reservationCeiling();
+  if (raw === undefined || raw === '') return reservationCeiling();
   const share = Number(raw);
   if (!Number.isInteger(share) || share < 1) {
-    throw new RangeError(`${SHARE_ENVIRONMENT_KEY} must be a positive integer; received ${JSON.stringify(raw)}.`);
+    throw new RangeError(
+      `${SHARE_ENVIRONMENT_KEY} must be a positive integer; received ${JSON.stringify(raw)}.`,
+    );
   }
   return share;
 }

@@ -438,7 +438,9 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]) {
 body[data-scroll-locked]:not([data-scroll-lock-no-important]):not([data-scroll-lock-no-relative]) {
   position: relative !important;
 }
-body[data-scroll-locked]:not([data-scroll-lock-no-important]):not([data-scroll-lock-gap-mode="padding"]) {
+body[data-scroll-locked]:not([data-scroll-lock-no-important]):not(
+    [data-scroll-lock-gap-mode="padding"]
+  ) {
   margin-right: var(--removed-body-scroll-bar-size, 0px) !important;
 }
 body[data-scroll-locked]:not([data-scroll-lock-no-important])[data-scroll-lock-gap-mode="padding"] {
@@ -456,12 +458,18 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]) .width-before-scro
 body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scroll-bar {
   margin-right: var(--removed-body-scroll-bar-size, 0px) !important;
 }
-body[data-scroll-locked]:not([data-scroll-lock-no-important]) .right-scroll-bar-position .right-scroll-bar-position,
-body[data-scroll-locked]:not([data-scroll-lock-no-important]).right-scroll-bar-position .right-scroll-bar-position {
+body[data-scroll-locked]:not([data-scroll-lock-no-important])
+  .right-scroll-bar-position
+  .right-scroll-bar-position,
+body[data-scroll-locked]:not([data-scroll-lock-no-important]).right-scroll-bar-position
+  .right-scroll-bar-position {
   right: 0 !important;
 }
-body[data-scroll-locked]:not([data-scroll-lock-no-important]) .width-before-scroll-bar .width-before-scroll-bar,
-body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scroll-bar .width-before-scroll-bar {
+body[data-scroll-locked]:not([data-scroll-lock-no-important])
+  .width-before-scroll-bar
+  .width-before-scroll-bar,
+body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scroll-bar
+  .width-before-scroll-bar {
   margin-right: 0 !important;
 }
 

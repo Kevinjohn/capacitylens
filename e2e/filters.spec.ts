@@ -1,162 +1,185 @@
-import { test, expect } from "./fixtures";
-import { openApp, selectShadOption, showScheduleFilters } from "./browserTestSupport";
+import { test, expect } from './fixtures';
+import { openApp, selectShadOption, showScheduleFilters } from './browserTestSupport';
 
 // Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)
 // and 5 resource rows across Design/Development/Copywriting.
 function registerOrdersFilterOptionsPlanningHierarchyTest() {
-  test("orders filter options by their planning hierarchy", async ({ page }) => {
+  test('orders filter options by their planning hierarchy', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
 
     const expectOptions = async (label: string, names: string[]) => {
       await page.getByLabel(label).click();
-      await expect(page.getByRole("option")).toHaveText(names);
-      await page.keyboard.press("Escape");
+      await expect(page.getByRole('option')).toHaveText(names);
+      await page.keyboard.press('Escape');
     };
 
-    await expectOptions("Filter by discipline", ["All disciplines", "Design", "Development", "Copywriting"]);
-    await expectOptions("Filter by client", ["All clients", "Internal", "LexCorp", "Queen Consolidated"]);
-    await expectOptions("Filter by project", [
-      "All projects",
-      "LexCorp / Metropolis Rebrand",
-      "Queen Consolidated / Project Watchtower",
+    await expectOptions('Filter by discipline', [
+      'All disciplines',
+      'Design',
+      'Development',
+      'Copywriting',
     ]);
-    await expectOptions("Filter by activity", [
-      "All activities",
-      "Internal — All",
-      "Admin / Internal",
-      "All projects — All",
-      "Design",
-      "Workshop",
+    await expectOptions('Filter by client', [
+      'All clients',
+      'Internal',
+      'LexCorp',
+      'Queen Consolidated',
+    ]);
+    await expectOptions('Filter by project', [
+      'All projects',
+      'LexCorp / Metropolis Rebrand',
+      'Queen Consolidated / Project Watchtower',
+    ]);
+    await expectOptions('Filter by activity', [
+      'All activities',
+      'Internal — All',
+      'Admin / Internal',
+      'All projects — All',
+      'Design',
+      'Workshop',
     ]);
   });
 }
 
 function registerSearchesResourcesNameHidesNonTest() {
-  test("searches resources by name and hides non-matching rows", async ({ page }) => {
+  test('searches resources by name and hides non-matching rows', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Clark Kent" })).toBeVisible();
-    await page.getByLabel("Search people").fill("Bruce");
-    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
-    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Clark Kent" })).toHaveCount(0);
+    await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Clark Kent' })).toBeVisible();
+    await page.getByLabel('Search people').fill('Bruce');
+    await expect(
+      page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' }),
+    ).toBeVisible();
+    await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Clark Kent' })).toHaveCount(
+      0,
+    );
   });
 }
 
 function registerFiltersScheduleDisciplineTest() {
-  test("filters the schedule by discipline", async ({ page }) => {
+  test('filters the schedule by discipline', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await selectShadOption(page.getByLabel("Filter by discipline"), {
-      label: "Development",
+    await selectShadOption(page.getByLabel('Filter by discipline'), {
+      label: 'Development',
     });
-    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Clark Kent" })).toBeVisible();
-    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toHaveCount(0);
+    await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Clark Kent' })).toBeVisible();
+    await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' })).toHaveCount(
+      0,
+    );
   });
 }
 
 function registerFiltersBarsClientTest() {
-  test("filters bars to a client", async ({ page }) => {
+  test('filters bars to a client', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await selectShadOption(page.getByLabel("Filter by client"), {
-      label: "LexCorp",
+    await selectShadOption(page.getByLabel('Filter by client'), {
+      label: 'LexCorp',
     });
-    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(1);
-    await page.getByLabel("Show unallocated").check();
+    await expect(
+      page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }),
+    ).toBeVisible();
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(1);
+    await page.getByLabel('Show unallocated').check();
     await expect(page.locator('[data-testid="scheduler-row"][data-dimmed]').first()).toBeVisible();
   });
 }
 
 function registerFiltersScheduleSingleProjectTest() {
-  test("filters the schedule to a single project", async ({ page }) => {
+  test('filters the schedule to a single project', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(1);
+    await selectShadOption(page.getByLabel('Filter by project'), 'p-brand');
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(1);
   });
 }
 
 function registerHidesTentativeBarsWhileCapacityTest() {
-  test("hides tentative bars while capacity still counts them", async ({ page }) => {
+  test('hides tentative bars while capacity still counts them', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
-    const before = await page.getByTestId("allocation-bar").count();
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
+    const before = await page.getByTestId('allocation-bar').count();
     // Scoped to the filter row: allocation bars are buttons whose accessible name says "Tentative".
     const tentative = page
-      .getByTestId("scheduler-filter-controls")
-      .getByRole("button", { name: "Tentative", exact: true });
-    await expect(tentative).toHaveAttribute("aria-pressed", "true");
+      .getByTestId('scheduler-filter-controls')
+      .getByRole('button', { name: 'Tentative', exact: true });
+    await expect(tentative).toHaveAttribute('aria-pressed', 'true');
     await tentative.click();
-    await expect(tentative).toHaveAttribute("aria-pressed", "false");
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
-    await expect(page.getByTestId("over-marker").first()).toBeVisible();
+    await expect(tentative).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
+    await expect(page.getByTestId('over-marker').first()).toBeVisible();
   });
 }
 
 function registerClearsAllActiveFiltersClearTest() {
-  test("clears all active filters with the Clear Filters button", async ({ page }) => {
+  test('clears all active filters with the Clear Filters button', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
-    const all = await page.getByTestId("allocation-bar").count();
-    const clear = page.getByRole("button", { name: "Clear Filters" });
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
+    const all = await page.getByTestId('allocation-bar').count();
+    const clear = page.getByRole('button', { name: 'Clear Filters' });
     await expect(clear).toBeVisible();
     await expect(clear).toBeDisabled();
-    await expect(clear).toHaveAttribute("data-variant", "outline");
-    await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(1);
+    await expect(clear).toHaveAttribute('data-variant', 'outline');
+    await selectShadOption(page.getByLabel('Filter by project'), 'p-brand');
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(1);
     await expect(clear).toBeEnabled();
-    await expect(clear).toHaveAttribute("data-variant", "danger-soft");
-    await expect(clear.locator(".lucide-trash-2")).toHaveAttribute("aria-hidden", "true");
+    await expect(clear).toHaveAttribute('data-variant', 'danger-soft');
+    await expect(clear.locator('.lucide-trash-2')).toHaveAttribute('aria-hidden', 'true');
     await clear.click();
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(all);
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(all);
     await expect(clear).toBeDisabled();
   });
 }
 
 function registerShowsFilteredEmptyStateNothingTest() {
-  test("shows the filtered empty state when nothing matches", async ({ page }) => {
+  test('shows the filtered empty state when nothing matches', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await page.getByLabel("Search people").fill("nobody-matches-this");
-    await expect(page.getByTestId("scheduler-empty")).toBeVisible();
-    await expect(page.getByTestId("scheduler-empty")).toContainText(/match the current filters/i);
+    await page.getByLabel('Search people').fill('nobody-matches-this');
+    await expect(page.getByTestId('scheduler-empty')).toBeVisible();
+    await expect(page.getByTestId('scheduler-empty')).toContainText(/match the current filters/i);
     // The empty state offers an in-context "Clear filters" button (also the focusable element that
     // keeps the scrollable grid axe-clean): clicking it clears the search and the schedule returns.
-    await page.getByTestId("scheduler-empty").getByRole("button", { name: "Clear filters" }).click();
-    await expect(page.getByTestId("scheduler-empty")).toBeHidden();
-    await expect(page.getByTestId("allocation-bar").first()).toBeVisible();
+    await page
+      .getByTestId('scheduler-empty')
+      .getByRole('button', { name: 'Clear filters' })
+      .click();
+    await expect(page.getByTestId('scheduler-empty')).toBeHidden();
+    await expect(page.getByTestId('allocation-bar').first()).toBeVisible();
   });
 }
 
 function registerFiltersScheduleAllProjectsActivityTest() {
-  test("filters the schedule to an all-projects activity (the activity lens)", async ({ page }) => {
+  test('filters the schedule to an all-projects activity (the activity lens)', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await selectShadOption(page.getByLabel("Filter by activity"), "kind:repeatable");
-    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Design" })).toBeVisible();
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(1);
+    await selectShadOption(page.getByLabel('Filter by activity'), 'kind:repeatable');
+    await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Design' })).toBeVisible();
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(1);
   });
 }
 
 function registerActivityLensMutuallyExclusiveClientTests() {
-  test("the activity lens is mutually exclusive with the client / project lens", async ({ page }) => {
+  test('the activity lens is mutually exclusive with the client / project lens', async ({
+    page,
+  }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
-    await expect(page.getByLabel("Filter by project")).toHaveText("LexCorp / Metropolis Rebrand");
-    await selectShadOption(page.getByLabel("Filter by activity"), "kind:repeatable");
-    await expect(page.getByLabel("Filter by project")).toHaveText("All projects");
+    await selectShadOption(page.getByLabel('Filter by project'), 'p-brand');
+    await expect(page.getByLabel('Filter by project')).toHaveText('LexCorp / Metropolis Rebrand');
+    await selectShadOption(page.getByLabel('Filter by activity'), 'kind:repeatable');
+    await expect(page.getByLabel('Filter by project')).toHaveText('All projects');
 
-    await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
-    await expect(page.getByLabel("Filter by activity")).toHaveText("All activities");
+    await selectShadOption(page.getByLabel('Filter by project'), 'p-brand');
+    await expect(page.getByLabel('Filter by activity')).toHaveText('All activities');
   });
 }
 
-test.describe("Filters", () => {
+test.describe('Filters', () => {
   registerOrdersFilterOptionsPlanningHierarchyTest();
   registerSearchesResourcesNameHidesNonTest();
   registerFiltersScheduleDisciplineTest();

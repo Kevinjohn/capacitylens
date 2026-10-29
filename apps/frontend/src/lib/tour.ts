@@ -4,29 +4,41 @@
 
 // Load the click-only tour library lazily so it does not enlarge the eager app chunk.
 // Import its CSS before app styles so theme overrides retain precedence.
-import type { Role } from "@capacitylens/shared/domain/access";
-import { m } from "@/i18n";
-import { buildRoleTour } from "./tourSteps";
-import type { RoleTourStepId } from "./tourSteps";
+import type { Role } from '@capacitylens/shared/domain/access';
+import { m } from '@/i18n';
+import { buildRoleTour } from './tourSteps';
+import type { RoleTourStepId } from './tourSteps';
 
 const tourCopy: Record<RoleTourStepId, { title: () => string; description: () => string }> = {
-  "owner-import": { title: () => m.role_tour_owner_import_title(), description: () => m.role_tour_owner_import_desc() },
-  "admin-invite": { title: () => m.role_tour_admin_invite_title(), description: () => m.role_tour_admin_invite_desc() },
-  "admin-example-data": {
+  'owner-import': {
+    title: () => m.role_tour_owner_import_title(),
+    description: () => m.role_tour_owner_import_desc(),
+  },
+  'admin-invite': {
+    title: () => m.role_tour_admin_invite_title(),
+    description: () => m.role_tour_admin_invite_desc(),
+  },
+  'admin-example-data': {
     title: () => m.role_tour_admin_example_data_title(),
     description: () => m.role_tour_admin_example_data_desc(),
   },
-  "editor-resources": {
+  'editor-resources': {
     title: () => m.role_tour_editor_resources_title(),
     description: () => m.role_tour_editor_resources_desc(),
   },
-  "editor-hierarchy": {
+  'editor-hierarchy': {
     title: () => m.role_tour_editor_hierarchy_title(),
     description: () => m.role_tour_editor_hierarchy_desc(),
   },
-  "editor-book": { title: () => m.role_tour_editor_book_title(), description: () => m.role_tour_editor_book_desc() },
-  "viewer-grid": { title: () => m.role_tour_viewer_grid_title(), description: () => m.role_tour_viewer_grid_desc() },
-  "viewer-toolbar": {
+  'editor-book': {
+    title: () => m.role_tour_editor_book_title(),
+    description: () => m.role_tour_editor_book_desc(),
+  },
+  'viewer-grid': {
+    title: () => m.role_tour_viewer_grid_title(),
+    description: () => m.role_tour_viewer_grid_desc(),
+  },
+  'viewer-toolbar': {
     title: () => m.role_tour_viewer_toolbar_title(),
     description: () => m.role_tour_viewer_toolbar_desc(),
   },
@@ -41,7 +53,7 @@ function buildDriverSteps(steps: ReturnType<typeof buildRoleTour>) {
       popover: {
         title: copy.title(),
         description: copy.description(),
-        ...(step.anchor.startsWith("[data-nav=") ? { side: "right" as const } : {}),
+        ...(step.anchor.startsWith('[data-nav=') ? { side: 'right' as const } : {}),
       },
     };
   });
@@ -64,12 +76,12 @@ export function startTour(input: TourInput): Promise<void> {
 }
 
 async function runTour({ role, navigate, serverMode }: TourInput): Promise<void> {
-  if (window.location.pathname !== "/") navigate("/");
-  const { driver } = await import("driver.js");
+  if (window.location.pathname !== '/') navigate('/');
+  const { driver } = await import('driver.js');
   await new Promise<void>((resolve, reject) => {
     let observer: MutationObserver | null = null;
     const finishIfDestroyed = () => {
-      if (document.body.classList.contains("driver-active")) return;
+      if (document.body.classList.contains('driver-active')) return;
       observer?.disconnect();
       resolve();
     };
@@ -78,7 +90,7 @@ async function runTour({ role, navigate, serverMode }: TourInput): Promise<void>
         showProgress: true,
         // driver.js interpolates its own `{{current}}`/`{{total}}` tokens; the surrounding words come
         // from the Paraglide message so the phrase is translatable.
-        progressText: m.tour_progress({ step: "{{current}}", total: "{{total}}" }),
+        progressText: m.tour_progress({ step: '{{current}}', total: '{{total}}' }),
         nextBtnText: m.tour_next(),
         prevBtnText: m.tour_prev(),
         doneBtnText: m.tour_done(),
@@ -93,7 +105,7 @@ async function runTour({ role, navigate, serverMode }: TourInput): Promise<void>
       // The body class is its authoritative lifecycle marker, so observe that actual state instead
       // of leaving the caller's busy lock dependent on an optional library callback.
       observer = new MutationObserver(finishIfDestroyed);
-      observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+      observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
       tour.drive();
       finishIfDestroyed();
     } catch (error) {

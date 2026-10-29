@@ -1,9 +1,9 @@
 // Start the API and web server together because server-backed app mode needs the Vite proxy's API.
 
-import { parsePort } from "./parsePort.mjs";
-import { spawnPnpm } from "./pnpmSpawn.mjs";
-import { ports } from "./ports.mjs";
-import { portInUse, requireNode24, terminateProcessTrees } from "./devProcesses.mjs";
+import { parsePort } from './parsePort.mjs';
+import { spawnPnpm } from './pnpmSpawn.mjs';
+import { ports } from './ports.mjs';
+import { portInUse, requireNode24, terminateProcessTrees } from './devProcesses.mjs';
 
 // Report the Node requirement before the API child fails to load `node:sqlite`.
 requireNode24(
@@ -15,7 +15,11 @@ requireNode24(
 
 // Use the configured API port, defaulting to this lane's port, for the server and Vite proxy.
 const lanePorts = ports();
-const API_PORT = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, lanePorts.dbApi, "CAPACITYLENS_DEV_API_PORT");
+const API_PORT = parsePort(
+  process.env.CAPACITYLENS_DEV_API_PORT,
+  lanePorts.dbApi,
+  'CAPACITYLENS_DEV_API_PORT',
+);
 const WEB_PORT = lanePorts.web;
 
 // Check both ports before starting either child so a collision cannot leave a half-started stack.
@@ -56,7 +60,7 @@ function start(label, args, env) {
     // Ignore stdin (inherit stdout/stderr): with detached:true the child is outside the terminal's
     // foreground group, so handing it the TTY stdin risks SIGTTIN and trips Vite's stdin-EOF→SIGTERM
     // shortcut handler. Neither tsx-watch nor Vite needs interactive stdin under this launcher.
-    stdio: ["ignore", "inherit", "inherit"],
+    stdio: ['ignore', 'inherit', 'inherit'],
     // Give each child its own process group so shutdown can stop both process trees.
     detached: true,
     env: { ...process.env, ...env },
@@ -64,12 +68,14 @@ function start(label, args, env) {
   children.push(child);
   // Either child exiting tears the whole stack down. A dead API or a dead web server both mean
   // dev is broken, and we attempt bounded cleanup of both child trees.
-  child.on("exit", (code, signal) => {
+  child.on('exit', (code, signal) => {
     if (shuttingDown) return;
-    console.error(`dev: ${label} exited (${signal ? `signal ${signal}` : `code ${code}`}); shutting down.`);
+    console.error(
+      `dev: ${label} exited (${signal ? `signal ${signal}` : `code ${code}`}); shutting down.`,
+    );
     void shutdown(code ?? 1);
   });
-  child.on("error", (err) => {
+  child.on('error', (err) => {
     if (shuttingDown) return;
     console.error(`dev: failed to launch ${label}: ${err.message}`);
     void shutdown(1);
@@ -77,12 +83,12 @@ function start(label, args, env) {
   return child;
 }
 
-start("api", ["--filter", "@capacitylens/backend", "run", "dev"], {
+start('api', ['--filter', '@capacitylens/backend', 'run', 'dev'], {
   PORT: String(API_PORT),
-  CAPACITYLENS_SEED_DEMO: "1",
+  CAPACITYLENS_SEED_DEMO: '1',
 });
-start("web", ["run", "dev:web"], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) });
+start('web', ['run', 'dev:web'], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) });
 
-for (const signal of ["SIGINT", "SIGTERM"]) {
+for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => void shutdown(0));
 }

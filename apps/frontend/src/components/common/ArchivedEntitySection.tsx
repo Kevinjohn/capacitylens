@@ -1,41 +1,53 @@
-import { ArchiveRecoverySection } from "./ArchiveRecoverySection";
-import { Fragment, useMemo, useState } from "react";
-import { inspectLifecycleAncestry, lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
-import type { LifecycleAncestryRow } from "@capacitylens/shared/domain/lifecycle";
-import type { Activity, AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
-import type { AppDataKey } from "@capacitylens/shared/types/entities";
-import { Link } from "react-router-dom";
-import { useInactiveAccountData } from "@/hooks/useInactiveAccountData";
-import { useLifecycleActions } from "@/hooks/useLifecycleActions";
-import type { LifecycleEntity } from "@/store/useStore";
-import { Button } from "@/components/ui/button";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
-import { ConfirmDialog } from "./dialogs";
-import { m } from "@/i18n";
-import { useExclusiveAction } from "@/hooks/useExclusiveAction";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { useStore } from "@/store/useStore";
-import { useCan } from "@/auth/permissionContext";
+import { ArchiveRecoverySection } from './ArchiveRecoverySection';
+import { Fragment, useMemo, useState } from 'react';
+import { inspectLifecycleAncestry, lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
+import type { LifecycleAncestryRow } from '@capacitylens/shared/domain/lifecycle';
+import type {
+  Activity,
+  AppData,
+  Client,
+  Project,
+  Resource,
+} from '@capacitylens/shared/types/entities';
+import type { AppDataKey } from '@capacitylens/shared/types/entities';
+import { Link } from 'react-router-dom';
+import { useInactiveAccountData } from '@/hooks/useInactiveAccountData';
+import { useLifecycleActions } from '@/hooks/useLifecycleActions';
+import type { LifecycleEntity } from '@/store/useStore';
+import { Button } from '@/components/ui/button';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
+import { ConfirmDialog } from './dialogs';
+import { m } from '@/i18n';
+import { useExclusiveAction } from '@/hooks/useExclusiveAction';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { useStore } from '@/store/useStore';
+import { useCan } from '@/auth/permissionContext';
 
 type LifecycleRow = Resource | Client | Project | Activity;
 type ArchivedEntity = LifecycleEntity;
 
-const entityConfig: Record<ArchivedEntity, { heading: () => string; list: (data: AppData) => LifecycleRow[] }> = {
+const entityConfig: Record<
+  ArchivedEntity,
+  { heading: () => string; list: (data: AppData) => LifecycleRow[] }
+> = {
   resources: { heading: () => m.list_resources_archived_heading(), list: (data) => data.resources },
   clients: { heading: () => m.list_clients_archived_heading(), list: (data) => data.clients },
   projects: { heading: () => m.list_projects_archived_heading(), list: (data) => data.projects },
-  activities: { heading: () => m.list_activities_archived_heading(), list: (data) => data.activities },
+  activities: {
+    heading: () => m.list_activities_archived_heading(),
+    list: (data) => data.activities,
+  },
 };
 
 function rowName(row: LifecycleRow): string {
-  if ("name" in row && row.name) return row.name;
-  if ("role" in row) return row.role;
-  return "";
+  if ('name' in row && row.name) return row.name;
+  if ('role' in row) return row.role;
+  return '';
 }
 
 type Ancestor = { name: string; href?: string; message: string };
 type ArchivedRowModel = { row: LifecycleRow; ancestor: Ancestor | null };
-type ResourceArchivedGroupKey = "studio" | "supplementary" | "external" | "placeholders";
+type ResourceArchivedGroupKey = 'studio' | 'supplementary' | 'external' | 'placeholders';
 
 const resourceArchivedGroups: readonly {
   key: ResourceArchivedGroupKey;
@@ -43,24 +55,24 @@ const resourceArchivedGroups: readonly {
   matches: (resource: Resource) => boolean;
 }[] = [
   {
-    key: "studio",
+    key: 'studio',
     heading: () => m.list_resources_archived_studio_heading(),
-    matches: (resource) => resource.kind === "person" && resource.engagement === "studio",
+    matches: (resource) => resource.kind === 'person' && resource.engagement === 'studio',
   },
   {
-    key: "supplementary",
+    key: 'supplementary',
     heading: () => m.list_resources_archived_supplementary_heading(),
-    matches: (resource) => resource.kind === "person" && resource.engagement === "supplementary",
+    matches: (resource) => resource.kind === 'person' && resource.engagement === 'supplementary',
   },
   {
-    key: "external",
+    key: 'external',
     heading: () => m.list_resources_archived_external_heading(),
-    matches: (resource) => resource.kind === "external",
+    matches: (resource) => resource.kind === 'external',
   },
   {
-    key: "placeholders",
+    key: 'placeholders',
     heading: () => m.list_resources_archived_placeholders_heading(),
-    matches: (resource) => resource.kind === "placeholder",
+    matches: (resource) => resource.kind === 'placeholder',
   },
 ];
 
@@ -69,15 +81,23 @@ function archivedAncestor(
   entity: ArchivedEntity,
   row: LifecycleRow,
 ): Ancestor | null {
-  const result = inspectLifecycleAncestry(entity, row as unknown as LifecycleAncestryRow, (table, id) =>
-    indexes.get(table)?.get(id),
+  const result = inspectLifecycleAncestry(
+    entity,
+    row as unknown as LifecycleAncestryRow,
+    (table, id) => indexes.get(table)?.get(id),
   );
-  if (result.kind === "visible") return null;
+  if (result.kind === 'visible') return null;
   const ancestor = result.inactiveAncestor;
   const parent = indexes.get(ancestor.table)?.get(ancestor.id);
-  const name = parent && typeof parent.name === "string" ? parent.name : m.list_archived_unknown_parent();
-  const noun = ancestor.table === "clients" ? m.settings_archived_type_clients() : m.settings_archived_type_projects();
-  if (ancestor.state === "deleted") return { name, message: m.list_hidden_by_deleted_parent({ type: noun, name }) };
+  const name =
+    parent && typeof parent.name === 'string' ? parent.name : m.list_archived_unknown_parent();
+  const noun =
+    ancestor.table === 'clients'
+      ? m.settings_archived_type_clients()
+      : m.settings_archived_type_projects();
+  if (ancestor.state === 'deleted') {
+    return { name, message: m.list_hidden_by_deleted_parent({ type: noun, name }) };
+  }
   return {
     name,
     href: `/${ancestor.table}#archived-${ancestor.id}`,
@@ -87,19 +107,22 @@ function archivedAncestor(
 
 function buildArchivedRows(data: AppData, entity: ArchivedEntity): ArchivedRowModel[] {
   const indexes = new Map<AppDataKey, Map<string, LifecycleAncestryRow>>();
-  for (const key of ["resources", "clients", "projects", "activities", "phases"] as const)
+  for (const key of ['resources', 'clients', 'projects', 'activities', 'phases'] as const) {
     indexes.set(
       key,
-      new Map(data[key].map((candidate) => [candidate.id, candidate as unknown as LifecycleAncestryRow])),
+      new Map(
+        data[key].map((candidate) => [candidate.id, candidate as unknown as LifecycleAncestryRow]),
+      ),
     );
+  }
   return entityConfig[entity]
     .list(data)
-    .filter((row) => lifecycleStatus(row) !== "deleted")
+    .filter((row) => lifecycleStatus(row) !== 'deleted')
     .map((row) => ({ row, ancestor: archivedAncestor(indexes, entity, row) }))
-    .filter(({ row, ancestor }) => lifecycleStatus(row) === "archived" || ancestor !== null)
+    .filter(({ row, ancestor }) => lifecycleStatus(row) === 'archived' || ancestor !== null)
     .toSorted(
       (left, right) =>
-        rowName(left.row).localeCompare(rowName(right.row), undefined, { sensitivity: "base" }) ||
+        rowName(left.row).localeCompare(rowName(right.row), undefined, { sensitivity: 'base' }) ||
         left.row.id.localeCompare(right.row.id),
     );
 }
@@ -125,13 +148,21 @@ function ArchivedRow({
   onAnonymise: () => void;
   mayAnonymise: boolean;
 }) {
-  const direct = lifecycleStatus(row) === "archived";
+  const direct = lifecycleStatus(row) === 'archived';
   const name = rowName(row);
   return (
-    <Item id={`archived-${row.id}`} size="sm" role="listitem" data-testid="archived-row" className="rounded-none">
+    <Item
+      id={`archived-${row.id}`}
+      size="sm"
+      role="listitem"
+      data-testid="archived-row"
+      className="rounded-none"
+    >
       <ItemContent className="min-w-0">
         <span className="font-medium">{name}</span>
-        {entity === "resources" && <span className="text-sm text-muted-foreground">{(row as Resource).role}</span>}
+        {entity === 'resources' && (
+          <span className="text-sm text-muted-foreground">{(row as Resource).role}</span>
+        )}
         {ancestor && <span className="text-xs text-muted-foreground">{ancestor.message}</span>}
       </ItemContent>
       <ItemActions>
@@ -157,7 +188,7 @@ function ArchivedRow({
                 <Link to={ancestor.href}>{m.list_archived_restore_parent()}</Link>
               </Button>
             )}
-            {entity === "resources" && mayAnonymise && (
+            {entity === 'resources' && mayAnonymise && (
               <Button
                 size="sm"
                 variant="danger-soft"
@@ -226,7 +257,7 @@ function ArchivedContent({
   onAnonymise: (model: ArchivedRowModel) => void;
   mayAnonymise: boolean;
 }) {
-  if (entity !== "resources") {
+  if (entity !== 'resources') {
     return (
       <ArchivedRows
         entity={entity}
@@ -239,7 +270,11 @@ function ArchivedContent({
     );
   }
   return groups.map((group) => (
-    <section key={group.key} className="space-y-3" data-testid={`archived-resources-${group.key}-group`}>
+    <section
+      key={group.key}
+      className="space-y-3"
+      data-testid={`archived-resources-${group.key}-group`}
+    >
       <h2 className="text-lg font-semibold">
         {group.heading()} ({group.rows.length})
       </h2>
@@ -259,31 +294,38 @@ function ArchivedContent({
 function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
   const { data, mayViewInactive } = useInactiveAccountData();
   const actions = useLifecycleActions();
-  const [anonymising, setAnonymising] = useState<{ accountId: string | null; row: LifecycleRow } | null>(null);
-  const mayAnonymise = useCan("anonymise");
+  const [anonymising, setAnonymising] = useState<{
+    accountId: string | null;
+    row: LifecycleRow;
+  } | null>(null);
+  const mayAnonymise = useCan('anonymise');
   const setNotice = useStore((state) => state.setNotice);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { busy, run, locked } = useExclusiveAction();
   const rows = useMemo(() => (data ? buildArchivedRows(data, entity) : []), [data, entity]);
-  const groups = useMemo(() => (entity === "resources" ? buildResourceArchivedGroups(rows) : []), [entity, rows]);
+  const groups = useMemo(
+    () => (entity === 'resources' ? buildResourceArchivedGroups(rows) : []),
+    [entity, rows],
+  );
 
   const onRestore = (model: ArchivedRowModel) =>
     run(
       () => actions.unarchive(entity, model.row.id),
-      (error) => setNotice(resolveErrorMessage(error), "error"),
+      (error) => setNotice(resolveErrorMessage(error), 'error'),
     );
   const onAnonymise = (model: ArchivedRowModel) => {
-    if (entity === "resources" && mayAnonymise && !locked())
+    if (entity === 'resources' && mayAnonymise && !locked()) {
       setAnonymising({ accountId: activeAccountId, row: model.row });
+    }
   };
 
   if (!mayViewInactive || !data || rows.length === 0) return null;
   return (
     <section
-      className={`mt-8 ${entity === "resources" ? "space-y-8" : "space-y-3"}`}
+      className={`mt-8 ${entity === 'resources' ? 'space-y-8' : 'space-y-3'}`}
       data-testid={`archived-${entity}-section`}
     >
-      {entity !== "resources" && (
+      {entity !== 'resources' && (
         <h2 className="text-lg font-semibold">
           {entityConfig[entity].heading()} ({rows.length})
         </h2>
@@ -305,7 +347,7 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
           onConfirm={() => {
             run(
               () => actions.anonymise(anonymising.row.id),
-              (error) => setNotice(resolveErrorMessage(error), "error"),
+              (error) => setNotice(resolveErrorMessage(error), 'error'),
             );
             setAnonymising(null);
           }}
@@ -318,8 +360,8 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
 
 /** Keeps the full inactive browser privileged while Editors receive recovery identities only. */
 export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
-  const mayAnonymise = useCan("anonymise");
-  const mayWrite = useCan("write");
+  const mayAnonymise = useCan('anonymise');
+  const mayWrite = useCan('write');
   if (mayAnonymise) return <PrivilegedArchivedEntitySection entity={entity} />;
   if (mayWrite) return <ArchiveRecoverySection entity={entity} />;
   return null;

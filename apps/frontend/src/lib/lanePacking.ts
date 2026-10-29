@@ -1,6 +1,6 @@
-import { differenceInCalendarDays, parseISO } from "date-fns";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import type { ID, ISODate } from "@capacitylens/shared/types/entities";
+import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import type { ID, ISODate } from '@capacitylens/shared/types/entities';
 
 // Greedy first-fit interval partitioning, per resource. Produces the minimum
 // number of vertical lanes needed so that overlapping allocations never share a
@@ -44,7 +44,9 @@ export function packLanes(items: Interval[]): PackResult {
   const sorted = [...items].sort(compareIntervals);
 
   // Use a valid start when available so one malformed date cannot invalidate every interval offset.
-  const origin = sorted.find((interval) => isValidISODate(interval.startDate))?.startDate ?? sorted[0]?.startDate;
+  const origin =
+    sorted.find((interval) => isValidISODate(interval.startDate))?.startDate ??
+    sorted[0]?.startDate;
   if (origin === undefined) return { lanes: [], laneCount: 0 };
   // Parse the shared origin once. An unparseable origin makes offsets non-finite, so records use lane 0.
   const originDate = parseISO(origin);

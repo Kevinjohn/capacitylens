@@ -5,7 +5,7 @@ import type {
   SpawnSyncOptionsWithStringEncoding,
   SpawnSyncOptionsWithBufferEncoding,
   SpawnSyncReturns,
-} from "node:child_process";
+} from 'node:child_process';
 
 /**
  * Builds a child environment with color output disabled.
@@ -30,7 +30,10 @@ export function spawnPnpmSync(
   args: readonly string[],
   options?: SpawnSyncOptionsWithBufferEncoding,
 ): SpawnSyncReturns<Buffer>;
-export function spawnPnpmSync(args: readonly string[], options?: SpawnSyncOptions): SpawnSyncReturns<string | Buffer>;
+export function spawnPnpmSync(
+  args: readonly string[],
+  options?: SpawnSyncOptions,
+): SpawnSyncReturns<string | Buffer>;
 
 /**
  * Describes exit status and failure details from a synchronous child process.

@@ -1,15 +1,15 @@
-import { useState } from "react";
-import type { Resource, ResourceKind } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { useEntityListState } from "@/hooks/useEntityListState";
-import { useLifecycleActions } from "@/hooks/useLifecycleActions";
-import { resolveResourceDisplayName } from "@/lib/metadata";
-import { ConfirmDialog, ListPage } from "@/components/common/ui";
-import { ExternalForm } from "@/components/external/ExternalForm";
-import { ResourceForm } from "./ResourceForm";
-import { ResourceListContent } from "./ResourceListContent";
-import { useResourceListModel } from "./useResourceListModel";
-import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
+import { useState } from 'react';
+import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import { useEntityListState } from '@/hooks/useEntityListState';
+import { useLifecycleActions } from '@/hooks/useLifecycleActions';
+import { resolveResourceDisplayName } from '@/lib/metadata';
+import { ConfirmDialog, ListPage } from '@/components/common/ui';
+import { ExternalForm } from '@/components/external/ExternalForm';
+import { ResourceForm } from './ResourceForm';
+import { ResourceListContent } from './ResourceListContent';
+import { useResourceListModel } from './useResourceListModel';
+import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
 
 /** Shows scoped people and external resources using the resource list model. */
 export function ResourceList() {
@@ -22,7 +22,7 @@ export function ResourceList() {
     <ListPage
       title={m.list_resources_title()}
       addLabel={m.list_resources_add()}
-      onAdd={() => setCreatingKind("person")}
+      onAdd={() => setCreatingKind('person')}
     >
       <ResourceListContent
         model={model}
@@ -36,10 +36,19 @@ export function ResourceList() {
       <ArchivedEntitySection entity="resources" />
       {creatingKind && <ResourceForm kind={creatingKind} onClose={() => setCreatingKind(null)} />}
       {editing && <ResourceForm resource={editing} onClose={() => setEditing(null)} />}
-      {confirming && <ArchiveDialog resource={confirming} archive={archive} onClose={() => setConfirming(null)} />}
+      {confirming && (
+        <ArchiveDialog
+          resource={confirming}
+          archive={archive}
+          onClose={() => setConfirming(null)}
+        />
+      )}
       {externalState.creating && <ExternalForm onClose={() => externalState.setCreating(false)} />}
       {externalState.editing && (
-        <ExternalForm resource={externalState.editing} onClose={() => externalState.setEditing(null)} />
+        <ExternalForm
+          resource={externalState.editing}
+          onClose={() => externalState.setEditing(null)}
+        />
       )}
       {externalState.confirming && (
         <ArchiveDialog
@@ -56,7 +65,7 @@ export function ResourceList() {
 type ArchiveDialogProps = {
   resource: Resource;
   messageName?: string;
-  archive: (table: "resources", id: string) => Promise<unknown> | void;
+  archive: (table: 'resources', id: string) => Promise<unknown> | void;
   onClose: () => void;
 };
 
@@ -72,7 +81,7 @@ function ArchiveDialog({
       message={m.list_resources_archive_message({ name: messageName })}
       confirmLabel={m.list_archive()}
       onConfirm={() => {
-        void archive("resources", resource.id);
+        void archive('resources', resource.id);
         onClose();
       }}
       onCancel={onClose}

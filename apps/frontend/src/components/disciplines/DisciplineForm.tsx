@@ -1,26 +1,32 @@
-import { useFormLifetimeClose } from "@/hooks/useFormLifetimeClose";
-import { useState } from "react";
-import { useStore } from "@/store/useStore";
-import { useActiveScopedData } from "@/store/useScopedData";
-import { useFieldError } from "@/hooks/useFieldError";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { validatePresetColor, parseName } from "@/lib/validation";
-import { isStaleEdit } from "@/lib/isStaleEdit";
-import { m } from "@/i18n";
-import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
-import { FieldError } from "@/components/ui/field";
-import { DEFAULT_COLORS } from "@/lib/palette";
-import type { Discipline } from "@capacitylens/shared/types/entities";
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
+import { useState } from 'react';
+import { useStore } from '@/store/useStore';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { useFieldError } from '@/hooks/useFieldError';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { validatePresetColor, parseName } from '@/lib/validation';
+import { isStaleEdit } from '@/lib/isStaleEdit';
+import { m } from '@/i18n';
+import { ColorField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { FieldError } from '@/components/ui/field';
+import { DEFAULT_COLORS } from '@/lib/palette';
+import type { Discipline } from '@capacitylens/shared/types/entities';
 
 /** Creates or edits a discipline with its name and colour, closing after save or cancel. New disciplines receive the next canonical sortOrder. */
-export function DisciplineForm({ discipline, onClose: close }: { discipline?: Discipline; onClose: () => void }) {
+export function DisciplineForm({
+  discipline,
+  onClose: close,
+}: {
+  discipline?: Discipline;
+  onClose: () => void;
+}) {
   const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addDiscipline);
   const update = useStore((state) => state.updateDiscipline);
   // Append new disciplines after the maximum sortOrder so gaps from deleted disciplines cannot collide. Edits retain the existing order.
   const disciplines = useActiveScopedData().disciplines;
-  const nextSortOrder = disciplines.reduce((max, discipline) => Math.max(max, discipline.sortOrder + 1), 0);
-  const [name, setName] = useState(discipline?.name ?? "");
+  const nextSortOrder = disciplines.reduce((max, item) => Math.max(max, item.sortOrder + 1), 0);
+  const [name, setName] = useState(discipline?.name ?? '');
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline);
   const sortOrder = discipline?.sortOrder ?? nextSortOrder;
   const { error, errorField, errorId, fail } = useFieldError();
@@ -33,13 +39,16 @@ export function DisciplineForm({ discipline, onClose: close }: { discipline?: Di
     // store CRUD contract.
     try {
       if (discipline) {
-        if (isStaleEdit(useStore.getState().data.disciplines, discipline.id, discipline.updatedAt)) {
+        if (
+          isStaleEdit(useStore.getState().data.disciplines, discipline.id, discipline.updatedAt)
+        ) {
           fail(null, m.form_discipline_err_changed());
           return;
         }
         await update(discipline.id, { name: trimmed, color, sortOrder });
       } else {
-        if ((await add({ name: trimmed, color, sortOrder })).kind === "blocked") return;
+        const result = await add({ name: trimmed, color, sortOrder });
+        if (result.kind === 'blocked') return;
       }
       onClose();
     } catch (e) {
@@ -62,7 +71,7 @@ export function DisciplineForm({ discipline, onClose: close }: { discipline?: Di
         onChange={setName}
         autoFocus
         required
-        invalid={errorField === "name"}
+        invalid={errorField === 'name'}
         describedById={errorId}
         layout="label-control"
       />
@@ -70,7 +79,7 @@ export function DisciplineForm({ discipline, onClose: close }: { discipline?: Di
         label={m.form_discipline_colour_label()}
         value={color}
         onChange={setColor}
-        invalid={errorField === "color"}
+        invalid={errorField === 'color'}
         describedById={errorId}
         layout="label-control"
       />

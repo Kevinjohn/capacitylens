@@ -1,34 +1,34 @@
-import { getMasqueradeContextToken } from "@/auth/masqueradeContext";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { m } from "@/i18n";
-import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamInvitation, TeamMember as Member } from "@/account/teamAccessClient";
-import { useAuth } from "@/auth/authContext";
-import { isServerConfigured } from "@/data/apiConfig";
-import { useDeadlineClock } from "@/hooks/useDeadlineClock";
-import { useFieldError } from "@/hooks/useFieldError";
-import { useStore } from "@/store/useStore";
-import type { StoreState } from "@/store/types";
-import { useTeamDirectory } from "./useTeamDirectory";
-import { useMemberInvites } from "./useMemberInvites";
-import { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
-import { createMemberMutations } from "./createMemberMutations";
-import { startMasquerade } from "@/auth/accountTransition";
-import { STATUS_FOR_ACTION } from "./memberConfirmationCopy";
-import type { MemberConfirmation, MemberConfirmationAction } from "./memberConfirmationCopy";
-import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
-import { useResourceListModel } from "@/components/resources/useResourceListModel";
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { m } from '@/i18n';
+import type { Role } from '@capacitylens/shared/domain/access';
+import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessClient';
+import { useAuth } from '@/auth/authContext';
+import { isServerConfigured } from '@/data/apiConfig';
+import { useDeadlineClock } from '@/hooks/useDeadlineClock';
+import { useFieldError } from '@/hooks/useFieldError';
+import { useStore } from '@/store/useStore';
+import type { StoreState } from '@/store/types';
+import { useTeamDirectory } from './useTeamDirectory';
+import { useMemberInvites } from './useMemberInvites';
+import { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
+import { createMemberMutations } from './createMemberMutations';
+import { startMasquerade } from '@/auth/accountTransition';
+import { STATUS_FOR_ACTION } from './memberConfirmationCopy';
+import type { MemberConfirmation, MemberConfirmationAction } from './memberConfirmationCopy';
+import { buildMemberDirectoryPresentation } from './buildMemberDirectoryPresentation';
+import { useResourceListModel } from '@/components/resources/useResourceListModel';
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
 
-function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory>["directory"]) {
+function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory>['directory']) {
   switch (directory.kind) {
-    case "ready":
+    case 'ready':
       return directory.snapshot;
-    case "error":
-      return directory.content.kind === "authorized" ? directory.content.snapshot : null;
-    case "hidden":
-    case "loading":
+    case 'error':
+      return directory.content.kind === 'authorized' ? directory.content.snapshot : null;
+    case 'hidden':
+    case 'loading':
       return null;
   }
 }
@@ -83,18 +83,18 @@ function createConfirmationActions(
     const pending = state.memberConfirmation;
     state.setMemberConfirmation(null);
     switch (pending.kind) {
-      case "masquerade":
+      case 'masquerade':
         if (activeAccountId) void startMasquerade(activeAccountId, pending.member.userId);
         return;
-      case "remove":
+      case 'remove':
         void actions.removeMember(pending.member);
         return;
-      case "disable":
-      case "archive":
-      case "restore":
+      case 'disable':
+      case 'archive':
+      case 'restore':
         void actions.changeStatus(pending.member, STATUS_FOR_ACTION[pending.kind]);
         return;
-      case "enable":
+      case 'enable':
         void actions.enableAccess(pending.member);
         return;
     }
@@ -105,9 +105,9 @@ function createConfirmationActions(
 interface MemberDirectoryStateInput {
   activeAccountId: string | null;
   enabled: boolean;
-  fail: ReturnType<typeof useFieldError>["fail"];
-  setNotice: StoreState["setNotice"];
-  setActiveAccount: StoreState["setActiveAccount"];
+  fail: ReturnType<typeof useFieldError>['fail'];
+  setNotice: StoreState['setNotice'];
+  setActiveAccount: StoreState['setActiveAccount'];
   viewState: ReturnType<typeof useMemberViewState>;
 }
 
@@ -142,7 +142,10 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     input.setActiveAccount(null);
     useStore.setState({ previousAccountId: null });
   };
-  const withMemberAction = async (key: string, body: (accountId: string) => Promise<void>): Promise<void> => {
+  const withMemberAction = async (
+    key: string,
+    body: (accountId: string) => Promise<void>,
+  ): Promise<void> => {
     const accountId = requestAccountId();
     if (!directoryState.beginAction(key)) return;
     try {
@@ -173,11 +176,11 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
 
 interface MemberMutationStateInput {
   activeAccountId: string | null;
-  refreshAuth: ReturnType<typeof useAuth>["refreshAuth"];
-  invalidateMemberships: StoreState["invalidateMemberships"];
-  clear: ReturnType<typeof useFieldError>["clear"];
+  refreshAuth: ReturnType<typeof useAuth>['refreshAuth'];
+  invalidateMemberships: StoreState['invalidateMemberships'];
+  clear: ReturnType<typeof useFieldError>['clear'];
   viewState: ReturnType<typeof useMemberViewState>;
-  createInviteActions: ReturnType<typeof useMemberInvites>["createActions"];
+  createInviteActions: ReturnType<typeof useMemberInvites>['createActions'];
   directoryState: ReturnType<typeof useMemberDirectoryState>;
 }
 
@@ -239,7 +242,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const viewState = useMemberViewState();
   const memberInvites = useMemberInvites();
   const { resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
-  const enabled = authMode !== "off" && isServerConfigured();
+  const enabled = authMode !== 'off' && isServerConfigured();
   const directoryState = useMemberDirectoryState({
     activeAccountId,
     enabled,
@@ -250,13 +253,16 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   });
   useEffect(() => {
     const unauthorized =
-      directoryState.directory.kind === "hidden" ||
-      (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
+      directoryState.directory.kind === 'hidden' ||
+      (directoryState.directory.kind === 'error' &&
+        directoryState.directory.content.kind === 'unavailable');
     if (unauthorized) resetInviteDraft();
   }, [directoryState.directory, resetInviteDraft]);
   // Candidate eligibility comes from the server; local Resources state affects only presentation order. Never intersect the candidate set with a potentially stale local roster.
   const resourceListModel = useResourceListModel();
-  const resourceOrder = new Map(resourceListModel.people.map((resource, index) => [resource.id, index]));
+  const resourceOrder = new Map(
+    resourceListModel.people.map((resource, index) => [resource.id, index]),
+  );
   const resourceCandidates = [...directoryState.resourceCandidates].sort(
     (left, right) =>
       (resourceOrder.get(left.resourceId) ?? Number.POSITIVE_INFINITY) -

@@ -1,4 +1,4 @@
-import db from '@adonisjs/lucid/services/db'
+import db from '@adonisjs/lucid/services/db';
 import {
   FIXTURE_ACCOUNT,
   FIXTURE_ACTIVITY,
@@ -15,10 +15,10 @@ import {
   FIXTURE_RESOURCE_EXTERNAL,
   FIXTURE_RESOURCE_PERSON,
   FIXTURE_TIMEOFF,
-} from '@capacitylens/shared/data/fixtures'
+} from '@capacitylens/shared/data/fixtures';
 
-const accountIds = { dc: 'a-studio', marvel: 'a-loft' } as const
-const stamp = '2026-10-12T00:00:00.000Z'
+const accountIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
+const stamp = '2026-10-12T00:00:00.000Z';
 
 export const accountIndexes = [
   ['clients', 'account_id'],
@@ -30,7 +30,7 @@ export const accountIndexes = [
   ['allocations', 'account_id'],
   ['time_off', 'account_id'],
   ['closures', 'account_id'],
-] as const
+] as const;
 
 export const foreignKeyIndexes = [
   ['projects', 'client_id'],
@@ -43,7 +43,7 @@ export const foreignKeyIndexes = [
   ['allocations', 'activity_id'],
   ['allocations', 'project_id'],
   ['time_off', 'resource_id'],
-] as const
+] as const;
 
 export const baselineTables = [
   'accounts',
@@ -85,16 +85,16 @@ export const baselineTables = [
   'social_handoff_codes',
   'account_invitations',
   'account_admissions',
-] as const
+] as const;
 
 export function expectedFixture(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(expectedFixture)
-  if (value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.map(expectedFixture);
+  if (value === null || typeof value !== 'object') return value;
   return Object.fromEntries(
     Object.entries(value)
       .filter(([, child]) => child !== undefined)
       .map(([key, child]) => [key, expectedFixture(child)])
-  )
+  );
 }
 
 export function encodeFixture(value: object) {
@@ -107,13 +107,13 @@ export function encodeFixture(value: object) {
         ? JSON.stringify(child)
         : (child ?? null),
     ])
-  )
+  );
 }
 
 export function stripLifecycle<T extends { archivedAt?: string | null; deletedAt?: string | null }>(
   value: T
 ): T {
-  return { ...value, archivedAt: null, deletedAt: null }
+  return { ...value, archivedAt: null, deletedAt: null };
 }
 
 export const fullFixtureRows = [
@@ -134,7 +134,7 @@ export const fullFixtureRows = [
   ['allocations', [FIXTURE_ALLOCATION, FIXTURE_ALLOCATION_ATTRIBUTED]],
   ['time_off', [FIXTURE_TIMEOFF]],
   ['closures', [FIXTURE_CLOSURE]],
-] as const
+] as const;
 
 export async function insertInvalidReference(table: string, column: string, targetId: string) {
   const common = {
@@ -142,7 +142,7 @@ export async function insertInvalidReference(table: string, column: string, targ
     id: `invalid-${table}-${column}`,
     created_at: stamp,
     updated_at: stamp,
-  }
+  };
   const rows: Record<string, Record<string, unknown>> = {
     projects: { ...common, client_id: targetId, name: 'Invalid', color: '#111111' },
     phases: { ...common, project_id: targetId, name: 'Invalid' },
@@ -176,8 +176,8 @@ export async function insertInvalidReference(table: string, column: string, targ
       end_date: '2026-10-13',
       type: 'holiday',
     },
-  }
-  await db.table(table).insert(rows[table]!)
+  };
+  await db.table(table).insert(rows[table]!);
 }
 
 export const crossAccountReferences = [
@@ -191,4 +191,4 @@ export const crossAccountReferences = [
   ['allocations.activity_id', 'allocations', 'activity_id', 'm1-marvel-activity'],
   ['allocations.project_id', 'allocations', 'project_id', 'm1-marvel-project'],
   ['time_off.resource_id', 'time_off', 'resource_id', 'm1-marvel-resource'],
-] as const
+] as const;

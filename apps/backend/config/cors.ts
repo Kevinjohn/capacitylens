@@ -1,5 +1,5 @@
-import { defineConfig } from '@adonisjs/cors'
-import { corsOrigins } from '#services/cors_policy'
+import { defineConfig } from '@adonisjs/cors';
+import { corsOrigins } from '#services/cors_policy';
 
 /**
  * Configuration options to tweak the CORS policy. The following
@@ -51,6 +51,6 @@ const corsConfig = defineConfig({
    * Cache CORS preflight response for N seconds.
    */
   maxAge: 90,
-})
+});
 
-export default corsConfig
+export default corsConfig;

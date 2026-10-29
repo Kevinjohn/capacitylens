@@ -1,6 +1,6 @@
-import { daysInclusive } from "@capacitylens/shared/lib/dateMath";
-import { m } from "@/i18n";
-import type { ISODate } from "@capacitylens/shared/types/entities";
+import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { m } from '@/i18n';
+import type { ISODate } from '@capacitylens/shared/types/entities';
 
 interface ResolveVisibleWindowInput {
   days: ISODate[];
@@ -36,7 +36,9 @@ export function buildVisibleSpanLabels(start: ISODate, end: ISODate): VisibleSpa
   if (span.weekCount !== undefined) {
     const count = span.weekCount;
     const long =
-      count === 1 ? m.scheduler_visible_weeks_label_one({ count }) : m.scheduler_visible_weeks_label_other({ count });
+      count === 1
+        ? m.scheduler_visible_weeks_label_one({ count })
+        : m.scheduler_visible_weeks_label_other({ count });
     return {
       long,
       compact: m.scheduler_visible_weeks_compact({ count }),
@@ -44,13 +46,21 @@ export function buildVisibleSpanLabels(start: ISODate, end: ISODate): VisibleSpa
   }
   const count = span.dayCount;
   return {
-    long: count === 1 ? m.scheduler_visible_days_label_one({ count }) : m.scheduler_visible_days_label_other({ count }),
+    long:
+      count === 1
+        ? m.scheduler_visible_days_label_one({ count })
+        : m.scheduler_visible_days_label_other({ count }),
     compact: m.scheduler_visible_days_compact({ count }),
   };
 }
 
 /** Resolves the inclusive visible utilisation window from the scroll edge, clamping it to timeline dates. Before the first scroll, anchor to focusDate rather than the buffered origin so the initial view describes the requested week. */
-export function resolveVisibleWindow({ days, leftEdgeIndex, zoom, focusDate }: ResolveVisibleWindowInput): {
+export function resolveVisibleWindow({
+  days,
+  leftEdgeIndex,
+  zoom,
+  focusDate,
+}: ResolveVisibleWindowInput): {
   start: ISODate;
   end: ISODate;
 } {

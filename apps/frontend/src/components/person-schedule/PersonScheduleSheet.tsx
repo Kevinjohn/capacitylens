@@ -1,15 +1,26 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
-import { m } from "@/i18n";
-import { formatDayMonthRange } from "@/lib/dateDisplay";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { m } from '@/i18n';
+import { formatDayMonthRange } from '@/lib/dateDisplay';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 
-import { PersonScheduleEntry } from "./PersonScheduleEntry";
-import type { PersonScheduleSheetProps } from "./personScheduleTypes";
+import { PersonScheduleEntry } from './PersonScheduleEntry';
+import type { PersonScheduleSheetProps } from './personScheduleTypes';
 
 /** Displays a resource schedule with focus restoration when the sheet closes. */
-export function PersonScheduleSheet({ open, schedule, onOpenChange, onRestoreFocus }: PersonScheduleSheetProps) {
-  const available = schedule.kind === "available";
+export function PersonScheduleSheet({
+  open,
+  schedule,
+  onOpenChange,
+  onRestoreFocus,
+}: PersonScheduleSheetProps) {
+  const available = schedule.kind === 'available';
 
   useEffect(() => {
     if (!open || available) return;
@@ -29,17 +40,28 @@ export function PersonScheduleSheet({ open, schedule, onOpenChange, onRestoreFoc
             onRestoreFocus();
           }}
         >
-          <SheetHeader data-testid="person-schedule-header" className="shrink-0 border-b py-4 pr-12 text-left">
-            <SheetTitle>{m.scheduler_person_schedule_title({ name: schedule.model.title })}</SheetTitle>
+          <SheetHeader
+            data-testid="person-schedule-header"
+            className="shrink-0 border-b py-4 pr-12 text-left"
+          >
+            <SheetTitle>
+              {m.scheduler_person_schedule_title({ name: schedule.model.title })}
+            </SheetTitle>
             <SheetDescription>
               {m.scheduler_person_schedule_description({
-                range: formatDayMonthRange(schedule.model.window.startDate, schedule.model.window.endDate),
+                range: formatDayMonthRange(
+                  schedule.model.window.startDate,
+                  schedule.model.window.endDate,
+                ),
               })}
             </SheetDescription>
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {schedule.model.entries.length === 0 ? (
-              <p data-testid="person-schedule-empty" className="py-10 text-center text-sm text-muted-foreground">
+              <p
+                data-testid="person-schedule-empty"
+                className="py-10 text-center text-sm text-muted-foreground"
+              >
                 {m.scheduler_person_schedule_empty()}
               </p>
             ) : (

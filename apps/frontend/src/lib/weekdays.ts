@@ -1,5 +1,5 @@
-import { m } from "@/i18n";
-import type { Weekday } from "@capacitylens/shared/types/entities";
+import { m } from '@/i18n';
+import type { Weekday } from '@capacitylens/shared/types/entities';
 
 // The table holds uncalled message references (`m.weekday_long_mon`, not `m.weekday_long_mon()`).
 // This module is evaluated once at import, and Paraglide resolves the active locale at call time,

@@ -1,14 +1,14 @@
-import { m } from "@/i18n";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import type { InvitationRole } from "@capacitylens/shared/account/types";
-import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamInvitation } from "@/account/teamAccessClient";
-import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
-import { resolveRoleLabel, resolveRoleSummary } from "@/lib/accessCopy";
-import { Modal, SelectField, TextField } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
-import { FieldError, FieldSet } from "@/components/ui/field";
-import { sortInvitationsForPresentation } from "./buildMemberDirectoryPresentation";
+import { m } from '@/i18n';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import type { InvitationRole } from '@capacitylens/shared/account/types';
+import type { Role } from '@capacitylens/shared/domain/access';
+import type { TeamInvitation } from '@/account/teamAccessClient';
+import { formatInviteExpiryDate } from '@/components/invites/inviteExpiry';
+import { resolveRoleLabel, resolveRoleSummary } from '@/lib/accessCopy';
+import { Modal, SelectField, TextField } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
+import { FieldError, FieldSet } from '@/components/ui/field';
+import { sortInvitationsForPresentation } from './buildMemberDirectoryPresentation';
 
 type InviteMemberPanelProps = {
   busy: boolean;
@@ -66,7 +66,9 @@ function InviteHeader({ onOpen }: { onOpen: () => void }) {
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex flex-col gap-1">
         <h2 className="font-semibold">{m.settings_invite_heading()}</h2>
-        <p className="max-w-2xl text-sm text-muted-foreground">{m.settings_invite_intro({ app: APP_NAME })}</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          {m.settings_invite_intro({ app: APP_NAME })}
+        </p>
       </div>
       <Button type="button" data-testid="invite-open" onClick={onOpen}>
         {m.settings_invite_open()}
@@ -105,17 +107,17 @@ function InviteForm(props: InviteMemberPanelProps) {
         value={props.invitationPreauthorizedEmail}
         onChange={(next) => {
           props.setInvitationPreauthorizedEmail(next);
-          if (errorField === "invite") clear();
+          if (errorField === 'invite') clear();
         }}
         disabled={busy}
-        invalid={errorField === "invite"}
+        invalid={errorField === 'invite'}
         layout="label-control"
         required
         describedById={errorId}
         placeholder={m.settings_invite_preauth_placeholder()}
         testId="invite-preauth"
       />
-      <FieldError id={errorId}>{errorField === "invite" ? error : null}</FieldError>
+      <FieldError id={errorId}>{errorField === 'invite' ? error : null}</FieldError>
     </FieldSet>
   );
 }
@@ -127,7 +129,13 @@ function resolveInvitationStatus(invitation: TeamInvitation, expired: boolean): 
   return m.settings_invite_suffix_expires({ date: formatInviteExpiryDate(invitation.expiresAt) });
 }
 
-function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, resendInvite }: InviteMemberPanelProps) {
+function OutstandingInvites({
+  invites,
+  renderedAt,
+  busy,
+  revokeInvite,
+  resendInvite,
+}: InviteMemberPanelProps) {
   if (invites.length === 0) return null;
   return (
     <section data-testid="outstanding-invites" className="flex flex-col gap-2">
@@ -151,13 +159,17 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, resendInv
             {sortInvitationsForPresentation(invites).map((invitation) => {
               const expired = Date.parse(invitation.expiresAt) <= renderedAt;
               return (
-                <tr key={invitation.id} className="border-b last:border-b-0" data-testid="invite-row">
+                <tr
+                  key={invitation.id}
+                  className="border-b last:border-b-0"
+                  data-testid="invite-row"
+                >
                   <td className="max-w-52 py-2 px-4 text-xs text-muted-foreground">
                     <span className="block truncate" title={invitation.preauthEmail}>
                       {invitation.preauthEmail}
                     </span>
                     <span className="block">
-                      {resolveInvitationStatus(invitation, expired).replace(/^\s*·\s*/, "")}
+                      {resolveInvitationStatus(invitation, expired).replace(/^\s*·\s*/, '')}
                     </span>
                   </td>
                   <td className="py-2 px-4">{resolveRoleLabel(invitation.role)}</td>
@@ -167,7 +179,9 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, resendInv
                         size="sm"
                         variant="outline"
                         data-testid="invite-resend"
-                        aria-label={m.settings_invite_resend_aria({ email: invitation.preauthEmail })}
+                        aria-label={m.settings_invite_resend_aria({
+                          email: invitation.preauthEmail,
+                        })}
                         disabled={busy}
                         onClick={() => void resendInvite(invitation)}
                       >

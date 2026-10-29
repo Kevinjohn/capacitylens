@@ -1,4 +1,4 @@
-import type { StateCreator } from "zustand";
+import type { StateCreator } from 'zustand';
 import {
   readDefaultSidebarOpen,
   readStoredBarLabelPrefs,
@@ -10,56 +10,56 @@ import {
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
   writeStoredUtilizationPrefs,
-} from "@/lib/displayPrefs";
-import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "@/lib/theme";
-import type { StoreState } from "@/store/types";
+} from '@/lib/displayPrefs';
+import { applyThemeToDom, readStoredTheme, writeStoredTheme } from '@/lib/theme';
+import type { StoreState } from '@/store/types';
 
 type RuntimeSliceKeys =
-  | "hydrated"
-  | "persistError"
-  | "planningAuthLossVersion"
-  | "loadError"
-  | "connectionError"
-  | "activeAccountLoadFailed"
-  | "notice"
-  | "srAnnouncement"
-  | "dirtyForm"
-  | "dirtyFormSources"
-  | "draggingAllocationId"
-  | "theme"
-  | "utilizationPrefs"
-  | "barLabelPrefs"
-  | "sidebarOpen"
-  | "minimiseWeekends"
-  | "weekSnapEnabled"
-  | "activeRole"
-  | "activeRoleStatus"
-  | "membershipRevision"
-  | "masquerade"
-  | "setHydrated"
-  | "setPersistError"
-  | "setLoadError"
-  | "setConnectionError"
-  | "setNotice"
-  | "announceCapacity"
-  | "setDirtyForm"
-  | "setDirtyFormSource"
-  | "setDraggingAllocation"
-  | "setTheme"
-  | "setUtilizationPref"
-  | "setBarLabelPref"
-  | "setSidebarOpen"
-  | "setMinimiseWeekends"
-  | "setActiveRole"
-  | "invalidateMemberships"
-  | "setMasquerade"
-  | "clearUndoHistory";
+  | 'hydrated'
+  | 'persistError'
+  | 'planningAuthLossVersion'
+  | 'loadError'
+  | 'connectionError'
+  | 'activeAccountLoadFailed'
+  | 'notice'
+  | 'srAnnouncement'
+  | 'dirtyForm'
+  | 'dirtyFormSources'
+  | 'draggingAllocationId'
+  | 'theme'
+  | 'utilizationPrefs'
+  | 'barLabelPrefs'
+  | 'sidebarOpen'
+  | 'minimiseWeekends'
+  | 'weekSnapEnabled'
+  | 'activeRole'
+  | 'activeRoleStatus'
+  | 'membershipRevision'
+  | 'masquerade'
+  | 'setHydrated'
+  | 'setPersistError'
+  | 'setLoadError'
+  | 'setConnectionError'
+  | 'setNotice'
+  | 'announceCapacity'
+  | 'setDirtyForm'
+  | 'setDirtyFormSource'
+  | 'setDraggingAllocation'
+  | 'setTheme'
+  | 'setUtilizationPref'
+  | 'setBarLabelPref'
+  | 'setSidebarOpen'
+  | 'setMinimiseWeekends'
+  | 'setActiveRole'
+  | 'invalidateMemberships'
+  | 'setMasquerade'
+  | 'clearUndoHistory';
 
 type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
-type PersistedFlagKey = "sidebarOpen" | "minimiseWeekends";
+type PersistedFlagKey = 'sidebarOpen' | 'minimiseWeekends';
 
-const legacyDirtyFormSource = Symbol("setDirtyForm");
+const legacyDirtyFormSource = Symbol('setDirtyForm');
 
 const createPersistedFlagSetter = <K extends PersistedFlagKey>(
   set: Parameters<StateCreator<StoreState, [], [], RuntimeSlice>>[0],
@@ -91,9 +91,9 @@ function readRuntimeInitialState() {
     minimiseWeekends: readStoredMinimiseWeekends(),
     weekSnapEnabled: readStoredWeekSnapOverride(),
     activeRole: null,
-    activeRoleStatus: "not-applicable" as const,
+    activeRoleStatus: 'not-applicable' as const,
     membershipRevision: 0,
-    masquerade: { kind: "inactive" as const },
+    masquerade: { kind: 'inactive' as const },
   };
 }
 
@@ -116,7 +116,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     setPersistError: (value) => set({ persistError: value }),
     setLoadError: (value) => set({ loadError: value }),
     setConnectionError: (value) => set({ connectionError: value }),
-    setNotice: (message, tone = "info") => set({ notice: message ? { message, tone } : null }),
+    setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
     announceCapacity: (text) =>
       set((state) => ({
         srAnnouncement: { text, seq: (state.srAnnouncement?.seq ?? 0) + 1 },
@@ -124,7 +124,9 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     // Retain the boolean API as one owned source. Component publishers use setDirtyFormSource so
     // clearing one contribution can never erase another still-dirty owner.
     setDirtyForm: (value) =>
-      set((state) => applyDirtyFormSource({ state: state, source: legacyDirtyFormSource, dirty: value })),
+      set((state) =>
+        applyDirtyFormSource({ state: state, source: legacyDirtyFormSource, dirty: value }),
+      ),
     setDirtyFormSource: ({ source, dirty }) =>
       set((state) => applyDirtyFormSource({ state: state, source: source, dirty: dirty })),
     setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
@@ -147,11 +149,18 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
         writeStoredBarLabelPrefs(next);
         return { barLabelPrefs: next };
       }),
-    setSidebarOpen: createPersistedFlagSetter(set, "sidebarOpen", (open) => writeStoredSidebarOpen({ open })),
-    setMinimiseWeekends: createPersistedFlagSetter(set, "minimiseWeekends", writeStoredMinimiseWeekends),
-    setActiveRole: (role, status = role === null ? "not-applicable" : "resolved") =>
+    setSidebarOpen: createPersistedFlagSetter(set, 'sidebarOpen', (open) =>
+      writeStoredSidebarOpen({ open }),
+    ),
+    setMinimiseWeekends: createPersistedFlagSetter(
+      set,
+      'minimiseWeekends',
+      writeStoredMinimiseWeekends,
+    ),
+    setActiveRole: (role, status = role === null ? 'not-applicable' : 'resolved') =>
       set({ activeRole: role, activeRoleStatus: status }),
-    invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
+    invalidateMemberships: () =>
+      set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
     setMasquerade: (masquerade) => set({ masquerade }),
     clearUndoHistory: () => set({ past: [], future: [] }),
   };

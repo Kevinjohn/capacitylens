@@ -1,6 +1,6 @@
-import { m } from "@/i18n";
-import { readBuildStamp, readFeedbackMailto } from "@/data/buildInfo";
-import { SettingsSection } from "@/components/settings/SettingsSection";
+import { m } from '@/i18n';
+import { readBuildStamp, readFeedbackMailto } from '@/data/buildInfo';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 
 /** Shows build provenance when the deployment provides a stamp or feedback address. */
 export function DiagnosticsBuildDetails() {
@@ -19,7 +19,11 @@ export function DiagnosticsBuildDetails() {
       <p className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         {stamp && <span data-testid="build-stamp">{stamp}</span>}
         {feedback && (
-          <a data-testid="send-feedback" href={feedback} className="underline underline-offset-2 hover:text-ink">
+          <a
+            data-testid="send-feedback"
+            href={feedback}
+            className="underline underline-offset-2 hover:text-ink"
+          >
             {m.settings_feedback_link()}
           </a>
         )}

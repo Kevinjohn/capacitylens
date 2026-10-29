@@ -1,4 +1,4 @@
-import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type {
   Account,
   Activity,
@@ -11,12 +11,12 @@ import type {
   Resource,
   TimeOff,
   Weekday,
-} from "@capacitylens/shared/types/entities";
-import type { Draft } from "@/store/useStore";
-import { useStore } from "@/store/useStore";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { createPlanningCacheState } from "@/data/planning/planningCacheController";
-import type { BarLayout } from "@/components/scheduler/schedulerModel";
+} from '@capacitylens/shared/types/entities';
+import type { Draft } from '@/store/useStore';
+import { useStore } from '@/store/useStore';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createPlanningCacheState } from '@/data/planning/planningCacheController';
+import type { BarLayout } from '@/components/scheduler/schedulerModel';
 
 // Shared fixtures establish an active account so scoped store mutations have a valid tenant.
 
@@ -24,9 +24,9 @@ import type { BarLayout } from "@/components/scheduler/schedulerModel";
 export const WORKDAYS: Weekday[] = [1, 2, 3, 4, 5];
 
 /** The account every fixture/entity is filed under unless overridden. */
-export const DEFAULT_ACCOUNT_ID = "acct-test";
+export const DEFAULT_ACCOUNT_ID = 'acct-test';
 
-const TS = "2026-05-01T00:00:00.000Z";
+const TS = '2026-05-01T00:00:00.000Z';
 
 /** A complete Account; override any field per test. */
 export function makeAccount(overrides: Partial<Account> = {}): Account {
@@ -35,8 +35,8 @@ export function makeAccount(overrides: Partial<Account> = {}): Account {
     id: DEFAULT_ACCOUNT_ID,
     createdAt: TS,
     updatedAt: TS,
-    name: "Test Co",
-    color: "#2d75da",
+    name: 'Test Co',
+    color: '#2d75da',
     workingDays: [...WORKDAYS],
     ...overrides,
   };
@@ -50,14 +50,14 @@ export function makeAppData(overrides: Partial<AppData> = {}): AppData {
 /** A valid person Draft<Resource>; override any field per test. */
 export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Draft<Resource> {
   return {
-    kind: "person",
-    name: "Test Person",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio" as const,
+    kind: 'person',
+    name: 'Test Person',
+    role: 'Designer',
+    employmentType: 'permanent',
+    engagement: 'studio' as const,
     workingHoursPerDay: 8,
     workingDays: WORKDAYS,
-    color: "#2d75da",
+    color: '#2d75da',
     isFavourite: false,
     ...overrides,
     halfDays: overrides.halfDays ?? [],
@@ -69,19 +69,19 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
 export function makeResource(overrides: Partial<Resource> = {}): Resource {
   return {
     ...NULLABLE_FIELDS.resources,
-    id: "r1",
-    accountId: "a1",
-    createdAt: "t",
-    updatedAt: "t",
-    kind: "person",
-    name: "Test Person",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio",
+    id: 'r1',
+    accountId: 'a1',
+    createdAt: 't',
+    updatedAt: 't',
+    kind: 'person',
+    name: 'Test Person',
+    role: 'Designer',
+    employmentType: 'permanent',
+    engagement: 'studio',
     workingHoursPerDay: 8,
     workingDays: WORKDAYS,
     halfDays: [],
-    color: "#2d75da",
+    color: '#2d75da',
     ...overrides,
   };
 }
@@ -90,12 +90,12 @@ export function makeResource(overrides: Partial<Resource> = {}): Resource {
 export function makeClient(overrides: Partial<Client> = {}): Client {
   return {
     ...NULLABLE_FIELDS.clients,
-    id: "c1",
-    accountId: "a1",
-    createdAt: "t",
-    updatedAt: "t",
-    name: "Ferris",
-    color: "#222",
+    id: 'c1',
+    accountId: 'a1',
+    createdAt: 't',
+    updatedAt: 't',
+    name: 'Ferris',
+    color: '#222',
     ...overrides,
   };
 }
@@ -104,13 +104,13 @@ export function makeClient(overrides: Partial<Client> = {}): Client {
 export function makeProject(overrides: Partial<Project> = {}): Project {
   return {
     ...NULLABLE_FIELDS.projects,
-    id: "p1",
-    accountId: "a1",
-    createdAt: "t",
-    updatedAt: "t",
-    name: "Lightning",
-    clientId: "c1",
-    color: "#ec4899",
+    id: 'p1',
+    accountId: 'a1',
+    createdAt: 't',
+    updatedAt: 't',
+    name: 'Lightning',
+    clientId: 'c1',
+    color: '#ec4899',
     ...overrides,
   };
 }
@@ -119,13 +119,13 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
 export function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
     ...NULLABLE_FIELDS.activities,
-    id: "t1",
-    accountId: "a1",
-    createdAt: "t",
-    updatedAt: "t",
-    name: "Wireframes",
-    kind: "project",
-    projectId: "p1",
+    id: 't1',
+    accountId: 'a1',
+    createdAt: 't',
+    updatedAt: 't',
+    name: 'Wireframes',
+    kind: 'project',
+    projectId: 'p1',
     ...overrides,
   };
 }
@@ -134,16 +134,16 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
 export function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
   return {
     ...NULLABLE_FIELDS.allocations,
-    id: "a1",
-    accountId: "a1",
-    createdAt: "t",
-    updatedAt: "t",
-    resourceId: "r1",
-    activityId: "t1",
-    startDate: "2026-06-01",
-    endDate: "2026-06-02",
+    id: 'a1',
+    accountId: 'a1',
+    createdAt: 't',
+    updatedAt: 't',
+    resourceId: 'r1',
+    activityId: 't1',
+    startDate: '2026-06-01',
+    endDate: '2026-06-02',
     hoursPerDay: 8,
-    status: "confirmed",
+    status: 'confirmed',
     ...overrides,
   };
 }
@@ -152,14 +152,14 @@ export function makeAllocation(overrides: Partial<Allocation> = {}): Allocation 
 export function makeTimeOff(overrides: Partial<TimeOff> = {}): TimeOff {
   return {
     ...NULLABLE_FIELDS.timeOff,
-    id: "to1",
-    accountId: "a1",
-    createdAt: "t",
-    updatedAt: "t",
-    resourceId: "r1",
-    startDate: "2026-06-01",
-    endDate: "2026-06-02",
-    type: "holiday",
+    id: 'to1',
+    accountId: 'a1',
+    createdAt: 't',
+    updatedAt: 't',
+    resourceId: 'r1',
+    startDate: '2026-06-01',
+    endDate: '2026-06-02',
+    type: 'holiday',
     ...overrides,
   };
 }
@@ -167,13 +167,13 @@ export function makeTimeOff(overrides: Partial<TimeOff> = {}): TimeOff {
 /** A complete company Closure; override any field per test. */
 export function makeClosure(overrides: Partial<Closure> = {}): Closure {
   return {
-    id: "closure1",
-    accountId: "a1",
-    createdAt: "t",
-    updatedAt: "t",
-    name: "Christmas shutdown",
-    startDate: "2026-12-24",
-    endDate: "2026-12-27",
+    id: 'closure1',
+    accountId: 'a1',
+    createdAt: 't',
+    updatedAt: 't',
+    name: 'Christmas shutdown',
+    startDate: '2026-12-24',
+    endDate: '2026-12-27',
     ...overrides,
   };
 }
@@ -187,8 +187,8 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
     x: 0,
     width: 100,
     top: 0,
-    color: "#2d75da",
-    label: "Wireframes",
+    color: '#2d75da',
+    label: 'Wireframes',
     external: false,
     ...overrides,
   };
@@ -240,12 +240,12 @@ export async function setExternalEnabled({
 export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { 'Content-Type': 'application/json' },
   });
 }
 
 /** Establish an indexed-fixture precondition without weakening the assertion that consumes it. */
-export function requireValue<T>(value: T | undefined, context = "fixture value"): T {
+export function requireValue<T>(value: T | undefined, context = 'fixture value'): T {
   if (value === undefined) throw new Error(`Expected ${context}`);
   return value;
 }

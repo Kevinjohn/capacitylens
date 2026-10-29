@@ -1,9 +1,9 @@
-import { m } from "@/i18n";
-import { Modal } from "@/components/common/ui";
-import { AllocationFooter } from "./AllocationFooter";
-import { AllocationScheduleFields } from "./AllocationScheduleFields";
-import { AllocationTargetFields } from "./AllocationTargetFields";
-import { useAllocationModalState } from "./useAllocationModalState";
+import { m } from '@/i18n';
+import { Modal } from '@/components/common/ui';
+import { AllocationFooter } from './AllocationFooter';
+import { AllocationScheduleFields } from './AllocationScheduleFields';
+import { AllocationTargetFields } from './AllocationTargetFields';
+import { useAllocationModalState } from './useAllocationModalState';
 
 type AllocationModalProps = Parameters<typeof useAllocationModalState>[0];
 
@@ -13,7 +13,7 @@ function buildTitle({ editing, createName }: BuildTitleOptions) {
   if (createName) {
     return (
       <>
-        {m.form_allocation_new_for({ name: "" })}
+        {m.form_allocation_new_for({ name: '' })}
         <strong>{createName}</strong>
       </>
     );

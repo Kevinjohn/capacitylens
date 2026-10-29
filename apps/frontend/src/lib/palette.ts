@@ -2,18 +2,18 @@
 // palette instead of hex literals scattered across forms.
 
 // Share canonical preset colors so app presentation and domain fallbacks cannot drift.
-export { NEUTRAL_COLOR } from "@capacitylens/shared/lib/color";
-import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
-import { m } from "@/i18n";
+export { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
+import { PRESET_COLORS } from '@capacitylens/shared/lib/color';
+import { m } from '@/i18n';
 
 /** Default preset colors grouped by entity type. */
 export const DEFAULT_COLORS = {
-  client: "#2d75da",
-  project: "#da2d92",
-  discipline: "#2d75da",
-  resource: "#2d75da",
-  placeholder: "#2d75da",
-  account: "#2d75da",
+  client: '#2d75da',
+  project: '#da2d92',
+  discipline: '#2d75da',
+  resource: '#2d75da',
+  placeholder: '#2d75da',
+  account: '#2d75da',
 } as const;
 
 // Arrange swatches by hue and shade while including every default preset so a new

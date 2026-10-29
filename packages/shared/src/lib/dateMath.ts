@@ -1,5 +1,5 @@
-import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from "date-fns";
-import type { ISODate, Weekday } from "../types/entities.js";
+import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from 'date-fns';
+import type { ISODate, Weekday } from '../types/entities.js';
 
 /** Defensive allocation ceiling for materialised date arrays (~100 calendar years).
  * Re-exported as `MAX_SPAN_DAYS` (schedulingDays), one number, two names. */
@@ -8,7 +8,7 @@ export const MAX_MATERIALISED_DAYS = 36_500;
 /** Last date in the four-digit ISO year domain this module owns (see `assertFourDigitISODate`).
  * Every span/repeat ceiling clamps against this constant so the scheduling and repeat paths can
  * never disagree on where the calendar ends. */
-export const MAX_ISO_DATE = "9999-12-31" as ISODate;
+export const MAX_ISO_DATE = '9999-12-31' as ISODate;
 
 // All scheduler geometry is done in integer day-indices derived from date-only
 // ISO strings. We never do millisecond Date math for positioning. That is the
@@ -40,14 +40,14 @@ export function parseDate(date: ISODate): Date {
 // so every out-of-domain year produces the same RangeError.
 function assertFourDigitISODate(candidate: string): ISODate {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
-    throw new RangeError("Date falls outside the supported four-digit ISO year range.");
+    throw new RangeError('Date falls outside the supported four-digit ISO year range.');
   }
   return candidate;
 }
 
 /** Format a Date back to a date-only ISO string within the four-digit product year domain. */
 export function toISODate(date: Date): ISODate {
-  return assertFourDigitISODate(format(date, "yyyy-MM-dd"));
+  return assertFourDigitISODate(format(date, 'yyyy-MM-dd'));
 }
 
 /** Whole-calendar-day offset of `date` from `origin` (may be negative).
@@ -77,7 +77,9 @@ export function eachDayISO(start: ISODate, end: ISODate): ISODate[] {
   const count = daysInclusive(start, end);
   if (count <= 0) return [];
   if (count > MAX_MATERIALISED_DAYS) {
-    throw new RangeError(`Date range exceeds the ${MAX_MATERIALISED_DAYS}-day materialisation limit.`);
+    throw new RangeError(
+      `Date range exceeds the ${MAX_MATERIALISED_DAYS}-day materialisation limit.`,
+    );
   }
   const out: ISODate[] = [];
   // Parse once because capacity-window calculations materialize many dates on the render path.
@@ -116,7 +118,12 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
  * overlaps, which is what every caller (timeline intersection, keyboard-nudge visibility)
  * means by "still on screen". Same zero-padded lexicographic compare as `isWithin`, for the
  * same reason: exact, and no parseISO on a hot path. */
-export function rangesOverlap(aStart: ISODate, aEnd: ISODate, bStart: ISODate, bEnd: ISODate): boolean {
+export function rangesOverlap(
+  aStart: ISODate,
+  aEnd: ISODate,
+  bStart: ISODate,
+  bEnd: ISODate,
+): boolean {
   return aEnd >= bStart && aStart <= bEnd;
 }
 
@@ -138,11 +145,11 @@ function createCalendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
     // this try/catch is meant to degrade. The assembly+validation in `todayISO` happens
     // outside it so an out-of-domain year throws RangeError (per module contract) instead
     // of being misreported as an "invalid timeZone" and silently swapped for local date.
-    formatter = new Intl.DateTimeFormat("en-CA", {
+    formatter = new Intl.DateTimeFormat('en-CA', {
       timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
     });
   } catch (e) {
     // A malformed IANA timeZone makes the Intl.DateTimeFormat constructor throw a RangeError,
@@ -150,10 +157,19 @@ function createCalendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
     // utilisation calc. A legacy or transient caller may supply an invalid zone, so use the local date,
     // but warn, never silently, so a bad zone is discoverable instead of masked.
     formatter = null;
-    if (!warnedInvalidTimeZones.has(timeZone) && warnedInvalidTimeZones.size < MAX_INVALID_TIMEZONE_WARNINGS) {
+    if (
+      !warnedInvalidTimeZones.has(timeZone) &&
+      warnedInvalidTimeZones.size < MAX_INVALID_TIMEZONE_WARNINGS
+    ) {
       warnedInvalidTimeZones.add(timeZone);
-      console.warn(`todayISO: invalid timeZone ${JSON.stringify(timeZone)} — falling back to local date`, e);
-      if (warnedInvalidTimeZones.size === MAX_INVALID_TIMEZONE_WARNINGS && !warnedInvalidTimeZoneLimit) {
+      console.warn(
+        `todayISO: invalid timeZone ${JSON.stringify(timeZone)} — falling back to local date`,
+        e,
+      );
+      if (
+        warnedInvalidTimeZones.size === MAX_INVALID_TIMEZONE_WARNINGS &&
+        !warnedInvalidTimeZoneLimit
+      ) {
         warnedInvalidTimeZoneLimit = true;
         console.warn(
           `todayISO: ${MAX_INVALID_TIMEZONE_WARNINGS} distinct invalid time zones observed; further distinct values will be suppressed`,
@@ -184,12 +200,12 @@ export function todayISO(timeZone?: string, now: number = Date.now()): ISODate {
   const formatter = createCalendarFormatter(timeZone);
   if (!formatter) return toISODate(new Date(now));
   const parts = formatter.formatToParts(new Date(now));
-  const get = (partType: string) => parts.find((part) => part.type === partType)?.value ?? "00";
+  const get = (partType: string) => parts.find((part) => part.type === partType)?.value ?? '00';
   // Validate the assembled string the same way `toISODate` validates its Date-based output:
   // Intl gives `year: "numeric"` (not zero-padded/four-digit) parts, so a system clock outside
   // years 1000-9999 would otherwise silently produce a pseudo-ISODate like "999-06-15" or
   // "10000-01-01" that breaks the module's load-bearing lexicographic YYYY-MM-DD compares.
-  return assertFourDigitISODate(`${get("year")}-${get("month")}-${get("day")}`);
+  return assertFourDigitISODate(`${get('year')}-${get('month')}-${get('day')}`);
 }
 
 /** Is `date`'s weekday one of `workingDays`? */
@@ -205,7 +221,10 @@ export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean
  *
  * A seven-bit mask counts distinct valid weekdays without allocating a Set on the capacity hot path.
  * Invalid weekday entries are ignored consistently with the other weekday calculations. */
-export function isWeekendAware(workingDays: Weekday[] | undefined, ignoreWeekends: boolean | undefined): boolean {
+export function isWeekendAware(
+  workingDays: Weekday[] | undefined,
+  ignoreWeekends: boolean | undefined,
+): boolean {
   if (ignoreWeekends || !workingDays) return false;
   let mask = 0;
   for (const day of workingDays) {
@@ -234,7 +253,9 @@ export function allocationWorksOnDay(
 export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Weekday[]): number {
   const span = daysInclusive(start, end);
   if (span <= 0) return 0;
-  const working = new Set(workingDays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6));
+  const working = new Set(
+    workingDays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6),
+  );
   const fullWeeks = Math.floor(span / 7);
   let count = fullWeeks * working.size;
   const startWeekday = weekdayOf(start);
@@ -261,10 +282,14 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
  * `fullWeeks` whole weeks past `start` plus the offset of the `remaining`-th working day
  * within a single week window (a <= 7-step resolve, itself O(1)). Counting distinct
  * weekdays keeps a degenerate array like [1,1,1] (length 3, but only Mondays) correct. */
-export function endDateForWorkingDays(start: ISODate, count: number, workingDays: Weekday[]): ISODate {
-  if (!Number.isSafeInteger(count)) throw new RangeError("count must be a safe integer.");
+export function endDateForWorkingDays(
+  start: ISODate,
+  count: number,
+  workingDays: Weekday[],
+): ISODate {
+  if (!Number.isSafeInteger(count)) throw new RangeError('count must be a safe integer.');
   if (workingDays.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
-    throw new RangeError("workingDays must contain only integer weekdays from 0 through 6.");
+    throw new RangeError('workingDays must contain only integer weekdays from 0 through 6.');
   }
   const working = new Set(workingDays);
   if (count <= 0 || working.size === 0 || working.size >= 7) {
@@ -287,6 +312,6 @@ export function endDateForWorkingDays(start: ISODate, count: number, workingDays
       }
     }
   }
-  if (seen !== remaining) throw new Error("The working-day span could not be resolved.");
+  if (seen !== remaining) throw new Error('The working-day span could not be resolved.');
   return addDaysISO(start, fullWeeks * 7 + offsetInWeek);
 }

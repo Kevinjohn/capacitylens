@@ -1,4 +1,4 @@
-import type { Draft, LifecycleEntity, Patch } from "./entityDrafts";
+import type { Draft, LifecycleEntity, Patch } from './entityDrafts';
 import type {
   Activity,
   Allocation,
@@ -10,10 +10,10 @@ import type {
   Project,
   Resource,
   TimeOff,
-} from "@capacitylens/shared/types/entities";
+} from '@capacitylens/shared/types/entities';
 
 /** A create action can be blocked by the active Viewer policy without saving a row. */
-export type CreateResult<T> = { kind: "created"; value: T } | { kind: "blocked" };
+export type CreateResult<T> = { kind: 'created'; value: T } | { kind: 'blocked' };
 
 /** Store actions mutate the active account and participate in undo history. Viewer restrictions may
  * return a blocked result or no-op; stale IDs are no-ops. Tenancy, reference, and input-integrity
@@ -61,7 +61,10 @@ export interface StoreEntityActions {
    * validated before anything is sent; a tenancy, reference or date-range failure rejects. */
   addAllocations: (inputs: readonly Draft<Allocation>[]) => Promise<CreateResult<Allocation[]>>;
   /** Copy an allocation as one typed planning write, reusing the source when nothing else changed. */
-  duplicateAllocation: (sourceId: ID, input: Draft<Allocation>) => Promise<CreateResult<Allocation>>;
+  duplicateAllocation: (
+    sourceId: ID,
+    input: Draft<Allocation>,
+  ) => Promise<CreateResult<Allocation>>;
   /** Apply an allocation patch. False means a Viewer refusal, a missing target or no change;
    * validation, tenancy and server refusals reject. */
   updateAllocation: (id: ID, patch: Patch<Allocation>) => Promise<boolean>;

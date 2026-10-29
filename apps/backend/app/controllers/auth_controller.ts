@@ -1,56 +1,61 @@
-import type { HttpContext } from '@adonisjs/core/http'
-import db from '@adonisjs/lucid/services/db'
-import accountKit from 'adonisjs-account-kit/services/main'
+import type { HttpContext } from '@adonisjs/core/http';
+import db from '@adonisjs/lucid/services/db';
+import accountKit from 'adonisjs-account-kit/services/main';
 import {
   InvalidCredentialsError,
   InvalidSessionError,
   RegistrationEmailAlreadyRegisteredError,
   ThrottledError,
-} from 'adonisjs-account-kit/errors'
-import type { CurrentAccountInput } from 'adonisjs-account-kit/types'
-import env from '#start/env'
-import { FirstCompanyPendingError } from '#models/user'
-import { requiresFirstCompanySetup } from '#services/first_company_setup'
+} from 'adonisjs-account-kit/errors';
+import type { CurrentAccountInput } from 'adonisjs-account-kit/types';
+import env from '#start/env';
+import { FirstCompanyPendingError } from '#models/user';
+import { requiresFirstCompanySetup } from '#services/first_company_setup';
 import {
   accountInput,
   admissionDecision,
   sessionGuard,
   withActor,
   type CurrentActor,
-} from '#services/auth/current_actor'
-import { recordMemberSignIn } from '#services/membership/sign_in_tracking'
-import { errors as vineErrors } from '@vinejs/vine'
-import { signInValidator, signUpValidator } from '#validators/auth_requests'
-import { isCommittedFailure } from '#services/account_kit/committed'
-import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
+} from '#services/auth/current_actor';
+import { recordMemberSignIn } from '#services/membership/sign_in_tracking';
+import { errors as vineErrors } from '@vinejs/vine';
+import { signInValidator, signUpValidator } from '#validators/auth_requests';
+import { isCommittedFailure } from '#services/account_kit/committed';
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 
 function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
-  if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error
+  if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
   const shape = error.messages.some(
     (message: { rule: string }) => message.rule === 'unknownField' || message.rule === 'object'
-  )
+  );
   return shape
     ? `Invalid ${operation} request.`
     : operation === 'sign-in'
       ? 'Invalid email or password.'
-      : 'Invalid sign-up details.'
+      : 'Invalid sign-up details.';
 }
 
 function userProjection(actor: Pick<CurrentActor, 'userId' | 'email' | 'displayName'>) {
-  return { id: actor.userId, name: actor.displayName ?? undefined, email: actor.email, image: null }
+  return {
+    id: actor.userId,
+    name: actor.displayName ?? undefined,
+    email: actor.email,
+    image: null,
+  };
 }
 
 function logSignInOutcome(ctx: HttpContext, outcome: 'success' | 'failure' | 'throttled') {
-  if (env.get('CAPACITYLENS_LOG') !== '1') return
+  if (env.get('CAPACITYLENS_LOG') !== '1') return;
   try {
-    const fields = { event: 'auth.sign_in', outcome }
+    const fields = { event: 'auth.sign_in', outcome };
     if (outcome === 'failure' || outcome === 'throttled') {
-      ctx.logger.warn(fields, 'Authentication outcome')
+      ctx.logger.warn(fields, 'Authentication outcome');
     } else {
-      ctx.logger.info(fields, 'Authentication outcome')
+      ctx.logger.info(fields, 'Authentication outcome');
     }
   } catch {
-    console.error('Authentication outcome logging failed')
+    console.error('Authentication outcome logging failed');
   }
 }
 
@@ -65,21 +70,21 @@ export async function signInWithPassword(ctx: HttpContext, email: string, passwo
         sessionLabel: ctx.request.header('user-agent')?.slice(0, 200),
       },
       sessionGuard(ctx)
-    )
+    );
   } catch (error) {
-    if (error instanceof InvalidCredentialsError) logSignInOutcome(ctx, 'failure')
-    if (error instanceof ThrottledError) logSignInOutcome(ctx, 'throttled')
-    throw error
+    if (error instanceof InvalidCredentialsError) logSignInOutcome(ctx, 'failure');
+    if (error instanceof ThrottledError) logSignInOutcome(ctx, 'throttled');
+    throw error;
   }
-  logSignInOutcome(ctx, 'success')
+  logSignInOutcome(ctx, 'success');
   return withActor(
     ctx,
     async (actor, trx) => {
-      await recordMemberSignIn(actor.userId, trx)
-      return userProjection(actor)
+      await recordMemberSignIn(actor.userId, trx);
+      return userProjection(actor);
     },
     { limited: true }
-  )
+  );
 }
 
 export default class AuthController {
@@ -92,8 +97,8 @@ export default class AuthController {
       return await withActor(
         ctx,
         async (actor, trx) => {
-          const admission = await admissionDecision(actor.userId, trx)
-          const admitted = actor.emailVerified && admission.admitted
+          const admission = await admissionDecision(actor.userId, trx);
+          const admitted = actor.emailVerified && admission.admitted;
           return {
             authMode: 'password-only',
             user: userProjection(actor),
@@ -106,38 +111,38 @@ export default class AuthController {
               admitted &&
               Boolean(await trx.from('accounts').select('id').first()) &&
               !(await trx.from('memberships').where('user_id', actor.userId).first()),
-          }
+          };
         },
         { limited: true }
-      )
+      );
     } catch (error) {
-      if (!(error instanceof InvalidSessionError)) throw error
-      const hasUsers = Boolean(await db.from('users').select('id').first())
+      if (!(error instanceof InvalidSessionError)) throw error;
+      const hasUsers = Boolean(await db.from('users').select('id').first());
       return ctx.response.unauthorized({
         authMode: 'password-only',
         error: 'Sign-in required.',
         passwordResetEmail: Boolean(env.get('CAPACITYLENS_MAIL_HOST')),
         ...(!hasUsers ? { needsSetup: true } : {}),
-      })
+      });
     }
   }
 
   async signIn(ctx: HttpContext) {
-    let body
+    let body;
     try {
-      body = await ctx.request.validateUsing(signInValidator, { data: ctx.request.body() })
+      body = await ctx.request.validateUsing(signInValidator, { data: ctx.request.body() });
     } catch (error) {
-      return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-in') })
+      return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-in') });
     }
-    const { email } = body
+    const { email } = body;
     try {
-      const user = await signInWithPassword(ctx, email, body.password)
-      return ctx.response.ok({ user })
+      const user = await signInWithPassword(ctx, email, body.password);
+      return ctx.response.ok({ user });
     } catch (error) {
       if (error instanceof InvalidCredentialsError) {
-        return ctx.response.unauthorized({ error: 'Invalid email or password.' })
+        return ctx.response.unauthorized({ error: 'Invalid email or password.' });
       }
-      throw error
+      throw error;
     }
   }
 
@@ -146,53 +151,56 @@ export default class AuthController {
    * a confirmed address and admission. The first identity always comes from the bootstrap invitation.
    */
   async signUp(ctx: HttpContext) {
-    let body
+    let body;
     try {
-      body = await ctx.request.validateUsing(signUpValidator, { data: ctx.request.body() })
+      body = await ctx.request.validateUsing(signUpValidator, { data: ctx.request.body() });
     } catch (error) {
-      return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-up') })
+      return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-up') });
     }
-    const { email, name } = body
-    if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || !(await db.from('accounts').first()))
-      return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' })
+    const { email, name } = body;
+    if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || !(await db.from('accounts').first())) {
+      return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
+    }
     try {
       await accountKit.registration.register({
         email,
         password: body.password,
         registrationData: { name },
-      })
+      });
     } catch (error) {
-      if (error instanceof FirstCompanyPendingError)
-        return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' })
-      if (error instanceof RegistrationEmailAlreadyRegisteredError)
+      if (error instanceof FirstCompanyPendingError) {
+        return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
+      }
+      if (error instanceof RegistrationEmailAlreadyRegisteredError) {
         return ctx.response.conflict({
           error: 'An account already uses this email. Sign in or reset your password.',
           code: 'EMAIL_REGISTERED',
-        } satisfies ProductHttpErrorBody)
+        } satisfies ProductHttpErrorBody);
+      }
       // The account exists; only the confirmation email may be missing, and it can be resent.
-      if (!isCommittedFailure(error)) throw error
-      ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed')
+      if (!isCommittedFailure(error)) throw error;
+      ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed');
     }
     try {
-      return ctx.response.created({ user: await signInWithPassword(ctx, email, body.password) })
+      return ctx.response.created({ user: await signInWithPassword(ctx, email, body.password) });
     } catch (error) {
       ctx.logger.warn(
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
         'Sign-in after registration failed'
-      )
-      return ctx.response.accepted({ accountCreated: true, signInRequired: true })
+      );
+      return ctx.response.accepted({ accountCreated: true, signInRequired: true });
     }
   }
 
   /** Ends this sign-in while leaving the identity-wide view active in its other sessions. */
   async signOut(ctx: HttpContext) {
-    let current: CurrentAccountInput | undefined
+    let current: CurrentAccountInput | undefined;
     try {
-      current = await accountInput(ctx)
+      current = await accountInput(ctx);
     } catch (error) {
-      if (!(error instanceof InvalidSessionError)) throw error
+      if (!(error instanceof InvalidSessionError)) throw error;
     }
-    await accountKit.authentication.logout(sessionGuard(ctx), undefined, current)
-    return ctx.response.ok({ ok: true })
+    await accountKit.authentication.logout(sessionGuard(ctx), undefined, current);
+    return ctx.response.ok({ ok: true });
   }
 }

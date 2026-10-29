@@ -1,9 +1,9 @@
-import { useEffect } from "react";
-import type { QueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/auth/authContext";
-import { useStore } from "@/store/useStore";
-import { clearQueryCacheForScopeChange, queryClient } from "./queryClient";
-import type { ApiQueryScope } from "./queryClient";
+import { useEffect } from 'react';
+import type { QueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/auth/authContext';
+import { useStore } from '@/store/useStore';
+import { clearQueryCacheForScopeChange, queryClient } from './queryClient';
+import type { ApiQueryScope } from './queryClient';
 
 const previousScopeByCache = new WeakMap<QueryClient, ApiQueryScope>();
 
@@ -12,7 +12,7 @@ export function QueryCacheLifecycle({ cache = queryClient }: { cache?: QueryClie
   const { user } = useAuth();
   const accountId = useStore((state) => state.activeAccountId);
   const masqueradeGeneration = useStore((state) =>
-    state.masquerade.kind === "inactive" ? 0 : state.masquerade.generation,
+    state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
   const principalId = user?.id ?? null;
   useEffect(() => {

@@ -1,13 +1,13 @@
 // The device theme preference resolves to a concrete light or dark scheme on the root attribute. Storage and runtime queries fall back to light so display failures cannot affect account data.
-import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
+import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand';
 
 /** Theme selection stored for the current device. */
-export type ThemePreference = "light" | "dark" | "system";
+export type ThemePreference = 'light' | 'dark' | 'system';
 
 const STORAGE_KEY = `${STORAGE_KEY_PREFIX}theme`;
 
 const isThemePreference = (value: unknown): value is ThemePreference =>
-  value === "light" || value === "dark" || value === "system";
+  value === 'light' || value === 'dark' || value === 'system';
 
 /** Read the saved preference. Defaults to 'light' (the product default) when
  * nothing is stored, the stored value is invalid, or storage is unavailable. */
@@ -17,9 +17,9 @@ export function readStoredTheme(): ThemePreference {
     current = localStorage.getItem(STORAGE_KEY);
   } catch {
     // A blocked device-preference read may safely use the documented light default.
-    return "light";
+    return 'light';
   }
-  return isThemePreference(current) ? current : "light";
+  return isThemePreference(current) ? current : 'light';
 }
 
 /** Persist the preference. Best-effort: if storage is unavailable the in-memory
@@ -33,27 +33,27 @@ export function writeStoredTheme(preference: ThemePreference): void {
 }
 
 const readDarkSchemeQuery = (): MediaQueryList | null => {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
   try {
-    return window.matchMedia("(prefers-color-scheme: dark)");
+    return window.matchMedia('(prefers-color-scheme: dark)');
   } catch (error) {
     // Theme is device-only display state, so a failed runtime query may safely use the documented
     // light fallback, but keep a breadcrumb rather than hiding the environment failure.
-    console.warn("Unable to read the system colour scheme; using light", error);
+    console.warn('Unable to read the system colour scheme; using light', error);
     return null;
   }
 };
 
 /** Collapse a preference to the concrete scheme to paint. 'system' follows the OS;
  * if the OS can't be queried (e.g. jsdom in tests) it falls back to light. */
-export function resolveTheme(preference: ThemePreference): "light" | "dark" {
-  if (preference === "system") return readDarkSchemeQuery()?.matches ? "dark" : "light";
+export function resolveTheme(preference: ThemePreference): 'light' | 'dark' {
+  if (preference === 'system') return readDarkSchemeQuery()?.matches ? 'dark' : 'light';
   return preference;
 }
 
 /** Reflect the resolved scheme onto <html data-theme>, which the CSS keys off. */
 export function applyThemeToDom(preference: ThemePreference): void {
-  if (typeof document === "undefined") return;
+  if (typeof document === 'undefined') return;
   document.documentElement.dataset.theme = resolveTheme(preference);
 }
 
@@ -63,7 +63,7 @@ export function applyThemeToDom(preference: ThemePreference): void {
  * no matchMedia). */
 export function watchSystemTheme(getPreference: () => ThemePreference): () => void {
   return subscribeToSystemScheme(() => {
-    if (getPreference() === "system") applyThemeToDom("system");
+    if (getPreference() === 'system') applyThemeToDom('system');
   });
 }
 
@@ -72,6 +72,6 @@ export function watchSystemTheme(getPreference: () => ThemePreference): () => vo
 export function subscribeToSystemScheme(onChange: () => void): () => void {
   const mediaQuery = readDarkSchemeQuery();
   if (!mediaQuery) return () => {};
-  mediaQuery.addEventListener("change", onChange);
-  return () => mediaQuery.removeEventListener("change", onChange);
+  mediaQuery.addEventListener('change', onChange);
+  return () => mediaQuery.removeEventListener('change', onChange);
 }

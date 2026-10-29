@@ -1,4 +1,4 @@
-const JOINED_ACCOUNT_PARAM = "joinedAccount";
+const JOINED_ACCOUNT_PARAM = 'joinedAccount';
 
 /** Build the one-use post-invite entry URL. The account id is only a requested destination: the
  * authenticated account list remains the authority before AppShell activates it. */
@@ -17,7 +17,7 @@ export function clearJoinedAccountHandoff(search: string): string {
   const params = new URLSearchParams(search);
   params.delete(JOINED_ACCOUNT_PARAM);
   const remaining = params.toString();
-  return remaining.length > 0 ? `?${remaining}` : "";
+  return remaining.length > 0 ? `?${remaining}` : '';
 }
 
 /** Start the authenticated app boot that will verify and consume the requested destination. */
@@ -27,5 +27,5 @@ export function replaceWithJoinedAccount(accountId: string): void {
 
 /** Reboot into the ordinary authenticated company picker when no destination could be verified. */
 export function replaceWithAccountPicker(): void {
-  window.location.replace("/");
+  window.location.replace('/');
 }

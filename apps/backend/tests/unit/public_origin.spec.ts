@@ -1,25 +1,25 @@
-import { test } from '@japa/runner'
-import { resolvePublicOrigin } from '#config/public_origin'
+import { test } from '@japa/runner';
+import { resolvePublicOrigin } from '#config/public_origin';
 
 test('public origin shares HTTPS and loopback transport decisions', ({ assert }) => {
   for (const environment of ['production', 'development', 'test'] as const)
     assert.deepEqual(resolvePublicOrigin('https://capacity.example.test', environment, 'APP_URL'), {
       origin: 'https://capacity.example.test',
       secure: true,
-    })
+    });
   for (const host of ['localhost', '127.0.0.1', '[::1]']) {
-    const origin = `http://${host}:8787`
+    const origin = `http://${host}:8787`;
     for (const environment of ['development', 'test'] as const)
       assert.deepEqual(resolvePublicOrigin(origin, environment, 'APP_URL'), {
         origin,
         secure: false,
-      })
+      });
     assert.throws(
       () => resolvePublicOrigin(origin, 'production', 'APP_URL'),
       /^APP_URL: public production origins require HTTPS$/
-    )
+    );
   }
-})
+});
 
 test('public origin rejects non-origin and insecure remote values', ({ assert }) => {
   for (const value of [
@@ -37,5 +37,5 @@ test('public origin rejects non-origin and insecure remote values', ({ assert })
     assert.throws(
       () => resolvePublicOrigin(value, 'test', 'CAPACITYLENS_PUBLIC_URL'),
       /^CAPACITYLENS_PUBLIC_URL must /
-    )
-})
+    );
+});

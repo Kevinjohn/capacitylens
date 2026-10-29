@@ -1,15 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
-import { createTuyau } from "@tuyau/core/client";
-import { registry } from "@capacitylens/backend/registry";
-import type { PlanningIntent } from "@capacitylens/backend/planning";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { createPlanningTransport } from "./planningTransport";
-import { setMasqueradeContextToken } from "@/auth/masqueradeContext";
+import { describe, expect, it, vi } from 'vitest';
+import { createTuyau } from '@tuyau/core/client';
+import { registry } from '@capacitylens/backend/registry';
+import type { PlanningIntent } from '@capacitylens/backend/planning';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createPlanningTransport } from './planningTransport';
+import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
 
-const context = { identity: "bruce-login", companyId: "wayne", masqueradeContextToken: "captured-context" };
+const context = {
+  identity: 'bruce-login',
+  companyId: 'wayne',
+  masqueradeContextToken: 'captured-context',
+};
 const signal = new AbortController().signal;
-const id = "7415a19e-539d-45c9-9c52-8b8c3a058926";
-const mutationId = "7b2e020c-f2b4-4a0f-b6b2-17148ddac4a1";
+const id = '7415a19e-539d-45c9-9c52-8b8c3a058926';
+const mutationId = '7b2e020c-f2b4-4a0f-b6b2-17148ddac4a1';
 const execution = (intent: PlanningIntent) => ({ mutationId, baseRevision: 5, intent });
 
 function harness(body: unknown, status = 200) {
@@ -19,9 +23,9 @@ function harness(body: unknown, status = 200) {
     return Response.json(body, { status });
   });
   const client = createTuyau({
-    baseUrl: "http://planning.test",
+    baseUrl: 'http://planning.test',
     registry,
-    credentials: "include",
+    credentials: 'include',
     retry: 0,
     timeout: false,
     fetch: fetcher,
@@ -30,227 +34,268 @@ function harness(body: unknown, status = 200) {
 }
 
 const createFields = {
-  clients: { name: "Wayne Enterprises", color: "#76a5e7" },
-  projects: { name: "Gotham Renewal", color: "#76a5e7", clientId: "client-1" },
-  activities: { name: "City planning", kind: "internal" as const, projectId: null, phaseId: null },
-  phases: { name: "Gotham launch", projectId: "project-1" },
-  disciplines: { name: "Design", color: null, sortOrder: 0 },
+  clients: { name: 'Wayne Enterprises', color: '#76a5e7' },
+  projects: { name: 'Gotham Renewal', color: '#76a5e7', clientId: 'client-1' },
+  activities: { name: 'City planning', kind: 'internal' as const, projectId: null, phaseId: null },
+  phases: { name: 'Gotham launch', projectId: 'project-1' },
+  disciplines: { name: 'Design', color: null, sortOrder: 0 },
 };
 const allocation = {
   id,
-  resourceId: "resource-1",
-  activityId: "activity-1",
-  startDate: "2026-10-26",
-  endDate: "2026-10-30",
+  resourceId: 'resource-1',
+  activityId: 'activity-1',
+  startDate: '2026-10-26',
+  endDate: '2026-10-30',
   hoursPerDay: 8,
-  status: "confirmed" as const,
+  status: 'confirmed' as const,
 };
-const occurrence = { id, startDate: "2026-11-02", endDate: "2026-11-06" };
+const occurrence = { id, startDate: '2026-11-02', endDate: '2026-11-06' };
 const timeOff = {
   id,
-  resourceId: "resource-1",
-  startDate: "2026-10-26",
-  endDate: "2026-10-30",
-  type: "holiday" as const,
+  resourceId: 'resource-1',
+  startDate: '2026-10-26',
+  endDate: '2026-10-30',
+  type: 'holiday' as const,
 };
 const resource = {
-  kind: "person" as const,
-  name: "Bruce Wayne",
-  role: "Planner",
+  kind: 'person' as const,
+  name: 'Bruce Wayne',
+  role: 'Planner',
   avatarUrl: null,
   disciplineId: null,
-  employmentType: "permanent" as const,
-  engagement: "studio" as const,
+  employmentType: 'permanent' as const,
+  engagement: 'studio' as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5] as Array<1 | 2 | 3 | 4 | 5>,
   halfDays: [],
   projectId: null,
-  color: "#76a5e7",
+  color: '#76a5e7',
   isFavourite: false,
   firstAvailableDate: null,
   lastAvailableDate: null,
 };
 type Restoration = { consumedGroupId: string | null; replacementGroupId: string | null };
 const noRestoration: Restoration = { consumedGroupId: null, replacementGroupId: null };
-const groupId = "5d0c3f8e-8a54-4b7e-9f0a-3c2e1b6d7a90";
-const cases: Array<{ intent: PlanningIntent; method: string; path: string; restoration?: Restoration }> = [
-  { intent: { operation: "allocation.create", allocation }, method: "POST", path: "allocations" },
+const groupId = '5d0c3f8e-8a54-4b7e-9f0a-3c2e1b6d7a90';
+const cases: Array<{
+  intent: PlanningIntent;
+  method: string;
+  path: string;
+  restoration?: Restoration;
+}> = [
+  { intent: { operation: 'allocation.create', allocation }, method: 'POST', path: 'allocations' },
   {
-    intent: { operation: "allocation.createGroup", allocations: [allocation] },
-    method: "POST",
-    path: "allocations/create-group",
+    intent: { operation: 'allocation.createGroup', allocations: [allocation] },
+    method: 'POST',
+    path: 'allocations/create-group',
   },
   {
-    intent: { operation: "allocation.update", id, changes: { hoursPerDay: 4 } },
-    method: "PATCH",
+    intent: { operation: 'allocation.update', id, changes: { hoursPerDay: 4 } },
+    method: 'PATCH',
     path: `allocations/${id}`,
   },
   {
-    intent: { operation: "allocation.duplicate", sourceAllocationId: "source-1", occurrence },
-    method: "POST",
-    path: "allocations/source-1/duplicate",
+    intent: { operation: 'allocation.duplicate', sourceAllocationId: 'source-1', occurrence },
+    method: 'POST',
+    path: 'allocations/source-1/duplicate',
   },
   {
-    intent: { operation: "allocation.repeat", sourceAllocationId: "source-1", occurrences: [occurrence] },
-    method: "POST",
-    path: "allocations/source-1/repeat",
+    intent: {
+      operation: 'allocation.repeat',
+      sourceAllocationId: 'source-1',
+      occurrences: [occurrence],
+    },
+    method: 'POST',
+    path: 'allocations/source-1/repeat',
   },
   {
-    intent: { operation: "allocation.delete", id },
-    method: "POST",
+    intent: { operation: 'allocation.delete', id },
+    method: 'POST',
     path: `allocations/${id}/delete`,
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
-    intent: { operation: "allocation.deleteGroup", ids: [id] },
-    method: "POST",
-    path: "allocations/delete-group",
+    intent: { operation: 'allocation.deleteGroup', ids: [id] },
+    method: 'POST',
+    path: 'allocations/delete-group',
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
-    intent: { operation: "planning.restoreGroup", restorationGroupId: groupId },
-    method: "POST",
-    path: "planning/restore-group",
+    intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
+    method: 'POST',
+    path: 'planning/restore-group',
     restoration: { consumedGroupId: groupId, replacementGroupId: null },
   },
-  { intent: { operation: "resource.create", id, fields: resource }, method: "POST", path: "resources" },
   {
-    intent: { operation: "resource.update", id, changes: { role: "Designer" } },
-    method: "PATCH",
+    intent: { operation: 'resource.create', id, fields: resource },
+    method: 'POST',
+    path: 'resources',
+  },
+  {
+    intent: { operation: 'resource.update', id, changes: { role: 'Designer' } },
+    method: 'PATCH',
     path: `resources/${id}`,
   },
-  { intent: { operation: "timeOff.create", timeOff }, method: "POST", path: "time-off" },
-  { intent: { operation: "timeOff.update", id, changes: { type: "sick" } }, method: "PATCH", path: `time-off/${id}` },
-  { intent: { operation: "timeOff.repeat", entries: [timeOff] }, method: "POST", path: "time-off/repeat" },
+  { intent: { operation: 'timeOff.create', timeOff }, method: 'POST', path: 'time-off' },
   {
-    intent: { operation: "timeOff.delete", id },
-    method: "POST",
+    intent: { operation: 'timeOff.update', id, changes: { type: 'sick' } },
+    method: 'PATCH',
+    path: `time-off/${id}`,
+  },
+  {
+    intent: { operation: 'timeOff.repeat', entries: [timeOff] },
+    method: 'POST',
+    path: 'time-off/repeat',
+  },
+  {
+    intent: { operation: 'timeOff.delete', id },
+    method: 'POST',
     path: `time-off/${id}/delete`,
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
-    intent: { operation: "timeOff.deleteGroup", ids: [id] },
-    method: "POST",
-    path: "time-off/delete-group",
+    intent: { operation: 'timeOff.deleteGroup', ids: [id] },
+    method: 'POST',
+    path: 'time-off/delete-group',
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
     intent: {
-      operation: "closure.create",
+      operation: 'closure.create',
       id,
-      fields: { name: "Wayne anniversary", startDate: "2026-12-25", endDate: "2026-12-25" },
+      fields: { name: 'Wayne anniversary', startDate: '2026-12-25', endDate: '2026-12-25' },
     },
-    method: "POST",
-    path: "closures",
+    method: 'POST',
+    path: 'closures',
   },
   {
-    intent: { operation: "closure.update", id, changes: { name: "Wayne holiday" } },
-    method: "PATCH",
+    intent: { operation: 'closure.update', id, changes: { name: 'Wayne holiday' } },
+    method: 'PATCH',
     path: `closures/${id}`,
   },
   {
-    intent: { operation: "closure.delete", id },
-    method: "POST",
+    intent: { operation: 'closure.delete', id },
+    method: 'POST',
     path: `closures/${id}/delete`,
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
-    intent: { operation: "settings.update", changes: { timezone: "Europe/London" } },
-    method: "PATCH",
-    path: "settings",
+    intent: { operation: 'settings.update', changes: { timezone: 'Europe/London' } },
+    method: 'PATCH',
+    path: 'settings',
   },
 ];
-for (const entity of ["clients", "projects", "activities", "phases", "disciplines"] as const) {
+for (const entity of ['clients', 'projects', 'activities', 'phases', 'disciplines'] as const) {
   // Each catalogue member remains a correlated entity/field pair from the finite contract.
   const create = {
-    operation: "catalogue.create",
+    operation: 'catalogue.create',
     entity: { entity, id, fields: createFields[entity] },
   } as PlanningIntent;
-  cases.push({ intent: create, method: "POST", path: entity });
+  cases.push({ intent: create, method: 'POST', path: entity });
   cases.push({
-    intent: { operation: "catalogue.update", entity: { entity, id, changes: { name: "Gotham update" } } },
-    method: "PATCH",
+    intent: {
+      operation: 'catalogue.update',
+      entity: { entity, id, changes: { name: 'Gotham update' } },
+    },
+    method: 'PATCH',
     path: `${entity}/${id}`,
   });
 }
-for (const entity of ["phases", "disciplines"] as const) {
+for (const entity of ['phases', 'disciplines'] as const) {
   cases.push({
-    intent: { operation: "catalogue.delete", entity: { entity, id } },
-    method: "POST",
+    intent: { operation: 'catalogue.delete', entity: { entity, id } },
+    method: 'POST',
     path: `${entity}/${id}/delete`,
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   });
 }
 
-for (const action of ["archive", "unarchive"] as const) {
-  cases.push({ intent: { operation: `resource.${action}`, id }, method: "POST", path: `resources/${id}/${action}` });
-  for (const entity of ["clients", "projects", "activities"] as const) {
+for (const action of ['archive', 'unarchive'] as const) {
+  cases.push({
+    intent: { operation: `resource.${action}`, id },
+    method: 'POST',
+    path: `resources/${id}/${action}`,
+  });
+  for (const entity of ['clients', 'projects', 'activities'] as const) {
     cases.push({
       intent: { operation: `catalogue.${action}`, entity: { entity, id } },
-      method: "POST",
+      method: 'POST',
       path: `${entity}/${id}/${action}`,
     });
   }
 }
 
-describe("generated planning transport", () => {
+describe('generated planning transport', () => {
   it.each(cases)(
-    "sends $intent.operation to its implemented $method $path route",
+    'sends $intent.operation to its implemented $method $path route',
     async ({ intent, method, path, restoration = noRestoration }) => {
       const receipt = {
-        status: "committed",
+        status: 'committed',
         mutationId,
         revision: 6,
         restoration,
-        projection: { mode: "patch", history: "retain", changed: { upserts: [], removed: [] } },
+        projection: { mode: 'patch', history: 'retain', changed: { upserts: [], removed: [] } },
       };
       const { transport, requests } = harness(receipt);
       expect(await transport.execute(context, execution(intent), signal)).toEqual(receipt);
       expect(requests).toHaveLength(1);
       expect(requests[0]?.url).toBe(`http://planning.test/api/accounts/wayne/${path}`);
       expect(requests[0]?.method).toBe(method);
-      expect(requests[0]?.credentials).toBe("include");
-      expect(requests[0]?.headers.get("X-Masquerade-Context")).toBe("captured-context");
+      expect(requests[0]?.credentials).toBe('include');
+      expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
       expect(await requests[0]?.json()).toEqual(execution(intent));
     },
   );
 
   it("keeps the action's captured proof when the shared mode changes before fetch dispatch", async () => {
-    const { transport, requests } = harness({ status: "committed", mutationId, revision: 6 });
-    const actionContext = { identity: "bruce-login", companyId: "wayne", masqueradeContextToken: "captured-context" };
-    setMasqueradeContextToken("newer-context");
+    const { transport, requests } = harness({ status: 'committed', mutationId, revision: 6 });
+    const actionContext = {
+      identity: 'bruce-login',
+      companyId: 'wayne',
+      masqueradeContextToken: 'captured-context',
+    };
+    setMasqueradeContextToken('newer-context');
 
-    await transport.execute(actionContext, execution({ operation: "allocation.create", allocation }), signal);
+    await transport.execute(
+      actionContext,
+      execution({ operation: 'allocation.create', allocation }),
+      signal,
+    );
 
-    expect(requests[0]?.headers.get("X-Masquerade-Context")).toBe("captured-context");
+    expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
   });
 
-  it("surfaces context changes without replaying a stale write", async () => {
+  it('surfaces context changes without replaying a stale write', async () => {
     const { transport, fetcher } = harness(
-      { error: "The masquerade context changed.", code: "MASQUERADE_CONTEXT_CHANGED" },
+      { error: 'The masquerade context changed.', code: 'MASQUERADE_CONTEXT_CHANGED' },
       409,
     );
 
     await expect(
       transport.execute(
-        { ...context, masqueradeContextToken: "captured-context" },
-        execution({ operation: "allocation.create", allocation }),
+        { ...context, masqueradeContextToken: 'captured-context' },
+        execution({ operation: 'allocation.create', allocation }),
         signal,
       ),
-    ).rejects.toMatchObject({ status: 409, code: "MASQUERADE_CONTEXT_CHANGED" });
+    ).rejects.toMatchObject({ status: 409, code: 'MASQUERADE_CONTEXT_CHANGED' });
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it("normalizes a read with the complete canonical authority fingerprint", async () => {
+  it('normalizes a read with the complete canonical authority fingerprint', async () => {
     const authority = {
-      actorId: "bruce",
-      effectiveActorId: "diana",
-      role: "editor",
+      actorId: 'bruce',
+      effectiveActorId: 'diana',
+      role: 'editor',
       canWrite: false,
       canSeePrivateNames: false,
       canSeeTimeOffNote: false,
     };
-    const { transport, requests } = harness({ accountId: "wayne", revision: 5, authority, data: emptyAppData() });
+    const { transport, requests } = harness({
+      accountId: 'wayne',
+      revision: 5,
+      authority,
+      data: emptyAppData(),
+    });
     const result = await transport.read(context, signal);
     expect(result).toEqual({
       revision: 5,
@@ -258,33 +303,33 @@ describe("generated planning transport", () => {
       canWrite: false,
       accessKey: JSON.stringify(Object.values(authority)),
     });
-    expect(requests[0]?.url).toBe("http://planning.test/api/accounts/wayne/planning");
-    expect(requests[0]?.method).toBe("GET");
-    expect(requests[0]?.headers.get("X-Masquerade-Context")).toBe("captured-context");
+    expect(requests[0]?.url).toBe('http://planning.test/api/accounts/wayne/planning');
+    expect(requests[0]?.method).toBe('GET');
+    expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
   });
 
-  it("surfaces a stale proof on a canonical read without replaying it", async () => {
+  it('surfaces a stale proof on a canonical read without replaying it', async () => {
     const { transport, fetcher, requests } = harness(
-      { error: "The masquerade context changed.", code: "MASQUERADE_CONTEXT_CHANGED" },
+      { error: 'The masquerade context changed.', code: 'MASQUERADE_CONTEXT_CHANGED' },
       409,
     );
 
     await expect(transport.read(context, signal)).rejects.toMatchObject({
       status: 409,
-      code: "MASQUERADE_CONTEXT_CHANGED",
+      code: 'MASQUERADE_CONTEXT_CHANGED',
     });
-    expect(requests[0]?.headers.get("X-Masquerade-Context")).toBe("captured-context");
+    expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it("refuses a canonical read without a verified write capability", async () => {
+  it('refuses a canonical read without a verified write capability', async () => {
     const { transport } = harness({
-      accountId: "wayne",
+      accountId: 'wayne',
       revision: 5,
       authority: {
-        actorId: "bruce",
-        effectiveActorId: "bruce",
-        role: "owner",
+        actorId: 'bruce',
+        effectiveActorId: 'bruce',
+        role: 'owner',
         canSeePrivateNames: true,
         canSeeTimeOffNote: true,
       },
@@ -293,65 +338,90 @@ describe("generated planning transport", () => {
     await expect(transport.read(context, signal)).rejects.toThrow();
   });
 
-  it("refuses a read naming another company", async () => {
-    const { transport } = harness({ accountId: "stark", revision: 5, authority: {}, data: emptyAppData() });
+  it('refuses a read naming another company', async () => {
+    const { transport } = harness({
+      accountId: 'stark',
+      revision: 5,
+      authority: {},
+      data: emptyAppData(),
+    });
     await expect(transport.read(context, signal)).rejects.toThrow(/another company/);
   });
 
-  it("uses only URL parameters for actor-scoped commitment lookup", async () => {
-    const result = { status: "unknown", mutationId };
+  it('uses only URL parameters for actor-scoped commitment lookup', async () => {
+    const result = { status: 'unknown', mutationId };
     const { transport, requests } = harness(result);
     expect(await transport.lookup(context, mutationId, signal)).toEqual(result);
-    expect(requests[0]?.url).toBe(`http://planning.test/api/accounts/wayne/planning/mutations/${mutationId}`);
-    expect(requests[0]?.method).toBe("GET");
-    expect(await requests[0]?.text()).toBe("");
+    expect(requests[0]?.url).toBe(
+      `http://planning.test/api/accounts/wayne/planning/mutations/${mutationId}`,
+    );
+    expect(requests[0]?.method).toBe('GET');
+    expect(await requests[0]?.text()).toBe('');
   });
 
-  it.each(["read", "execute", "lookup"] as const)(
-    "preserves flat HTTP loss/refusal semantics for %s",
+  it.each(['read', 'execute', 'lookup'] as const)(
+    'preserves flat HTTP loss/refusal semantics for %s',
     async (stage) => {
-      const { transport } = harness({ error: "Membership ended", code: "ACCOUNT_MEMBERSHIP_LOST" }, 403);
+      const { transport } = harness(
+        { error: 'Membership ended', code: 'ACCOUNT_MEMBERSHIP_LOST' },
+        403,
+      );
       const request =
-        stage === "read"
+        stage === 'read'
           ? transport.read(context, signal)
-          : stage === "lookup"
+          : stage === 'lookup'
             ? transport.lookup(context, mutationId, signal)
-            : transport.execute(context, execution({ operation: "allocation.create", allocation }), signal);
+            : transport.execute(
+                context,
+                execution({ operation: 'allocation.create', allocation }),
+                signal,
+              );
       await expect(request).rejects.toMatchObject({
         status: 403,
-        code: "ACCOUNT_MEMBERSHIP_LOST",
-        message: "Membership ended",
+        code: 'ACCOUNT_MEMBERSHIP_LOST',
+        message: 'Membership ended',
       });
     },
   );
 
-  it("preserves code-less 401 session loss and does not retry", async () => {
-    const { transport, fetcher } = harness({ error: "Sign in" }, 401);
+  it('preserves code-less 401 session loss and does not retry', async () => {
+    const { transport, fetcher } = harness({ error: 'Sign in' }, 401);
     await expect(transport.read(context, signal)).rejects.toMatchObject({ status: 401 });
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it("preserves an upstream HTTP 408 without retrying the write", async () => {
-    const { transport, fetcher } = harness({ error: "Request timed out" }, 408);
+  it('preserves an upstream HTTP 408 without retrying the write', async () => {
+    const { transport, fetcher } = harness({ error: 'Request timed out' }, 408);
     await expect(
-      transport.execute(context, execution({ operation: "allocation.create", allocation }), signal),
-    ).rejects.toMatchObject({ status: 408, message: "Request timed out" });
+      transport.execute(context, execution({ operation: 'allocation.create', allocation }), signal),
+    ).rejects.toMatchObject({ status: 408, message: 'Request timed out' });
     expect(fetcher).toHaveBeenCalledOnce();
   });
-  it("narrows restoration metadata from generated HTTP errors", async () => {
+  it('narrows restoration metadata from generated HTTP errors', async () => {
     const { transport } = harness(
-      { error: "Confirm restoration", code: "RESTORATION_CONFIRMATION_REQUIRED", restorableItemCount: 3 },
+      {
+        error: 'Confirm restoration',
+        code: 'RESTORATION_CONFIRMATION_REQUIRED',
+        restorableItemCount: 3,
+      },
       409,
     );
     await expect(
-      transport.execute(context, execution({ operation: "allocation.create", allocation }), signal),
-    ).rejects.toMatchObject({ status: 409, code: "RESTORATION_CONFIRMATION_REQUIRED", restorableItemCount: 3 });
+      transport.execute(context, execution({ operation: 'allocation.create', allocation }), signal),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'RESTORATION_CONFIRMATION_REQUIRED',
+      restorableItemCount: 3,
+    });
   });
-  it("keeps unknown HTTP codes without granting them known product semantics", async () => {
-    const { transport } = harness({ error: "New refusal", code: "FUTURE_CODE", restorableItemCount: "3" }, 403);
+  it('keeps unknown HTTP codes without granting them known product semantics', async () => {
+    const { transport } = harness(
+      { error: 'New refusal', code: 'FUTURE_CODE', restorableItemCount: '3' },
+      403,
+    );
     await expect(transport.read(context, signal)).rejects.toMatchObject({
       status: 403,
-      code: "FUTURE_CODE",
+      code: 'FUTURE_CODE',
       restorableItemCount: undefined,
     });
   });

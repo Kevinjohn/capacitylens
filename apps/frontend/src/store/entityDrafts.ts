@@ -4,7 +4,7 @@ import type {
   Resource,
   ResourceEngagement,
   ScopedEntityKey,
-} from "@capacitylens/shared/types/entities";
+} from '@capacitylens/shared/types/entities';
 
 // The store supplies account identity and server-owned fields. Exclude builtin from
 // ordinary drafts so public CRUD cannot create or promote a second Internal client;
@@ -12,11 +12,11 @@ import type {
 type NullableKeys<T> = { [K in keyof T]: null extends T[K] ? K : never }[keyof T];
 type DraftFields<T extends Entity> = Omit<
   T,
-  "id" | "accountId" | "createdAt" | "updatedAt" | "builtin" | NullableKeys<T>
+  'id' | 'accountId' | 'createdAt' | 'updatedAt' | 'builtin' | NullableKeys<T>
 > & {
-  [K in Exclude<NullableKeys<T>, "builtin">]?: T[K];
+  [K in Exclude<NullableKeys<T>, 'builtin'>]?: T[K];
 };
-type ResourceDraft = Omit<DraftFields<Resource>, "engagement"> & {
+type ResourceDraft = Omit<DraftFields<Resource>, 'engagement'> & {
   engagement?: ResourceEngagement;
 };
 /** Draft entity fields accepted by public create and update actions. */
@@ -31,10 +31,13 @@ export type Patch<T extends Entity> = {
 export type ScopedRow<K extends ScopedEntityKey> = AppData[K][number];
 /** Mutable fields for one account-scoped table row. */
 export type ScopedPatch<K extends ScopedEntityKey> = {
-  [P in keyof Omit<ScopedRow<K>, keyof Entity>]?: object extends Pick<Omit<ScopedRow<K>, keyof Entity>, P>
+  [P in keyof Omit<ScopedRow<K>, keyof Entity>]?: object extends Pick<
+    Omit<ScopedRow<K>, keyof Entity>,
+    P
+  >
     ? Omit<ScopedRow<K>, keyof Entity>[P] | undefined
     : Omit<ScopedRow<K>, keyof Entity>[P];
 };
 
 /** Resource and catalogue tables with archive/restore actions. Retained deletion of other planning rows is separate. */
-export type LifecycleEntity = "resources" | "clients" | "projects" | "activities";
+export type LifecycleEntity = 'resources' | 'clients' | 'projects' | 'activities';

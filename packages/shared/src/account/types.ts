@@ -14,7 +14,7 @@ export type PrincipalId = string;
 export type IsoInstant = string;
 /** True only for a string that round-trips exactly through `Date#toISOString()`. Pure. */
 export function isIsoInstant(value: unknown): value is IsoInstant {
-  if (typeof value !== "string") return false;
+  if (typeof value !== 'string') return false;
   const milliseconds = Date.parse(value);
   if (!Number.isFinite(milliseconds)) return false;
   try {
@@ -26,15 +26,15 @@ export function isIsoInstant(value: unknown): value is IsoInstant {
 }
 
 /** Whether the app runs against the server's password sign-in or as the unauthenticated demo. */
-export type AccountMode = "off" | "password-only";
+export type AccountMode = 'off' | 'password-only';
 
 /** Every membership role, most to least privileged. */
-export const ACCOUNT_ROLES = Object.freeze(["owner", "admin", "editor", "viewer"] as const);
+export const ACCOUNT_ROLES = Object.freeze(['owner', 'admin', 'editor', 'viewer'] as const);
 /** A membership role; see {@link ACCOUNT_ROLES}. */
 export type Role = (typeof ACCOUNT_ROLES)[number];
 /** Narrow an untrusted value to a known {@link Role}. Pure. */
 export function isAccountRole(value: unknown): value is Role {
-  return typeof value === "string" && (ACCOUNT_ROLES as readonly string[]).includes(value);
+  return typeof value === 'string' && (ACCOUNT_ROLES as readonly string[]).includes(value);
 }
 /**
  * The lifecycle state of one membership.
@@ -50,16 +50,16 @@ export function isAccountRole(value: unknown): value is Role {
  * non-active membership is indistinguishable from absence to the access matrix; the widened union
  * is a listing/administration concern, never a permission one. Administrative reads may include inactive memberships for the member directory and identity-security operations; inactive rows never confer request authority.
  */
-export const MEMBERSHIP_STATUSES = Object.freeze(["active", "disabled", "archived"] as const);
+export const MEMBERSHIP_STATUSES = Object.freeze(['active', 'disabled', 'archived'] as const);
 /** A membership lifecycle state; see {@link MEMBERSHIP_STATUSES}. */
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 /** Narrow an untrusted value to a known {@link MembershipStatus}. Pure. */
 export function isMembershipStatus(value: unknown): value is MembershipStatus {
-  return typeof value === "string" && (MEMBERSHIP_STATUSES as readonly string[]).includes(value);
+  return typeof value === 'string' && (MEMBERSHIP_STATUSES as readonly string[]).includes(value);
 }
 
 /** Roles an invitation may grant. Ownership moves only through an ownership transfer. */
-export type InvitationRole = Exclude<Role, "owner">;
+export type InvitationRole = Exclude<Role, 'owner'>;
 
 /** Non-secret result of one completed atomic ownership handover. */
 export interface OwnershipTransferReceipt {

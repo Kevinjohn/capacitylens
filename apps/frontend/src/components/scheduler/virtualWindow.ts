@@ -34,7 +34,7 @@ export function buildLayout(heights: number[]): RowLayout {
   const tops = Array.from<number>({ length: heights.length });
   let totalHeight = 0;
   for (let index = 0; index < heights.length; index++) {
-    const height = requireRowValue(heights, index, "Virtual row heights must be dense.");
+    const height = requireRowValue(heights, index, 'Virtual row heights must be dense.');
     tops[index] = totalHeight;
     totalHeight += height;
   }
@@ -53,7 +53,9 @@ export function resolveVirtualWindow({
   const itemCount = heights.length;
   if (itemCount === 0) return { first: 0, last: -1 };
   const { tops, total } = layout;
-  if (tops.length !== itemCount) throw new Error("Virtual layout tops must align with row heights.");
+  if (tops.length !== itemCount) {
+    throw new Error('Virtual layout tops must align with row heights.');
+  }
 
   // Without a measured viewport, render all rows rather than hiding content before layout. A fitting list also needs no windowing.
   if (viewportHeight <= 0 || total <= viewportHeight + overscanPx) {
@@ -68,8 +70,8 @@ export function resolveVirtualWindow({
   let high = itemCount;
   while (low < high) {
     const middle = low + Math.floor((high - low) / 2);
-    const rowTop = requireRowValue(tops, middle, "Virtual layout tops must be dense.");
-    const rowHeight = requireRowValue(heights, middle, "Virtual row heights must be dense.");
+    const rowTop = requireRowValue(tops, middle, 'Virtual layout tops must be dense.');
+    const rowHeight = requireRowValue(heights, middle, 'Virtual row heights must be dense.');
     if (rowTop + rowHeight <= top) low = middle + 1;
     else high = middle;
   }
@@ -81,8 +83,9 @@ export function resolveVirtualWindow({
   high = itemCount;
   while (low < high) {
     const middle = low + Math.floor((high - low) / 2);
-    if (requireRowValue(tops, middle, "Virtual layout tops must be dense.") < bottom) low = middle + 1;
-    else high = middle;
+    if (requireRowValue(tops, middle, 'Virtual layout tops must be dense.') < bottom) {
+      low = middle + 1;
+    } else high = middle;
   }
   const last = low - 1;
 

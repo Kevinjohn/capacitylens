@@ -1,17 +1,21 @@
-import { useEffect, useId, useState } from "react";
-import type { FormEvent } from "react";
-import { useParams } from "react-router-dom";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { authClient } from "./authClient";
+import { useEffect, useId, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useParams } from 'react-router-dom';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import {
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  passwordLengthFailure,
+} from '@capacitylens/shared/domain/password';
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { authClient } from './authClient';
 
 /** `unavailable`: the link could not be checked; `uncertain`: the outcome of confirming is unknown. */
-type State = "checking" | "unavailable" | "form" | "working" | "done" | "invalid" | "uncertain";
+type State = 'checking' | 'unavailable' | 'form' | 'working' | 'done' | 'invalid' | 'uncertain';
 
 /**
  * Spends an emailed address-confirmation link. Confirming also sets the password the person
@@ -20,8 +24,8 @@ type State = "checking" | "unavailable" | "form" | "working" | "done" | "invalid
  */
 export function VerifyEmail() {
   const { token } = useParams<{ token: string }>();
-  const [state, setState] = useState<State>(token ? "checking" : "invalid");
-  const [password, setPassword] = useState("");
+  const [state, setState] = useState<State>(token ? 'checking' : 'invalid');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const passwordId = useId();
   const errorId = useId();
@@ -38,11 +42,15 @@ export function VerifyEmail() {
       .inspectEmailVerification(token)
       .then(({ data, error: failure }) => {
         // Only the server's answer about the link is authoritative; an outage is not an invalid link.
-        if (current) setState(failure && failure.status !== 400 ? "unavailable" : data?.valid ? "form" : "invalid");
+        if (current) {
+          setState(
+            failure && failure.status !== 400 ? 'unavailable' : data?.valid ? 'form' : 'invalid',
+          );
+        }
       })
       .catch((failure: unknown) => {
-        console.warn("VerifyEmail: link inspection failed", failure);
-        if (current) setState("unavailable");
+        console.warn('VerifyEmail: link inspection failed', failure);
+        if (current) setState('unavailable');
       });
     return () => {
       current = false;
@@ -51,7 +59,7 @@ export function VerifyEmail() {
 
   /** A terminal or unknown outcome leaves nothing to retype, so the password is not kept. */
   const finish = (next: State) => {
-    setPassword("");
+    setPassword('');
     setState(next);
   };
 
@@ -61,28 +69,28 @@ export function VerifyEmail() {
     const lengthFailure = passwordLengthFailure(password);
     if (lengthFailure) {
       setError(
-        lengthFailure === "too-short"
+        lengthFailure === 'too-short'
           ? m.reset_err_short({ min: MIN_PASSWORD_LENGTH })
           : m.reset_err_long({ max: MAX_PASSWORD_LENGTH }),
       );
       return;
     }
     setError(null);
-    setState("working");
+    setState('working');
     try {
       const { error: failure } = await authClient.completeEmailVerification({ token, password });
       // VERIFICATION_COMMITTED: the address is confirmed and only a later step failed.
-      if (!failure || failure.code === "VERIFICATION_COMMITTED") finish("done");
-      else if (failure.code === "INVALID_TOKEN") finish("invalid");
-      else if (failure.status >= 500) finish("uncertain");
+      if (!failure || failure.code === 'VERIFICATION_COMMITTED') finish('done');
+      else if (failure.code === 'INVALID_TOKEN') finish('invalid');
+      else if (failure.status >= 500) finish('uncertain');
       else {
         setError(failure.message || m.verify_failed());
-        setState("form");
+        setState('form');
       }
     } catch (failure) {
       // The link may already be spent and the password set, so repeating could only mislead.
-      console.error("VerifyEmail: confirmation failed", failure);
-      finish("uncertain");
+      console.error('VerifyEmail: confirmation failed', failure);
+      finish('uncertain');
     }
   };
 
@@ -95,17 +103,17 @@ export function VerifyEmail() {
         </div>
         <Card className="gap-4 py-4">
           <CardContent className="flex flex-col gap-3 px-4">
-            {state === "checking" && (
+            {state === 'checking' && (
               <p role="status" className="text-sm text-muted-foreground">
                 {m.verify_checking()}
               </p>
             )}
-            {state === "invalid" && (
+            {state === 'invalid' && (
               <p role="alert" data-testid="verify-invalid" className="text-sm">
                 {m.verify_invalid()}
               </p>
             )}
-            {state === "unavailable" && (
+            {state === 'unavailable' && (
               <>
                 <p role="alert" data-testid="verify-unavailable" className="text-sm">
                   {m.verify_unavailable()}
@@ -115,7 +123,7 @@ export function VerifyEmail() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      setState("checking");
+                      setState('checking');
                       setInspection((count) => count + 1);
                     }}
                   >
@@ -124,12 +132,12 @@ export function VerifyEmail() {
                 </div>
               </>
             )}
-            {state === "uncertain" && (
+            {state === 'uncertain' && (
               <p role="alert" data-testid="verify-uncertain" className="text-sm">
                 {m.verify_uncertain()}
               </p>
             )}
-            {(state === "form" || state === "working") && (
+            {(state === 'form' || state === 'working') && (
               <form onSubmit={(event) => void submit(event)} noValidate>
                 <FieldGroup className="gap-3">
                   <p className="text-sm text-muted-foreground">{m.verify_intro()}</p>
@@ -148,17 +156,26 @@ export function VerifyEmail() {
                   </Field>
                   <FieldError id={errorId}>{error}</FieldError>
                   <div className="flex justify-end">
-                    <Button size="sm" type="submit" data-testid="verify-submit" disabled={state === "working"}>
+                    <Button
+                      size="sm"
+                      type="submit"
+                      data-testid="verify-submit"
+                      disabled={state === 'working'}
+                    >
                       {m.verify_submit()}
                     </Button>
                   </div>
                 </FieldGroup>
               </form>
             )}
-            {(state === "done" || state === "invalid" || state === "uncertain") && (
+            {(state === 'done' || state === 'invalid' || state === 'uncertain') && (
               <>
-                {state === "done" && (
-                  <p role="status" data-testid="verify-success" className="text-sm font-medium text-ink">
+                {state === 'done' && (
+                  <p
+                    role="status"
+                    data-testid="verify-success"
+                    className="text-sm font-medium text-ink"
+                  >
                     {m.verify_done()}
                   </p>
                 )}

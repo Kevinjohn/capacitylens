@@ -1,12 +1,12 @@
-import { foldForSearch } from "@/lib/fuzzy";
-import { resolveResourceDisplayName } from "@/lib/metadata";
-import { hasLensFilter } from "@/store/useStore";
-import type { Filters } from "@/store/useStore";
-import { internalClientFor } from "@capacitylens/shared/data/internalClient";
-import { isExternalResource } from "@capacitylens/shared/types/entities";
-import type { Allocation, AppData, Resource } from "@capacitylens/shared/types/entities";
-import type { SchedulerModelOptions } from "./schedulerModelTypes";
-import { buildAllocationAttribution } from "./buildAllocationAttribution";
+import { foldForSearch } from '@/lib/fuzzy';
+import { resolveResourceDisplayName } from '@/lib/metadata';
+import { hasLensFilter } from '@/store/useStore';
+import type { Filters } from '@/store/useStore';
+import { internalClientFor } from '@capacitylens/shared/data/internalClient';
+import { isExternalResource } from '@capacitylens/shared/types/entities';
+import type { Allocation, AppData, Resource } from '@capacitylens/shared/types/entities';
+import type { SchedulerModelOptions } from './schedulerModelTypes';
+import { buildAllocationAttribution } from './buildAllocationAttribution';
 
 function createResourceVisibility({
   search,
@@ -20,11 +20,11 @@ function createResourceVisibility({
   externalEnabled: boolean;
 }) {
   return (resource: Resource): boolean => {
-    if (!placeholdersEnabled && resource.kind === "placeholder") return false;
+    if (!placeholdersEnabled && resource.kind === 'placeholder') return false;
     if (!externalEnabled && isExternalResource(resource)) return false;
     if (filteredDisciplineId && resource.disciplineId !== filteredDisciplineId) return false;
     if (!search) return true;
-    const text = [resolveResourceDisplayName(resource), resource.name, resource.role].join(" ");
+    const text = [resolveResourceDisplayName(resource), resource.name, resource.role].join(' ');
     return foldForSearch(text).includes(search);
   };
 }
@@ -35,26 +35,31 @@ function createWorkVisibility({
   resolveProjectClient,
 }: {
   filters: Filters;
-  activitiesById: Map<string, AppData["activities"][number]>;
+  activitiesById: Map<string, AppData['activities'][number]>;
   resolveProjectClient: (allocation: Allocation) => ReturnType<typeof buildAllocationAttribution>;
 }) {
   const hasMatchingProjectClient = (allocation: Allocation): boolean => {
     if (!filters.projectId && !filters.clientId) return true;
     const { projectId, client } = resolveProjectClient(allocation);
     return (
-      (!filters.projectId || projectId === filters.projectId) && (!filters.clientId || client?.id === filters.clientId)
+      (!filters.projectId || projectId === filters.projectId) &&
+      (!filters.clientId || client?.id === filters.clientId)
     );
   };
   const hasMatchingActivity = (allocation: Allocation): boolean => {
     if (filters.activityId) return allocation.activityId === filters.activityId;
-    if (filters.activityKind) return activitiesById.get(allocation.activityId)?.kind === filters.activityKind;
+    if (filters.activityKind) {
+      return activitiesById.get(allocation.activityId)?.kind === filters.activityKind;
+    }
     return true;
   };
   const passesTentativeFilter = (allocation: Allocation): boolean =>
-    !(filters.hideTentative && allocation.status === "tentative");
+    !(filters.hideTentative && allocation.status === 'tentative');
   return {
     allocVisible: (allocation: Allocation) =>
-      hasMatchingProjectClient(allocation) && hasMatchingActivity(allocation) && passesTentativeFilter(allocation),
+      hasMatchingProjectClient(allocation) &&
+      hasMatchingActivity(allocation) &&
+      passesTentativeFilter(allocation),
     notTentativeHidden: passesTentativeFilter,
   };
 }
@@ -62,7 +67,11 @@ function createWorkVisibility({
 /** Builds predicates for the active schedule filters and resource visibility. */
 export function createAllocationFilters(
   filters: Filters,
-  { disciplinesEnabled, placeholdersEnabled, externalEnabled }: SchedulerModelOptions["preferences"],
+  {
+    disciplinesEnabled,
+    placeholdersEnabled,
+    externalEnabled,
+  }: SchedulerModelOptions['preferences'],
   data: AppData,
 ) {
   // Same diacritic-insensitive fold the fuzzy matcher uses, so typing "Jose" finds "José" whether
@@ -89,9 +98,17 @@ export function createAllocationFilters(
   };
   // Project-less internal work derives its client from the scoped account's built-in Internal row. Do not persist that derived attribution; if the row is missing, leave the client absent.
   const scopedAccountId = data.clients[0]?.accountId;
-  const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined;
+  const internalClient = scopedAccountId
+    ? internalClientFor(data.clients, scopedAccountId)
+    : undefined;
   const resolveProjectClient = (allocation: Allocation) =>
-    buildAllocationAttribution({ allocation, activitiesById, projectsById, clientsById, internalClient });
+    buildAllocationAttribution({
+      allocation,
+      activitiesById,
+      projectsById,
+      clientsById,
+      internalClient,
+    });
 
   const workFilterActive = hasLensFilter(filters);
   const workVisibility = createWorkVisibility({ filters, activitiesById, resolveProjectClient });

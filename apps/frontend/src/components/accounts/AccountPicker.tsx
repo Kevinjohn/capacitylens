@@ -1,27 +1,34 @@
-import { m } from "@/i18n";
-import { isServerConfigured } from "@/data/apiConfig";
-import { useId } from "react";
-import type { ReactNode } from "react";
-import { transitionAccount } from "@/auth/accountTransition";
-import { useAuth } from "@/auth/authContext";
-import { resolveAccessLabel } from "@/lib/accessCopy";
-import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
-import type { AccessExperience } from "@/lib/resolveAccessExperience";
-import { useDemoAuthActive } from "@/lib/fakeAuth";
-import { DEFAULT_COLORS } from "@/lib/palette";
-import type { AccountSummary } from "@/store/useStore";
-import { useStore } from "@/store/useStore";
-import { AddButton, Avatar, SegmentedControl, TextField } from "@/components/common/ui";
-import type { Option, SegmentedOption } from "@/components/common/ui";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { FieldError } from "@/components/ui/field";
-import { Item, ItemGroup } from "@/components/ui/item";
-import { TimeZoneField } from "./TimeZoneField";
-import { AccountPickerHeader } from "./AccountPickerHeader";
-import { useCreateAccountForm } from "./useCreateAccountForm";
+import { m } from '@/i18n';
+import { isServerConfigured } from '@/data/apiConfig';
+import { useId } from 'react';
+import type { ReactNode } from 'react';
+import { transitionAccount } from '@/auth/accountTransition';
+import { useAuth } from '@/auth/authContext';
+import { resolveAccessLabel } from '@/lib/accessCopy';
+import { resolveAccessExperience } from '@/lib/resolveAccessExperience';
+import type { AccessExperience } from '@/lib/resolveAccessExperience';
+import { useDemoAuthActive } from '@/lib/fakeAuth';
+import { DEFAULT_COLORS } from '@/lib/palette';
+import type { AccountSummary } from '@/store/useStore';
+import { useStore } from '@/store/useStore';
+import { AddButton, Avatar, SegmentedControl, TextField } from '@/components/common/ui';
+import type { Option, SegmentedOption } from '@/components/common/ui';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { FieldError } from '@/components/ui/field';
+import { Item, ItemGroup } from '@/components/ui/item';
+import { TimeZoneField } from './TimeZoneField';
+import { AccountPickerHeader } from './AccountPickerHeader';
+import { useCreateAccountForm } from './useCreateAccountForm';
 
 interface AccountItemsProps {
   accounts: AccountSummary[];
@@ -37,7 +44,7 @@ function AccountItems(input: AccountItemsProps) {
         const roleDescriptionId = `${input.roleDescriptionPrefix}-company-role-${index}`;
         const accessLabel = resolveAccessLabel({
           experience: input.accessExperience,
-          permissionStatus: account.roleStatus ?? "resolved",
+          permissionStatus: account.roleStatus ?? 'resolved',
           role: account.role,
         });
         return (
@@ -87,7 +94,12 @@ function EmptyAccountOptions({
             <CardDescription>{m.picker_empty_create_hint()}</CardDescription>
           </CardHeader>
           <CardFooter>
-            <AddButton label={m.picker_new()} onClick={onCreate} testId="new-company-button" requiresEdit={false} />
+            <AddButton
+              label={m.picker_new()}
+              onClick={onCreate}
+              testId="new-company-button"
+              requiresEdit={false}
+            />
           </CardFooter>
         </Card>
       )}
@@ -110,7 +122,11 @@ function AccountCreationPanel({
   onCancel: () => void;
 }) {
   if (!form.creating && !companySetupEligible) return null;
-  const props = buildCreateAccountPanelProps(form, onSubmit, companySetupEligible ? undefined : onCancel);
+  const props = buildCreateAccountPanelProps(
+    form,
+    onSubmit,
+    companySetupEligible ? undefined : onCancel,
+  );
   return <CreateAccountPanel {...props} />;
 }
 
@@ -198,7 +214,7 @@ function AccountLanguageDisplay({ value }: { value: string }) {
 function CreateAccountPanel(input: CreateAccountPanelProps) {
   const changeName = (name: string) => {
     input.onNameChange(name);
-    if (input.errorField === "name") input.onClearError();
+    if (input.errorField === 'name') input.onClearError();
   };
   return (
     <form
@@ -223,7 +239,7 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
             value={input.name}
             onChange={changeName}
             autoFocus
-            invalid={input.errorField === "name"}
+            invalid={input.errorField === 'name'}
             describedById={input.errorId}
           />
           <fieldset className="flex flex-col gap-3">
@@ -267,7 +283,12 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
 function CreateAccountAffordance({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="mt-4">
-      <AddButton label={m.picker_new()} onClick={onCreate} testId="new-company-button" requiresEdit={false} />
+      <AddButton
+        label={m.picker_new()}
+        onClick={onCreate}
+        testId="new-company-button"
+        requiresEdit={false}
+      />
     </div>
   );
 }
@@ -293,16 +314,20 @@ export function AccountPicker() {
   const accountSummariesAmbiguous = useStore((state) => state.accountSummariesAmbiguous);
   const previousAccountId = useStore((state) => state.previousAccountId);
   const demoAuthActive = useDemoAuthActive();
-  const previous = demoAuthActive ? (accounts.find((account) => account.id === previousAccountId) ?? null) : null;
+  const previous = demoAuthActive
+    ? (accounts.find((account) => account.id === previousAccountId) ?? null)
+    : null;
   const { canCreateAccount: authCanCreateAccount } = useAuth();
   const roleDescriptionPrefix = useId();
   const { form, submit, reset } = useCreateAccountForm();
   const beginCreating = () => form.setCreating(true);
   const productionMode = isServerConfigured();
   const canCreateAccount = !productionMode && authCanCreateAccount;
-  const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
+  const companySetupEligible =
+    accounts.length === 0 && accountSummariesComplete && canCreateAccount;
   const conflictingProductionCompanies = productionMode && accounts.length > 1;
-  const ambiguousInstallation = productionMode && (conflictingProductionCompanies || accountSummariesAmbiguous);
+  const ambiguousInstallation =
+    productionMode && (conflictingProductionCompanies || accountSummariesAmbiguous);
 
   if (ambiguousInstallation) {
     return (

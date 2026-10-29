@@ -1,27 +1,27 @@
-import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { useMemo, useState } from "react";
-import { useActiveScopedData } from "@/store/useScopedData";
+import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { useMemo, useState } from 'react';
+import { useActiveScopedData } from '@/store/useScopedData';
 import {
   hasDisciplinesEnabled,
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from "@/store/selectors";
-import { useStore } from "@/store/useStore";
-import { useCalendarToday } from "@/components/scheduler/useCalendarToday";
-import type { CapacityDisplayMode } from "./capacityOverviewBar";
-import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
-import { CapacityOverviewTable } from "./CapacityOverviewTable";
-import { buildCapacityOverviewModel } from "./capacityOverviewModel";
+} from '@/store/selectors';
+import { useStore } from '@/store/useStore';
+import { useCalendarToday } from '@/components/scheduler/useCalendarToday';
+import type { CapacityDisplayMode } from './capacityOverviewBar';
+import type { CapacityOverviewHorizon } from './capacityOverviewDates';
+import { CapacityOverviewTable } from './CapacityOverviewTable';
+import { buildCapacityOverviewModel } from './capacityOverviewModel';
 
 /** Coordinates horizon and tentative-allocation controls with the capacity model. */
 export function CapacityOverviewView() {
   const [includeTentative, setIncludeTentative] = useState(true);
   const [hasAvailability, setHasAvailability] = useState(false);
   const [showTotals, setShowTotals] = useState(false);
-  const [capacityDisplayMode, setCapacityDisplayMode] = useState<CapacityDisplayMode>("ledger");
-  const [horizon, setHorizon] = useState<CapacityOverviewHorizon>("4-weeks");
+  const [capacityDisplayMode, setCapacityDisplayMode] = useState<CapacityDisplayMode>('ledger');
+  const [horizon, setHorizon] = useState<CapacityOverviewHorizon>('4-weeks');
   const data = useStore((state) => state.data);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const scopedData = useActiveScopedData();
@@ -50,7 +50,7 @@ export function CapacityOverviewView() {
         placeholdersEnabled,
         hasAvailability,
         disciplinesEnabled,
-        blocksMode: schedulingMode === "blocks",
+        blocksMode: schedulingMode === 'blocks',
       }),
     [
       accountWorkingDays,

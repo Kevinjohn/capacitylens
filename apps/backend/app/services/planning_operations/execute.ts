@@ -1,36 +1,36 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity'
-import { cleanText } from '@capacitylens/shared/lib/strings'
-import { DomainError } from '@capacitylens/shared/domain/errors'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
+import { cleanText } from '@capacitylens/shared/lib/strings';
+import { DomainError } from '@capacitylens/shared/domain/errors';
 import {
   archive,
   canUnarchive,
   LifecycleTransitionError,
   lifecycleStatus,
   unarchive,
-} from '@capacitylens/shared/domain/lifecycle'
-import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
-import { BatchRequestError } from '#services/planning_operations/errors'
-import { createServerRevision } from '#services/planning_operations/revision'
-import { encodeRow } from '#services/state_repository'
-import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
-import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning_operations'
-import type { BatchCapabilities } from '#services/planning_operations/data_policy'
-import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js'
+} from '@capacitylens/shared/domain/lifecycle';
+import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
+import { BatchRequestError } from '#services/planning_operations/errors';
+import { createServerRevision } from '#services/planning_operations/revision';
+import { encodeRow } from '#services/state_repository';
+import { TABLE_NAMES } from '#services/planning_operations/entity_policy';
+import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning_operations';
+import type { BatchCapabilities } from '#services/planning_operations/data_policy';
+import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js';
 import {
   deleteAllocations,
   deleteRows,
   restoreGroup,
   type RestorationIdentity,
-} from './restoration.js'
-export { PlanningOperationError } from './writer.js'
+} from './restoration.js';
+export { PlanningOperationError } from './writer.js';
 
-type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>
+type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>;
 
 type GroupAllocation = Extract<
   PlanningIntent,
   { operation: 'allocation.createGroup' }
->['allocations'][number]
+>['allocations'][number];
 
 function allocationGroupShape(allocation: GroupAllocation) {
   return JSON.stringify({
@@ -46,17 +46,26 @@ function allocationGroupShape(allocation: GroupAllocation) {
     task:
       allocation.task === null || allocation.task === undefined ? null : cleanText(allocation.task),
     ignoreWeekends: allocation.ignoreWeekends === true,
-  })
+  });
 }
 
 function assertAllocationGroupHomogeneous(allocations: readonly GroupAllocation[]) {
-  const firstShape = allocationGroupShape(allocations[0]!)
-  if (allocations.some((allocation) => allocationGroupShape(allocation) !== firstShape))
+  const first = allocations.at(0);
+  if (!first) {
+    throw new PlanningOperationError(
+      400,
+      'VALIDATION_ERROR',
+      'An allocation group needs at least one allocation.'
+    );
+  }
+  const firstShape = allocationGroupShape(first);
+  if (allocations.some((allocation) => allocationGroupShape(allocation) !== firstShape)) {
     throw new PlanningOperationError(
       400,
       'VALIDATION_ERROR',
       'All allocations in a group must share the same allocation details.'
-    )
+    );
+  }
 }
 
 async function transitionLifecycle(
@@ -67,41 +76,42 @@ async function transitionLifecycle(
   id: string,
   action: 'archive' | 'unarchive'
 ) {
-  const current = existingRow(data, table, id)
-  if (table === 'clients' && current.builtin === true)
+  const current = existingRow(data, table, id);
+  if (table === 'clients' && current.builtin === true) {
     throw new PlanningOperationError(
       409,
       'conflict',
       `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'unarchived'}.`
-    )
-  const now = createServerRevision(current.updatedAt)
-  let next: Record<string, unknown>
+    );
+  }
+  const now = createServerRevision(current.updatedAt);
+  let next: Record<string, unknown>;
   if (action === 'archive') {
     next = {
       ...(archive(current as never, now) as unknown as Record<string, unknown>),
       updatedAt: now,
-    }
+    };
   } else {
     if (!canUnarchive(current as never)) {
-      const noChange = lifecycleStatus(current as never) === 'active'
+      const noChange = lifecycleStatus(current as never) === 'active';
       throw new PlanningOperationError(
         400,
         noChange ? 'NO_CHANGE' : 'VALIDATION_ERROR',
         noChange
           ? 'The record is already active.'
           : 'The record is not archived and cannot be unarchived.'
-      )
+      );
     }
     next = {
       ...(unarchive(current as never) as unknown as Record<string, unknown>),
       updatedAt: now,
-    }
+    };
   }
   await trx
     .from(TABLE_NAMES[table])
     .where({ id, account_id: accountId })
-    .update(encodeRow(TABLE_NAMES[table], next))
-  Object.assign(current, next)
+    .update(encodeRow(TABLE_NAMES[table], next));
+  Object.assign(current, next);
 }
 
 /**
@@ -117,11 +127,13 @@ export async function executePlanningIntent(
   data: AppData,
   identity: RestorationIdentity
 ): Promise<PlanningMutationSuccess['restoration']> {
-  const unchanged = { consumedGroupId: null, replacementGroupId: null }
-  if (!capabilities.canWrite || capabilities.role === 'viewer')
-    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.')
-  if (!data.accounts.some((row) => row.id === accountId))
-    throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The company was not found.')
+  const unchanged = { consumedGroupId: null, replacementGroupId: null };
+  if (!capabilities.canWrite || capabilities.role === 'viewer') {
+    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
+  }
+  if (!data.accounts.some((row) => row.id === accountId)) {
+    throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The company was not found.');
+  }
   try {
     switch (intent.operation) {
       case 'allocation.create':
@@ -134,11 +146,11 @@ export async function executePlanningIntent(
           intent.allocation,
           capabilities,
           'create'
-        )
-        return unchanged
+        );
+        return unchanged;
       case 'allocation.createGroup': {
-        assertAllocationGroupHomogeneous(intent.allocations)
-        const seriesId = crypto.randomUUID()
+        assertAllocationGroupHomogeneous(intent.allocations);
+        const seriesId = crypto.randomUUID();
         for (const [index, allocation] of intent.allocations.entries()) {
           await writeRow(
             trx,
@@ -150,9 +162,9 @@ export async function executePlanningIntent(
             capabilities,
             'create',
             { permissiveRepeatStart: index > 0 }
-          )
+          );
         }
-        return unchanged
+        return unchanged;
       }
       case 'allocation.update':
         await writeRow(
@@ -164,14 +176,14 @@ export async function executePlanningIntent(
           intent.changes,
           capabilities,
           'update'
-        )
-        return unchanged
+        );
+        return unchanged;
       case 'allocation.duplicate':
       case 'allocation.repeat': {
-        const source = existingRow(data, 'allocations', intent.sourceAllocationId)
+        const source = existingRow(data, 'allocations', intent.sourceAllocationId);
         const occurrences =
-          intent.operation === 'allocation.duplicate' ? [intent.occurrence] : intent.occurrences
-        const seriesId = intent.operation === 'allocation.repeat' ? crypto.randomUUID() : null
+          intent.operation === 'allocation.duplicate' ? [intent.occurrence] : intent.occurrences;
+        const seriesId = intent.operation === 'allocation.repeat' ? crypto.randomUUID() : null;
         for (const [index, occurrence] of occurrences.entries()) {
           await writeRow(
             trx,
@@ -195,14 +207,14 @@ export async function executePlanningIntent(
             capabilities,
             'create',
             { permissiveRepeatStart: intent.operation === 'allocation.repeat' && index > 0 }
-          )
+          );
         }
-        return unchanged
+        return unchanged;
       }
       case 'catalogue.create':
       case 'catalogue.update': {
-        const entity = intent.entity
-        const fields = 'fields' in entity ? entity.fields : entity.changes
+        const entity = intent.entity;
+        const fields = 'fields' in entity ? entity.fields : entity.changes;
         await writeRow(
           trx,
           data,
@@ -212,23 +224,23 @@ export async function executePlanningIntent(
           fields,
           capabilities,
           intent.operation === 'catalogue.create' ? 'create' : 'update'
-        )
+        );
         if (entity.entity === 'activities' && intent.operation === 'catalogue.update') {
-          const activity = existingRow(data, 'activities', entity.id)
+          const activity = existingRow(data, 'activities', entity.id);
           if (!allocationAttributionAllowed(activity.kind)) {
             for (const allocation of data.allocations) {
-              if (allocation.activityId !== entity.id || allocation.projectId === null) continue
+              if (allocation.activityId !== entity.id || allocation.projectId === null) continue;
               await trx
                 .from('allocations')
                 .where({ id: allocation.id, account_id: accountId })
                 .update({
                   project_id: null,
                   updated_at: createServerRevision(allocation.updatedAt),
-                })
+                });
             }
           }
         }
-        return unchanged
+        return unchanged;
       }
       case 'catalogue.archive':
       case 'catalogue.unarchive':
@@ -239,8 +251,8 @@ export async function executePlanningIntent(
           intent.entity.entity,
           intent.entity.id,
           intent.operation === 'catalogue.archive' ? 'archive' : 'unarchive'
-        )
-        return unchanged
+        );
+        return unchanged;
       case 'catalogue.delete': {
         const groupId = await deleteRows(
           trx,
@@ -249,8 +261,8 @@ export async function executePlanningIntent(
           intent.entity.entity,
           [intent.entity.id],
           identity
-        )
-        return { consumedGroupId: null, replacementGroupId: groupId }
+        );
+        return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'resource.create':
       case 'resource.update':
@@ -263,8 +275,8 @@ export async function executePlanningIntent(
           intent.operation === 'resource.create' ? intent.fields : intent.changes,
           capabilities,
           intent.operation === 'resource.create' ? 'create' : 'update'
-        )
-        return unchanged
+        );
+        return unchanged;
       case 'resource.archive':
       case 'resource.unarchive':
         await transitionLifecycle(
@@ -274,8 +286,8 @@ export async function executePlanningIntent(
           'resources',
           intent.id,
           intent.operation === 'resource.archive' ? 'archive' : 'unarchive'
-        )
-        return unchanged
+        );
+        return unchanged;
       case 'timeOff.create':
         await writeRow(
           trx,
@@ -286,8 +298,8 @@ export async function executePlanningIntent(
           intent.timeOff,
           capabilities,
           'create'
-        )
-        return unchanged
+        );
+        return unchanged;
       case 'timeOff.update':
         await writeRow(
           trx,
@@ -298,17 +310,18 @@ export async function executePlanningIntent(
           intent.changes,
           capabilities,
           'update'
-        )
-        return unchanged
+        );
+        return unchanged;
       case 'timeOff.repeat':
-        for (const entry of intent.entries)
-          await writeRow(trx, data, accountId, 'timeOff', entry.id, entry, capabilities, 'create')
-        return unchanged
+        for (const entry of intent.entries) {
+          await writeRow(trx, data, accountId, 'timeOff', entry.id, entry, capabilities, 'create');
+        }
+        return unchanged;
       case 'timeOff.delete':
       case 'timeOff.deleteGroup': {
-        const ids = intent.operation === 'timeOff.delete' ? [intent.id] : intent.ids
-        const groupId = await deleteRows(trx, data, accountId, 'timeOff', ids, identity)
-        return { consumedGroupId: null, replacementGroupId: groupId }
+        const ids = intent.operation === 'timeOff.delete' ? [intent.id] : intent.ids;
+        const groupId = await deleteRows(trx, data, accountId, 'timeOff', ids, identity);
+        return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'closure.create':
       case 'closure.update':
@@ -321,47 +334,50 @@ export async function executePlanningIntent(
           intent.operation === 'closure.create' ? intent.fields : intent.changes,
           capabilities,
           intent.operation === 'closure.create' ? 'create' : 'update'
-        )
-        return unchanged
+        );
+        return unchanged;
       case 'closure.delete': {
-        const groupId = await deleteRows(trx, data, accountId, 'closures', [intent.id], identity)
-        return { consumedGroupId: null, replacementGroupId: groupId }
+        const groupId = await deleteRows(trx, data, accountId, 'closures', [intent.id], identity);
+        return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'settings.update':
-        await updateSettings(trx, data, accountId, intent.changes, capabilities)
-        return unchanged
+        await updateSettings(trx, data, accountId, intent.changes, capabilities);
+        return unchanged;
       case 'allocation.delete':
       case 'allocation.deleteGroup': {
-        const ids = intent.operation === 'allocation.delete' ? [intent.id] : intent.ids
-        const groupId = await deleteAllocations(trx, data, accountId, ids, identity)
-        return { consumedGroupId: null, replacementGroupId: groupId }
+        const ids = intent.operation === 'allocation.delete' ? [intent.id] : intent.ids;
+        const groupId = await deleteAllocations(trx, data, accountId, ids, identity);
+        return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'planning.restoreGroup':
-        await restoreGroup(trx, accountId, intent.restorationGroupId, identity)
-        return { consumedGroupId: intent.restorationGroupId, replacementGroupId: null }
+        await restoreGroup(trx, accountId, intent.restorationGroupId, identity);
+        return { consumedGroupId: intent.restorationGroupId, replacementGroupId: null };
       default:
         throw new PlanningOperationError(
           403,
           'AUTHORIZATION_DENIED',
           'This operation is unavailable.'
-        )
+        );
     }
   } catch (error) {
-    if (error instanceof PlanningOperationError) throw error
-    if (error instanceof BatchRequestError)
+    if (error instanceof PlanningOperationError) throw error;
+    if (error instanceof BatchRequestError) {
       throw new PlanningOperationError(
         error.status,
         error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',
         error.message
-      )
-    if (error instanceof DomainError)
-      throw new PlanningOperationError(400, 'VALIDATION_ERROR', error.message)
-    if (error instanceof LifecycleTransitionError)
+      );
+    }
+    if (error instanceof DomainError) {
+      throw new PlanningOperationError(400, 'VALIDATION_ERROR', error.message);
+    }
+    if (error instanceof LifecycleTransitionError) {
       throw new PlanningOperationError(
         400,
         error.code === 'already_inactive' ? 'NO_CHANGE' : 'VALIDATION_ERROR',
         error.message
-      )
+      );
+    }
     if (
       typeof error === 'object' &&
       error !== null &&
@@ -370,13 +386,13 @@ export async function executePlanningIntent(
       'messages' in error &&
       Array.isArray(error.messages)
     ) {
-      const first = error.messages[0]
+      const first = error.messages[0];
       throw new PlanningOperationError(
         400,
         'VALIDATION_ERROR',
         typeof first?.message === 'string' ? first.message : 'The operation is invalid.'
-      )
+      );
     }
-    throw error
+    throw error;
   }
 }

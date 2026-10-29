@@ -3,17 +3,24 @@
 //   node scripts/with-lane.mjs playwright test
 //
 // Claim before starting the child because configuration files resolve ports before global setup can run.
-import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { mirrorChildExit } from "./devProcesses.mjs";
-import { assertLaneFree, resolveLaunchClaim } from "./laneClaims.mjs";
-import { LANE_CLAIM_ENVIRONMENT_KEY, LANE_ENVIRONMENT_KEY, SHARE_ENVIRONMENT_KEY, portsForLane } from "./ports.mjs";
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { mirrorChildExit } from './devProcesses.mjs';
+import { assertLaneFree, resolveLaunchClaim } from './laneClaims.mjs';
+import {
+  LANE_CLAIM_ENVIRONMENT_KEY,
+  LANE_ENVIRONMENT_KEY,
+  SHARE_ENVIRONMENT_KEY,
+  portsForLane,
+} from './ports.mjs';
 
-const worktree = fileURLToPath(new URL("../", import.meta.url)).replace(/\/$/, "");
+const worktree = fileURLToPath(new URL('../', import.meta.url)).replace(/\/$/, '');
 const [command, ...args] = process.argv.slice(2);
 
 if (!command) {
-  console.error("with-lane: expected a command to run, for example `node scripts/with-lane.mjs playwright test`.");
+  console.error(
+    'with-lane: expected a command to run, for example `node scripts/with-lane.mjs playwright test`.',
+  );
   process.exit(2);
 }
 
@@ -48,12 +55,12 @@ try {
 const lanePorts = portsForLane(claim.lane);
 if (!inherited) {
   console.error(
-    `with-lane: lane ${claim.lane} — web ${lanePorts.web}, api ${lanePorts.dbApi}, ${claim.share} test worker${claim.share === 1 ? "" : "s"}.`,
+    `with-lane: lane ${claim.lane} — web ${lanePorts.web}, api ${lanePorts.dbApi}, ${claim.share} test worker${claim.share === 1 ? '' : 's'}.`,
   );
 }
 
 const child = spawn(command, args, {
-  stdio: "inherit",
+  stdio: 'inherit',
   env: {
     ...process.env,
     [LANE_ENVIRONMENT_KEY]: String(claim.lane),
@@ -62,5 +69,5 @@ const child = spawn(command, args, {
   },
 });
 
-process.on("exit", release);
+process.on('exit', release);
 mirrorChildExit(child, { label: `with-lane: ${command}`, release });

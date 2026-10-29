@@ -1,6 +1,6 @@
-import { NULLABLE_FIELDS } from "../types/nullableFields.js";
-import { describe, it, expect } from "vitest";
-import { seed } from "./seed.js";
+import { NULLABLE_FIELDS } from '../types/nullableFields.js';
+import { describe, it, expect } from 'vitest';
+import { seed } from './seed.js';
 import {
   applyInternalClientRepairs,
   ensureInternalClients,
@@ -8,12 +8,12 @@ import {
   buildInternalClient,
   wouldAddSecondBuiltin,
   INTERNAL_CLIENT_NAME,
-} from "./internalClient.js";
-import { emptyAppData } from "../types/entities.js";
-import type { Client } from "../types/entities.js";
-import { activeOnly } from "../domain/lifecycle.js";
+} from './internalClient.js';
+import { emptyAppData } from '../types/entities.js';
+import type { Client } from '../types/entities.js';
+import { activeOnly } from '../domain/lifecycle.js';
 
-const TS = "2026-01-01T00:00:00.000Z";
+const TS = '2026-01-01T00:00:00.000Z';
 
 function requiredInternalClient(clients: Client[], accountId: string): Client {
   const internal = internalClientFor(clients, accountId);
@@ -22,7 +22,7 @@ function requiredInternalClient(clients: Client[], accountId: string): Client {
 }
 
 function registerSeedTests(): void {
-  it("seed gives every account exactly one builtin Internal client", () => {
+  it('seed gives every account exactly one builtin Internal client', () => {
     const data = seed();
     for (const account of data.accounts) {
       const internal = data.clients.filter((c) => c.builtin === true && c.accountId === account.id);
@@ -31,18 +31,32 @@ function registerSeedTests(): void {
     }
   });
 
-  it("applyInternalClientRepairs adds one Internal per account that lacks one, and is idempotent", () => {
+  it('applyInternalClientRepairs adds one Internal per account that lacks one, and is idempotent', () => {
     const base = {
       ...emptyAppData(),
       accounts: [
-        { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
-        { ...NULLABLE_FIELDS.accounts, id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a1',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'A1',
+          color: '#111111',
+        },
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a2',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'A2',
+          color: '#222222',
+        },
       ],
     };
     const once = applyInternalClientRepairs(base, TS);
     expect(once.clients.filter((c) => c.builtin)).toHaveLength(2);
-    expect(internalClientFor(once.clients, "a1")).toBeDefined();
-    expect(internalClientFor(once.clients, "a2")).toBeDefined();
+    expect(internalClientFor(once.clients, 'a1')).toBeDefined();
+    expect(internalClientFor(once.clients, 'a2')).toBeDefined();
     const twice = applyInternalClientRepairs(once, TS);
     expect(twice).toBe(once);
     expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2);
@@ -50,73 +64,93 @@ function registerSeedTests(): void {
 }
 
 function registerCorruptInputTests(): void {
-  it("adds only one Internal when corrupt input repeats an account id, then converges", () => {
+  it('adds only one Internal when corrupt input repeats an account id, then converges', () => {
     const account = {
       ...NULLABLE_FIELDS.accounts,
-      id: "a1",
+      id: 'a1',
       createdAt: TS,
       updatedAt: TS,
-      name: "A1",
-      color: "#111111",
+      name: 'A1',
+      color: '#111111',
     };
     const base = {
       ...emptyAppData(),
-      accounts: [account, { ...account, name: "Duplicate A1" }],
+      accounts: [account, { ...account, name: 'Duplicate A1' }],
     };
 
     const once = applyInternalClientRepairs(base, TS);
-    expect(once.clients.filter((client) => client.builtin && client.accountId === "a1")).toHaveLength(1);
-    expect(once.clients[0]?.id).toBe("internal:a1");
+    expect(
+      once.clients.filter((client) => client.builtin && client.accountId === 'a1'),
+    ).toHaveLength(1);
+    expect(once.clients[0]?.id).toBe('internal:a1');
     expect(ensureInternalClients(once, TS)).toBe(once);
   });
 
-  it("uses a collision-free id when an ordinary client already owns the generated id", () => {
+  it('uses a collision-free id when an ordinary client already owns the generated id', () => {
     const ordinary: Client = {
       ...NULLABLE_FIELDS.clients,
-      id: "internal:a1",
-      accountId: "a1",
+      id: 'internal:a1',
+      accountId: 'a1',
       createdAt: TS,
       updatedAt: TS,
-      name: "Ordinary",
-      color: "#111111",
+      name: 'Ordinary',
+      color: '#111111',
     };
     const data = {
       ...emptyAppData(),
-      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
-      clients: [ordinary, { ...ordinary, id: "internal:a1:1", name: "Also ordinary" }],
+      accounts: [
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a1',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'A1',
+          color: '#111111',
+        },
+      ],
+      clients: [ordinary, { ...ordinary, id: 'internal:a1:1', name: 'Also ordinary' }],
     };
 
     const repaired = applyInternalClientRepairs(data, TS);
 
     expect(repaired.clients).toHaveLength(3);
     expect(new Set(repaired.clients.map(({ id }) => id)).size).toBe(3);
-    expect(internalClientFor(repaired.clients, "a1")?.id).toBe("internal:a1:2");
+    expect(internalClientFor(repaired.clients, 'a1')?.id).toBe('internal:a1:2');
     expect(repaired.clients).toContain(ordinary);
     expect(applyInternalClientRepairs(repaired, TS)).toBe(repaired);
   });
 }
 
 function registerDuplicateBuiltinTests(): void {
-  it("deterministically folds duplicate builtins and rewires their projects", () => {
-    const generated = { ...buildInternalClient("a1", TS), id: "internal:a1" };
+  it('deterministically folds duplicate builtins and rewires their projects', () => {
+    const generated = { ...buildInternalClient('a1', TS), id: 'internal:a1' };
     const duplicate: Client = {
-      ...buildInternalClient("a1", "2025-01-01T00:00:00.000Z"),
-      id: "legacy-internal",
+      ...buildInternalClient('a1', '2025-01-01T00:00:00.000Z'),
+      id: 'legacy-internal',
     };
     const data = {
       ...emptyAppData(),
-      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a1',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'A1',
+          color: '#111111',
+        },
+      ],
       clients: [duplicate, generated],
       projects: [
         {
           ...NULLABLE_FIELDS.projects,
-          id: "p1",
-          accountId: "a1",
+          id: 'p1',
+          accountId: 'a1',
           clientId: duplicate.id,
           createdAt: TS,
           updatedAt: TS,
-          name: "P",
-          color: "#111111",
+          name: 'P',
+          color: '#111111',
         },
       ],
     };
@@ -125,29 +159,38 @@ function registerDuplicateBuiltinTests(): void {
 
     expect(repaired.clients.filter((client) => client.builtin)).toEqual([generated]);
     expect(repaired.projects[0]?.clientId).toBe(generated.id);
-    expect(repaired.projects[0]?.updatedAt).toBe("2026-01-01T00:00:00.001Z");
+    expect(repaired.projects[0]?.updatedAt).toBe('2026-01-01T00:00:00.001Z');
     expect(applyInternalClientRepairs(repaired, TS)).toBe(repaired);
   });
 }
 
 function registerSameIdDuplicateTests(): void {
-  it("folds duplicate builtins that share the same primary id", () => {
-    const retained = buildInternalClient("a1", TS);
-    const duplicate = { ...retained, createdAt: "2026-01-02T00:00:00.000Z" };
+  it('folds duplicate builtins that share the same primary id', () => {
+    const retained = buildInternalClient('a1', TS);
+    const duplicate = { ...retained, createdAt: '2026-01-02T00:00:00.000Z' };
     const data = {
       ...emptyAppData(),
-      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a1',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'A1',
+          color: '#111111',
+        },
+      ],
       clients: [retained, duplicate],
       projects: [
         {
           ...NULLABLE_FIELDS.projects,
-          id: "p1",
-          accountId: "a1",
+          id: 'p1',
+          accountId: 'a1',
           clientId: retained.id,
           createdAt: TS,
           updatedAt: TS,
-          name: "P",
-          color: "#111111",
+          name: 'P',
+          color: '#111111',
         },
       ],
     };
@@ -161,26 +204,33 @@ function registerSameIdDuplicateTests(): void {
 }
 
 function registerRepairRevisionTests(): void {
-  it("bumps only rewired projects when folding a duplicate built-in", () => {
-    const generated = buildInternalClient("a1", TS);
-    const duplicate = { ...buildInternalClient("a1", TS), id: "legacy-internal" };
+  it('bumps only rewired projects when folding a duplicate built-in', () => {
+    const generated = buildInternalClient('a1', TS);
+    const duplicate = { ...buildInternalClient('a1', TS), id: 'legacy-internal' };
     const rewired = {
       ...NULLABLE_FIELDS.projects,
-      id: "p1",
-      accountId: "a1",
+      id: 'p1',
+      accountId: 'a1',
       clientId: duplicate.id,
       createdAt: TS,
       updatedAt: TS,
-      name: "Rewired",
-      color: "#111111",
+      name: 'Rewired',
+      color: '#111111',
     };
-    const untouched = { ...rewired, id: "p2", clientId: generated.id, name: "Untouched" };
+    const untouched = { ...rewired, id: 'p2', clientId: generated.id, name: 'Untouched' };
 
     const repaired = applyInternalClientRepairs(
       {
         ...emptyAppData(),
         accounts: [
-          { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+          {
+            ...NULLABLE_FIELDS.accounts,
+            id: 'a1',
+            createdAt: TS,
+            updatedAt: TS,
+            name: 'A1',
+            color: '#111111',
+          },
         ],
         clients: [generated, duplicate],
         projects: [rewired, untouched],
@@ -188,29 +238,41 @@ function registerRepairRevisionTests(): void {
       TS,
     );
 
-    expect(repaired.projects[0]).toMatchObject({ clientId: generated.id, updatedAt: "2026-01-01T00:00:00.001Z" });
+    expect(repaired.projects[0]).toMatchObject({
+      clientId: generated.id,
+      updatedAt: '2026-01-01T00:00:00.001Z',
+    });
     expect(repaired.projects[1]).toBe(untouched);
   });
 
-  it("stamps a REPAIRED retained builtin with a fresh updatedAt so the repair persists", () => {
+  it('stamps a REPAIRED retained builtin with a fresh updatedAt so the repair persists', () => {
     // A repaired retained client needs a distinct revision so readers recognise the correction.
-    const NOW = "2026-06-01T00:00:00.000Z";
+    const NOW = '2026-06-01T00:00:00.000Z';
     const data = {
       ...emptyAppData(),
-      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
-      clients: [
+      accounts: [
         {
-          id: "internal:a1",
-          accountId: "a1",
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a1',
           createdAt: TS,
           updatedAt: TS,
-          name: "JUNK NAME",
-          color: "#000000",
+          name: 'A1',
+          color: '#111111',
+        },
+      ],
+      clients: [
+        {
+          id: 'internal:a1',
+          accountId: 'a1',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'JUNK NAME',
+          color: '#000000',
           builtin: true,
         } as Client,
       ],
     };
-    const internal = requiredInternalClient(applyInternalClientRepairs(data, NOW).clients, "a1");
+    const internal = requiredInternalClient(applyInternalClientRepairs(data, NOW).clients, 'a1');
     expect(internal.name).toBe(INTERNAL_CLIENT_NAME);
     expect(internal.updatedAt).toBe(NOW);
   });
@@ -218,120 +280,161 @@ function registerRepairRevisionTests(): void {
 
 function registerReactivationTests(): void {
   it.each([
-    ["archived", { archivedAt: TS }],
-    ["deleted", { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" }],
-  ] as const)("reactivates a retained %s built-in Internal client", (_state, tombstones) => {
-    const internal = { ...buildInternalClient("a1", TS), ...tombstones };
+    ['archived', { archivedAt: TS }],
+    ['deleted', { archivedAt: TS, deletedAt: '2026-01-02T00:00:00.000Z' }],
+  ] as const)('reactivates a retained %s built-in Internal client', (_state, tombstones) => {
+    const internal = { ...buildInternalClient('a1', TS), ...tombstones };
     const data = {
       ...emptyAppData(),
-      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a1',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'A1',
+          color: '#111111',
+        },
+      ],
       clients: [internal],
     };
 
     const repaired = applyInternalClientRepairs(data, TS);
-    const retained = requiredInternalClient(repaired.clients, "a1");
+    const retained = requiredInternalClient(repaired.clients, 'a1');
 
     expect(repaired).not.toBe(data);
     expect(retained.archivedAt).toBeNull();
     expect(retained.deletedAt).toBeNull();
-    expect(retained.updatedAt).toBe("2026-01-01T00:00:00.001Z");
+    expect(retained.updatedAt).toBe('2026-01-01T00:00:00.001Z');
     expect(activeOnly(repaired).clients).toEqual([retained]);
   });
 
-  it("forces a distinct, non-decreasing revision when the repair clock is equal or older", () => {
+  it('forces a distinct, non-decreasing revision when the repair clock is equal or older', () => {
     const repair = (updatedAt: string, now: string) => {
       const data = {
         ...emptyAppData(),
         accounts: [
-          { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+          {
+            ...NULLABLE_FIELDS.accounts,
+            id: 'a1',
+            createdAt: TS,
+            updatedAt: TS,
+            name: 'A1',
+            color: '#111111',
+          },
         ],
         clients: [
           {
-            id: "internal:a1",
-            accountId: "a1",
+            id: 'internal:a1',
+            accountId: 'a1',
             createdAt: TS,
             updatedAt,
-            name: "JUNK NAME",
-            color: "#000000",
+            name: 'JUNK NAME',
+            color: '#000000',
             builtin: true,
           } as Client,
         ],
       };
-      return requiredInternalClient(applyInternalClientRepairs(data, now).clients, "a1").updatedAt;
+      return requiredInternalClient(applyInternalClientRepairs(data, now).clients, 'a1').updatedAt;
     };
 
-    expect(repair(TS, TS)).toBe("2026-01-01T00:00:00.001Z");
-    expect(repair("2027-01-01T00:00:00.000Z", TS)).toBe("2027-01-01T00:00:00.001Z");
+    expect(repair(TS, TS)).toBe('2026-01-01T00:00:00.001Z');
+    expect(repair('2027-01-01T00:00:00.000Z', TS)).toBe('2027-01-01T00:00:00.001Z');
   });
 }
 
 function registerRepairBoundaryTests(): void {
-  it("refuses a repair that cannot advance within the supported timestamp domain", () => {
-    const maximum = "9999-12-31T23:59:59.999Z";
+  it('refuses a repair that cannot advance within the supported timestamp domain', () => {
+    const maximum = '9999-12-31T23:59:59.999Z';
     const data = {
       ...emptyAppData(),
-      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a1',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'A1',
+          color: '#111111',
+        },
+      ],
       clients: [
         {
-          ...buildInternalClient("a1", TS),
-          name: "Damaged",
+          ...buildInternalClient('a1', TS),
+          name: 'Damaged',
           updatedAt: maximum,
         },
       ],
     };
 
     expect(() => applyInternalClientRepairs(data, TS)).toThrow(
-      new RangeError("Internal-client repair cannot advance beyond the supported four-digit ISO timestamp range."),
+      new RangeError(
+        'Internal-client repair cannot advance beyond the supported four-digit ISO timestamp range.',
+      ),
     );
-    expect(data.clients[0]).toMatchObject({ name: "Damaged", updatedAt: maximum });
+    expect(data.clients[0]).toMatchObject({ name: 'Damaged', updatedAt: maximum });
   });
 
-  it("leaves an already-canonical retained builtin updatedAt untouched (no phantom-write churn)", () => {
-    const NOW = "2026-06-01T00:00:00.000Z";
+  it('leaves an already-canonical retained builtin updatedAt untouched (no phantom-write churn)', () => {
+    const NOW = '2026-06-01T00:00:00.000Z';
     const data = {
       ...emptyAppData(),
       // a1 is canonical; a2 lacks a builtin, forcing the function past its no-op early return so the
       // retain/restamp map actually runs over a1.
       accounts: [
-        { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
-        { ...NULLABLE_FIELDS.accounts, id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a1',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'A1',
+          color: '#111111',
+        },
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: 'a2',
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'A2',
+          color: '#222222',
+        },
       ],
-      clients: [buildInternalClient("a1", TS)],
+      clients: [buildInternalClient('a1', TS)],
     };
     const repaired = applyInternalClientRepairs(data, NOW);
-    expect(internalClientFor(repaired.clients, "a2")).toBeDefined();
-    expect(requiredInternalClient(repaired.clients, "a1").updatedAt).toBe(TS);
+    expect(internalClientFor(repaired.clients, 'a2')).toBeDefined();
+    expect(requiredInternalClient(repaired.clients, 'a1').updatedAt).toBe(TS);
   });
 }
 
 function registerPublicPredicateTests(): void {
-  it("buildInternalClient uses the deterministic id and reserved name/colour with builtin:true", () => {
-    const c = buildInternalClient("a9", TS);
-    expect(c).toMatchObject({ accountId: "a9", name: INTERNAL_CLIENT_NAME, builtin: true });
-    expect(c.id).toBe("internal:a9");
+  it('buildInternalClient uses the deterministic id and reserved name/colour with builtin:true', () => {
+    const c = buildInternalClient('a9', TS);
+    expect(c).toMatchObject({ accountId: 'a9', name: INTERNAL_CLIENT_NAME, builtin: true });
+    expect(c.id).toBe('internal:a9');
   });
 
   // The shared predicate flags a proposed second built-in for the same account.
-  it("wouldAddSecondBuiltin matches the client-side duplicate built-in write predicate", () => {
+  it('wouldAddSecondBuiltin matches the client-side duplicate built-in write predicate', () => {
     const existing: Client = {
       ...NULLABLE_FIELDS.clients,
-      id: "c-int",
-      accountId: "a1",
+      id: 'c-int',
+      accountId: 'a1',
       createdAt: TS,
       updatedAt: TS,
-      name: "Internal",
-      color: "#9c3ace",
+      name: 'Internal',
+      color: '#9c3ace',
       builtin: true,
     };
     const clients = [existing];
-    expect(wouldAddSecondBuiltin([], "a1", "c-int")).toBe(false);
-    expect(wouldAddSecondBuiltin(clients, "a1", "c-int2")).toBe(true);
-    expect(wouldAddSecondBuiltin(clients, "a1", "c-int")).toBe(false);
-    expect(wouldAddSecondBuiltin(clients, "a2", "c-int-2")).toBe(false);
+    expect(wouldAddSecondBuiltin([], 'a1', 'c-int')).toBe(false);
+    expect(wouldAddSecondBuiltin(clients, 'a1', 'c-int2')).toBe(true);
+    expect(wouldAddSecondBuiltin(clients, 'a1', 'c-int')).toBe(false);
+    expect(wouldAddSecondBuiltin(clients, 'a2', 'c-int-2')).toBe(false);
   });
 }
 
-describe("built-in Internal client", () => {
+describe('built-in Internal client', () => {
   registerSeedTests();
   registerCorruptInputTests();
   registerDuplicateBuiltinTests();

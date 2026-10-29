@@ -1,13 +1,13 @@
-import { expect, request as playwrightRequest } from "@playwright/test";
-import type { APIRequestContext } from "@playwright/test";
-import { DatabaseSync } from "node:sqlite";
-import { spawnSync } from "node:child_process";
-import { existsSync, realpathSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { ports } from "../scripts/ports.mjs";
-import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
-import { FALLBACK_PRESET_COLOR } from "@capacitylens/shared/lib/color";
+import { expect, request as playwrightRequest } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
+import { DatabaseSync } from 'node:sqlite';
+import { spawnSync } from 'node:child_process';
+import { existsSync, realpathSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ports } from '../scripts/ports.mjs';
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
+import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 
 // Keep password-server fixture setup in one place so bootstrap credentials and request shapes remain consistent.
 
@@ -17,14 +17,14 @@ import { FALLBACK_PRESET_COLOR } from "@capacitylens/shared/lib/color";
 export const AUTH_API = `http://localhost:${ports().authApi}`;
 
 /** The password every auth-e2e fixture signs up / signs in with. */
-export const AUTH_PASSWORD = "demo-password-123456";
+export const AUTH_PASSWORD = 'demo-password-123456';
 
 /**
  * Fixed membership-free administrator credentials used only by the disposable auth server.
  * The server creates this principal after first-company setup for recovery scenarios.
  * Keep these literals aligned with start:auth-e2e; importing auth.ts would load the auth runtime into Playwright.
  */
-export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
+export const BOOTSTRAP_ADMIN = { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' };
 
 /** Captures the authenticated session's current masquerade context for one deliberate API action. */
 export async function masqueradeContextHeaders(
@@ -32,28 +32,30 @@ export async function masqueradeContextHeaders(
   cookie?: string,
   origin = AUTH_API,
 ): Promise<Record<string, string>> {
-  const headers = { "sec-fetch-site": "same-origin", ...(cookie ? { cookie } : {}) };
+  const headers = { 'sec-fetch-site': 'same-origin', ...(cookie ? { cookie } : {}) };
   const response = await request.get(`${origin}/api/masquerade`, { headers });
-  expect(response.status(), "read masquerade context for fixture request").toBe(200);
+  expect(response.status(), 'read masquerade context for fixture request').toBe(200);
   const contextToken = ((await response.json()) as { contextToken?: unknown }).contextToken;
-  if (typeof contextToken !== "string" || contextToken.length === 0)
-    throw new Error("Authenticated fixture session did not return a masquerade context token.");
-  return { ...headers, "X-Masquerade-Context": contextToken };
+  if (typeof contextToken !== 'string' || contextToken.length === 0)
+    throw new Error('Authenticated fixture session did not return a masquerade context token.');
+  return { ...headers, 'X-Masquerade-Context': contextToken };
 }
 
-const AUTH_E2E_DATABASE = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
-const BACKEND_DIRECTORY = fileURLToPath(new URL("../apps/backend/", import.meta.url));
-const AUTH_E2E_BASELINE_COMPANY = "Daily Planet E2E Baseline";
-const AUTH_E2E_BASELINE_OWNER = "baseline-owner@capacitylens.dev";
+const AUTH_E2E_DATABASE = fileURLToPath(new URL('../apps/backend/.auth-e2e.db', import.meta.url));
+const BACKEND_DIRECTORY = fileURLToPath(new URL('../apps/backend/', import.meta.url));
+const AUTH_E2E_BASELINE_COMPANY = 'Daily Planet E2E Baseline';
+const AUTH_E2E_BASELINE_OWNER = 'baseline-owner@capacitylens.dev';
 
 /** Rejects a fixture target outside the one disposable native auth E2E database. */
 export function assertAuthE2EFixturePath(databasePath: string): void {
   if (resolve(databasePath) !== resolve(AUTH_E2E_DATABASE))
-    throw new Error("Auth E2E fixtures may only access apps/backend/.auth-e2e.db.");
+    throw new Error('Auth E2E fixtures may only access apps/backend/.auth-e2e.db.');
   if (!existsSync(databasePath))
-    throw new Error("The disposable auth E2E database is unavailable; start the auth E2E server first.");
+    throw new Error(
+      'The disposable auth E2E database is unavailable; start the auth E2E server first.',
+    );
   if (realpathSync(databasePath) !== resolve(AUTH_E2E_DATABASE))
-    throw new Error("Auth E2E fixtures may only access apps/backend/.auth-e2e.db.");
+    throw new Error('Auth E2E fixtures may only access apps/backend/.auth-e2e.db.');
 }
 
 /** Opens only the native auth E2E database after verifying its path and schema markers. */
@@ -62,34 +64,36 @@ function openAuthE2EDatabase(): DatabaseSync {
   const db = new DatabaseSync(AUTH_E2E_DATABASE);
   try {
     const main = db
-      .prepare("PRAGMA database_list")
+      .prepare('PRAGMA database_list')
       .all()
-      .find((database) => database.name === "main") as { file: string } | undefined;
+      .find((database) => database.name === 'main') as { file: string } | undefined;
     if (!main || resolve(main.file) !== resolve(AUTH_E2E_DATABASE))
-      throw new Error("Auth E2E fixtures may only access apps/backend/.auth-e2e.db.");
+      throw new Error('Auth E2E fixtures may only access apps/backend/.auth-e2e.db.');
 
     const tableNames = new Set(
-      (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map(
-        ({ name }) => name,
-      ),
+      (
+        db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
+          name: string;
+        }>
+      ).map(({ name }) => name),
     );
     if (
       [
-        "users",
-        "memberships",
-        "adonis_sessions",
-        "account_sessions",
-        "account_admissions",
-        "audit_entries",
-        "account_member_resources",
-        "accounts",
-        "clients",
-        "company_planning_revisions",
+        'users',
+        'memberships',
+        'adonis_sessions',
+        'account_sessions',
+        'account_admissions',
+        'audit_entries',
+        'account_member_resources',
+        'accounts',
+        'clients',
+        'company_planning_revisions',
       ].some((table) => !tableNames.has(table))
     )
-      throw new Error("The database does not match the native auth E2E schema.");
+      throw new Error('The database does not match the native auth E2E schema.');
 
-    db.exec("PRAGMA busy_timeout = 5000");
+    db.exec('PRAGMA busy_timeout = 5000');
     return db;
   } catch (error) {
     db.close();
@@ -99,19 +103,23 @@ function openAuthE2EDatabase(): DatabaseSync {
 
 function cookiesOf(setCookie: string): string {
   return setCookie
-    .split("\n")
-    .map((c) => c.split(";")[0])
+    .split('\n')
+    .map((c) => c.split(';')[0])
     .filter(Boolean)
-    .join("; ");
+    .join('; ');
 }
 
-async function postSignUp(ctx: APIRequestContext, email: string, name = email.split("@")[0]): Promise<string> {
+async function postSignUp(
+  ctx: APIRequestContext,
+  email: string,
+  name = email.split('@')[0],
+): Promise<string> {
   const res = await ctx.post(`${AUTH_API}/api/auth/sign-up`, {
     data: { email, password: AUTH_PASSWORD, name },
   });
   expect(res.ok(), `sign-up ${email}`).toBeTruthy();
   admitFixtureIdentity(email);
-  return cookiesOf(res.headers()["set-cookie"] ?? "");
+  return cookiesOf(res.headers()['set-cookie'] ?? '');
 }
 
 /**
@@ -123,7 +131,9 @@ function confirmFixtureAddress(email: string): void {
   const db = openAuthE2EDatabase();
   try {
     const confirmed = db
-      .prepare("UPDATE users SET email_verified_at = ?, unverified_email = NULL WHERE lower(email) = ?")
+      .prepare(
+        'UPDATE users SET email_verified_at = ?, unverified_email = NULL WHERE lower(email) = ?',
+      )
       .run(new Date().toISOString(), email.toLowerCase());
     if (confirmed.changes !== 1) throw new Error(`Missing E2E fixture identity for ${email}`);
   } finally {
@@ -140,8 +150,9 @@ export function admitFixtureIdentity(email: string): void {
   confirmFixtureAddress(email);
   const db = openAuthE2EDatabase();
   try {
-    const user = db.prepare("SELECT id, email FROM users WHERE lower(email) = ?").get(email.toLowerCase()) as
-      { id: string; email: string } | undefined;
+    const user = db
+      .prepare('SELECT id, email FROM users WHERE lower(email) = ?')
+      .get(email.toLowerCase()) as { id: string; email: string } | undefined;
     if (!user) throw new Error(`Missing E2E fixture identity for ${email}`);
     const now = new Date().toISOString();
     db.prepare(
@@ -164,16 +175,28 @@ export function admitFixtureIdentity(email: string): void {
  * The principal must already exist in the disposable auth database.
  * @throws When the principal is absent or database writes fail.
  */
-export function seedFixtureMember(accountId: string, email: string, role: "admin" | "editor" | "viewer"): void {
+export function seedFixtureMember(
+  accountId: string,
+  email: string,
+  role: 'admin' | 'editor' | 'viewer',
+): void {
   const db = openAuthE2EDatabase();
   try {
-    const principal = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(email.toLowerCase()) as
-      { id: string } | undefined;
+    const principal = db
+      .prepare('SELECT id FROM users WHERE lower(email) = ?')
+      .get(email.toLowerCase()) as { id: string } | undefined;
     if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
     db.prepare(
       `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, 'active', ?, ?)`,
-    ).run(crypto.randomUUID(), accountId, principal.id, role, new Date().toISOString(), new Date().toISOString());
+    ).run(
+      crypto.randomUUID(),
+      accountId,
+      principal.id,
+      role,
+      new Date().toISOString(),
+      new Date().toISOString(),
+    );
   } finally {
     db.close();
   }
@@ -183,10 +206,11 @@ export function seedFixtureMember(accountId: string, email: string, role: "admin
 export function revokeFixtureSessions(email: string): void {
   const db = openAuthE2EDatabase();
   try {
-    const principal = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(email.toLowerCase()) as
-      { id: string } | undefined;
+    const principal = db
+      .prepare('SELECT id FROM users WHERE lower(email) = ?')
+      .get(email.toLowerCase()) as { id: string } | undefined;
     if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
-    const removed = db.prepare("DELETE FROM account_sessions WHERE user_id = ?").run(principal.id);
+    const removed = db.prepare('DELETE FROM account_sessions WHERE user_id = ?').run(principal.id);
     if (removed.changes === 0) throw new Error(`Missing E2E fixture session for ${email}`);
   } finally {
     db.close();
@@ -194,13 +218,13 @@ export function revokeFixtureSessions(email: string): void {
 }
 
 function ensureAuthE2EFixtureCompanyTable(db: DatabaseSync): void {
-  db.exec("CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)");
+  db.exec('CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)');
 }
 
 function removeAuthE2EAccount(db: DatabaseSync, accountId: string): void {
-  db.prepare("DELETE FROM audit_entries WHERE account_id = ?").run(accountId);
-  db.prepare("DELETE FROM account_member_resources WHERE account_id = ?").run(accountId);
-  db.prepare("DELETE FROM accounts WHERE id = ?").run(accountId);
+  db.prepare('DELETE FROM audit_entries WHERE account_id = ?').run(accountId);
+  db.prepare('DELETE FROM account_member_resources WHERE account_id = ?').run(accountId);
+  db.prepare('DELETE FROM accounts WHERE id = ?').run(accountId);
 }
 
 function insertAuthE2ECompany(
@@ -226,7 +250,7 @@ function insertAuthE2ECompany(
     accountId,
     name,
     FALLBACK_PRESET_COLOR,
-    "days",
+    'days',
     null,
     JSON.stringify(1),
     JSON.stringify([1, 2, 3, 4, 5]),
@@ -249,8 +273,11 @@ function insertAuthE2ECompany(
     `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
      VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
   ).run(crypto.randomUUID(), accountId, ownerId, now, now);
-  db.prepare("INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)").run(accountId);
-  if (track) db.prepare("INSERT INTO auth_e2e_fixture_companies (account_id) VALUES (?)").run(accountId);
+  db.prepare('INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)').run(
+    accountId,
+  );
+  if (track)
+    db.prepare('INSERT INTO auth_e2e_fixture_companies (account_id) VALUES (?)').run(accountId);
   if (recordInitialization) {
     db.prepare(
       `INSERT INTO audit_entries (id, account_id, actor_id, action, entity, entity_id, details, created_at, updated_at)
@@ -260,7 +287,7 @@ function insertAuthE2ECompany(
       accountId,
       ownerId,
       accountId,
-      JSON.stringify({ changedFields: ["company", "owner"] }),
+      JSON.stringify({ changedFields: ['company', 'owner'] }),
       now,
       now,
     );
@@ -284,7 +311,8 @@ function temporaryBaselineAccountIds(db: DatabaseSync): string[] {
          )`,
     )
     .all(AUTH_E2E_BASELINE_COMPANY, AUTH_E2E_BASELINE_OWNER) as Array<{ id: string }>;
-  if (rows.length > 1) throw new Error("Multiple retained Auth E2E placeholder companies were found.");
+  if (rows.length > 1)
+    throw new Error('Multiple retained Auth E2E placeholder companies were found.');
   return rows.map(({ id }) => id);
 }
 
@@ -294,10 +322,10 @@ function removeTemporaryBaselineCompany(db: DatabaseSync): void {
 
 /** Restores the disposable one-company server state after scenario companies are removed. */
 function ensureTemporaryBaselineCompany(db: DatabaseSync): void {
-  if (db.prepare("SELECT id FROM accounts LIMIT 1").get()) return;
-  const owner = db.prepare("SELECT id FROM users WHERE email = ?").get(AUTH_E2E_BASELINE_OWNER) as
+  if (db.prepare('SELECT id FROM accounts LIMIT 1').get()) return;
+  const owner = db.prepare('SELECT id FROM users WHERE email = ?').get(AUTH_E2E_BASELINE_OWNER) as
     { id: string } | undefined;
-  if (!owner) throw new Error("The real Auth E2E baseline owner is unavailable.");
+  if (!owner) throw new Error('The real Auth E2E baseline owner is unavailable.');
   const now = new Date().toISOString();
   insertAuthE2ECompany(db, {
     accountId: crypto.randomUUID(),
@@ -329,14 +357,17 @@ export function readAuthE2EBaselineSnapshot(): {
          WHERE accounts.name = ? AND users.email = ? AND memberships.role = 'owner' AND memberships.status = 'active'`,
       )
       .all(AUTH_E2E_BASELINE_COMPANY, AUTH_E2E_BASELINE_OWNER) as Array<Record<string, unknown>>;
-    if (baselineRows.length > 1) throw new Error("Multiple retained Auth E2E baseline companies were found.");
+    if (baselineRows.length > 1)
+      throw new Error('Multiple retained Auth E2E baseline companies were found.');
     const account = baselineRows[0];
-    if (!account) throw new Error("The retained Auth E2E baseline company is unavailable.");
-    if (typeof account.id !== "string") throw new Error("The retained Auth E2E baseline company has no ID.");
-    const client = db.prepare("SELECT * FROM clients WHERE account_id = ? AND builtin = 'true'").get(account.id) as
-      Record<string, unknown> | undefined;
+    if (!account) throw new Error('The retained Auth E2E baseline company is unavailable.');
+    if (typeof account.id !== 'string')
+      throw new Error('The retained Auth E2E baseline company has no ID.');
+    const client = db
+      .prepare("SELECT * FROM clients WHERE account_id = ? AND builtin = 'true'")
+      .get(account.id) as Record<string, unknown> | undefined;
     const revision = db
-      .prepare("SELECT revision FROM company_planning_revisions WHERE account_id = ?")
+      .prepare('SELECT revision FROM company_planning_revisions WHERE account_id = ?')
       .get(account.id) as { revision: number } | undefined;
     const owner = db
       .prepare(
@@ -354,7 +385,9 @@ export function readAuthE2EBaselineSnapshot(): {
       )
       .get() as { id: string; email: string; memberships: number } | undefined;
     const history = db
-      .prepare("SELECT COUNT(*) AS count FROM audit_entries WHERE account_id = ? AND action = 'company.initialized'")
+      .prepare(
+        "SELECT COUNT(*) AS count FROM audit_entries WHERE account_id = ? AND action = 'company.initialized'",
+      )
       .get(account.id) as { count: number } | undefined;
     if (
       !client ||
@@ -365,7 +398,7 @@ export function readAuthE2EBaselineSnapshot(): {
       !history ||
       history.count < 1
     )
-      throw new Error("The retained Auth E2E baseline company is incomplete.");
+      throw new Error('The retained Auth E2E baseline company is incomplete.');
     return {
       account,
       client,
@@ -392,7 +425,7 @@ export async function waitForAuthE2EBaseline(): Promise<void> {
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error("Auth E2E server did not finish baseline setup.", { cause: lastError });
+  throw new Error('Auth E2E server did not finish baseline setup.', { cause: lastError });
 }
 
 /**
@@ -407,7 +440,10 @@ export async function waitForAuthE2EBaseline(): Promise<void> {
  * step. Callers add a unique suffix to each email so a reused server
  * does not encounter duplicates.
  */
-export async function signUpUser(email: string, name?: string): Promise<{ email: string; cookie: string }> {
+export async function signUpUser(
+  email: string,
+  name?: string,
+): Promise<{ email: string; cookie: string }> {
   const ctx = await playwrightRequest.newContext();
   try {
     const cookie = await postSignUp(ctx, email, name);
@@ -418,28 +454,35 @@ export async function signUpUser(email: string, name?: string): Promise<{ email:
 }
 
 /** Replaces the placeholder when needed, then creates this principal's fixture company. */
-export async function bootstrapOrg(request: APIRequestContext, cookie: string, name: string): Promise<string> {
+export async function bootstrapOrg(
+  request: APIRequestContext,
+  cookie: string,
+  name: string,
+): Promise<string> {
   const identity = await request.get(`${AUTH_API}/api/auth/me`, {
-    headers: { cookie, "sec-fetch-site": "same-origin" },
+    headers: { cookie, 'sec-fetch-site': 'same-origin' },
   });
-  expect(identity.status(), "fixture owner must have a real native session").toBe(200);
+  expect(identity.status(), 'fixture owner must have a real native session').toBe(200);
   const userId = ((await identity.json()) as { user?: { id?: unknown } }).user?.id;
-  if (typeof userId !== "string" || userId.length === 0) throw new Error("Auth E2E session has no principal.");
+  if (typeof userId !== 'string' || userId.length === 0)
+    throw new Error('Auth E2E session has no principal.');
   const companyName = name.trim();
-  if (!companyName) throw new Error("Auth E2E fixture company requires a name.");
+  if (!companyName) throw new Error('Auth E2E fixture company requires a name.');
 
   const db = openAuthE2EDatabase();
   try {
-    const principal = db.prepare("SELECT id FROM users WHERE id = ?").get(userId) as { id: string } | undefined;
-    if (!principal) throw new Error("Auth E2E session principal is absent from the fixture database.");
-    db.exec("PRAGMA foreign_keys = ON");
-    const foreignKeysEnabled = db.prepare("PRAGMA foreign_keys").get() as { foreign_keys: number };
+    const principal = db.prepare('SELECT id FROM users WHERE id = ?').get(userId) as
+      { id: string } | undefined;
+    if (!principal)
+      throw new Error('Auth E2E session principal is absent from the fixture database.');
+    db.exec('PRAGMA foreign_keys = ON');
+    const foreignKeysEnabled = db.prepare('PRAGMA foreign_keys').get() as { foreign_keys: number };
     if (foreignKeysEnabled.foreign_keys !== 1)
-      throw new Error("Auth E2E fixture creation requires SQLite foreign keys.");
+      throw new Error('Auth E2E fixture creation requires SQLite foreign keys.');
     ensureAuthE2EFixtureCompanyTable(db);
     const accountId = crypto.randomUUID();
     const now = new Date().toISOString();
-    db.exec("BEGIN IMMEDIATE");
+    db.exec('BEGIN IMMEDIATE');
     try {
       removeTemporaryBaselineCompany(db);
       insertAuthE2ECompany(db, {
@@ -450,9 +493,9 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
         track: true,
         recordInitialization: false,
       });
-      db.exec("COMMIT");
+      db.exec('COMMIT');
     } catch (error) {
-      db.exec("ROLLBACK");
+      db.exec('ROLLBACK');
       throw error;
     }
     return accountId;
@@ -465,19 +508,21 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
 export function clearAuthE2ECompanies(): void {
   const db = openAuthE2EDatabase();
   try {
-    db.exec("PRAGMA foreign_keys = ON");
+    db.exec('PRAGMA foreign_keys = ON');
     ensureAuthE2EFixtureCompanyTable(db);
-    const rows = db.prepare("SELECT account_id FROM auth_e2e_fixture_companies").all() as Array<{ account_id: string }>;
-    db.exec("BEGIN IMMEDIATE");
+    const rows = db.prepare('SELECT account_id FROM auth_e2e_fixture_companies').all() as Array<{
+      account_id: string;
+    }>;
+    db.exec('BEGIN IMMEDIATE');
     try {
       for (const { account_id: accountId } of rows) {
         removeAuthE2EAccount(db, accountId);
-        db.prepare("DELETE FROM auth_e2e_fixture_companies WHERE account_id = ?").run(accountId);
+        db.prepare('DELETE FROM auth_e2e_fixture_companies WHERE account_id = ?').run(accountId);
       }
       ensureTemporaryBaselineCompany(db);
-      db.exec("COMMIT");
+      db.exec('COMMIT');
     } catch (error) {
-      db.exec("ROLLBACK");
+      db.exec('ROLLBACK');
       throw error;
     }
   } finally {
@@ -492,20 +537,21 @@ export async function sendPlanningFixtureCommand(
   accountId: string,
   path: string,
   intent: Record<string, unknown>,
-  method: "post" | "patch" = "post",
+  method: 'post' | 'patch' = 'post',
 ): Promise<unknown> {
-  const headers = { cookie, "sec-fetch-site": "same-origin" };
+  const headers = { cookie, 'sec-fetch-site': 'same-origin' };
   const snapshot = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, { headers });
   expect(snapshot.status(), `read planning revision for ${path}`).toBe(200);
   const revision = ((await snapshot.json()) as { revision?: unknown }).revision;
-  if (typeof revision !== "number" || !Number.isSafeInteger(revision))
-    throw new Error("The fixture planning read did not return a revision.");
+  if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
+    throw new Error('The fixture planning read did not return a revision.');
   const url = `${AUTH_API}/api/accounts/${accountId}/${path}`;
   const options = {
     headers: await masqueradeContextHeaders(request, cookie),
     data: { mutationId: crypto.randomUUID(), baseRevision: revision, intent },
   };
-  const response = method === "patch" ? await request.patch(url, options) : await request.post(url, options);
+  const response =
+    method === 'patch' ? await request.patch(url, options) : await request.post(url, options);
   expect(response.status(), `seed planning command ${path}: ${await response.text()}`).toBe(200);
   return response.json();
 }
@@ -517,22 +563,22 @@ export async function createFixturePerson(
   accountId: string,
   person: { id: string; name: string; role: string; color?: string; avatarUrl?: string | null },
 ): Promise<void> {
-  await sendPlanningFixtureCommand(request, cookie, accountId, "resources", {
-    operation: "resource.create",
+  await sendPlanningFixtureCommand(request, cookie, accountId, 'resources', {
+    operation: 'resource.create',
     id: person.id,
     fields: {
-      kind: "person",
+      kind: 'person',
       name: person.name,
       role: person.role,
       avatarUrl: person.avatarUrl ?? null,
       disciplineId: null,
-      employmentType: "permanent",
-      engagement: "studio",
+      employmentType: 'permanent',
+      engagement: 'studio',
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
       projectId: null,
-      color: person.color ?? "#76a5e7",
+      color: person.color ?? '#76a5e7',
       isFavourite: null,
       firstAvailableDate: null,
       lastAvailableDate: null,
@@ -566,36 +612,43 @@ export async function signUpUserWithId(
  * auth flavour in `apps/backend/scripts/e2e-server.mjs`.
  * @throws When the command fails or prints no link.
  */
-export function printFixtureInvitation(email: string, role: "admin" | "editor" | "viewer"): string {
-  return printOperatorLink(["account-kit:invite", email, `--role=${role}`, "--print"], "invitation");
+export function printFixtureInvitation(email: string, role: 'admin' | 'editor' | 'viewer'): string {
+  return printOperatorLink(
+    ['account-kit:invite', email, `--role=${role}`, '--print'],
+    'invitation',
+  );
 }
 
 /** Provisions a reset link through Account Kit's operator API; returns its path. */
 export function printFixtureResetLink(email: string): string {
   assertAuthE2EFixturePath(AUTH_E2E_DATABASE);
-  const result = spawnSync(process.execPath, ["--import=@poppinss/ts-exec", "scripts/e2e-reset-link.mjs", email], {
-    cwd: BACKEND_DIRECTORY,
-    encoding: "utf8",
-    timeout: 30_000,
-    env: operatorFixtureEnvironment(),
-  });
+  const result = spawnSync(
+    process.execPath,
+    ['--import=@poppinss/ts-exec', 'scripts/e2e-reset-link.mjs', email],
+    {
+      cwd: BACKEND_DIRECTORY,
+      encoding: 'utf8',
+      timeout: 30_000,
+      env: operatorFixtureEnvironment(),
+    },
+  );
   if (result.error || result.status !== 0)
-    throw new Error(`Auth E2E reset-link fixture failed (${result.status ?? "spawn"}).`);
+    throw new Error(`Auth E2E reset-link fixture failed (${result.status ?? 'spawn'}).`);
   const url = /"url":"([^"]+)"/.exec(result.stdout)?.[1];
-  if (!url) throw new Error("The auth E2E reset-link fixture returned no link.");
+  if (!url) throw new Error('The auth E2E reset-link fixture returned no link.');
   return new URL(url).pathname;
 }
 
 function printOperatorLink(args: string[], label: string): string {
   assertAuthE2EFixturePath(AUTH_E2E_DATABASE);
-  const result = spawnSync(process.execPath, ["ace.js", ...args], {
+  const result = spawnSync(process.execPath, ['ace.js', ...args], {
     cwd: BACKEND_DIRECTORY,
-    encoding: "utf8",
+    encoding: 'utf8',
     timeout: 30_000,
     env: operatorFixtureEnvironment(),
   });
   if (result.error || result.status !== 0)
-    throw new Error(`Operator ${label} fixture failed (${result.status ?? "spawn"}).`);
+    throw new Error(`Operator ${label} fixture failed (${result.status ?? 'spawn'}).`);
   const link = /"url":"([^"]+)"/.exec(result.stdout)?.[1];
   if (!link) throw new Error(`The operator ${label} command printed no link.`);
   return new URL(link).pathname;
@@ -605,17 +658,17 @@ function operatorFixtureEnvironment(): NodeJS.ProcessEnv {
   const lane = ports();
   return {
     ...process.env,
-    NODE_ENV: "development",
-    HOST: "127.0.0.1",
+    NODE_ENV: 'development',
+    HOST: '127.0.0.1',
     PORT: String(lane.authApi),
-    LOG_LEVEL: "error",
-    APP_KEY: "capacitylens-e2e-key-0123456789abcdef",
+    LOG_LEVEL: 'error',
+    APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
     APP_URL: `http://127.0.0.1:${lane.authApi}`,
-    SESSION_DRIVER: "database",
-    CAPACITYLENS_DB: ".auth-e2e.db",
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
-    CAPACITYLENS_CREATE_ADMIN_ADMIN: "false",
-    CAPACITYLENS_SECRET: "capacitylens-auth-e2e-secret-0123456789abcdef",
+    SESSION_DRIVER: 'database',
+    CAPACITYLENS_DB: '.auth-e2e.db',
+    CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+    CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
+    CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
     CAPACITYLENS_PUBLIC_URL: `http://localhost:${lane.authApi}`,
   };
 }

@@ -1,23 +1,23 @@
-import { BasePolicy } from '@adonisjs/bouncer'
-import type { BatchCapabilities } from '#services/planning_operations/data_policy'
+import { BasePolicy } from '@adonisjs/bouncer';
+import type { BatchCapabilities } from '#services/planning_operations/data_policy';
 
 export interface DataPolicyActor {
-  id: string
+  id: string;
 }
 
 export interface DataPolicyTarget {
-  accountId: string
-  capabilities: BatchCapabilities
+  accountId: string;
+  capabilities: BatchCapabilities;
 }
 
 /** Authorizes one resolved actor action against one company. */
 export default class DataPolicy extends BasePolicy {
   read(actor: DataPolicyActor, target: { accountId: string; hasMembership: boolean }) {
-    return actor.id.length > 0 && target.accountId.length > 0 && target.hasMembership
+    return actor.id.length > 0 && target.accountId.length > 0 && target.hasMembership;
   }
 
   write(actor: DataPolicyActor, target: DataPolicyTarget) {
-    return actor.id.length > 0 && target.accountId.length > 0 && target.capabilities.canWrite
+    return actor.id.length > 0 && target.accountId.length > 0 && target.capabilities.canWrite;
   }
 
   anonymise(actor: DataPolicyActor, target: DataPolicyTarget) {
@@ -26,6 +26,6 @@ export default class DataPolicy extends BasePolicy {
       target.accountId.length > 0 &&
       target.capabilities.canWrite &&
       target.capabilities.canAnonymise
-    )
+    );
   }
 }

@@ -1,10 +1,10 @@
-import { m } from "@/i18n";
-import { buildLabels, buildLabelOptions } from "@/lib/metadata";
-import { SegmentedControl, SwitchField } from "@/components/common/ui";
-import { SettingsSection } from "./SettingsSection";
+import { m } from '@/i18n';
+import { buildLabels, buildLabelOptions } from '@/lib/metadata';
+import { SegmentedControl, SwitchField } from '@/components/common/ui';
+import { SettingsSection } from './SettingsSection';
 
-import type { StoreState } from "@/store/useStore";
-import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILIZATION_MESSAGES } from "./settingsLabels";
+import type { StoreState } from '@/store/useStore';
+import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILIZATION_MESSAGES } from './settingsLabels';
 /** Edits this device's theme, bar-label and utilisation-display preferences. */
 export function SettingsAppearanceSection({
   barLabelPrefs: barLabelPreferences,
@@ -15,12 +15,12 @@ export function SettingsAppearanceSection({
   setTheme,
   disciplinesEnabled,
 }: {
-  barLabelPrefs: StoreState["barLabelPrefs"];
-  setBarLabelPref: StoreState["setBarLabelPref"];
-  utilizationPrefs: StoreState["utilizationPrefs"];
-  setUtilizationPref: StoreState["setUtilizationPref"];
-  theme: StoreState["theme"];
-  setTheme: StoreState["setTheme"];
+  barLabelPrefs: StoreState['barLabelPrefs'];
+  setBarLabelPref: StoreState['setBarLabelPref'];
+  utilizationPrefs: StoreState['utilizationPrefs'];
+  setUtilizationPref: StoreState['setUtilizationPref'];
+  theme: StoreState['theme'];
+  setTheme: StoreState['setTheme'];
   disciplinesEnabled: boolean;
 }) {
   return (
@@ -38,10 +38,13 @@ export function SettingsAppearanceSection({
         </div>
       </SettingsSection>
 
-      <SettingsSection title={m.settings_utilisation_heading()} help={m.settings_utilisation_intro()}>
+      <SettingsSection
+        title={m.settings_utilisation_heading()}
+        help={m.settings_utilisation_intro()}
+      >
         <div className="flex flex-col gap-3">
           {buildLabelOptions(buildLabels(UTILIZATION_MESSAGES))
-            .filter((option) => disciplinesEnabled || option.value !== "showDiscipline")
+            .filter((option) => disciplinesEnabled || option.value !== 'showDiscipline')
             .map((option) => (
               <SwitchField
                 key={option.value}

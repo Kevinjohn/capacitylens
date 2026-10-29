@@ -1,13 +1,16 @@
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { generateRepeatingStartDates, RepeatingDateError } from "@capacitylens/shared/lib/repeatingDates";
-import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
-import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
-import type { Allocation, ISODate } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { formatShortDate } from "@/lib/dateDisplay";
-import { resolveRepeatPattern } from "@/lib/repeatingAllocations";
-import type { RepeatSelection } from "@/lib/repeatingAllocations";
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import {
+  generateRepeatingStartDates,
+  RepeatingDateError,
+} from '@capacitylens/shared/lib/repeatingDates';
+import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
+import type { Allocation, ISODate } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { formatShortDate } from '@/lib/dateDisplay';
+import { resolveRepeatPattern } from '@/lib/repeatingAllocations';
+import type { RepeatSelection } from '@/lib/repeatingAllocations';
 
 // The pure draft boundary returns the first field problem or derived end date, leaving the modal to display the result and commit through the store.
 
@@ -39,7 +42,7 @@ export interface AllocationDraftValidationInput {
   effHoursPerDay: number;
   /** Repeats are a create-time option only; `null` for an edit or a one-off. */
   repeat: {
-    selection: Exclude<RepeatSelection, "none">;
+    selection: Exclude<RepeatSelection, 'none'>;
     until: string;
     today: ISODate;
     maximum: ISODate | undefined;
@@ -48,26 +51,39 @@ export interface AllocationDraftValidationInput {
 
 type CountFieldInput = Pick<
   AllocationDraftValidationInput,
-  "startDate" | "validDaysOver" | "spanFitsDateDomain" | "spanLimitedByDateDomain" | "maximumDaysOver"
+  | 'startDate'
+  | 'validDaysOver'
+  | 'spanFitsDateDomain'
+  | 'spanLimitedByDateDomain'
+  | 'maximumDaysOver'
 >;
-type Fail = (field: AllocationDraftProblem["field"], message: AllocationDraftProblem["message"]) => void;
+type Fail = (
+  field: AllocationDraftProblem['field'],
+  message: AllocationDraftProblem['message'],
+) => void;
 
 // Distinguish the date-domain boundary from the product span cap so near-year-9999 input receives truthful guidance.
 function validateCountField(
-  { startDate, validDaysOver, spanFitsDateDomain, spanLimitedByDateDomain, maximumDaysOver }: CountFieldInput,
+  {
+    startDate,
+    validDaysOver,
+    spanFitsDateDomain,
+    spanLimitedByDateDomain,
+    maximumDaysOver,
+  }: CountFieldInput,
   fail: Fail,
 ): boolean {
   if (!startDate) {
-    fail("dates", m.form_allocation_err_start_required());
+    fail('dates', m.form_allocation_err_start_required());
     return false;
   }
   if (!validDaysOver) {
-    fail("daysOver", m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }));
+    fail('daysOver', m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }));
     return false;
   }
   if (!spanFitsDateDomain) {
     fail(
-      "daysOver",
+      'daysOver',
       spanLimitedByDateDomain
         ? m.form_allocation_err_days_over_date_domain()
         : m.form_allocation_err_days_over_range({ max: maximumDaysOver }),
@@ -79,11 +95,11 @@ function validateCountField(
 
 function validateSelections(input: AllocationDraftValidationInput, fail: Fail): boolean {
   if (!input.resourceId) {
-    fail("resource", m.form_allocation_err_choose_resource());
+    fail('resource', m.form_allocation_err_choose_resource());
     return false;
   }
   if (!input.activityId) {
-    fail("activity", m.form_allocation_err_choose_activity());
+    fail('activity', m.form_allocation_err_choose_activity());
     return false;
   }
   return true;
@@ -92,15 +108,18 @@ function validateSelections(input: AllocationDraftValidationInput, fail: Fail): 
 function validateTypedDateRange(input: AllocationDraftValidationInput, fail: Fail): boolean {
   if (!input.usesTypedDateRange) return true;
   if (!input.startDate || !input.endDate) {
-    fail("dates", m.form_allocation_err_dates_required());
+    fail('dates', m.form_allocation_err_dates_required());
     return false;
   }
   if (input.endDate < input.startDate) {
-    fail("dates", m.form_allocation_err_end_before_start());
+    fail('dates', m.form_allocation_err_end_before_start());
     return false;
   }
   if (input.typedDateSpanTooLong) {
-    fail("dates", m.form_allocation_err_date_span_range({ max: MAX_SPAN_DAYS.toLocaleString("en-GB") }));
+    fail(
+      'dates',
+      m.form_allocation_err_date_span_range({ max: MAX_SPAN_DAYS.toLocaleString('en-GB') }),
+    );
     return false;
   }
   return true;
@@ -110,13 +129,13 @@ function validateModeFields(input: AllocationDraftValidationInput, fail: Fail): 
   if (input.isBlocks || input.isDays) {
     if (!validateCountField(input, fail)) return false;
     if (input.isDays && !(input.daysOfWork > 0)) {
-      fail("daysOfWork", m.form_allocation_err_days_of_work_gt_zero());
+      fail('daysOfWork', m.form_allocation_err_days_of_work_gt_zero());
       return false;
     }
     return true;
   }
   if (!input.isExternal && !(input.hoursPerDay > 0)) {
-    fail("hours", m.form_allocation_err_hours_gt_zero());
+    fail('hours', m.form_allocation_err_hours_gt_zero());
     return false;
   }
   return true;
@@ -126,23 +145,26 @@ function validateRepeat(input: AllocationDraftValidationInput, fail: Fail): bool
   const { repeat, startDate } = input;
   if (!repeat) return true;
   if (!repeat.until || !isValidISODate(repeat.until)) {
-    fail("repeatUntil", m.form_allocation_err_repeat_until_required());
+    fail('repeatUntil', m.form_allocation_err_repeat_until_required());
     return false;
   }
   if (repeat.until < repeat.today) {
-    fail("repeatUntil", m.form_allocation_err_repeat_until_past());
+    fail('repeatUntil', m.form_allocation_err_repeat_until_past());
     return false;
   }
   if (repeat.until < startDate) {
-    fail("repeatUntil", m.form_allocation_err_repeat_until_before_start());
+    fail('repeatUntil', m.form_allocation_err_repeat_until_before_start());
     return false;
   }
   if (!repeat.maximum) {
-    fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
+    fail('repeatUntil', m.form_allocation_err_repeat_date_domain());
     return false;
   }
   if (repeat.until > repeat.maximum) {
-    fail("repeatUntil", m.form_allocation_err_repeat_until_after_max({ max: formatShortDate(repeat.maximum) }));
+    fail(
+      'repeatUntil',
+      m.form_allocation_err_repeat_until_after_max({ max: formatShortDate(repeat.maximum) }),
+    );
     return false;
   }
   try {
@@ -152,13 +174,16 @@ function validateRepeat(input: AllocationDraftValidationInput, fail: Fail): bool
     // Repeat date errors belong to the repeat field; other failures reach the form-wide error.
     if (error instanceof RepeatingDateError) {
       const message =
-        error.code === "no-repeat"
+        error.code === 'no-repeat'
           ? m.form_allocation_err_repeat_until_no_occurrence()
           : m.form_allocation_err_repeat_date_domain();
-      fail("repeatUntil", message);
+      fail('repeatUntil', message);
       return false;
     }
-    fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed());
+    fail(
+      null,
+      error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed(),
+    );
     return false;
   }
 }
@@ -166,11 +191,13 @@ function validateRepeat(input: AllocationDraftValidationInput, fail: Fail): bool
 function validateEffectiveHours(input: AllocationDraftValidationInput, fail: Fail): boolean {
   const { effHoursPerDay: hoursPerDay, isBlocks, isDays, isExternal } = input;
   if (isExternal || isBlocks) return true;
-  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0 && hoursPerDay <= MAX_HOURS_PER_DAY) return true;
+  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0 && hoursPerDay <= MAX_HOURS_PER_DAY) {
+    return true;
+  }
   if (isDays) {
-    fail("daysOfWork", m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }));
+    fail('daysOfWork', m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }));
   } else {
-    fail("hours", m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }));
+    fail('hours', m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }));
   }
   return false;
 }
@@ -178,7 +205,10 @@ function validateEffectiveHours(input: AllocationDraftValidationInput, fail: Fai
 /** Every rule the visible allocation draft must satisfy before it may be written, in the order the
  * user should hear about them. Reports the first problem and returns whether the draft is persistable.
  * Save and Duplicate both run this so Duplicate cannot persist a shape Save would reject. */
-export function validateAllocationDraft(input: AllocationDraftValidationInput, fail: Fail): boolean {
+export function validateAllocationDraft(
+  input: AllocationDraftValidationInput,
+  fail: Fail,
+): boolean {
   if (!validateSelections(input, fail)) return false;
   // External and hourly allocations both use the raw Start/End inputs. Validate this once so
   // neither mode can persist a range the advisory deliberately refuses to enumerate.

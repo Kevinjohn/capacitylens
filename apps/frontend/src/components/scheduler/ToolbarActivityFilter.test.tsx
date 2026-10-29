@@ -1,10 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { makeActivity } from "@/test/fixtures";
-import { ToolbarActivityFilter } from "./ToolbarActivityFilter";
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { makeActivity } from '@/test/fixtures';
+import { ToolbarActivityFilter } from './ToolbarActivityFilter';
 
-const admin = makeActivity({ id: "act-admin", name: "Admin", kind: "internal" });
-const design = makeActivity({ id: "act-design", name: "Design", kind: "repeatable" });
+const admin = makeActivity({ id: 'act-admin', name: 'Admin', kind: 'internal' });
+const design = makeActivity({ id: 'act-design', name: 'Design', kind: 'repeatable' });
 
 function renderFilter(props: Partial<React.ComponentProps<typeof ToolbarActivityFilter>> = {}) {
   const onChange = vi.fn();
@@ -22,40 +22,44 @@ function renderFilter(props: Partial<React.ComponentProps<typeof ToolbarActivity
 }
 
 function openActivityFilter() {
-  fireEvent.keyDown(screen.getByRole("combobox", { name: "Filter by activity" }), { key: "ArrowDown" });
+  fireEvent.keyDown(screen.getByRole('combobox', { name: 'Filter by activity' }), {
+    key: 'ArrowDown',
+  });
 }
 
-describe("ToolbarActivityFilter", () => {
+describe('ToolbarActivityFilter', () => {
   it('selects the "Internal — All" activity group', () => {
     const onChange = renderFilter();
     openActivityFilter();
 
-    fireEvent.click(screen.getByRole("option", { name: "Internal — All" }));
+    fireEvent.click(screen.getByRole('option', { name: 'Internal — All' }));
 
-    expect(onChange).toHaveBeenCalledWith({ activityKind: "internal", activityId: null });
+    expect(onChange).toHaveBeenCalledWith({ activityKind: 'internal', activityId: null });
   });
 
-  it("selects a specific activity", () => {
+  it('selects a specific activity', () => {
     const onChange = renderFilter();
     openActivityFilter();
 
-    fireEvent.click(screen.getByRole("option", { name: "Admin" }));
+    fireEvent.click(screen.getByRole('option', { name: 'Admin' }));
 
-    expect(onChange).toHaveBeenCalledWith({ activityId: "act-admin", activityKind: null });
+    expect(onChange).toHaveBeenCalledWith({ activityId: 'act-admin', activityKind: null });
   });
 
   it('clears a specific activity by selecting "All activities"', () => {
-    const onChange = renderFilter({ activityId: "act-admin" });
+    const onChange = renderFilter({ activityId: 'act-admin' });
     openActivityFilter();
 
-    fireEvent.click(screen.getByRole("option", { name: "All activities" }));
+    fireEvent.click(screen.getByRole('option', { name: 'All activities' }));
 
     expect(onChange).toHaveBeenCalledWith({ activityId: null, activityKind: null });
   });
 
   it('displays "All projects — All" for the repeatable activity group', () => {
-    renderFilter({ activityKind: "repeatable" });
+    renderFilter({ activityKind: 'repeatable' });
 
-    expect(screen.getByRole("combobox", { name: "Filter by activity" })).toHaveTextContent("All projects — All");
+    expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
+      'All projects — All',
+    );
   });
 });

@@ -1,49 +1,53 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { SlidersHorizontal, Users } from "lucide-react";
-import { m } from "@/i18n";
-import { useStore } from "@/store/useStore";
-import type { SchedulerUI } from "@/store/useStore";
-import { useCanEdit } from "@/auth/permissionContext";
-import { resolveSharedScopedData } from "@/store/useScopedData";
-import { listAccountWorkingDays } from "@/store/selectors";
-import { EmptyState } from "@/components/common/ui";
-import { LAYOUT } from "./layout";
-import { SchedulerGridHeader } from "./SchedulerGridHeader";
-import { useSchedulerViewport } from "./useSchedulerViewport";
-import { isExternalResource } from "@capacitylens/shared/types/entities";
-import type { ID, ISODate } from "@capacitylens/shared/types/entities";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { isCreationStartBlocked } from "./creationAvailability";
-import { SchedulerGridRows } from "./SchedulerGridRows";
-import type { ModalState } from "./schedulerGridModal";
-import { useSchedulerGridPreferences, useSchedulerGridModel } from "./useSchedulerGridModel";
-import { useSchedulerGridVirtualization } from "./useSchedulerGridVirtualization";
-import { PersonScheduleSheet } from "@/components/person-schedule/PersonScheduleSheet";
-import { usePersonScheduleDrawer } from "@/components/person-schedule/usePersonScheduleDrawer";
-import { useResourceAvatars } from "@/account/useResourceAvatars";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { SlidersHorizontal, Users } from 'lucide-react';
+import { m } from '@/i18n';
+import { useStore } from '@/store/useStore';
+import type { SchedulerUI } from '@/store/useStore';
+import { useCanEdit } from '@/auth/permissionContext';
+import { resolveSharedScopedData } from '@/store/useScopedData';
+import { listAccountWorkingDays } from '@/store/selectors';
+import { EmptyState } from '@/components/common/ui';
+import { LAYOUT } from './layout';
+import { SchedulerGridHeader } from './SchedulerGridHeader';
+import { useSchedulerViewport } from './useSchedulerViewport';
+import { isExternalResource } from '@capacitylens/shared/types/entities';
+import type { ID, ISODate } from '@capacitylens/shared/types/entities';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { isCreationStartBlocked } from './creationAvailability';
+import { SchedulerGridRows } from './SchedulerGridRows';
+import type { ModalState } from './schedulerGridModal';
+import { useSchedulerGridPreferences, useSchedulerGridModel } from './useSchedulerGridModel';
+import { useSchedulerGridVirtualization } from './useSchedulerGridVirtualization';
+import { PersonScheduleSheet } from '@/components/person-schedule/PersonScheduleSheet';
+import { usePersonScheduleDrawer } from '@/components/person-schedule/usePersonScheduleDrawer';
+import { useResourceAvatars } from '@/account/useResourceAvatars';
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
 const AllocationModal = lazy(() =>
-  import("./AllocationModal").then((module) => ({
+  import('./AllocationModal').then((module) => ({
     default: module.AllocationModal,
   })),
 );
 const TimeOffForm = lazy(() =>
-  import("@/components/timeoff/TimeOffForm").then((module) => ({
+  import('@/components/timeoff/TimeOffForm').then((module) => ({
     default: module.TimeOffForm,
   })),
 );
 
 function SchedulerModal({ modal, close }: { modal: ModalState; close: () => void }) {
-  if (modal.kind === "edit") {
+  if (modal.kind === 'edit') {
     return <AllocationModal kind="edit" allocationId={modal.allocationId} onClose={close} />;
   }
-  if (modal.kind === "timeoff") {
+  if (modal.kind === 'timeoff') {
     return (
       <TimeOffForm
-        defaults={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
+        defaults={{
+          resourceId: modal.resourceId,
+          startDate: modal.startDate,
+          endDate: modal.endDate,
+        }}
         onClose={close}
       />
     );
@@ -93,7 +97,12 @@ function SchedulerEmptyRow({
       className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
       style={{ width: timelineWidth || LAYOUT.leftColWidth }}
     >
-      <div role="gridcell" aria-colindex={1} aria-colspan={2} className="flex items-center justify-center">
+      <div
+        role="gridcell"
+        aria-colindex={1}
+        aria-colspan={2}
+        className="flex items-center justify-center"
+      >
         {emptyState}
       </div>
     </div>
@@ -122,16 +131,16 @@ function openDrawModal({
       date: startDate,
       timeOff: scopedData.timeOff,
       accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
-      closures: drawMode === "timeoff" ? [] : scopedData.closures,
+      closures: drawMode === 'timeoff' ? [] : scopedData.closures,
     })
   ) {
     return;
   }
-  if (drawMode === "timeoff" && isExternalResource(resource)) return;
-  setModal({ kind: drawMode === "timeoff" ? "timeoff" : "create", resourceId, startDate, endDate });
+  if (drawMode === 'timeoff' && isExternalResource(resource)) return;
+  setModal({ kind: drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate });
 }
 
-function useSchedulerInteractions(ui: Pick<SchedulerUI, "drawMode">) {
+function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
   const screenReaderAnnouncement = useStore((state) => state.srAnnouncement);
   const announceStatus = useStore((state) => state.announceCapacity);
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -140,10 +149,15 @@ function useSchedulerInteractions(ui: Pick<SchedulerUI, "drawMode">) {
     if (previousDrawMode.current === ui.drawMode) return;
     previousDrawMode.current = ui.drawMode;
     announceStatus(
-      ui.drawMode === "timeoff" ? m.scheduler_sr_timeoff_mode_enabled() : m.scheduler_sr_work_mode_enabled(),
+      ui.drawMode === 'timeoff'
+        ? m.scheduler_sr_timeoff_mode_enabled()
+        : m.scheduler_sr_work_mode_enabled(),
     );
   }, [announceStatus, ui.drawMode]);
-  const editAllocation = useCallback((allocationId: ID) => setModal({ kind: "edit", allocationId }), []);
+  const editAllocation = useCallback(
+    (allocationId: ID) => setModal({ kind: 'edit', allocationId }),
+    [],
+  );
   const createFromDraw = useCallback(
     (resourceId: ID, startDate: ISODate, endDate: ISODate) =>
       openDrawModal({ resourceId, startDate, endDate, setModal }),
@@ -170,14 +184,14 @@ type GridViewProps = {
   preferences: ReturnType<typeof useSchedulerGridPreferences>;
   gridModel: ReturnType<typeof useSchedulerGridModel>;
   virtualization: ReturnType<typeof useSchedulerGridVirtualization>;
-  headerRef: ReturnType<typeof useSchedulerViewport>["headerRef"];
+  headerRef: ReturnType<typeof useSchedulerViewport>['headerRef'];
   timelineWidth: number;
-  days: ReturnType<typeof useSchedulerViewport>["days"];
-  geom: ReturnType<typeof useSchedulerViewport>["geom"];
-  visibleStartDate: ReturnType<typeof useSchedulerViewport>["visibleStartDate"];
+  days: ReturnType<typeof useSchedulerViewport>['days'];
+  geom: ReturnType<typeof useSchedulerViewport>['geom'];
+  visibleStartDate: ReturnType<typeof useSchedulerViewport>['visibleStartDate'];
   canEdit: boolean;
-  toggleGroup: ReturnType<typeof useStore.getState>["toggleGroup"];
-  clearFilters: ReturnType<typeof useStore.getState>["clearFilters"];
+  toggleGroup: ReturnType<typeof useStore.getState>['toggleGroup'];
+  clearFilters: ReturnType<typeof useStore.getState>['clearFilters'];
   navigateToResources: () => void;
   interactions: ReturnType<typeof useSchedulerInteractions>;
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
@@ -185,7 +199,7 @@ type GridViewProps = {
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 };
 
-function SchedulerModalBoundary({ interactions }: Pick<GridViewProps, "interactions">) {
+function SchedulerModalBoundary({ interactions }: Pick<GridViewProps, 'interactions'>) {
   if (!interactions.modal) return null;
   return (
     <Suspense fallback={null}>
@@ -199,8 +213,16 @@ function SchedulerGridContents(props: GridViewProps) {
   const { headerRef, timelineWidth, days, geom, visibleStartDate } = props;
   const { canEdit, toggleGroup, clearFilters, navigateToResources } = props;
   const { ui, utilizationPrefs, accountPrefs } = preferences;
-  const { model, density, today, todayX, visibleWeeksLabel, visibleSpanCompact, overallUtil, filtersActive } =
-    gridModel;
+  const {
+    model,
+    density,
+    today,
+    todayX,
+    visibleWeeksLabel,
+    visibleSpanCompact,
+    overallUtil,
+    filtersActive,
+  } = gridModel;
   return (
     <>
       <SchedulerGridHeader
@@ -251,8 +273,8 @@ function SchedulerGridContents(props: GridViewProps) {
 function SchedulerGridFooter({
   virtualization,
   screenReaderAnnouncement,
-}: Pick<GridViewProps, "virtualization"> & {
-  screenReaderAnnouncement: ReturnType<typeof useSchedulerInteractions>["screenReaderAnnouncement"];
+}: Pick<GridViewProps, 'virtualization'> & {
+  screenReaderAnnouncement: ReturnType<typeof useSchedulerInteractions>['screenReaderAnnouncement'];
 }) {
   return (
     <>
@@ -260,13 +282,25 @@ function SchedulerGridFooter({
         <div className="sr-only">
           {virtualization.visibleClosures.map((closure) => (
             <span key={closure.id}>
-              {m.scheduler_closure_aria({ name: closure.name, start: closure.startDate, end: closure.endDate })}
+              {m.scheduler_closure_aria({
+                name: closure.name,
+                start: closure.startDate,
+                end: closure.endDate,
+              })}
             </span>
           ))}
         </div>
       )}
-      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="scheduler-live-region">
-        {screenReaderAnnouncement && <span key={screenReaderAnnouncement.seq}>{screenReaderAnnouncement.text}</span>}
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-testid="scheduler-live-region"
+      >
+        {screenReaderAnnouncement && (
+          <span key={screenReaderAnnouncement.seq}>{screenReaderAnnouncement.text}</span>
+        )}
       </div>
     </>
   );
@@ -278,14 +312,21 @@ function buildViewportVariables({
   stickyHeaderHeight,
   timelineWidth,
   timelineHeight,
-}: Pick<ReturnType<typeof useSchedulerViewport>, "stickyHeaderHeight" | "timelineWidth" | "timelineHeight">) {
+}: Pick<
+  ReturnType<typeof useSchedulerViewport>,
+  'stickyHeaderHeight' | 'timelineWidth' | 'timelineHeight'
+>) {
   return {
-    ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
+    ['--sched-sticky-top' as string]: `${stickyHeaderHeight}px`,
     ...(timelineWidth > 0
-      ? { ["--sched-visible-width" as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px` }
+      ? {
+          ['--sched-visible-width' as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px`,
+        }
       : {}),
     ...(timelineHeight > 0
-      ? { ["--sched-visible-height" as string]: `${Math.max(0, timelineHeight - stickyHeaderHeight)}px` }
+      ? {
+          ['--sched-visible-height' as string]: `${Math.max(0, timelineHeight - stickyHeaderHeight)}px`,
+        }
       : {}),
   };
 }
@@ -352,7 +393,10 @@ export function SchedulerGrid() {
   const gridModel = useSchedulerGridModel(preferences, viewport);
   const { scrollRef, headerRef, timelineWidth, days, geom, visibleStartDate } = viewport;
   const virtualization = useGridVirtualization(preferences, viewport, gridModel);
-  const personScheduleDrawer = usePersonScheduleDrawer({ data: preferences.data, fallbackRef: scrollRef });
+  const personScheduleDrawer = usePersonScheduleDrawer({
+    data: preferences.data,
+    fallbackRef: scrollRef,
+  });
 
   const contents = {
     preferences,
@@ -366,7 +410,7 @@ export function SchedulerGrid() {
     canEdit,
     toggleGroup,
     clearFilters,
-    navigateToResources: () => void navigate("/resources"),
+    navigateToResources: () => void navigate('/resources'),
     interactions,
     personScheduleTitlesByResourceId: personScheduleDrawer.titlesByResourceId,
     resourceAvatars,
@@ -374,7 +418,11 @@ export function SchedulerGrid() {
   };
   return (
     <TooltipProvider>
-      <SchedulerGridSurface contents={contents} viewport={viewport} personScheduleDrawer={personScheduleDrawer} />
+      <SchedulerGridSurface
+        contents={contents}
+        viewport={viewport}
+        personScheduleDrawer={personScheduleDrawer}
+      />
     </TooltipProvider>
   );
 }

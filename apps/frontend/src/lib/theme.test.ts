@@ -1,5 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { readStoredTheme, writeStoredTheme, resolveTheme, applyThemeToDom, watchSystemTheme } from "./theme";
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+  readStoredTheme,
+  writeStoredTheme,
+  resolveTheme,
+  applyThemeToDom,
+  watchSystemTheme,
+} from './theme';
 
 beforeEach(() => localStorage.clear());
 afterEach(() => {
@@ -8,103 +14,109 @@ afterEach(() => {
   delete document.documentElement.dataset.theme;
 });
 
-describe("readStoredTheme", () => {
-  it("defaults to light when nothing is stored", () => {
-    expect(readStoredTheme()).toBe("light");
+describe('readStoredTheme', () => {
+  it('defaults to light when nothing is stored', () => {
+    expect(readStoredTheme()).toBe('light');
   });
 
-  it("round-trips a written preference", () => {
-    writeStoredTheme("dark");
-    expect(readStoredTheme()).toBe("dark");
-    writeStoredTheme("system");
-    expect(readStoredTheme()).toBe("system");
+  it('round-trips a written preference', () => {
+    writeStoredTheme('dark');
+    expect(readStoredTheme()).toBe('dark');
+    writeStoredTheme('system');
+    expect(readStoredTheme()).toBe('system');
   });
 
-  it("falls back to light when storage cannot be read", () => {
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error("storage disabled");
+  it('falls back to light when storage cannot be read', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage disabled');
     });
-    expect(readStoredTheme()).toBe("light");
+    expect(readStoredTheme()).toBe('light');
   });
 
-  it("falls back to light for an unrecognised stored value", () => {
-    localStorage.setItem("capacitylens/theme", "neon");
-    expect(readStoredTheme()).toBe("light");
+  it('falls back to light for an unrecognised stored value', () => {
+    localStorage.setItem('capacitylens/theme', 'neon');
+    expect(readStoredTheme()).toBe('light');
   });
 
-  it("falls back to light when an empty string is stored", () => {
-    localStorage.setItem("capacitylens/theme", "");
-    expect(readStoredTheme()).toBe("light");
+  it('falls back to light when an empty string is stored', () => {
+    localStorage.setItem('capacitylens/theme', '');
+    expect(readStoredTheme()).toBe('light');
   });
 
-  it("persists under the documented storage key", () => {
-    writeStoredTheme("dark");
-    expect(localStorage.getItem("capacitylens/theme")).toBe("dark");
+  it('persists under the documented storage key', () => {
+    writeStoredTheme('dark');
+    expect(localStorage.getItem('capacitylens/theme')).toBe('dark');
   });
 });
 
-describe("resolveTheme", () => {
-  it("returns explicit choices unchanged", () => {
-    expect(resolveTheme("light")).toBe("light");
-    expect(resolveTheme("dark")).toBe("dark");
+describe('resolveTheme', () => {
+  it('returns explicit choices unchanged', () => {
+    expect(resolveTheme('light')).toBe('light');
+    expect(resolveTheme('dark')).toBe('dark');
   });
 
-  it("resolves system to light when matchMedia is unavailable (jsdom)", () => {
-    expect(resolveTheme("system")).toBe("light");
+  it('resolves system to light when matchMedia is unavailable (jsdom)', () => {
+    expect(resolveTheme('system')).toBe('light');
   });
 
-  it("resolves system against prefers-color-scheme when matchMedia exists", () => {
-    vi.stubGlobal("matchMedia", (q: string) => ({
-      matches: q.includes("dark"),
+  it('resolves system against prefers-color-scheme when matchMedia exists', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q.includes('dark'),
       addEventListener() {},
       removeEventListener() {},
     }));
-    expect(resolveTheme("system")).toBe("dark");
+    expect(resolveTheme('system')).toBe('dark');
   });
 
-  it("warns and falls back to light when matchMedia throws", () => {
-    const failure = new Error("media queries unavailable");
-    vi.stubGlobal("matchMedia", () => {
+  it('warns and falls back to light when matchMedia throws', () => {
+    const failure = new Error('media queries unavailable');
+    vi.stubGlobal('matchMedia', () => {
       throw failure;
     });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    expect(resolveTheme("system")).toBe("light");
-    expect(warn).toHaveBeenCalledWith("Unable to read the system colour scheme; using light", failure);
+    expect(resolveTheme('system')).toBe('light');
+    expect(warn).toHaveBeenCalledWith(
+      'Unable to read the system colour scheme; using light',
+      failure,
+    );
   });
 });
 
-describe("applyThemeToDom", () => {
-  it("writes the resolved scheme to <html data-theme>", () => {
-    applyThemeToDom("dark");
-    expect(document.documentElement.dataset.theme).toBe("dark");
-    applyThemeToDom("light");
-    expect(document.documentElement.dataset.theme).toBe("light");
+describe('applyThemeToDom', () => {
+  it('writes the resolved scheme to <html data-theme>', () => {
+    applyThemeToDom('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    applyThemeToDom('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 
-  it("does nothing when document is unavailable", () => {
-    vi.stubGlobal("document", undefined);
-    expect(() => applyThemeToDom("dark")).not.toThrow();
+  it('does nothing when document is unavailable', () => {
+    vi.stubGlobal('document', undefined);
+    expect(() => applyThemeToDom('dark')).not.toThrow();
   });
 });
 
-describe("watchSystemTheme", () => {
-  it("returns a no-op unsubscribe when matchMedia is unavailable (jsdom)", () => {
-    const unsubscribe = watchSystemTheme(() => "system");
+describe('watchSystemTheme', () => {
+  it('returns a no-op unsubscribe when matchMedia is unavailable (jsdom)', () => {
+    const unsubscribe = watchSystemTheme(() => 'system');
     expect(() => unsubscribe()).not.toThrow();
   });
 
-  it("warns and returns a no-op unsubscribe when matchMedia throws", () => {
-    const failure = new Error("media queries unavailable");
-    vi.stubGlobal("matchMedia", () => {
+  it('warns and returns a no-op unsubscribe when matchMedia throws', () => {
+    const failure = new Error('media queries unavailable');
+    vi.stubGlobal('matchMedia', () => {
       throw failure;
     });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const unsubscribe = watchSystemTheme(() => "system");
+    const unsubscribe = watchSystemTheme(() => 'system');
 
     expect(() => unsubscribe()).not.toThrow();
-    expect(warn).toHaveBeenCalledWith("Unable to read the system colour scheme; using light", failure);
+    expect(warn).toHaveBeenCalledWith(
+      'Unable to read the system colour scheme; using light',
+      failure,
+    );
   });
 
   it('re-applies the theme on an OS scheme change while the pref is "system"', () => {
@@ -112,21 +124,21 @@ describe("watchSystemTheme", () => {
     const mql = {
       matches: true,
       addEventListener: vi.fn((event: string, handler: () => void) => {
-        if (event === "change") changeHandler = handler;
+        if (event === 'change') changeHandler = handler;
       }),
       removeEventListener: vi.fn(),
     };
-    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue(mql));
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue(mql));
 
-    const unsubscribe = watchSystemTheme(() => "system");
-    expect(mql.addEventListener).toHaveBeenCalledWith("change", expect.any(Function));
+    const unsubscribe = watchSystemTheme(() => 'system');
+    expect(mql.addEventListener).toHaveBeenCalledWith('change', expect.any(Function));
 
-    document.documentElement.dataset.theme = "light";
+    document.documentElement.dataset.theme = 'light';
     changeHandler?.();
-    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement.dataset.theme).toBe('dark');
 
     unsubscribe();
-    expect(mql.removeEventListener).toHaveBeenCalledWith("change", changeHandler);
+    expect(mql.removeEventListener).toHaveBeenCalledWith('change', changeHandler);
   });
 
   it('does not re-apply the theme when the current pref is no longer "system"', () => {
@@ -134,15 +146,15 @@ describe("watchSystemTheme", () => {
     const mql = {
       matches: true,
       addEventListener: vi.fn((event: string, handler: () => void) => {
-        if (event === "change") changeHandler = handler;
+        if (event === 'change') changeHandler = handler;
       }),
       removeEventListener: vi.fn(),
     };
-    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue(mql));
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue(mql));
 
-    watchSystemTheme(() => "light");
-    document.documentElement.dataset.theme = "light";
+    watchSystemTheme(() => 'light');
+    document.documentElement.dataset.theme = 'light';
     changeHandler?.();
-    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 });

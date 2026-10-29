@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "react";
-import { eachDayISO, startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
-import type { ISODate } from "@capacitylens/shared/types/entities";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
+import { eachDayISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import type { ISODate } from '@capacitylens/shared/types/entities';
 import {
   FALLBACK_TIMELINE_WIDTH,
   WEEK_SNAP_IDLE_MS,
   WEEKEND_COLUMN_REM,
   resolveColumnFit,
-} from "@/lib/schedulerConfig";
-import { buildVisibleRange } from "@/store/selectors";
-import { useStore } from "@/store/useStore";
-import type { SchedulerUI } from "@/store/useStore";
-import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
-import { LAYOUT } from "./layout";
-import { resolveWeekStartSnapTarget } from "./resolveWeekStartSnapTarget";
+} from '@/lib/schedulerConfig';
+import { buildVisibleRange } from '@/store/selectors';
+import { useStore } from '@/store/useStore';
+import type { SchedulerUI } from '@/store/useStore';
+import { buildColumnGeometry, resolveLeftEdgeDate } from './columnGeometry';
+import { LAYOUT } from './layout';
+import { resolveWeekStartSnapTarget } from './resolveWeekStartSnapTarget';
 
 interface SchedulerViewportOptions {
   ui: SchedulerUI;
@@ -24,8 +24,8 @@ interface SchedulerViewportOptions {
 
 // Publish scroll offsets once so visible-span overlays do not each need a scroll subscription.
 const publishScrollOffsets = (element: HTMLElement) => {
-  element.style.setProperty("--sched-scroll-left", `${element.scrollLeft}px`);
-  element.style.setProperty("--sched-scroll-top", `${element.scrollTop}px`);
+  element.style.setProperty('--sched-scroll-left', `${element.scrollLeft}px`);
+  element.style.setProperty('--sched-scroll-top', `${element.scrollTop}px`);
 };
 
 const setScrollLeft = (element: HTMLElement, value: number) => {
@@ -51,20 +51,28 @@ function useTimelineMeasurements(scrollRef: RefObject<HTMLDivElement | null>) {
     const readMeasurements = () => ({
       width: element.clientWidth,
       height: element.clientHeight,
-      rootFontSize: parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
+      rootFontSize: Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
     });
     const measure = () => {
       const { width, height, rootFontSize } = readMeasurements();
       if (width !== measuredWidth) setTimelineWidth((measuredWidth = width));
       if (height !== measuredHeight) setTimelineHeight((measuredHeight = height));
-      if (rootFontSize !== measuredRootFontSize) setRootFontSizePx((measuredRootFontSize = rootFontSize));
+      if (rootFontSize !== measuredRootFontSize) {
+        setRootFontSizePx((measuredRootFontSize = rootFontSize));
+      }
     };
     measure();
-    if (typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === 'undefined') return;
     let resizeTimer = 0;
     const observer = new ResizeObserver(() => {
       const { width, height, rootFontSize } = readMeasurements();
-      if (width === measuredWidth && height === measuredHeight && rootFontSize === measuredRootFontSize) return;
+      if (
+        width === measuredWidth &&
+        height === measuredHeight &&
+        rootFontSize === measuredRootFontSize
+      ) {
+        return;
+      }
       clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(measure, 0);
     });
@@ -87,7 +95,7 @@ function useStickyHeaderHeight(headerRef: RefObject<HTMLDivElement | null>) {
       setHeight(nextHeight);
     };
     measure();
-    if (typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === 'undefined') return;
     let resizeTimer = 0;
     const observer = new ResizeObserver(() => {
       if ((element.offsetHeight || LAYOUT.headerHeight) === measuredHeight) return;
@@ -108,7 +116,10 @@ function useViewportGeometry({
   minimiseWeekends,
   timelineWidth,
   rootFontSizePx,
-}: Pick<SchedulerViewportOptions, "ui" | "minimiseWeekends"> & { timelineWidth: number; rootFontSizePx: number }) {
+}: Pick<SchedulerViewportOptions, 'ui' | 'minimiseWeekends'> & {
+  timelineWidth: number;
+  rootFontSizePx: number;
+}) {
   const availableWidth = (timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth;
   const weekendWidth = Math.round(WEEKEND_COLUMN_REM * rootFontSizePx);
   const uniformFit = resolveColumnFit(availableWidth, ui.zoom);
@@ -170,12 +181,21 @@ function useViewportAlignment(input: ViewportAlignmentInput) {
     previousZoomRef.current = ui.zoom;
     previousRecenterRef.current = ui.recenterToken;
     const element = scrollRef.current;
-    if (!element || !didScrollRef.current || previousGeom === geometry || previousGeom.totalWidth <= 0) return;
+    if (
+      !element ||
+      !didScrollRef.current ||
+      previousGeom === geometry ||
+      previousGeom.totalWidth <= 0
+    ) {
+      return;
+    }
     if (ui.recenterToken !== previousRecenter) return;
     const leftDate = resolveLeftEdgeDate(previousGeom, days, element.scrollLeft);
     if (leftDate === undefined) return;
     const navigationChanged = ui.zoom !== previousZoom || days !== previousDays;
-    const targetDate = navigationChanged ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate;
+    const targetDate = navigationChanged
+      ? startOfWeekISO(leftDate, calendarWeekStartsOn)
+      : leftDate;
     setScrollLeft(element, Math.max(0, geometry.xForDateInGeom(targetDate)));
   }, [
     geometry,
@@ -250,7 +270,9 @@ function useVisibleStartDate(input: ViewportScrollingInput) {
   const { scrollRef, geometry, days, ui } = input;
   return useCallback((): ISODate => {
     const element = scrollRef.current;
-    return (element ? resolveLeftEdgeDate(geometry, days, element.scrollLeft) : days[0]) ?? ui.originDate;
+    return (
+      (element ? resolveLeftEdgeDate(geometry, days, element.scrollLeft) : days[0]) ?? ui.originDate
+    );
   }, [geometry, days, ui.originDate, scrollRef]);
 }
 

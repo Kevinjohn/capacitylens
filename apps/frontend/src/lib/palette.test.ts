@@ -1,16 +1,22 @@
-import { describe, it, expect } from "vitest";
-import { PRESET_COLORS, isPresetColor } from "@capacitylens/shared/lib/color";
-import { DEFAULT_COLORS, SWATCH_COLUMNS, SWATCHES, resolveColorName, resolveSwatchLabel } from "./palette";
+import { describe, it, expect } from 'vitest';
+import { PRESET_COLORS, isPresetColor } from '@capacitylens/shared/lib/color';
+import {
+  DEFAULT_COLORS,
+  SWATCH_COLUMNS,
+  SWATCHES,
+  resolveColorName,
+  resolveSwatchLabel,
+} from './palette';
 
-describe("DEFAULT_COLORS", () => {
-  it("uses the refreshed blue family for new accounts and resources", () => {
-    expect(DEFAULT_COLORS.account).toBe("#2d75da");
-    expect(DEFAULT_COLORS.resource).toBe("#2d75da");
-    expect(DEFAULT_COLORS.placeholder).toBe("#2d75da");
-    expect(DEFAULT_COLORS.discipline).toBe("#2d75da");
+describe('DEFAULT_COLORS', () => {
+  it('uses the refreshed blue family for new accounts and resources', () => {
+    expect(DEFAULT_COLORS.account).toBe('#2d75da');
+    expect(DEFAULT_COLORS.resource).toBe('#2d75da');
+    expect(DEFAULT_COLORS.placeholder).toBe('#2d75da');
+    expect(DEFAULT_COLORS.discipline).toBe('#2d75da');
   });
 
-  it("only uses colours that are members of the swatch matrix", () => {
+  it('only uses colours that are members of the swatch matrix', () => {
     // Enforces the invariant the SWATCHES comment states in prose ("deliberately includes every
     // DEFAULT_COLORS value"): a freshly-opened form's default must highlight as a selected swatch,
     // which silently stops happening if either list is retuned without the other.
@@ -21,8 +27,8 @@ describe("DEFAULT_COLORS", () => {
   });
 });
 
-describe("SWATCHES", () => {
-  it("is a 13x4 grid of distinct, valid hex colours", () => {
+describe('SWATCHES', () => {
+  it('is a 13x4 grid of distinct, valid hex colours', () => {
     // Swatches must remain unique non-empty hex colors.
     expect(SWATCHES.length).toBe(SWATCH_COLUMNS * 4);
     for (const hex of SWATCHES) {
@@ -32,18 +38,18 @@ describe("SWATCHES", () => {
   });
 });
 
-describe("colorName", () => {
-  it("names a known swatch instead of echoing its hex", () => {
+describe('colorName', () => {
+  it('names a known swatch instead of echoing its hex', () => {
     const hex = SWATCHES[0];
-    if (!hex) throw new Error("Expected at least one swatch");
+    if (!hex) throw new Error('Expected at least one swatch');
     const name = resolveColorName(hex);
     expect(name).not.toBe(hex);
     expect(name).toBe(resolveSwatchLabel(0));
   });
 
-  it("falls back to the raw hex for an unknown colour", () => {
+  it('falls back to the raw hex for an unknown colour', () => {
     // An unknown hex must keep its literal label rather than receive an unrelated swatch name.
-    const unknown = "#123456";
+    const unknown = '#123456';
     expect(SWATCHES).not.toContain(unknown);
     expect(resolveColorName(unknown)).toBe(unknown);
   });

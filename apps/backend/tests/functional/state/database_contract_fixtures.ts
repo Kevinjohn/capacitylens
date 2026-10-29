@@ -1,7 +1,7 @@
-import db from '@adonisjs/lucid/services/db'
+import db from '@adonisjs/lucid/services/db';
 
-const accountIds = { dc: 'a-studio', marvel: 'a-loft' } as const
-const stamp = '2026-10-12T00:00:00.000Z'
+const accountIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
+const stamp = '2026-10-12T00:00:00.000Z';
 
 export async function insertTenantFixture() {
   await db.table('clients').multiInsert([
@@ -29,7 +29,7 @@ export async function insertTenantFixture() {
       created_at: stamp,
       updated_at: stamp,
     },
-  ])
+  ]);
   await db.table('disciplines').multiInsert([
     {
       id: 'm1-dc-discipline',
@@ -47,7 +47,7 @@ export async function insertTenantFixture() {
       created_at: stamp,
       updated_at: stamp,
     },
-  ])
+  ]);
   await db.table('projects').multiInsert([
     {
       id: 'm1-dc-project',
@@ -76,7 +76,7 @@ export async function insertTenantFixture() {
       created_at: stamp,
       updated_at: stamp,
     },
-  ])
+  ]);
   await db.table('phases').multiInsert([
     {
       id: 'm1-dc-phase',
@@ -102,7 +102,7 @@ export async function insertTenantFixture() {
       created_at: stamp,
       updated_at: stamp,
     },
-  ])
+  ]);
   await db.table('resources').multiInsert([
     {
       id: 'm1-dc-resource',
@@ -155,7 +155,7 @@ export async function insertTenantFixture() {
       created_at: stamp,
       updated_at: stamp,
     },
-  ])
+  ]);
   await db.table('activities').multiInsert([
     {
       id: 'm1-dc-activity',
@@ -206,7 +206,7 @@ export async function insertTenantFixture() {
       created_at: stamp,
       updated_at: stamp,
     },
-  ])
+  ]);
   await db.table('allocations').multiInsert([
     {
       id: 'm1-dc-allocation',
@@ -247,7 +247,7 @@ export async function insertTenantFixture() {
       created_at: stamp,
       updated_at: stamp,
     },
-  ])
+  ]);
   await db.table('time_off').multiInsert([
     {
       id: 'm1-dc-time-off',
@@ -269,7 +269,7 @@ export async function insertTenantFixture() {
       created_at: stamp,
       updated_at: stamp,
     },
-  ])
+  ]);
   await db.table('closures').insert({
     id: 'm1-dc-closure',
     account_id: accountIds.dc,
@@ -278,7 +278,7 @@ export async function insertTenantFixture() {
     end_date: '2026-10-12',
     created_at: stamp,
     updated_at: stamp,
-  })
+  });
   await db.table('closures').insert({
     id: 'm1-marvel-closure',
     account_id: accountIds.marvel,
@@ -287,5 +287,5 @@ export async function insertTenantFixture() {
     end_date: '2026-10-12',
     created_at: stamp,
     updated_at: stamp,
-  })
+  });
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from 'vitest';
 import {
   can,
   canSeeTimeOffNote,
@@ -9,10 +9,10 @@ import {
   canRemoveMember,
   canResetMemberAcrossAccounts,
   canViewCapacityOverview,
-} from "./access.js";
-import type { CapacityOverviewAccess } from "../types/entities.js";
-import type { Role, Action } from "./access.js";
-import { canAdministerAccount } from "../account/policy.js";
+} from './access.js';
+import type { CapacityOverviewAccess } from '../types/entities.js';
+import type { Role, Action } from './access.js';
+import { canAdministerAccount } from '../account/policy.js';
 
 // These tests are an independent oracle of the CapacityLens Decisions access matrix: the expected
 // booleans below are hard-coded by hand from the spec, not derived from the implementation. If
@@ -20,20 +20,20 @@ import { canAdministerAccount } from "../account/policy.js";
 // implementation's logic.
 
 // The closed set of roles, hard-coded (not imported as a list) so the test is its own source of truth.
-const ROLES: readonly Role[] = ["owner", "admin", "editor", "viewer"];
+const ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer'];
 
 // Keep the action list independent from the implementation. `satisfies` rejects unknown actions; EXPECTED requires every Action key.
 const ACTIONS = [
-  "read",
-  "write",
-  "manageInternalClient",
-  "manageMembers",
-  "manageInvites",
-  "masquerade",
-  "manageMemberSignInTracking",
-  "anonymise",
-  "transferOwnership",
-  "actOnOwnershipTransfer",
+  'read',
+  'write',
+  'manageInternalClient',
+  'manageMembers',
+  'manageInvites',
+  'masquerade',
+  'manageMemberSignInTracking',
+  'anonymise',
+  'transferOwnership',
+  'actOnOwnershipTransfer',
 ] as const satisfies readonly Action[];
 
 // Derive the expected permissions from the product contract rather than the implementation.
@@ -94,14 +94,14 @@ function expectEditableRolePrecondition(actor: Role, target: Role, next: Role): 
   }
 }
 
-describe("can(role, action) — the pure access matrix", () => {
+describe('can(role, action) — the pure access matrix', () => {
   // Pin the action-list cardinality and reject duplicates; the EXPECTED record supplies compile-time Action coverage.
-  it("iterates exactly the Action union (10 actions, no more, no fewer)", () => {
+  it('iterates exactly the Action union (10 actions, no more, no fewer)', () => {
     expect(ACTIONS.length).toBe(10);
     expect(new Set(ACTIONS).size).toBe(ACTIONS.length);
   });
 
-  it("iterates exactly the Role union (4 roles)", () => {
+  it('iterates exactly the Role union (4 roles)', () => {
     expect(ROLES.length).toBe(4);
     expect(new Set(ROLES).size).toBe(ROLES.length);
   });
@@ -117,13 +117,13 @@ describe("can(role, action) — the pure access matrix", () => {
   }
 });
 
-describe("CapacityLens/account-policy ownership seam", () => {
+describe('CapacityLens/account-policy ownership seam', () => {
   const mapped = {
-    manageMembers: "manage-members",
-    manageInvites: "manage-invitations",
-    masquerade: "masquerade-member",
-    transferOwnership: "transfer-ownership",
-    actOnOwnershipTransfer: "act-on-ownership-transfer",
+    manageMembers: 'manage-members',
+    manageInvites: 'manage-invitations',
+    masquerade: 'masquerade-member',
+    transferOwnership: 'transfer-ownership',
+    actOnOwnershipTransfer: 'act-on-ownership-transfer',
   } as const;
 
   for (const role of ROLES) {
@@ -137,43 +137,47 @@ describe("CapacityLens/account-policy ownership seam", () => {
   }
 });
 
-describe("canSeeTimeOffNote(role) — field-level rule (owner/admin only)", () => {
-  it("owner may see the time-off note", () => {
-    expect(canSeeTimeOffNote("owner")).toBe(true);
+describe('canSeeTimeOffNote(role) — field-level rule (owner/admin only)', () => {
+  it('owner may see the time-off note', () => {
+    expect(canSeeTimeOffNote('owner')).toBe(true);
   });
-  it("admin may see the time-off note", () => {
-    expect(canSeeTimeOffNote("admin")).toBe(true);
+  it('admin may see the time-off note', () => {
+    expect(canSeeTimeOffNote('admin')).toBe(true);
   });
-  it("editor may NOT see the time-off note", () => {
-    expect(canSeeTimeOffNote("editor")).toBe(false);
+  it('editor may NOT see the time-off note', () => {
+    expect(canSeeTimeOffNote('editor')).toBe(false);
   });
-  it("viewer may NOT see the time-off note", () => {
-    expect(canSeeTimeOffNote("viewer")).toBe(false);
+  it('viewer may NOT see the time-off note', () => {
+    expect(canSeeTimeOffNote('viewer')).toBe(false);
   });
 });
 
-describe("canSeePrivateNames(role) — field-level rule (owner only)", () => {
+describe('canSeePrivateNames(role) — field-level rule (owner only)', () => {
   it.each([
-    ["owner", true],
-    ["admin", false],
-    ["editor", false],
-    ["viewer", false],
-  ] as const)("%s → %s", (role, expected) => {
+    ['owner', true],
+    ['admin', false],
+    ['editor', false],
+    ['viewer', false],
+  ] as const)('%s → %s', (role, expected) => {
     expect(canSeePrivateNames(role)).toBe(expected);
   });
 });
 
-describe("canViewCapacityOverview(role, access) — account setting policy", () => {
-  const settings: readonly CapacityOverviewAccess[] = ["owner_admin", "owner_admin_editor", "everyone"];
+describe('canViewCapacityOverview(role, access) — account setting policy', () => {
+  const settings: readonly CapacityOverviewAccess[] = [
+    'owner_admin',
+    'owner_admin_editor',
+    'everyone',
+  ];
 
-  it("defaults to owner/admin when the setting is absent or malformed", () => {
-    expect(canViewCapacityOverview("owner", undefined)).toBe(true);
-    expect(canViewCapacityOverview("admin", undefined)).toBe(true);
-    expect(canViewCapacityOverview("editor", undefined)).toBe(false);
-    expect(canViewCapacityOverview("viewer", "invalid" as CapacityOverviewAccess)).toBe(false);
+  it('defaults to owner/admin when the setting is absent or malformed', () => {
+    expect(canViewCapacityOverview('owner', undefined)).toBe(true);
+    expect(canViewCapacityOverview('admin', undefined)).toBe(true);
+    expect(canViewCapacityOverview('editor', undefined)).toBe(false);
+    expect(canViewCapacityOverview('viewer', 'invalid' as CapacityOverviewAccess)).toBe(false);
   });
 
-  it.each(settings)("applies the %s setting across all roles", (access) => {
+  it.each(settings)('applies the %s setting across all roles', (access) => {
     const expected = {
       owner_admin: { owner: true, admin: true, editor: false, viewer: false },
       owner_admin_editor: { owner: true, admin: true, editor: true, viewer: false },
@@ -187,9 +191,9 @@ describe("canViewCapacityOverview(role, access) — account setting policy", () 
 // member-management policy (Owner changes only through transfer), not derived from the
 // implementation: if access.ts and these tables disagree, the test is doing its job.
 
-describe("isAtLeast(role, min) — tier comparison", () => {
+describe('isAtLeast(role, min) — tier comparison', () => {
   // The full 4×4 oracle, written from the strict hierarchy viewer<editor<admin<owner.
-  const EXPECTED: Record<Role, Record<Role, boolean>> = {
+  const TIER_ORACLE: Record<Role, Record<Role, boolean>> = {
     owner: { owner: true, admin: true, editor: true, viewer: true },
     admin: { owner: false, admin: true, editor: true, viewer: true },
     editor: { owner: false, admin: false, editor: true, viewer: true },
@@ -197,7 +201,7 @@ describe("isAtLeast(role, min) — tier comparison", () => {
   };
   for (const role of ROLES) {
     for (const min of ROLES) {
-      const expected = EXPECTED[role][min];
+      const expected = TIER_ORACLE[role][min];
       it(`isAtLeast('${role}', '${min}') === ${expected}`, () => {
         expect(isAtLeast(role, min)).toBe(expected);
       });
@@ -205,13 +209,13 @@ describe("isAtLeast(role, min) — tier comparison", () => {
   }
 });
 
-describe("canManageMemberRole(actor, target, next) — role-change matrix", () => {
+describe('canManageMemberRole(actor, target, next) — role-change matrix', () => {
   // Exhaustive sweep over every actor × target × next combination, against a hand-derived oracle.
   // Oracle rules: actor must hold manageMembers (admin+); neither promoting to nor demoting from
   // Owner is an ordinary role edit. Both go through ownership transfer.
   const oracle = (actor: Role, target: Role, next: Role): boolean => {
-    if (!(actor === "owner" || actor === "admin")) return false;
-    if (next === "owner" || target === "owner") return false;
+    if (!(actor === 'owner' || actor === 'admin')) return false;
+    if (next === 'owner' || target === 'owner') return false;
     return true;
   };
   for (const actor of ROLES) {
@@ -225,31 +229,31 @@ describe("canManageMemberRole(actor, target, next) — role-change matrix", () =
     }
   }
 
-  it("no actor may grant Owner through an ordinary role change", () => {
-    expect(canManageMemberRole("owner", "editor", "owner")).toBe(false);
-    expect(canManageMemberRole("admin", "editor", "owner")).toBe(false);
+  it('no actor may grant Owner through an ordinary role change', () => {
+    expect(canManageMemberRole('owner', 'editor', 'owner')).toBe(false);
+    expect(canManageMemberRole('admin', 'editor', 'owner')).toBe(false);
   });
 
-  it("no actor may demote the Owner outside ownership transfer", () => {
-    expect(canManageMemberRole("admin", "owner", "editor")).toBe(false);
-    expect(canManageMemberRole("owner", "owner", "editor")).toBe(false);
+  it('no actor may demote the Owner outside ownership transfer', () => {
+    expect(canManageMemberRole('admin', 'owner', 'editor')).toBe(false);
+    expect(canManageMemberRole('owner', 'owner', 'editor')).toBe(false);
   });
 
-  it("rejects Owner-to-Owner no-ops so an Admin can never touch the Owner through this guard", () => {
-    expect(canManageMemberRole("admin", "owner", "owner")).toBe(false);
-    expect(canManageMemberRole("owner", "owner", "owner")).toBe(false);
+  it('rejects Owner-to-Owner no-ops so an Admin can never touch the Owner through this guard', () => {
+    expect(canManageMemberRole('admin', 'owner', 'owner')).toBe(false);
+    expect(canManageMemberRole('owner', 'owner', 'owner')).toBe(false);
   });
 
-  it("editor/viewer (no manageMembers) can never change a role", () => {
-    expect(canManageMemberRole("editor", "viewer", "editor")).toBe(false);
-    expect(canManageMemberRole("viewer", "viewer", "viewer")).toBe(false);
+  it('editor/viewer (no manageMembers) can never change a role', () => {
+    expect(canManageMemberRole('editor', 'viewer', 'editor')).toBe(false);
+    expect(canManageMemberRole('viewer', 'viewer', 'viewer')).toBe(false);
   });
 });
 
-describe("canRemoveMember(actor, target) — removal matrix", () => {
+describe('canRemoveMember(actor, target) — removal matrix', () => {
   const oracle = (actor: Role, target: Role): boolean => {
-    if (!(actor === "owner" || actor === "admin")) return false;
-    if (target === "owner") return false;
+    if (!(actor === 'owner' || actor === 'admin')) return false;
+    if (target === 'owner') return false;
     return true;
   };
   for (const actor of ROLES) {
@@ -261,24 +265,24 @@ describe("canRemoveMember(actor, target) — removal matrix", () => {
     }
   }
 
-  it("no actor may remove the Owner", () => {
-    expect(canRemoveMember("admin", "owner")).toBe(false);
-    expect(canRemoveMember("owner", "owner")).toBe(false);
+  it('no actor may remove the Owner', () => {
+    expect(canRemoveMember('admin', 'owner')).toBe(false);
+    expect(canRemoveMember('owner', 'owner')).toBe(false);
   });
 
-  it("admin may remove non-owners; editor/viewer may remove no one", () => {
-    expect(canRemoveMember("admin", "editor")).toBe(true);
-    expect(canRemoveMember("editor", "viewer")).toBe(false);
-    expect(canRemoveMember("viewer", "viewer")).toBe(false);
+  it('admin may remove non-owners; editor/viewer may remove no one', () => {
+    expect(canRemoveMember('admin', 'editor')).toBe(true);
+    expect(canRemoveMember('editor', 'viewer')).toBe(false);
+    expect(canRemoveMember('viewer', 'viewer')).toBe(false);
   });
 });
 
-describe("canEditAnyMemberRole(actor, target) — role-editability matrix", () => {
+describe('canEditAnyMemberRole(actor, target) — role-editability matrix', () => {
   // The destination-free question a member row asks before rendering a role control. Same
   // hand-derived oracle shape as the guards above: admin tier, and never the Owner.
   const oracle = (actor: Role, target: Role): boolean => {
-    if (!(actor === "owner" || actor === "admin")) return false;
-    if (target === "owner") return false;
+    if (!(actor === 'owner' || actor === 'admin')) return false;
+    if (target === 'owner') return false;
     return true;
   };
   for (const actor of ROLES) {
@@ -290,7 +294,7 @@ describe("canEditAnyMemberRole(actor, target) — role-editability matrix", () =
     }
   }
 
-  it("is a precondition of the role change itself, never weaker than it", () => {
+  it('is a precondition of the role change itself, never weaker than it', () => {
     for (const actor of ROLES) {
       for (const target of ROLES) {
         for (const next of ROLES) {
@@ -301,110 +305,116 @@ describe("canEditAnyMemberRole(actor, target) — role-editability matrix", () =
   });
 });
 
-describe("canResetMemberAcrossAccounts(actor, target) — global-identity reset matrix (P1.18)", () => {
+describe('canResetMemberAcrossAccounts(actor, target) — global-identity reset matrix (P1.18)', () => {
   const roles = (entries: [string, Role][]) => new Map<string, Role>(entries);
 
-  it("single account reduces to the per-account check (admin resets editor, not owner)", () => {
-    expect(canResetMemberAcrossAccounts(roles([["X", "admin"]]), roles([["X", "editor"]]), false)).toBe(true);
-    expect(canResetMemberAcrossAccounts(roles([["X", "admin"]]), roles([["X", "owner"]]), false)).toBe(false);
-    expect(canResetMemberAcrossAccounts(roles([["X", "owner"]]), roles([["X", "owner"]]), false)).toBe(true);
+  it('single account reduces to the per-account check (admin resets editor, not owner)', () => {
+    expect(
+      canResetMemberAcrossAccounts(roles([['X', 'admin']]), roles([['X', 'editor']]), false),
+    ).toBe(true);
+    expect(
+      canResetMemberAcrossAccounts(roles([['X', 'admin']]), roles([['X', 'owner']]), false),
+    ).toBe(false);
+    expect(
+      canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([['X', 'owner']]), false),
+    ).toBe(true);
   });
 
-  it("CLOSES the cross-account escalation: an admin of X cannot reset a user who owns Y", () => {
+  it('CLOSES the cross-account escalation: an admin of X cannot reset a user who owns Y', () => {
     // Target is a mere editor in X but the owner of Y; actor is only in X.
-    const actor = roles([["X", "admin"]]);
+    const actor = roles([['X', 'admin']]);
     const target = roles([
-      ["X", "editor"],
-      ["Y", "owner"],
+      ['X', 'editor'],
+      ['Y', 'owner'],
     ]);
     expect(canResetMemberAcrossAccounts(actor, target, false)).toBe(false);
   });
 
-  it("an OWNER of X still cannot reset a user who owns Y (no standing in Y)", () => {
-    const actor = roles([["X", "owner"]]);
+  it('an OWNER of X still cannot reset a user who owns Y (no standing in Y)', () => {
+    const actor = roles([['X', 'owner']]);
     const target = roles([
-      ["X", "editor"],
-      ["Y", "owner"],
+      ['X', 'editor'],
+      ['Y', 'owner'],
     ]);
     expect(canResetMemberAcrossAccounts(actor, target, false)).toBe(false);
   });
 
-  it("allows the reset only when the actor has authority in EVERY account the target is in", () => {
+  it('allows the reset only when the actor has authority in EVERY account the target is in', () => {
     // Actor owns both X and Y; target is editor in X and admin in Y → owner dominates both.
     const actor = roles([
-      ["X", "owner"],
-      ["Y", "owner"],
+      ['X', 'owner'],
+      ['Y', 'owner'],
     ]);
     const target = roles([
-      ["X", "editor"],
-      ["Y", "admin"],
+      ['X', 'editor'],
+      ['Y', 'admin'],
     ]);
     expect(canResetMemberAcrossAccounts(actor, target, false)).toBe(true);
   });
 
-  it("refuses when the actor lacks reset authority in a shared account (co-editors)", () => {
+  it('refuses when the actor lacks reset authority in a shared account (co-editors)', () => {
     // Actor is admin in X (acting) but only an editor in shared account Z where the target also sits.
     const actor = roles([
-      ["X", "admin"],
-      ["Z", "editor"],
+      ['X', 'admin'],
+      ['Z', 'editor'],
     ]);
     const target = roles([
-      ["X", "editor"],
-      ["Z", "editor"],
+      ['X', 'editor'],
+      ['Z', 'editor'],
     ]);
     expect(canResetMemberAcrossAccounts(actor, target, false)).toBe(false);
   });
 
-  it("fail-closed on a target with no memberships", () => {
-    expect(canResetMemberAcrossAccounts(roles([["X", "owner"]]), roles([]), false)).toBe(false);
+  it('fail-closed on a target with no memberships', () => {
+    expect(canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([]), false)).toBe(false);
   });
 
-  it("SELF-RESET exemption: a multi-account self passes even where cross-account authority would fail", () => {
+  it('SELF-RESET exemption: a multi-account self passes even where cross-account authority would fail', () => {
     // Owner of X who is a mere editor of Y resets their own password. actor === target, so the maps
     // are identical; the non-self path would hit Y and fail identity administration for editor/editor.
     // The isSelf exemption skips the cross-account check. You cannot escalate against your own identity.
     const self = roles([
-      ["X", "owner"],
-      ["Y", "editor"],
+      ['X', 'owner'],
+      ['Y', 'editor'],
     ]);
     expect(canResetMemberAcrossAccounts(self, self, true)).toBe(true);
     // Same maps without the exemption is (correctly) refused, proving the exemption is load-bearing.
     expect(canResetMemberAcrossAccounts(self, self, false)).toBe(false);
   });
 
-  it("SELF-RESET still fails closed on an empty target map (no identity to reset)", () => {
-    expect(canResetMemberAcrossAccounts(roles([["X", "owner"]]), roles([]), true)).toBe(false);
+  it('SELF-RESET still fails closed on an empty target map (no identity to reset)', () => {
+    expect(canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([]), true)).toBe(false);
   });
 });
 
 // Unknown roles and actions must return false at the untyped boundary so malformed input never grants authority.
-describe("can / isAtLeast — fail-closed on an unknown role/action (never falls open)", () => {
-  it("an unknown role is denied EVERY action", () => {
+describe('can / isAtLeast — fail-closed on an unknown role/action (never falls open)', () => {
+  it('an unknown role is denied EVERY action', () => {
     for (const action of ACTIONS) {
-      expect(can("superuser" as Role, action)).toBe(false);
+      expect(can('superuser' as Role, action)).toBe(false);
     }
   });
-  it("an unknown action is denied for EVERY role", () => {
+  it('an unknown action is denied for EVERY role', () => {
     for (const role of ROLES) {
-      expect(can(role, "reboot" as Action)).toBe(false);
+      expect(can(role, 'reboot' as Action)).toBe(false);
     }
   });
 
-  it("keeps masquerade at the admin tier", () => {
-    expect(can("owner", "masquerade")).toBe(true);
-    expect(can("admin", "masquerade")).toBe(true);
-    expect(can("editor", "masquerade")).toBe(false);
-    expect(can("viewer", "masquerade")).toBe(false);
+  it('keeps masquerade at the admin tier', () => {
+    expect(can('owner', 'masquerade')).toBe(true);
+    expect(can('admin', 'masquerade')).toBe(true);
+    expect(can('editor', 'masquerade')).toBe(false);
+    expect(can('viewer', 'masquerade')).toBe(false);
   });
 
-  it("an unknown target or next role is denied by every member-management guard", () => {
-    const unknownRole = "superuser" as Role;
-    expect(canManageMemberRole("admin", unknownRole, "editor")).toBe(false);
-    expect(canManageMemberRole("admin", "editor", unknownRole)).toBe(false);
-    expect(canRemoveMember("admin", unknownRole)).toBe(false);
+  it('an unknown target or next role is denied by every member-management guard', () => {
+    const unknownRole = 'superuser' as Role;
+    expect(canManageMemberRole('admin', unknownRole, 'editor')).toBe(false);
+    expect(canManageMemberRole('admin', 'editor', unknownRole)).toBe(false);
+    expect(canRemoveMember('admin', unknownRole)).toBe(false);
   });
-  it("isAtLeast denies when either the role or the min tier is unknown", () => {
-    expect(isAtLeast("superuser" as Role, "viewer")).toBe(false);
-    expect(isAtLeast("viewer", "superuser" as Role)).toBe(false);
+  it('isAtLeast denies when either the role or the min tier is unknown', () => {
+    expect(isAtLeast('superuser' as Role, 'viewer')).toBe(false);
+    expect(isAtLeast('viewer', 'superuser' as Role)).toBe(false);
   });
 });

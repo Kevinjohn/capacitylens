@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, test } from './fixtures';
 import {
   boundingBoxOrThrow,
   disableWeekSnap,
@@ -12,63 +12,70 @@ import {
   setTheme,
   setZoom,
   showScheduleFilters,
-} from "./browserTestSupport";
+} from './browserTestSupport';
 
-test.use({ contextOptions: { reducedMotion: "reduce" } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
-async function assertReadOnlySchedule(page: import("@playwright/test").Page) {
-  const sheet = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
+async function assertReadOnlySchedule(page: import('@playwright/test').Page) {
+  const sheet = page.getByRole('dialog', { name: "Bruce Wayne's schedule" });
   await expect(sheet).toBeVisible();
-  await expect(sheet).toHaveAttribute("aria-modal", "true");
-  await expect(page.getByTestId("person-schedule-sheet")).toHaveCount(1);
-  await expect(page.getByTestId("person-schedule-entry")).toHaveCount(3);
+  await expect(sheet).toHaveAttribute('aria-modal', 'true');
+  await expect(page.getByTestId('person-schedule-sheet')).toHaveCount(1);
+  await expect(page.getByTestId('person-schedule-entry')).toHaveCount(3);
   // Visual Design is tentative and hidden in the grid, but the personal view ignores that filter.
-  await expect(sheet).toContainText("Visual Design");
-  await expect(sheet).toContainText("Long weekend");
-  await expect(sheet.getByTestId("person-schedule-header")).toContainText(
+  await expect(sheet).toContainText('Visual Design');
+  await expect(sheet).toContainText('Long weekend');
+  await expect(sheet.getByTestId('person-schedule-header')).toContainText(
     // A same-month range collapses the repeated month: "1 – 28 Jun" as well as "28 Jun – 4 Jul".
     /\d{1,2}( [A-Z][a-z]{2})? – \d{1,2} [A-Z][a-z]{2}/,
   );
-  await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/Four weeks:|2026/);
+  await expect(sheet.getByTestId('person-schedule-header')).not.toContainText(/Four weeks:|2026/);
   await expect(sheet).not.toContainText(/Confirmed|Tentative|Completed|Series through/);
-  await expect(sheet.getByRole("button", { name: /Edit|Delete|Save|Duplicate|Reassign/ })).toHaveCount(0);
+  await expect(
+    sheet.getByRole('button', { name: /Edit|Delete|Save|Duplicate|Reassign/ }),
+  ).toHaveCount(0);
   return sheet;
 }
 
 async function assertGridPreserved(
-  page: import("@playwright/test").Page,
-  grid: import("@playwright/test").Locator,
+  page: import('@playwright/test').Page,
+  grid: import('@playwright/test').Locator,
   before: { scrollLeft: number; scrollTop: number; leftDate: string },
-  gridElement: Awaited<ReturnType<import("@playwright/test").Locator["elementHandle"]>>,
+  gridElement: Awaited<ReturnType<import('@playwright/test').Locator['elementHandle']>>,
 ) {
   expect(
-    await page.getByTestId("scheduler-grid").evaluate((node, original) => node.isSameNode(original), gridElement),
+    await page
+      .getByTestId('scheduler-grid')
+      .evaluate((node, original) => node.isSameNode(original), gridElement),
   ).toBe(true);
   expect(await grid.evaluate((node) => (node as HTMLElement).scrollLeft)).toBe(before.scrollLeft);
   expect(await grid.evaluate((node) => (node as HTMLElement).scrollTop)).toBe(before.scrollTop);
   expect((await probeSchedulerGeometry(page)).leftDate).toBe(before.leftDate);
-  await expect(page.getByLabel("Search people")).toHaveValue("Bruce");
-  await expect(page.getByLabel("Filter by project")).toHaveText("All projects");
+  await expect(page.getByLabel('Search people')).toHaveValue('Bruce');
+  await expect(page.getByLabel('Filter by project')).toHaveText('All projects');
   await expect(
     page
-      .getByTestId("scheduler-filter-controls")
-      .getByRole("button", { name: "Tentative", exact: true, includeHidden: true }),
-  ).toHaveAttribute("aria-pressed", "false");
+      .getByTestId('scheduler-filter-controls')
+      .getByRole('button', { name: 'Tentative', exact: true, includeHidden: true }),
+  ).toHaveAttribute('aria-pressed', 'false');
 }
 
-async function prepareFilteredGrid(page: import("@playwright/test").Page) {
+async function prepareFilteredGrid(page: import('@playwright/test').Page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await disableWeekSnap(page);
   await openApp(page);
   await setZoom(page, 4);
   await goToSeedWeek(page);
   await showScheduleFilters(page);
-  await page.getByTestId("scheduler-filter-controls").getByRole("button", { name: "Tentative", exact: true }).click();
-  await page.getByLabel("Search people").fill("Bruce");
+  await page
+    .getByTestId('scheduler-filter-controls')
+    .getByRole('button', { name: 'Tentative', exact: true })
+    .click();
+  await page.getByLabel('Search people').fill('Bruce');
   await resetSchedulerScroll(page);
   await nudgeScheduler(page, 5);
 
-  const grid = page.getByTestId("scheduler-grid");
+  const grid = page.getByTestId('scheduler-grid');
   const gridElement = await grid.elementHandle();
   const before = {
     scrollLeft: await grid.evaluate((node) => (node as HTMLElement).scrollLeft),
@@ -79,10 +86,10 @@ async function prepareFilteredGrid(page: import("@playwright/test").Page) {
 }
 
 function registerPreservationScenario() {
-  test("opens as one read-only modal and preserves the grid state", async ({ page }) => {
+  test('opens as one read-only modal and preserves the grid state', async ({ page }) => {
     const { grid, gridElement, before } = await prepareFilteredGrid(page);
-    const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
-    await expect(trigger).toHaveAttribute("title", "View Bruce Wayne's schedule");
+    const trigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
+    await expect(trigger).toHaveAttribute('title', "View Bruce Wayne's schedule");
     await trigger.click();
     const sheet = await assertReadOnlySchedule(page);
     const sheetBox = await sheet.boundingBox();
@@ -90,7 +97,7 @@ function registerPreservationScenario() {
     expect(sheetBox!.width).toBe(400);
     expect(sheetBox!.x + sheetBox!.width).toBeCloseTo(1440, 0);
     await assertGridPreserved(page, grid, before, gridElement);
-    await page.keyboard.press("Escape");
+    await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);
     await expect(trigger).toBeFocused();
     expect(await grid.evaluate((node) => (node as HTMLElement).scrollLeft)).toBe(before.scrollLeft);
@@ -98,24 +105,26 @@ function registerPreservationScenario() {
 }
 
 function registerLayoutScenario() {
-  test("traps focus, closes with Escape, and fits a narrow layout", async ({ page }) => {
+  test('traps focus, closes with Escape, and fits a narrow layout', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
-    const normalTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
-    const normalRow = page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" });
+    const normalTrigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
+    const normalRow = page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' });
     const normalRowBox = await normalRow.boundingBox();
     expect(normalRowBox).not.toBeNull();
     expect(normalRowBox!.height).toBeGreaterThanOrEqual(60);
     await normalTrigger.click();
 
-    const dialog = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
-    const close = dialog.getByRole("button", { name: "Close" });
+    const dialog = page.getByRole('dialog', { name: "Bruce Wayne's schedule" });
+    const close = dialog.getByRole('button', { name: 'Close' });
     await expect(close).toBeFocused();
     for (let tab = 0; tab < 4; tab += 1) {
-      await page.keyboard.press("Tab");
-      expect(await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true);
+      await page.keyboard.press('Tab');
+      expect(
+        await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null),
+      ).toBe(true);
     }
-    await page.keyboard.press("Escape");
+    await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(normalTrigger).toBeFocused();
 
@@ -123,104 +132,106 @@ function registerLayoutScenario() {
     await dismissLandscapeHint(page);
     await page.setViewportSize({ width: 520, height: 800 });
     expect(page.viewportSize()).toEqual({ width: 520, height: 800 });
-    const narrowTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
+    const narrowTrigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
     await expect(narrowTrigger).toBeVisible();
     await narrowTrigger.click();
-    const narrowSheet = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
+    const narrowSheet = page.getByRole('dialog', { name: "Bruce Wayne's schedule" });
     await expect(narrowSheet).toBeVisible();
     const narrowBox = await narrowSheet.boundingBox();
     expect(narrowBox).not.toBeNull();
     expect(narrowBox!.width).toBeLessThanOrEqual(520);
     expect(narrowBox!.x).toBeGreaterThanOrEqual(0);
     expect(narrowBox!.x + narrowBox!.width).toBeLessThanOrEqual(520);
-    await page.keyboard.press("Escape");
+    await page.keyboard.press('Escape');
     await expect(narrowSheet).toHaveCount(0);
   });
 }
 
-test("opens from the trigger with both keyboard activation keys", async ({ page }) => {
+test('opens from the trigger with both keyboard activation keys', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
-  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
+  const trigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
 
   await focusByKeyboard(page, trigger);
-  await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: "Bruce Wayne's schedule" });
   await expect(dialog).toBeVisible();
-  await page.keyboard.press("Escape");
+  await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
 
-  await page.keyboard.press("Space");
+  await page.keyboard.press('Space');
   await expect(dialog).toBeVisible();
-  await page.keyboard.press("Escape");
+  await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
 
-test("uses the avatar as the sole trigger with resting, hover, and focus cues", async ({ page }) => {
+test('uses the avatar as the sole trigger with resting, hover, and focus cues', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
-  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
+  const trigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
   const triggerBox = await boundingBoxOrThrow(trigger);
   expect(triggerBox.width).toBe(28);
   expect(triggerBox.height).toBe(28);
 
-  const avatar = trigger.getByTestId("person-schedule-avatar");
-  const eye = trigger.getByTestId("person-schedule-eye");
-  await expect(avatar).toHaveCSS("opacity", "1");
-  await expect(eye).toHaveCSS("opacity", "0");
+  const avatar = trigger.getByTestId('person-schedule-avatar');
+  const eye = trigger.getByTestId('person-schedule-eye');
+  await expect(avatar).toHaveCSS('opacity', '1');
+  await expect(eye).toHaveCSS('opacity', '0');
   await focusByKeyboard(page, trigger);
   await expect(trigger).toBeFocused();
-  await expect(avatar).toHaveCSS("opacity", "0");
-  await expect(eye).toHaveCSS("opacity", "1");
+  await expect(avatar).toHaveCSS('opacity', '0');
+  await expect(eye).toHaveCSS('opacity', '1');
   await trigger.hover();
-  await expect(avatar).toHaveCSS("opacity", "0");
-  await expect(eye).toHaveCSS("opacity", "1");
+  await expect(avatar).toHaveCSS('opacity', '0');
+  await expect(eye).toHaveCSS('opacity', '1');
   await page.mouse.move(900, 700);
   await expect(trigger).toBeFocused();
-  await expect(avatar).toHaveCSS("opacity", "0");
-  await expect(eye).toHaveCSS("opacity", "1");
-  await page.keyboard.press("Tab");
+  await expect(avatar).toHaveCSS('opacity', '0');
+  await expect(eye).toHaveCSS('opacity', '1');
+  await page.keyboard.press('Tab');
   await expect(trigger).not.toBeFocused();
-  await expect(avatar).toHaveCSS("opacity", "1");
-  await expect(eye).toHaveCSS("opacity", "0");
+  await expect(avatar).toHaveCSS('opacity', '1');
+  await expect(eye).toHaveCSS('opacity', '0');
 
   await trigger.hover();
-  await expect(avatar).toHaveCSS("opacity", "0");
-  await expect(eye).toHaveCSS("opacity", "1");
+  await expect(avatar).toHaveCSS('opacity', '0');
+  await expect(eye).toHaveCSS('opacity', '1');
   await page.mouse.move(900, 700);
-  await expect(avatar).toHaveCSS("opacity", "1");
-  await expect(eye).toHaveCSS("opacity", "0");
-  await expect(trigger).toHaveCSS("cursor", "pointer");
+  await expect(avatar).toHaveCSS('opacity', '1');
+  await expect(eye).toHaveCSS('opacity', '0');
+  await expect(trigger).toHaveCSS('cursor', 'pointer');
 
   const identityColumn = page
-    .getByTestId("scheduler-row")
-    .filter({ hasText: "Bruce Wayne" })
+    .getByTestId('scheduler-row')
+    .filter({ hasText: 'Bruce Wayne' })
     .locator('[role="rowheader"]');
   const identityBox = await boundingBoxOrThrow(identityColumn);
   expect(identityBox.width).toBe(256);
 });
 
-test("renders three drawer entries with dark-theme colors", async ({ page }) => {
-  await setTheme(page, "dark");
+test('renders three drawer entries with dark-theme colors', async ({ page }) => {
+  await setTheme(page, 'dark');
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
-  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
+  const trigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
   await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
+  const dialog = page.getByRole('dialog', { name: "Bruce Wayne's schedule" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByTestId("person-schedule-entry")).toHaveCount(3);
+  await expect(dialog.getByTestId('person-schedule-entry')).toHaveCount(3);
   const colours = await dialog.evaluate((element) => {
     const styles = getComputedStyle(element);
     return { background: styles.backgroundColor, foreground: styles.color };
   });
-  expect(colours.background).not.toBe("rgba(0, 0, 0, 0)");
-  expect(colours.foreground).not.toBe("");
+  expect(colours.background).not.toBe('rgba(0, 0, 0, 0)');
+  expect(colours.foreground).not.toBe('');
 });
 
-test.describe("Individual schedule drawer", () => {
+test.describe('Individual schedule drawer', () => {
   registerPreservationScenario();
   registerLayoutScenario();
 });

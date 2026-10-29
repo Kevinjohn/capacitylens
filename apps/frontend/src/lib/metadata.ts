@@ -1,5 +1,10 @@
-import type { AllocationStatus, Resource, ResourceEngagement, TimeOffType } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
+import type {
+  AllocationStatus,
+  Resource,
+  ResourceEngagement,
+  TimeOffType,
+} from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
 
 // Exhaustive message-function tables keep enum presentation synchronized. Resolve
 // functions only at lookup so account locale changes cannot reuse import-time copy.
@@ -46,7 +51,7 @@ const timeOffTypeMessages: LabelMessages<TimeOffType> = {
 };
 
 function resolveMessage<K extends string>(messages: Partial<LabelMessages<K>>, key: K): string {
-  return messages[key]?.() ?? "";
+  return messages[key]?.() ?? '';
 }
 
 function resolveTrimmedValue(value: string | null | undefined, fallback: string): string {
@@ -65,7 +70,7 @@ export function resolveAllocationStatusLabel(status: AllocationStatus): string {
  * needs no annotation; exceptional statuses retain their translated labels. */
 export function resolveAllocationStatusAnnotation(status: AllocationStatus): string | null {
   const label = resolveAllocationStatusLabel(status);
-  return status === "confirmed" || label === "" ? null : label;
+  return status === 'confirmed' || label === '' ? null : label;
 }
 
 /** Label for one time-off type, with the same blank fallback as {@link resolveAllocationStatusLabel}. */
@@ -90,7 +95,7 @@ export function resolvePlaceholderDisplayName(): string {
 
 // Placeholder avatars use a question mark instead of initials. This lives beside the display name
 // rather than in the avatar component, so accessible names can repeat what the avatar shows.
-const PLACEHOLDER_AVATAR_SYMBOL = "?";
+const PLACEHOLDER_AVATAR_SYMBOL = '?';
 
 /** Returns the text an avatar shows: up to two initials, or the placeholder symbol. */
 export function resolveAvatarInitials(name: string, placeholder = false): string {
@@ -99,16 +104,16 @@ export function resolveAvatarInitials(name: string, placeholder = false): string
     name
       .trim()
       .split(/\s+/)
-      .map((word) => Array.from(word)[0] ?? "")
+      .map((word) => Array.from(word)[0] ?? '')
       .slice(0, 2)
-      .join("")
-      .toUpperCase() || "—"
+      .join('')
+      .toUpperCase() || '—'
   );
 }
 
 /** Returns the placeholder label for slots, otherwise the resource name with role fallback. */
 export function resolveResourceDisplayName(resource: Resource): string {
-  if (resource.kind === "placeholder") return resolvePlaceholderDisplayName();
+  if (resource.kind === 'placeholder') return resolvePlaceholderDisplayName();
   return resolveTrimmedValue(resource.name, resource.role);
 }
 

@@ -1,7 +1,7 @@
-import { m } from "@/i18n";
-import { DomainError } from "@capacitylens/shared/domain/errors";
-import type { DomainErrorCode } from "@capacitylens/shared/domain/errors";
-import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
+import { m } from '@/i18n';
+import { DomainError } from '@capacitylens/shared/domain/errors';
+import type { DomainErrorCode } from '@capacitylens/shared/domain/errors';
+import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
 
 // One entry per DomainErrorCode. The values are uncalled message references. This table is built
 // once at import and Paraglide resolves the active locale at call time, so storing resolved strings
@@ -37,7 +37,8 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
   date_invalid: m.domain_error_date_invalid,
   date_reversed: m.domain_error_date_reversed,
   // This message interpolates the span cap, so it needs a wrapper rather than a bare reference.
-  date_span_too_long: () => m.domain_error_date_span_too_long({ max: MAX_SPAN_DAYS.toLocaleString("en-GB") }),
+  date_span_too_long: () =>
+    m.domain_error_date_span_too_long({ max: MAX_SPAN_DAYS.toLocaleString('en-GB') }),
   time_off_resource_invalid: m.domain_error_time_off_resource_invalid,
   time_off_resource_inactive: m.domain_error_time_off_resource_inactive,
   time_off_external_resource: m.domain_error_time_off_external_resource,
@@ -47,7 +48,8 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
 };
 
 /** Resolves a domain error code to its localised user-facing message. */
-export const resolveDomainErrorMessage = (code: DomainErrorCode): string => DOMAIN_ERROR_MESSAGES[code]();
+export const resolveDomainErrorMessage = (code: DomainErrorCode): string =>
+  DOMAIN_ERROR_MESSAGES[code]();
 
 /** Normalize anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
  * to a human message, so a non-Error throw never renders a blank screen.
@@ -58,12 +60,12 @@ export function resolveErrorMessage(error: unknown): string {
   try {
     if (error instanceof DomainError) return resolveDomainErrorMessage(error.code);
     if (error instanceof Error && error.message.trim()) return error.message;
-    if (typeof error === "string" && error.trim()) return error;
-    if (error && typeof error === "object") {
+    if (typeof error === 'string' && error.trim()) return error;
+    if (error && typeof error === 'object') {
       // Snapshot once: Proxy getters may be stateful, so a guard followed by another read can
       // change type between validation and return and violate this function's string contract.
       const statusText: unknown = (error as { statusText?: unknown }).statusText;
-      if (typeof statusText === "string" && statusText.trim()) return statusText;
+      if (typeof statusText === 'string' && statusText.trim()) return statusText;
     }
   } catch {
     // Hostile proxies can throw from instanceof or property reads. This is the catch sink,

@@ -1,24 +1,24 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import type { AppData, AppDataKey, Resource, Weekday } from '@capacitylens/shared/types/entities'
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays'
-import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations'
-import { weekdayOf } from '@capacitylens/shared/lib/dateMath'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import type { AppData, AppDataKey, Resource, Weekday } from '@capacitylens/shared/types/entities';
+import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
+import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
 import {
   effectiveWorkingWeek,
   effectiveWeekIncludes,
-} from '@capacitylens/shared/lib/effectiveWorkingWeek'
-import { cleanText } from '@capacitylens/shared/lib/strings'
-import { encodeRow } from '#services/state_repository'
+} from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { cleanText } from '@capacitylens/shared/lib/strings';
+import { encodeRow } from '#services/state_repository';
 import {
   assertFrozenAccountFields,
   prepareEntityWrite,
   TABLE_NAMES,
-} from '#services/planning_operations/entity_policy'
-import { BatchRequestError } from '#services/planning_operations/errors'
-import { createServerRevision } from '#services/planning_operations/revision'
-import { validateEntityRow } from '#validators/entities/index'
-import type { BatchCapabilities } from '#services/planning_operations/data_policy'
-import { isRetainedTable, retainedQuery } from './retained_rows.js'
+} from '#services/planning_operations/entity_policy';
+import { BatchRequestError } from '#services/planning_operations/errors';
+import { createServerRevision } from '#services/planning_operations/revision';
+import { validateEntityRow } from '#validators/entities/index';
+import type { BatchCapabilities } from '#services/planning_operations/data_policy';
+import { isRetainedTable, retainedQuery } from './retained_rows.js';
 
 /** A safe refusal whose caller must roll back the enclosing planning transaction. */
 export class PlanningOperationError extends Error {
@@ -27,14 +27,14 @@ export class PlanningOperationError extends Error {
     readonly code: string,
     message: string
   ) {
-    super(message)
+    super(message);
   }
 }
 
-type Row = Record<string, unknown> & { id: string }
+type Row = Record<string, unknown> & { id: string };
 
 function lookupFor(data: AppData): ValidationDataLookup {
-  const rows = (table: AppDataKey) => data[table] as unknown as Row[]
+  const rows = (table: AppDataKey) => data[table] as unknown as Row[];
   return {
     row: (table, id) => rows(table).find((row) => row.id === id),
     allocationsForResource: (accountId, resourceId) =>
@@ -53,17 +53,17 @@ function lookupFor(data: AppData): ValidationDataLookup {
     resourceHasTimeOff: (accountId, resourceId) =>
       data.timeOff.some((row) => row.accountId === accountId && row.resourceId === resourceId),
     accountWorkingDays: (accountId): Weekday[] => {
-      const account = data.accounts.find((row) => row.id === accountId)
-      return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1)
+      const account = data.accounts.find((row) => row.id === accountId);
+      return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1);
     },
-  }
+  };
 }
 
 /** Resolves a stored row from the complete company snapshot, refusing missing targets. */
 export function existingRow(data: AppData, table: AppDataKey, id: string): Row {
-  const row = (data[table] as unknown as Row[]).find((item) => item.id === id)
-  if (!row) throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The record was not found.')
-  return row
+  const row = (data[table] as unknown as Row[]).find((item) => item.id === id);
+  if (!row) throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The record was not found.');
+  return row;
 }
 
 function requirePrivacyPermission(
@@ -79,18 +79,20 @@ function requirePrivacyPermission(
       (fields.isPrivate === true || (fields.codeName !== null && fields.codeName !== undefined))) ||
       (mode === 'update' &&
         (Object.hasOwn(fields, 'isPrivate') || Object.hasOwn(fields, 'codeName'))))
-  )
+  ) {
     throw new PlanningOperationError(
       403,
       'AUTHORIZATION_DENIED',
       'Only an owner can change private names.'
-    )
-  if (table === 'timeOff' && !capabilities.canSeeTimeOffNote && Object.hasOwn(fields, 'note'))
+    );
+  }
+  if (table === 'timeOff' && !capabilities.canSeeTimeOffNote && Object.hasOwn(fields, 'note')) {
     throw new PlanningOperationError(
       403,
       'AUTHORIZATION_DENIED',
       'The time-off note is restricted.'
-    )
+    );
+  }
 }
 
 /**
@@ -110,57 +112,61 @@ export async function writeRow(
   mode: 'create' | 'update',
   options: { permissiveRepeatStart?: boolean } = {}
 ) {
-  const existing = (data[table] as unknown as Row[]).find((row) => row.id === id)
-  requirePrivacyPermission(table, fields, capabilities, mode)
-  if (mode === 'create' && existing)
-    throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
+  const existing = (data[table] as unknown as Row[]).find((row) => row.id === id);
+  requirePrivacyPermission(table, fields, capabilities, mode);
+  if (mode === 'create' && existing) {
+    throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+  }
   if (
     mode === 'create' &&
     !isRetainedTable(table) &&
     (await trx.from(TABLE_NAMES[table]).select('id').where('id', id).first())
-  )
-    throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
-  if (mode === 'update' && !existing)
-    throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The record was not found.')
+  ) {
+    throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+  }
+  if (mode === 'update' && !existing) {
+    throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The record was not found.');
+  }
   const candidate: Record<string, unknown> = {
     ...(existing ?? {}),
     ...fields,
     id,
     accountId,
-  }
+  };
   if (!existing && ['clients', 'projects', 'resources', 'activities'].includes(table)) {
-    candidate.archivedAt = null
-    candidate.deletedAt = null
+    candidate.archivedAt = null;
+    candidate.deletedAt = null;
   }
-  if (!existing && table === 'clients') candidate.builtin = null
-  if (!existing && table === 'allocations') candidate.seriesId ??= null
+  if (!existing && table === 'clients') candidate.builtin = null;
+  if (!existing && table === 'allocations') candidate.seriesId ??= null;
   if (!existing && table === 'resources') {
-    candidate.avatarUrl ??= null
-    candidate.halfDays ??= []
-    candidate.engagement ??= 'studio'
+    candidate.avatarUrl ??= null;
+    candidate.halfDays ??= [];
+    candidate.engagement ??= 'studio';
   }
-  const lookup = lookupFor(data)
+  const lookup = lookupFor(data);
   const clean = await prepareEntityWrite(table, candidate, existing, data, capabilities, {
     lookup,
     hasOtherBuiltinClient: (companyId, clientId) =>
       data.clients.some(
         (row) => row.accountId === companyId && row.id !== clientId && row.builtin === true
       ),
-  })
+  });
   if (
     table === 'allocations' &&
     !options.permissiveRepeatStart &&
     (!existing || existing.resourceId !== clean.resourceId)
   ) {
-    const resource = lookup.row('resources', String(clean.resourceId)) as Resource | undefined
+    const resource = lookup.row('resources', String(clean.resourceId)) as Resource | undefined;
     if (resource && typeof clean.startDate === 'string') {
-      const effectiveWeek = effectiveWorkingWeek(resource, lookup.accountWorkingDays(accountId))
-      if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(clean.startDate)))
+      const effectiveWeek = effectiveWorkingWeek(resource, lookup.accountWorkingDays(accountId));
+      if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(clean.startDate))) {
         throw new PlanningOperationError(
           400,
           'VALIDATION_ERROR',
           'The allocation must start on a working day.'
-        )
+        );
+      }
     }
   }
   if (mode === 'create') {
@@ -169,29 +175,32 @@ export async function writeRow(
         .from(TABLE_NAMES[table])
         .select('account_id', 'deleted_at', 'deletion_group_id')
         .where('id', id)
-        .first()
+        .first();
       if (prior) {
-        if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id)
-          throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
+        if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id) {
+          throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+        }
         const purged = await retainedQuery(trx, accountId, table)
           .onlyTrashed()
           .where('id', id)
           .where('deletion_group_id', String(prior.deletion_group_id))
-          .forceDelete()
-        if (purged !== 1)
-          throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
+          .forceDelete();
+        if (purged !== 1) {
+          throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+        }
       }
     }
-    await trx.table(TABLE_NAMES[table]).insert(encodeRow(TABLE_NAMES[table], clean))
-    ;(data[table] as unknown as Row[]).push(clean as Row)
+    await trx.table(TABLE_NAMES[table]).insert(encodeRow(TABLE_NAMES[table], clean));
+    (data[table] as unknown as Row[]).push(clean as Row);
   } else {
     await trx
       .from(TABLE_NAMES[table])
       .where({ id, account_id: accountId })
-      .update(encodeRow(TABLE_NAMES[table], clean))
-    Object.assign(existing!, clean)
+      .update(encodeRow(TABLE_NAMES[table], clean));
+    if (!existing) throw new Error('The update mode check above guarantees an existing row.');
+    Object.assign(existing, clean);
   }
-  return clean
+  return clean;
 }
 
 /**
@@ -208,24 +217,25 @@ export async function updateSettings(
   if (
     Object.hasOwn(changes, 'capacityOverviewAccess') &&
     !['owner', 'admin'].includes(capabilities.role)
-  )
+  ) {
     throw new PlanningOperationError(
       403,
       'AUTHORIZATION_DENIED',
       'This setting requires an administrator.'
-    )
-  const existing = existingRow(data, 'accounts', accountId)
-  const candidate = { ...existing, ...changes }
-  try {
-    assertFrozenAccountFields(changes, candidate, existing)
-  } catch (error) {
-    if (!(error instanceof BatchRequestError) || error.status !== 409) throw error
-    throw new PlanningOperationError(409, 'frozen_account_setting', error.message)
+    );
   }
-  const now = createServerRevision(existing.updatedAt)
-  candidate.updatedAt = now
-  const validated = await validateEntityRow('accounts', candidate)
-  if (typeof validated.name === 'string') validated.name = cleanText(validated.name)
-  await trx.from('accounts').where('id', accountId).update(encodeRow('accounts', validated))
-  Object.assign(existing, validated)
+  const existing = existingRow(data, 'accounts', accountId);
+  const candidate = { ...existing, ...changes };
+  try {
+    assertFrozenAccountFields(changes, candidate, existing);
+  } catch (error) {
+    if (!(error instanceof BatchRequestError) || error.status !== 409) throw error;
+    throw new PlanningOperationError(409, 'frozen_account_setting', error.message);
+  }
+  const now = createServerRevision(existing.updatedAt);
+  candidate.updatedAt = now;
+  const validated = await validateEntityRow('accounts', candidate);
+  if (typeof validated.name === 'string') validated.name = cleanText(validated.name);
+  await trx.from('accounts').where('id', accountId).update(encodeRow('accounts', validated));
+  Object.assign(existing, validated);
 }

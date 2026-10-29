@@ -10,9 +10,9 @@ on:
         default: false
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ['v*']
   schedule:
-    - cron: "19 4 * * 2"
+    - cron: '19 4 * * 2'
 
 concurrency:
   group: >-
@@ -96,7 +96,7 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: "1"
+          exit-code: '1'
       - name: Scan web image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -104,7 +104,7 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: "1"
+          exit-code: '1'
 
   # The scan checks the only supported posture: password sign-in with scheduled backups.
   dast:

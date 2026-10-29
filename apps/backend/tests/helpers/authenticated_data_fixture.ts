@@ -1,24 +1,24 @@
-import type { ApiClient, ApiRequest } from '@japa/api-client'
-import db from '@adonisjs/lucid/services/db'
-import { randomUUID } from 'node:crypto'
-import { resolve } from 'node:path'
-import app from '@adonisjs/core/services/app'
-import { resetState } from '#services/state_repository'
-import { encodeRow } from '#services/state_repository'
-import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
-import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
-import { createIdentity, sessionCookieHeader, signIn } from './identities.js'
+import type { ApiClient, ApiRequest } from '@japa/api-client';
+import db from '@adonisjs/lucid/services/db';
+import { randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
+import app from '@adonisjs/core/services/app';
+import { resetState } from '#services/state_repository';
+import { encodeRow } from '#services/state_repository';
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
+import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
+import { createIdentity, sessionCookieHeader, signIn } from './identities.js';
 
-const ownerEmail = 'bruce.wayne@wayne.example'
+const ownerEmail = 'bruce.wayne@wayne.example';
 
 /** Resets Japa's disposable database and signs in an owner with actual company memberships. */
 export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 'single' = true) {
-  await resetState(seed)
+  await resetState(seed);
   if (!(await db.from('users').where('email', ownerEmail).select('id').first()))
-    await createIdentity(ownerEmail, { name: 'Bruce Wayne' })
-  const { cookie, cookieHeader, userId } = await signIn(client, ownerEmail)
-  const accounts = await db.from('accounts').select('id')
-  const now = new Date().toISOString()
+    await createIdentity(ownerEmail, { name: 'Bruce Wayne' });
+  const { cookie, cookieHeader, userId } = await signIn(client, ownerEmail);
+  const accounts = await db.from('accounts').select('id');
+  const now = new Date().toISOString();
   for (const account of accounts)
     await db.table('memberships').insert({
       id: randomUUID(),
@@ -28,46 +28,46 @@ export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 
       status: 'active',
       created_at: now,
       updated_at: now,
-    })
-  return { cookie, cookieHeader, userId }
+    });
+  return { cookie, cookieHeader, userId };
 }
 
 /** Applies a real native session and its current write context to a Japa request. */
 export function asDataOwner<T extends ApiRequest>(request: T, cookie: string): T {
   return request
     .setup(async (prepared) => {
-      prepared.withCookie('adonis-session', cookie)
+      prepared.withCookie('adonis-session', cookie);
       const status = await fetch(new URL('/api/masquerade', prepared.config.baseUrl), {
         headers: {
           'cookie': sessionCookieHeader(cookie),
           'sec-fetch-site': 'same-origin',
         },
-      })
-      if (!status.ok) throw new Error(`Could not capture masquerade context: ${status.status}`)
-      const body = (await status.json()) as { contextToken?: unknown }
+      });
+      if (!status.ok) throw new Error(`Could not capture masquerade context: ${status.status}`);
+      const body = (await status.json()) as { contextToken?: unknown };
       if (typeof body.contextToken === 'string' && body.contextToken)
-        prepared.header('X-Masquerade-Context', body.contextToken)
+        prepared.header('X-Masquerade-Context', body.contextToken);
     })
-    .header('sec-fetch-site', 'same-origin') as T
+    .header('sec-fetch-site', 'same-origin') as T;
 }
 
 /** Preserves an API client's normal request methods while adding a proved native session. */
 export function authenticatedDataClient(client: ApiClient, cookie: string): ApiClient {
-  const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options'])
+  const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options']);
   return new Proxy(client, {
     get(target, key) {
-      const value = Reflect.get(target, key)
+      const value = Reflect.get(target, key);
       if (typeof key !== 'string' || !methods.has(key) || typeof value !== 'function')
-        return typeof value === 'function' ? value.bind(target) : value
-      return (...args: unknown[]) => asDataOwner(value.apply(target, args), cookie)
+        return typeof value === 'function' ? value.bind(target) : value;
+      return (...args: unknown[]) => asDataOwner(value.apply(target, args), cookie);
     },
-  })
+  });
 }
 
 /** Resets disposable company data and returns a client carrying its owner's real session. */
 export async function resetAuthenticatedClient(client: ApiClient, seed: boolean | 'single' = true) {
-  const session = await resetAuthenticatedData(client, seed)
-  return authenticatedDataClient(client, session.cookie)
+  const session = await resetAuthenticatedData(client, seed);
+  return authenticatedDataClient(client, session.cookie);
 }
 
 /** Gives a fixture principal explicit standing in a company inserted directly by a test. */
@@ -75,9 +75,9 @@ export async function grantDataOwner(userId: string, accountId: string) {
   const existing = await db
     .from('memberships')
     .where({ user_id: userId, account_id: accountId })
-    .first()
-  if (existing) return
-  const now = new Date().toISOString()
+    .first();
+  if (existing) return;
+  const now = new Date().toISOString();
   await db.table('memberships').insert({
     id: randomUUID(),
     account_id: accountId,
@@ -86,7 +86,7 @@ export async function grantDataOwner(userId: string, accountId: string) {
     status: 'active',
     created_at: now,
     updated_at: now,
-  })
+  });
 }
 
 /** Inserts one isolated company for an existing native test principal without clearing other rows. */
@@ -95,8 +95,8 @@ export async function createFixtureCompanyForOwner(
   name: string,
   id: string = randomUUID()
 ) {
-  const port = process.env.CAPACITYLENS_TEST_HTTP_PORT
-  const databasePath = process.env.CAPACITYLENS_DB
+  const port = process.env.CAPACITYLENS_TEST_HTTP_PORT;
+  const databasePath = process.env.CAPACITYLENS_DB;
   if (
     process.env.NODE_ENV !== 'test' ||
     !port ||
@@ -104,13 +104,13 @@ export async function createFixtureCompanyForOwner(
     !databasePath ||
     resolve(databasePath) !== resolve(app.tmpPath(`japa-${port}.db`))
   )
-    throw new Error('Company fixtures require the dedicated Japa test database.')
-  const companyName = name.trim()
-  if (!companyName) throw new Error('A fixture company requires a name.')
-  const now = new Date().toISOString()
+    throw new Error('Company fixtures require the dedicated Japa test database.');
+  const companyName = name.trim();
+  if (!companyName) throw new Error('A fixture company requires a name.');
+  const now = new Date().toISOString();
   await db.transaction(async (trx) => {
-    const principal = await trx.from('users').where('id', userId).select('id').first()
-    if (!principal) throw new Error('A fixture company requires an existing native principal.')
+    const principal = await trx.from('users').where('id', userId).select('id').first();
+    if (!principal) throw new Error('A fixture company requires an existing native principal.');
     await trx.table('accounts').insert(
       encodeRow('accounts', {
         id,
@@ -121,12 +121,12 @@ export async function createFixtureCompanyForOwner(
         createdAt: now,
         updatedAt: now,
       })
-    )
+    );
     await trx
       .table('clients')
       .insert(
         encodeRow('clients', buildInternalClient(id, now) as unknown as Record<string, unknown>)
-      )
+      );
     await trx.table('memberships').insert({
       id: randomUUID(),
       account_id: id,
@@ -135,8 +135,8 @@ export async function createFixtureCompanyForOwner(
       status: 'active',
       created_at: now,
       updated_at: now,
-    })
-    await trx.table('company_planning_revisions').insert({ account_id: id, revision: 1 })
-  })
-  return id
+    });
+    await trx.table('company_planning_revisions').insert({ account_id: id, revision: 1 });
+  });
+  return id;
 }

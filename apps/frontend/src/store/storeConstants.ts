@@ -1,6 +1,6 @@
-import type { ISODate } from "@capacitylens/shared/types/entities";
-import { buildEmptyFilters } from "./types";
-import type { SchedulerUI } from "./types";
+import type { ISODate } from '@capacitylens/shared/types/entities';
+import { buildEmptyFilters } from './types';
+import type { SchedulerUI } from './types';
 
 // Tenant transitions must clear session-owned state so the leaving account cannot
 // leak into the next view. Shared reset fields keep each boundary complete.

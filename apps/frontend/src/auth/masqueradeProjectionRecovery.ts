@@ -1,13 +1,15 @@
-import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
-import { useStore } from "@/store/useStore";
-import { setMasqueradeContextToken } from "./masqueradeContext";
+import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
+import { useStore } from '@/store/useStore';
+import { setMasqueradeContextToken } from './masqueradeContext';
 
-export type FinishProjectionResult = { kind: "finished" } | { kind: "failed"; message: string };
+export type FinishProjectionResult = { kind: 'finished' } | { kind: 'failed'; message: string };
 export type RealProjectionResult =
-  { kind: "restored" } | { kind: "active" } | { kind: "superseded" } | { kind: "failed" };
+  { kind: 'restored' } | { kind: 'active' } | { kind: 'superseded' } | { kind: 'failed' };
 
 export function publishMasqueradeAccount(state: MasqueradeState, selectAccount = false): void {
-  const account = useStore.getState().data.accounts.find((candidate) => candidate.id === state.accountId);
+  const account = useStore
+    .getState()
+    .data.accounts.find((candidate) => candidate.id === state.accountId);
   useStore.getState().setAccountSummaries({
     list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
     complete: account !== undefined,
@@ -15,7 +17,7 @@ export function publishMasqueradeAccount(state: MasqueradeState, selectAccount =
   if (selectAccount && useStore.getState().activeAccountId !== state.accountId) {
     useStore.getState().setActiveAccount(state.accountId);
   }
-  useStore.getState().setActiveRole(state.effectiveRole, "resolved");
+  useStore.getState().setActiveRole(state.effectiveRole, 'resolved');
 }
 
 interface RestoreMasqueradeProjectionInput {
@@ -37,17 +39,17 @@ export async function restoreMasqueradeProjection({
   onProjectionFailure,
 }: RestoreMasqueradeProjectionInput): Promise<RealProjectionResult> {
   const status = await readStatus();
-  if (!isCurrent()) return { kind: "superseded" };
+  if (!isCurrent()) return { kind: 'superseded' };
   setMasqueradeContextToken(status.contextToken);
   if (status.active) {
     publishActive(status);
-    return { kind: "active" };
+    return { kind: 'active' };
   }
   const finishResult = await restoreProjection(state);
-  if (!isCurrent()) return { kind: "superseded" };
-  if (finishResult.kind === "failed") {
+  if (!isCurrent()) return { kind: 'superseded' };
+  if (finishResult.kind === 'failed') {
     onProjectionFailure(finishResult.message);
-    return { kind: "failed" };
+    return { kind: 'failed' };
   }
-  return { kind: "restored" };
+  return { kind: 'restored' };
 }

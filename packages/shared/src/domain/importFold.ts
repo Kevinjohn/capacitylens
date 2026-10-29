@@ -1,21 +1,21 @@
-import { newId } from "../lib/id.js";
+import { newId } from '../lib/id.js';
 import {
   allocationAttributionAllowed,
   effectiveProjectId,
   withoutAllocationAttribution,
   validateAllocationAssignment,
   validateDateRange,
-} from "../lib/integrity.js";
-import { sanitizeImportedRecord } from "../lib/sanitizeImport.js";
+} from '../lib/integrity.js';
+import { sanitizeImportedRecord } from '../lib/sanitizeImport.js';
 import {
   buildInternalClient,
   internalClientFor,
   INTERNAL_CLIENT_COLOR,
   INTERNAL_CLIENT_NAME,
-} from "../data/internalClient.js";
-import { belongsToAccount } from "./tenancy.js";
-import { obfuscateResource } from "./lifecycle.js";
-import { isExternalResource, SCOPED_KEYS, scopedTables } from "../types/entities.js";
+} from '../data/internalClient.js';
+import { belongsToAccount } from './tenancy.js';
+import { obfuscateResource } from './lifecycle.js';
+import { isExternalResource, SCOPED_KEYS, scopedTables } from '../types/entities.js';
 import type {
   Activity,
   Allocation,
@@ -26,7 +26,7 @@ import type {
   ScopedEntity,
   ScopedEntityKey,
   TimeOff,
-} from "../types/entities.js";
+} from '../types/entities.js';
 
 type ImportRow = Record<string, unknown>;
 type ImportTables = Record<ScopedEntityKey, ImportRow[]>;
@@ -69,12 +69,12 @@ interface RemapInput extends ImportInput {
 }
 
 const FK_TARGET: Record<string, ScopedEntityKey> = {
-  disciplineId: "disciplines",
-  projectId: "projects",
-  clientId: "clients",
-  phaseId: "phases",
-  resourceId: "resources",
-  activityId: "activities",
+  disciplineId: 'disciplines',
+  projectId: 'projects',
+  clientId: 'clients',
+  phaseId: 'phases',
+  resourceId: 'resources',
+  activityId: 'activities',
 };
 
 function prepareIncoming(incoming: AppData): PreparedImport {
@@ -85,21 +85,28 @@ function prepareIncoming(incoming: AppData): PreparedImport {
     SCOPED_KEYS.map((key) => [
       key,
       (incoming[key] as unknown[]).filter(
-        (row): row is ImportRow => !!row && typeof row === "object" && !Array.isArray(row),
+        (row): row is ImportRow => !!row && typeof row === 'object' && !Array.isArray(row),
       ),
     ]),
   ) as ImportTables;
-  const malformed = SCOPED_KEYS.reduce((count, key) => count + (incoming[key].length - rows[key].length), 0);
+  const malformed = SCOPED_KEYS.reduce(
+    (count, key) => count + (incoming[key].length - rows[key].length),
+    0,
+  );
   return { rows, malformed };
 }
 
 function buildIdMaps(rows: ImportTables): ImportIdMaps {
   // IDs are table-local: a corrupt cross-table collision must not redirect a foreign key.
   // First occurrence wins so references remain attached to the first duplicate source row.
-  const idMaps = Object.fromEntries(SCOPED_KEYS.map((key) => [key, new Map<ID, ID>()])) as ImportIdMaps;
+  const idMaps = Object.fromEntries(
+    SCOPED_KEYS.map((key) => [key, new Map<ID, ID>()]),
+  ) as ImportIdMaps;
   for (const key of SCOPED_KEYS) {
     for (const entity of rows[key]) {
-      if (typeof entity.id === "string" && !idMaps[key].has(entity.id)) idMaps[key].set(entity.id, newId());
+      if (typeof entity.id === 'string' && !idMaps[key].has(entity.id)) {
+        idMaps[key].set(entity.id, newId());
+      }
     }
   }
   return idMaps;
@@ -122,19 +129,23 @@ function remapImportedRows({ rows, idMaps, accountId, now }: RemapInput): Import
   const usedIds = new Set<ID>();
   for (const key of SCOPED_KEYS) {
     brought[key] = rows[key].map((entity) => {
-      const mapped = typeof entity.id === "string" ? (idMaps[key].get(entity.id) as ID) : newId();
+      const mapped = typeof entity.id === 'string' ? (idMaps[key].get(entity.id) as ID) : newId();
       const id = usedIds.has(mapped) ? newId() : mapped;
       usedIds.add(id);
       const copy: ImportRow = { ...entity, id, accountId, createdAt: now, updatedAt: now };
       for (const field of Object.keys(FK_TARGET)) {
         const target = FK_TARGET[field];
         const reference = copy[field];
-        if (target !== undefined && typeof reference === "string" && idMaps[target].has(reference)) {
+        if (
+          target !== undefined &&
+          typeof reference === 'string' &&
+          idMaps[target].has(reference)
+        ) {
           copy[field] = idMaps[target].get(reference);
         }
       }
       const sanitized = sanitizeImportedRecord(key, copy);
-      return key === "resources" && sanitized.deletedAt != null
+      return key === 'resources' && sanitized.deletedAt != null
         ? (obfuscateResource(sanitized as unknown as Resource) as unknown as ImportRow)
         : sanitized;
     });
@@ -143,7 +154,8 @@ function remapImportedRows({ rows, idMaps, accountId, now }: RemapInput): Import
 }
 
 const idSet = (rows: ImportRow[]) => new Set(rows.map((row) => row.id as string));
-const has = (set: Set<string>, value: unknown): boolean => typeof value === "string" && set.has(value);
+const has = (set: Set<string>, value: unknown): boolean =>
+  typeof value === 'string' && set.has(value);
 
 function foldInternalClients(brought: ImportTables): void {
   // Import replaces the account slice, so keep the first built-in client and fold later built-ins
@@ -162,7 +174,7 @@ function foldInternalClients(brought: ImportTables): void {
     return false;
   });
   for (const project of brought.projects) {
-    if (typeof project.clientId === "string" && foldedIds.has(project.clientId)) {
+    if (typeof project.clientId === 'string' && foldedIds.has(project.clientId)) {
       project.clientId = foldedIds.get(project.clientId);
     }
   }
@@ -178,36 +190,56 @@ function repairHierarchy(brought: ImportTables): void {
   brought.phases = brought.phases.filter((phase) => has(projectIds, phase.projectId));
   const phaseIds = idSet(brought.phases);
   for (const resource of brought.resources) {
-    if (resource.disciplineId !== null && !has(disciplineIds, resource.disciplineId)) resource.disciplineId = null;
-    if (resource.projectId !== null && !has(projectIds, resource.projectId)) resource.projectId = null;
+    if (resource.disciplineId !== null && !has(disciplineIds, resource.disciplineId)) {
+      resource.disciplineId = null;
+    }
+    if (resource.projectId !== null && !has(projectIds, resource.projectId)) {
+      resource.projectId = null;
+    }
   }
   repairActivities(brought, projectIds, phaseIds);
 }
 
-function repairActivities(brought: ImportTables, projectIds: Set<string>, phaseIds: Set<string>): void {
+function repairActivities(
+  brought: ImportTables,
+  projectIds: Set<string>,
+  phaseIds: Set<string>,
+): void {
   // Project activities with a missing project retain user data as project-less repeatables;
   // internal and repeatable activities cannot carry project or phase attribution.
-  const phaseProject = new Map(brought.phases.map((phase) => [phase.id as string, phase.projectId]));
+  const phaseProject = new Map(
+    brought.phases.map((phase) => [phase.id as string, phase.projectId]),
+  );
   for (const activity of brought.activities) {
-    if (activity.kind === "internal" || activity.kind === "repeatable") {
+    if (activity.kind === 'internal' || activity.kind === 'repeatable') {
       activity.projectId = null;
       activity.phaseId = null;
     } else if (activity.projectId !== null && !has(projectIds, activity.projectId)) {
       activity.projectId = null;
     }
-    if (activity.kind !== "internal" && activity.kind !== "repeatable" && activity.projectId === null) {
+    if (
+      activity.kind !== 'internal' &&
+      activity.kind !== 'repeatable' &&
+      activity.projectId === null
+    ) {
       activity.phaseId = null;
-      activity.kind = "repeatable";
+      activity.kind = 'repeatable';
     } else if (
       activity.phaseId !== null &&
-      (!has(phaseIds, activity.phaseId) || phaseProject.get(activity.phaseId as string) !== activity.projectId)
+      (!has(phaseIds, activity.phaseId) ||
+        phaseProject.get(activity.phaseId as string) !== activity.projectId)
     ) {
       activity.phaseId = null;
     }
   }
 }
 
-function attributionIsInvalid({ allocation, resource, activity, context }: AttributionInput): boolean {
+function attributionIsInvalid({
+  allocation,
+  resource,
+  activity,
+  context,
+}: AttributionInput): boolean {
   if (allocation.projectId === null) return false;
   const project = context.projects.get(allocation.projectId);
   return (
@@ -225,7 +257,10 @@ function eraseDeletedResourceNote(allocation: Allocation, resource: Resource): A
   return withoutNote;
 }
 
-function repairAllocation(allocation: Allocation, context: AllocationContext): Allocation | undefined {
+function repairAllocation(
+  allocation: Allocation,
+  context: AllocationContext,
+): Allocation | undefined {
   // Repair optional attribution before applying the effective-project placeholder rule. Resolve
   // the resource once so validation, external-load coercion and deletion erasure cannot diverge.
   if (!validateDateRange(allocation.startDate, allocation.endDate).ok) return undefined;
@@ -235,18 +270,30 @@ function repairAllocation(allocation: Allocation, context: AllocationContext): A
   let repaired = attributionIsInvalid({ allocation, resource, activity, context })
     ? withoutAllocationAttribution(allocation)
     : allocation;
-  if (!validateAllocationAssignment(resource, effectiveProjectId(repaired, activity)).ok) return undefined;
-  if (isExternalResource(resource) && repaired.hoursPerDay !== 0) repaired = { ...repaired, hoursPerDay: 0 };
+  if (!validateAllocationAssignment(resource, effectiveProjectId(repaired, activity)).ok) {
+    return undefined;
+  }
+  if (isExternalResource(resource) && repaired.hoursPerDay !== 0) {
+    repaired = { ...repaired, hoursPerDay: 0 };
+  }
   return eraseDeletedResourceNote(repaired, resource);
 }
 
 function repairBookings({ accountId, brought }: ImportContext): void {
-  const resources = new Map((brought.resources as unknown as Resource[]).map((resource) => [resource.id, resource]));
-  const activities = new Map((brought.activities as unknown as Activity[]).map((activity) => [activity.id, activity]));
+  const resources = new Map(
+    (brought.resources as unknown as Resource[]).map((resource) => [resource.id, resource]),
+  );
+  const activities = new Map(
+    (brought.activities as unknown as Activity[]).map((activity) => [activity.id, activity]),
+  );
   const projects = new Map(brought.projects.map((project) => [project.id, project]));
   brought.allocations = (brought.allocations as unknown as Allocation[])
-    .map((allocation) => repairAllocation(allocation, { accountId, resources, activities, projects }))
-    .filter((allocation): allocation is Allocation => allocation !== undefined) as unknown as ImportRow[];
+    .map((allocation) =>
+      repairAllocation(allocation, { accountId, resources, activities, projects }),
+    )
+    .filter(
+      (allocation): allocation is Allocation => allocation !== undefined,
+    ) as unknown as ImportRow[];
   brought.timeOff = (brought.timeOff as unknown as TimeOff[]).reduce<TimeOff[]>((kept, timeOff) => {
     if (!validateDateRange(timeOff.startDate, timeOff.endDate).ok) return kept;
     const resource = resources.get(timeOff.resourceId);
@@ -259,13 +306,13 @@ function repairBookings({ accountId, brought }: ImportContext): void {
     } else kept.push(timeOff);
     return kept;
   }, []) as unknown as ImportRow[];
-  brought.closures = (brought.closures as unknown as AppData["closures"]).filter(
+  brought.closures = (brought.closures as unknown as AppData['closures']).filter(
     (closure) => validateDateRange(closure.startDate, closure.endDate).ok,
   ) as unknown as ImportRow[];
 }
 
 const countable = (key: ScopedEntityKey, rows: ReadonlyArray<ImportRow>): number =>
-  key === "clients" ? rows.filter((client) => client.builtin !== true).length : rows.length;
+  key === 'clients' ? rows.filter((client) => client.builtin !== true).length : rows.length;
 
 function finishImport(input: ImportInput, brought: ImportTables, prepared: PreparedImport) {
   // Built-in clients are infrastructure, so kept, folded and synthesised rows count on neither side.
@@ -283,7 +330,10 @@ function finishImport(input: ImportInput, brought: ImportTables, prepared: Prepa
   const data = internalClientFor(next.clients, input.accountId)
     ? next
     : { ...next, clients: [...next.clients, buildInternalClient(input.accountId, input.now)] };
-  const total = SCOPED_KEYS.reduce((count, key) => count + countable(key, prepared.rows[key]), prepared.malformed);
+  const total = SCOPED_KEYS.reduce(
+    (count, key) => count + countable(key, prepared.rows[key]),
+    prepared.malformed,
+  );
   return { data, imported, skipped: total - imported };
 }
 
@@ -316,10 +366,12 @@ function runImport(input: ImportInput) {
  * complete AppData produced by the transfer parser/migrator; a non-array scoped table fails loudly
  * here as defence in depth instead of disappearing from both counters.
  */
-function remapAndValidateImport(...[data, accountId, incoming, now]: [AppData, ID, AppData, ISOTimestamp]) {
+function remapAndValidateImport(
+  ...[data, accountId, incoming, now]: [AppData, ID, AppData, ISOTimestamp]
+) {
   return runImport({ data, accountId, incoming, now });
 }
 
-Object.defineProperty(remapAndValidateImport, "length", { value: 4, configurable: true });
+Object.defineProperty(remapAndValidateImport, 'length', { value: 4, configurable: true });
 
 export { remapAndValidateImport };

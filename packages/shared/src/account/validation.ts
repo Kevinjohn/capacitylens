@@ -1,9 +1,9 @@
-import { hasDisallowedChars, MAX_EMAIL_LENGTH, utf8ByteLength } from "../lib/strings.js";
+import { hasDisallowedChars, MAX_EMAIL_LENGTH, utf8ByteLength } from '../lib/strings.js';
 
 const OPAQUE_CREDENTIAL_RE = /^[A-Za-z0-9_-]{16,128}$/;
 
 function hasOpaqueCredentialShape(value: unknown): value is string {
-  return typeof value === "string" && OPAQUE_CREDENTIAL_RE.test(value);
+  return typeof value === 'string' && OPAQUE_CREDENTIAL_RE.test(value);
 }
 
 /** Validate the reconciliation handle for one account command. */
@@ -40,8 +40,9 @@ export function isAccountEmail(value: string): boolean {
     utf8ByteLength(value) > MAX_EMAIL_LENGTH ||
     utf8ByteLength(normalized) > MAX_EMAIL_LENGTH ||
     value !== value.trim()
-  )
+  ) {
     return false;
+  }
   if (hasDisallowedChars(value)) return false;
   return /^[^@\s]+@[^@\s]+$/.test(value);
 }

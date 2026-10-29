@@ -1,17 +1,21 @@
-import { m } from "@/i18n";
-import type { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import type { CapacityOverviewAccess, DateStyle, SchedulingMode } from "@capacitylens/shared/types/entities";
-import { externalExplainer } from "@/lib/externalCopy";
-import { buildLabels, buildLabelOptions } from "@/lib/metadata";
-import type { listAccountWorkingDays } from "@/store/selectors";
-import type { StoreState } from "@/store/useStore";
-import { SegmentedControl, SwitchField } from "@/components/common/ui";
-import { SettingsSection } from "./SettingsSection";
-import { SettingsDateFormatSection } from "./SettingsDateFormatSection";
-import { SettingsWorkingDaysSection } from "./SettingsWorkingDaysSection";
-import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
+import { m } from '@/i18n';
+import type { orderedWeekdays } from '@capacitylens/shared/lib/accountWorkingDays';
+import type {
+  CapacityOverviewAccess,
+  DateStyle,
+  SchedulingMode,
+} from '@capacitylens/shared/types/entities';
+import { externalExplainer } from '@/lib/externalCopy';
+import { buildLabels, buildLabelOptions } from '@/lib/metadata';
+import type { listAccountWorkingDays } from '@/store/selectors';
+import type { StoreState } from '@/store/useStore';
+import { SegmentedControl, SwitchField } from '@/components/common/ui';
+import { SettingsSection } from './SettingsSection';
+import { SettingsDateFormatSection } from './SettingsDateFormatSection';
+import { SettingsWorkingDaysSection } from './SettingsWorkingDaysSection';
+import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, SCHEDULING_MESSAGES } from './settingsLabels';
 
-type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => Promise<void>;
+type UpdateSetting = (patch: Parameters<StoreState['updateAccount']>[1]) => Promise<void>;
 type SettingsSchedulingSectionProps = {
   canEdit: boolean;
   canManageCapacityOverviewAccess: boolean;
@@ -35,7 +39,7 @@ function CapacityOverviewAccessSection({
   updateSetting,
 }: Pick<
   SettingsSchedulingSectionProps,
-  "canManageCapacityOverviewAccess" | "capacityOverviewAccess" | "updateSetting"
+  'canManageCapacityOverviewAccess' | 'capacityOverviewAccess' | 'updateSetting'
 >) {
   return (
     <SettingsSection
@@ -62,7 +66,7 @@ function SchedulingModeSection({
   canEdit,
   schedulingMode,
   updateSetting,
-}: Pick<SettingsSchedulingSectionProps, "canEdit" | "schedulingMode" | "updateSetting">) {
+}: Pick<SettingsSchedulingSectionProps, 'canEdit' | 'schedulingMode' | 'updateSetting'>) {
   const help = (
     <>
       <p>{m.settings_scheduling_intro()}</p>
@@ -100,7 +104,9 @@ function SchedulingModeSection({
 }
 
 /** Controls schedule view preferences such as weekend minimization. */
-export function ScheduleViewSection(props: Pick<StoreState, "minimiseWeekends" | "setMinimiseWeekends">) {
+export function ScheduleViewSection(
+  props: Pick<StoreState, 'minimiseWeekends' | 'setMinimiseWeekends'>,
+) {
   return (
     <SettingsSection title={m.settings_schedule_heading()} help={m.settings_schedule_intro()}>
       <div className="flex flex-col gap-3">
@@ -116,13 +122,13 @@ export function ScheduleViewSection(props: Pick<StoreState, "minimiseWeekends" |
 
 type CompanyFeaturesSectionProps = Pick<
   SettingsSchedulingSectionProps,
-  | "canEdit"
-  | "disciplinesEnabled"
-  | "placeholdersEnabled"
-  | "externalEnabled"
-  | "inlineActivityCreateEnabled"
-  | "showTaskFieldInSchedule"
-  | "updateSetting"
+  | 'canEdit'
+  | 'disciplinesEnabled'
+  | 'placeholdersEnabled'
+  | 'externalEnabled'
+  | 'inlineActivityCreateEnabled'
+  | 'showTaskFieldInSchedule'
+  | 'updateSetting'
 >;
 
 /** Every company-wide on/off option in one section, so the toggles read as one list. */
@@ -189,7 +195,12 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
 
 type SchedulingFoundationSectionsProps = Pick<
   SettingsSchedulingSectionProps,
-  "canEdit" | "schedulingMode" | "workingDayOrder" | "workingDays" | "workingDaysMinimumId" | "updateSetting"
+  | 'canEdit'
+  | 'schedulingMode'
+  | 'workingDayOrder'
+  | 'workingDays'
+  | 'workingDaysMinimumId'
+  | 'updateSetting'
 >;
 
 function SchedulingFoundationSections(props: SchedulingFoundationSectionsProps) {
@@ -212,7 +223,10 @@ function SchedulingFoundationSections(props: SchedulingFoundationSectionsProps) 
 }
 
 type SettingsCompanySetupSectionsProps = SchedulingFoundationSectionsProps &
-  Pick<SettingsSchedulingSectionProps, "canManageCapacityOverviewAccess" | "capacityOverviewAccess" | "dateStyle">;
+  Pick<
+    SettingsSchedulingSectionProps,
+    'canManageCapacityOverviewAccess' | 'capacityOverviewAccess' | 'dateStyle'
+  >;
 
 /** Groups company scheduling defaults and setup controls. */
 export function SettingsCompanySetupSections(props: SettingsCompanySetupSectionsProps) {

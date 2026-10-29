@@ -1,34 +1,38 @@
-import { useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
-import { m } from "@/i18n";
-import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
-import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
-import type { Allocation, ID, Weekday } from "@capacitylens/shared/types/entities";
-import { useDragResize } from "@/hooks/useDragResize";
-import type { DragResizePreviewInput, Pointer } from "@/hooks/useDragResize";
-import { isShownByPlanningState } from "@/data/planning/planningCacheController";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { applyGesture } from "@/lib/gestureMath";
-import type { DateRange, DragMode } from "@/lib/gestureMath";
-import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
-import { buildVisibleRange, listAccountWorkingDays } from "@/store/selectors";
-import { useStore } from "@/store/useStore";
-import { reconcileReassignedHours, resolveGesture, resolveVolumePreservingHours } from "./allocationDrag";
-import { readCapacityAnnouncement, readCapacityGestureAdvisory } from "./gestureAnnouncements";
-import { buildGesturePreviewDates } from "./gestureGeometry";
+import { useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { m } from '@/i18n';
+import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { rangesOverlap } from '@capacitylens/shared/lib/dateMath';
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
+import type { Allocation, ID, Weekday } from '@capacitylens/shared/types/entities';
+import { useDragResize } from '@/hooks/useDragResize';
+import type { DragResizePreviewInput, Pointer } from '@/hooks/useDragResize';
+import { isShownByPlanningState } from '@/data/planning/planningCacheController';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { applyGesture } from '@/lib/gestureMath';
+import type { DateRange, DragMode } from '@/lib/gestureMath';
+import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
+import { buildVisibleRange, listAccountWorkingDays } from '@/store/selectors';
+import { useStore } from '@/store/useStore';
+import {
+  reconcileReassignedHours,
+  resolveGesture,
+  resolveVolumePreservingHours,
+} from './allocationDrag';
+import { readCapacityAnnouncement, readCapacityGestureAdvisory } from './gestureAnnouncements';
+import { buildGesturePreviewDates } from './gestureGeometry';
 import {
   hasEffectiveDaysFor,
   isDropStartBlocked,
   isPreviewDropBlocked,
   readWorkingDays,
   resolveMemoisedWorkingDays,
-} from "./gestureWorkingWeeks";
-import { readLaneSnapshots, resolveLaneAt } from "./gestureLanes";
-import type { LaneSnapshot } from "./gestureLanes";
-import type { BarLayout } from "./schedulerModel";
-import { useAllocationFocus } from "./useAllocationFocus";
-import type { ScheduleAllocationFocus } from "./useAllocationFocus";
+} from './gestureWorkingWeeks';
+import { readLaneSnapshots, resolveLaneAt } from './gestureLanes';
+import type { LaneSnapshot } from './gestureLanes';
+import type { BarLayout } from './schedulerModel';
+import { useAllocationFocus } from './useAllocationFocus';
+import type { ScheduleAllocationFocus } from './useAllocationFocus';
 
 interface GesturePreview {
   mode: DragMode;
@@ -59,40 +63,53 @@ function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID)
   // Move starts are covered by the non-working-day gate, including moves away from a none-week
   // resource. A pure end resize needs this explicit refusal: otherwise the collapsed empty week
   // falls back to calendar-day volume math and rewrites hours that the capacity model says load none.
-  if (mode === "move" || hasEffectiveDaysFor({ resourceId, ignoreWeekends: bar.allocation.ignoreWeekends }))
+  if (
+    mode === 'move' ||
+    hasEffectiveDaysFor({ resourceId, ignoreWeekends: bar.allocation.ignoreWeekends })
+  ) {
     return false;
-  useStore.getState().setNotice(m.scheduler_toast_no_effective_days_gesture(), "error");
+  }
+  useStore.getState().setNotice(m.scheduler_toast_no_effective_days_gesture(), 'error');
   return true;
 }
 
 interface ReadPreviewDatesInput {
-  bar: { allocation: Pick<Allocation, "resourceId" | "startDate" | "endDate" | "ignoreWeekends"> };
-  runtime: Pick<GestureRuntime, "previewDaysRef">;
-  input: Pick<DragResizePreviewInput, "mode" | "deltaDays">;
-  destination: Pick<LaneSnapshot, "id"> | null;
+  bar: { allocation: Pick<Allocation, 'resourceId' | 'startDate' | 'endDate' | 'ignoreWeekends'> };
+  runtime: Pick<GestureRuntime, 'previewDaysRef'>;
+  input: Pick<DragResizePreviewInput, 'mode' | 'deltaDays'>;
+  destination: Pick<LaneSnapshot, 'id'> | null;
 }
 
 function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDatesInput) {
   const resourceId = bar.allocation.resourceId;
-  const previewDays = resolveMemoisedWorkingDays(runtime.previewDaysRef.current, destination?.id ?? resourceId);
+  const previewDays = resolveMemoisedWorkingDays(
+    runtime.previewDaysRef.current,
+    destination?.id ?? resourceId,
+  );
   return {
     result: buildGesturePreviewDates({
       allocation: bar.allocation,
       mode: input.mode,
       deltaDays: input.deltaDays,
       previewDays,
-      sourceDays: destination ? resolveMemoisedWorkingDays(runtime.previewDaysRef.current, resourceId) : undefined,
+      sourceDays: destination
+        ? resolveMemoisedWorkingDays(runtime.previewDaysRef.current, resourceId)
+        : undefined,
       isReassignment: destination !== null,
     }),
     previewDays,
   };
 }
 
-function previewGesture(options: ControllerOptions, runtime: GestureRuntime, input: DragResizePreviewInput) {
+function previewGesture(
+  options: ControllerOptions,
+  runtime: GestureRuntime,
+  input: DragResizePreviewInput,
+) {
   const { bar } = options;
   const resourceId = bar.allocation.resourceId;
   const target =
-    input.mode === "move"
+    input.mode === 'move'
       ? resolveLaneAt(runtime.lanesRef.current, input.pointer.clientX, input.pointer.clientY)
       : null;
   const destination = target && target.id !== resourceId ? target : null;
@@ -101,18 +118,20 @@ function previewGesture(options: ControllerOptions, runtime: GestureRuntime, inp
   const blocked = isPreviewDropBlocked({
     workingDays: previewDays,
     result,
-    isReassignment: input.mode === "move" && destination !== null,
+    isReassignment: input.mode === 'move' && destination !== null,
     ignoreWeekends: bar.allocation.ignoreWeekends,
   });
-  const settled = blocked ? readPreviewDates({ bar, runtime, input, destination: null }).result : result;
+  const settled = blocked
+    ? readPreviewDates({ bar, runtime, input, destination: null }).result
+    : result;
   const preview: GesturePreview = {
     mode: input.mode,
     deltaDays: input.deltaDays,
     deltaY: input.deltaY,
     targetResourceId: target?.id ?? null,
-    dates: settled.kind === "ready" ? settled.dates : null,
+    dates: settled.kind === 'ready' ? settled.dates : null,
   };
-  if (input.mode !== "move") return { preview, dropTarget: undefined };
+  if (input.mode !== 'move') return { preview, dropTarget: undefined };
   return { preview, dropTarget: destination && !blocked ? destination.el : null };
 }
 
@@ -153,13 +172,13 @@ interface CommitGateInput {
 function refuseBlockedCommit({ options, mode, resourceId, dates }: CommitGateInput) {
   const { bar } = options;
   const startChanged = dates.startDate !== bar.allocation.startDate;
-  if (mode !== "move" && !startChanged) return false;
+  if (mode !== 'move' && !startChanged) return false;
   const blocked = isDropStartBlocked({
     resourceId,
     date: dates.startDate,
     ignoreWeekends: bar.allocation.ignoreWeekends,
   });
-  if (blocked) useStore.getState().setNotice(m.scheduler_toast_non_working_drop(), "error");
+  if (blocked) useStore.getState().setNotice(m.scheduler_toast_non_working_drop(), 'error');
   return blocked;
 }
 
@@ -180,7 +199,10 @@ function reconcileCommitHours({ options, targetResourceId, dates, hours }: Recon
     target,
     zeroLoadMode: options.isBlocks,
     startDate: dates.startDate,
-    effectiveWeek: effectiveWorkingWeek(target, listAccountWorkingDays(state.data, state.activeAccountId)),
+    effectiveWeek: effectiveWorkingWeek(
+      target,
+      listAccountWorkingDays(state.data, state.activeAccountId),
+    ),
   });
 }
 
@@ -191,7 +213,12 @@ interface SavePointerCommitInput {
   result: ReturnType<typeof resolveCommitDates>;
 }
 
-async function savePointerCommit({ options, effectiveResourceId, targetResourceId, result }: SavePointerCommitInput) {
+async function savePointerCommit({
+  options,
+  effectiveResourceId,
+  targetResourceId,
+  result,
+}: SavePointerCommitInput) {
   const { bar, isBlocks } = options;
   const { setNotice, updateAllocation } = useStore.getState();
   const reconciledHours = reconcileCommitHours({
@@ -211,7 +238,10 @@ async function savePointerCommit({ options, effectiveResourceId, targetResourceI
     // A diagonal drag is one transaction. A rejected reassignment must not commit its horizontal
     // component as a second update.
     if (isShownByPlanningState(error)) return;
-    setNotice(error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_rejected(), "error");
+    setNotice(
+      error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_rejected(),
+      'error',
+    );
     return;
   }
   // Advisory work follows the mutation so a programmer error cannot be mislabeled as rejection.
@@ -222,10 +252,10 @@ async function savePointerCommit({ options, effectiveResourceId, targetResourceI
     dates: result.dates,
     reconciledHours,
   });
-  const dayCapacity = result.clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : "";
+  const dayCapacity = result.clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : '';
   setNotice(
     `${targetResourceId ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${dayCapacity}${m.scheduler_toast_undo_hint({ shortcut: buildUndoShortcut() })}`,
-    result.clamped ? "warning" : "info",
+    result.clamped ? 'warning' : 'info',
   );
 }
 
@@ -235,21 +265,32 @@ interface PointerCommitInput {
   pointer: Pointer;
 }
 
-function commitPointerGesture(options: ControllerOptions, runtime: GestureRuntime, input: PointerCommitInput) {
+function commitPointerGesture(
+  options: ControllerOptions,
+  runtime: GestureRuntime,
+  input: PointerCommitInput,
+) {
   const { mode, deltaDays, pointer } = input;
   // The final hit test is authoritative. Refresh move-lane geometry even if a scroll/resize
   // observer callback has not run yet, then stop its queued preview refresh.
-  if (mode === "move") runtime.lanesRef.current = readLaneSnapshots();
+  if (mode === 'move') runtime.lanesRef.current = readLaneSnapshots();
   runtime.stopGeometryWatch();
   const resourceId = options.bar.allocation.resourceId;
-  const target = mode === "move" ? resolveLaneAt(runtime.lanesRef.current, pointer.clientX, pointer.clientY) : null;
+  const target =
+    mode === 'move'
+      ? resolveLaneAt(runtime.lanesRef.current, pointer.clientX, pointer.clientY)
+      : null;
   const targetResourceId = target && target.id !== resourceId ? target.id : null;
   runtime.setDropTarget(null);
   if (deltaDays === 0 && !targetResourceId) return;
   const effectiveResourceId = targetResourceId ?? resourceId;
   if (refuseIneffectiveResize(options.bar, mode, effectiveResourceId)) return;
   const result = resolveCommitDates({ options, mode, deltaDays, resourceId: effectiveResourceId });
-  if (refuseBlockedCommit({ options, mode, resourceId: effectiveResourceId, dates: result.dates })) return;
+  if (
+    refuseBlockedCommit({ options, mode, resourceId: effectiveResourceId, dates: result.dates })
+  ) {
+    return;
+  }
   void savePointerCommit({ options, effectiveResourceId, targetResourceId, result });
 }
 
@@ -277,21 +318,21 @@ function refuseBlockedKeyboardGesture({ options, mode, current, next }: Keyboard
   if (next.endDate < next.startDate) return true;
   const state = useStore.getState();
   const startBlocked =
-    (mode === "move" || next.startDate !== current.startDate) &&
+    (mode === 'move' || next.startDate !== current.startDate) &&
     isDropStartBlocked({
       resourceId: bar.allocation.resourceId,
       date: next.startDate,
       ignoreWeekends: bar.allocation.ignoreWeekends,
     });
   if (startBlocked) {
-    state.setNotice(m.scheduler_toast_non_working_drop(), "error");
+    state.setNotice(m.scheduler_toast_non_working_drop(), 'error');
     return true;
   }
   const visible = buildVisibleRange(state.ui);
   const leavesTimeline =
     rangesOverlap(current.startDate, current.endDate, visible.start, visible.end) &&
     !rangesOverlap(next.startDate, next.endDate, visible.start, visible.end);
-  if (leavesTimeline) state.setNotice(m.scheduler_keyboard_outside_timeline(), "error");
+  if (leavesTimeline) state.setNotice(m.scheduler_keyboard_outside_timeline(), 'error');
   return leavesTimeline;
 }
 
@@ -310,14 +351,20 @@ async function saveKeyboardGesture(
     });
     if (!updated) return;
     if (rescale?.clamped) {
-      setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY, shortcut: buildUndoShortcut() }), "warning");
+      setNotice(
+        m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY, shortcut: buildUndoShortcut() }),
+        'warning',
+      );
     }
     announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
     scheduleFocus(bar.allocation.id, activeAccountId);
   } catch (error) {
     // Surface a refused gesture commit so preview feedback cannot imply that a rejected move saved.
     if (isShownByPlanningState(error)) return;
-    setNotice(error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_disallowed(), "error");
+    setNotice(
+      error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_disallowed(),
+      'error',
+    );
   }
 }
 
@@ -332,7 +379,7 @@ function nudgeAllocation(
   const { current, next, gestureOptions } = resolveKeyboardGesture(options, mode, deltaDays);
   if (refuseBlockedKeyboardGesture({ options, mode, current, next })) return;
   const rescale =
-    options.isDays && mode !== "move"
+    options.isDays && mode !== 'move'
       ? resolveVolumePreservingHours({
           previousDate: current,
           next,
@@ -354,7 +401,10 @@ function startPointerGesture(runtime: GestureRuntime) {
 }
 
 /** Coordinates pointer and keyboard allocation gestures with preview and commit state. */
-export function useAllocationGestureController(options: ControllerOptions, runtime: GestureRuntime) {
+export function useAllocationGestureController(
+  options: ControllerOptions,
+  runtime: GestureRuntime,
+) {
   const { bar, indexAtClientX, onEdit } = options;
   const [preview, setPreview] = useState<GesturePreview | null>(null);
   const scheduleFocus = useAllocationFocus();
@@ -392,6 +442,7 @@ export function useAllocationGestureController(options: ControllerOptions, runti
   return {
     preview,
     onPointerDown: beginPointerGesture,
-    nudge: (mode: DragMode, delta: number) => nudgeAllocation(options, scheduleFocus, { mode, deltaDays: delta }),
+    nudge: (mode: DragMode, delta: number) =>
+      nudgeAllocation(options, scheduleFocus, { mode, deltaDays: delta }),
   };
 }

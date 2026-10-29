@@ -1,21 +1,26 @@
-import { useMemo } from "react";
-import { useCanEdit } from "@/auth/permissionContext";
-import { isPlanningHistoryReady, isShownByPlanningState } from "@/data/planning/planningCacheController";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { hasActiveFilters, useStore } from "@/store/useStore";
-import { hasDisciplinesEnabled } from "@/store/selectors";
-import { useActiveScopedData } from "@/store/useScopedData";
-import { SCHEDULER_DENSITY } from "./layout";
-import { SchedulerToolbarChrome, SchedulerToolbarFilters } from "./SchedulerToolbarSections";
-import { buildFilterOptions } from "./toolbarFilterOptions";
-import { useToolbarSearch } from "./useToolbarSearch";
+import { useMemo } from 'react';
+import { useCanEdit } from '@/auth/permissionContext';
+import {
+  isPlanningHistoryReady,
+  isShownByPlanningState,
+} from '@/data/planning/planningCacheController';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { hasActiveFilters, useStore } from '@/store/useStore';
+import { hasDisciplinesEnabled } from '@/store/selectors';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { SCHEDULER_DENSITY } from './layout';
+import { SchedulerToolbarChrome, SchedulerToolbarFilters } from './SchedulerToolbarSections';
+import { buildFilterOptions } from './toolbarFilterOptions';
+import { useToolbarSearch } from './useToolbarSearch';
 
 // Scheduler Undo and Redo replay the typed allocation history. Other legacy writes keep their own
 // history internally until they move to typed planning operations.
 function useToolbarHistory() {
   const undo = useStore((state) => state.undoPlanning);
   const redo = useStore((state) => state.redoPlanning);
-  const canUndo = useStore((state) => isPlanningHistoryReady(state.planning) && state.planning.history.past.length > 0);
+  const canUndo = useStore(
+    (state) => isPlanningHistoryReady(state.planning) && state.planning.history.past.length > 0,
+  );
   const canRedo = useStore(
     (state) => isPlanningHistoryReady(state.planning) && state.planning.history.future.length > 0,
   );
@@ -23,7 +28,7 @@ function useToolbarHistory() {
   const runHistoryAction = (action: () => Promise<unknown>) => {
     action().catch((error: unknown) => {
       // Surface a rejected toolbar mutation instead of letting it escape its event handler.
-      if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), "error");
+      if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), 'error');
     });
   };
   return { undo, redo, canUndo, canRedo, runHistoryAction };
@@ -49,7 +54,9 @@ export function SchedulerToolbar() {
     [data, filters.clientId, filters.projectId],
   );
   const activeAccountId = useStore((state) => state.activeAccountId);
-  const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
+  const disciplinesEnabled = useStore((state) =>
+    hasDisciplinesEnabled(state.data, state.activeAccountId),
+  );
   const search = useToolbarSearch({ filters, activeAccountId, setFilters, clearFilters });
   const chromeProps = {
     density: SCHEDULER_DENSITY,

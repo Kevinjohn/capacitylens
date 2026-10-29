@@ -1,24 +1,31 @@
-import { useFormLifetimeClose } from "@/hooks/useFormLifetimeClose";
-import { useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
-import { useStore } from "@/store/useStore";
-import { hasPlaceholdersEnabled, resolveTimeZone } from "@/store/selectors";
-import { useActiveScopedData } from "@/store/useScopedData";
-import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
-import { todayISO } from "@capacitylens/shared/lib/dateMath";
-import { m } from "@/i18n";
-import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField } from "@/components/common/ui";
-import type { Option } from "@/components/common/ui";
-import { FieldError } from "@/components/ui/field";
-import { buildTimeOffTypeOptions, resolveResourceDisplayName } from "@/lib/metadata";
-import { resolveErrorMessage } from "@/lib/errorMessage";
-import { isExternalResource } from "@capacitylens/shared/types/entities";
-import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
-import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
-import { useRole } from "@/auth/permissionContext";
-import { useTimeOffRepeat } from "./useTimeOffRepeat";
-import { TimeOffRepeatFields } from "./TimeOffRepeatFields";
-import { saveTimeOff } from "./timeOffFormSubmission";
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
+import { useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useStore } from '@/store/useStore';
+import { hasPlaceholdersEnabled, resolveTimeZone } from '@/store/selectors';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
+import { todayISO } from '@capacitylens/shared/lib/dateMath';
+import { m } from '@/i18n';
+import {
+  DateField,
+  FormActions,
+  Modal,
+  RequiredLegend,
+  SelectField,
+  TextField,
+} from '@/components/common/ui';
+import type { Option } from '@/components/common/ui';
+import { FieldError } from '@/components/ui/field';
+import { buildTimeOffTypeOptions, resolveResourceDisplayName } from '@/lib/metadata';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { isExternalResource } from '@capacitylens/shared/types/entities';
+import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
+import { canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
+import { useRole } from '@/auth/permissionContext';
+import { useTimeOffRepeat } from './useTimeOffRepeat';
+import { TimeOffRepeatFields } from './TimeOffRepeatFields';
+import { saveTimeOff } from './timeOffFormSubmission';
 
 interface TimeOffFormProps {
   timeOff?: TimeOff;
@@ -29,9 +36,9 @@ interface TimeOffFieldsProps {
   resourceId: string;
   setResourceId: (value: string) => void;
   resourceOptions: Option[];
-  startDate: ISODate | "";
+  startDate: ISODate | '';
   setStartDate: (value: ISODate) => void;
-  endDate: ISODate | "";
+  endDate: ISODate | '';
   setEndDate: (value: ISODate) => void;
   type: TimeOffType;
   setType: (value: TimeOffType) => void;
@@ -45,7 +52,7 @@ interface TimeOffFieldsProps {
 
 interface TimeOffDraftOptions {
   timeOff: TimeOff | undefined;
-  defaults: TimeOffFormProps["defaults"];
+  defaults: TimeOffFormProps['defaults'];
   calendarTimeZone: string;
   canEditNote: boolean;
 }
@@ -54,19 +61,41 @@ function resolveDraftValue<T>(stored: T | undefined, fallback: T | undefined, de
   return stored ?? fallback ?? defaultValue;
 }
 
-function useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote }: TimeOffDraftOptions) {
+function useTimeOffDraft({
+  timeOff,
+  defaults,
+  calendarTimeZone,
+  canEditNote,
+}: TimeOffDraftOptions) {
   const today = todayISO(calendarTimeZone);
-  const [resourceId, setResourceId] = useState(resolveDraftValue(timeOff?.resourceId, defaults?.resourceId, ""));
-  const [startDate, setStartDate] = useState(resolveDraftValue(timeOff?.startDate, defaults?.startDate, today));
-  const [endDate, setEndDate] = useState(resolveDraftValue(timeOff?.endDate, defaults?.endDate, today));
-  const [type, setType] = useState<TimeOffType>(timeOff?.type ?? "holiday");
-  const initialNote = canEditNote ? (timeOff?.note ?? "") : "";
+  const [resourceId, setResourceId] = useState(
+    resolveDraftValue(timeOff?.resourceId, defaults?.resourceId, ''),
+  );
+  const [startDate, setStartDate] = useState(
+    resolveDraftValue(timeOff?.startDate, defaults?.startDate, today),
+  );
+  const [endDate, setEndDate] = useState(
+    resolveDraftValue(timeOff?.endDate, defaults?.endDate, today),
+  );
+  const [type, setType] = useState<TimeOffType>(timeOff?.type ?? 'holiday');
+  const initialNote = canEditNote ? (timeOff?.note ?? '') : '';
   const [note, setNote] = useState(initialNote);
-  return { resourceId, setResourceId, startDate, setStartDate, endDate, setEndDate, type, setType, note, setNote };
+  return {
+    resourceId,
+    setResourceId,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    type,
+    setType,
+    note,
+    setNote,
+  };
 }
 
 type UseTimeOffResourceOptionsOptions = {
-  resources: ReturnType<typeof useActiveScopedData>["resources"];
+  resources: ReturnType<typeof useActiveScopedData>['resources'];
   placeholdersEnabled: boolean;
   resourceId: string;
 };
@@ -79,7 +108,10 @@ function useTimeOffResourceOptions({
     () =>
       resources
         .filter((resource) => !isExternalResource(resource))
-        .filter((resource) => placeholdersEnabled || resource.kind !== "placeholder" || resource.id === resourceId),
+        .filter(
+          (resource) =>
+            placeholdersEnabled || resource.kind !== 'placeholder' || resource.id === resourceId,
+        ),
     [resources, placeholdersEnabled, resourceId],
   );
   return filteredResources.map((resource) => ({
@@ -90,13 +122,14 @@ function useTimeOffResourceOptions({
 
 function buildTimeOffRepeatFields(options: {
   timeOff: TimeOff | undefined;
-  startDate: ISODate | "";
+  startDate: ISODate | '';
   repeatState: ReturnType<typeof useTimeOffRepeat>;
   errorField: string | null;
   errorId: string;
 }): ReactNode {
   if (options.timeOff) return undefined;
-  const { repeat, repeatUntil, maximum, preview, changeRepeat, changeRepeatUntil } = options.repeatState;
+  const { repeat, repeatUntil, maximum, preview, changeRepeat, changeRepeatUntil } =
+    options.repeatState;
   return (
     <TimeOffRepeatFields
       startDate={options.startDate}
@@ -124,7 +157,9 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
   const add = useStore((state) => state.addTimeOff);
   const addMany = useStore((state) => state.addTimeOffs);
   const update = useStore((state) => state.updateTimeOff);
-  const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
+  const placeholdersEnabled = useStore((state) =>
+    hasPlaceholdersEnabled(state.data, state.activeAccountId),
+  );
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const resources = useActiveScopedData().resources;
   const canEditNote = useCanEditTimeOffNote();
@@ -170,7 +205,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
       title={timeOff ? m.form_timeoff_edit_title() : m.form_timeoff_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        submit().catch((error: unknown) => fail(null, resolveErrorMessage(error)));
+        submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
       }}
       onEdit={clear}
       footer={<FormActions onCancel={onClose} />}
@@ -217,7 +252,7 @@ function TimeOffFields({
         options={resourceOptions}
         placeholder={m.form_timeoff_select_resource_placeholder()}
         required
-        invalid={errorField === "resource"}
+        invalid={errorField === 'resource'}
         describedById={errorId}
         layout="label-control"
       />
@@ -226,7 +261,7 @@ function TimeOffFields({
         setStartDate={setStartDate}
         endDate={endDate}
         setEndDate={setEndDate}
-        invalid={errorField === "dates"}
+        invalid={errorField === 'dates'}
         errorId={errorId}
       />
       <SelectField
@@ -242,7 +277,7 @@ function TimeOffFields({
           label={m.form_timeoff_note_label()}
           value={note}
           onChange={setNote}
-          invalid={errorField === "note"}
+          invalid={errorField === 'note'}
           describedById={errorId}
           layout="label-control"
         />
@@ -259,9 +294,9 @@ function TimeOffDateFields({
   invalid,
   errorId,
 }: {
-  startDate: ISODate | "";
+  startDate: ISODate | '';
   setStartDate: (value: ISODate) => void;
-  endDate: ISODate | "";
+  endDate: ISODate | '';
   setEndDate: (value: ISODate) => void;
   invalid: boolean;
   errorId: string;

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { ReactNode } from "react";
-import { useStore } from "@/store/useStore";
-import { useCanEdit } from "@/auth/permissionContext";
-import { m } from "@/i18n";
-import { Pencil, Plus, Trash2 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useStore } from '@/store/useStore';
+import { useCanEdit } from '@/auth/permissionContext';
+import { m } from '@/i18n';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -13,8 +13,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+} from '@/components/ui/dialog';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,9 +31,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { restoreFocus } from "./focus";
-import { FormDirtyContext } from "./formDirty";
+} from '@/components/ui/alert-dialog';
+import { restoreFocus } from './focus';
+import { FormDirtyContext } from './formDirty';
 
 function hasOpenNestedOverlay(): boolean {
   return (
@@ -174,7 +181,7 @@ function useModalController({
 }) {
   const setNotice = useStore((state) => state.setNotice);
   const setDirtyFormSource = useStore((state) => state.setDirtyFormSource);
-  const [dirtySource] = useState(() => Symbol("modal-dirty"));
+  const [dirtySource] = useState(() => Symbol('modal-dirty'));
   const [invoker] = useState(() => document.activeElement as HTMLElement | null);
 
   const [localDirty, setLocalDirty] = useState(false);
@@ -198,7 +205,10 @@ function useModalController({
   useEffect(() => {
     setDirtyFormSource({ source: dirtySource, dirty: guardDirty && dirty });
   }, [dirty, dirtySource, guardDirty, setDirtyFormSource]);
-  useEffect(() => () => setDirtyFormSource({ source: dirtySource, dirty: false }), [dirtySource, setDirtyFormSource]);
+  useEffect(
+    () => () => setDirtyFormSource({ source: dirtySource, dirty: false }),
+    [dirtySource, setDirtyFormSource],
+  );
   useEffect(() => () => restoreFocus(invoker), [invoker]);
 
   const requestClose = () => {
@@ -290,8 +300,10 @@ function ModalForm({
         onInputCapture={markDirty}
         onChangeCapture={markDirty}
         onClickCapture={(event) => {
-          const toggle = (event.target as HTMLElement).closest('[aria-pressed],[role="radio"],[role="switch"]');
-          if (toggle && !toggle.hasAttribute("data-form-dirty-managed")) markDirty();
+          const toggle = (event.target as HTMLElement).closest(
+            '[aria-pressed],[role="radio"],[role="switch"]',
+          );
+          if (toggle && !toggle.hasAttribute('data-form-dirty-managed')) markDirty();
         }}
       >
         <div className="flex min-w-0 flex-col gap-3 p-4">{children}</div>
@@ -306,7 +318,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = m.form_delete(),
-  confirmVariant = "danger-soft",
+  confirmVariant = 'danger-soft',
   busy = false,
   onConfirm,
   onCancel,
@@ -314,7 +326,7 @@ export function ConfirmDialog({
   title: string;
   message: ReactNode;
   confirmLabel?: string;
-  confirmVariant?: "default" | "outline" | "danger-soft";
+  confirmVariant?: 'default' | 'outline' | 'danger-soft';
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;

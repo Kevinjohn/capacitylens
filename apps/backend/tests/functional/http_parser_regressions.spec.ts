@@ -1,15 +1,15 @@
-import { test } from '@japa/runner'
-import type { ApiClient } from '@japa/api-client'
+import { test } from '@japa/runner';
+import type { ApiClient } from '@japa/api-client';
 import {
   authenticatedDataClient,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js'
-import { freshDatabase } from '../helpers/fresh_database.js'
-import { request as httpRequest } from 'node:http'
+} from '../helpers/authenticated_data_fixture.js';
+import { freshDatabase } from '../helpers/fresh_database.js';
+import { request as httpRequest } from 'node:http';
 
 interface RawResponse {
-  statusCode: number | undefined
-  body: string
+  statusCode: number | undefined;
+  body: string;
 }
 
 function postRaw(
@@ -35,58 +35,58 @@ function postRaw(
         },
       },
       (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk: Buffer) => chunks.push(chunk))
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk: Buffer) => chunks.push(chunk));
         response.on('end', () =>
           resolve({ statusCode: response.statusCode, body: Buffer.concat(chunks).toString('utf8') })
-        )
+        );
       }
-    )
-    request.on('error', reject)
-    request.end(body)
-  })
+    );
+    request.on('error', reject);
+    request.end(body);
+  });
 }
 
 async function reset(client: ApiClient, seeded = true) {
-  const session = await resetAuthenticatedData(client, seeded)
-  return { client: authenticatedDataClient(client, session.cookie), cookie: session.cookie }
+  const session = await resetAuthenticatedData(client, seeded);
+  return { client: authenticatedDataClient(client, session.cookie), cookie: session.cookie };
 }
 
 test.group('M2a review regressions', (group) => {
-  group.setup(() => freshDatabase())
+  group.setup(() => freshDatabase());
 
   test('removes the CSP report endpoint', async ({ client, assert }) => {
     const response = await client
       .post('/api/security/csp-report')
       .json({ report: 'ignored' })
-      .send()
-    assert.equal(response.status(), 404)
-    assert.deepEqual(response.body(), { error: 'Not found.', code: 'NOT_FOUND' })
-  })
+      .send();
+    assert.equal(response.status(), 404);
+    assert.deepEqual(response.body(), { error: 'Not found.', code: 'NOT_FOUND' });
+  });
 
   test('maps actual oversized form and unsupported encoding parser failures safely', async ({
     client,
     assert,
   }) => {
-    const fixture = await reset(client, true)
-    client = fixture.client
-    const cookie = fixture.cookie
-    const context = await client.get('/api/masquerade').send()
-    context.assertStatus(200)
-    const contextToken = (context.body() as unknown as { contextToken?: unknown }).contextToken
-    assert.isString(contextToken)
+    const fixture = await reset(client, true);
+    client = fixture.client;
+    const cookie = fixture.cookie;
+    const context = await client.get('/api/masquerade').send();
+    context.assertStatus(200);
+    const contextToken = (context.body() as unknown as { contextToken?: unknown }).contextToken;
+    assert.isString(contextToken);
     const oversized = await postRaw(
       '/api/accounts/a-studio/example-data',
       Buffer.from(`value=${'x'.repeat(1_100_000)}`),
       'application/x-www-form-urlencoded',
       { 'x-masquerade-context': contextToken as string },
       cookie
-    )
-    assert.equal(oversized.statusCode, 413)
+    );
+    assert.equal(oversized.statusCode, 413);
     assert.deepEqual(JSON.parse(oversized.body), {
       error: 'Request body is too large.',
       code: 'PAYLOAD_TOO_LARGE',
-    })
+    });
 
     const unsupported = await postRaw(
       '/api/accounts/a-studio/example-data',
@@ -94,11 +94,11 @@ test.group('M2a review regressions', (group) => {
       'application/x-www-form-urlencoded',
       { 'content-encoding': 'compress', 'x-masquerade-context': contextToken as string },
       cookie
-    )
-    assert.equal(unsupported.statusCode, 415)
+    );
+    assert.equal(unsupported.statusCode, 415);
     assert.deepEqual(JSON.parse(unsupported.body), {
       error: 'Unsupported media type.',
       code: 'UNSUPPORTED_MEDIA_TYPE',
-    })
-  })
-})
+    });
+  });
+});

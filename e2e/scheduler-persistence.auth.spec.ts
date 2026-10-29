@@ -1,5 +1,5 @@
-import { expect, test } from "./fixtures";
-import type { APIRequestContext, Locator, Page } from "./fixtures";
+import { expect, test } from './fixtures';
+import type { APIRequestContext, Locator, Page } from './fixtures';
 import {
   AUTH_API,
   AUTH_PASSWORD,
@@ -9,7 +9,7 @@ import {
   sendPlanningFixtureCommand,
   signUpUser,
   masqueradeContextHeaders,
-} from "./authTestSupport";
+} from './authTestSupport';
 import {
   boundingBoxOrThrow,
   goToSeedWeek,
@@ -17,9 +17,9 @@ import {
   selectShadOption,
   setZoom,
   waitForAppLanding,
-} from "./browserTestSupport";
+} from './browserTestSupport';
 
-test.use({ contextOptions: { reducedMotion: "reduce" } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 const STAMP = Date.now();
 let scenarioNumber = 0;
@@ -44,39 +44,51 @@ async function createScenario(request: APIRequestContext) {
   const activityId = crypto.randomUUID();
   const owner = await signUpUser(ownerEmail);
   const accountId = await bootstrapOrg(request, owner.cookie, company);
-  await createFixturePerson(request, owner.cookie, accountId, { id: resourceId, name: "Bruce Wayne", role: "Planner" });
+  await createFixturePerson(request, owner.cookie, accountId, {
+    id: resourceId,
+    name: 'Bruce Wayne',
+    role: 'Planner',
+  });
   await createFixturePerson(request, owner.cookie, accountId, {
     id: secondResourceId,
-    name: "Clark Kent",
-    role: "Planner",
+    name: 'Clark Kent',
+    role: 'Planner',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "clients", {
-    operation: "catalogue.create",
-    entity: { entity: "clients", id: clientId, fields: { name: "Wayne Enterprises", color: "#76a5e7" } },
-  });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "projects", {
-    operation: "catalogue.create",
-    entity: { entity: "projects", id: projectId, fields: { clientId, name: "Gotham Renewal", color: "#e776b8" } },
-  });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "activities", {
-    operation: "catalogue.create",
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'clients', {
+    operation: 'catalogue.create',
     entity: {
-      entity: "activities",
+      entity: 'clients',
+      id: clientId,
+      fields: { name: 'Wayne Enterprises', color: '#76a5e7' },
+    },
+  });
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'projects', {
+    operation: 'catalogue.create',
+    entity: {
+      entity: 'projects',
+      id: projectId,
+      fields: { clientId, name: 'Gotham Renewal', color: '#e776b8' },
+    },
+  });
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'activities', {
+    operation: 'catalogue.create',
+    entity: {
+      entity: 'activities',
       id: activityId,
-      fields: { name: "City planning", kind: "project", projectId, phaseId: null },
+      fields: { name: 'City planning', kind: 'project', projectId, phaseId: null },
     },
   });
   return { owner, accountId, ownerEmail, resourceId, secondResourceId, projectId, activityId };
 }
 
 async function signIn(page: Page, ownerEmail: string) {
-  await page.clock.setFixedTime(new Date("2026-06-03T12:00:00"));
-  await page.goto("/");
-  await page.getByRole("heading", { name: "Sign in" }).waitFor();
-  await page.getByLabel("Email").fill(ownerEmail);
-  await page.getByLabel("Password").fill(AUTH_PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
+  await page.clock.setFixedTime(new Date('2026-06-03T12:00:00'));
+  await page.goto('/');
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
+  await page.getByLabel('Email').fill(ownerEmail);
+  await page.getByLabel('Password').fill(AUTH_PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
   await setZoom(page, 4);
   await goToSeedWeek(page);
   await resetSchedulerScroll(page);
@@ -84,17 +96,17 @@ async function signIn(page: Page, ownerEmail: string) {
 
 async function reloadScheduler(page: Page) {
   await page.reload();
-  const scheduleHeading = page.getByRole("heading", { name: "Schedule" });
+  const scheduleHeading = page.getByRole('heading', { name: 'Schedule' });
   await waitForAppLanding(page, scheduleHeading);
   await setZoom(page, 4);
   await goToSeedWeek(page);
 }
 
 async function dayWidth(page: Page) {
-  return page.getByTestId("scheduler-day-tier").evaluate((tier) => {
+  return page.getByTestId('scheduler-day-tier').evaluate((tier) => {
     const monday = tier.querySelector<HTMLElement>('[data-date="2026-06-01"]');
     const tuesday = tier.querySelector<HTMLElement>('[data-date="2026-06-02"]');
-    if (!monday || !tuesday) throw new Error("Expected adjacent seed-week day columns");
+    if (!monday || !tuesday) throw new Error('Expected adjacent seed-week day columns');
     return tuesday.getBoundingClientRect().left - monday.getBoundingClientRect().left;
   });
 }
@@ -112,32 +124,37 @@ async function dragByOneDay(page: Page, target: Locator, xOffset: number) {
 }
 
 async function persistedAllocations(request: APIRequestContext, cookie: string, accountId: string) {
-  const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, { headers: { cookie } });
+  const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
+    headers: { cookie },
+  });
   expect(response.status()).toBe(200);
   return ((await response.json()) as { allocations: Allocation[] }).allocations;
 }
 
 async function createAllocation(page: Page, projectId: string, activityId: string) {
-  await page.getByRole("button", { name: "Add allocation for Bruce Wayne" }).click();
-  const dialog = page.getByRole("dialog", { name: "New allocation" });
-  await selectShadOption(dialog.getByLabel("Project", { exact: true }), projectId);
-  await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), activityId);
-  await dialog.getByLabel("Start Date").fill("2026-06-01");
-  await dialog.getByLabel("Days of work").fill("1");
-  await dialog.getByRole("button", { name: "Save" }).click();
-  return page.getByTestId("allocation-bar").filter({ hasText: "City planning" });
+  await page.getByRole('button', { name: 'Add allocation for Bruce Wayne' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New allocation' });
+  await selectShadOption(dialog.getByLabel('Project', { exact: true }), projectId);
+  await selectShadOption(
+    dialog.getByRole('combobox', { name: 'Activity', exact: true }),
+    activityId,
+  );
+  await dialog.getByLabel('Start Date').fill('2026-06-01');
+  await dialog.getByLabel('Days of work').fill('1');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  return page.getByTestId('allocation-bar').filter({ hasText: 'City planning' });
 }
 
 type RecordedRequest = { method: string; path: string };
 
 function isPlanningRead(accountId: string, method: string, url: string) {
-  return method === "GET" && new URL(url).pathname === `/api/accounts/${accountId}/planning`;
+  return method === 'GET' && new URL(url).pathname === `/api/accounts/${accountId}/planning`;
 }
 
 // Typed allocation writes and the restoration that undoes a delete; the canonical GET is excluded.
 function isTypedAllocationWrite(accountId: string, { method, path }: RecordedRequest) {
   return (
-    method !== "GET" &&
+    method !== 'GET' &&
     (path.startsWith(`/api/accounts/${accountId}/allocations`) ||
       path === `/api/accounts/${accountId}/planning/restore-group`)
   );
@@ -146,12 +163,21 @@ function isTypedAllocationWrite(accountId: string, { method, path }: RecordedReq
 /** Records page requests after fixture seeding, so only scheduler gestures are counted. */
 function recordRequests(page: Page) {
   const requests: RecordedRequest[] = [];
-  page.on("request", (request) => requests.push({ method: request.method(), path: new URL(request.url()).pathname }));
+  page.on('request', (request) =>
+    requests.push({ method: request.method(), path: new URL(request.url()).pathname }),
+  );
   return requests;
 }
 
-async function allocationFrom(request: APIRequestContext, cookie: string, accountId: string, id: string) {
-  return (await persistedAllocations(request, cookie, accountId)).find((allocation) => allocation.id === id);
+async function allocationFrom(
+  request: APIRequestContext,
+  cookie: string,
+  accountId: string,
+  id: string,
+) {
+  return (await persistedAllocations(request, cookie, accountId)).find(
+    (allocation) => allocation.id === id,
+  );
 }
 
 /** One gesture sends exactly one typed planning request and no legacy batch. */
@@ -174,12 +200,17 @@ async function expectOneTypedWrite(
   await persisted();
   const sent = requests.slice(start);
   expect(sent.filter((request) => isTypedAllocationWrite(accountId, request))).toHaveLength(1);
-  expect(sent.filter(({ path }) => path === "/api/batch")).toEqual([]);
+  expect(sent.filter(({ path }) => path === '/api/batch')).toEqual([]);
 }
 
 /** Applies one gesture, then Undo and Redo, each as one typed write with the expected stored projection. */
 async function gestureUndoRedo<T>(
-  input: { page: Page; accountId: string; requests: RecordedRequest[]; stored: () => Promise<Allocation[]> },
+  input: {
+    page: Page;
+    accountId: string;
+    requests: RecordedRequest[];
+    stored: () => Promise<Allocation[]>;
+  },
   gesture: () => Promise<void>,
   project: (allocations: Allocation[]) => T,
   before: T,
@@ -190,10 +221,10 @@ async function gestureUndoRedo<T>(
     await expect.poll(async () => project(await stored())).toEqual(expected);
   };
   await expectOneTypedWrite(page, accountId, requests, gesture, settled(after));
-  const undo = page.getByTestId("undo-button");
+  const undo = page.getByTestId('undo-button');
   await expect(undo).toBeEnabled();
   await expectOneTypedWrite(page, accountId, requests, () => undo.click(), settled(before));
-  const redo = page.getByTestId("redo-button");
+  const redo = page.getByTestId('redo-button');
   await expect(redo).toBeEnabled();
   await expectOneTypedWrite(page, accountId, requests, () => redo.click(), settled(after));
 }
@@ -212,102 +243,132 @@ async function dragToLane(page: Page, target: Locator, lane: Locator) {
   await page.mouse.up();
 }
 
-test("authenticated scheduler create, move, resize and delete persist in SQLite", async ({ page, request }) => {
+test('authenticated scheduler create, move, resize and delete persist in SQLite', async ({
+  page,
+  request,
+}) => {
   const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
 
   const bar = await createAllocation(page, projectId, activityId);
   await expect(bar).toHaveCount(1);
-  const allocationId = await bar.getAttribute("data-alloc-id");
+  const allocationId = await bar.getAttribute('data-alloc-id');
   expect(allocationId).toBeTruthy();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).find(({ id }) => id === allocationId),
+      (await persistedAllocations(request, owner.cookie, accountId)).find(
+        ({ id }) => id === allocationId,
+      ),
     )
-    .toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-01" });
+    .toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-01' });
   await reloadScheduler(page);
   await expect(bar).toBeVisible();
 
   await dragByOneDay(page, bar, await dayWidth(page));
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).find(({ id }) => id === allocationId),
+      (await persistedAllocations(request, owner.cookie, accountId)).find(
+        ({ id }) => id === allocationId,
+      ),
     )
-    .toMatchObject({ startDate: "2026-06-02", endDate: "2026-06-02" });
+    .toMatchObject({ startDate: '2026-06-02', endDate: '2026-06-02' });
   await reloadScheduler(page);
-  await expect(bar).toHaveAttribute("aria-label", /2 Jun to 2 Jun/);
+  await expect(bar).toHaveAttribute('aria-label', /2 Jun to 2 Jun/);
 
-  await dragByOneDay(page, bar.getByTestId("resize-end"), await dayWidth(page));
+  await dragByOneDay(page, bar.getByTestId('resize-end'), await dayWidth(page));
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).find(({ id }) => id === allocationId),
+      (await persistedAllocations(request, owner.cookie, accountId)).find(
+        ({ id }) => id === allocationId,
+      ),
     )
-    .toMatchObject({ startDate: "2026-06-02", endDate: "2026-06-03" });
+    .toMatchObject({ startDate: '2026-06-02', endDate: '2026-06-03' });
   await reloadScheduler(page);
-  await expect(bar).toHaveAttribute("aria-label", /2 Jun to 3 Jun/);
+  await expect(bar).toHaveAttribute('aria-label', /2 Jun to 3 Jun/);
 
   await bar.click();
-  const editor = page.getByRole("dialog", { name: "Edit allocation" });
-  await editor.getByRole("button", { name: "Delete" }).click();
-  await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
+  const editor = page.getByRole('dialog', { name: 'Edit allocation' });
+  await editor.getByRole('button', { name: 'Delete' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Delete allocation?' })
+    .getByRole('button', { name: 'Delete' })
+    .click();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).some(({ id }) => id === allocationId),
+      (await persistedAllocations(request, owner.cookie, accountId)).some(
+        ({ id }) => id === allocationId,
+      ),
     )
     .toBe(false);
   await reloadScheduler(page);
-  await expect(page.getByTestId("allocation-bar").filter({ hasText: "City planning" })).toHaveCount(0);
+  await expect(page.getByTestId('allocation-bar').filter({ hasText: 'City planning' })).toHaveCount(
+    0,
+  );
 });
 
-test("same-revision authenticated refresh preserves Undo and Redo in SQLite", async ({ page, request }) => {
+test('same-revision authenticated refresh preserves Undo and Redo in SQLite', async ({
+  page,
+  request,
+}) => {
   const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
-  const allocationId = await bar.getAttribute("data-alloc-id");
+  const allocationId = await bar.getAttribute('data-alloc-id');
   expect(allocationId).toBeTruthy();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).some(({ id }) => id === allocationId),
+      (await persistedAllocations(request, owner.cookie, accountId)).some(
+        ({ id }) => id === allocationId,
+      ),
     )
     .toBe(true);
 
-  await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
+  await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));
   const refresh = page.waitForResponse((response) =>
     isPlanningRead(accountId, response.request().method(), response.url()),
   );
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   const refreshResponse = await refresh;
   await refreshResponse.finished();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
-  const undo = page.getByTestId("undo-button");
+  const undo = page.getByTestId('undo-button');
   await expect(undo).toBeEnabled();
   await undo.click();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).some(({ id }) => id === allocationId),
+      (await persistedAllocations(request, owner.cookie, accountId)).some(
+        ({ id }) => id === allocationId,
+      ),
     )
     .toBe(false);
 
-  const redo = page.getByTestId("redo-button");
+  const redo = page.getByTestId('redo-button');
   await expect(redo).toBeEnabled();
   await redo.click();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).some(({ id }) => id === allocationId),
+      (await persistedAllocations(request, owner.cookie, accountId)).some(
+        ({ id }) => id === allocationId,
+      ),
     )
     .toBe(true);
   await reloadScheduler(page);
-  await expect(page.getByTestId("allocation-bar").filter({ hasText: "City planning" })).toBeVisible();
+  await expect(
+    page.getByTestId('allocation-bar').filter({ hasText: 'City planning' }),
+  ).toBeVisible();
 });
 
-test("same-revision background refresh preserves Undo for a keyboard resize", async ({ page, request }) => {
+test('same-revision background refresh preserves Undo for a keyboard resize', async ({
+  page,
+  request,
+}) => {
   const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
-  const allocationId = await bar.getAttribute("data-alloc-id");
+  const allocationId = await bar.getAttribute('data-alloc-id');
   expect(allocationId).toBeTruthy();
-  await expect(page.getByTestId("undo-button")).toBeEnabled();
+  await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   await bar.focus();
   await expect(bar).toBeFocused();
@@ -320,7 +381,7 @@ test("same-revision background refresh preserves Undo for a keyboard resize", as
       path: new URL(response.url()).pathname,
     }),
   );
-  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press('Shift+ArrowRight');
   expect((await resize).status()).toBe(200);
   const resizedRead = await resizeRefresh;
   expect(resizedRead.status()).toBe(200);
@@ -328,46 +389,49 @@ test("same-revision background refresh preserves Undo for a keyboard resize", as
   await expect(bar).toHaveAccessibleName(/1 Jun to 2 Jun/);
   await expect
     .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId!))
-    .toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-02" });
+    .toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-02' });
 
   // Use the normal focus-triggered revalidation after the server has acknowledged the resize.
-  await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
+  await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));
   const refresh = page.waitForResponse((response) =>
     isPlanningRead(accountId, response.request().method(), response.url()),
   );
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   const refreshed = await refresh;
   expect(refreshed.status()).toBe(200);
   await refreshed.finished();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
-  const undo = page.getByTestId("undo-button");
+  const undo = page.getByTestId('undo-button');
   await expect(undo).toBeEnabled();
   await undo.click();
   await expect(bar).toHaveAccessibleName(/1 Jun to 1 Jun/);
   await expect
     .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId!))
-    .toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-01" });
+    .toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-01' });
 });
 
-test("a remote allocation deletion invalidates keyboard history after refresh", async ({ page, request }) => {
+test('a remote allocation deletion invalidates keyboard history after refresh', async ({
+  page,
+  request,
+}) => {
   const { owner, accountId, ownerEmail, resourceId, activityId } = await createScenario(request);
   const allocationId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "allocations", {
-    operation: "allocation.create",
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'allocations', {
+    operation: 'allocation.create',
     allocation: {
       id: allocationId,
       resourceId,
       activityId,
       projectId: null,
-      startDate: "2026-06-01",
-      endDate: "2026-06-01",
+      startDate: '2026-06-01',
+      endDate: '2026-06-01',
       hoursPerDay: 8,
-      status: "confirmed",
+      status: 'confirmed',
     },
   });
   await signIn(page, ownerEmail);
-  const bar = page.getByTestId("allocation-bar").filter({ hasText: "City planning" });
+  const bar = page.getByTestId('allocation-bar').filter({ hasText: 'City planning' });
   await expect(bar).toHaveCount(1);
   await bar.focus();
   await expect(bar).toBeFocused();
@@ -380,15 +444,15 @@ test("a remote allocation deletion invalidates keyboard history after refresh", 
       path: new URL(response.url()).pathname,
     }),
   );
-  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press('Shift+ArrowRight');
   expect((await resize).status()).toBe(200);
   const resizedRead = await resizeRefresh;
   expect(resizedRead.status()).toBe(200);
   await resizedRead.finished();
   await expect
     .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId))
-    .toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-02" });
-  await expect(page.getByTestId("undo-button")).toBeEnabled();
+    .toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-02' });
+  await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   // The owner cookie belongs to a separate HTTP session from the browser's sign-in session.
   const planning = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, {
@@ -396,58 +460,67 @@ test("a remote allocation deletion invalidates keyboard history after refresh", 
   });
   expect(planning.status()).toBe(200);
   const { revision } = (await planning.json()) as { revision: number };
-  const deletion = await request.post(`${AUTH_API}/api/accounts/${accountId}/allocations/${allocationId}/delete`, {
-    headers: { ...(await masqueradeContextHeaders(request, owner.cookie)), "content-type": "application/json" },
-    data: {
-      mutationId: crypto.randomUUID(),
-      baseRevision: revision,
-      intent: { operation: "allocation.delete", id: allocationId },
+  const deletion = await request.post(
+    `${AUTH_API}/api/accounts/${accountId}/allocations/${allocationId}/delete`,
+    {
+      headers: {
+        ...(await masqueradeContextHeaders(request, owner.cookie)),
+        'content-type': 'application/json',
+      },
+      data: {
+        mutationId: crypto.randomUUID(),
+        baseRevision: revision,
+        intent: { operation: 'allocation.delete', id: allocationId },
+      },
     },
-  });
+  );
   expect(deletion.status()).toBe(200);
   expect(await allocationFrom(request, owner.cookie, accountId, allocationId)).toBeUndefined();
 
-  await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
+  await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));
   const refresh = page.waitForResponse((response) =>
     isPlanningRead(accountId, response.request().method(), response.url()),
   );
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   const refreshed = await refresh;
   expect(refreshed.status()).toBe(200);
   await refreshed.finished();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
   await expect(bar).toHaveCount(0);
-  await expect(page.getByTestId("undo-button")).toBeDisabled();
-  await expect(page.getByTestId("redo-button")).toBeDisabled();
+  await expect(page.getByTestId('undo-button')).toBeDisabled();
+  await expect(page.getByTestId('redo-button')).toBeDisabled();
   const requests = recordRequests(page);
-  await page.keyboard.press("ControlOrMeta+z");
+  await page.keyboard.press('ControlOrMeta+z');
   await expect(bar).toHaveCount(0);
   expect(await allocationFrom(request, owner.cookie, accountId, allocationId)).toBeUndefined();
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
   expect(requests.filter((request) => isTypedAllocationWrite(accountId, request))).toEqual([]);
 });
 
-test("a refused scheduler write keeps the schedule and history visible and does not persist", async ({
+test('a refused scheduler write keeps the schedule and history visible and does not persist', async ({
   page,
   request,
 }) => {
   const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
-  const allocationId = await bar.getAttribute("data-alloc-id");
+  const allocationId = await bar.getAttribute('data-alloc-id');
   expect(allocationId).toBeTruthy();
   await expect
-    .poll(async () => (await allocationFrom(request, owner.cookie, accountId, allocationId!))?.startDate)
-    .toBe("2026-06-01");
-  const undo = page.getByTestId("undo-button");
+    .poll(
+      async () =>
+        (await allocationFrom(request, owner.cookie, accountId, allocationId!))?.startDate,
+    )
+    .toBe('2026-06-01');
+  const undo = page.getByTestId('undo-button');
   await expect(undo).toBeEnabled();
 
   await page.route(`**/api/accounts/${accountId}/allocations/**`, (route) =>
     route.fulfill({
       status: 403,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "Write refused", code: "AUTHORIZATION_DENIED" }),
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'Write refused', code: 'AUTHORIZATION_DENIED' }),
     }),
   );
   const requests = recordRequests(page);
@@ -461,17 +534,17 @@ test("a refused scheduler write keeps the schedule and history visible and does 
   expect((await refused).status()).toBe(403);
 
   // K2: a 403 keeps readable rows and page-local history and shows the refusal.
-  await expect(page.getByRole("alert").filter({ hasText: /save|persist|refus/i })).toBeVisible();
-  await expect(bar).toHaveAttribute("aria-label", /1 Jun to 1 Jun/);
+  await expect(page.getByRole('alert').filter({ hasText: /save|persist|refus/i })).toBeVisible();
+  await expect(bar).toHaveAttribute('aria-label', /1 Jun to 1 Jun/);
   await expect(undo).toBeEnabled();
-  expect(requests.filter(({ path }) => path === "/api/batch")).toEqual([]);
+  expect(requests.filter(({ path }) => path === '/api/batch')).toEqual([]);
   expect(await allocationFrom(request, owner.cookie, accountId, allocationId!)).toMatchObject({
-    startDate: "2026-06-01",
-    endDate: "2026-06-01",
+    startDate: '2026-06-01',
+    endDate: '2026-06-01',
   });
 });
 
-test("each scheduler gesture is one typed write with Undo and Redo, and reload clears history", async ({
+test('each scheduler gesture is one typed write with Undo and Redo, and reload clears history', async ({
   page,
   request,
 }) => {
@@ -481,7 +554,7 @@ test("each scheduler gesture is one typed write with Undo and Redo, and reload c
   const requests = recordRequests(page);
   const stored = () => persistedAllocations(request, owner.cookie, accountId);
   const harness = { page, accountId, requests, stored };
-  const cityPlanning = page.getByTestId("allocation-bar").filter({ hasText: "City planning" });
+  const cityPlanning = page.getByTestId('allocation-bar').filter({ hasText: 'City planning' });
   const count = (allocations: Allocation[]) => allocations.length;
 
   await gestureUndoRedo(
@@ -493,7 +566,7 @@ test("each scheduler gesture is one typed write with Undo and Redo, and reload c
     0,
     1,
   );
-  const allocationId = await cityPlanning.getAttribute("data-alloc-id");
+  const allocationId = await cityPlanning.getAttribute('data-alloc-id');
   expect(allocationId).toBeTruthy();
   const bar = page.locator(`[data-testid="allocation-bar"][data-alloc-id="${allocationId}"]`);
   const placement = (allocations: Allocation[]) => {
@@ -506,28 +579,31 @@ test("each scheduler gesture is one typed write with Undo and Redo, and reload c
     harness,
     () => dragByOneDay(page, bar, width),
     placement,
-    ["2026-06-01", "2026-06-01", resourceId],
-    ["2026-06-02", "2026-06-02", resourceId],
+    ['2026-06-01', '2026-06-01', resourceId],
+    ['2026-06-02', '2026-06-02', resourceId],
   );
   await gestureUndoRedo(
     harness,
-    () => dragByOneDay(page, bar.getByTestId("resize-end"), width),
+    () => dragByOneDay(page, bar.getByTestId('resize-end'), width),
     placement,
-    ["2026-06-02", "2026-06-02", resourceId],
-    ["2026-06-02", "2026-06-03", resourceId],
+    ['2026-06-02', '2026-06-02', resourceId],
+    ['2026-06-02', '2026-06-03', resourceId],
   );
   await gestureUndoRedo(
     harness,
     () => dragToLane(page, bar, page.locator(`[data-resource-id="${secondResourceId}"]`)),
     placement,
-    ["2026-06-02", "2026-06-03", resourceId],
-    ["2026-06-02", "2026-06-03", secondResourceId],
+    ['2026-06-02', '2026-06-03', resourceId],
+    ['2026-06-02', '2026-06-03', secondResourceId],
   );
   await gestureUndoRedo(
     harness,
     async () => {
       await bar.click();
-      await page.getByRole("dialog", { name: "Edit allocation" }).getByRole("button", { name: "Duplicate" }).click();
+      await page
+        .getByRole('dialog', { name: 'Edit allocation' })
+        .getByRole('button', { name: 'Duplicate' })
+        .click();
     },
     count,
     1,
@@ -537,15 +613,18 @@ test("each scheduler gesture is one typed write with Undo and Redo, and reload c
   await gestureUndoRedo(
     harness,
     async () => {
-      await page.getByRole("button", { name: "Add allocation for Bruce Wayne" }).click();
-      const dialog = page.getByRole("dialog", { name: "New allocation" });
-      await selectShadOption(dialog.getByLabel("Project", { exact: true }), projectId);
-      await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), activityId);
-      await dialog.getByLabel("Start Date").fill("2026-06-08");
-      await dialog.getByLabel("Days of work").fill("1");
-      await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
-      await dialog.getByLabel("Repeat until").fill("2026-06-22");
-      await dialog.getByRole("button", { name: "Save" }).click();
+      await page.getByRole('button', { name: 'Add allocation for Bruce Wayne' }).click();
+      const dialog = page.getByRole('dialog', { name: 'New allocation' });
+      await selectShadOption(dialog.getByLabel('Project', { exact: true }), projectId);
+      await selectShadOption(
+        dialog.getByRole('combobox', { name: 'Activity', exact: true }),
+        activityId,
+      );
+      await dialog.getByLabel('Start Date').fill('2026-06-08');
+      await dialog.getByLabel('Days of work').fill('1');
+      await selectShadOption(dialog.getByRole('combobox', { name: 'Repeat' }), 'weekly');
+      await dialog.getByLabel('Repeat until').fill('2026-06-22');
+      await dialog.getByRole('button', { name: 'Save' }).click();
     },
     count,
     2,
@@ -555,39 +634,46 @@ test("each scheduler gesture is one typed write with Undo and Redo, and reload c
     harness,
     async () => {
       await bar.click();
-      await page.getByRole("dialog", { name: "Edit allocation" }).getByRole("button", { name: "Delete" }).click();
       await page
-        .getByRole("alertdialog", { name: "Delete allocation?" })
-        .getByRole("button", { name: "Delete" })
+        .getByRole('dialog', { name: 'Edit allocation' })
+        .getByRole('button', { name: 'Delete' })
+        .click();
+      await page
+        .getByRole('alertdialog', { name: 'Delete allocation?' })
+        .getByRole('button', { name: 'Delete' })
         .click();
     },
     (allocations) => allocations.some(({ id }) => id === allocationId),
     true,
     false,
   );
-  expect(requests.filter(({ path }) => path === "/api/batch")).toEqual([]);
+  expect(requests.filter(({ path }) => path === '/api/batch')).toEqual([]);
 
   await reloadScheduler(page);
   await expect(bar).toHaveCount(0);
   await expect(cityPlanning.first()).toBeVisible();
   expect(await stored()).toHaveLength(4);
-  await expect(page.getByTestId("undo-button")).toBeDisabled();
-  await expect(page.getByTestId("redo-button")).toBeDisabled();
+  await expect(page.getByTestId('undo-button')).toBeDisabled();
+  await expect(page.getByTestId('redo-button')).toBeDisabled();
 });
 
-test("a weekly repeat persists all 14 occurrences as one series through one typed write", async ({ page, request }) => {
-  const { owner, accountId, ownerEmail, resourceId, projectId, activityId } = await createScenario(request);
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "allocations", {
-    operation: "allocation.create",
+test('a weekly repeat persists all 14 occurrences as one series through one typed write', async ({
+  page,
+  request,
+}) => {
+  const { owner, accountId, ownerEmail, resourceId, projectId, activityId } =
+    await createScenario(request);
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'allocations', {
+    operation: 'allocation.create',
     allocation: {
       id: crypto.randomUUID(),
       resourceId,
       activityId,
       projectId: null,
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
       hoursPerDay: 8,
-      status: "confirmed",
+      status: 'confirmed',
     },
   });
   const stored = () => persistedAllocations(request, owner.cookie, accountId);
@@ -595,22 +681,23 @@ test("a weekly repeat persists all 14 occurrences as one series through one type
   expect(baseline).toHaveLength(1);
   await signIn(page, ownerEmail);
   const requests = recordRequests(page);
-  const added = (allocations: Allocation[]) => allocations.filter(({ id }) => !baseline.some((row) => row.id === id));
+  const added = (allocations: Allocation[]) =>
+    allocations.filter(({ id }) => !baseline.some((row) => row.id === id));
   const wednesdays = [
-    "2026-06-10",
-    "2026-06-17",
-    "2026-06-24",
-    "2026-07-01",
-    "2026-07-08",
-    "2026-07-15",
-    "2026-07-22",
-    "2026-07-29",
-    "2026-08-05",
-    "2026-08-12",
-    "2026-08-19",
-    "2026-08-26",
-    "2026-09-02",
-    "2026-09-09",
+    '2026-06-10',
+    '2026-06-17',
+    '2026-06-24',
+    '2026-07-01',
+    '2026-07-08',
+    '2026-07-15',
+    '2026-07-22',
+    '2026-07-29',
+    '2026-08-05',
+    '2026-08-12',
+    '2026-08-19',
+    '2026-08-26',
+    '2026-09-02',
+    '2026-09-09',
   ];
   const expectRepeatPersisted = async () => {
     const allocations = await stored();
@@ -630,15 +717,18 @@ test("a weekly repeat persists all 14 occurrences as one series through one type
     accountId,
     requests,
     async () => {
-      await page.getByRole("button", { name: "Add allocation for Bruce Wayne" }).click();
-      const dialog = page.getByRole("dialog", { name: "New allocation" });
-      await selectShadOption(dialog.getByLabel("Project", { exact: true }), projectId);
-      await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), activityId);
-      await dialog.getByLabel("Start Date").fill("2026-06-10");
-      await dialog.getByLabel("Days of work").fill("1");
-      await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
-      await dialog.getByLabel("Repeat until").fill("2026-09-10");
-      await dialog.getByRole("button", { name: "Save" }).click();
+      await page.getByRole('button', { name: 'Add allocation for Bruce Wayne' }).click();
+      const dialog = page.getByRole('dialog', { name: 'New allocation' });
+      await selectShadOption(dialog.getByLabel('Project', { exact: true }), projectId);
+      await selectShadOption(
+        dialog.getByRole('combobox', { name: 'Activity', exact: true }),
+        activityId,
+      );
+      await dialog.getByLabel('Start Date').fill('2026-06-10');
+      await dialog.getByLabel('Days of work').fill('1');
+      await selectShadOption(dialog.getByRole('combobox', { name: 'Repeat' }), 'weekly');
+      await dialog.getByLabel('Repeat until').fill('2026-09-10');
+      await dialog.getByRole('button', { name: 'Save' }).click();
     },
     async () => {
       await expect.poll(async () => added(await stored()).length).toBe(14);
@@ -650,19 +740,22 @@ test("a weekly repeat persists all 14 occurrences as one series through one type
   expect(await expectRepeatPersisted()).toEqual(repeated);
 });
 
-test("a stale-revision scheduler write shows server state without a toast or history entry", async ({
+test('a stale-revision scheduler write shows server state without a toast or history entry', async ({
   page,
   request,
 }) => {
   const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
-  const allocationId = await bar.getAttribute("data-alloc-id");
+  const allocationId = await bar.getAttribute('data-alloc-id');
   expect(allocationId).toBeTruthy();
   await expect
-    .poll(async () => (await allocationFrom(request, owner.cookie, accountId, allocationId!))?.startDate)
-    .toBe("2026-06-01");
-  await expect(page.getByTestId("undo-button")).toBeEnabled();
+    .poll(
+      async () =>
+        (await allocationFrom(request, owner.cookie, accountId, allocationId!))?.startDate,
+    )
+    .toBe('2026-06-01');
+  await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   // Another writer advances the server revision without this page refetching.
   const planning = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, {
@@ -670,18 +763,24 @@ test("a stale-revision scheduler write shows server state without a toast or his
   });
   expect(planning.status()).toBe(200);
   const { revision } = (await planning.json()) as { revision: number };
-  const external = await request.patch(`${AUTH_API}/api/accounts/${accountId}/allocations/${allocationId}`, {
-    headers: { ...(await masqueradeContextHeaders(request, owner.cookie)), "content-type": "application/json" },
-    data: {
-      mutationId: crypto.randomUUID(),
-      baseRevision: revision,
-      intent: {
-        operation: "allocation.update",
-        id: allocationId,
-        changes: { startDate: "2026-06-04", endDate: "2026-06-04" },
+  const external = await request.patch(
+    `${AUTH_API}/api/accounts/${accountId}/allocations/${allocationId}`,
+    {
+      headers: {
+        ...(await masqueradeContextHeaders(request, owner.cookie)),
+        'content-type': 'application/json',
+      },
+      data: {
+        mutationId: crypto.randomUUID(),
+        baseRevision: revision,
+        intent: {
+          operation: 'allocation.update',
+          id: allocationId,
+          changes: { startDate: '2026-06-04', endDate: '2026-06-04' },
+        },
       },
     },
-  });
+  );
   expect(external.status()).toBe(200);
 
   const conflict = page.waitForResponse((response) =>
@@ -693,37 +792,44 @@ test("a stale-revision scheduler write shows server state without a toast or his
   await dragByOneDay(page, bar, await dayWidth(page));
   expect((await conflict).status()).toBe(409);
 
-  await expect(bar).toHaveAttribute("aria-label", /4 Jun to 4 Jun/);
-  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
-  await expect(page.getByTestId("undo-button")).toBeDisabled();
-  await expect(page.getByTestId("redo-button")).toBeDisabled();
+  await expect(bar).toHaveAttribute('aria-label', /4 Jun to 4 Jun/);
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+  await expect(page.getByTestId('undo-button')).toBeDisabled();
+  await expect(page.getByTestId('redo-button')).toBeDisabled();
   expect(await allocationFrom(request, owner.cookie, accountId, allocationId!)).toMatchObject({
-    startDate: "2026-06-04",
-    endDate: "2026-06-04",
+    startDate: '2026-06-04',
+    endDate: '2026-06-04',
   });
 });
 
-test("an ended session (401) clears the scheduler cache and history", async ({ page, request }) => {
+test('an ended session (401) clears the scheduler cache and history', async ({ page, request }) => {
   const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
-  const allocationId = await bar.getAttribute("data-alloc-id");
+  const allocationId = await bar.getAttribute('data-alloc-id');
   expect(allocationId).toBeTruthy();
   await expect
-    .poll(async () => (await allocationFrom(request, owner.cookie, accountId, allocationId!))?.startDate)
-    .toBe("2026-06-01");
-  await expect(page.getByTestId("undo-button")).toBeEnabled();
+    .poll(
+      async () =>
+        (await allocationFrom(request, owner.cookie, accountId, allocationId!))?.startDate,
+    )
+    .toBe('2026-06-01');
+  await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   revokeFixtureSessions(ownerEmail);
   await page.context().clearCookies();
-  expect((await page.request.get(`${AUTH_API}/api/accounts/${accountId}/planning`)).status()).toBe(401);
-  await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
+  expect((await page.request.get(`${AUTH_API}/api/accounts/${accountId}/planning`)).status()).toBe(
+    401,
+  );
+  await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));
   // A late response may reissue a cookie, but the server-side session is revoked.
-  const read = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/auth/me");
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  const read = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/auth/me',
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   expect((await read).status()).toBe(401);
 
-  await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
+  await expect(page.getByTestId('allocation-bar')).toHaveCount(0);
   await expect(page.locator('[data-testid="undo-button"]:enabled')).toHaveCount(0);
   await expect(page.locator('[data-testid="redo-button"]:enabled')).toHaveCount(0);
 });

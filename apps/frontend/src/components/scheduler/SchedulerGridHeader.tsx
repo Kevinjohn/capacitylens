@@ -1,13 +1,16 @@
-import type { Ref } from "react";
-import { m } from "@/i18n";
-import { LAYOUT } from "./layout";
-import { DateHeader } from "./DateHeader";
-import type { useSchedulerViewport } from "./useSchedulerViewport";
-import type { useSchedulerGridModel, useSchedulerGridPreferences } from "./useSchedulerGridModel";
+import type { Ref } from 'react';
+import { m } from '@/i18n';
+import { LAYOUT } from './layout';
+import { DateHeader } from './DateHeader';
+import type { useSchedulerViewport } from './useSchedulerViewport';
+import type { useSchedulerGridModel, useSchedulerGridPreferences } from './useSchedulerGridModel';
 
-type Props = Pick<ReturnType<typeof useSchedulerViewport>, "days" | "geom"> &
-  Pick<ReturnType<typeof useSchedulerGridModel>, "today" | "visibleWeeksLabel" | "visibleSpanCompact" | "overallUtil"> &
-  Pick<ReturnType<typeof useSchedulerGridPreferences>, "ui" | "utilizationPrefs"> & {
+type Props = Pick<ReturnType<typeof useSchedulerViewport>, 'days' | 'geom'> &
+  Pick<
+    ReturnType<typeof useSchedulerGridModel>,
+    'today' | 'visibleWeeksLabel' | 'visibleSpanCompact' | 'overallUtil'
+  > &
+  Pick<ReturnType<typeof useSchedulerGridPreferences>, 'ui' | 'utilizationPrefs'> & {
     headerRef: Ref<HTMLDivElement>;
     calendarWeekStartsOn: 0 | 1;
   };

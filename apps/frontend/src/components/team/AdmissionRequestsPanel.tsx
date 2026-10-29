@@ -1,21 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
-import { isAccountRole } from "@capacitylens/shared/account/types";
-import { m } from "@/i18n";
-import { resolveRejectionMessage, teamAccessClient } from "@/account/teamAccessClient";
-import type { AdmissionRequest } from "@/account/teamAccessClient";
-import { resolveRoleLabel } from "@/lib/accessCopy";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCallback, useEffect, useState } from 'react';
+import { isAccountRole } from '@capacitylens/shared/account/types';
+import { m } from '@/i18n';
+import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
+import type { AdmissionRequest } from '@/account/teamAccessClient';
+import { resolveRoleLabel } from '@/lib/accessCopy';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-type Listing = { kind: "loading" } | { kind: "failed" } | { kind: "ready"; requests: AdmissionRequest[] };
+type Listing =
+  { kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; requests: AdmissionRequest[] };
 
 async function fetchListing(signal?: AbortSignal): Promise<Listing> {
   try {
     const result = await teamAccessClient.listAdmissionRequests(signal);
-    return result.kind === "ok" ? { kind: "ready", requests: result.value } : { kind: "failed" };
+    return result.kind === 'ok' ? { kind: 'ready', requests: result.value } : { kind: 'failed' };
   } catch (failure) {
-    if (!signal?.aborted) console.warn("AdmissionRequestsPanel: listing failed", failure);
-    return { kind: "failed" };
+    if (!signal?.aborted) console.warn('AdmissionRequestsPanel: listing failed', failure);
+    return { kind: 'failed' };
   }
 }
 
@@ -24,7 +25,7 @@ async function fetchListing(signal?: AbortSignal): Promise<Listing> {
  * and revoked people stay listed so a mistaken decision can be reversed.
  */
 export function AdmissionRequestsPanel() {
-  const [listing, setListing] = useState<Listing>({ kind: "loading" });
+  const [listing, setListing] = useState<Listing>({ kind: 'loading' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,15 +41,17 @@ export function AdmissionRequestsPanel() {
     return () => controller.abort();
   }, [load]);
 
-  const decide = async (request: AdmissionRequest, decision: "approve" | "reject") => {
+  const decide = async (request: AdmissionRequest, decision: 'approve' | 'reject') => {
     setBusy(true);
     setError(null);
     try {
       const result = await teamAccessClient.decideAdmission(request.userId, decision);
-      if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_admission_failed()));
+      if (result.kind !== 'ok') {
+        setError(resolveRejectionMessage(result, m.settings_admission_failed()));
+      }
       await load();
     } catch (failure) {
-      console.warn("AdmissionRequestsPanel: decision failed", failure);
+      console.warn('AdmissionRequestsPanel: decision failed', failure);
       setError(m.settings_admission_failed());
     } finally {
       setBusy(false);
@@ -56,7 +59,7 @@ export function AdmissionRequestsPanel() {
   };
 
   return (
-    <Card data-testid="admission-requests" aria-busy={busy || listing.kind === "loading"}>
+    <Card data-testid="admission-requests" aria-busy={busy || listing.kind === 'loading'}>
       <CardHeader>
         <CardTitle>
           <h2>{m.settings_admission_heading()}</h2>
@@ -64,12 +67,12 @@ export function AdmissionRequestsPanel() {
         <CardDescription>{m.settings_admission_intro()}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
-        {listing.kind === "loading" && (
+        {listing.kind === 'loading' && (
           <p role="status" className="text-sm text-muted-foreground">
             {m.settings_admission_loading()}
           </p>
         )}
-        {listing.kind === "failed" && (
+        {listing.kind === 'failed' && (
           <div className="flex flex-wrap items-center gap-2">
             <p role="alert" className="text-sm text-danger">
               {m.settings_admission_load_failed()}
@@ -78,7 +81,7 @@ export function AdmissionRequestsPanel() {
               size="sm"
               variant="outline"
               onClick={() => {
-                setListing({ kind: "loading" });
+                setListing({ kind: 'loading' });
                 void load();
               }}
             >
@@ -86,10 +89,10 @@ export function AdmissionRequestsPanel() {
             </Button>
           </div>
         )}
-        {listing.kind === "ready" && listing.requests.length === 0 && (
+        {listing.kind === 'ready' && listing.requests.length === 0 && (
           <p className="text-sm text-muted-foreground">{m.settings_admission_empty()}</p>
         )}
-        {listing.kind === "ready" && listing.requests.length > 0 && (
+        {listing.kind === 'ready' && listing.requests.length > 0 && (
           <ul className="flex flex-col divide-y rounded-md border">
             {listing.requests.map((request) => (
               <li
@@ -104,9 +107,9 @@ export function AdmissionRequestsPanel() {
                       {m.settings_admission_role({ role: resolveRoleLabel(request.invitedRole) })}
                     </span>
                   )}
-                  {request.approval !== "pending" && (
+                  {request.approval !== 'pending' && (
                     <span className="text-xs text-muted-foreground" data-testid="admission-decided">
-                      {request.approval === "rejected"
+                      {request.approval === 'rejected'
                         ? m.settings_admission_declined()
                         : m.settings_admission_revoked()}
                     </span>
@@ -118,18 +121,18 @@ export function AdmissionRequestsPanel() {
                     data-testid="admission-approve"
                     aria-label={m.settings_admission_approve_aria({ email: request.email })}
                     disabled={busy}
-                    onClick={() => void decide(request, "approve")}
+                    onClick={() => void decide(request, 'approve')}
                   >
                     {m.settings_admission_approve()}
                   </Button>
-                  {request.approval === "pending" && (
+                  {request.approval === 'pending' && (
                     <Button
                       size="sm"
                       variant="outline"
                       data-testid="admission-reject"
                       aria-label={m.settings_admission_reject_aria({ email: request.email })}
                       disabled={busy}
-                      onClick={() => void decide(request, "reject")}
+                      onClick={() => void decide(request, 'reject')}
                     >
                       {m.settings_admission_reject()}
                     </Button>

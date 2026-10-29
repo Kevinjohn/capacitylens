@@ -10,8 +10,8 @@ export function requestRestorationCleanup(count: number, signal: AbortSignal): P
   if (signal.aborted || pending || listeners.size === 0) return Promise.resolve(false);
   return new Promise((resolve) => {
     const abort = () => completeRestorationCleanup(false);
-    pending = { count, resolve, detach: () => signal.removeEventListener("abort", abort) };
-    signal.addEventListener("abort", abort, { once: true });
+    pending = { count, resolve, detach: () => signal.removeEventListener('abort', abort) };
+    signal.addEventListener('abort', abort, { once: true });
     emit();
   });
 }

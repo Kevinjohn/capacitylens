@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { isServerConfigured } from "@/data/apiConfig";
-import { formatDiagnostics, readBrowserDiagnostics, readDiagnostics } from "@/data/buildInfo";
-import { accountClient } from "@/account/accountClient";
+import { useEffect, useState } from 'react';
+import { isServerConfigured } from '@/data/apiConfig';
+import { formatDiagnostics, readBrowserDiagnostics, readDiagnostics } from '@/data/buildInfo';
+import { accountClient } from '@/account/accountClient';
 
 type ServerObservation = { response: unknown; observedAt: string | undefined };
 
@@ -12,7 +12,7 @@ export function useDiagnosticsController() {
     response: null,
     observedAt: serverMode ? undefined : new Date().toISOString(),
   }));
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   useEffect(() => {
     if (!serverMode) return;
     const controller = new AbortController();
@@ -25,23 +25,27 @@ export function useDiagnosticsController() {
       .catch(() => {
         // An unavailable diagnostics read is itself represented in the fixed projection. The
         // caught error is intentionally not rendered or copied, because it may contain internals.
-        if (!controller.signal.aborted) setObservation({ response: null, observedAt: new Date().toISOString() });
+        if (!controller.signal.aborted) {
+          setObservation({ response: null, observedAt: new Date().toISOString() });
+        }
       });
     return () => controller.abort();
   }, [serverMode]);
   const report = formatDiagnostics(
-    readDiagnostics(observation.response, observation.observedAt, { browser: readBrowserDiagnostics() }),
+    readDiagnostics(observation.response, observation.observedAt, {
+      browser: readBrowserDiagnostics(),
+    }),
   );
   const copyReport = async () => {
     try {
-      if (!("clipboard" in navigator) || typeof navigator.clipboard.writeText !== "function") {
-        throw new Error("Clipboard unavailable.");
+      if (!('clipboard' in navigator) || typeof navigator.clipboard.writeText !== 'function') {
+        throw new Error('Clipboard unavailable.');
       }
       await navigator.clipboard.writeText(report);
-      setCopyState("copied");
+      setCopyState('copied');
     } catch {
       // Clipboard failures are reflected in the copy state shown by the view.
-      setCopyState("failed");
+      setCopyState('failed');
     }
   };
   return { report, copyState, copyReport };

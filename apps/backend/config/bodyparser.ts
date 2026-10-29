@@ -1,5 +1,5 @@
-import { defineConfig } from '@adonisjs/core/bodyparser'
-import type { BodyParserConfig } from '@adonisjs/bodyparser/types'
+import { defineConfig } from '@adonisjs/core/bodyparser';
+import type { BodyParserConfig } from '@adonisjs/bodyparser/types';
 
 const bodyParserConfig: BodyParserConfig = defineConfig({
   /**
@@ -70,6 +70,6 @@ const bodyParserConfig: BodyParserConfig = defineConfig({
      */
     types: [],
   },
-})
+});
 
-export default bodyParserConfig
+export default bodyParserConfig;

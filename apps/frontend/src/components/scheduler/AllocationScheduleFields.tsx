@@ -1,4 +1,4 @@
-import { m } from "@/i18n";
+import { m } from '@/i18n';
 import {
   CheckboxField,
   DateField,
@@ -7,34 +7,41 @@ import {
   SegmentedField,
   SelectField,
   TextField,
-} from "@/components/common/ui";
-import type { Option } from "@/components/common/ui";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FieldError } from "@/components/ui/field";
-import { buildAllocationStatusOptions } from "@/lib/metadata";
-import { formatShortDateEndpoint } from "@/lib/dateDisplay";
-import { AllocationControlColumn, AllocationSpanRow, DateRangeFields } from "./AllocationModalFieldLayout";
-import type { AllocationModalState } from "./useAllocationModalState";
-import { roundToHundredths } from "@/lib/roundToHundredths";
+} from '@/components/common/ui';
+import type { Option } from '@/components/common/ui';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FieldError } from '@/components/ui/field';
+import { buildAllocationStatusOptions } from '@/lib/metadata';
+import { formatShortDateEndpoint } from '@/lib/dateDisplay';
+import {
+  AllocationControlColumn,
+  AllocationSpanRow,
+  DateRangeFields,
+} from './AllocationModalFieldLayout';
+import type { AllocationModalState } from './useAllocationModalState';
+import { roundToHundredths } from '@/lib/roundToHundredths';
 
 const buildRepeatOptions = (): Option[] => [
-  { value: "none", label: m.form_allocation_repeat_none() },
-  { value: "weekly", label: m.form_allocation_repeat_weekly() },
-  { value: "every-two-weeks", label: m.form_allocation_repeat_every_two_weeks() },
-  { value: "every-three-weeks", label: m.form_allocation_repeat_every_three_weeks() },
-  { value: "every-four-weeks", label: m.form_allocation_repeat_every_four_weeks() },
-  { value: "monthly", label: m.form_allocation_repeat_monthly() },
+  { value: 'none', label: m.form_allocation_repeat_none() },
+  { value: 'weekly', label: m.form_allocation_repeat_weekly() },
+  { value: 'every-two-weeks', label: m.form_allocation_repeat_every_two_weeks() },
+  { value: 'every-three-weeks', label: m.form_allocation_repeat_every_three_weeks() },
+  { value: 'every-four-weeks', label: m.form_allocation_repeat_every_four_weeks() },
+  { value: 'monthly', label: m.form_allocation_repeat_monthly() },
 ];
 
 const buildHoursPerDayOptions = (): Option[] => [
-  { value: "1", label: m.form_allocation_hours_per_day_one_hour() },
-  { value: "2", label: m.form_allocation_hours_per_day_quarter_day() },
-  { value: "4", label: m.form_allocation_hours_per_day_half_day() },
-  { value: "8", label: m.form_allocation_hours_per_day_full_day() },
+  { value: '1', label: m.form_allocation_hours_per_day_one_hour() },
+  { value: '2', label: m.form_allocation_hours_per_day_quarter_day() },
+  { value: '4', label: m.form_allocation_hours_per_day_half_day() },
+  { value: '8', label: m.form_allocation_hours_per_day_full_day() },
 ];
 
-type ScheduleProps = AllocationModalState["scheduleFields"];
-type TaskProps = Pick<ScheduleProps, "task" | "setTask" | "showTaskFieldInSchedule" | "errorField" | "errorId">;
+type ScheduleProps = AllocationModalState['scheduleFields'];
+type TaskProps = Pick<
+  ScheduleProps,
+  'task' | 'setTask' | 'showTaskFieldInSchedule' | 'errorField' | 'errorId'
+>;
 
 function TaskField(props: TaskProps) {
   if (!props.showTaskFieldInSchedule) return null;
@@ -43,7 +50,7 @@ function TaskField(props: TaskProps) {
       label={m.form_allocation_task_label()}
       value={props.task}
       onChange={props.setTask}
-      invalid={props.errorField === "task"}
+      invalid={props.errorField === 'task'}
       describedById={props.errorId}
       layout="label-control"
     />
@@ -52,15 +59,15 @@ function TaskField(props: TaskProps) {
 
 type TypedSpanProps = Pick<
   ScheduleProps,
-  | "isExternal"
-  | "startDate"
-  | "setStartDate"
-  | "endDate"
-  | "setEndDate"
-  | "hoursPerDay"
-  | "setHoursPerDay"
-  | "errorField"
-  | "errorId"
+  | 'isExternal'
+  | 'startDate'
+  | 'setStartDate'
+  | 'endDate'
+  | 'setEndDate'
+  | 'hoursPerDay'
+  | 'setHoursPerDay'
+  | 'errorField'
+  | 'errorId'
 >;
 
 function TypedSpanFields(props: TypedSpanProps) {
@@ -71,7 +78,7 @@ function TypedSpanFields(props: TypedSpanProps) {
         endDate={props.endDate}
         onStartChange={props.setStartDate}
         onEndChange={props.setEndDate}
-        invalid={props.errorField === "dates"}
+        invalid={props.errorField === 'dates'}
         describedById={props.errorId}
       />
       {!props.isExternal && (
@@ -81,7 +88,7 @@ function TypedSpanFields(props: TypedSpanProps) {
           onChange={(value) => props.setHoursPerDay(Number(value))}
           options={buildHoursPerDayOptions()}
           required
-          invalid={props.errorField === "hours"}
+          invalid={props.errorField === 'hours'}
           describedById={props.errorId}
         />
       )}
@@ -91,19 +98,19 @@ function TypedSpanFields(props: TypedSpanProps) {
 
 type CountedSpanProps = Pick<
   ScheduleProps,
-  | "isDays"
-  | "startDate"
-  | "setStartDate"
-  | "endDateHint"
-  | "effHoursPerDay"
-  | "daysOfWork"
-  | "setDaysOfWork"
-  | "daysOver"
-  | "setDaysOver"
-  | "maximumDaysOver"
-  | "daysOverDisabled"
-  | "errorField"
-  | "errorId"
+  | 'isDays'
+  | 'startDate'
+  | 'setStartDate'
+  | 'endDateHint'
+  | 'effHoursPerDay'
+  | 'daysOfWork'
+  | 'setDaysOfWork'
+  | 'daysOver'
+  | 'setDaysOver'
+  | 'maximumDaysOver'
+  | 'daysOverDisabled'
+  | 'errorField'
+  | 'errorId'
 >;
 
 function countedSpanHint(props: CountedSpanProps) {
@@ -125,7 +132,7 @@ function CountedSpanFields(props: CountedSpanProps) {
         value={props.startDate}
         onChange={props.setStartDate}
         required
-        invalid={props.errorField === "dates"}
+        invalid={props.errorField === 'dates'}
         describedById={props.errorId}
       />
       {props.isDays && (
@@ -136,7 +143,7 @@ function CountedSpanFields(props: CountedSpanProps) {
           min={0}
           step={0.5}
           required
-          invalid={props.errorField === "daysOfWork"}
+          invalid={props.errorField === 'daysOfWork'}
           describedById={props.errorId}
         />
       )}
@@ -148,7 +155,7 @@ function CountedSpanFields(props: CountedSpanProps) {
         max={props.maximumDaysOver}
         step={1}
         disabled={props.daysOverDisabled}
-        invalid={props.errorField === "daysOver"}
+        invalid={props.errorField === 'daysOver'}
         describedById={props.errorId}
       />
     </AllocationSpanRow>
@@ -157,16 +164,16 @@ function CountedSpanFields(props: CountedSpanProps) {
 
 type RepeatProps = Pick<
   ScheduleProps,
-  | "repeat"
-  | "onRepeatChange"
-  | "repeatUntil"
-  | "onRepeatUntilChange"
-  | "repeatUntilMinimum"
-  | "repeatUntilMaximum"
-  | "repeatProjection"
-  | "repeatLastStart"
-  | "errorField"
-  | "errorId"
+  | 'repeat'
+  | 'onRepeatChange'
+  | 'repeatUntil'
+  | 'onRepeatUntilChange'
+  | 'repeatUntilMinimum'
+  | 'repeatUntilMaximum'
+  | 'repeatProjection'
+  | 'repeatLastStart'
+  | 'errorField'
+  | 'errorId'
 >;
 
 function RepeatFields(props: RepeatProps) {
@@ -179,13 +186,13 @@ function RepeatFields(props: RepeatProps) {
         options={buildRepeatOptions()}
         layout="label-control"
       />
-      {props.repeat !== "none" && (
+      {props.repeat !== 'none' && (
         <DateField
           label={m.form_allocation_repeat_until_label()}
           value={props.repeatUntil}
           onChange={props.onRepeatUntilChange}
           required
-          invalid={props.errorField === "repeatUntil"}
+          invalid={props.errorField === 'repeatUntil'}
           describedById={props.errorId}
           min={props.repeatUntilMinimum}
           {...(props.repeatUntilMaximum ? { max: props.repeatUntilMaximum } : {})}
@@ -216,18 +223,18 @@ function RepeatPreview(props: RepeatProps) {
 
 type DetailProps = Pick<
   ScheduleProps,
-  | "isExternal"
-  | "status"
-  | "setStatus"
-  | "note"
-  | "setNote"
-  | "setNoteEdited"
-  | "ignoreWeekends"
-  | "setIgnoreWeekends"
-  | "advisory"
-  | "error"
-  | "errorField"
-  | "errorId"
+  | 'isExternal'
+  | 'status'
+  | 'setStatus'
+  | 'note'
+  | 'setNote'
+  | 'setNoteEdited'
+  | 'ignoreWeekends'
+  | 'setIgnoreWeekends'
+  | 'advisory'
+  | 'error'
+  | 'errorField'
+  | 'errorId'
 >;
 
 function DetailFields(props: DetailProps) {
@@ -250,7 +257,7 @@ function DetailFields(props: DetailProps) {
         label={m.form_allocation_note_label()}
         value={props.note}
         onChange={setNote}
-        invalid={props.errorField === "note"}
+        invalid={props.errorField === 'note'}
         describedById={props.errorId}
         layout="label-control"
       />
@@ -267,7 +274,10 @@ function DetailFields(props: DetailProps) {
           <AlertDescription>{props.advisory}</AlertDescription>
         </Alert>
       )}
-      <FieldError id={props.errorId} tabIndex={props.error && props.errorField === null ? -1 : undefined}>
+      <FieldError
+        id={props.errorId}
+        tabIndex={props.error && props.errorField === null ? -1 : undefined}
+      >
         {props.error}
       </FieldError>
       <RequiredLegend />

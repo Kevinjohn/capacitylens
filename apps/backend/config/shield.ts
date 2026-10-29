@@ -1,5 +1,5 @@
-import { publicOrigin } from '#config/public_origin'
-import { defineConfig } from '@adonisjs/shield'
+import { publicOrigin } from '#config/public_origin';
+import { defineConfig } from '@adonisjs/shield';
 
 const shieldConfig = defineConfig({
   /**
@@ -92,6 +92,6 @@ const shieldConfig = defineConfig({
      */
     enabled: true,
   },
-})
+});
 
-export default shieldConfig
+export default shieldConfig;

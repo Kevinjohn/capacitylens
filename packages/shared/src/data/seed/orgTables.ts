@@ -1,10 +1,10 @@
-import { NULLABLE_FIELDS } from "../../types/nullableFields.js";
-import type { AppData } from "../../types/entities.js";
-import { defaultAccountWorkingDays } from "../../lib/accountWorkingDays.js";
-import { buildInternalClient } from "../internalClient.js";
-import { SEED_TIMESTAMP, STUDIO, LOFT } from "./constants.js";
+import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
+import type { AppData } from '../../types/entities.js';
+import { defaultAccountWorkingDays } from '../../lib/accountWorkingDays.js';
+import { buildInternalClient } from '../internalClient.js';
+import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js';
 
-type OrgTables = Pick<AppData, "accounts" | "disciplines" | "clients" | "projects" | "phases">;
+type OrgTables = Pick<AppData, 'accounts' | 'disciplines' | 'clients' | 'projects' | 'phases'>;
 
 const ORG_TABLES: OrgTables = {
   accounts: [
@@ -13,8 +13,8 @@ const ORG_TABLES: OrgTables = {
       id: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Wayne Enterprises",
-      color: "#2d75da",
+      name: 'Wayne Enterprises',
+      color: '#2d75da',
       workingDays: defaultAccountWorkingDays(),
     },
     {
@@ -22,46 +22,46 @@ const ORG_TABLES: OrgTables = {
       id: LOFT,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Stark Industries",
-      color: "#2d75da",
+      name: 'Stark Industries',
+      color: '#2d75da',
       workingDays: defaultAccountWorkingDays(),
     },
   ],
   disciplines: [
     {
-      id: "d-design",
+      id: 'd-design',
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Design",
-      color: "#2d75da",
+      name: 'Design',
+      color: '#2d75da',
       sortOrder: 0,
     },
     {
-      id: "d-dev",
+      id: 'd-dev',
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Development",
-      color: "#3ace6b",
+      name: 'Development',
+      color: '#3ace6b',
       sortOrder: 1,
     },
     {
-      id: "d-copy",
+      id: 'd-copy',
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Copywriting",
-      color: "#ed841b",
+      name: 'Copywriting',
+      color: '#ed841b',
       sortOrder: 2,
     },
     {
-      id: "d-loft-design",
+      id: 'd-loft-design',
       accountId: LOFT,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Design",
-      color: "#2d75da",
+      name: 'Design',
+      color: '#2d75da',
       sortOrder: 0,
     },
   ],
@@ -69,84 +69,84 @@ const ORG_TABLES: OrgTables = {
     // One built-in "Internal" pseudo-client per account (builtin: true), owns project-less
     // internal/all-projects work and can own real projects. Protected (no rename/delete). See
     // internalClient.ts; the invariant is also enforced by imports and addAccount.
-    buildInternalClient(STUDIO, SEED_TIMESTAMP, "c-internal-studio"),
-    buildInternalClient(LOFT, SEED_TIMESTAMP, "c-internal-loft"),
+    buildInternalClient(STUDIO, SEED_TIMESTAMP, 'c-internal-studio'),
+    buildInternalClient(LOFT, SEED_TIMESTAMP, 'c-internal-loft'),
     {
       ...NULLABLE_FIELDS.clients,
-      id: "c-acme",
+      id: 'c-acme',
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Queen Consolidated",
-      color: "#e02727",
+      name: 'Queen Consolidated',
+      color: '#e02727',
     },
     {
       ...NULLABLE_FIELDS.clients,
-      id: "c-globex",
+      id: 'c-globex',
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "LexCorp",
-      color: "#2d75da",
+      name: 'LexCorp',
+      color: '#2d75da',
     },
     {
       ...NULLABLE_FIELDS.clients,
-      id: "c-loft-northwind",
+      id: 'c-loft-northwind',
       accountId: LOFT,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Rand Corporation",
-      color: "#34c7d4",
+      name: 'Rand Corporation',
+      color: '#34c7d4',
     },
   ],
   projects: [
     {
       ...NULLABLE_FIELDS.projects,
-      id: "p-acme",
+      id: 'p-acme',
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Project Watchtower",
-      clientId: "c-acme",
-      color: "#da2d92",
+      name: 'Project Watchtower',
+      clientId: 'c-acme',
+      color: '#da2d92',
     },
     {
       ...NULLABLE_FIELDS.projects,
-      id: "p-brand",
+      id: 'p-brand',
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Metropolis Rebrand",
-      clientId: "c-globex",
-      color: "#34c7d4",
+      name: 'Metropolis Rebrand',
+      clientId: 'c-globex',
+      color: '#34c7d4',
     },
     {
       ...NULLABLE_FIELDS.projects,
-      id: "p-loft-app",
+      id: 'p-loft-app',
       accountId: LOFT,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Rand Mobile App",
-      clientId: "c-loft-northwind",
-      color: "#2d75da",
+      name: 'Rand Mobile App',
+      clientId: 'c-loft-northwind',
+      color: '#2d75da',
     },
   ],
   phases: [
     {
-      id: "ph-disc",
+      id: 'ph-disc',
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Discovery",
-      projectId: "p-acme",
+      name: 'Discovery',
+      projectId: 'p-acme',
     },
     {
-      id: "ph-build",
+      id: 'ph-build',
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
-      name: "Build",
-      projectId: "p-acme",
+      name: 'Build',
+      projectId: 'p-acme',
     },
   ],
 };

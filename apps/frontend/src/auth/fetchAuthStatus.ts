@@ -1,15 +1,17 @@
-import { accountClient } from "@/account/accountClient";
-import { isTransportFailure } from "@/data/requestTimeout";
-import { m } from "@/i18n";
-import { isAuthMode } from "./authStatus";
-import type { AuthStatusResult } from "./authStatus";
-import { parseAuthUser } from "./validateAuthUser";
-import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from "./accountTransition";
-import { masqueradeApi } from "./masqueradeApi";
-import { invalidResponse, readAuthResponse } from "./authResponse";
-import { useStore } from "@/store/useStore";
+import { accountClient } from '@/account/accountClient';
+import { isTransportFailure } from '@/data/requestTimeout';
+import { m } from '@/i18n';
+import { isAuthMode } from './authStatus';
+import type { AuthStatusResult } from './authStatus';
+import { parseAuthUser } from './validateAuthUser';
+import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
+import { masqueradeApi } from './masqueradeApi';
+import { invalidResponse, readAuthResponse } from './authResponse';
+import { useStore } from '@/store/useStore';
 
-async function resolveIdentityWhileMasqueradeStatusIsUnknown(statusError: unknown): Promise<AuthStatusResult> {
+async function resolveIdentityWhileMasqueradeStatusIsUnknown(
+  statusError: unknown,
+): Promise<AuthStatusResult> {
   if (!isTransportFailure(statusError)) return authServiceError(statusError);
   try {
     const response = await accountClient.me();
@@ -19,7 +21,10 @@ async function resolveIdentityWhileMasqueradeStatusIsUnknown(statusError: unknow
     // the endpoint succeeds while the status endpoint is unreachable.
     return authServiceError(statusError);
   } catch (error) {
-    console.warn("AuthProvider: /api/auth/me also failed while masquerade status was unknown", error);
+    console.warn(
+      'AuthProvider: /api/auth/me also failed while masquerade status was unknown',
+      error,
+    );
     return authServiceError(error);
   }
 }
@@ -31,33 +36,41 @@ async function readActiveMasqueradeAuthStatus(
 ): Promise<AuthStatusResult | null> {
   try {
     const user = parseAuthUser({ value: masquerade.principal, requireEmail: true });
-    if (!user || !isAuthMode(masquerade.authMode) || masquerade.authMode === "off") return invalidResponse();
+    if (!user || !isAuthMode(masquerade.authMode) || masquerade.authMode === 'off') {
+      return invalidResponse();
+    }
     if (!(await adoptMasqueradeStatus(masquerade, acceptEffects))) return null;
-    const next: Extract<AuthStatusResult, { kind: "pass" }> = {
-      kind: "pass",
-      identitySource: "live",
+    const next: Extract<AuthStatusResult, { kind: 'pass' }> = {
+      kind: 'pass',
+      identitySource: 'live',
       authMode: masquerade.authMode,
       user,
       canCreateAccount: false,
     };
     return next;
   } catch (error) {
-    console.warn("AuthProvider: active masquerade could not be adopted", error);
+    console.warn('AuthProvider: active masquerade could not be adopted', error);
     return {
-      kind: "error",
-      message: isTransportFailure(error) ? m.auth_service_unreachable() : m.auth_service_invalid_response(),
+      kind: 'error',
+      message: isTransportFailure(error)
+        ? m.auth_service_unreachable()
+        : m.auth_service_invalid_response(),
     };
   }
 }
 
 function authServiceError(error: unknown): AuthStatusResult {
   return {
-    kind: "error",
-    message: isTransportFailure(error) ? m.auth_service_unreachable() : m.auth_service_invalid_response(),
+    kind: 'error',
+    message: isTransportFailure(error)
+      ? m.auth_service_unreachable()
+      : m.auth_service_invalid_response(),
   };
 }
 
-export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<AuthStatusResult | null> {
+export async function fetchAuthStatus(
+  acceptEffects: () => boolean,
+): Promise<AuthStatusResult | null> {
   let isCurrent: () => boolean;
   let masquerade: Awaited<ReturnType<typeof masqueradeApi.status>>;
   try {
@@ -65,7 +78,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Aut
     masquerade = await masqueradeApi.status(useStore.getState().activeAccountId ?? undefined);
   } catch (error) {
     // /me can resolve only a 401 here; a successful response does not prove inactivity.
-    console.warn("AuthProvider: masquerade status could not be checked", error);
+    console.warn('AuthProvider: masquerade status could not be checked', error);
     return resolveIdentityWhileMasqueradeStatusIsUnknown(error);
   }
   const acceptStatus = () => acceptEffects() && isCurrent();
@@ -79,7 +92,7 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Aut
   try {
     return await readAuthResponse(await accountClient.me());
   } catch (error) {
-    console.warn("AuthProvider: /api/auth/me check failed", error);
+    console.warn('AuthProvider: /api/auth/me check failed', error);
     return authServiceError(error);
   }
 }

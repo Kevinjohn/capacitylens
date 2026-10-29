@@ -1,17 +1,22 @@
-import { m } from "@/i18n";
-import { resolveTimeZoneOptionLabel } from "@/lib/timezones";
-import { SettingsSection } from "./SettingsSection";
-import type { Account } from "@capacitylens/shared/types/entities";
+import { m } from '@/i18n';
+import { resolveTimeZoneOptionLabel } from '@/lib/timezones';
+import { SettingsSection } from './SettingsSection';
+import type { Account } from '@capacitylens/shared/types/entities';
 
 type SettingsAccountOptionsProps = {
-  companyName: Account["name"];
-  weekStartsOn: NonNullable<Account["weekStartsOn"]>;
-  timezone: NonNullable<Account["timezone"]>;
+  companyName: Account['name'];
+  weekStartsOn: NonNullable<Account['weekStartsOn']>;
+  timezone: NonNullable<Account['timezone']>;
 };
 
 /** Displays the company name and fixed calendar week/timezone convention. */
-export function SettingsAccountOptions({ companyName, weekStartsOn, timezone }: SettingsAccountOptionsProps) {
-  const weekStartLabel = weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
+export function SettingsAccountOptions({
+  companyName,
+  weekStartsOn,
+  timezone,
+}: SettingsAccountOptionsProps) {
+  const weekStartLabel =
+    weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
   const rows = [
     [m.settings_company_name_label(), companyName],
     [m.settings_week_start_label(), weekStartLabel],

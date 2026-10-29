@@ -1,5 +1,9 @@
-import { allocationAttributionAllowed, effectiveProjectId, validateAllocationAssignment } from "../../lib/integrity.js";
-import { isExternalResource } from "../../types/entities.js";
+import {
+  allocationAttributionAllowed,
+  effectiveProjectId,
+  validateAllocationAssignment,
+} from '../../lib/integrity.js';
+import { isExternalResource } from '../../types/entities.js';
 import type {
   Activity,
   Allocation,
@@ -8,14 +12,19 @@ import type {
   Resource,
   ScopedEntity,
   ScopedEntityKey,
-} from "../../types/entities.js";
-import { belongsToAccount } from "../tenancy.js";
-import { throwDomainError } from "../errors.js";
-import { parseResourceAvatarUrl } from "../resourceAvatarUrl.js";
-import { resolveValidationRow, resolveOwnedRow, assertValid, isEffectivelyActive } from "../validationLookup.js";
-import type { ValidationDataLookup } from "../validationLookup.js";
+} from '../../types/entities.js';
+import { belongsToAccount } from '../tenancy.js';
+import { throwDomainError } from '../errors.js';
+import { parseResourceAvatarUrl } from '../resourceAvatarUrl.js';
+import {
+  resolveValidationRow,
+  resolveOwnedRow,
+  assertValid,
+  isEffectivelyActive,
+} from '../validationLookup.js';
+import type { ValidationDataLookup } from '../validationLookup.js';
 
-const RESOURCE_KINDS: ReadonlySet<unknown> = new Set(["person", "placeholder", "external"]);
+const RESOURCE_KINDS: ReadonlySet<unknown> = new Set(['person', 'placeholder', 'external']);
 
 /** Require the target row to belong to accountId before an update or delete.
  * Returns null for a stale id so callers can preserve the no-op contract; otherwise returns the owned row.
@@ -26,7 +35,7 @@ export function getOwned<K extends ScopedEntityKey>(
   const row = (data[key] as ScopedEntity[]).find((entity) => entity.id === id);
   if (!row) return null;
   if (!belongsToAccount(row, accountId)) {
-    throwDomainError("record_wrong_account", "That record does not belong to the active company.");
+    throwDomainError('record_wrong_account', 'That record does not belong to the active company.');
   }
   return row as AppData[K][number];
 }
@@ -73,16 +82,19 @@ function createScopedRefsContext(
   const need = (field: string, table: ScopedEntityKey, message: string) => {
     if (!present(field)) return;
     const resolved =
-      typeof record[field] === "string"
-        ? (resolveValidationRow({ data, table, id: record[field], ...lookupOptions }) as ScopedEntity | undefined)
+      typeof record[field] === 'string'
+        ? (resolveValidationRow({ data, table, id: record[field], ...lookupOptions }) as
+            ScopedEntity | undefined)
         : undefined;
-    if (unchanged(field) && (resolved === undefined || belongsToAccount(resolved, accountId))) return;
+    if (unchanged(field) && (resolved === undefined || belongsToAccount(resolved, accountId))) {
+      return;
+    }
     if (
       resolved === undefined ||
       !belongsToAccount(resolved, accountId) ||
       !isEffectivelyActive({ data, table, row: resolved, ...lookupOptions })
     ) {
-      throwDomainError("reference_wrong_account", message);
+      throwDomainError('reference_wrong_account', message);
     }
   };
   return { data, accountId, record, previous, lookupOptions, present, supplied, unchanged, need };
@@ -103,54 +115,72 @@ function assertRequiredRef(
     return;
   }
   if (existing === undefined || fullRow === true || context.supplied(field)) {
-    throwDomainError("reference_wrong_account", message);
+    throwDomainError('reference_wrong_account', message);
   }
 }
 
 function assertActivityKind(context: ScopedRefsContext): void {
-  if (!context.present("kind")) return;
+  if (!context.present('kind')) return;
   const { record, present } = context;
-  if (record.kind === "project" && !present("projectId")) {
-    throwDomainError("activity_project_required", "A project-specific activity must be assigned to a project.");
+  if (record.kind === 'project' && !present('projectId')) {
+    throwDomainError(
+      'activity_project_required',
+      'A project-specific activity must be assigned to a project.',
+    );
   }
-  if (record.kind !== "internal" && record.kind !== "repeatable") return;
-  if (present("projectId")) {
-    throwDomainError("activity_project_forbidden", "An internal or all-projects activity cannot belong to a project.");
+  if (record.kind !== 'internal' && record.kind !== 'repeatable') return;
+  if (present('projectId')) {
+    throwDomainError(
+      'activity_project_forbidden',
+      'An internal or all-projects activity cannot belong to a project.',
+    );
   }
-  if (present("phaseId")) {
-    throwDomainError("activity_phase_forbidden", "An internal or all-projects activity cannot belong to a phase.");
+  if (present('phaseId')) {
+    throwDomainError(
+      'activity_phase_forbidden',
+      'An internal or all-projects activity cannot belong to a phase.',
+    );
   }
 }
 
 function assertActivityPhase(context: ScopedRefsContext): void {
   const { data, accountId, record, lookupOptions, present, unchanged } = context;
-  if (!present("phaseId")) return;
+  if (!present('phaseId')) return;
   const phase =
-    typeof record.phaseId === "string"
-      ? (resolveValidationRow({ data, table: "phases", id: record.phaseId, ...lookupOptions }) as
-          AppData["phases"][number] | undefined)
+    typeof record.phaseId === 'string'
+      ? (resolveValidationRow({ data, table: 'phases', id: record.phaseId, ...lookupOptions }) as
+          AppData['phases'][number] | undefined)
       : undefined;
   const ownedPhase = phase && belongsToAccount(phase, accountId) ? phase : undefined;
-  if (unchanged("phaseId") && unchanged("projectId")) {
-    if (phase && !ownedPhase)
-      throwDomainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
+  if (unchanged('phaseId') && unchanged('projectId')) {
+    if (phase && !ownedPhase) {
+      throwDomainError(
+        'activity_phase_wrong_account',
+        'Activity phase must belong to this company.',
+      );
+    }
     return;
   }
-  if (!ownedPhase) throwDomainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
-  if (!present("projectId")) {
+  if (!ownedPhase) {
+    throwDomainError('activity_phase_wrong_account', 'Activity phase must belong to this company.');
+  }
+  if (!present('projectId')) {
     throwDomainError(
-      "activity_phase_project_required",
-      "An activity with a phase must also belong to that phase’s project.",
+      'activity_phase_project_required',
+      'An activity with a phase must also belong to that phase’s project.',
     );
   }
   if (ownedPhase.projectId !== record.projectId) {
-    throwDomainError("activity_phase_project_mismatch", "Activity phase must belong to the activity’s project.");
+    throwDomainError(
+      'activity_phase_project_mismatch',
+      'Activity phase must belong to the activity’s project.',
+    );
   }
 }
 
 function assertActivityRefs(context: ScopedRefsContext): void {
   assertActivityKind(context);
-  context.need("projectId", "projects", "Activity must reference a project in this company.");
+  context.need('projectId', 'projects', 'Activity must reference a project in this company.');
   assertActivityPhase(context);
 }
 
@@ -158,25 +188,32 @@ function assertActivityRefs(context: ScopedRefsContext): void {
 
 function assertResourceRefs(context: ScopedRefsContext): void {
   const { record, previous, supplied, need } = context;
-  const mergedKind = supplied("kind") ? record.kind : previous?.kind;
-  const mergedProjectId = supplied("projectId") ? record.projectId : previous?.projectId;
-  const projectBindingChanged = supplied("kind") || supplied("projectId");
+  const mergedKind = supplied('kind') ? record.kind : previous?.kind;
+  const mergedProjectId = supplied('projectId') ? record.projectId : previous?.projectId;
+  const projectBindingChanged = supplied('kind') || supplied('projectId');
   const hasProject = mergedProjectId !== undefined && mergedProjectId !== null;
   const hasKind = mergedKind !== undefined && mergedKind !== null;
-  const mergedAvatarUrl = supplied("avatarUrl") ? record.avatarUrl : previous?.avatarUrl;
+  const mergedAvatarUrl = supplied('avatarUrl') ? record.avatarUrl : previous?.avatarUrl;
   if (mergedAvatarUrl != null) {
-    if (mergedKind !== "person")
-      throwDomainError("resource_avatar_url_forbidden", "Only a person can have an avatar URL.");
+    if (mergedKind !== 'person') {
+      throwDomainError('resource_avatar_url_forbidden', 'Only a person can have an avatar URL.');
+    }
     const avatarUrl = parseResourceAvatarUrl(mergedAvatarUrl);
     if (avatarUrl !== mergedAvatarUrl) {
-      throwDomainError("resource_avatar_url_invalid", "Avatar URL must be a normalised HTTPS URL without credentials.");
+      throwDomainError(
+        'resource_avatar_url_invalid',
+        'Avatar URL must be a normalised HTTPS URL without credentials.',
+      );
     }
   }
-  if (projectBindingChanged && hasProject && hasKind && mergedKind !== "placeholder") {
-    throwDomainError("resource_project_forbidden", "Only a placeholder can be assigned to a project.");
+  if (projectBindingChanged && hasProject && hasKind && mergedKind !== 'placeholder') {
+    throwDomainError(
+      'resource_project_forbidden',
+      'Only a placeholder can be assigned to a project.',
+    );
   }
-  need("disciplineId", "disciplines", "Resource discipline must belong to this company.");
-  need("projectId", "projects", "Placeholder project must belong to this company.");
+  need('disciplineId', 'disciplines', 'Resource discipline must belong to this company.');
+  need('projectId', 'projects', 'Placeholder project must belong to this company.');
 }
 
 // Resource kind is immutable on ordinary updates; malformed stored kinds require import repair.
@@ -185,11 +222,14 @@ function assertResourceKindImmutable(
   record: Record<string, unknown>,
 ): void {
   if (previous === undefined) return;
-  if (typeof previous.kind !== "string" || !RESOURCE_KINDS.has(previous.kind)) {
-    throwDomainError("resource_kind_immutable", "The stored resource kind is invalid and must be repaired by import.");
+  if (typeof previous.kind !== 'string' || !RESOURCE_KINDS.has(previous.kind)) {
+    throwDomainError(
+      'resource_kind_immutable',
+      'The stored resource kind is invalid and must be repaired by import.',
+    );
   }
-  if (typeof record.kind === "string" && previous.kind !== record.kind) {
-    throwDomainError("resource_kind_immutable", "A resource’s kind cannot change after creation.");
+  if (typeof record.kind === 'string' && previous.kind !== record.kind) {
+    throwDomainError('resource_kind_immutable', 'A resource’s kind cannot change after creation.');
   }
 }
 
@@ -203,42 +243,42 @@ export function assertScopedRefs(
   ...[data, accountId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
 ): void {
   const context = createScopedRefsContext(data, accountId, record, existing, lookup);
-  if (key === "resources") assertResourceKindImmutable(context.previous, record);
+  if (key === 'resources') assertResourceKindImmutable(context.previous, record);
   switch (key) {
-    case "projects":
+    case 'projects':
       assertRequiredRef(
         context,
-        "clientId",
-        "clients",
-        "Project must reference a client in this company.",
+        'clientId',
+        'clients',
+        'Project must reference a client in this company.',
         existing,
         options.fullRow,
       );
       break;
-    case "phases":
+    case 'phases':
       assertRequiredRef(
         context,
-        "projectId",
-        "projects",
-        "Phase must reference a project in this company.",
+        'projectId',
+        'projects',
+        'Phase must reference a project in this company.',
         existing,
         options.fullRow,
       );
       break;
-    case "activities":
+    case 'activities':
       assertActivityRefs(context);
       break;
-    case "resources":
+    case 'resources':
       assertResourceRefs(context);
       break;
-    case "clients":
-    case "disciplines":
+    case 'clients':
+    case 'disciplines':
       break;
-    case "allocations":
-    case "timeOff":
+    case 'allocations':
+    case 'timeOff':
       // Allocation and time-off references use their dedicated validators.
       break;
-    case "closures":
+    case 'closures':
       break;
     default: {
       const exhaustive: never = key;
@@ -258,7 +298,7 @@ type AllocationRefsArgs = [
   activityId: ID,
   hoursPerDay: number,
   projectId?: ID | null,
-  existing?: Pick<Allocation, "resourceId" | "activityId"> & Partial<Pick<Allocation, "projectId">>,
+  existing?: Pick<Allocation, 'resourceId' | 'activityId'> & Partial<Pick<Allocation, 'projectId'>>,
   lookup?: ValidationDataLookup,
 ];
 
@@ -266,23 +306,31 @@ type AllocationRefsContext = {
   data: AppData;
   accountId: ID;
   projectId: ID | null | undefined;
-  existing: (Pick<Allocation, "resourceId" | "activityId"> & Partial<Pick<Allocation, "projectId">>) | undefined;
+  existing:
+    | (Pick<Allocation, 'resourceId' | 'activityId'> & Partial<Pick<Allocation, 'projectId'>>)
+    | undefined;
   lookupOptions: { lookup?: ValidationDataLookup };
 };
 
-function assertAllocationProject(context: AllocationRefsContext, activity: Activity): ID | undefined {
+function assertAllocationProject(
+  context: AllocationRefsContext,
+  activity: Activity,
+): ID | undefined {
   const { data, accountId, projectId, existing, lookupOptions } = context;
   if (projectId != null && !allocationAttributionAllowed(activity.kind)) {
     throwDomainError(
-      "allocation_project_forbidden",
-      "Only an all-projects activity allocation can be attributed to a project.",
+      'allocation_project_forbidden',
+      'Only an all-projects activity allocation can be attributed to a project.',
     );
   }
-  const resolvedProjectId = effectiveProjectId(projectId === undefined ? {} : { projectId }, activity);
+  const resolvedProjectId = effectiveProjectId(
+    projectId === undefined ? {} : { projectId },
+    activity,
+  );
   const project = resolvedProjectId
-    ? resolveOwnedRow<AppData["projects"][number]>({
+    ? resolveOwnedRow<AppData['projects'][number]>({
         data,
-        table: "projects",
+        table: 'projects',
         id: resolvedProjectId,
         accountId,
         ...lookupOptions,
@@ -293,11 +341,11 @@ function assertAllocationProject(context: AllocationRefsContext, activity: Activ
   const projectInactive =
     projectChanged &&
     project !== undefined &&
-    !isEffectivelyActive({ data, table: "projects", row: project, ...lookupOptions });
+    !isEffectivelyActive({ data, table: 'projects', row: project, ...lookupOptions });
   if (projectMissing || projectInactive) {
     throwDomainError(
-      "allocation_project_inactive",
-      "Allocation must reference an activity under an active project in this company.",
+      'allocation_project_inactive',
+      'Allocation must reference an activity under an active project in this company.',
     );
   }
   return resolvedProjectId;
@@ -305,39 +353,63 @@ function assertAllocationProject(context: AllocationRefsContext, activity: Activ
 
 /** Assert an allocation's resource, activity, project and hours are valid for `accountId`. Throws a `DomainError` on a violation. */
 export function assertAllocationRefs(
-  ...[data, accountId, resourceId, activityId, hoursPerDay, projectId, existing, lookup]: AllocationRefsArgs
+  ...[
+    data,
+    accountId,
+    resourceId,
+    activityId,
+    hoursPerDay,
+    projectId,
+    existing,
+    lookup,
+  ]: AllocationRefsArgs
 ): void {
   const lookupOptions = lookup === undefined ? {} : { lookup };
-  const resource = resolveOwnedRow<Resource>({ data, table: "resources", id: resourceId, accountId, ...lookupOptions });
+  const resource = resolveOwnedRow<Resource>({
+    data,
+    table: 'resources',
+    id: resourceId,
+    accountId,
+    ...lookupOptions,
+  });
   const activity = resolveOwnedRow<Activity>({
     data,
-    table: "activities",
+    table: 'activities',
     id: activityId,
     accountId,
     ...lookupOptions,
   });
   if (!resource || !activity) {
     throwDomainError(
-      "allocation_references_invalid",
-      "Allocation must reference an existing resource and activity in this company.",
+      'allocation_references_invalid',
+      'Allocation must reference an existing resource and activity in this company.',
     );
   }
   if (
     existing?.resourceId !== resourceId &&
-    !isEffectivelyActive({ data, table: "resources", row: resource, ...lookupOptions })
+    !isEffectivelyActive({ data, table: 'resources', row: resource, ...lookupOptions })
   ) {
-    throwDomainError("allocation_resource_inactive", "Allocation must reference an active resource in this company.");
+    throwDomainError(
+      'allocation_resource_inactive',
+      'Allocation must reference an active resource in this company.',
+    );
   }
   // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
   // and the database FK make this impossible, but this validator is also the last line of defence
   // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
-  const resolvedProjectId = assertAllocationProject({ data, accountId, projectId, existing, lookupOptions }, activity);
+  const resolvedProjectId = assertAllocationProject(
+    { data, accountId, projectId, existing, lookupOptions },
+    activity,
+  );
   if (
     existing?.activityId !== activityId &&
-    !isEffectivelyActive({ data, table: "activities", row: activity, ...lookupOptions })
+    !isEffectivelyActive({ data, table: 'activities', row: activity, ...lookupOptions })
   ) {
-    throwDomainError("allocation_activity_inactive", "Allocation must reference an activity under an active project.");
+    throwDomainError(
+      'allocation_activity_inactive',
+      'Allocation must reference an activity under an active project.',
+    );
   }
   assertValid(validateAllocationAssignment(resource, resolvedProjectId));
   // External / 3rd parties have no capacity: their allocations carry no load (hoursPerDay 0). The
@@ -347,6 +419,9 @@ export function assertAllocationRefs(
   // to 0 instead of dropping the booking, which is still valid. Always checked: `hoursPerDay` is a
   // required parameter, so no caller can opt out of the rule.
   if (hoursPerDay !== 0 && isExternalResource(resource)) {
-    throwDomainError("external_allocation_hours", "An external / 3rd-party resource’s allocation can’t carry hours.");
+    throwDomainError(
+      'external_allocation_hours',
+      'An external / 3rd-party resource’s allocation can’t carry hours.',
+    );
   }
 }

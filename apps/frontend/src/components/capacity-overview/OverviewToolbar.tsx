@@ -1,9 +1,9 @@
-import { m } from "@/i18n";
-import { SegmentedControl, TogglePill } from "@/components/common/ui";
-import type { CapacityDisplayMode } from "./capacityOverviewBar";
-import { resolveHorizonWeekCount } from "./capacityOverviewDates";
-import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
-import { TentativeSwatch } from "./OverviewLegend";
+import { m } from '@/i18n';
+import { SegmentedControl, TogglePill } from '@/components/common/ui';
+import type { CapacityDisplayMode } from './capacityOverviewBar';
+import { resolveHorizonWeekCount } from './capacityOverviewDates';
+import type { CapacityOverviewHorizon } from './capacityOverviewDates';
+import { TentativeSwatch } from './OverviewLegend';
 
 /** Horizon and tentative-allocation state controlled by the toolbar. */
 export interface OverviewToolbarProps {
@@ -27,7 +27,9 @@ export function OverviewToolbar(props: OverviewToolbarProps) {
       className="flex flex-wrap items-center gap-x-[18px] gap-y-2 border-b border-line bg-canvas px-[26px] py-3.5"
     >
       <div className="min-w-0">
-        <h1 className="text-[19px] font-semibold tracking-[-0.02em]">{m.capacity_overview_title()}</h1>
+        <h1 className="text-[19px] font-semibold tracking-[-0.02em]">
+          {m.capacity_overview_title()}
+        </h1>
         <p className="mt-0.5 text-xs text-faint">
           {m.capacity_overview_subtitle({ weeks: String(resolveHorizonWeekCount(props.horizon)) })}
         </p>
@@ -40,8 +42,8 @@ export function OverviewToolbar(props: OverviewToolbarProps) {
           value={props.capacityDisplayMode}
           onChange={props.onCapacityDisplayModeChange}
           options={[
-            { value: "ledger", label: m.capacity_overview_display_mode_ledger() },
-            { value: "load-curve", label: m.capacity_overview_display_mode_load_curve() },
+            { value: 'ledger', label: m.capacity_overview_display_mode_ledger() },
+            { value: 'load-curve', label: m.capacity_overview_display_mode_load_curve() },
           ]}
         />
         <SegmentedControl
@@ -51,9 +53,9 @@ export function OverviewToolbar(props: OverviewToolbarProps) {
           value={props.horizon}
           onChange={props.onHorizonChange}
           options={[
-            { value: "4-weeks", label: m.capacity_overview_horizon_four_weeks() },
-            { value: "8-weeks", label: m.capacity_overview_horizon_eight_weeks() },
-            { value: "12-weeks", label: m.capacity_overview_horizon_twelve_weeks() },
+            { value: '4-weeks', label: m.capacity_overview_horizon_four_weeks() },
+            { value: '8-weeks', label: m.capacity_overview_horizon_eight_weeks() },
+            { value: '12-weeks', label: m.capacity_overview_horizon_twelve_weeks() },
           ]}
         />
         <TogglePill

@@ -1,4 +1,4 @@
-import type { Weekday } from "../types/entities.js";
+import type { Weekday } from '../types/entities.js';
 
 const WEEKDAY_COUNT = 7;
 const DEFAULT_WORKING_DAY_COUNT = 5;
@@ -35,5 +35,8 @@ export function normalizeAccountWorkingDays(value: unknown, weekStartsOn: 0 | 1 
 
 /** Weekdays ordered for presentation, beginning with the company's configured week start. */
 export function orderedWeekdays(weekStartsOn: 0 | 1 = 1): Weekday[] {
-  return Array.from({ length: WEEKDAY_COUNT }, (_, offset) => ((weekStartsOn + offset) % WEEKDAY_COUNT) as Weekday);
+  return Array.from(
+    { length: WEEKDAY_COUNT },
+    (_, offset) => ((weekStartsOn + offset) % WEEKDAY_COUNT) as Weekday,
+  );
 }

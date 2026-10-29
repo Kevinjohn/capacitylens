@@ -1,138 +1,173 @@
-import { describe, it, expect } from "vitest";
-import { resolveErrorMessage, resolveDomainErrorMessage } from "./errorMessage";
-import { DomainError } from "@capacitylens/shared/domain/errors";
-import type { DomainErrorCode } from "@capacitylens/shared/domain/errors";
-import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
+import { describe, it, expect } from 'vitest';
+import { resolveErrorMessage, resolveDomainErrorMessage } from './errorMessage';
+import { DomainError } from '@capacitylens/shared/domain/errors';
+import type { DomainErrorCode } from '@capacitylens/shared/domain/errors';
+import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
 
-describe("errorMessage", () => {
-  it("normalises an Error, a string, a React Router ErrorResponse, and unknown throws", () => {
-    expect(resolveErrorMessage(new Error("x"))).toBe("x");
-    expect(resolveErrorMessage("plain")).toBe("plain");
-    expect(resolveErrorMessage({ statusText: "Not Found" })).toBe("Not Found");
-    expect(resolveErrorMessage(null)).toBe("An unexpected error occurred.");
-    expect(resolveErrorMessage(undefined)).toBe("An unexpected error occurred.");
-    expect(resolveErrorMessage(42)).toBe("An unexpected error occurred.");
+describe('errorMessage', () => {
+  it('normalises an Error, a string, a React Router ErrorResponse, and unknown throws', () => {
+    expect(resolveErrorMessage(new Error('x'))).toBe('x');
+    expect(resolveErrorMessage('plain')).toBe('plain');
+    expect(resolveErrorMessage({ statusText: 'Not Found' })).toBe('Not Found');
+    expect(resolveErrorMessage(null)).toBe('An unexpected error occurred.');
+    expect(resolveErrorMessage(undefined)).toBe('An unexpected error occurred.');
+    expect(resolveErrorMessage(42)).toBe('An unexpected error occurred.');
   });
 
-  it.each(["", "   ", new Error(""), new Error("   "), { statusText: "" }])(
-    "never returns a blank message for %j",
+  it.each(['', '   ', new Error(''), new Error('   '), { statusText: '' }])(
+    'never returns a blank message for %j',
     (error) => {
-      expect(resolveErrorMessage(error)).toBe("An unexpected error occurred.");
+      expect(resolveErrorMessage(error)).toBe('An unexpected error occurred.');
     },
   );
 
-  it("falls back to the generic message when statusText is present but not a string", () => {
+  it('falls back to the generic message when statusText is present but not a string', () => {
     // Exercises the `typeof statusText === 'string'` guard specifically (as opposed to the
     // earlier `'statusText' in error` check, which alone would let a non-string through).
-    expect(resolveErrorMessage({ statusText: 123 })).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage({ statusText: 123 })).toBe('An unexpected error occurred.');
   });
 
-  it("remains total for hostile proxies whose traps throw", () => {
+  it('remains total for hostile proxies whose traps throw', () => {
     const hostile = new Proxy(
       {},
       {
         getPrototypeOf: () => {
-          throw new Error("prototype denied");
+          throw new Error('prototype denied');
         },
         has: () => {
-          throw new Error("membership denied");
+          throw new Error('membership denied');
         },
         get: () => {
-          throw new Error("read denied");
+          throw new Error('read denied');
         },
       },
     );
 
-    expect(resolveErrorMessage(hostile)).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage(hostile)).toBe('An unexpected error occurred.');
   });
 
-  it("snapshots a stateful Proxy statusText once before validating it", () => {
+  it('snapshots a stateful Proxy statusText once before validating it', () => {
     let reads = 0;
     const stateful = new Proxy(
       {},
       {
         get: (_target, property) => {
-          if (property !== "statusText") return undefined;
+          if (property !== 'statusText') return undefined;
           reads += 1;
-          return reads === 1 ? "Temporarily unavailable" : { changed: true };
+          return reads === 1 ? 'Temporarily unavailable' : { changed: true };
         },
       },
     );
 
-    expect(resolveErrorMessage(stateful)).toBe("Temporarily unavailable");
+    expect(resolveErrorMessage(stateful)).toBe('Temporarily unavailable');
     expect(reads).toBe(1);
   });
 
-  it("maps a domain code through translations instead of trusting fallback prose", () => {
-    expect(resolveErrorMessage(new DomainError("record_wrong_account", "obsolete server wording"))).toBe(
-      "That record does not belong to the active company.",
-    );
+  it('maps a domain code through translations instead of trusting fallback prose', () => {
+    expect(
+      resolveErrorMessage(new DomainError('record_wrong_account', 'obsolete server wording')),
+    ).toBe('That record does not belong to the active company.');
   });
 });
 
-describe("domainErrorMessage", () => {
+describe('domainErrorMessage', () => {
   // Assert exact translated copy for the fixed-message cases below.
   const fixedMessageCases: Array<[DomainErrorCode, string]> = [
-    ["record_wrong_account", "That record does not belong to the active company."],
-    ["reference_wrong_account", "That change references data outside the active company."],
-    ["activity_project_required", "A project-specific activity must be assigned to a project."],
-    ["activity_project_forbidden", "An internal or all-projects activity cannot belong to a project."],
-    ["activity_phase_forbidden", "An internal or all-projects activity cannot belong to a phase."],
-    ["activity_phase_wrong_account", "Activity phase must belong to this company."],
-    ["activity_phase_project_required", "An activity with a phase must also belong to that phase’s project."],
-    ["activity_phase_project_mismatch", "Activity phase must belong to the activity’s project."],
-    ["resource_project_forbidden", "Only a placeholder can be assigned to a project."],
-    ["allocation_references_invalid", "Allocation must reference an existing resource and activity in this company."],
-    ["allocation_resource_inactive", "Allocation must reference an active resource in this company."],
-    ["allocation_project_inactive", "Allocation must reference an activity under an active project in this company."],
-    ["allocation_activity_inactive", "Allocation must reference an activity under an active project."],
-    ["placeholder_project_missing", "This placeholder is not bound to a project yet."],
-    ["external_allocation_hours", "An external / 3rd-party resource’s allocation can’t carry hours."],
-    ["resource_external_dependents", "Reassign or remove this resource’s work and time off before making it external."],
-    ["placeholder_project_dependents", "Reassign or remove this placeholder’s work before changing its bound project."],
-    ["activity_project_dependents", "Reassign placeholder work before changing this activity’s project."],
-    ["date_required", "Start and end dates are required."],
-    ["date_invalid", "Dates must be valid calendar dates (YYYY-MM-DD)."],
-    ["date_reversed", "End date cannot be before the start date."],
-    ["time_off_resource_invalid", "Time off must reference an existing resource in this company."],
-    ["time_off_resource_inactive", "Time off must reference an active resource in this company."],
-    ["time_off_external_resource", "Time off can’t be recorded for an external / 3rd-party resource."],
-    ["closure_name_required", "Closure name is required."],
+    ['record_wrong_account', 'That record does not belong to the active company.'],
+    ['reference_wrong_account', 'That change references data outside the active company.'],
+    ['activity_project_required', 'A project-specific activity must be assigned to a project.'],
+    [
+      'activity_project_forbidden',
+      'An internal or all-projects activity cannot belong to a project.',
+    ],
+    ['activity_phase_forbidden', 'An internal or all-projects activity cannot belong to a phase.'],
+    ['activity_phase_wrong_account', 'Activity phase must belong to this company.'],
+    [
+      'activity_phase_project_required',
+      'An activity with a phase must also belong to that phase’s project.',
+    ],
+    ['activity_phase_project_mismatch', 'Activity phase must belong to the activity’s project.'],
+    ['resource_project_forbidden', 'Only a placeholder can be assigned to a project.'],
+    [
+      'allocation_references_invalid',
+      'Allocation must reference an existing resource and activity in this company.',
+    ],
+    [
+      'allocation_resource_inactive',
+      'Allocation must reference an active resource in this company.',
+    ],
+    [
+      'allocation_project_inactive',
+      'Allocation must reference an activity under an active project in this company.',
+    ],
+    [
+      'allocation_activity_inactive',
+      'Allocation must reference an activity under an active project.',
+    ],
+    ['placeholder_project_missing', 'This placeholder is not bound to a project yet.'],
+    [
+      'external_allocation_hours',
+      'An external / 3rd-party resource’s allocation can’t carry hours.',
+    ],
+    [
+      'resource_external_dependents',
+      'Reassign or remove this resource’s work and time off before making it external.',
+    ],
+    [
+      'placeholder_project_dependents',
+      'Reassign or remove this placeholder’s work before changing its bound project.',
+    ],
+    [
+      'activity_project_dependents',
+      'Reassign placeholder work before changing this activity’s project.',
+    ],
+    ['date_required', 'Start and end dates are required.'],
+    ['date_invalid', 'Dates must be valid calendar dates (YYYY-MM-DD).'],
+    ['date_reversed', 'End date cannot be before the start date.'],
+    ['time_off_resource_invalid', 'Time off must reference an existing resource in this company.'],
+    ['time_off_resource_inactive', 'Time off must reference an active resource in this company.'],
+    [
+      'time_off_external_resource',
+      'Time off can’t be recorded for an external / 3rd-party resource.',
+    ],
+    ['closure_name_required', 'Closure name is required.'],
   ];
 
-  it.each(fixedMessageCases)("maps %s to its exact translated message", (code, expected) => {
+  it.each(fixedMessageCases)('maps %s to its exact translated message', (code, expected) => {
     expect(resolveDomainErrorMessage(code)).toBe(expected);
   });
 
-  it("keeps every code distinct so no two cases share a fallen-through message", () => {
+  it('keeps every code distinct so no two cases share a fallen-through message', () => {
     // A missing case must not silently reuse another domain code’s message.
     const messages = fixedMessageCases.map(([, expected]) => expected);
     expect(new Set(messages).size).toBe(messages.length);
   });
 
-  it("interpolates the formatted span limit into date_span_too_long", () => {
+  it('interpolates the formatted span limit into date_span_too_long', () => {
     // Pin grouped span-cap copy so interpolation and number formatting stay consistent.
-    expect(resolveDomainErrorMessage("date_span_too_long")).toBe(
-      `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString("en-GB")} calendar days.`,
+    expect(resolveDomainErrorMessage('date_span_too_long')).toBe(
+      `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString('en-GB')} calendar days.`,
     );
-    expect(resolveDomainErrorMessage("date_span_too_long")).toBe("Date span cannot exceed 36,500 calendar days.");
+    expect(resolveDomainErrorMessage('date_span_too_long')).toBe(
+      'Date span cannot exceed 36,500 calendar days.',
+    );
   });
 });
 
-describe("errorMessage edge cases around the plain-object statusText branch", () => {
-  it("falls back to generic for a bare object with no statusText", () => {
-    expect(resolveErrorMessage({})).toBe("An unexpected error occurred.");
+describe('errorMessage edge cases around the plain-object statusText branch', () => {
+  it('falls back to generic for a bare object with no statusText', () => {
+    expect(resolveErrorMessage({})).toBe('An unexpected error occurred.');
   });
 
-  it("falls back to generic for a whitespace-only statusText", () => {
+  it('falls back to generic for a whitespace-only statusText', () => {
     // Whitespace-only status text must not replace the user-facing fallback.
-    expect(resolveErrorMessage({ statusText: "   " })).toBe("An unexpected error occurred.");
+    expect(resolveErrorMessage({ statusText: '   ' })).toBe('An unexpected error occurred.');
   });
 
-  it("ignores a truthy non-object error even when it carries a statusText property", () => {
+  it('ignores a truthy non-object error even when it carries a statusText property', () => {
     // Function properties must not be treated as error-object messages.
     const fn = (): void => undefined;
-    (fn as unknown as { statusText?: string }).statusText = "leaked from a function";
-    expect(resolveErrorMessage(fn)).toBe("An unexpected error occurred.");
+    (fn as unknown as { statusText?: string }).statusText = 'leaked from a function';
+    expect(resolveErrorMessage(fn)).toBe('An unexpected error occurred.');
   });
 });

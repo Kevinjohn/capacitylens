@@ -1,32 +1,32 @@
-import { memo, useMemo, useState } from "react";
-import type { KeyboardEventHandler, PointerEventHandler } from "react";
-import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
-import type { ID } from "@capacitylens/shared/types/entities";
-import { m } from "@/i18n";
-import { useCanEdit } from "@/auth/permissionContext";
-import { formatDayMonthEndpoint } from "@/lib/dateDisplay";
-import { useDateStyle } from "@/store/useDateStyle";
-import type { BarLabelPreferences } from "@/lib/displayPrefs";
-import { resolveAllocationStatusAnnotation } from "@/lib/metadata";
-import { useStore } from "@/store/useStore";
-import { hasVisibleTaskFieldInSchedule } from "@/store/selectors";
-import { AllocationBarView } from "./AllocationBarView";
-import type { ColumnGeometry } from "./columnGeometry";
-import { buildAllocationBarInset } from "./layout";
-import type { BarLayout } from "./schedulerModel";
-import { useAllocationGesture } from "./useAllocationGesture";
-import { roundToHundredths } from "@/lib/roundToHundredths";
+import { memo, useMemo, useState } from 'react';
+import type { KeyboardEventHandler, PointerEventHandler } from 'react';
+import { resolveAccessibleBarColors } from '@capacitylens/shared/lib/color';
+import type { ID } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import { useCanEdit } from '@/auth/permissionContext';
+import { formatDayMonthEndpoint } from '@/lib/dateDisplay';
+import { useDateStyle } from '@/store/useDateStyle';
+import type { BarLabelPreferences } from '@/lib/displayPrefs';
+import { resolveAllocationStatusAnnotation } from '@/lib/metadata';
+import { useStore } from '@/store/useStore';
+import { hasVisibleTaskFieldInSchedule } from '@/store/selectors';
+import { AllocationBarView } from './AllocationBarView';
+import type { ColumnGeometry } from './columnGeometry';
+import { buildAllocationBarInset } from './layout';
+import type { BarLayout } from './schedulerModel';
+import { useAllocationGesture } from './useAllocationGesture';
+import { roundToHundredths } from '@/lib/roundToHundredths';
 
-function resolveKeyboardMode(event: React.KeyboardEvent): "move" | "resize-start" | "resize-end" {
-  if (event.altKey) return "resize-start";
-  if (event.shiftKey) return "resize-end";
-  return "move";
+function resolveKeyboardMode(event: React.KeyboardEvent): 'move' | 'resize-start' | 'resize-end' {
+  if (event.altKey) return 'resize-start';
+  if (event.shiftKey) return 'resize-end';
+  return 'move';
 }
 
 type ResolveBarCursorOptions = { canEdit: boolean; dragging: boolean };
 function resolveBarCursor({ canEdit, dragging }: ResolveBarCursorOptions) {
-  if (!canEdit) return "default";
-  return dragging ? "grabbing" : "grab";
+  if (!canEdit) return 'default';
+  return dragging ? 'grabbing' : 'grab';
 }
 
 interface AllocationBarProps {
@@ -47,24 +47,37 @@ interface AriaLabelInput {
   viewerLabel: string;
 }
 
-function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }: AriaLabelInput) {
+function buildAriaLabel({
+  bar,
+  canEdit,
+  hideHours,
+  label,
+  showTaskFieldInSchedule,
+  viewerLabel,
+}: AriaLabelInput) {
   const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status);
   const shared = {
-    hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundToHundredths(bar.allocation.hoursPerDay) }),
-    status: statusAnnotation ? m.scheduler_bar_aria_status({ status: statusAnnotation }) : "",
+    hours: hideHours
+      ? ''
+      : m.scheduler_bar_aria_hours({ hours: roundToHundredths(bar.allocation.hoursPerDay) }),
+    status: statusAnnotation ? m.scheduler_bar_aria_status({ status: statusAnnotation }) : '',
     start: formatDayMonthEndpoint(bar.allocation.startDate, bar.allocation.endDate),
     end: formatDayMonthEndpoint(bar.allocation.endDate, bar.allocation.startDate),
     series: bar.seriesEnd
-      ? m.scheduler_bar_aria_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.startDate) })
-      : "",
+      ? m.scheduler_bar_aria_series({
+          end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.startDate),
+        })
+      : '',
   };
   const task =
-    showTaskFieldInSchedule && bar.allocation.task ? m.scheduler_bar_aria_task({ task: bar.allocation.task }) : "";
+    showTaskFieldInSchedule && bar.allocation.task
+      ? m.scheduler_bar_aria_task({ task: bar.allocation.task })
+      : '';
   if (canEdit) {
-    const note = bar.allocation.note ? m.scheduler_bar_aria_has_note() : "";
+    const note = bar.allocation.note ? m.scheduler_bar_aria_has_note() : '';
     return m.scheduler_bar_aria_editor({ ...shared, label, note, task });
   }
-  const note = bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : "";
+  const note = bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : '';
   return m.scheduler_bar_aria_viewer({ ...shared, label: viewerLabel, note, task });
 }
 
@@ -80,26 +93,35 @@ function useBarAriaLabel(input: AriaLabelInput) {
   );
 }
 
-function closePopoverOnEscape(event: React.KeyboardEvent, input: Parameters<typeof dispatchBarKeyboardAction>[1]) {
-  if (event.key !== "Escape" || !input.popoverOpen || input.dragging) return false;
+function closePopoverOnEscape(
+  event: React.KeyboardEvent,
+  input: Parameters<typeof dispatchBarKeyboardAction>[1],
+) {
+  if (event.key !== 'Escape' || !input.popoverOpen || input.dragging) return false;
   event.preventDefault();
   event.stopPropagation();
   input.hidePopover();
   return true;
 }
 
-function activateBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof dispatchBarKeyboardAction>[1]) {
-  if (event.key !== "Enter" && event.key !== " ") return false;
+function activateBarFromKeyboard(
+  event: React.KeyboardEvent,
+  input: Parameters<typeof dispatchBarKeyboardAction>[1],
+) {
+  if (event.key !== 'Enter' && event.key !== ' ') return false;
   event.preventDefault();
   input.onEdit?.(input.bar.allocation.id);
   return true;
 }
 
-function nudgeBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof dispatchBarKeyboardAction>[1]) {
-  const isArrow = event.key === "ArrowLeft" || event.key === "ArrowRight";
+function nudgeBarFromKeyboard(
+  event: React.KeyboardEvent,
+  input: Parameters<typeof dispatchBarKeyboardAction>[1],
+) {
+  const isArrow = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
   if (!isArrow || event.ctrlKey || event.metaKey) return;
   event.preventDefault();
-  input.nudge(resolveKeyboardMode(event), event.key === "ArrowRight" ? 1 : -1);
+  input.nudge(resolveKeyboardMode(event), event.key === 'ArrowRight' ? 1 : -1);
 }
 
 function startBarGesture(
@@ -119,7 +141,7 @@ function dispatchBarKeyboardAction(
     dragging: boolean;
     popoverOpen: boolean;
     hidePopover: () => void;
-    nudge: (mode: "move" | "resize-start" | "resize-end", delta: number) => void;
+    nudge: (mode: 'move' | 'resize-start' | 'resize-end', delta: number) => void;
     onEdit?: (id: ID) => void;
   },
 ) {
@@ -137,8 +159,10 @@ function buildBarLabels(bar: BarLayout, preferences: BarLabelPreferences) {
     bar.label,
   ]
     .filter(Boolean)
-    .join(" · ");
-  const viewerLabel = [bar.label, [bar.project, bar.client].filter(Boolean).join(" · ")].filter(Boolean).join(", ");
+    .join(' · ');
+  const viewerLabel = [bar.label, [bar.project, bar.client].filter(Boolean).join(' · ')]
+    .filter(Boolean)
+    .join(', ');
   return { label, viewerLabel };
 }
 
@@ -156,16 +180,23 @@ function useBarLabelText(bar: BarLayout) {
  * click and unmount tear those effects down. The first move pins virtualisation until teardown.
  * `onEdit` must remain stable so memoisation can skip untouched sibling bars during a drag.
  */
-export const AllocationBar = memo(function AllocationBar(props: AllocationBarProps) {
+export const AllocationBar = memo(function AllocationBarComponent(props: AllocationBarProps) {
   const { bar, indexAtClientX, onEdit } = props;
   const canEdit = useCanEdit();
-  const gesture = useAllocationGesture({ bar, geom: props.geom, indexAtClientX, ...(onEdit ? { onEdit } : {}) });
+  const gesture = useAllocationGesture({
+    bar,
+    geom: props.geom,
+    indexAtClientX,
+    ...(onEdit ? { onEdit } : {}),
+  });
   const hideHours = gesture.isBlocks || bar.external;
   const [popoverOpen, setPopoverOpen] = useState(false);
   const { bg: background, ink } = useMemo(() => resolveAccessibleBarColors(bar.color), [bar.color]);
   const { insetLeft, insetWidth } = buildAllocationBarInset(gesture.left, gesture.width);
   const { label: labelText, viewerLabel: viewerLabelText } = useBarLabelText(bar);
-  const showTaskFieldInSchedule = useStore((state) => hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId));
+  const showTaskFieldInSchedule = useStore((state) =>
+    hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId),
+  );
   const ariaLabel = useBarAriaLabel({
     bar,
     canEdit,

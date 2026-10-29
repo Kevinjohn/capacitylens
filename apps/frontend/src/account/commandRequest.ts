@@ -4,9 +4,9 @@ import {
   beginCommandCohort,
   finishCommandCohort,
   markCommandCohortUnknown,
-} from "./accountCommands";
-import type { BrowserAccountCommand } from "./accountCommands";
-import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from "./commandOutcome";
+} from './accountCommands';
+import type { BrowserAccountCommand } from './accountCommands';
+import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from './commandOutcome';
 
 interface RunCommandInput {
   operationKey: string | null;
@@ -23,13 +23,18 @@ export async function runCommand({
   ambiguousStatus,
 }: RunCommandInput): Promise<Response> {
   const command =
-    explicit ?? (operationKey === null ? createBrowserAccountCommand() : readOrCreateStoredCommand(operationKey));
-  const cohort = explicit === undefined && operationKey !== null ? beginCommandCohort(operationKey) : undefined;
+    explicit ??
+    (operationKey === null
+      ? createBrowserAccountCommand()
+      : readOrCreateStoredCommand(operationKey));
+  const cohort =
+    explicit === undefined && operationKey !== null ? beginCommandCohort(operationKey) : undefined;
   try {
     const response = await request(command);
     // A transport failure, HTTP 408, 5xx or ambiguous 409 has an unknown commit outcome, so retain
     // the same command. A definitive success or decoded known caller/policy rejection closes it.
-    const outcomeUnknown = response.status === ambiguousStatus || (await readUnknownAccountCommandOutcome(response));
+    const outcomeUnknown =
+      response.status === ambiguousStatus || (await readUnknownAccountCommandOutcome(response));
     commandOutcomeDecisions.set(response, outcomeUnknown);
     if (outcomeUnknown && cohort) markCommandCohortUnknown(cohort);
     return response;
@@ -47,8 +52,8 @@ export function buildCommandRequestInit(
   command = createBrowserAccountCommand(),
 ): RequestInit {
   const headers = new Headers(requestOptions.headers);
-  headers.set("Idempotency-Key", command.idempotencyKey);
-  headers.set("X-Account-Command-Id", command.commandId);
+  headers.set('Idempotency-Key', command.idempotencyKey);
+  headers.set('X-Account-Command-Id', command.commandId);
   return { ...requestOptions, headers };
 }
 
@@ -57,10 +62,13 @@ export function buildJsonCommandRequestInit(
   // DELETE carries a body for exactly one caller: the ceremony cancellation, whose expected
   // revision is the compare half of a transition rather than an identifier, so it belongs in the
   // payload the server hashes, not in the path.
-  method: "POST" | "PATCH" | "DELETE",
+  method: 'POST' | 'PATCH' | 'DELETE',
   body: unknown,
   command?: BrowserAccountCommand,
 ): RequestInit {
-  const headers = new Headers({ "Content-Type": "application/json" });
-  return buildCommandRequestInit({ method, credentials: "include", headers, body: JSON.stringify(body) }, command);
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  return buildCommandRequestInit(
+    { method, credentials: 'include', headers, body: JSON.stringify(body) },
+    command,
+  );
 }

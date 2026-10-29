@@ -1,11 +1,11 @@
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/common/dialogs";
-import { RepeatedAllocationDeleteDialog } from "./RepeatedAllocationDeleteDialog";
-import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
-import type { AllocationModalState } from "./useAllocationModalState";
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/common/dialogs';
+import { RepeatedAllocationDeleteDialog } from './RepeatedAllocationDeleteDialog';
+import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
+import type { AllocationModalState } from './useAllocationModalState';
 
-type AllocationFooterProps = AllocationModalState["footer"];
+type AllocationFooterProps = AllocationModalState['footer'];
 
 /** Shows allocation form actions and validation status. */
 export function AllocationFooter({
@@ -21,8 +21,8 @@ export function AllocationFooter({
   if (confirmDelete && editing?.seriesId) {
     deleteDialog = (
       <RepeatedAllocationDeleteDialog
-        onDeleteOne={() => onDelete("one")}
-        onDeleteFuture={() => onDelete("future")}
+        onDeleteOne={() => onDelete('one')}
+        onDeleteFuture={() => onDelete('future')}
         onCancel={() => setConfirmDelete(false)}
       />
     );
@@ -31,7 +31,7 @@ export function AllocationFooter({
       <ConfirmDialog
         title={m.form_allocation_delete_title()}
         message={m.form_allocation_delete_message({ shortcut: buildUndoShortcut() })}
-        onConfirm={() => onDelete("one")}
+        onConfirm={() => onDelete('one')}
         onCancel={() => setConfirmDelete(false)}
       />
     );
@@ -41,7 +41,12 @@ export function AllocationFooter({
       {deleteDialog}
       {editing && canEdit && (
         <>
-          <Button size="sm" type="button" variant="danger-soft" onClick={() => setConfirmDelete(true)}>
+          <Button
+            size="sm"
+            type="button"
+            variant="danger-soft"
+            onClick={() => setConfirmDelete(true)}
+          >
             {m.form_delete()}
           </Button>
           {!editing.seriesId && (

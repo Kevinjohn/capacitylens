@@ -1,6 +1,6 @@
-import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useDeadlineClock } from "./useDeadlineClock";
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useDeadlineClock } from './useDeadlineClock';
 
 // Fake timers make the strictly-after-deadline boundary deterministic.
 
@@ -12,7 +12,10 @@ const nextOf =
   (clock: number): number | null =>
     deadlines
       .filter((at) => at > clock)
-      .reduce<number | null>((nearest, at) => (nearest === null ? at : Math.min(nearest, at)), null);
+      .reduce<number | null>(
+        (nearest, at) => (nearest === null ? at : Math.min(nearest, at)),
+        null,
+      );
 
 const makeInput = (pickNextDeadline: (clock: number) => number | null) => ({
   pickNextDeadline,
@@ -30,7 +33,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("reads deadline-clock dependencies from the named input", () => {
+it('reads deadline-clock dependencies from the named input', () => {
   const readNow = vi.fn(() => START);
   const pickNextDeadline = vi.fn(() => null);
 
@@ -41,7 +44,7 @@ it("reads deadline-clock dependencies from the named input", () => {
   expect(pickNextDeadline).toHaveBeenCalledWith(START);
 });
 
-it("uses the injected clock to arm, wake past, and re-arm deadlines", () => {
+it('uses the injected clock to arm, wake past, and re-arm deadlines', () => {
   const initial = START + 1_000_000;
   const first = initial + 60_000;
   const second = first + 60_000;
@@ -67,12 +70,12 @@ it("uses the injected clock to arm, wake past, and re-arm deadlines", () => {
 });
 
 function registerDeadlineClockBasics(): void {
-  it("starts at the current time", () => {
+  it('starts at the current time', () => {
     const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
     expect(result.current).toBe(START);
   });
 
-  it("advances just AFTER the deadline passes, not at it", () => {
+  it('advances just AFTER the deadline passes, not at it', () => {
     const deadline = START + 60_000;
     const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
 
@@ -84,7 +87,7 @@ function registerDeadlineClockBasics(): void {
     expect(result.current).toBeGreaterThan(deadline);
   });
 
-  it("arms nothing at all when no deadline is pending", () => {
+  it('arms nothing at all when no deadline is pending', () => {
     const { result } = renderHook(() => useDeadlineClock(makeInput(() => null)));
 
     act(() => void vi.advanceTimersByTime(24 * 60 * 60 * 1000));
@@ -93,10 +96,13 @@ function registerDeadlineClockBasics(): void {
 }
 
 function registerDeadlineClockRearming(): void {
-  it("re-arms on the nearer deadline when one appears", () => {
-    const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt), {
-      initialProps: { nextAt: START + 60_000 },
-    });
+  it('re-arms on the nearer deadline when one appears', () => {
+    const { result, rerender } = renderHook(
+      ({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt),
+      {
+        initialProps: { nextAt: START + 60_000 },
+      },
+    );
 
     rerender({ nextAt: START + 5_000 });
     act(() => void vi.advanceTimersByTime(5_001));
@@ -124,17 +130,20 @@ function registerDeadlineClockRearming(): void {
     // the instant it returns, so re-renders that change nothing else must leave the timer alone.
     const deadline = START + 60_000;
     const { rerender } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
-    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
 
     rerender();
     rerender();
     expect(setTimeoutSpy).not.toHaveBeenCalled();
   });
 
-  it("stops waking once the deadline is cleared", () => {
-    const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt), {
-      initialProps: { nextAt: (START + 5_000) as number | null },
-    });
+  it('stops waking once the deadline is cleared', () => {
+    const { result, rerender } = renderHook(
+      ({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt),
+      {
+        initialProps: { nextAt: (START + 5_000) as number | null },
+      },
+    );
 
     rerender({ nextAt: null });
     act(() => void vi.advanceTimersByTime(60_000));
@@ -161,8 +170,8 @@ function registerDeadlineClockCleanup(): void {
     expect(result.current).toBe(deadline + 1);
   });
 
-  it("clears its outstanding timer on unmount", () => {
-    const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
+  it('clears its outstanding timer on unmount', () => {
+    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
     const { unmount } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
 
     clearTimeoutSpy.mockClear();
@@ -171,7 +180,7 @@ function registerDeadlineClockCleanup(): void {
   });
 }
 
-describe("useDeadlineClock", () => {
+describe('useDeadlineClock', () => {
   registerDeadlineClockBasics();
   registerDeadlineClockRearming();
   registerDeadlineClockCleanup();

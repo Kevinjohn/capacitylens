@@ -1,14 +1,20 @@
-import { useState } from "react";
-import type { KeyboardEvent } from "react";
-import { SWATCHES, SWATCH_COLUMNS, resolveSwatchLabel, resolveColorName, resolveSwatchIndex } from "@/lib/palette";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
-import { m } from "@/i18n";
-import { useMarkFormDirty } from "@/components/common/formDirty";
-import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
-import type { ProductFieldLayout } from "./fieldTypes";
+import { useState } from 'react';
+import type { KeyboardEvent } from 'react';
+import {
+  SWATCHES,
+  SWATCH_COLUMNS,
+  resolveSwatchLabel,
+  resolveColorName,
+  resolveSwatchIndex,
+} from '@/lib/palette';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/cn';
+import { m } from '@/i18n';
+import { useMarkFormDirty } from '@/components/common/formDirty';
+import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps';
+import type { ProductFieldLayout } from './fieldTypes';
 
 type ColorFieldProps = {
   label: string;
@@ -28,16 +34,16 @@ type SwatchGridProps = {
   onClose: () => void;
 };
 
-type ColorTriggerProps = Pick<ColorFieldProps, "label" | "value"> & {
+type ColorTriggerProps = Pick<ColorFieldProps, 'label' | 'value'> & {
   invalid: boolean | undefined;
   describedById: string | undefined;
 };
 
 function resolveSwatchDelta(key: string): number | null {
-  if (key === "ArrowRight") return 1;
-  if (key === "ArrowLeft") return -1;
-  if (key === "ArrowDown") return SWATCH_COLUMNS;
-  if (key === "ArrowUp") return -SWATCH_COLUMNS;
+  if (key === 'ArrowRight') return 1;
+  if (key === 'ArrowLeft') return -1;
+  if (key === 'ArrowDown') return SWATCH_COLUMNS;
+  if (key === 'ArrowUp') return -SWATCH_COLUMNS;
   return null;
 }
 
@@ -52,13 +58,23 @@ function ColorTrigger({ label, value, invalid, describedById }: ColorTriggerProp
         aria-describedby={invalid ? describedById : undefined}
         className="w-full justify-between"
       >
-        <span className="size-4 shrink-0 rounded ring-1 ring-inset ring-black/10" style={{ backgroundColor: value }} />
+        <span
+          className="size-4 shrink-0 rounded ring-1 ring-inset ring-black/10"
+          style={{ backgroundColor: value }}
+        />
       </Button>
     </PopoverTrigger>
   );
 }
 
-function SwatchGrid({ label, value, selectedIndex, markDirty, onChange, onClose }: SwatchGridProps) {
+function SwatchGrid({
+  label,
+  value,
+  selectedIndex,
+  markDirty,
+  onChange,
+  onClose,
+}: SwatchGridProps) {
   return (
     <PopoverContent
       role="radiogroup"
@@ -84,13 +100,21 @@ function SwatchGrid({ label, value, selectedIndex, markDirty, onChange, onClose 
   );
 }
 
-type SwatchButtonProps = Omit<SwatchGridProps, "label" | "value"> & {
+type SwatchButtonProps = Omit<SwatchGridProps, 'label' | 'value'> & {
   hex: string;
   index: number;
   value: string;
 };
 
-function SwatchButton({ hex, index, value, selectedIndex, markDirty, onChange, onClose }: SwatchButtonProps) {
+function SwatchButton({
+  hex,
+  index,
+  value,
+  selectedIndex,
+  markDirty,
+  onChange,
+  onClose,
+}: SwatchButtonProps) {
   const selected = hex.toLowerCase() === value.toLowerCase();
 
   function selectNextSwatch(event: KeyboardEvent<HTMLButtonElement>) {
@@ -104,7 +128,7 @@ function SwatchButton({ hex, index, value, selectedIndex, markDirty, onChange, o
       markDirty();
       onChange(nextHex);
     }
-    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();
   }
 
   function selectSwatch() {
@@ -124,8 +148,8 @@ function SwatchButton({ hex, index, value, selectedIndex, markDirty, onChange, o
       onKeyDown={selectNextSwatch}
       onClick={selectSwatch}
       className={cn(
-        "size-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110",
-        selected && "outline outline-2 outline-offset-1 outline-brand-strong",
+        'size-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110',
+        selected && 'outline outline-2 outline-offset-1 outline-brand-strong',
       )}
       style={{ backgroundColor: hex }}
     />
@@ -133,7 +157,14 @@ function SwatchButton({ hex, index, value, selectedIndex, markDirty, onChange, o
 }
 
 /** Restricts colour selection to the supported swatches. */
-export function ColorField({ label, value, onChange, invalid, describedById, layout = "stacked" }: ColorFieldProps) {
+export function ColorField({
+  label,
+  value,
+  onChange,
+  invalid,
+  describedById,
+  layout = 'stacked',
+}: ColorFieldProps) {
   const markDirty = useMarkFormDirty();
   const [open, setOpen] = useState(false);
   const selectedIndex = Math.max(0, resolveSwatchIndex(value));

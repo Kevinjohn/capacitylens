@@ -3,7 +3,7 @@
 // to a later task, revoking synchronously right after click() can cancel the browser's
 // handling of the request. The anchor API cannot confirm that a file reached durable storage.
 
-import { m } from "@/i18n";
+import { m } from '@/i18n';
 
 function cleanupDownloadArtifacts(
   anchor: HTMLAnchorElement | undefined,
@@ -32,27 +32,31 @@ function cleanupDownloadArtifacts(
  * @throws {Error} if creating or invoking the request throws. Callers must not describe a
  * successful return as proof that the activation was accepted or the file was saved.
  */
-export function downloadTextFile(filename: string, content: string, type = "application/json"): void {
+export function downloadTextFile(
+  filename: string,
+  content: string,
+  type = 'application/json',
+): void {
   let url: string | undefined;
   let anchor: HTMLAnchorElement | undefined;
   try {
     const blob = new Blob([content], { type });
     url = URL.createObjectURL(blob);
-    anchor = document.createElement("a");
+    anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = filename;
-    anchor.style.display = "none";
+    anchor.style.display = 'none';
     document.body.appendChild(anchor);
     anchor.click();
   } catch (e) {
     // The request was not accepted. Clean up the half-built artefacts before surfacing it.
-    cleanupDownloadArtifacts(anchor, url, "downloadTextFile: cleanup after failed download failed");
+    cleanupDownloadArtifacts(anchor, url, 'downloadTextFile: cleanup after failed download failed');
     throw new Error(m.download_start_failed(), { cause: e });
   }
   // Deferred teardown runs in its own task after the browser has received the request. A failure
   // here does not change that request outcome and would otherwise become an uncaught macrotask
   // error, so warn instead of letting it escape.
   setTimeout(() => {
-    cleanupDownloadArtifacts(anchor, url, "downloadTextFile: cleanup after download failed");
+    cleanupDownloadArtifacts(anchor, url, 'downloadTextFile: cleanup after download failed');
   }, 0);
 }

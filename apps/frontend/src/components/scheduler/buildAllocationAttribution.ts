@@ -1,5 +1,11 @@
-import { effectiveProjectId } from "@capacitylens/shared/lib/integrity";
-import type { Activity, Allocation, Client, ID, Project } from "@capacitylens/shared/types/entities";
+import { effectiveProjectId } from '@capacitylens/shared/lib/integrity';
+import type {
+  Activity,
+  Allocation,
+  Client,
+  ID,
+  Project,
+} from '@capacitylens/shared/types/entities';
 
 /** Resolved project and phase identifiers permitted for an allocation. */
 export interface AllocationAttribution {

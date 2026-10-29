@@ -1,15 +1,15 @@
-import { m } from "@/i18n";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { isExternalResource } from "@capacitylens/shared/types/entities";
-import type { Activity } from "@capacitylens/shared/types/entities";
-import type { useNavigate } from "react-router-dom";
-import { fuzzyFilter } from "@/lib/fuzzy";
-import { resolveResourceDisplayName } from "@/lib/metadata";
-import { ACCOUNT_LINK, ADMIN_LINKS, HELP_LINK, LINKS } from "@/lib/navLinks";
-import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "@/lib/tourAnchors";
-import type { useActiveScopedData } from "@/store/useScopedData";
-import { buildEmptyFilters } from "@/store/useStore";
-import type { Filters } from "@/store/useStore";
+import { m } from '@/i18n';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isExternalResource } from '@capacitylens/shared/types/entities';
+import type { Activity } from '@capacitylens/shared/types/entities';
+import type { useNavigate } from 'react-router-dom';
+import { fuzzyFilter } from '@/lib/fuzzy';
+import { resolveResourceDisplayName } from '@/lib/metadata';
+import { ACCOUNT_LINK, ADMIN_LINKS, HELP_LINK, LINKS } from '@/lib/navLinks';
+import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors';
+import type { useActiveScopedData } from '@/store/useScopedData';
+import { buildEmptyFilters } from '@/store/useStore';
+import type { Filters } from '@/store/useStore';
 
 /** A searchable command with its label, scope, and action. */
 export interface PaletteItem {
@@ -38,8 +38,16 @@ interface BuildPaletteItemsInput {
 
 const SECTION_LIMIT = 5;
 
-type FilterPaletteItemsOptions = { items: PaletteItem[]; query: string; showAllWithoutQuery?: boolean };
-function filterPaletteItems({ items, query, showAllWithoutQuery = false }: FilterPaletteItemsOptions): PaletteItem[] {
+type FilterPaletteItemsOptions = {
+  items: PaletteItem[];
+  query: string;
+  showAllWithoutQuery?: boolean;
+};
+function filterPaletteItems({
+  items,
+  query,
+  showAllWithoutQuery = false,
+}: FilterPaletteItemsOptions): PaletteItem[] {
   if (!query) return showAllWithoutQuery ? items : items.slice(0, SECTION_LIMIT);
   return fuzzyFilter(items, query, (item) => item.label).slice(0, SECTION_LIMIT);
 }
@@ -53,11 +61,11 @@ function buildActionItems({
 }: BuildPaletteItemsInput & { query: string }) {
   const actions: PaletteItem[] = [
     {
-      id: "action-today",
+      id: 'action-today',
       label: m.palette_action_today(),
       section: m.palette_section_actions(),
       onSelect: () => {
-        void navigate("/");
+        void navigate('/');
         goToToday();
         onClose();
       },
@@ -69,7 +77,7 @@ function buildActionItems({
       label: m.palette_action_date({ date: query }),
       section: m.palette_section_actions(),
       onSelect: () => {
-        void navigate("/");
+        void navigate('/');
         goToDate(query);
         onClose();
       },
@@ -86,11 +94,11 @@ function buildPageItems({
   onClose,
 }: BuildPaletteItemsInput): PaletteItem[] {
   return [...LINKS, ...ADMIN_LINKS, HELP_LINK, ACCOUNT_LINK]
-    .filter(({ to }) => disciplinesEnabled || to !== "/disciplines")
+    .filter(({ to }) => disciplinesEnabled || to !== '/disciplines')
     .filter(({ to }) => showCapacityOverview || to !== ROUTE_CAPACITY_OVERVIEW)
     .filter(({ to }) => showDiagnostics || to !== ROUTE_DIAGNOSTICS)
     .map(({ to, label }) => ({
-      id: `page-${to === "/" ? "schedule" : to.slice(1)}`,
+      id: `page-${to === '/' ? 'schedule' : to.slice(1)}`,
       label: label(),
       sublabel: to,
       section: m.palette_section_pages(),
@@ -104,15 +112,15 @@ function buildPageItems({
 function buildResourceItems(input: BuildPaletteItemsInput): PaletteItem[] {
   const { data, placeholdersEnabled, externalEnabled, navigate, jumpToResource, onClose } = input;
   return data.resources
-    .filter((resource) => placeholdersEnabled || resource.kind !== "placeholder")
+    .filter((resource) => placeholdersEnabled || resource.kind !== 'placeholder')
     .filter((resource) => externalEnabled || !isExternalResource(resource))
     .map((resource) => ({
       id: `res-${resource.id}`,
-      label: `${resolveResourceDisplayName(resource)}${isExternalResource(resource) ? m.palette_resource_external_suffix() : ""}`,
-      ...(resource.kind === "placeholder" || resource.name ? { sublabel: resource.role } : {}),
+      label: `${resolveResourceDisplayName(resource)}${isExternalResource(resource) ? m.palette_resource_external_suffix() : ''}`,
+      ...(resource.kind === 'placeholder' || resource.name ? { sublabel: resource.role } : {}),
       section: m.palette_section_people(),
       onSelect: () => {
-        void navigate("/");
+        void navigate('/');
         jumpToResource(resource.id);
         onClose();
       },
@@ -130,7 +138,7 @@ function buildProjectItems(input: BuildPaletteItemsInput): PaletteItem[] {
       ...(client ? { sublabel: client.name } : {}),
       section: m.palette_section_projects(),
       onSelect: () => {
-        void navigate("/");
+        void navigate('/');
         setFilters({ ...buildEmptyFilters(), projectId: project.id });
         onClose();
       },
@@ -138,22 +146,30 @@ function buildProjectItems(input: BuildPaletteItemsInput): PaletteItem[] {
   });
 }
 
-function buildClientItems({ data, navigate, setFilters, onClose }: BuildPaletteItemsInput): PaletteItem[] {
+function buildClientItems({
+  data,
+  navigate,
+  setFilters,
+  onClose,
+}: BuildPaletteItemsInput): PaletteItem[] {
   return data.clients.map((client) => ({
     id: `client-${client.id}`,
     label: client.name,
     section: m.palette_section_clients(),
     onSelect: () => {
-      void navigate("/");
+      void navigate('/');
       setFilters({ ...buildEmptyFilters(), clientId: client.id });
       onClose();
     },
   }));
 }
 
-function resolveActivitySublabel(activity: Activity, projectName: string | undefined): string | undefined {
-  if (activity.kind === "project") return projectName;
-  if (activity.kind === "internal") return m.palette_activity_internal();
+function resolveActivitySublabel(
+  activity: Activity,
+  projectName: string | undefined,
+): string | undefined {
+  if (activity.kind === 'project') return projectName;
+  if (activity.kind === 'internal') return m.palette_activity_internal();
   return m.palette_activity_repeatable();
 }
 
@@ -183,7 +199,11 @@ export function buildPaletteItems(input: BuildPaletteItemsInput): PaletteItem[] 
     query: query,
     showAllWithoutQuery: true,
   });
-  const pages = filterPaletteItems({ items: buildPageItems(input), query: query, showAllWithoutQuery: true });
+  const pages = filterPaletteItems({
+    items: buildPageItems(input),
+    query: query,
+    showAllWithoutQuery: true,
+  });
   if (!query) return [...actions, ...pages];
   return [
     actions,

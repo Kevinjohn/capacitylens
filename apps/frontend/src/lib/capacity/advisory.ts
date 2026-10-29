@@ -1,10 +1,16 @@
-import { daysInclusive, eachDayISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
-import { effectiveWeekIncludes } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { addCapacityHours, hasAllocationLoadOnDay, hasOverCapacity } from "./primitives";
-import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from "./availability";
+import { daysInclusive, eachDayISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
+import { effectiveWeekIncludes } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import type {
+  Allocation,
+  Closure,
+  ISODate,
+  Resource,
+  TimeOff,
+} from '@capacitylens/shared/types/entities';
+import { addCapacityHours, hasAllocationLoadOnDay, hasOverCapacity } from './primitives';
+import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from './availability';
 
 /** Capacity impact summary for a proposed allocation. */
 export interface CapacityAdvisory {
@@ -17,8 +23,11 @@ export interface CapacityAdvisory {
 }
 
 /** Allocation fields read by the capacity advisory, accepting persisted rows or transient drafts. */
-export type CapacityAllocationInput = Pick<Allocation, "resourceId" | "startDate" | "endDate" | "hoursPerDay"> &
-  Partial<Pick<Allocation, "ignoreWeekends">>;
+export type CapacityAllocationInput = Pick<
+  Allocation,
+  'resourceId' | 'startDate' | 'endDate' | 'hoursPerDay'
+> &
+  Partial<Pick<Allocation, 'ignoreWeekends'>>;
 
 /** Existing load in hours, keyed by the ISO day it lands on, for one resource. Building this once
  * is what makes an advisory O(window + load) instead of O(windowDays × allocations), and lets a
@@ -65,8 +74,9 @@ export function addCapacityLoad({
         ignoreWorkingDays: allocation.ignoreWeekends ?? undefined,
         dayIsWorking: isWorkingDay(effectiveWeek, day),
       })
-    )
+    ) {
       continue;
+    }
     let componentsByDay = loadComponents.get(byDay);
     if (!componentsByDay) {
       componentsByDay = new Map();
@@ -96,7 +106,7 @@ export function bucketCapacityLoad({
   effectiveWeek,
 }: BucketCapacityLoadInput): CapacityLoadByDay {
   const byDay: CapacityLoadByDay = new Map();
-  for (const allocation of allocations)
+  for (const allocation of allocations) {
     addCapacityLoad({
       byDay: byDay,
       resource: resource,
@@ -105,6 +115,7 @@ export function bucketCapacityLoad({
       end: end,
       effectiveWeek: effectiveWeek,
     });
+  }
   return byDay;
 }
 
@@ -144,7 +155,8 @@ function tallyAdvisory({
     const working = effectiveWeekIncludes(effectiveWeek, weekday);
     const scheduledCapacity = resolveScheduledHoursOnDay(resource, day, effectiveWeek);
     const onTimeOff =
-      scheduledCapacity > 0 && isUnavailable({ resource: resource, date: day, timeOff: timeOff, closures: closures });
+      scheduledCapacity > 0 &&
+      isUnavailable({ resource: resource, date: day, timeOff: timeOff, closures: closures });
     // Time off is its own category (counted, surfaced separately) and never folded into overDays,
     // a holiday only costs capacity on a day the resource would have worked, and it reads as "on
     // time off", not "over". `continue` so it can't also be tallied as over below.
@@ -159,12 +171,20 @@ function tallyAdvisory({
         ignoreWorkingDays: proposal.ignoreWeekends ?? undefined,
         dayIsWorking: working,
       })
-    )
+    ) {
       continue;
+    }
     // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over, exactly like the per-day over-marker.
     const available = working ? scheduledCapacity : 0;
-    if (hasOverCapacity(addCapacityHours(componentsOn(loadByDay, day), proposal.hoursPerDay), available)) overDays++;
+    if (
+      hasOverCapacity(
+        addCapacityHours(componentsOn(loadByDay, day), proposal.hoursPerDay),
+        available,
+      )
+    ) {
+      overDays++;
+    }
   }
   return { overDays, timeOffDays };
 }

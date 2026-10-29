@@ -1,9 +1,9 @@
-import { useId } from "react";
-import { Input } from "@/components/ui/input";
-import { Field, FieldContent, FieldDescription } from "@/components/ui/field";
-import { RequiredFieldLabel } from "./fieldLayout";
-import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
-import type { ProductFieldLayout } from "./fieldTypes";
+import { useId } from 'react';
+import { Input } from '@/components/ui/input';
+import { Field, FieldContent, FieldDescription } from '@/components/ui/field';
+import { RequiredFieldLabel } from './fieldLayout';
+import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps';
+import type { ProductFieldLayout } from './fieldTypes';
 
 type TextFieldProps = {
   label: string;
@@ -20,7 +20,7 @@ type TextFieldProps = {
   disabled?: boolean;
   /** Explicit native cap for fields whose raw length is their semantic limit, such as local search. */
   maxLength?: number | null;
-  type?: "text" | "email" | "password" | "date";
+  type?: 'text' | 'email' | 'password' | 'date';
   autoComplete?: string;
   minLength?: number;
   ariaLabel?: string;
@@ -35,7 +35,7 @@ function resolveBooleanAttribute({ value }: ResolveBooleanAttributeOptions): tru
 }
 
 function resolveNonEmptyAttribute(value: string): string | undefined {
-  return value === "" ? undefined : value;
+  return value === '' ? undefined : value;
 }
 
 function TextFieldControl({
@@ -50,7 +50,7 @@ function TextFieldControl({
   describedById,
   disabled,
   maxLength,
-  type = "text",
+  type = 'text',
   autoComplete,
   minLength,
   ariaLabel,
@@ -59,9 +59,13 @@ function TextFieldControl({
   descriptionId,
 }: TextFieldProps & { id: string; descriptionId: string }) {
   const ariaDescribedBy = resolveNonEmptyAttribute(
-    [externalDescriptionId, description ? descriptionId : undefined, invalid ? describedById : undefined]
+    [
+      externalDescriptionId,
+      description ? descriptionId : undefined,
+      invalid ? describedById : undefined,
+    ]
       .filter(Boolean)
-      .join(" "),
+      .join(' '),
   );
 
   return (
@@ -73,7 +77,7 @@ function TextFieldControl({
       autoFocus={autoFocus}
       // Mark the intended autofocus target so Modal's focus trap honours it instead of
       // grabbing the first focusable (often a leading button).
-      data-autofocus={autoFocus ? "" : undefined}
+      data-autofocus={autoFocus ? '' : undefined}
       maxLength={maxLength ?? undefined}
       minLength={minLength}
       autoComplete={autoComplete}
@@ -90,11 +94,11 @@ function TextFieldControl({
 
 /** Renders a labelled text input with shared validation and layout behavior. */
 export function TextField(props: TextFieldProps) {
-  const { label, description, invalid, required, disabled, layout = "stacked" } = props;
+  const { label, description, invalid, required, disabled, layout = 'stacked' } = props;
   const id = useId();
   const descriptionId = useId();
   const input = <TextFieldControl {...props} id={id} descriptionId={descriptionId} />;
-  const descriptionOnOwnRow = description && layout === "label-control";
+  const descriptionOnOwnRow = description && layout === 'label-control';
   let fieldControl = input;
   if (descriptionOnOwnRow) {
     fieldControl = (
@@ -120,7 +124,11 @@ export function TextField(props: TextFieldProps) {
       data-disabled={resolveBooleanAttribute({ value: disabled })}
       {...buildProductFieldLayoutProps(layout)}
     >
-      <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
+      <RequiredFieldLabel
+        htmlFor={id}
+        label={label}
+        {...(required !== undefined ? { required } : {})}
+      />
       {fieldControl}
     </Field>
   );
@@ -138,7 +146,7 @@ export function NumberField({
   required,
   disabled,
   describedById,
-  layout = "stacked",
+  layout = 'stacked',
 }: {
   label: string;
   value: number;
@@ -160,7 +168,11 @@ export function NumberField({
       data-disabled={resolveBooleanAttribute({ value: disabled })}
       {...buildProductFieldLayoutProps(layout)}
     >
-      <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
+      <RequiredFieldLabel
+        htmlFor={id}
+        label={label}
+        {...(required !== undefined ? { required } : {})}
+      />
       <Input
         id={id}
         type="number"
@@ -199,7 +211,7 @@ export function DateField({
   min,
   max,
   testId,
-  layout = "stacked",
+  layout = 'stacked',
 }: {
   label: string;
   value: string;
@@ -215,8 +227,15 @@ export function DateField({
 }) {
   const id = useId();
   return (
-    <Field data-invalid={resolveBooleanAttribute({ value: invalid })} {...buildProductFieldLayoutProps(layout)}>
-      <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
+    <Field
+      data-invalid={resolveBooleanAttribute({ value: invalid })}
+      {...buildProductFieldLayoutProps(layout)}
+    >
+      <RequiredFieldLabel
+        htmlFor={id}
+        label={label}
+        {...(required !== undefined ? { required } : {})}
+      />
       <Input
         id={id}
         type="date"

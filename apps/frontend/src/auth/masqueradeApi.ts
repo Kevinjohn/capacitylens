@@ -4,28 +4,28 @@ import type {
   MasqueradeState,
   MasqueradeStatus,
   StartMasqueradePayload,
-} from "@capacitylens/shared/domain/masquerade";
-import { isAccountRole } from "@capacitylens/shared/account/types";
-import { isRecord } from "@capacitylens/shared/lib/isRecord";
-import { isTimestamp } from "@/account/accessResult";
-import type { AccountMode } from "./authContext";
-import { accountClient } from "@/account/accountClient";
-import { extractApiErrorMessage } from "@/lib/readApiError";
+} from '@capacitylens/shared/domain/masquerade';
+import { isAccountRole } from '@capacitylens/shared/account/types';
+import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { isTimestamp } from '@/account/accessResult';
+import type { AccountMode } from './authContext';
+import { accountClient } from '@/account/accountClient';
+import { extractApiErrorMessage } from '@/lib/readApiError';
 
 function parseMasqueradeState(value: unknown, accountIdFallback?: string): MasqueradeState | null {
   if (!isRecord(value)) return null;
   const state = value;
-  const accountId = typeof state.accountId === "string" ? state.accountId : accountIdFallback;
+  const accountId = typeof state.accountId === 'string' ? state.accountId : accountIdFallback;
   if (
-    typeof accountId !== "string" ||
+    typeof accountId !== 'string' ||
     accountId.length === 0 ||
-    typeof state.targetUserId !== "string" ||
+    typeof state.targetUserId !== 'string' ||
     state.targetUserId.length === 0 ||
-    typeof state.targetName !== "string" ||
+    typeof state.targetName !== 'string' ||
     !isAccountRole(state.effectiveRole) ||
     !isTimestamp(state.startedAt) ||
     !isTimestamp(state.expiresAt) ||
-    typeof state.token !== "string" ||
+    typeof state.token !== 'string' ||
     state.token.length === 0
   ) {
     return null;
@@ -33,19 +33,30 @@ function parseMasqueradeState(value: unknown, accountIdFallback?: string): Masqu
   return { ...(state as unknown as MasqueradeState), accountId };
 }
 
-function parseBootstrapPrincipal(value: unknown): { id: string; name?: string | null; email: string } | null {
-  if (!isRecord(value) || typeof value.id !== "string" || !value.id || typeof value.email !== "string" || !value.email)
+function parseBootstrapPrincipal(
+  value: unknown,
+): { id: string; name?: string | null; email: string } | null {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== 'string' ||
+    !value.id ||
+    typeof value.email !== 'string' ||
+    !value.email
+  ) {
     return null;
-  if (value.name !== undefined && value.name !== null && typeof value.name !== "string") return null;
+  }
+  if (value.name !== undefined && value.name !== null && typeof value.name !== 'string') {
+    return null;
+  }
   return {
     id: value.id,
-    ...(typeof value.name === "string" || value.name === null ? { name: value.name } : {}),
+    ...(typeof value.name === 'string' || value.name === null ? { name: value.name } : {}),
     email: value.email,
   };
 }
 
 function isAccountMode(value: unknown): value is AccountMode {
-  return value === "password-only";
+  return value === 'password-only';
 }
 
 export type MasqueradeBootstrapStatus = MasqueradeStatus & {
@@ -62,10 +73,15 @@ async function readMasqueradeBody(response: Response, fallback: string): Promise
 }
 
 async function assertMasqueradeState(response: Response): Promise<MasqueradeState> {
-  const body = await readMasqueradeBody(response, `Masquerade request failed (${response.status}).`);
+  const body = await readMasqueradeBody(
+    response,
+    `Masquerade request failed (${response.status}).`,
+  );
   const state = parseMasqueradeState(body);
   if (!state) {
-    throw new Error(extractApiErrorMessage(body) ?? "The server returned an invalid masquerade state.");
+    throw new Error(
+      extractApiErrorMessage(body) ?? 'The server returned an invalid masquerade state.',
+    );
   }
   return state;
 }
@@ -74,29 +90,42 @@ async function assertMasqueradeState(response: Response): Promise<MasqueradeStat
 export const masqueradeApi = {
   async status(accountId?: string): Promise<MasqueradeBootstrapStatus> {
     const response = await accountClient.masqueradeStatus(accountId);
-    const body = await readMasqueradeBody(response, `Masquerade status could not be read (${response.status}).`);
-    if (typeof body === "object" && body !== null && (body as { active?: unknown }).active === false) {
+    const body = await readMasqueradeBody(
+      response,
+      `Masquerade status could not be read (${response.status}).`,
+    );
+    if (
+      typeof body === 'object' &&
+      body !== null &&
+      (body as { active?: unknown }).active === false
+    ) {
       const contextToken = (body as { contextToken?: unknown }).contextToken;
       if (
-        !Object.hasOwn(body, "contextToken") ||
-        (contextToken !== null && (typeof contextToken !== "string" || contextToken.length === 0))
+        !Object.hasOwn(body, 'contextToken') ||
+        (contextToken !== null && (typeof contextToken !== 'string' || contextToken.length === 0))
       ) {
-        throw new Error("The server returned an invalid masquerade status.");
+        throw new Error('The server returned an invalid masquerade status.');
       }
       return { active: false, contextToken };
     }
     const state = parseMasqueradeState(body, accountId);
     if (!state || (body as { active?: unknown }).active !== true) {
-      throw new Error(extractApiErrorMessage(body) ?? "The server returned an invalid masquerade status.");
+      throw new Error(
+        extractApiErrorMessage(body) ?? 'The server returned an invalid masquerade status.',
+      );
     }
     const contextToken = (body as { contextToken?: unknown }).contextToken;
-    if (typeof contextToken !== "string" || contextToken.length === 0 || contextToken !== state.token) {
-      throw new Error("The server returned an invalid masquerade status.");
+    if (
+      typeof contextToken !== 'string' ||
+      contextToken.length === 0 ||
+      contextToken !== state.token
+    ) {
+      throw new Error('The server returned an invalid masquerade status.');
     }
     const principal = parseBootstrapPrincipal((body as { principal?: unknown }).principal);
     const authMode = (body as { authMode?: unknown }).authMode;
     if (!principal || !isAccountMode(authMode)) {
-      throw new Error("The server returned an invalid masquerade principal.");
+      throw new Error('The server returned an invalid masquerade principal.');
     }
     return { active: true, ...state, contextToken, principal, authMode };
   },

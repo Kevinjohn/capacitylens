@@ -1,13 +1,13 @@
-import { useFormLifetimeClose } from "@/hooks/useFormLifetimeClose";
-import { m } from "@/i18n";
-import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
-import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useCanEdit } from "@/auth/permissionContext";
-import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
-import { formatWeekdayScheduleDate } from "@/lib/dateDisplay";
-import { resolveResourceDisplayName } from "@/lib/metadata";
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
+import { m } from '@/i18n';
+import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { parseDate, todayISO } from '@capacitylens/shared/lib/dateMath';
+import { carriesHourlyLoad } from '@capacitylens/shared/types/entities';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCanEdit } from '@/auth/permissionContext';
+import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
+import { formatWeekdayScheduleDate } from '@/lib/dateDisplay';
+import { resolveResourceDisplayName } from '@/lib/metadata';
 import {
   hasExternalResourcesEnabled,
   canCreateInlineActivity,
@@ -15,16 +15,16 @@ import {
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
   resolveTimeZone,
-} from "@/store/selectors";
-import { useActiveScopedData } from "@/store/useScopedData";
-import { useStore } from "@/store/useStore";
-import { buildAllocationAdvisory } from "./buildAllocationAdvisory";
-import { buildAllocationModalSeed } from "./buildAllocationModalSeed";
-import type { AllocationModalProps } from "./allocationModalTypes";
-import { buildRepeatProjection } from "./buildRepeatProjection";
-import { createAllocationCommands } from "./allocationSubmit";
-import { useAllocationScheduleState } from "./useAllocationScheduleState";
-import { useAllocationTargetState } from "./useAllocationTargetState";
+} from '@/store/selectors';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { useStore } from '@/store/useStore';
+import { buildAllocationAdvisory } from './buildAllocationAdvisory';
+import { buildAllocationModalSeed } from './buildAllocationModalSeed';
+import type { AllocationModalProps } from './allocationModalTypes';
+import { buildRepeatProjection } from './buildRepeatProjection';
+import { createAllocationCommands } from './allocationSubmit';
+import { useAllocationScheduleState } from './useAllocationScheduleState';
+import { useAllocationTargetState } from './useAllocationTargetState';
 
 function useAllocationStoreActions() {
   return {
@@ -61,7 +61,10 @@ function useAllocationModalContext(props: AllocationModalProps) {
   });
   const isCurrentDraft = () => {
     const planning = useStore.getState().planning;
-    return planning.context === draftBasis.current.context && planning.revision === draftBasis.current.revision;
+    return (
+      planning.context === draftBasis.current.context &&
+      planning.revision === draftBasis.current.revision
+    );
   };
   const data = useActiveScopedData();
   const actions = useAllocationStoreActions();
@@ -70,9 +73,11 @@ function useAllocationModalContext(props: AllocationModalProps) {
     const canAdvance = isCurrentDraft();
     const unchangedData = JSON.stringify(before.data);
     const result = await actions.addActivity(draft);
-    if (canAdvance && result.kind === "created" && before.planning.revision !== null) {
+    if (canAdvance && result.kind === 'created' && before.planning.revision !== null) {
       const after = useStore.getState();
-      const acknowledgedRows = after.data.activities.filter((activity) => activity.id === result.value.id);
+      const acknowledgedRows = after.data.activities.filter(
+        (activity) => activity.id === result.value.id,
+      );
       const withoutCreatedActivity = {
         ...after.data,
         activities: after.data.activities.filter((activity) => activity.id !== result.value.id),
@@ -86,24 +91,35 @@ function useAllocationModalContext(props: AllocationModalProps) {
         acknowledgedRows.length === 1 &&
         JSON.stringify(acknowledgedRows[0]) === JSON.stringify(result.value) &&
         JSON.stringify(withoutCreatedActivity) === unchangedData
-      )
+      ) {
         draftBasis.current = { context: after.planning.context, revision: after.planning.revision };
+      }
     }
     return result;
   };
   const { mode, accountWorkingDays } = useSchedulingContext();
   // Read the active account row directly because the scoped entity projection omits accounts.
-  const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
-  const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
-  const inlineActivityCreateEnabled = useStore((state) => canCreateInlineActivity(state.data, state.activeAccountId));
-  const showTaskFieldInSchedule = useStore((state) => hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId));
+  const placeholdersEnabled = useStore((state) =>
+    hasPlaceholdersEnabled(state.data, state.activeAccountId),
+  );
+  const externalEnabled = useStore((state) =>
+    hasExternalResourcesEnabled(state.data, state.activeAccountId),
+  );
+  const inlineActivityCreateEnabled = useStore((state) =>
+    canCreateInlineActivity(state.data, state.activeAccountId),
+  );
+  const showTaskFieldInSchedule = useStore((state) =>
+    hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId),
+  );
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
-  const isDays = mode === "days";
+  const isDays = mode === 'days';
   const isBlocks = !carriesHourlyLoad(mode);
 
-  const editId = props.kind === "edit" ? props.allocationId : undefined;
-  const create = props.kind === "create" ? props.create : undefined;
-  const editing = editId ? data.allocations.find((allocation) => allocation.id === editId) : undefined;
+  const editId = props.kind === 'edit' ? props.allocationId : undefined;
+  const create = props.kind === 'create' ? props.create : undefined;
+  const editing = editId
+    ? data.allocations.find((allocation) => allocation.id === editId)
+    : undefined;
 
   const resourcesById = useMemo(
     () => new Map(data.resources.map((resource) => [resource.id, resource])),
@@ -175,11 +191,17 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>
     calendarTimeZone: context.calendarTimeZone,
     seed: context.seed,
   });
-  const repeatProjection = useRepeatProjection(buildRepeatProjectionInput(context, target, schedule));
-  const advisory = useAllocationAdvisory(buildAdvisoryInput({ context, target, schedule, repeatProjection }));
+  const repeatProjection = useRepeatProjection(
+    buildRepeatProjectionInput(context, target, schedule),
+  );
+  const advisory = useAllocationAdvisory(
+    buildAdvisoryInput({ context, target, schedule, repeatProjection }),
+  );
   // A typed span can produce an invalid date; guard formatWeekdayScheduleDate() to avoid crashing the modal.
   const parsedEndDate = parseDate(schedule.effEndDate);
-  const endDateHint = Number.isNaN(parsedEndDate.getTime()) ? null : formatWeekdayScheduleDate(schedule.effEndDate);
+  const endDateHint = Number.isNaN(parsedEndDate.getTime())
+    ? null
+    : formatWeekdayScheduleDate(schedule.effEndDate);
   return { target, schedule, repeatProjection, advisory, endDateHint };
 }
 
@@ -226,7 +248,13 @@ function buildModalState(
   });
   const repeatLastStart = repeatProjection?.startDates.at(-1);
   return {
-    shell: { editing: context.editing, createName, onClose: context.onClose, submit, clear: context.fieldError.clear },
+    shell: {
+      editing: context.editing,
+      createName,
+      onClose: context.onClose,
+      submit,
+      clear: context.fieldError.clear,
+    },
     targetFields: target.fields,
     scheduleFields: {
       ...schedule.fields,
@@ -316,7 +344,11 @@ function buildAdvisoryInput({
     selectedResource: target.selectedResource,
     selectedEffectiveWeek: schedule.selectedEffectiveWeek,
     startDate: schedule.fields.startDate,
-    data: { allocations: context.data.allocations, closures: context.data.closures, timeOff: context.data.timeOff },
+    data: {
+      allocations: context.data.allocations,
+      closures: context.data.closures,
+      timeOff: context.data.timeOff,
+    },
   };
 }
 
@@ -402,7 +434,9 @@ type ResolveCreateNameOptions = {
 };
 function resolveCreateName({ isCreate, resource }: ResolveCreateNameOptions) {
   if (!isCreate) return undefined;
-  return resource ? resolveResourceDisplayName(resource) : m.form_allocation_advisory_resource_name();
+  return resource
+    ? resolveResourceDisplayName(resource)
+    : m.form_allocation_advisory_resource_name();
 }
 
 /** State and handlers returned to the allocation dialog view. */

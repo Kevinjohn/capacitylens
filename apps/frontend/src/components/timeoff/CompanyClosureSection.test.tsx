@@ -1,14 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { PermissionContext } from "@/auth/permissionContext";
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
-import { useStore } from "@/store/useStore";
-import { CompanyClosureSection } from "./CompanyClosureSection";
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { PermissionContext } from '@/auth/permissionContext';
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { useStore } from '@/store/useStore';
+import { CompanyClosureSection } from './CompanyClosureSection';
 
 beforeEach(async () => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'));
   await resetStoreWithAccount();
 });
 
@@ -17,104 +17,118 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("CompanyClosureSection", () => {
-  it("has a labelled empty state and one heading action", () => {
+describe('CompanyClosureSection', () => {
+  it('has a labelled empty state and one heading action', () => {
     render(<CompanyClosureSection />);
 
-    expect(screen.getByTestId("company-closures-section")).toHaveAccessibleName("Company closures");
-    expect(screen.getByTestId("company-closures-empty")).toHaveTextContent("No company closures planned.");
-    expect(screen.getByRole("button", { name: "Add closure" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add a closure" })).not.toBeInTheDocument();
+    expect(screen.getByTestId('company-closures-section')).toHaveAccessibleName('Company closures');
+    expect(screen.getByTestId('company-closures-empty')).toHaveTextContent(
+      'No company closures planned.',
+    );
+    expect(screen.getByRole('button', { name: 'Add closure' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add a closure' })).not.toBeInTheDocument();
   });
 
-  it("shows the required name and complete inclusive date span", async () => {
+  it('shows the required name and complete inclusive date span', async () => {
     await useStore.getState().addClosure({
-      name: "Summer shutdown",
-      startDate: "2026-08-01",
-      endDate: "2026-08-05",
+      name: 'Summer shutdown',
+      startDate: '2026-08-01',
+      endDate: '2026-08-05',
     });
 
     render(<CompanyClosureSection />);
 
-    const row = screen.getByTestId("company-closure-row");
-    expect(row).toHaveTextContent("Summer shutdown");
-    expect(row).toHaveTextContent("Sat 1st – Wed 5th Aug");
+    const row = screen.getByTestId('company-closure-row');
+    expect(row).toHaveTextContent('Summer shutdown');
+    expect(row).toHaveTextContent('Sat 1st – Wed 5th Aug');
 
-    expect(screen.getByRole("button", { name: "Edit Summer shutdown closure, Sat 1st – Wed 5th Aug" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Delete Summer shutdown closure, Sat 1st – Wed 5th Aug" })).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Edit Summer shutdown closure, Sat 1st – Wed 5th Aug' }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Delete Summer shutdown closure, Sat 1st – Wed 5th Aug' }),
+    ).toBeVisible();
   });
 
   it("uses the active company's timezone and week-start setting for the visible boundary", async () => {
-    vi.setSystemTime(new Date("2026-06-08T00:30:00.000Z"));
+    vi.setSystemTime(new Date('2026-06-08T00:30:00.000Z'));
     await useStore.getState().addClosure({
-      name: "Wayne Enterprises shutdown",
-      startDate: "2026-06-06",
-      endDate: "2026-06-07",
+      name: 'Wayne Enterprises shutdown',
+      startDate: '2026-06-06',
+      endDate: '2026-06-07',
     });
 
-    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
+    await useStore
+      .getState()
+      .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
     const { rerender } = render(<CompanyClosureSection />);
-    expect(screen.queryByTestId("company-closure-row")).not.toBeInTheDocument();
+    expect(screen.queryByTestId('company-closure-row')).not.toBeInTheDocument();
 
-    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
+    await useStore
+      .getState()
+      .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Pacific/Honolulu', weekStartsOn: 1 });
     rerender(<CompanyClosureSection />);
-    expect(screen.getByTestId("company-closure-row")).toBeInTheDocument();
+    expect(screen.getByTestId('company-closure-row')).toBeInTheDocument();
 
-    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 0 });
+    await useStore
+      .getState()
+      .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 0 });
     rerender(<CompanyClosureSection />);
-    expect(screen.getByTestId("company-closure-row")).toBeInTheDocument();
+    expect(screen.getByTestId('company-closure-row')).toBeInTheDocument();
   });
 
-  it("removes an expired closure when the company week rolls over while mounted", async () => {
+  it('removes an expired closure when the company week rolls over while mounted', async () => {
     vi.useRealTimers();
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-07T23:59:59.000Z"));
-    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
+    vi.setSystemTime(new Date('2026-06-07T23:59:59.000Z'));
+    await useStore
+      .getState()
+      .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
     await useStore.getState().addClosure({
-      name: "Wayne Enterprises shutdown",
-      startDate: "2026-06-07",
-      endDate: "2026-06-07",
+      name: 'Wayne Enterprises shutdown',
+      startDate: '2026-06-07',
+      endDate: '2026-06-07',
     });
 
     render(<CompanyClosureSection />);
-    expect(screen.getByTestId("company-closure-row")).toBeInTheDocument();
+    expect(screen.getByTestId('company-closure-row')).toBeInTheDocument();
 
     await act(() => vi.advanceTimersByTimeAsync(1_000));
 
-    expect(screen.queryByTestId("company-closure-row")).not.toBeInTheDocument();
+    expect(screen.queryByTestId('company-closure-row')).not.toBeInTheDocument();
   });
 
-  it("confirms deletion and keeps the store mutation undoable", async () => {
+  it('confirms deletion and keeps the store mutation undoable', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     await useStore.getState().addClosure({
-      name: "Summer shutdown",
-      startDate: "2026-08-01",
-      endDate: "2026-08-05",
+      name: 'Summer shutdown',
+      startDate: '2026-08-01',
+      endDate: '2026-08-05',
     });
     render(<CompanyClosureSection />);
 
-    await user.click(screen.getByRole("button", { name: /Delete Summer shutdown closure/ }));
-    const dialog = screen.getByRole("alertdialog", { name: "Delete closure?" });
-    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole('button', { name: /Delete Summer shutdown closure/ }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete closure?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
     expect(useStore.getState().data.closures).toHaveLength(0);
 
     await useStore.getState().undoPlanning();
     expect(useStore.getState().data.closures).toHaveLength(1);
   });
 
-  it("keeps closure mutation controls hidden for viewers", async () => {
+  it('keeps closure mutation controls hidden for viewers', async () => {
     await useStore.getState().addClosure({
-      name: "Summer shutdown",
-      startDate: "2026-08-01",
-      endDate: "2026-08-05",
+      name: 'Summer shutdown',
+      startDate: '2026-08-01',
+      endDate: '2026-08-05',
     });
     render(
-      <PermissionContext.Provider value={{ role: "viewer" }}>
+      <PermissionContext.Provider value={{ role: 'viewer' }}>
         <CompanyClosureSection />
       </PermissionContext.Provider>,
     );
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.getByTestId("company-closure-row")).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('company-closure-row')).toBeInTheDocument();
   });
 });

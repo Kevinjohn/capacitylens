@@ -1,56 +1,56 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
-import { m } from "@/i18n";
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { m } from '@/i18n';
 import {
   DEFAULT_TIME_ZONE,
   resolveBrowserTimeZone,
   resolveTimeZoneAbbreviation,
   resolveTimeZoneOffsetLabel,
   resolveTimeZoneOptionLabel,
-} from "./timezones";
+} from './timezones';
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("supportedTimeZones", () => {
+describe('supportedTimeZones', () => {
   // The list is memoised at module scope (a page's engine zone list cannot change), so each case
   // re-imports a fresh module in order to observe its own mocked engine.
   const freshModule = async () => {
     vi.resetModules();
-    return import("./timezones");
+    return import('./timezones');
   };
 
   it("prepends the app's GMT default and UTC alias when the engine list omits them", async () => {
-    vi.spyOn(Intl, "supportedValuesOf").mockReturnValue(["Europe/London"]);
+    vi.spyOn(Intl, 'supportedValuesOf').mockReturnValue(['Europe/London']);
     const { listSupportedTimeZones: fresh } = await freshModule();
-    expect(fresh()).toEqual(["Etc/GMT", "UTC", "Europe/London"]);
+    expect(fresh()).toEqual(['Etc/GMT', 'UTC', 'Europe/London']);
   });
 
-  it("does not duplicate Etc/GMT when the engine list already has it", async () => {
-    vi.spyOn(Intl, "supportedValuesOf").mockReturnValue(["Etc/GMT", "UTC"]);
+  it('does not duplicate Etc/GMT when the engine list already has it', async () => {
+    vi.spyOn(Intl, 'supportedValuesOf').mockReturnValue(['Etc/GMT', 'UTC']);
     const { listSupportedTimeZones: fresh } = await freshModule();
-    expect(fresh()).toEqual(["Etc/GMT", "UTC"]);
+    expect(fresh()).toEqual(['Etc/GMT', 'UTC']);
   });
 
-  it("falls back to the documented hand-list when the engine lacks the API", async () => {
-    vi.spyOn(Intl, "supportedValuesOf").mockImplementation(() => {
-      throw new Error("Intl.supportedValuesOf is not supported");
+  it('falls back to the documented hand-list when the engine lacks the API', async () => {
+    vi.spyOn(Intl, 'supportedValuesOf').mockImplementation(() => {
+      throw new Error('Intl.supportedValuesOf is not supported');
     });
     const { listSupportedTimeZones: fresh } = await freshModule();
     expect(fresh()).toEqual([
-      "Etc/GMT",
-      "UTC",
-      "Europe/London",
-      "Europe/Paris",
-      "America/New_York",
-      "America/Los_Angeles",
-      "Asia/Tokyo",
-      "Australia/Sydney",
+      'Etc/GMT',
+      'UTC',
+      'Europe/London',
+      'Europe/Paris',
+      'America/New_York',
+      'America/Los_Angeles',
+      'Asia/Tokyo',
+      'Australia/Sydney',
     ]);
   });
 
-  it("builds the list once and hands every caller the same frozen array", async () => {
-    const engine = vi.spyOn(Intl, "supportedValuesOf").mockReturnValue(["Etc/GMT", "UTC"]);
+  it('builds the list once and hands every caller the same frozen array', async () => {
+    const engine = vi.spyOn(Intl, 'supportedValuesOf').mockReturnValue(['Etc/GMT', 'UTC']);
     const { listSupportedTimeZones: fresh } = await freshModule();
 
     const first = fresh();
@@ -60,182 +60,209 @@ describe("supportedTimeZones", () => {
   });
 
   it("uses the browser's IANA zone when it is in the supported set", () => {
-    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
-      locale: "en-GB",
-      timeZone: "Europe/London",
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+      locale: 'en-GB',
+      timeZone: 'Europe/London',
     } as Intl.ResolvedDateTimeFormatOptions);
-    expect(resolveBrowserTimeZone(["Etc/GMT", "Europe/London"])).toBe("Europe/London");
+    expect(resolveBrowserTimeZone(['Etc/GMT', 'Europe/London'])).toBe('Europe/London');
   });
 
-  it("falls back to the stable default for an unavailable browser zone", () => {
-    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
-      locale: "en-GB",
-      timeZone: "Mars/Olympus",
+  it('falls back to the stable default for an unavailable browser zone', () => {
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+      locale: 'en-GB',
+      timeZone: 'Mars/Olympus',
     } as Intl.ResolvedDateTimeFormatOptions);
-    expect(resolveBrowserTimeZone(["Etc/GMT", "Europe/London"])).toBe(DEFAULT_TIME_ZONE);
+    expect(resolveBrowserTimeZone(['Etc/GMT', 'Europe/London'])).toBe(DEFAULT_TIME_ZONE);
   });
 });
 
-describe("supportedTimeZones runtime fallbacks", () => {
-  it("warns when browser zone detection fails and keeps the stable default", () => {
-    const error = new Error("browser zone lookup failed");
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(() => {
+describe('supportedTimeZones runtime fallbacks', () => {
+  it('warns when browser zone detection fails and keeps the stable default', () => {
+    const error = new Error('browser zone lookup failed');
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockImplementation(() => {
       throw error;
     });
 
-    expect(resolveBrowserTimeZone(["Etc/GMT", "Europe/London"])).toBe(DEFAULT_TIME_ZONE);
-    expect(warnSpy).toHaveBeenCalledWith("timezones: browser zone detection failed; using Etc/GMT", error);
+    expect(resolveBrowserTimeZone(['Etc/GMT', 'Europe/London'])).toBe(DEFAULT_TIME_ZONE);
+    expect(warnSpy).toHaveBeenCalledWith(
+      'timezones: browser zone detection failed; using Etc/GMT',
+      error,
+    );
   });
 
-  it("warns when the engine zone list is unavailable and uses the hand-list", async () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.spyOn(Intl, "supportedValuesOf").mockImplementation(() => {
-      throw new Error("zone list unavailable");
+  it('warns when the engine zone list is unavailable and uses the hand-list', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(Intl, 'supportedValuesOf').mockImplementation(() => {
+      throw new Error('zone list unavailable');
     });
     vi.resetModules();
-    const { listSupportedTimeZones: fresh } = await import("./timezones");
+    const { listSupportedTimeZones: fresh } = await import('./timezones');
 
-    expect(fresh()).toContain("Europe/London");
+    expect(fresh()).toContain('Europe/London');
     expect(warnSpy).toHaveBeenCalledWith(
-      "timezones: supported zone list unavailable; using hand-list",
+      'timezones: supported zone list unavailable; using hand-list',
       expect.any(Error),
     );
   });
 });
 
-describe("time zone option labels", () => {
-  it("shows a numeric UTC offset for a zero-offset zone", () => {
-    expect(resolveTimeZoneOffsetLabel("Etc/GMT", new Date("2026-07-01T12:00:00.000Z"))).toBe("UTC+00:00");
-    expect(resolveTimeZoneOptionLabel("Etc/GMT", "GMT", new Date("2026-07-01T12:00:00.000Z"))).toBe("GMT (UTC+00:00)");
-  });
-
-  it("renders the default zone as the localised GMT without the caller spelling it out", () => {
-    expect(resolveTimeZoneOptionLabel(DEFAULT_TIME_ZONE, undefined, new Date("2026-07-01T12:00:00.000Z"))).toBe(
-      `${m.settings_timezone_gmt()} (UTC+00:00)`,
+describe('time zone option labels', () => {
+  it('shows a numeric UTC offset for a zero-offset zone', () => {
+    expect(resolveTimeZoneOffsetLabel('Etc/GMT', new Date('2026-07-01T12:00:00.000Z'))).toBe(
+      'UTC+00:00',
     );
-    expect(resolveTimeZoneOptionLabel("Europe/London", undefined, new Date("2026-07-01T12:00:00.000Z"))).toBe(
-      "London — Europe/London (BST, UTC+01:00)",
+    expect(resolveTimeZoneOptionLabel('Etc/GMT', 'GMT', new Date('2026-07-01T12:00:00.000Z'))).toBe(
+      'GMT (UTC+00:00)',
     );
   });
 
-  it("reflects daylight-saving offsets for named zones", () => {
-    const summer = new Date("2026-07-01T12:00:00.000Z");
-    const winter = new Date("2026-01-01T12:00:00.000Z");
-    expect(resolveTimeZoneOffsetLabel("Europe/London", summer)).toBe("UTC+01:00");
-    expect(resolveTimeZoneOffsetLabel("Europe/London", winter)).toBe("UTC+00:00");
-    expect(resolveTimeZoneAbbreviation("Europe/London", summer)).toBe("BST");
-    expect(resolveTimeZoneOptionLabel("Europe/London", undefined, summer)).toBe(
-      "London — Europe/London (BST, UTC+01:00)",
+  it('renders the default zone as the localised GMT without the caller spelling it out', () => {
+    expect(
+      resolveTimeZoneOptionLabel(
+        DEFAULT_TIME_ZONE,
+        undefined,
+        new Date('2026-07-01T12:00:00.000Z'),
+      ),
+    ).toBe(`${m.settings_timezone_gmt()} (UTC+00:00)`);
+    expect(
+      resolveTimeZoneOptionLabel('Europe/London', undefined, new Date('2026-07-01T12:00:00.000Z')),
+    ).toBe('London — Europe/London (BST, UTC+01:00)');
+  });
+
+  it('reflects daylight-saving offsets for named zones', () => {
+    const summer = new Date('2026-07-01T12:00:00.000Z');
+    const winter = new Date('2026-01-01T12:00:00.000Z');
+    expect(resolveTimeZoneOffsetLabel('Europe/London', summer)).toBe('UTC+01:00');
+    expect(resolveTimeZoneOffsetLabel('Europe/London', winter)).toBe('UTC+00:00');
+    expect(resolveTimeZoneAbbreviation('Europe/London', summer)).toBe('BST');
+    expect(resolveTimeZoneOptionLabel('Europe/London', undefined, summer)).toBe(
+      'London — Europe/London (BST, UTC+01:00)',
     );
-    expect(resolveTimeZoneOptionLabel("America/New_York", "America/New_York", summer)).toBe(
-      "America/New_York (GMT-4, UTC-04:00)",
+    expect(resolveTimeZoneOptionLabel('America/New_York', 'America/New_York', summer)).toBe(
+      'America/New_York (GMT-4, UTC-04:00)',
     );
   });
 
-  it("reports both sides of a half-hour DST transition that falls inside one UTC hour", () => {
-    expect(resolveTimeZoneOffsetLabel("Australia/Lord_Howe", new Date("2026-10-03T15:15:00.000Z"))).toBe("UTC+10:30");
-    expect(resolveTimeZoneOffsetLabel("Australia/Lord_Howe", new Date("2026-10-03T15:45:00.000Z"))).toBe("UTC+11:00");
+  it('reports both sides of a half-hour DST transition that falls inside one UTC hour', () => {
+    expect(
+      resolveTimeZoneOffsetLabel('Australia/Lord_Howe', new Date('2026-10-03T15:15:00.000Z')),
+    ).toBe('UTC+10:30');
+    expect(
+      resolveTimeZoneOffsetLabel('Australia/Lord_Howe', new Date('2026-10-03T15:45:00.000Z')),
+    ).toBe('UTC+11:00');
   });
 
-  it("preserves an engine-specific offset suffix while normalizing its GMT prefix", () => {
-    vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockReturnValue([
-      { type: "timeZoneName", value: "GMT+5:30:45" },
+  it('preserves an engine-specific offset suffix while normalizing its GMT prefix', () => {
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockReturnValue([
+      { type: 'timeZoneName', value: 'GMT+5:30:45' },
     ]);
 
-    expect(resolveTimeZoneOffsetLabel("Asia/Kathmandu", new Date("2026-07-01T12:02:00.000Z"))).toBe("UTC+5:30:45");
+    expect(resolveTimeZoneOffsetLabel('Asia/Kathmandu', new Date('2026-07-01T12:02:00.000Z'))).toBe(
+      'UTC+5:30:45',
+    );
   });
 
-  it("falls back to zero offset for an invalid persisted zone", () => {
-    expect(resolveTimeZoneOffsetLabel("Not/A_Zone", new Date("2026-07-01T12:03:00.000Z"))).toBe("UTC+00:00");
+  it('falls back to zero offset for an invalid persisted zone', () => {
+    expect(resolveTimeZoneOffsetLabel('Not/A_Zone', new Date('2026-07-01T12:03:00.000Z'))).toBe(
+      'UTC+00:00',
+    );
   });
 
-  it("warns safely when offset formatting fails without logging the private zone or error", async () => {
-    const privateZone = "Private/Account-Zone";
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockImplementation(() => {
+  it('warns safely when offset formatting fails without logging the private zone or error', async () => {
+    const privateZone = 'Private/Account-Zone';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockImplementation(() => {
       throw new Error(`unsupported ${privateZone}`);
     });
     vi.resetModules();
-    const { resolveTimeZoneOffsetLabel: freshResolveOffset } = await import("./timezones");
+    const { resolveTimeZoneOffsetLabel: freshResolveOffset } = await import('./timezones');
 
-    expect(freshResolveOffset(privateZone, new Date("2026-07-01T12:03:00.000Z"))).toBe("UTC+00:00");
-    expect(warnSpy).toHaveBeenCalledWith("timezones: offset formatting failed; using UTC+00:00");
-    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(privateZone);
+    expect(freshResolveOffset(privateZone, new Date('2026-07-01T12:03:00.000Z'))).toBe('UTC+00:00');
+    expect(warnSpy).toHaveBeenCalledWith('timezones: offset formatting failed; using UTC+00:00');
+    expect(warnSpy.mock.calls.flat().join(' ')).not.toContain(privateZone);
   });
 });
 
-describe("timeZoneOffsetLabel caching", () => {
-  it("builds one Intl.DateTimeFormat per zone and reuses it across UTC minutes", () => {
-    const ctorSpy = vi.spyOn(Intl, "DateTimeFormat");
-    const zone = "Pacific/Auckland";
-    resolveTimeZoneOffsetLabel(zone, new Date("2026-07-01T12:07:00.000Z"));
-    resolveTimeZoneOffsetLabel(zone, new Date("2026-07-01T13:07:00.000Z"));
+describe('timeZoneOffsetLabel caching', () => {
+  it('builds one Intl.DateTimeFormat per zone and reuses it across UTC minutes', () => {
+    const ctorSpy = vi.spyOn(Intl, 'DateTimeFormat');
+    const zone = 'Pacific/Auckland';
+    resolveTimeZoneOffsetLabel(zone, new Date('2026-07-01T12:07:00.000Z'));
+    resolveTimeZoneOffsetLabel(zone, new Date('2026-07-01T13:07:00.000Z'));
     const zoneConstructions = ctorSpy.mock.calls.filter(
       ([, options]) => (options as Intl.DateTimeFormatOptions | undefined)?.timeZone === zone,
     );
     expect(zoneConstructions).toHaveLength(1);
   });
 
-  it("re-reads the offset on every call — only the formatter is cached, never the label", () => {
-    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts");
-    const zone = "Asia/Tbilisi";
-    resolveTimeZoneOffsetLabel(zone, new Date("2026-07-01T12:08:05.000Z"));
-    resolveTimeZoneOffsetLabel(zone, new Date("2026-07-01T12:08:45.000Z"));
+  it('re-reads the offset on every call — only the formatter is cached, never the label', () => {
+    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts');
+    const zone = 'Asia/Tbilisi';
+    resolveTimeZoneOffsetLabel(zone, new Date('2026-07-01T12:08:05.000Z'));
+    resolveTimeZoneOffsetLabel(zone, new Date('2026-07-01T12:08:45.000Z'));
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
-  it("resolves to zero offset every time if the timeZoneName part is ever missing", () => {
-    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockReturnValue([]);
-    const zone = "Asia/Novosibirsk";
-    const date = new Date("2026-07-01T12:09:00.000Z");
-    expect(resolveTimeZoneOffsetLabel(zone, date)).toBe("UTC+00:00");
-    expect(resolveTimeZoneOffsetLabel(zone, date)).toBe("UTC+00:00");
+  it('resolves to zero offset every time if the timeZoneName part is ever missing', () => {
+    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockReturnValue([]);
+    const zone = 'Asia/Novosibirsk';
+    const date = new Date('2026-07-01T12:09:00.000Z');
+    expect(resolveTimeZoneOffsetLabel(zone, date)).toBe('UTC+00:00');
+    expect(resolveTimeZoneOffsetLabel(zone, date)).toBe('UTC+00:00');
     expect(spy).toHaveBeenCalledTimes(2);
   });
 });
 
-describe("timeZoneOffsetLabel offset-string parsing", () => {
+describe('timeZoneOffsetLabel offset-string parsing', () => {
   const mockOffsetValue = (value: string) => {
-    vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockReturnValue([
-      { type: "timeZoneName", value } as Intl.DateTimeFormatPart,
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockReturnValue([
+      { type: 'timeZoneName', value } as Intl.DateTimeFormatPart,
     ]);
   };
 
   it.each([
-    ["Europe/Paris", "GMT+5", "UTC+05:00"],
-    ["Europe/Berlin", "GMT+12", "UTC+12:00"],
-    ["Asia/Kolkata", "GMT+5:30", "UTC+05:30"],
-    ["Pacific/Fiji", "GMT+0530", "UTC+05:30"],
-    ["America/Chicago", "GMT-8", "UTC-08:00"],
-    ["Europe/Madrid", "UTC+2", "UTC+02:00"],
-  ])("parses a mocked %s offset of %s into %s", (zone, mocked, expected) => {
+    ['Europe/Paris', 'GMT+5', 'UTC+05:00'],
+    ['Europe/Berlin', 'GMT+12', 'UTC+12:00'],
+    ['Asia/Kolkata', 'GMT+5:30', 'UTC+05:30'],
+    ['Pacific/Fiji', 'GMT+0530', 'UTC+05:30'],
+    ['America/Chicago', 'GMT-8', 'UTC-08:00'],
+    ['Europe/Madrid', 'UTC+2', 'UTC+02:00'],
+  ])('parses a mocked %s offset of %s into %s', (zone, mocked, expected) => {
     mockOffsetValue(mocked);
-    expect(resolveTimeZoneOffsetLabel(zone, new Date("2026-07-01T12:00:00.000Z"))).toBe(expected);
+    expect(resolveTimeZoneOffsetLabel(zone, new Date('2026-07-01T12:00:00.000Z'))).toBe(expected);
   });
 
   it.each([
-    ["Europe/Vienna", "GMT"],
-    ["America/Denver", "UTC"],
-  ])("treats a bare %s value (%s) as zero offset, not a literal GMT/UTC suffix", (zone, mocked) => {
+    ['Europe/Vienna', 'GMT'],
+    ['America/Denver', 'UTC'],
+  ])('treats a bare %s value (%s) as zero offset, not a literal GMT/UTC suffix', (zone, mocked) => {
     mockOffsetValue(mocked);
-    expect(resolveTimeZoneOffsetLabel(zone, new Date("2026-07-01T12:00:00.000Z"))).toBe("UTC+00:00");
+    expect(resolveTimeZoneOffsetLabel(zone, new Date('2026-07-01T12:00:00.000Z'))).toBe(
+      'UTC+00:00',
+    );
   });
 
-  it("swaps only a leading GMT prefix to UTC when the value does not match a sign+offset shape", () => {
-    mockOffsetValue("GMTx");
-    expect(resolveTimeZoneOffsetLabel("Asia/Dubai", new Date("2026-07-01T12:00:00.000Z"))).toBe("UTCx");
+  it('swaps only a leading GMT prefix to UTC when the value does not match a sign+offset shape', () => {
+    mockOffsetValue('GMTx');
+    expect(resolveTimeZoneOffsetLabel('Asia/Dubai', new Date('2026-07-01T12:00:00.000Z'))).toBe(
+      'UTCx',
+    );
   });
 
-  it("leaves a non-leading GMT untouched — the prefix swap is anchored to the string start", () => {
-    mockOffsetValue("XGMT");
-    expect(resolveTimeZoneOffsetLabel("Europe/Rome", new Date("2026-07-01T12:00:00.000Z"))).toBe("XGMT");
+  it('leaves a non-leading GMT untouched — the prefix swap is anchored to the string start', () => {
+    mockOffsetValue('XGMT');
+    expect(resolveTimeZoneOffsetLabel('Europe/Rome', new Date('2026-07-01T12:00:00.000Z'))).toBe(
+      'XGMT',
+    );
   });
 
-  it("refuses to parse an offset out of a value that only ENDS in a GMT offset — the sign+offset match is anchored too", () => {
+  it('refuses to parse an offset out of a value that only ENDS in a GMT offset — the sign+offset match is anchored too', () => {
     // "XGMT+5" must fall through to the non-matching branch (and keep its non-leading GMT verbatim),
     // not be read as GMT+5 by an unanchored match against the embedded suffix.
-    mockOffsetValue("XGMT+5");
-    expect(resolveTimeZoneOffsetLabel("America/Lima", new Date("2026-07-01T12:00:00.000Z"))).toBe("XGMT+5");
+    mockOffsetValue('XGMT+5');
+    expect(resolveTimeZoneOffsetLabel('America/Lima', new Date('2026-07-01T12:00:00.000Z'))).toBe(
+      'XGMT+5',
+    );
   });
 });

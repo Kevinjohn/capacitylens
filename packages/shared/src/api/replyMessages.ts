@@ -2,5 +2,5 @@
  * use machine-readable codes rather than matching this prose. */
 export const FROZEN_REPLY_MESSAGES = {
   /** Historical missing-row response text. */
-  notFound: "Not found",
+  notFound: 'Not found',
 } as const;

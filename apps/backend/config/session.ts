@@ -1,8 +1,8 @@
-import { publicOrigin } from '#config/public_origin'
-import { defineConfig, stores } from '@adonisjs/session'
-import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry'
+import { publicOrigin } from '#config/public_origin';
+import { defineConfig, stores } from '@adonisjs/session';
+import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry';
 
-const secure = publicOrigin.secure
+const secure = publicOrigin.secure;
 
 const sessionConfig = defineConfig({
   /**
@@ -75,6 +75,6 @@ const sessionConfig = defineConfig({
      */
     database: stores.database({ tableName: 'adonis_sessions' }),
   },
-})
+});
 
-export default sessionConfig
+export default sessionConfig;

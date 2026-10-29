@@ -1,25 +1,30 @@
-import { addDaysISO, daysInclusive } from "@capacitylens/shared/lib/dateMath";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { addDaysISO, daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
 import {
   generateRepeatingStartDates,
   RepeatingDateError,
   TIME_OFF_REPEAT_POLICY,
-} from "@capacitylens/shared/lib/repeatingDates";
-import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
-import type { ISODate, TimeOff } from "@capacitylens/shared/types/entities";
-import type { Draft } from "@/store/useStore";
+} from '@capacitylens/shared/lib/repeatingDates';
+import type { RepeatPattern } from '@capacitylens/shared/lib/repeatingDates';
+import type { ISODate, TimeOff } from '@capacitylens/shared/types/entities';
+import type { Draft } from '@/store/useStore';
 
 /** A create-only cadence; persisted time-off entries remain independent dated records. */
 export type TimeOffRepeatSelection =
-  "weekly" | "every-two-weeks" | "every-three-weeks" | "every-four-weeks" | "monthly-date" | "monthly-last-weekday";
+  | 'weekly'
+  | 'every-two-weeks'
+  | 'every-three-weeks'
+  | 'every-four-weeks'
+  | 'monthly-date'
+  | 'monthly-last-weekday';
 
 const TIME_OFF_REPEAT_PATTERNS: Record<TimeOffRepeatSelection, RepeatPattern> = {
-  weekly: { kind: "weeks", interval: 1 },
-  "every-two-weeks": { kind: "weeks", interval: 2 },
-  "every-three-weeks": { kind: "weeks", interval: 3 },
-  "every-four-weeks": { kind: "weeks", interval: 4 },
-  "monthly-date": { kind: "monthly-date" },
-  "monthly-last-weekday": { kind: "monthly-last-weekday" },
+  weekly: { kind: 'weeks', interval: 1 },
+  'every-two-weeks': { kind: 'weeks', interval: 2 },
+  'every-three-weeks': { kind: 'weeks', interval: 3 },
+  'every-four-weeks': { kind: 'weeks', interval: 4 },
+  'monthly-date': { kind: 'monthly-date' },
+  'monthly-last-weekday': { kind: 'monthly-last-weekday' },
 };
 
 /** The shared repeat pattern behind one time-off cadence choice. Pure. */
@@ -34,11 +39,14 @@ export function buildRepeatedTimeOffDrafts(
   selection: TimeOffRepeatSelection,
 ): { repeatUntil: ISODate; drafts: Draft<TimeOff>[] } {
   if (!isValidISODate(baseDraft.startDate) || !isValidISODate(baseDraft.endDate)) {
-    throw new RepeatingDateError("invalid-date", "Time off requires valid ISO dates.");
+    throw new RepeatingDateError('invalid-date', 'Time off requires valid ISO dates.');
   }
   const duration = daysInclusive(baseDraft.startDate, baseDraft.endDate);
   if (!Number.isSafeInteger(duration) || duration < 1) {
-    throw new RepeatingDateError("invalid-date", "Repeat projection requires a valid inclusive date range.");
+    throw new RepeatingDateError(
+      'invalid-date',
+      'Repeat projection requires a valid inclusive date range.',
+    );
   }
   const generated = generateRepeatingStartDates(
     baseDraft.startDate,
@@ -53,7 +61,10 @@ export function buildRepeatedTimeOffDrafts(
     } catch (error) {
       // Translate date overflow into a field-domain failure while allowing unrelated programming errors to propagate.
       if (error instanceof RangeError) {
-        throw new RepeatingDateError("invalid-date", "Repeated time off extends beyond the supported ISO date range.");
+        throw new RepeatingDateError(
+          'invalid-date',
+          'Repeated time off extends beyond the supported ISO date range.',
+        );
       }
       throw error;
     }

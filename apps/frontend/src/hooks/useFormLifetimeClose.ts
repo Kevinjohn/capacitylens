@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef } from "react";
+import { useCallback, useLayoutEffect, useRef } from 'react';
 
 /** Keep a completed save from closing a different opening of the same editor. */
 export function useFormLifetimeClose(close: () => void): () => void {

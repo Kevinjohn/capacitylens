@@ -1,17 +1,17 @@
-import { useCallback, useEffect, useId, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { archiveRecovery } from "@capacitylens/shared/domain/lifecycle";
-import type { ArchiveRecovery } from "@capacitylens/shared/domain/lifecycle";
-import { client, scopeQueryKey } from "@/api/queryClient";
-import { useAuth } from "@/auth/authContext";
-import { useCan, useRole, usePermissionStatus } from "@/auth/permissionContext";
-import { isServerConfigured } from "@/data/apiConfig";
-import { subscribeToInactiveDataChanges } from "@/data/inactiveDataEvents";
-import { getMasqueradeContextToken } from "@/auth/masqueradeContext";
-import { useInactiveScopedData } from "@/store/useScopedData";
-import { useStore } from "@/store/useStore";
-import { m } from "@/i18n";
-import { resolveErrorMessage } from "@/lib/errorMessage";
+import { useCallback, useEffect, useId, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
+import type { ArchiveRecovery } from '@capacitylens/shared/domain/lifecycle';
+import { client, scopeQueryKey } from '@/api/queryClient';
+import { useAuth } from '@/auth/authContext';
+import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext';
+import { isServerConfigured } from '@/data/apiConfig';
+import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { useInactiveScopedData } from '@/store/useScopedData';
+import { useStore } from '@/store/useStore';
+import { m } from '@/i18n';
+import { resolveErrorMessage } from '@/lib/errorMessage';
 
 function hasCurrentPlanningAccess(
   accessKey: string | null,
@@ -40,7 +40,7 @@ export function useArchiveRecovery() {
   const { user } = useAuth();
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const mayWrite = useCan("write");
+  const mayWrite = useCan('write');
   const accountId = useStore((state) => state.activeAccountId);
   const planning = useStore((state) => state.planning);
   const masquerade = useStore((state) => state.masquerade);
@@ -59,15 +59,15 @@ export function useArchiveRecovery() {
     !!accountId &&
     (!server ||
       (!!user &&
-        permissionStatus === "resolved" &&
+        permissionStatus === 'resolved' &&
         hasCurrentPlanningAccess(planning.accessKey, user.id, role) &&
         planning.context?.companyId === accountId &&
         planning.canWrite &&
-        planning.status === "ready"));
+        planning.status === 'ready'));
   const scope = {
     principalId: user?.id ?? null,
     accountId,
-    masqueradeGeneration: masquerade.kind === "inactive" ? 0 : masquerade.generation,
+    masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
   };
   const signature = JSON.stringify([
     scope,
@@ -86,7 +86,7 @@ export function useArchiveRecovery() {
   const contextToken = getMasqueradeContextToken();
   const query = useQuery<ArchiveRecovery>({
     queryKey: scopeQueryKey(scope, [
-      "archive-recovery",
+      'archive-recovery',
       instance,
       epoch,
       role,
@@ -99,17 +99,21 @@ export function useArchiveRecovery() {
     retry: false,
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
-      const response = await client.request("api.planning.archive", {
-        params: { accountId: accountId ?? "" },
+      const response = await client.request('api.planning.archive', {
+        params: { accountId: accountId ?? '' },
         signal,
-        headers: { "X-Masquerade-Context": contextToken ?? "" },
+        headers: { 'X-Masquerade-Context': contextToken ?? '' },
       });
-      if (!response || response.accountId !== accountId) throw new Error(m.settings_archived_err_incomplete());
+      if (!response || response.accountId !== accountId) {
+        throw new Error(m.settings_archived_err_incomplete());
+      }
       return response;
     },
   });
   if (!enabled) return { data: null, error: null, reload };
-  if (!server) return { data: archiveRecovery(localData, accountId, role ?? "owner"), error: null, reload };
+  if (!server) {
+    return { data: archiveRecovery(localData, accountId, role ?? 'owner'), error: null, reload };
+  }
   return {
     data: query.isError ? null : (query.data ?? null),
     error: query.error ? resolveErrorMessage(query.error) : null,

@@ -1,17 +1,17 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
-import { newId } from "./id.js";
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { newId } from './id.js';
 
-describe("newId", () => {
-  it("delegates every id to the platform CSPRNG instead of synthesising a counter", () => {
+describe('newId', () => {
+  it('delegates every id to the platform CSPRNG instead of synthesising a counter', () => {
     const randomUUID = vi
       .fn()
-      .mockReturnValueOnce("11111111-1111-4111-8111-111111111111")
-      .mockReturnValueOnce("22222222-2222-4222-8222-222222222222");
-    vi.stubGlobal("crypto", { randomUUID });
+      .mockReturnValueOnce('11111111-1111-4111-8111-111111111111')
+      .mockReturnValueOnce('22222222-2222-4222-8222-222222222222');
+    vi.stubGlobal('crypto', { randomUUID });
     try {
       expect([newId(), newId()]).toEqual([
-        "11111111-1111-4111-8111-111111111111",
-        "22222222-2222-4222-8222-222222222222",
+        '11111111-1111-4111-8111-111111111111',
+        '22222222-2222-4222-8222-222222222222',
       ]);
       expect(randomUUID).toHaveBeenCalledTimes(2);
     } finally {
@@ -19,21 +19,21 @@ describe("newId", () => {
     }
   });
 
-  it("returns a v4-style uuid string", () => {
+  it('returns a v4-style uuid string', () => {
     expect(newId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });
 
-  it("returns unique values", () => {
+  it('returns unique values', () => {
     expect(newId()).not.toBe(newId());
   });
 
-  describe("when crypto.randomUUID is unavailable", () => {
+  describe('when crypto.randomUUID is unavailable', () => {
     afterEach(() => {
       vi.unstubAllGlobals();
     });
 
-    it("throws the documented newId() message when crypto itself is absent", () => {
-      vi.stubGlobal("crypto", undefined);
+    it('throws the documented newId() message when crypto itself is absent', () => {
+      vi.stubGlobal('crypto', undefined);
       // A mutant that guts the guard (e.g. `if (false)`, or short-circuits the `||`
       // so the second half never runs) skips the throw and instead lets
       // `crypto.randomUUID()` blow up with an unrelated native TypeError, this
@@ -43,8 +43,8 @@ describe("newId", () => {
       );
     });
 
-    it("throws the same documented message when crypto exists but has no randomUUID", () => {
-      vi.stubGlobal("crypto", {});
+    it('throws the same documented message when crypto exists but has no randomUUID', () => {
+      vi.stubGlobal('crypto', {});
       expect(() => newId()).toThrow(
         /^newId\(\): crypto\.randomUUID is unavailable\. CapacityLens needs a secure context/,
       );

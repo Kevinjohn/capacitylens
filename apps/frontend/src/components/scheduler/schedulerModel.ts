@@ -1,20 +1,28 @@
-import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "@/lib/capacity";
-import { addDaysISO, eachDayISO, rangesOverlap } from "@capacitylens/shared/lib/dateMath";
-import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "@/lib/metadata";
-import { buildExternalBand, buildDisciplineGroups, hasSupplementaryResources } from "@/store/selectors";
-import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
-import type { AppData, ISODate, Resource, Weekday } from "@capacitylens/shared/types/entities";
-import { NEUTRAL_COLOR } from "@/lib/palette";
-import { packLanes, resolveLaneTop, resolveRowHeightForLanes } from "@/lib/lanePacking";
-import type { LaneLayout } from "@/lib/lanePacking";
-import { laneLayout as compactLaneLayout } from "./layout";
+import {
+  applyCapacityMode,
+  buildDayCapacity,
+  resolveUtilizationFromCapacity,
+} from '@/lib/capacity';
+import { addDaysISO, eachDayISO, rangesOverlap } from '@capacitylens/shared/lib/dateMath';
+import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from '@/lib/metadata';
+import {
+  buildExternalBand,
+  buildDisciplineGroups,
+  hasSupplementaryResources,
+} from '@/store/selectors';
+import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities';
+import type { AppData, ISODate, Resource, Weekday } from '@capacitylens/shared/types/entities';
+import { NEUTRAL_COLOR } from '@/lib/palette';
+import { packLanes, resolveLaneTop, resolveRowHeightForLanes } from '@/lib/lanePacking';
+import type { LaneLayout } from '@/lib/lanePacking';
+import { laneLayout as compactLaneLayout } from './layout';
 import {
   createDisplayNameComparator,
   createEngagementFavouriteDisplayNameComparator,
   createFavouriteDisplayNameComparator,
-} from "@/lib/displayOrder";
+} from '@/lib/displayOrder';
 import {
   bucketByCoveredDate,
   groupByResourceId,
@@ -23,11 +31,15 @@ import {
   NO_ALLOCATIONS,
   NO_TIME_OFF,
   NO_CLOSURES,
-} from "./schedulerModelIndexing";
-import { createAllocationFilters } from "./schedulerModelFilters";
-import { createRowBuilder } from "./schedulerRowModel";
-import { createCapacitySource } from "./schedulerRowCapacity";
-import type { GroupModel, SchedulerModelOptions, SchedulerResourceGroup } from "./schedulerModelTypes";
+} from './schedulerModelIndexing';
+import { createAllocationFilters } from './schedulerModelFilters';
+import { createRowBuilder } from './schedulerRowModel';
+import { createCapacitySource } from './schedulerRowCapacity';
+import type {
+  GroupModel,
+  SchedulerModelOptions,
+  SchedulerResourceGroup,
+} from './schedulerModelTypes';
 
 interface ApplyVisibleUtilizationInput {
   model: GroupModel[];
@@ -75,9 +87,11 @@ export type {
   RowModel,
   GroupModel,
   SchedulerModelOptions,
-} from "./schedulerModelTypes";
+} from './schedulerModelTypes';
 
-function includeRenderableDateRange<T extends { id: string; startDate: ISODate; endDate: ISODate }>(row: T): boolean {
+function includeRenderableDateRange<T extends { id: string; startDate: ISODate; endDate: ISODate }>(
+  row: T,
+): boolean {
   const renderable = hasRenderableDateRange(row);
   if (!renderable) reportInvalidScheduleDateRangeOnce(row);
   return renderable;
@@ -92,7 +106,7 @@ function projectVisibleLanes({
   layout,
   partiallyExposesNextColumn,
 }: {
-  row: GroupModel["rows"][number];
+  row: GroupModel['rows'][number];
   start: ISODate;
   end: ISODate;
   layout: LaneLayout;
@@ -134,7 +148,10 @@ export function applyVisibleUtilization({
   const days = eachDayISO(start, end);
   const allocations = groupByResourceId(data.allocations, { include: includeRenderableDateRange });
   const personalTimeOff = groupByResourceId(data.timeOff, { include: includeRenderableDateRange });
-  const closuresByDate = bucketByCoveredDate(data.closures.filter(includeRenderableDateRange), days);
+  const closuresByDate = bucketByCoveredDate(
+    data.closures.filter(includeRenderableDateRange),
+    days,
+  );
   return model.map((group) => {
     const rows = group.rows.map((row) => {
       const visibleLanes = projectVisibleLanes({
@@ -146,7 +163,11 @@ export function applyVisibleUtilization({
       });
 
       if (isExternalResource(row.resource)) {
-        if (row.utilization === 0 && visibleLanes.bars === row.bars && visibleLanes.rowHeight === row.rowHeight) {
+        if (
+          row.utilization === 0 &&
+          visibleLanes.bars === row.bars &&
+          visibleLanes.rowHeight === row.rowHeight
+        ) {
           return row;
         }
         return { ...row, ...visibleLanes, utilization: 0 };
@@ -172,7 +193,11 @@ export function applyVisibleUtilization({
           }),
         ),
       );
-      if (next === row.utilization && visibleLanes.bars === row.bars && visibleLanes.rowHeight === row.rowHeight) {
+      if (
+        next === row.utilization &&
+        visibleLanes.bars === row.bars &&
+        visibleLanes.rowHeight === row.rowHeight
+      ) {
         return row;
       }
       return { ...row, ...visibleLanes, utilization: next };
@@ -181,8 +206,8 @@ export function applyVisibleUtilization({
   });
 }
 
-const UNASSIGNED_BAND = { key: "unassigned", title: "Unassigned", color: NEUTRAL_COLOR };
-const ALL_RESOURCES_BAND = { key: "resources", title: "Resources" };
+const UNASSIGNED_BAND = { key: 'unassigned', title: 'Unassigned', color: NEUTRAL_COLOR };
+const ALL_RESOURCES_BAND = { key: 'resources', title: 'Resources' };
 
 function buildFallbackGroups({
   resources,
@@ -195,17 +220,17 @@ function buildFallbackGroups({
   return [
     {
       ...ungrouped,
-      key: "engagement-studio",
-      title: "Studio",
+      key: 'engagement-studio',
+      title: 'Studio',
       discipline: null,
-      resources: resources.filter((resource) => resource.engagement === "studio"),
+      resources: resources.filter((resource) => resource.engagement === 'studio'),
     },
     {
       ...ungrouped,
-      key: "engagement-supplementary",
-      title: "Supplementary",
+      key: 'engagement-supplementary',
+      title: 'Supplementary',
       discipline: null,
-      resources: resources.filter((resource) => resource.engagement === "supplementary"),
+      resources: resources.filter((resource) => resource.engagement === 'supplementary'),
     },
   ].filter((group) => group.resources.length > 0);
 }
@@ -228,8 +253,15 @@ function buildResourceGroups({
         });
       }
     }
-    const unassigned = disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
-    groups.push(...buildFallbackGroups({ resources: unassigned, groupByEngagement, ungrouped: UNASSIGNED_BAND }));
+    const unassigned =
+      disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
+    groups.push(
+      ...buildFallbackGroups({
+        resources: unassigned,
+        groupByEngagement,
+        ungrouped: UNASSIGNED_BAND,
+      }),
+    );
   } else {
     groups.push(
       ...buildFallbackGroups({
@@ -241,7 +273,12 @@ function buildResourceGroups({
   }
   const external = buildExternalBand(data.resources);
   if (external) {
-    groups.push({ ...external, key: "external", title: "External / 3rd party", color: NEUTRAL_COLOR });
+    groups.push({
+      ...external,
+      key: 'external',
+      title: 'External / 3rd party',
+      color: NEUTRAL_COLOR,
+    });
   }
   return groups;
 }
@@ -254,13 +291,17 @@ function createResourceComparator({
     ? comparators.byEngagementFavouriteDisplayName
     : comparators.byFavouriteDisplayName;
   return (a, b) => {
-    const placeholderOrder = Number(a.kind === "placeholder") - Number(b.kind === "placeholder");
+    const placeholderOrder = Number(a.kind === 'placeholder') - Number(b.kind === 'placeholder');
     if (placeholderOrder !== 0) return placeholderOrder;
-    return a.kind === "placeholder" ? comparators.byDisplayName(a, b) : comparePeople(a, b);
+    return a.kind === 'placeholder' ? comparators.byDisplayName(a, b) : comparePeople(a, b);
   };
 }
 
-function createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode }: CreateSchedulerRowBuilderInput) {
+function createSchedulerRowBuilder({
+  options,
+  accountWorkingDays,
+  blocksMode,
+}: CreateSchedulerRowBuilderInput) {
   const { data, geom, days, visibleWindow, overSoonWindow, filters, preferences } = options;
   const allocationFilters = createAllocationFilters(filters, preferences, data);
   const seriesEndByKey = new Map<string, ISODate>();
@@ -269,7 +310,9 @@ function createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode }: 
       if (!allocation.seriesId || !isValidISODate(allocation.endDate)) return;
       const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
       const current = seriesEndByKey.get(key);
-      if (current === undefined || allocation.endDate > current) seriesEndByKey.set(key, allocation.endDate);
+      if (current === undefined || allocation.endDate > current) {
+        seriesEndByKey.set(key, allocation.endDate);
+      }
     },
   });
   const closures = data.closures.filter(includeRenderableDateRange);
@@ -283,7 +326,13 @@ function createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode }: 
       timeOffByResource: groupByResourceId(data.timeOff.filter(includeRenderableDateRange)),
       seriesEndByKey,
       allocationFilters,
-      capacitySource: createCapacitySource({ days, visibleWindow, overSoonWindow, closures, blocksMode }),
+      capacitySource: createCapacitySource({
+        days,
+        visibleWindow,
+        overSoonWindow,
+        closures,
+        blocksMode,
+      }),
     }),
     resourceVisible: allocationFilters.resourceVisible,
   };
@@ -292,14 +341,19 @@ function createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode }: 
 /** Projects scoped scheduling data into grouped resource rows and visible bars. */
 export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[] {
   const { data, filters, preferences } = options;
-  const { disciplinesEnabled, accountWorkingDays = [1, 2, 3, 4, 5], blocksMode = false } = preferences;
+  const {
+    disciplinesEnabled,
+    accountWorkingDays = [1, 2, 3, 4, 5],
+    blocksMode = false,
+  } = preferences;
 
   const groupByEngagement = hasSupplementaryResources(data.resources);
   // Resolve the shared placeholder label once per model build so sorting reuses it while still following the active locale.
   const placeholderLabel = resolvePlaceholderDisplayName();
   const resolveDisplayName = (resource: Resource): string =>
-    resource.kind === "placeholder" ? placeholderLabel : resolveResourceDisplayName(resource);
-  const byFavouriteResourceDisplayName = createFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
+    resource.kind === 'placeholder' ? placeholderLabel : resolveResourceDisplayName(resource);
+  const byFavouriteResourceDisplayName =
+    createFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
   const byEngagementFavouriteResourceDisplayName =
     createEngagementFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
   const byResourceDisplayName = createDisplayNameComparator<Resource>(resolveDisplayName);
@@ -311,7 +365,11 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
       byEngagementFavouriteDisplayName: byEngagementFavouriteResourceDisplayName,
     },
   });
-  const { buildRow, resourceVisible } = createSchedulerRowBuilder({ options, accountWorkingDays, blocksMode });
+  const { buildRow, resourceVisible } = createSchedulerRowBuilder({
+    options,
+    accountWorkingDays,
+    blocksMode,
+  });
 
   const groups = buildResourceGroups({ data, disciplinesEnabled, groupByEngagement });
   return groups

@@ -1,10 +1,10 @@
-import { BaseSchema } from '@adonisjs/lucid/schema'
-import Allocation from '#models/allocation'
-import Closure from '#models/closure'
-import Discipline from '#models/discipline'
-import Phase from '#models/phase'
-import TimeOff from '#models/time_off'
-import { encodeRow } from '#services/state_repository'
+import { BaseSchema } from '@adonisjs/lucid/schema';
+import Allocation from '#models/allocation';
+import Closure from '#models/closure';
+import Discipline from '#models/discipline';
+import Phase from '#models/phase';
+import TimeOff from '#models/time_off';
+import { encodeRow } from '#services/state_repository';
 
 const models = {
   allocations: Allocation,
@@ -12,7 +12,7 @@ const models = {
   closures: Closure,
   phases: Phase,
   disciplines: Discipline,
-} as const
+} as const;
 
 const tables = {
   allocations: 'allocations',
@@ -20,18 +20,18 @@ const tables = {
   closures: 'closures',
   phases: 'phases',
   disciplines: 'disciplines',
-} as const
+} as const;
 
-type Entity = keyof typeof models
+type Entity = keyof typeof models;
 type LegacyRow = {
-  id: number
-  group_id: string
-  account_id: string
-  consumed_at: string | null
-  entity: Entity
-  row_id: string
-  payload_json: string
-}
+  id: number;
+  group_id: string;
+  account_id: string;
+  consumed_at: string | null;
+  entity: Entity;
+  row_id: string;
+  payload_json: string;
+};
 
 export default class extends BaseSchema {
   async up() {
@@ -48,31 +48,31 @@ export default class extends BaseSchema {
           'deleted_rows.row_id',
           'deleted_rows.payload_json'
         )
-        .orderBy('deleted_rows.id', 'asc')) as LegacyRow[]
-      const latest = new Map<string, number>()
+        .orderBy('deleted_rows.id', 'asc')) as LegacyRow[];
+      const latest = new Map<string, number>();
       for (const saved of snapshots) {
-        if (!(saved.entity in models) || saved.consumed_at) continue
-        const payload = JSON.parse(saved.payload_json) as { kind?: string }
-        if (payload.kind === 'row') latest.set(`${saved.entity}:${saved.row_id}`, saved.id)
+        if (!(saved.entity in models) || saved.consumed_at) continue;
+        const payload = JSON.parse(saved.payload_json) as { kind?: string };
+        if (payload.kind === 'row') latest.set(`${saved.entity}:${saved.row_id}`, saved.id);
       }
       for (const saved of snapshots) {
-        if (!(saved.entity in models)) continue
+        if (!(saved.entity in models)) continue;
         const payload = JSON.parse(saved.payload_json) as {
-          kind?: string
-          row?: Record<string, unknown>
-        }
-        if (payload.kind !== 'row' || !payload.row) continue
-        const entity = saved.entity
+          kind?: string;
+          row?: Record<string, unknown>;
+        };
+        if (payload.kind !== 'row' || !payload.row) continue;
+        const entity = saved.entity;
         if (!saved.consumed_at && latest.get(`${entity}:${saved.row_id}`) === saved.id) {
-          const table = tables[entity]
-          const existing = await trx.from(table).where('id', saved.row_id).first()
+          const table = tables[entity];
+          const existing = await trx.from(table).where('id', saved.row_id).first();
           if (!existing) {
-            const row = encodeRow(table, payload.row)
+            const row = encodeRow(table, payload.row);
             if (row.account_id !== saved.account_id || row.id !== saved.row_id)
-              throw new Error('Legacy deletion snapshot has mismatched ownership')
-            let retained = true
+              throw new Error('Legacy deletion snapshot has mismatched ownership');
+            let retained = true;
             try {
-              await trx.table(table).insert(row)
+              await trx.table(table).insert(row);
             } catch (error) {
               // The old snapshot may refer to a parent removed after the delete. Keep
               // its ledger entry so restoration conflicts without reviving broken data.
@@ -81,21 +81,21 @@ export default class extends BaseSchema {
                 (!error.message.includes('FOREIGN KEY constraint failed') &&
                   !error.message.includes('cross-account reference'))
               )
-                throw error
-              retained = false
+                throw error;
+              retained = false;
             }
             if (retained) {
               const model = await (models[entity] as typeof Allocation)
                 .query({ client: trx })
                 .withScopes((scopes) => scopes.forCompany(saved.account_id))
                 .where('id', saved.row_id)
-                .firstOrFail()
-              await model.delete()
+                .firstOrFail();
+              await model.delete();
               await trx
                 .from(table)
                 .where({ id: saved.row_id, account_id: saved.account_id })
                 .whereNotNull('deleted_at')
-                .update({ deletion_group_id: saved.group_id })
+                .update({ deletion_group_id: saved.group_id });
             }
           }
         }
@@ -104,8 +104,8 @@ export default class extends BaseSchema {
         await trx
           .from('deleted_rows')
           .where('id', saved.id)
-          .update({ payload_json: JSON.stringify({ kind: 'row' }) })
+          .update({ payload_json: JSON.stringify({ kind: 'row' }) });
       }
-    })
+    });
   }
 }

@@ -1,10 +1,10 @@
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import type { ISODate, Resource, SchedulingMode } from "@capacitylens/shared/types/entities";
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import type { ISODate, Resource, SchedulingMode } from '@capacitylens/shared/types/entities';
 /** Creation and editing variants for the allocation dialog. */
 export type AllocationModalProps =
-  | { kind: "edit"; allocationId: string; onClose: () => void }
+  | { kind: 'edit'; allocationId: string; onClose: () => void }
   | {
-      kind: "create";
+      kind: 'create';
       create: { resourceId: string; startDate: ISODate; endDate: ISODate };
       onClose: () => void;
     };

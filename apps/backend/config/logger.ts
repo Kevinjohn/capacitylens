@@ -1,18 +1,18 @@
-import env from '#start/env'
-import app from '@adonisjs/core/services/app'
-import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types'
-import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger'
-import { classifyLogError } from '#services/logging_safety'
+import env from '#start/env';
+import app from '@adonisjs/core/services/app';
+import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types';
+import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger';
+import { classifyLogError } from '#services/logging_safety';
 
 type AppLoggerConfig = LoggerConfig & {
-  enabled: true
-  name: string | undefined
-  level: string
-  destination?: LoggerConfig['destination']
-  transport: { targets: [ReturnType<typeof targets.file>] }
-}
+  enabled: true;
+  name: string | undefined;
+  level: string;
+  destination?: LoggerConfig['destination'];
+  transport: { targets: [ReturnType<typeof targets.file>] };
+};
 
-type CapacityLensLoggerConfig = LoggerManagerConfig<{ app: AppLoggerConfig }>
+type CapacityLensLoggerConfig = LoggerManagerConfig<{ app: AppLoggerConfig }>;
 
 const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConfig }>({
   /**
@@ -40,7 +40,7 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
       /** Keep Pino's standard `err` fields from exposing private messages or stacks. */
       serializers: {
         err(error: unknown) {
-          return { category: classifyLogError(error) }
+          return { category: classifyLogError(error) };
         },
       },
 
@@ -73,9 +73,9 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
       },
     },
   },
-})
+});
 
-export default loggerConfig
+export default loggerConfig;
 
 /**
  * Inferring types for the list of loggers you have configured

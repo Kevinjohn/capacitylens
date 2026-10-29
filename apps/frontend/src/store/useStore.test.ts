@@ -1,6 +1,6 @@
-import { requireCreated } from "@/test/requireCreated";
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { hasActiveFilters, useStore } from "./useStore";
+import { requireCreated } from '@/test/requireCreated';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { hasActiveFilters, useStore } from './useStore';
 import {
   resetStoreWithAccount,
   makeAppData,
@@ -8,21 +8,21 @@ import {
   makeResourceDraft,
   requireValue,
   WORKDAYS,
-} from "@/test/fixtures";
-import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { readActiveDateStyle, formatDayMonth } from "@/lib/dateDisplay";
-import { resolveDateStyle } from "./selectors";
-import { buildBetaExport, serializeBetaExport } from "@capacitylens/shared/data/betaTransfer";
-import { seed } from "@capacitylens/shared/data/seed";
-import { PAST_BUFFER_DAYS } from "@/lib/schedulerConfig";
+} from '@/test/fixtures';
+import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { readActiveDateStyle, formatDayMonth } from '@/lib/dateDisplay';
+import { resolveDateStyle } from './selectors';
+import { buildBetaExport, serializeBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import { seed } from '@capacitylens/shared/data/seed';
+import { PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
 
 const s = () => useStore.getState();
 beforeEach(() => resetStoreWithAccount());
 
-const personDraft = makeResourceDraft({ name: "Ty", role: "Dev", color: "#1" });
+const personDraft = makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#1' });
 
 function registerStoreCrudPart1(): void {
-  it("adds entities with a generated id and timestamps", async () => {
+  it('adds entities with a generated id and timestamps', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
     expect(r.id).toBeTruthy();
     expect(r.createdAt).toBeTruthy();
@@ -30,70 +30,76 @@ function registerStoreCrudPart1(): void {
     expect(s().data.resources).toHaveLength(1);
   });
 
-  it("generates a bounded revision when an existing timestamp has no representable successor", async () => {
-    const client = await requireCreated(s().addClient({ name: "Boundary", color: "#111111" }));
+  it('generates a bounded revision when an existing timestamp has no representable successor', async () => {
+    const client = await requireCreated(s().addClient({ name: 'Boundary', color: '#111111' }));
     const data = s().data;
     s().replaceAll({
       ...data,
       clients: data.clients.map((row) =>
-        row.id === client.id ? { ...row, updatedAt: "+275760-09-12T23:59:59.999Z" } : row,
+        row.id === client.id ? { ...row, updatedAt: '+275760-09-12T23:59:59.999Z' } : row,
       ),
     });
     await s().refreshPlanning();
-    await s().updateClient(client.id, { name: "Last successor" });
-    expect(s().data.clients.find((row) => row.id === client.id)?.updatedAt).toBe("+275760-09-13T00:00:00.000Z");
+    await s().updateClient(client.id, { name: 'Last successor' });
+    expect(s().data.clients.find((row) => row.id === client.id)?.updatedAt).toBe(
+      '+275760-09-13T00:00:00.000Z',
+    );
 
     const atMaximum = s().data;
     s().replaceAll({
       ...atMaximum,
       clients: atMaximum.clients.map((row) =>
-        row.id === client.id ? { ...row, updatedAt: "+275760-09-13T00:00:00.000Z" } : row,
+        row.id === client.id ? { ...row, updatedAt: '+275760-09-13T00:00:00.000Z' } : row,
       ),
     });
     await s().refreshPlanning();
 
-    await expect(s().updateClient(client.id, { name: "Must be refused" })).rejects.toThrow(
+    await expect(s().updateClient(client.id, { name: 'Must be refused' })).rejects.toThrow(
       /no representable successor/i,
     );
     expect(s().data.clients.find((row) => row.id === client.id)).toMatchObject({
-      name: "Last successor",
-      updatedAt: "+275760-09-13T00:00:00.000Z",
+      name: 'Last successor',
+      updatedAt: '+275760-09-13T00:00:00.000Z',
     });
   });
 }
 
 function registerStoreCrudPart2(): void {
-  it("updates fields and advances updatedAt", async () => {
+  it('updates fields and advances updatedAt', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
-    await s().updateResource(r.id, { name: "Tyler" });
+    await s().updateResource(r.id, { name: 'Tyler' });
     const updated = s().data.resources[0];
-    if (!updated) throw new Error("Expected updated resource");
-    expect(updated.name).toBe("Tyler");
+    if (!updated) throw new Error('Expected updated resource');
+    expect(updated.name).toBe('Tyler');
     expect(Date.parse(updated.updatedAt)).toBeGreaterThan(Date.parse(r.updatedAt));
     expect(updated.id).toBe(r.id);
   });
 
-  it("rejects assigning a placeholder to an activity outside its bound project", async () => {
-    const client = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p1 = await requireCreated(s().addProject({ name: "P1", clientId: client.id, color: "#2" }));
-    const p2 = await requireCreated(s().addProject({ name: "P2", clientId: client.id, color: "#3" }));
+  it('rejects assigning a placeholder to an activity outside its bound project', async () => {
+    const client = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
+    const p1 = await requireCreated(
+      s().addProject({ name: 'P1', clientId: client.id, color: '#2' }),
+    );
+    const p2 = await requireCreated(
+      s().addProject({ name: 'P2', clientId: client.id, color: '#3' }),
+    );
     const activityP2 = await requireCreated(
       s().addActivity({
-        name: "T2",
-        kind: "project",
+        name: 'T2',
+        kind: 'project',
         projectId: p2.id,
       }),
     );
     const ph = await requireCreated(
       s().addResource({
-        kind: "placeholder",
-        role: "Designer",
-        employmentType: "permanent",
-        engagement: "studio" as const,
+        kind: 'placeholder',
+        role: 'Designer',
+        employmentType: 'permanent',
+        engagement: 'studio' as const,
         workingHoursPerDay: 8,
         workingDays: WORKDAYS,
         halfDays: [],
-        color: "#1",
+        color: '#1',
         projectId: p1.id,
       }),
     );
@@ -101,42 +107,42 @@ function registerStoreCrudPart2(): void {
       s().addAllocation({
         resourceId: ph.id,
         activityId: activityP2.id,
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
+        startDate: '2026-06-01',
+        endDate: '2026-06-02',
         hoursPerDay: 8,
-        status: "confirmed",
+        status: 'confirmed',
       }),
     ).rejects.toThrow(/placeholder.*bound project/i);
     expect(s().data.allocations).toHaveLength(0);
   });
 }
 
-describe("store CRUD", () => {
+describe('store CRUD', () => {
   registerStoreCrudPart1();
   registerStoreCrudPart2();
 });
 
 function registerSchedulerUiPart1(): void {
-  it("setZoom sets the weeks-visible level", () => {
+  it('setZoom sets the weeks-visible level', () => {
     s().setZoom(8);
     expect(s().ui.zoom).toBe(8);
     s().setZoom(1);
     expect(s().ui.zoom).toBe(1);
   });
 
-  it("panDays shifts the origin", () => {
-    s().setOriginDate("2026-06-01");
+  it('panDays shifts the origin', () => {
+    s().setOriginDate('2026-06-01');
     s().panDays(7);
-    expect(s().ui.originDate).toBe("2026-06-08");
+    expect(s().ui.originDate).toBe('2026-06-08');
   });
 }
 
 function registerSchedulerUiPart5(): void {
-  it("setActiveAccount reopens on the current week (resets a panned origin/focus)", () => {
-    s().setOriginDate("2020-01-01");
+  it('setActiveAccount reopens on the current week (resets a panned origin/focus)', () => {
+    s().setOriginDate('2020-01-01');
 
     s().setActiveAccount(s().activeAccountId);
-    expect(s().ui.originDate).not.toBe("2020-01-01");
+    expect(s().ui.originDate).not.toBe('2020-01-01');
     expect(weekdayOf(s().ui.focusDate)).toBe(1);
 
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
@@ -144,47 +150,47 @@ function registerSchedulerUiPart5(): void {
 }
 
 function registerSchedulerUiPart7(): void {
-  it("goToToday resets the origin and bumps recenterToken (so the grid re-scrolls)", () => {
+  it('goToToday resets the origin and bumps recenterToken (so the grid re-scrolls)', () => {
     const before = s().ui.recenterToken;
-    s().setOriginDate("2020-01-01");
+    s().setOriginDate('2020-01-01');
     s().goToToday();
     expect(s().ui.recenterToken).toBe(before + 1);
-    expect(s().ui.originDate).not.toBe("2020-01-01");
+    expect(s().ui.originDate).not.toBe('2020-01-01');
 
     expect(weekdayOf(s().ui.focusDate)).toBe(1);
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
 
-  it("setNotice sets and clears the transient message", () => {
-    s().setNotice("Nope");
-    expect(s().notice?.message).toBe("Nope");
+  it('setNotice sets and clears the transient message', () => {
+    s().setNotice('Nope');
+    expect(s().notice?.message).toBe('Nope');
     s().setNotice(null);
     expect(s().notice).toBeNull();
   });
 
-  it("setNotice records severity (info default, error opt-in) so the UI can persist errors", () => {
-    s().setNotice("Heads up");
-    expect(s().notice?.tone).toBe("info");
-    s().setNotice("Boom", "error");
-    expect(s().notice?.tone).toBe("error");
+  it('setNotice records severity (info default, error opt-in) so the UI can persist errors', () => {
+    s().setNotice('Heads up');
+    expect(s().notice?.tone).toBe('info');
+    s().setNotice('Boom', 'error');
+    expect(s().notice?.tone).toBe('error');
 
     s().setNotice(null);
     expect(s().notice).toBeNull();
   });
 
-  it("goToDate snaps focusDate to the week start and bumps recenterToken", () => {
+  it('goToDate snaps focusDate to the week start and bumps recenterToken', () => {
     const before = s().ui.recenterToken;
 
-    s().goToDate("2026-09-09");
+    s().goToDate('2026-09-09');
     expect(weekdayOf(s().ui.focusDate)).toBe(1);
-    expect(s().ui.focusDate).toBe("2026-09-07");
+    expect(s().ui.focusDate).toBe('2026-09-07');
     expect(s().ui.recenterToken).toBe(before + 1);
 
-    expect(s().ui.originDate).toBe(addDaysISO("2026-09-07", -PAST_BUFFER_DAYS));
+    expect(s().ui.originDate).toBe(addDaysISO('2026-09-07', -PAST_BUFFER_DAYS));
   });
 
-  it("goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday", () => {
-    const sunStart = "acct-sun";
+  it('goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday', () => {
+    const sunStart = 'acct-sun';
     useStore.getState().replaceAll(
       makeAppData({
         accounts: [makeAccount({ id: sunStart, weekStartsOn: 0 })],
@@ -192,17 +198,17 @@ function registerSchedulerUiPart7(): void {
     );
     useStore.getState().setActiveAccount(sunStart);
 
-    useStore.getState().goToDate("2026-09-09");
-    expect(useStore.getState().ui.focusDate).toBe("2026-09-06");
+    useStore.getState().goToDate('2026-09-09');
+    expect(useStore.getState().ui.focusDate).toBe('2026-09-06');
     expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0);
 
-    expect(useStore.getState().ui.originDate).toBe(addDaysISO("2026-09-06", -PAST_BUFFER_DAYS));
+    expect(useStore.getState().ui.originDate).toBe(addDaysISO('2026-09-06', -PAST_BUFFER_DAYS));
   });
 }
 
 function registerSchedulerUiPart2(): void {
-  it("preserves the visible week when refreshing the currently loaded account", () => {
-    s().goToDate("2026-09-09");
+  it('preserves the visible week when refreshing the currently loaded account', () => {
+    s().goToDate('2026-09-09');
     const before = {
       originDate: s().ui.originDate,
       focusDate: s().ui.focusDate,
@@ -216,8 +222,8 @@ function registerSchedulerUiPart2(): void {
     }).toEqual(before);
   });
 
-  it("preserves undo and redo across an unchanged same-account replacement", async () => {
-    await s().addClient({ name: "Undoable", color: "#111111" });
+  it('preserves undo and redo across an unchanged same-account replacement', async () => {
+    await s().addClient({ name: 'Undoable', color: '#111111' });
     await s().undoPlanning();
     expect(s().planning.history.future).toHaveLength(1);
 
@@ -225,15 +231,15 @@ function registerSchedulerUiPart2(): void {
 
     expect(s().planning.history.future).toHaveLength(1);
     await s().redoPlanning();
-    expect(s().data.clients.some((client) => client.name === "Undoable")).toBe(true);
+    expect(s().data.clients.some((client) => client.name === 'Undoable')).toBe(true);
   });
 
-  it("clears history when a same-account replacement contains a remote revision", async () => {
-    const client = await requireCreated(s().addClient({ name: "Local", color: "#111111" }));
-    await s().addClient({ name: "Another local client", color: "#222222" });
+  it('clears history when a same-account replacement contains a remote revision', async () => {
+    const client = await requireCreated(s().addClient({ name: 'Local', color: '#111111' }));
+    await s().addClient({ name: 'Another local client', color: '#222222' });
     await s().undoPlanning();
-    s().archiveEntity("clients", client.id);
-    s().unarchiveEntity("clients", client.id);
+    s().archiveEntity('clients', client.id);
+    s().unarchiveEntity('clients', client.id);
     s().undo();
     expect(s().past).toHaveLength(1);
     expect(s().future).toHaveLength(1);
@@ -241,7 +247,9 @@ function registerSchedulerUiPart2(): void {
     expect(s().planning.history.future).toHaveLength(1);
     const replacement = structuredClone(s().data);
     replacement.clients = replacement.clients.map((row) =>
-      row.id === client.id ? { ...row, name: "Remote", updatedAt: "2099-01-01T00:00:00.000Z" } : row,
+      row.id === client.id
+        ? { ...row, name: 'Remote', updatedAt: '2099-01-01T00:00:00.000Z' }
+        : row,
     );
 
     s().replaceAll(replacement);
@@ -252,11 +260,11 @@ function registerSchedulerUiPart2(): void {
     expect(s().planning.history.future).toEqual([]);
   });
 
-  it("re-anchors after the first slice for a selected account replaces the temporary fallback", () => {
-    const accountId = "late-account";
-    s().setAccountSummaries({ list: [{ id: accountId, name: "Late account", role: "owner" }] });
+  it('re-anchors after the first slice for a selected account replaces the temporary fallback', () => {
+    const accountId = 'late-account';
+    s().setAccountSummaries({ list: [{ id: accountId, name: 'Late account', role: 'owner' }] });
     s().setActiveAccount(accountId);
-    s().goToDate("2031-09-10");
+    s().goToDate('2031-09-10');
 
     s().replaceAll(
       makeAppData({
@@ -267,159 +275,166 @@ function registerSchedulerUiPart2(): void {
     expect(weekdayOf(s().ui.focusDate)).toBe(0);
     // The panned week is deliberately far in the future so today's week does not coincide with it
     // until then; the assertion is about re-anchoring, not about the calendar.
-    expect(s().ui.focusDate).not.toBe("2031-09-07");
+    expect(s().ui.focusDate).not.toBe('2031-09-07');
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
 }
 
 function registerSchedulerUiPart3(): void {
-  it("snaps free scrolling to the week start when no test override is stored", () => {
+  it('snaps free scrolling to the week start when no test override is stored', () => {
     expect(s().weekSnapEnabled).toBe(true);
   });
 
-  it("the date format is account data: undoable, exported, and mirrored to the formatters", async () => {
+  it('the date format is account data: undoable, exported, and mirrored to the formatters', async () => {
     const accountId = s().activeAccountId;
-    if (!accountId) throw new Error("Expected an active account.");
-    await s().updateAccount(accountId, { dateStyle: "month-day" });
-    expect(resolveDateStyle(s().data, accountId)).toBe("month-day");
+    if (!accountId) throw new Error('Expected an active account.');
+    await s().updateAccount(accountId, { dateStyle: 'month-day' });
+    expect(resolveDateStyle(s().data, accountId)).toBe('month-day');
 
-    expect(readActiveDateStyle()).toBe("month-day");
-    expect(formatDayMonth("2026-09-09")).toBe("Sep 9");
+    expect(readActiveDateStyle()).toBe('month-day');
+    expect(formatDayMonth('2026-09-09')).toBe('Sep 9');
 
     await s().undoPlanning();
-    expect(resolveDateStyle(s().data, accountId)).toBe("day-month");
-    expect(readActiveDateStyle()).toBe("day-month");
+    expect(resolveDateStyle(s().data, accountId)).toBe('day-month');
+    expect(readActiveDateStyle()).toBe('day-month');
 
-    await s().updateAccount(accountId, { dateStyle: "month-day" });
+    await s().updateAccount(accountId, { dateStyle: 'month-day' });
     const exportData = seed();
     const exportAccount = exportData.accounts[0];
-    if (!exportAccount) throw new Error("Expected a valid export fixture account.");
-    exportAccount.dateStyle = s().data.accounts.find((account) => account.id === accountId)?.dateStyle ?? null;
+    if (!exportAccount) throw new Error('Expected a valid export fixture account.');
+    exportAccount.dateStyle =
+      s().data.accounts.find((account) => account.id === accountId)?.dateStyle ?? null;
     expect(
-      serializeBetaExport(buildBetaExport(exportData, { accountId: exportAccount.id, completeness: "full" })),
+      serializeBetaExport(
+        buildBetaExport(exportData, { accountId: exportAccount.id, completeness: 'full' }),
+      ),
     ).toContain('"dateStyle": "month-day"');
 
     // Restore the default. The store is a singleton, so leaving it changed would bleed into
     // later specs that format a date.
-    await s().updateAccount(accountId, { dateStyle: "day-month" });
+    await s().updateAccount(accountId, { dateStyle: 'day-month' });
   });
 
-  it("setDrawMode toggles between work and time off", () => {
-    s().setDrawMode("timeoff");
-    expect(s().ui.drawMode).toBe("timeoff");
-    s().setDrawMode("work");
-    expect(s().ui.drawMode).toBe("work");
+  it('setDrawMode toggles between work and time off', () => {
+    s().setDrawMode('timeoff');
+    expect(s().ui.drawMode).toBe('timeoff');
+    s().setDrawMode('work');
+    expect(s().ui.drawMode).toBe('work');
   });
 
-  it("toggleGroup collapses and expands a discipline", () => {
-    s().toggleGroup("d-design");
-    expect(s().ui.collapsedGroups).toContain("d-design");
-    s().toggleGroup("d-design");
-    expect(s().ui.collapsedGroups).not.toContain("d-design");
+  it('toggleGroup collapses and expands a discipline', () => {
+    s().toggleGroup('d-design');
+    expect(s().ui.collapsedGroups).toContain('d-design');
+    s().toggleGroup('d-design');
+    expect(s().ui.collapsedGroups).not.toContain('d-design');
   });
 }
 
 function registerSchedulerUiPart4(): void {
-  it("undo and redo move through mutation history", async () => {
+  it('undo and redo move through mutation history', async () => {
     await resetStoreWithAccount();
-    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
     expect(s().data.clients).toHaveLength(1);
     await s().undoPlanning();
     expect(s().data.clients).toHaveLength(1);
     expect(s().data.clients[0]?.id).toBe(c.id);
-    expect(typeof s().data.clients[0]?.archivedAt).toBe("string");
+    expect(typeof s().data.clients[0]?.archivedAt).toBe('string');
     await s().redoPlanning();
     expect(s().data.clients).toHaveLength(1);
     expect(s().data.clients[0]).toMatchObject({ id: c.id, archivedAt: null });
   });
 
-  it("re-stamps a changed revision without serializing each row unnecessarily", async () => {
+  it('re-stamps a changed revision without serializing each row unnecessarily', async () => {
     await resetStoreWithAccount();
     const clients = [];
     for (let index = 0; index < 100; index += 1) {
-      clients.push(await requireCreated(s().addClient({ name: `Client ${index}`, color: "#1" })));
+      clients.push(await requireCreated(s().addClient({ name: `Client ${index}`, color: '#1' })));
     }
-    await s().updateClient(requireValue(clients[0], "first client").id, { name: "Changed" });
-    const stringify = vi.spyOn(JSON, "stringify");
+    await s().updateClient(requireValue(clients[0], 'first client').id, { name: 'Changed' });
+    const stringify = vi.spyOn(JSON, 'stringify');
 
     await s().undoPlanning();
 
-    expect(s().data.clients[0]?.name).toBe("Client 0");
+    expect(s().data.clients[0]?.name).toBe('Client 0');
     expect(stringify).toHaveBeenCalledTimes(4);
     stringify.mockRestore();
   });
 }
 
 function registerSchedulerUiPart6(): void {
-  it("setFilters merges, hasActiveFilters reflects state, clearFilters resets", () => {
+  it('setFilters merges, hasActiveFilters reflects state, clearFilters resets', () => {
     s().clearFilters();
     expect(hasActiveFilters(s().ui.filters)).toBe(false);
-    s().setFilters({ search: "ty", hideTentative: true });
-    expect(s().ui.filters.search).toBe("ty");
+    s().setFilters({ search: 'ty', hideTentative: true });
+    expect(s().ui.filters.search).toBe('ty');
     expect(s().ui.filters.hideTentative).toBe(true);
     expect(hasActiveFilters(s().ui.filters)).toBe(true);
     s().clearFilters();
-    expect(s().ui.filters.search).toBe("");
+    expect(s().ui.filters.search).toBe('');
     expect(hasActiveFilters(s().ui.filters)).toBe(false);
   });
 
-  it("setFilters keeps the specific-activity and activity-kind lenses mutually exclusive", () => {
+  it('setFilters keeps the specific-activity and activity-kind lenses mutually exclusive', () => {
     s().clearFilters();
-    s().setFilters({ activityKind: "internal" });
-    s().setFilters({ activityId: "activity-1" });
-    expect(s().ui.filters.activityId).toBe("activity-1");
+    s().setFilters({ activityKind: 'internal' });
+    s().setFilters({ activityId: 'activity-1' });
+    expect(s().ui.filters.activityId).toBe('activity-1');
     expect(s().ui.filters.activityKind).toBeNull();
 
-    s().setFilters({ activityKind: "repeatable" });
-    expect(s().ui.filters.activityKind).toBe("repeatable");
+    s().setFilters({ activityKind: 'repeatable' });
+    expect(s().ui.filters.activityKind).toBe('repeatable');
     expect(s().ui.filters.activityId).toBeNull();
   });
 
-  it("gives activity kind precedence when one patch supplies both activity lenses", () => {
+  it('gives activity kind precedence when one patch supplies both activity lenses', () => {
     s().clearFilters();
-    s().setFilters({ activityId: "activity-1", activityKind: "internal" });
+    s().setFilters({ activityId: 'activity-1', activityKind: 'internal' });
 
-    expect(s().ui.filters.activityKind).toBe("internal");
+    expect(s().ui.filters.activityKind).toBe('internal');
     expect(s().ui.filters.activityId).toBeNull();
   });
-  it("clears a stale project when the client filter changes", async () => {
-    const queen = await requireCreated(s().addClient({ name: "Queen Consolidated", color: "#111" }));
-    const lex = await requireCreated(s().addClient({ name: "LexCorp", color: "#222" }));
+  it('clears a stale project when the client filter changes', async () => {
+    const queen = await requireCreated(
+      s().addClient({ name: 'Queen Consolidated', color: '#111' }),
+    );
+    const lex = await requireCreated(s().addClient({ name: 'LexCorp', color: '#222' }));
     const project = await requireCreated(
-      s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }),
+      s().addProject({ name: 'Project Watchtower', clientId: queen.id, color: '#333' }),
     );
     s().setFilters({ clientId: queen.id, projectId: project.id });
     s().setFilters({ clientId: lex.id });
     expect(s().ui.filters).toMatchObject({ clientId: lex.id, projectId: null });
   });
 
-  it("keeps a project when the client filter changes to its client", async () => {
-    const queen = await requireCreated(s().addClient({ name: "Queen Consolidated", color: "#111" }));
+  it('keeps a project when the client filter changes to its client', async () => {
+    const queen = await requireCreated(
+      s().addClient({ name: 'Queen Consolidated', color: '#111' }),
+    );
     const project = await requireCreated(
-      s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }),
+      s().addProject({ name: 'Project Watchtower', clientId: queen.id, color: '#333' }),
     );
     s().setFilters({ projectId: project.id });
     s().setFilters({ clientId: queen.id });
     expect(s().ui.filters).toMatchObject({ clientId: queen.id, projectId: project.id });
   });
 
-  it("clears a stale project when the client filter is cleared", () => {
-    s().setFilters({ clientId: "client-1", projectId: "project-1" });
+  it('clears a stale project when the client filter is cleared', () => {
+    s().setFilters({ clientId: 'client-1', projectId: 'project-1' });
     s().setFilters({ clientId: null });
     expect(s().ui.filters).toMatchObject({ clientId: null, projectId: null });
   });
 
-  it("gives the activity lens precedence when one patch spans both lens families", () => {
+  it('gives the activity lens precedence when one patch spans both lens families', () => {
     s().clearFilters();
-    s().setFilters({ activityId: "activity-1", clientId: "client-1" });
+    s().setFilters({ activityId: 'activity-1', clientId: 'client-1' });
 
-    expect(s().ui.filters.activityId).toBe("activity-1");
+    expect(s().ui.filters.activityId).toBe('activity-1');
     expect(s().ui.filters.clientId).toBeNull();
     expect(s().ui.filters.projectId).toBeNull();
   });
 }
 
-describe("store scheduler UI", () => {
+describe('store scheduler UI', () => {
   registerSchedulerUiPart1();
   registerSchedulerUiPart5();
   registerSchedulerUiPart2();

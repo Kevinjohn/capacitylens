@@ -1,14 +1,15 @@
-import { lazy, Suspense, useEffect } from "react";
-import type { ReactNode } from "react";
-import { AccountPicker } from "./accounts/AccountPicker";
-import { AccountLoadRecovery } from "./accounts/AccountLoadRecovery";
-import { ConnectionError } from "./ConnectionError";
-import { RotateHint } from "./RotateHint";
-import { m } from "@/i18n";
+import { lazy, Suspense, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import { AccountPicker } from './accounts/AccountPicker';
+import { AccountLoadRecovery } from './accounts/AccountLoadRecovery';
+import { ConnectionError } from './ConnectionError';
+import { RotateHint } from './RotateHint';
+import { m } from '@/i18n';
 
-const StorageRecovery = lazy(async () => ({
-  default: (await import("./StorageRecovery")).StorageRecovery,
-}));
+const StorageRecovery = lazy(async () => {
+  const module = await import('./StorageRecovery');
+  return { default: module.StorageRecovery };
+});
 
 function LoadingBoundary() {
   return (
@@ -23,7 +24,7 @@ function LoadingBoundary() {
 function FocusableStage({ children }: { children: ReactNode }) {
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      document.querySelector<HTMLElement>("main input, main button, main a[href]")?.focus();
+      document.querySelector<HTMLElement>('main input, main button, main a[href]')?.focus();
     });
     return () => cancelAnimationFrame(frame);
   }, []);
@@ -60,13 +61,14 @@ export function AppEntryGate({
   onChooseAnotherAccount,
   children,
 }: AppEntryGateProps) {
-  if (connectionError)
+  if (connectionError) {
     return (
       <FocusableStage>
         <ConnectionError />
       </FocusableStage>
     );
-  if (loadError)
+  }
+  if (loadError) {
     return (
       <Suspense fallback={<LoadingBoundary />}>
         <FocusableStage>
@@ -74,6 +76,7 @@ export function AppEntryGate({
         </FocusableStage>
       </Suspense>
     );
+  }
   if (!hydrated) return <LoadingBoundary />;
 
   if (activeAccountLoadFailed !== null && activeAccountLoadFailed === activeAccountId) {

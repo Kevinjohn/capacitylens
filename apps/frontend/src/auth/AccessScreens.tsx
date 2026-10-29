@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
-import { APP_NAME } from "@capacitylens/shared/brand";
-import { m } from "@/i18n";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { AuthUser } from "./authContext";
-import { authClient } from "./authClient";
-import type { AccessGate, AdmissionSummary } from "./authStatus";
+import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import { APP_NAME } from '@capacitylens/shared/brand';
+import { m } from '@/i18n';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { AuthUser } from './authContext';
+import { authClient } from './authClient';
+import type { AccessGate, AdmissionSummary } from './authStatus';
 
 type AccessScreenProps = {
   gate: AccessGate;
@@ -53,14 +53,16 @@ export function AccessScreen(props: AccessScreenProps) {
 }
 
 function heading(gate: AccessGate) {
-  if (gate === "verify-email") return m.limited_verify_heading();
-  if (gate === "admission") return m.limited_admission_heading();
+  if (gate === 'verify-email') return m.limited_verify_heading();
+  if (gate === 'admission') return m.limited_admission_heading();
   return m.limited_membership_heading();
 }
 
 function GateContent(props: AccessScreenProps) {
-  if (props.gate === "verify-email") return <VerifyEmailStep />;
-  if (props.gate === "admission") return <AdmissionStep admission={props.admission} onRefresh={props.onRefresh} />;
+  if (props.gate === 'verify-email') return <VerifyEmailStep />;
+  if (props.gate === 'admission') {
+    return <AdmissionStep admission={props.admission} onRefresh={props.onRefresh} />;
+  }
   return <MembershipStep onRefresh={props.onRefresh} />;
 }
 
@@ -77,7 +79,7 @@ function useStep() {
     try {
       await action();
     } catch (failure) {
-      console.warn("AccessScreen: request failed", failure);
+      console.warn('AccessScreen: request failed', failure);
       setError(m.login_network_error());
     } finally {
       setBusy(false);
@@ -86,7 +88,13 @@ function useStep() {
   return { busy, error, setError, notice, setNotice, run };
 }
 
-function StepMessages({ error, notice }: { error: string | null; notice: string | null }): ReactNode {
+function StepMessages({
+  error,
+  notice,
+}: {
+  error: string | null;
+  notice: string | null;
+}): ReactNode {
   return (
     <>
       {notice && (
@@ -115,8 +123,11 @@ function VerifyEmailStep() {
         onClick={() =>
           void step.run(async () => {
             const { error } = await authClient.sendEmailVerification();
-            if (error) step.setError(error.code === "MAIL_UNAVAILABLE" ? m.limited_mail_unavailable() : error.message);
-            else step.setNotice(m.limited_verify_sent());
+            if (error) {
+              step.setError(
+                error.code === 'MAIL_UNAVAILABLE' ? m.limited_mail_unavailable() : error.message,
+              );
+            } else step.setNotice(m.limited_verify_sent());
           })
         }
       >
@@ -137,12 +148,17 @@ function AdmissionStep({
   const step = useStep();
   // Approval cannot admit someone who lacks invitation evidence or an allowed address.
   if (admission?.domainRefused) return <p className="text-sm">{m.limited_admission_domain()}</p>;
-  if (admission?.invitationMissing) return <p className="text-sm">{m.limited_admission_invitation()}</p>;
-  const refused = admission?.approvalStatus === "rejected" || admission?.approvalStatus === "revoked";
+  if (admission?.invitationMissing) {
+    return <p className="text-sm">{m.limited_admission_invitation()}</p>;
+  }
+  const refused =
+    admission?.approvalStatus === 'rejected' || admission?.approvalStatus === 'revoked';
   if (refused) return <p className="text-sm">{m.limited_admission_refused()}</p>;
   return (
     <>
-      <p className="text-sm">{admission?.requested ? m.limited_admission_waiting() : m.limited_admission_body()}</p>
+      <p className="text-sm">
+        {admission?.requested ? m.limited_admission_waiting() : m.limited_admission_body()}
+      </p>
       {!admission?.requested && (
         <Button
           type="button"
@@ -159,7 +175,12 @@ function AdmissionStep({
           {m.limited_admission_request()}
         </Button>
       )}
-      <Button type="button" variant="outline" disabled={step.busy} onClick={() => void step.run(onRefresh)}>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={step.busy}
+        onClick={() => void step.run(onRefresh)}
+      >
         {m.limited_check_again()}
       </Button>
       <StepMessages error={step.error} notice={step.notice} />

@@ -1,8 +1,15 @@
-import type { AppData, Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
-import type { CapacityOverviewHorizon, CapacityOverviewPeriod } from "./capacityOverviewDates";
+import type {
+  AppData,
+  Closure,
+  ISODate,
+  Resource,
+  TimeOff,
+  Weekday,
+} from '@capacitylens/shared/types/entities';
+import type { CapacityOverviewHorizon, CapacityOverviewPeriod } from './capacityOverviewDates';
 
 /** Availability categories displayed for a resource in one period. */
-export type CapacityOverviewState = "available" | "fully-booked" | "unavailable" | "unassigned";
+export type CapacityOverviewState = 'available' | 'fully-booked' | 'unavailable' | 'unassigned';
 
 /** Capacity result and display state for one overview period. */
 export interface CapacityOverviewPeriodResult {
@@ -37,7 +44,7 @@ export interface CapacityOverviewGroup {
 /** Period capacity and grouped resource rows consumed by the view. */
 export interface CapacityOverviewModel {
   measured: boolean;
-  reason?: "blocks-mode";
+  reason?: 'blocks-mode';
   periods: CapacityOverviewPeriod[];
   groups: CapacityOverviewGroup[];
 }

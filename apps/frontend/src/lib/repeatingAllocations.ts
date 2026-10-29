@@ -1,9 +1,16 @@
-import { addDaysISO, daysInclusive, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { lacksEffectiveWorkingDays, startsOnNonEffectiveWeekday } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { endDateForSpan, maxSpanDaysForStart, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
-import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
-import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
+import { addDaysISO, daysInclusive, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import {
+  lacksEffectiveWorkingDays,
+  startsOnNonEffectiveWeekday,
+} from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import {
+  endDateForSpan,
+  maxSpanDaysForStart,
+  MAX_SPAN_DAYS,
+} from '@capacitylens/shared/lib/schedulingDays';
+import type { RepeatPattern } from '@capacitylens/shared/lib/repeatingDates';
+import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities';
 import type {
   Allocation,
   Closure,
@@ -11,10 +18,15 @@ import type {
   Resource,
   SchedulingMode,
   TimeOff,
-} from "@capacitylens/shared/types/entities";
-import type { Draft } from "@/store/useStore";
-import { addCapacityLoad, bucketCapacityLoad, buildCapacityAdvisory, buildCapacityAdvisoryFromLoad } from "./capacity";
-import type { CapacityAllocationInput } from "./capacity";
+} from '@capacitylens/shared/types/entities';
+import type { Draft } from '@/store/useStore';
+import {
+  addCapacityLoad,
+  bucketCapacityLoad,
+  buildCapacityAdvisory,
+  buildCapacityAdvisoryFromLoad,
+} from './capacity';
+import type { CapacityAllocationInput } from './capacity';
 
 interface BuildRepeatingAllocationAdvisoryInput {
   resource: Resource;
@@ -27,13 +39,13 @@ interface BuildRepeatingAllocationAdvisoryInput {
 
 /** Transient choice shown only while creating an allocation. */
 export type RepeatSelection =
-  "none" | "weekly" | "every-two-weeks" | "every-three-weeks" | "every-four-weeks" | "monthly";
+  'none' | 'weekly' | 'every-two-weeks' | 'every-three-weeks' | 'every-four-weeks' | 'monthly';
 
 /** Scheduling inputs that a persisted allocation draft does not carry. */
 export interface RepeatProjectionContext {
   schedulingMode: SchedulingMode;
   daysOver: number;
-  resource: Pick<Resource, "id" | "kind">;
+  resource: Pick<Resource, 'id' | 'kind'>;
   effectiveWeek: EffectiveWorkingWeek;
 }
 
@@ -44,16 +56,16 @@ export interface RepeatingAllocationAdvisory {
   nonEffectiveStartAllocations: number;
 }
 
-const REPEAT_PATTERNS: Record<Exclude<RepeatSelection, "none">, RepeatPattern> = {
-  weekly: { kind: "weeks", interval: 1 },
-  "every-two-weeks": { kind: "weeks", interval: 2 },
-  "every-three-weeks": { kind: "weeks", interval: 3 },
-  "every-four-weeks": { kind: "weeks", interval: 4 },
-  monthly: { kind: "monthly-date" },
+const REPEAT_PATTERNS: Record<Exclude<RepeatSelection, 'none'>, RepeatPattern> = {
+  weekly: { kind: 'weeks', interval: 1 },
+  'every-two-weeks': { kind: 'weeks', interval: 2 },
+  'every-three-weeks': { kind: 'weeks', interval: 3 },
+  'every-four-weeks': { kind: 'weeks', interval: 4 },
+  monthly: { kind: 'monthly-date' },
 };
 
 /** Map a repeating form choice to the shared date-generation pattern. */
-export function resolveRepeatPattern(selection: Exclude<RepeatSelection, "none">): RepeatPattern {
+export function resolveRepeatPattern(selection: Exclude<RepeatSelection, 'none'>): RepeatPattern {
   return REPEAT_PATTERNS[selection];
 }
 
@@ -73,9 +85,10 @@ export function buildRepeatedAllocationDrafts(
 ): Draft<Allocation>[] {
   assertRepeatProjection(baseDraft, startDates, context);
   const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
-  const usesCalendarSpan = isExternalResource(context.resource) || context.schedulingMode === "hourly";
+  const usesCalendarSpan =
+    isExternalResource(context.resource) || context.schedulingMode === 'hourly';
   const spanOptions = {
-    ...(context.effectiveWeek.kind === "days" ? { workingDays: context.effectiveWeek.days } : {}),
+    ...(context.effectiveWeek.kind === 'days' ? { workingDays: context.effectiveWeek.days } : {}),
     ...(baseDraft.ignoreWeekends !== undefined ? { ignoreWeekends: baseDraft.ignoreWeekends } : {}),
   };
   assertProjectedSpans({ startDates, daysOver: context.daysOver, spanOptions, usesCalendarSpan });
@@ -95,20 +108,28 @@ function assertRepeatProjection(
   context: RepeatProjectionContext,
 ): void {
   if (context.resource.id !== baseDraft.resourceId) {
-    throw new Error("The repeat projection resource does not match the allocation resource.");
+    throw new Error('The repeat projection resource does not match the allocation resource.');
   }
   if (startDates.length === 0 || startDates[0] !== baseDraft.startDate) {
-    throw new Error("Repeat projection must begin with the validated allocation draft.");
+    throw new Error('Repeat projection must begin with the validated allocation draft.');
   }
-  const usesCalendarSpan = isExternalResource(context.resource) || context.schedulingMode === "hourly";
+  const usesCalendarSpan =
+    isExternalResource(context.resource) || context.schedulingMode === 'hourly';
   if (!usesCalendarSpan && !isValidWorkingSpan(context.daysOver)) {
-    throw new RangeError(`Repeat projection daysOver must be a whole number from 1 to ${MAX_SPAN_DAYS}.`);
+    throw new RangeError(
+      `Repeat projection daysOver must be a whole number from 1 to ${MAX_SPAN_DAYS}.`,
+    );
   }
 
   const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
-  if (calendarSpan < 1) throw new RangeError("Repeat projection requires a valid inclusive date range.");
-  if (!usesCalendarSpan && lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWeekends ?? undefined)) {
-    throw new RangeError("Repeat projection requires at least one effective working day.");
+  if (calendarSpan < 1) {
+    throw new RangeError('Repeat projection requires a valid inclusive date range.');
+  }
+  if (
+    !usesCalendarSpan &&
+    lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWeekends ?? undefined)
+  ) {
+    throw new RangeError('Repeat projection requires at least one effective working day.');
   }
 }
 
@@ -132,7 +153,7 @@ function assertProjectedSpans({
   if (usesCalendarSpan) return;
   for (const generatedStart of startDates) {
     if (daysOver > maxSpanDaysForStart(generatedStart, spanOptions)) {
-      throw new RangeError("A repeated working span extends beyond the supported date range.");
+      throw new RangeError('A repeated working span extends beyond the supported date range.');
     }
   }
 }
@@ -156,7 +177,14 @@ export function buildRepeatingAllocationAdvisory({
   // Share one load bucket across repeated drafts to keep day work linear in generated
   // occurrences. Add existing rows and drafts in stable order because floating-point
   // addition is not associative.
-  const shared = createSharedLoad({ resource, existingLoad, proposedDrafts, effectiveWeek, timeOff, closures });
+  const shared = createSharedLoad({
+    resource,
+    existingLoad,
+    proposedDrafts,
+    effectiveWeek,
+    timeOff,
+    closures,
+  });
   // Only reachable from an absurd (~100-year) span, where the batch is wider than one
   // materialisable window: keep the original per-draft rebuild rather than trade a slow answer for
   // a thrown range error.
@@ -184,10 +212,16 @@ export function buildRepeatingAllocationAdvisory({
         });
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
-    if (startsOnNonEffectiveWeekday(effectiveWeek, draft.ignoreWeekends ?? undefined, weekdayOf(draft.startDate))) {
+    if (
+      startsOnNonEffectiveWeekday(
+        effectiveWeek,
+        draft.ignoreWeekends ?? undefined,
+        weekdayOf(draft.startDate),
+      )
+    ) {
       nonEffectiveStartAllocations += 1;
     }
-    if (shared)
+    if (shared) {
       addCapacityLoad({
         byDay: shared.load,
         resource: resource,
@@ -196,7 +230,7 @@ export function buildRepeatingAllocationAdvisory({
         end: shared.window.end,
         effectiveWeek: effectiveWeek,
       });
-    else rebuiltLoad.push(draft);
+    } else rebuiltLoad.push(draft);
   }
   return { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations };
 }
@@ -221,7 +255,9 @@ function createSharedLoad({
   };
 }
 
-function resolveSharedLoadWindow(drafts: readonly Draft<Allocation>[]): { start: ISODate; end: ISODate } | null {
+function resolveSharedLoadWindow(
+  drafts: readonly Draft<Allocation>[],
+): { start: ISODate; end: ISODate } | null {
   const first = drafts[0];
   if (!first) return null;
   // Zero-padded ISO dates compare lexicographically, so plain min/max is chronological.

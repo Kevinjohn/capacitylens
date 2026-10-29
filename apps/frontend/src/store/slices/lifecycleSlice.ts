@@ -1,14 +1,14 @@
-import type { StateCreator } from "zustand";
-import { archive, obfuscateResource, unarchive } from "@capacitylens/shared/domain/lifecycle";
-import type { ID } from "@capacitylens/shared/types/entities";
-import { touchAfter } from "@/store/storeInternal";
-import type { StoreInternals } from "@/store/storeInternal";
-import type { LifecycleEntity, StoreState } from "@/store/types";
+import type { StateCreator } from 'zustand';
+import { archive, obfuscateResource, unarchive } from '@capacitylens/shared/domain/lifecycle';
+import type { ID } from '@capacitylens/shared/types/entities';
+import { touchAfter } from '@/store/storeInternal';
+import type { StoreInternals } from '@/store/storeInternal';
+import type { LifecycleEntity, StoreState } from '@/store/types';
 
-type LifecycleSlice = Pick<StoreState, "archiveEntity" | "unarchiveEntity" | "anonymiseResource">;
+type LifecycleSlice = Pick<StoreState, 'archiveEntity' | 'unarchiveEntity' | 'anonymiseResource'>;
 type LifecycleSliceInternals = Pick<
   StoreInternals,
-  "createGuardedAction" | "resolveOwnedRow" | "assertNotBuiltinClient" | "mutate"
+  'createGuardedAction' | 'resolveOwnedRow' | 'assertNotBuiltinClient' | 'mutate'
 >;
 
 /** Local lifecycle transitions for the volatile demo. */
@@ -20,7 +20,7 @@ export function createLifecycleSlice(
     return {
       archiveEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
         if (!resolveOwnedRow(get().data, entity, id)) return;
-        assertNotBuiltinClient(entity, id, "archived");
+        assertNotBuiltinClient(entity, id, 'archived');
         mutate((data) => ({
           ...data,
           [entity]: data[entity].map((row) => {
@@ -40,12 +40,14 @@ export function createLifecycleSlice(
         }));
       }),
       anonymiseResource: createGuardedAction((id: ID) => {
-        if (!resolveOwnedRow(get().data, "resources", id)) return;
+        if (!resolveOwnedRow(get().data, 'resources', id)) return;
         const data = get().data;
         get().replaceAfterDemoImport({
           ...data,
           resources: data.resources.map((row) =>
-            row.id === id ? { ...obfuscateResource(row), avatarUrl: null, updatedAt: touchAfter(row.updatedAt) } : row,
+            row.id === id
+              ? { ...obfuscateResource(row), avatarUrl: null, updatedAt: touchAfter(row.updatedAt) }
+              : row,
           ),
           allocations: data.allocations.map((row) =>
             row.resourceId === id && row.note != null

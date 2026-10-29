@@ -1,149 +1,149 @@
-import { test } from '@japa/runner'
-import type { ApiClient } from '@japa/api-client'
+import { test } from '@japa/runner';
+import type { ApiClient } from '@japa/api-client';
 import {
   authenticatedDataClient,
   createFixtureCompanyForOwner,
   grantDataOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js'
-import { freshDatabase } from '../helpers/fresh_database.js'
-import db from '@adonisjs/lucid/services/db'
-import { seed } from '@capacitylens/shared/data/seed'
-import { encodeRow, readState } from '#services/state_repository'
+} from '../helpers/authenticated_data_fixture.js';
+import { freshDatabase } from '../helpers/fresh_database.js';
+import db from '@adonisjs/lucid/services/db';
+import { seed } from '@capacitylens/shared/data/seed';
+import { encodeRow, readState } from '#services/state_repository';
 
-let dataOwnerId: string
+let dataOwnerId: string;
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
-  request.header('sec-fetch-site', 'same-origin')
+  request.header('sec-fetch-site', 'same-origin');
 
 async function reset(client: ApiClient, seeded = true) {
-  const session = await resetAuthenticatedData(client, seeded)
-  dataOwnerId = session.userId
-  return authenticatedDataClient(client, session.cookie)
+  const session = await resetAuthenticatedData(client, seeded);
+  dataOwnerId = session.userId;
+  return authenticatedDataClient(client, session.cookie);
 }
 
 test.group('M2b data routes', (group) => {
-  group.setup(() => freshDatabase())
+  group.setup(() => freshDatabase());
   group.each.setup(async () => {
-    await db.from('account_member_resources').delete()
-    await db.from('audit_entries').delete()
-    await db.from('account_access_restrictions').delete()
-    await db.from('account_getting_started_dismissals').delete()
-  })
+    await db.from('account_member_resources').delete();
+    await db.from('audit_entries').delete();
+    await db.from('account_access_restrictions').delete();
+    await db.from('account_getting_started_dismissals').delete();
+  });
 
   test('inactive export follows effective member role and omitted scope stays active-only', async ({
     client,
     assert,
   }) => {
-    client = await reset(client, true)
-    const candidate = await db.from('resources').where('account_id', 'a-studio').first()
+    client = await reset(client, true);
+    const candidate = await db.from('resources').where('account_id', 'a-studio').first();
     await db
       .from('resources')
       .where('id', candidate.id)
-      .update({ archived_at: new Date().toISOString() })
+      .update({ archived_at: new Date().toISOString() });
     for (const role of ['viewer', 'editor', 'admin', 'owner']) {
       await db
         .from('memberships')
         .where({ user_id: dataOwnerId, account_id: 'a-studio' })
-        .update({ role })
-      const explicit = await client.get('/api/state?accountId=a-studio&includeInactive=1').send()
-      explicit.assertStatus(['viewer', 'editor'].includes(role) ? 403 : 200)
-      const omitted = await client.get('/api/state').send()
-      omitted.assertStatus(200)
-      const ids = omitted.body().resources.map((row: { id: string }) => row.id)
-      assert.equal(ids.includes(candidate.id), ['admin', 'owner'].includes(role))
+        .update({ role });
+      const explicit = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
+      explicit.assertStatus(['viewer', 'editor'].includes(role) ? 403 : 200);
+      const omitted = await client.get('/api/state').send();
+      omitted.assertStatus(200);
+      const ids = omitted.body().resources.map((row: { id: string }) => row.id);
+      assert.equal(ids.includes(candidate.id), ['admin', 'owner'].includes(role));
     }
-  })
+  });
 
   test('example data requires Admin authority', async ({ client }) => {
-    client = await reset(client, false)
-    const account = { ...seed().accounts[0]!, id: 'a-example' }
-    await db.table('accounts').insert(encodeRow('accounts', account))
-    await grantDataOwner(dataOwnerId, account.id)
+    client = await reset(client, false);
+    const account = { ...seed().accounts[0]!, id: 'a-example' };
+    await db.table('accounts').insert(encodeRow('accounts', account));
+    await grantDataOwner(dataOwnerId, account.id);
     for (const role of ['editor', 'admin']) {
       await db
         .from('memberships')
         .where({ user_id: dataOwnerId, account_id: account.id })
-        .update({ role })
+        .update({ role });
       const response = await trusted(client.post(`/api/accounts/${account.id}/example-data`))
         .json({})
-        .send()
-      response.assertStatus(role === 'editor' ? 403 : 201)
+        .send();
+      response.assertStatus(role === 'editor' ? 403 : 201);
     }
-  })
+  });
 
   test('inactive export includes archived and deleted rows but stays in one company', async ({
     client,
     assert,
   }) => {
-    client = await reset(client, true)
+    client = await reset(client, true);
     const candidates = await db
       .from('resources')
       .select('id')
       .where('account_id', 'a-studio')
-      .limit(2)
-    assert.lengthOf(candidates, 2)
+      .limit(2);
+    assert.lengthOf(candidates, 2);
     await db
       .from('resources')
       .where('id', candidates[0]!.id)
-      .update({ archived_at: '2026-10-13T00:00:00.000Z' })
+      .update({ archived_at: '2026-10-13T00:00:00.000Z' });
     await db
       .from('resources')
       .where('id', candidates[1]!.id)
-      .update({ deleted_at: '2026-10-13T00:00:00.000Z' })
-    const inactive = await client.get('/api/state?accountId=a-studio&includeInactive=1').send()
-    inactive.assertStatus(200)
-    const body = inactive.body() as ReturnType<typeof seed>
-    assert.isTrue(body.resources.every((row) => row.accountId === 'a-studio'))
-    assert.isTrue(body.accounts.every((row) => row.id === 'a-studio'))
+      .update({ deleted_at: '2026-10-13T00:00:00.000Z' });
+    const inactive = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
+    inactive.assertStatus(200);
+    const body = inactive.body() as ReturnType<typeof seed>;
+    assert.isTrue(body.resources.every((row) => row.accountId === 'a-studio'));
+    assert.isTrue(body.accounts.every((row) => row.id === 'a-studio'));
     assert.includeMembers(
       body.resources.map((row) => row.id),
       candidates.map((row) => row.id)
-    )
-    assert.notProperty(body, 'memberships')
-    assert.notProperty(body, 'invitations')
-    assert.notProperty(body, 'companyJoinIntents')
-  })
+    );
+    assert.notProperty(body, 'memberships');
+    assert.notProperty(body, 'invitations');
+    assert.notProperty(body, 'companyJoinIntents');
+  });
 
   test('default export excludes inactive rows', async ({ client, assert }) => {
-    client = await reset(client, true)
+    client = await reset(client, true);
     const candidate = await db
       .from('resources')
       .select('id')
       .where('account_id', 'a-studio')
-      .first()
+      .first();
     await db
       .from('resources')
       .where('id', candidate.id)
-      .update({ archived_at: '2026-10-13T00:00:00.000Z' })
-    const fullResponse = await client.get('/api/state?accountId=a-studio&includeInactive=1').send()
-    const activeResponse = await client.get('/api/state?accountId=a-studio').send()
-    const full = fullResponse.body() as ReturnType<typeof seed>
-    const active = activeResponse.body() as ReturnType<typeof seed>
-    assert.isAtMost(active.resources.length, full.resources.length)
+      .update({ archived_at: '2026-10-13T00:00:00.000Z' });
+    const fullResponse = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
+    const activeResponse = await client.get('/api/state?accountId=a-studio').send();
+    const full = fullResponse.body() as ReturnType<typeof seed>;
+    const active = activeResponse.body() as ReturnType<typeof seed>;
+    assert.isAtMost(active.resources.length, full.resources.length);
     assert.include(
       full.resources.map((row) => row.id),
       candidate.id
-    )
+    );
     assert.notInclude(
       active.resources.map((row) => row.id),
       candidate.id
-    )
+    );
     assert.isTrue(
       active.resources.every((row) => row.archivedAt === null && row.deletedAt === null)
-    )
-  })
+    );
+  });
 
   test('export excludes membership, invitation and session secrets', async ({ client, assert }) => {
-    client = await reset(client, true)
-    const stamp = '2026-10-13T00:00:00.000Z'
+    client = await reset(client, true);
+    const stamp = '2026-10-13T00:00:00.000Z';
     await db.table('users').insert({
       id: 'u-export',
       email: 'secret.person@wayne.com',
       email_verified_at: stamp,
       created_at: stamp,
       updated_at: stamp,
-    })
+    });
     await db.table('memberships').insert({
       id: 'm-export',
       account_id: 'a-studio',
@@ -152,7 +152,7 @@ test.group('M2b data routes', (group) => {
       status: 'active',
       created_at: stamp,
       updated_at: stamp,
-    })
+    });
     await db.table('account_invitations').insert({
       email: 'secret.invited@wayne.com',
       role: 'viewer',
@@ -160,14 +160,14 @@ test.group('M2b data routes', (group) => {
       expires_at: stamp,
       created_at: stamp,
       updated_at: stamp,
-    })
+    });
     await db.table('account_sessions').insert({
       user_id: 'u-export',
       handle_hash: 'secret-session-handle-hash',
       created_at: stamp,
       last_seen_at: stamp,
       expires_at: stamp,
-    })
+    });
     await db.table('account_access_restrictions').insert({
       id: 'restriction-export',
       account_id: 'a-studio',
@@ -175,11 +175,11 @@ test.group('M2b data routes', (group) => {
       verified_email: 'restricted.secret@wayne.com',
       role: 'viewer',
       created_at: stamp,
-    })
-    const result = await client.get('/api/state?accountId=a-studio&includeInactive=1').send()
-    result.assertStatus(200)
-    assert.isAbove((result.body() as ReturnType<typeof seed>).resources.length, 0)
-    const serialized = JSON.stringify(result.body())
+    });
+    const result = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
+    result.assertStatus(200);
+    assert.isAbove((result.body() as ReturnType<typeof seed>).resources.length, 0);
+    const serialized = JSON.stringify(result.body());
     for (const secret of [
       'secret.person@wayne.com',
       'secret-invite-token-hash',
@@ -188,62 +188,62 @@ test.group('M2b data routes', (group) => {
       'u-export',
       'restricted.secret@wayne.com',
     ])
-      assert.notInclude(serialized, secret)
-  })
+      assert.notInclude(serialized, secret);
+  });
 
   test('getting-started dismissal is monotonic, shared by company and isolated from another', async ({
     client,
     assert,
   }) => {
-    client = await reset(client, true)
-    const route = '/api/accounts/a-studio/getting-started'
-    const before = await client.get(route).send()
-    before.assertBodyContains({ dismissed: false })
-    const written = await trusted(client.put(route)).json({ dismissed: true }).send()
-    assert.equal(written.status(), 200, JSON.stringify(written.body()))
-    const shared = await client.get(route).send()
-    const other = await client.get('/api/accounts/a-loft/getting-started').send()
-    assert.deepEqual(shared.body(), { dismissed: true })
+    client = await reset(client, true);
+    const route = '/api/accounts/a-studio/getting-started';
+    const before = await client.get(route).send();
+    before.assertBodyContains({ dismissed: false });
+    const written = await trusted(client.put(route)).json({ dismissed: true }).send();
+    assert.equal(written.status(), 200, JSON.stringify(written.body()));
+    const shared = await client.get(route).send();
+    const other = await client.get('/api/accounts/a-loft/getting-started').send();
+    assert.deepEqual(shared.body(), { dismissed: true });
     assert.deepEqual(other.body(), {
       dismissed: false,
-    })
-    const reverse = await trusted(client.put(route)).json({ dismissed: false }).send()
-    reverse.assertStatus(400)
-    const stillDismissed = await client.get(route).send()
-    assert.deepEqual(stillDismissed.body(), { dismissed: true })
-  })
+    });
+    const reverse = await trusted(client.put(route)).json({ dismissed: false }).send();
+    reverse.assertStatus(400);
+    const stillDismissed = await client.get(route).send();
+    assert.deepEqual(stillDismissed.body(), { dismissed: true });
+  });
 
   test('getting-started strips extra fields and reports missing companies', async ({
     client,
     assert,
   }) => {
-    client = await reset(client, true)
-    const route = '/api/accounts/a-studio/getting-started'
+    client = await reset(client, true);
+    const route = '/api/accounts/a-studio/getting-started';
     const extraFields = await trusted(client.put(route))
       .json({ dismissed: true, extra: 'value' })
-      .send()
-    extraFields.assertStatus(200)
-    const saved = await client.get(route).send()
-    assert.deepEqual(saved.body(), { dismissed: true })
-    const invalid = await trusted(client.put(route)).json({ dismissed: null }).send()
-    invalid.assertStatus(400)
-    const stillDismissed = await client.get(route).send()
-    assert.deepEqual(stillDismissed.body(), { dismissed: true })
-    const missing = await client.get('/api/accounts/unknown/getting-started').send()
-    missing.assertStatus(403)
-  })
+      .send();
+    extraFields.assertStatus(200);
+    const saved = await client.get(route).send();
+    assert.deepEqual(saved.body(), { dismissed: true });
+    const invalid = await trusted(client.put(route)).json({ dismissed: null }).send();
+    invalid.assertStatus(400);
+    const stillDismissed = await client.get(route).send();
+    assert.deepEqual(stillDismissed.body(), { dismissed: true });
+    const missing = await client.get('/api/accounts/unknown/getting-started').send();
+    missing.assertStatus(403);
+  });
 
   test('example data inserts once and refuses a second request', async ({ client, assert }) => {
-    client = await reset(client, false)
-    const account = { ...seed().accounts[0]!, id: 'a-example' }
-    await db.table('accounts').insert(encodeRow('accounts', account))
-    await grantDataOwner(dataOwnerId, account.id)
+    client = await reset(client, false);
+    const account = { ...seed().accounts[0]!, id: 'a-example' };
+    await db.table('accounts').insert(encodeRow('accounts', account));
+    await grantDataOwner(dataOwnerId, account.id);
     const otherAccountId = await createFixtureCompanyForOwner(
       dataOwnerId,
       'Stark Industries',
       'a-example-other'
-    )
-    const person = seed().resources.find((row) => row.kind === 'person')!
+    );
+    const person = seed().resources.find((row) => row.kind === 'person')!;
     await db.table('resources').insert(
       encodeRow('resources', {
         ...person,
@@ -251,90 +251,92 @@ test.group('M2b data routes', (group) => {
         accountId: otherAccountId,
         disciplineId: null,
       })
-    )
-    const otherBefore = await readState(otherAccountId, true)
-    const route = '/api/accounts/a-example/example-data'
-    const first = await trusted(client.post(route)).json({}).send()
-    assert.equal(first.status(), 201, JSON.stringify(first.body()))
-    assert.isAbove((first.body() as { added: number }).added, 0)
-    assert.deepEqual(await readState(otherAccountId, true), otherBefore)
-    const second = await trusted(client.post(route)).json({}).send()
-    second.assertStatus(409)
+    );
+    const otherBefore = await readState(otherAccountId, true);
+    const route = '/api/accounts/a-example/example-data';
+    const first = await trusted(client.post(route)).json({}).send();
+    assert.equal(first.status(), 201, JSON.stringify(first.body()));
+    assert.isAbove((first.body() as { added: number }).added, 0);
+    assert.deepEqual(await readState(otherAccountId, true), otherBefore);
+    const second = await trusted(client.post(route)).json({}).send();
+    second.assertStatus(409);
     const audit = await db
       .from('audit_entries')
-      .where({ account_id: account.id, action: 'exampleData' })
-    assert.lengthOf(audit, 1)
-  })
+      .where({ account_id: account.id, action: 'exampleData' });
+    assert.lengthOf(audit, 1);
+  });
 
   test('example data refuses an existing active resource without changing it', async ({
     client,
     assert,
   }) => {
-    client = await reset(client, false)
-    const account = { ...seed().accounts[0]!, id: 'a-example' }
-    await db.table('accounts').insert(encodeRow('accounts', account))
-    await grantDataOwner(dataOwnerId, account.id)
+    client = await reset(client, false);
+    const account = { ...seed().accounts[0]!, id: 'a-example' };
+    await db.table('accounts').insert(encodeRow('accounts', account));
+    await grantDataOwner(dataOwnerId, account.id);
     const resource = {
       ...seed().resources[0]!,
       id: 'r-existing',
       accountId: account.id,
       disciplineId: null,
-    }
-    await db.table('resources').insert(encodeRow('resources', resource))
-    const before = await readState(account.id, true)
+    };
+    await db.table('resources').insert(encodeRow('resources', resource));
+    const before = await readState(account.id, true);
     const response = await trusted(client.post('/api/accounts/a-example/example-data'))
       .json({})
-      .send()
-    response.assertStatus(409)
-    assert.deepEqual(await readState(account.id, true), before)
-  })
+      .send();
+    response.assertStatus(409);
+    assert.deepEqual(await readState(account.id, true), before);
+  });
 
   test('example data rejects archived-only work and unknown company', async ({ client }) => {
-    client = await reset(client, false)
-    const account = { ...seed().accounts[0]!, id: 'a-example' }
-    await db.table('accounts').insert(encodeRow('accounts', account))
-    await grantDataOwner(dataOwnerId, account.id)
+    client = await reset(client, false);
+    const account = { ...seed().accounts[0]!, id: 'a-example' };
+    await db.table('accounts').insert(encodeRow('accounts', account));
+    await grantDataOwner(dataOwnerId, account.id);
     const resource = {
       ...seed().resources[0]!,
       id: 'r-archived',
       accountId: account.id,
       disciplineId: null,
       archivedAt: new Date().toISOString(),
-    }
-    await db.table('resources').insert(encodeRow('resources', resource))
+    };
+    await db.table('resources').insert(encodeRow('resources', resource));
     const existing = await trusted(client.post('/api/accounts/a-example/example-data'))
       .json({})
-      .send()
-    existing.assertStatus(409)
-    const missing = await trusted(client.post('/api/accounts/unknown/example-data')).json({}).send()
-    missing.assertStatus(403)
-  })
+      .send();
+    existing.assertStatus(409);
+    const missing = await trusted(client.post('/api/accounts/unknown/example-data'))
+      .json({})
+      .send();
+    missing.assertStatus(403);
+  });
 
   test('example data refuses existing client and project work', async ({ client }) => {
     for (const kind of ['client', 'project'] as const) {
-      client = await reset(client, false)
-      const account = { ...seed().accounts[0]!, id: 'a-example' }
-      await db.table('accounts').insert(encodeRow('accounts', account))
-      await grantDataOwner(dataOwnerId, account.id)
+      client = await reset(client, false);
+      const account = { ...seed().accounts[0]!, id: 'a-example' };
+      await db.table('accounts').insert(encodeRow('accounts', account));
+      await grantDataOwner(dataOwnerId, account.id);
       const clientRow = {
         ...seed().clients.find((row) => row.builtin !== true)!,
         id: 'c-example',
         accountId: account.id,
-      }
-      await db.table('clients').insert(encodeRow('clients', clientRow))
+      };
+      await db.table('clients').insert(encodeRow('clients', clientRow));
       if (kind === 'project') {
         const project = {
           ...seed().projects[0]!,
           id: 'p-example',
           accountId: account.id,
           clientId: clientRow.id,
-        }
-        await db.table('projects').insert(encodeRow('projects', project))
+        };
+        await db.table('projects').insert(encodeRow('projects', project));
       }
       const result = await trusted(client.post('/api/accounts/a-example/example-data'))
         .json({})
-        .send()
-      result.assertStatus(409)
+        .send();
+      result.assertStatus(409);
     }
-  })
-})
+  });
+});

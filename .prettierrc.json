@@ -1,10 +1,18 @@
 {
-  "printWidth": 120,
+  "printWidth": 100,
+  "singleQuote": true,
   "overrides": [
     {
       "files": "apps/frontend/src/components/ui/**/*.{js,jsx,ts,tsx}",
       "options": {
-        "printWidth": 80
+        "printWidth": 80,
+        "singleQuote": false
+      }
+    },
+    {
+      "files": "**/*.css",
+      "options": {
+        "singleQuote": false
       }
     }
   ]

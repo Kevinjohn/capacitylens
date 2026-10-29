@@ -1,9 +1,9 @@
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { installationCompanyId, isInvitableRole } from '#services/account_kit/policy'
-import { AdmissionError } from '#services/admission/errors'
-import { writeAudit } from '#services/audit'
-import { advancePlanningRevision } from '#services/planning_revision'
-import { assertCompanyAccessOpen } from '#services/auth/authorization'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import { installationCompanyId, isInvitableRole } from '#services/account_kit/policy';
+import { AdmissionError } from '#services/admission/errors';
+import { writeAudit } from '#services/audit';
+import { advancePlanningRevision } from '#services/planning_revision';
+import { assertCompanyAccessOpen } from '#services/auth/authorization';
 
 /**
  * Gives an admitted identity its company membership once. Invited people already received theirs
@@ -12,31 +12,34 @@ import { assertCompanyAccessOpen } from '#services/auth/authorization'
  * membership is returned unchanged; a disabled or restricted one is never reactivated here.
  */
 export async function completeMembership(userId: string, trx: TransactionClientContract) {
-  const accountId = await installationCompanyId(trx)
-  if (!accountId)
-    throw new AdmissionError('The company has not been set up yet.', 409, 'COMPANY_SETUP_REQUIRED')
+  const accountId = await installationCompanyId(trx);
+  if (!accountId) {
+    throw new AdmissionError('The company has not been set up yet.', 409, 'COMPANY_SETUP_REQUIRED');
+  }
   const existing = await trx
     .from('memberships')
     .where({ account_id: accountId, user_id: userId })
     .select('role', 'status')
-    .first()
-  if (existing?.status === 'active')
-    return { accountId, role: String(existing.role), created: false }
-  if (existing)
+    .first();
+  if (existing?.status === 'active') {
+    return { accountId, role: String(existing.role), created: false };
+  }
+  if (existing) {
     throw new AdmissionError(
       'Your access to this company is disabled. Ask an Owner or Admin.',
       409,
       'MEMBERSHIP_DISABLED'
-    )
-  await assertCompanyAccessOpen(userId, accountId, trx)
+    );
+  }
+  await assertCompanyAccessOpen(userId, accountId, trx);
   // The Account Kit's admission record keeps the invited role as evidence.
   const evidence = await trx
     .from('account_admissions')
     .where('user_id', userId)
     .select('invited_role')
-    .first()
-  const role = isInvitableRole(evidence?.invited_role) ? evidence.invited_role : 'viewer'
-  const now = new Date().toISOString()
+    .first();
+  const role = isInvitableRole(evidence?.invited_role) ? evidence.invited_role : 'viewer';
+  const now = new Date().toISOString();
   await trx.table('memberships').insert({
     id: crypto.randomUUID(),
     account_id: accountId,
@@ -45,7 +48,7 @@ export async function completeMembership(userId: string, trx: TransactionClientC
     status: 'active',
     created_at: now,
     updated_at: now,
-  })
+  });
   await writeAudit(trx, {
     accountId,
     actorId: userId,
@@ -53,7 +56,7 @@ export async function completeMembership(userId: string, trx: TransactionClientC
     entity: 'membership',
     entityId: userId,
     fields: ['role'],
-  })
-  await advancePlanningRevision(trx, accountId)
-  return { accountId, role, created: true }
+  });
+  await advancePlanningRevision(trx, accountId);
+  return { accountId, role, created: true };
 }

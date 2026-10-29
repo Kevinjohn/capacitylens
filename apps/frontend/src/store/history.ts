@@ -1,6 +1,6 @@
-import type { AppData, AppDataKey, Entity } from "@capacitylens/shared/types/entities";
-import { APP_DATA_KEYS, emptyAppData } from "@capacitylens/shared/types/entities";
-import { advanceOverData } from "./revisions";
+import type { AppData, AppDataKey, Entity } from '@capacitylens/shared/types/entities';
+import { APP_DATA_KEYS, emptyAppData } from '@capacitylens/shared/types/entities';
+import { advanceOverData } from './revisions';
 
 /**
  * Undo/redo restores historical values, but `updatedAt` is a synchronization revision rather than
@@ -28,7 +28,10 @@ export function prepareHistoryTarget(current: AppData, target: AppData): AppData
   // belong to the planning controller's typed history, so legacy history keeps the current rows.
   const next = emptyAppData() as Record<AppDataKey, Entity[]>;
   for (const key of APP_DATA_KEYS) {
-    next[key] = key === "allocations" ? current.allocations : retime(current[key] as Entity[], target[key] as Entity[]);
+    next[key] =
+      key === 'allocations'
+        ? current.allocations
+        : retime(current[key] as Entity[], target[key] as Entity[]);
   }
   return next as AppData;
 }

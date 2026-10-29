@@ -1,67 +1,67 @@
-import { isExternalResource } from "../types/entities.js";
-import { effectiveProjectId } from "./integrity.js";
-import type { Allocation, Client, ID, Project, Resource, Activity } from "../types/entities.js";
+import { isExternalResource } from '../types/entities.js';
+import { effectiveProjectId } from './integrity.js';
+import type { Allocation, Client, ID, Project, Resource, Activity } from '../types/entities.js';
 
 /** The single neutral grey, the bar/colour fallback and the colour of external / 3rd-party
  * identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
  * src/lib/palette so both sides share one definition. */
-export const NEUTRAL_COLOR = "#9ca3af";
+export const NEUTRAL_COLOR = '#9ca3af';
 /** Canonical user-selectable colour palette. Persisted user colours must belong to this set.
  * `NEUTRAL_COLOR` (external resources) and the Internal-client colour are deliberate system
  * exceptions and are therefore not included here. */
 export const PRESET_COLORS = Object.freeze([
-  "#f5bcbc",
-  "#f7caba",
-  "#f9d9b8",
-  "#f9e6b8",
-  "#f9f1b8",
-  "#d9f2c0",
-  "#c2f0d1",
-  "#c0edf2",
-  "#bed4f4",
-  "#ccc0f2",
-  "#e0c2f0",
-  "#f4bedd",
-  "#d8b397",
-  "#eb7272",
-  "#ef906e",
-  "#f3ae6a",
-  "#f3ca6a",
-  "#f3e16a",
-  "#aee37a",
-  "#7edf9e",
-  "#7adae3",
-  "#76a5e7",
-  "#947ae3",
-  "#be7edf",
-  "#e776b8",
-  "#c38c61",
-  "#e02727",
-  "#e65621",
-  "#ed841b",
-  "#edae1b",
-  "#edd11b",
-  "#84d434",
-  "#3ace6b",
-  "#34c7d4",
-  "#2d75da",
-  "#5c34d4",
-  "#9c3ace",
-  "#da2d92",
-  "#9e663c",
-  "#9c1616",
-  "#a13812",
-  "#a5590d",
-  "#a5780d",
-  "#a5910d",
-  "#59931f",
-  "#248f47",
-  "#1f8a93",
-  "#1b4f98",
-  "#3c1f93",
-  "#6b248f",
-  "#981b64",
-  "#684327",
+  '#f5bcbc',
+  '#f7caba',
+  '#f9d9b8',
+  '#f9e6b8',
+  '#f9f1b8',
+  '#d9f2c0',
+  '#c2f0d1',
+  '#c0edf2',
+  '#bed4f4',
+  '#ccc0f2',
+  '#e0c2f0',
+  '#f4bedd',
+  '#d8b397',
+  '#eb7272',
+  '#ef906e',
+  '#f3ae6a',
+  '#f3ca6a',
+  '#f3e16a',
+  '#aee37a',
+  '#7edf9e',
+  '#7adae3',
+  '#76a5e7',
+  '#947ae3',
+  '#be7edf',
+  '#e776b8',
+  '#c38c61',
+  '#e02727',
+  '#e65621',
+  '#ed841b',
+  '#edae1b',
+  '#edd11b',
+  '#84d434',
+  '#3ace6b',
+  '#34c7d4',
+  '#2d75da',
+  '#5c34d4',
+  '#9c3ace',
+  '#da2d92',
+  '#9e663c',
+  '#9c1616',
+  '#a13812',
+  '#a5590d',
+  '#a5780d',
+  '#a5910d',
+  '#59931f',
+  '#248f47',
+  '#1f8a93',
+  '#1b4f98',
+  '#3c1f93',
+  '#6b248f',
+  '#981b64',
+  '#684327',
 ] as const);
 const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS);
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -71,11 +71,11 @@ const PRESET_RGB: readonly (RgbChannels | null)[] = PRESET_COLORS.map((preset) =
 
 /** True when the value is one of the preset swatches, ignoring case and surrounding space. Pure. */
 export function isPresetColor(value: unknown): value is string {
-  return typeof value === "string" && PRESET_COLOR_SET.has(value.trim().toLowerCase());
+  return typeof value === 'string' && PRESET_COLOR_SET.has(value.trim().toLowerCase());
 }
 
 /** Preset used when an input cannot be parsed as a six-digit hex colour. */
-export const FALLBACK_PRESET_COLOR = "#5c34d4";
+export const FALLBACK_PRESET_COLOR = '#5c34d4';
 
 /**
  * Snap any colour value to the canonical `PRESET_COLORS` palette:
@@ -92,7 +92,7 @@ export const FALLBACK_PRESET_COLOR = "#5c34d4";
  * See DECISIONS.md for the policy this implements.
  */
 export function snapToPresetColor(value: unknown): string {
-  if (typeof value !== "string") return FALLBACK_PRESET_COLOR;
+  if (typeof value !== 'string') return FALLBACK_PRESET_COLOR;
   const normalized = value.trim().toLowerCase();
   if (PRESET_COLOR_SET.has(normalized)) return normalized;
   const channels = parseRgb(normalized);
@@ -151,7 +151,7 @@ function resolveBarAttribution(allocation: Allocation, maps: BarColorMaps): BarA
 }
 
 function hasNeutralBarColor(attribution: BarAttribution): boolean {
-  return attribution.activity?.kind === "internal" || attribution.client?.builtin === true;
+  return attribution.activity?.kind === 'internal' || attribution.client?.builtin === true;
 }
 
 /** Resolve an allocation bar colour. External work is always grey, and so are `internal` activities
@@ -171,13 +171,15 @@ export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): str
   return resource?.color ?? NEUTRAL_COLOR;
 }
 
-const DARK_INK = "#1c2230";
-const LIGHT_INK = "#ffffff";
+const DARK_INK = '#1c2230';
+const LIGHT_INK = '#ffffff';
 
 // WCAG relative luminance: linearise each sRGB channel before weighting.
 function normalizeLinearChannel(channel: number): number {
   const normalizedChannel = channel / 255;
-  return normalizedChannel <= 0.03928 ? normalizedChannel / 12.92 : Math.pow((normalizedChannel + 0.055) / 1.055, 2.4);
+  return normalizedChannel <= 0.03928
+    ? normalizedChannel / 12.92
+    : Math.pow((normalizedChannel + 0.055) / 1.055, 2.4);
 }
 
 interface RgbChannels {
@@ -191,9 +193,9 @@ function parseRgb(hex: string): RgbChannels | null {
   if (!HEX_COLOR_RE.test(normalized)) return null;
   const body = normalized.slice(1);
   return {
-    red: parseInt(body.slice(0, 2), 16),
-    green: parseInt(body.slice(2, 4), 16),
-    blue: parseInt(body.slice(4, 6), 16),
+    red: Number.parseInt(body.slice(0, 2), 16),
+    green: Number.parseInt(body.slice(2, 4), 16),
+    blue: Number.parseInt(body.slice(4, 6), 16),
   };
 }
 
@@ -201,7 +203,11 @@ function calculateRelativeLuminance(hex: string): number | null {
   const channels = parseRgb(hex);
   if (!channels) return null;
   const { red: r, green: g, blue: b } = channels;
-  return 0.2126 * normalizeLinearChannel(r) + 0.7152 * normalizeLinearChannel(g) + 0.0722 * normalizeLinearChannel(b);
+  return (
+    0.2126 * normalizeLinearChannel(r) +
+    0.7152 * normalizeLinearChannel(g) +
+    0.0722 * normalizeLinearChannel(b)
+  );
 }
 
 /** WCAG contrast ratio of two hex colours; 1 when either cannot be parsed. Pure. */
@@ -229,8 +235,10 @@ const AA_NORMAL = 4.5;
 const channelByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
 
 const toHex = (redChannel: number, greenChannel: number, blueChannel: number) =>
-  "#" +
-  [redChannel, greenChannel, blueChannel].map((value) => channelByte(value).toString(16).padStart(2, "0")).join("");
+  '#' +
+  [redChannel, greenChannel, blueChannel]
+    .map((value) => channelByte(value).toString(16).padStart(2, '0'))
+    .join('');
 
 function contrastForChannels(channels: RgbChannels, inkLuminance: number): number {
   const luminance =

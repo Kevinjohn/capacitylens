@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, test } from './fixtures';
 import {
   AUTH_API,
   AUTH_PASSWORD,
@@ -6,69 +6,85 @@ import {
   createFixturePerson,
   seedFixtureMember,
   signUpUser,
-} from "./authTestSupport";
-import { waitForAppLanding } from "./browserTestSupport";
+} from './authTestSupport';
+import { waitForAppLanding } from './browserTestSupport';
 
 const suffix = Date.now();
 
-test("an Owner archives, restores and anonymises a resource, then anonymises all people", async ({ page, request }) => {
+test('an Owner archives, restores and anonymises a resource, then anonymises all people', async ({
+  page,
+  request,
+}) => {
   const email = `bruce-wayne-lifecycle-${suffix}@capacitylens.dev`;
-  const owner = await signUpUser(email, "Bruce Wayne");
+  const owner = await signUpUser(email, 'Bruce Wayne');
   const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Lifecycle Studio ${suffix}`);
   const resources = [
-    { id: crypto.randomUUID(), name: "Barry Allen" },
-    { id: crypto.randomUUID(), name: "Clark Kent" },
+    { id: crypto.randomUUID(), name: 'Barry Allen' },
+    { id: crypto.randomUUID(), name: 'Clark Kent' },
   ];
   for (const resource of resources) {
-    await createFixturePerson(request, owner.cookie, accountId, { ...resource, role: "Planner" });
+    await createFixturePerson(request, owner.cookie, accountId, { ...resource, role: 'Planner' });
   }
 
-  await page.goto("/");
-  await page.getByRole("heading", { name: "Sign in" }).waitFor();
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(AUTH_PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await waitForAppLanding(page, page.locator("#main"));
-  await page.getByRole("link", { name: "Resources" }).click();
+  await page.goto('/');
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(AUTH_PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await waitForAppLanding(page, page.locator('#main'));
+  await page.getByRole('link', { name: 'Resources' }).click();
 
-  const row = page.getByTestId("resource-row").filter({ hasText: "Barry Allen" });
+  const row = page.getByTestId('resource-row').filter({ hasText: 'Barry Allen' });
   await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "Archive Barry Allen" }).click();
-  await page.getByRole("alertdialog", { name: "Archive resource?" }).getByRole("button", { name: "Archive" }).click();
-  const archive = page.getByTestId("archived-resources-section");
-  const archived = archive.getByTestId("archived-row").filter({ hasText: "Barry Allen" });
+  await row.getByRole('button', { name: 'Archive Barry Allen' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Archive resource?' })
+    .getByRole('button', { name: 'Archive' })
+    .click();
+  const archive = page.getByTestId('archived-resources-section');
+  const archived = archive.getByTestId('archived-row').filter({ hasText: 'Barry Allen' });
   await expect(archived).toBeVisible();
-  await archived.getByRole("button", { name: "Restore Barry Allen" }).click();
+  await archived.getByRole('button', { name: 'Restore Barry Allen' }).click();
   await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "Archive Barry Allen" }).click();
-  await page.getByRole("alertdialog", { name: "Archive resource?" }).getByRole("button", { name: "Archive" }).click();
+  await row.getByRole('button', { name: 'Archive Barry Allen' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Archive resource?' })
+    .getByRole('button', { name: 'Archive' })
+    .click();
   await archive
-    .getByTestId("archived-row")
-    .filter({ hasText: "Barry Allen" })
-    .getByRole("button", { name: "Anonymise Barry Allen" })
+    .getByTestId('archived-row')
+    .filter({ hasText: 'Barry Allen' })
+    .getByRole('button', { name: 'Anonymise Barry Allen' })
     .click();
   await page
-    .getByRole("alertdialog", { name: "Anonymise resource?" })
-    .getByRole("button", { name: "Anonymise" })
+    .getByRole('alertdialog', { name: 'Anonymise resource?' })
+    .getByRole('button', { name: 'Anonymise' })
     .click();
-  await expect(archive.getByTestId("archived-row").filter({ hasText: /Removed person/ })).toBeVisible();
+  await expect(
+    archive.getByTestId('archived-row').filter({ hasText: /Removed person/ }),
+  ).toBeVisible();
 
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole('link', { name: 'Settings' }).click();
   await page
-    .getByTestId("settings-company-anonymise")
-    .getByRole("button", { name: "Anonymise all people", exact: true })
+    .getByTestId('settings-company-anonymise')
+    .getByRole('button', { name: 'Anonymise all people', exact: true })
     .click();
   await page
-    .getByRole("dialog", { name: "Anonymise all people?", exact: true })
-    .getByRole("button", { name: "Anonymise all people", exact: true })
+    .getByRole('dialog', { name: 'Anonymise all people?', exact: true })
+    .getByRole('button', { name: 'Anonymise all people', exact: true })
     .click();
-  await page.getByLabel("Password").fill(AUTH_PASSWORD);
-  const reloaded = page.waitForEvent("load");
-  await page.getByRole("dialog", { name: "Confirm it's you" }).getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel('Password').fill(AUTH_PASSWORD);
+  const reloaded = page.waitForEvent('load');
+  await page
+    .getByRole('dialog', { name: "Confirm it's you" })
+    .getByRole('button', { name: 'Continue' })
+    .click();
   await reloaded;
-  await waitForAppLanding(page, page.locator("#main"));
+  await waitForAppLanding(page, page.locator('#main'));
 
-  const stateResponse = await request.get(`${AUTH_API}/api/state`, { headers: { cookie: owner.cookie } });
+  const stateResponse = await request.get(`${AUTH_API}/api/state`, {
+    headers: { cookie: owner.cookie },
+  });
   expect(stateResponse.status()).toBe(200);
   const state = (await stateResponse.json()) as {
     accounts: Array<{ id: string }>;
@@ -78,44 +94,47 @@ test("an Owner archives, restores and anonymises a resource, then anonymises all
   for (const resource of resources) {
     const scrubbed = state.resources.find((row) => row.id === resource.id);
     expect(scrubbed?.name).toMatch(/^Removed person/);
-    expect(scrubbed?.role).toBe("Removed resource");
+    expect(scrubbed?.role).toBe('Removed resource');
     expect(scrubbed?.avatarUrl).toBeNull();
   }
 });
 
 // The authenticated counterpart to archived.spec.ts proves reload discovery and restoration as Editor.
-test("an Editor rediscovers an archived resource after reload and restores it inline", async ({ page, request }) => {
+test('an Editor rediscovers an archived resource after reload and restores it inline', async ({
+  page,
+  request,
+}) => {
   const stamp = Date.now();
   const owner = await signUpUser(`archive-owner-${stamp}@capacitylens.dev`);
   const editor = await signUpUser(`archive-editor-${stamp}@capacitylens.dev`);
   const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Archive ${stamp}`);
   await createFixturePerson(request, owner.cookie, accountId, {
     id: crypto.randomUUID(),
-    name: "Barry Allen",
-    role: "Designer",
+    name: 'Barry Allen',
+    role: 'Designer',
   });
-  seedFixtureMember(accountId, editor.email, "editor");
-  await page.goto("/");
-  await page.getByLabel("Email").fill(editor.email);
-  await page.getByLabel("Password").fill(AUTH_PASSWORD);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
-  await page.getByRole("link", { name: "Resources", exact: true }).click();
-  const active = page.getByTestId("resource-row").filter({ hasText: "Barry Allen" });
-  await active.getByRole("button", { name: "Archive Barry Allen" }).click();
+  seedFixtureMember(accountId, editor.email, 'editor');
+  await page.goto('/');
+  await page.getByLabel('Email').fill(editor.email);
+  await page.getByLabel('Password').fill(AUTH_PASSWORD);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
+  await page.getByRole('link', { name: 'Resources', exact: true }).click();
+  const active = page.getByTestId('resource-row').filter({ hasText: 'Barry Allen' });
+  await active.getByRole('button', { name: 'Archive Barry Allen' }).click();
   await page
-    .getByRole("alertdialog", { name: "Archive resource?" })
-    .getByRole("button", { name: "Archive", exact: true })
+    .getByRole('alertdialog', { name: 'Archive resource?' })
+    .getByRole('button', { name: 'Archive', exact: true })
     .click();
   await expect(active).toHaveCount(0);
   await page.reload();
-  const archived = page.getByTestId("archived-row").filter({ hasText: "Barry Allen" });
+  const archived = page.getByTestId('archived-row').filter({ hasText: 'Barry Allen' });
   await expect(archived).toBeVisible();
-  await expect(archived.getByRole("button", { name: /Anonymise/ })).toHaveCount(0);
-  await expect(archived.getByText("Designer", { exact: true })).toHaveCount(0);
-  await archived.getByRole("button", { name: "Restore Barry Allen" }).click();
+  await expect(archived.getByRole('button', { name: /Anonymise/ })).toHaveCount(0);
+  await expect(archived.getByText('Designer', { exact: true })).toHaveCount(0);
+  await archived.getByRole('button', { name: 'Restore Barry Allen' }).click();
   await expect(archived).toHaveCount(0);
   await expect(active).toBeVisible();
-  await page.getByRole("link", { name: "Schedule", exact: true }).click();
-  await expect(page.getByTestId("scheduler-row").filter({ hasText: "Barry Allen" })).toBeVisible();
+  await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+  await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Barry Allen' })).toBeVisible();
 });

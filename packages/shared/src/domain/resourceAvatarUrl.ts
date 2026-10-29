@@ -8,7 +8,7 @@ export const RESOURCE_AVATAR_URL_MAX_LENGTH = 2048;
  * serialisation, and `null` for anything else. Test failure with `=== null`: `undefined` is valid.
  */
 export function parseResourceAvatarUrl(value: unknown): string | undefined | null {
-  if (typeof value !== "string") return value == null ? undefined : null;
+  if (typeof value !== 'string') return value == null ? undefined : null;
   const trimmed = value.trim();
   if (!trimmed) return undefined;
   let url: URL;
@@ -20,7 +20,7 @@ export function parseResourceAvatarUrl(value: unknown): string | undefined | nul
     // Invalid URL input cannot identify an avatar resource.
     return null;
   }
-  if (url.protocol !== "https:" || url.username || url.password) return null;
+  if (url.protocol !== 'https:' || url.username || url.password) return null;
   const normalized = url.toString();
   return normalized.length <= RESOURCE_AVATAR_URL_MAX_LENGTH ? normalized : null;
 }

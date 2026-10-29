@@ -1,5 +1,5 @@
-import type { Locator, Page, TestInfo } from "@playwright/test";
-import { expect, test } from "./fixtures";
+import type { Locator, Page, TestInfo } from '@playwright/test';
+import { expect, test } from './fixtures';
 import {
   dismissLandscapeHint,
   enableInlineActivityCreation,
@@ -8,7 +8,7 @@ import {
   selectShadOption,
   setZoom,
   showPlaceholders,
-} from "./browserTestSupport";
+} from './browserTestSupport';
 
 async function expectLabelControl(control: Locator) {
   const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
@@ -22,9 +22,9 @@ async function expectLabelControl(control: Locator) {
 }
 
 async function expectInControlColumn(control: Locator) {
-  const row = control.locator("xpath=ancestor::*[@data-allocation-control-column][1]");
+  const row = control.locator('xpath=ancestor::*[@data-allocation-control-column][1]');
   const rowBox = await row.boundingBox();
-  const contentBox = await row.locator(":scope > :nth-child(2)").boundingBox();
+  const contentBox = await row.locator(':scope > :nth-child(2)').boundingBox();
   expect(rowBox).not.toBeNull();
   expect(contentBox).not.toBeNull();
   const contentStart = (contentBox!.x - rowBox!.x) / rowBox!.width;
@@ -33,17 +33,17 @@ async function expectInControlColumn(control: Locator) {
 }
 
 async function expectFullWidthSchedulingRow(dialog: Locator, controls: Locator[]) {
-  const row = dialog.locator("[data-allocation-span-row]");
-  const content = row.locator("[data-allocation-span-controls]");
+  const row = dialog.locator('[data-allocation-span-row]');
+  const content = row.locator('[data-allocation-span-controls]');
   const fields = content.locator(":scope > [data-slot='field']");
   await expect(row).toHaveCount(1);
   await expect(fields).toHaveCount(controls.length);
   for (const control of controls) {
-    await expect(control.locator("xpath=ancestor::*[@data-allocation-span-row][1]")).toBeAttached();
+    await expect(control.locator('xpath=ancestor::*[@data-allocation-span-row][1]')).toBeAttached();
   }
 
   const rowBox = await row.boundingBox();
-  const modalBodyContentBox = await row.locator("xpath=parent::*").evaluate((body) => {
+  const modalBodyContentBox = await row.locator('xpath=parent::*').evaluate((body) => {
     const box = body.getBoundingClientRect();
     const style = getComputedStyle(body);
     const left = box.x + Number.parseFloat(style.paddingLeft);
@@ -60,8 +60,8 @@ async function expectFullWidthSchedulingRow(dialog: Locator, controls: Locator[]
 }
 
 async function expectStackedSchedulingRow(dialog: Locator, controls: Locator[]) {
-  const row = dialog.locator("[data-allocation-span-row]");
-  const content = row.locator("[data-allocation-span-controls]");
+  const row = dialog.locator('[data-allocation-span-row]');
+  const content = row.locator('[data-allocation-span-controls]');
   const contentBox = await content.boundingBox();
   const fields = content.locator(":scope > [data-slot='field']");
   const fieldBoxes = await Promise.all((await fields.all()).map((field) => field.boundingBox()));
@@ -71,27 +71,32 @@ async function expectStackedSchedulingRow(dialog: Locator, controls: Locator[]) 
   for (const [index, box] of fieldBoxes.entries()) {
     expect(Math.abs(box!.x - contentBox!.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(box!.width - contentBox!.width)).toBeLessThanOrEqual(1);
-    if (index > 0) expect(box!.y).toBeGreaterThanOrEqual(fieldBoxes[index - 1]!.y + fieldBoxes[index - 1]!.height);
+    if (index > 0)
+      expect(box!.y).toBeGreaterThanOrEqual(
+        fieldBoxes[index - 1]!.y + fieldBoxes[index - 1]!.height,
+      );
   }
   for (const control of controls) {
     const controlBox = await control.boundingBox();
     expect(controlBox).not.toBeNull();
     expect(controlBox!.x).toBeGreaterThanOrEqual(contentBox!.x - 1);
-    expect(controlBox!.x + controlBox!.width).toBeLessThanOrEqual(contentBox!.x + contentBox!.width + 1);
+    expect(controlBox!.x + controlBox!.width).toBeLessThanOrEqual(
+      contentBox!.x + contentBox!.width + 1,
+    );
   }
 }
 
 async function openCreate(page: Page, resource: string) {
-  await page.getByRole("button", { name: `Add allocation for ${resource}` }).click();
-  const dialog = page.getByRole("dialog", { name: "New allocation" });
+  await page.getByRole('button', { name: `Add allocation for ${resource}` }).click();
+  const dialog = page.getByRole('dialog', { name: 'New allocation' });
   await expect(dialog).toBeVisible();
   return dialog;
 }
 
-async function chooseSchedulingMode(page: Page, mode: "Days" | "Blocks") {
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("radio", { name: mode, exact: true }).click();
-  await page.getByRole("link", { name: "Schedule", exact: true }).click();
+async function chooseSchedulingMode(page: Page, mode: 'Days' | 'Blocks') {
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('radio', { name: mode, exact: true }).click();
+  await page.getByRole('link', { name: 'Schedule', exact: true }).click();
   await setZoom(page, 4);
   await resetSchedulerScroll(page);
 }
@@ -106,29 +111,29 @@ function registerBeforeEachHooks() {
 
 async function assertCreateFields(dialog: Locator) {
   for (const control of [
-    dialog.getByRole("combobox", { name: "Project" }),
-    dialog.getByRole("combobox", { name: "Activity" }),
-    dialog.getByRole("combobox", { name: "Repeat" }),
-    dialog.getByRole("radiogroup", { name: "Status" }),
-    dialog.getByLabel("Note"),
-    dialog.getByRole("checkbox", { name: "Ignore working days" }),
+    dialog.getByRole('combobox', { name: 'Project' }),
+    dialog.getByRole('combobox', { name: 'Activity' }),
+    dialog.getByRole('combobox', { name: 'Repeat' }),
+    dialog.getByRole('radiogroup', { name: 'Status' }),
+    dialog.getByLabel('Note'),
+    dialog.getByRole('checkbox', { name: 'Ignore working days' }),
   ]) {
     await expectLabelControl(control);
   }
   await expectFullWidthSchedulingRow(dialog, [
-    dialog.getByLabel("Start Date"),
+    dialog.getByLabel('Start Date'),
     dialog.getByLabel(/^End/),
-    dialog.getByLabel("Hours / day"),
+    dialog.getByLabel('Hours / day'),
   ]);
-  await expectInControlColumn(dialog.getByRole("textbox", { name: "New activity name" }));
+  await expectInControlColumn(dialog.getByRole('textbox', { name: 'New activity name' }));
 }
 
 async function assertStatusAlignment(dialog: Locator) {
-  const status = dialog.getByRole("radiogroup", { name: "Status" });
+  const status = dialog.getByRole('radiogroup', { name: 'Status' });
   const statusBox = await status.boundingBox();
-  const segments = await status.getByRole("radio").all();
+  const segments = await status.getByRole('radio').all();
   const segmentBoxes = await Promise.all(segments.map((segment) => segment.boundingBox()));
-  const noteBox = await dialog.getByLabel("Note").boundingBox();
+  const noteBox = await dialog.getByLabel('Note').boundingBox();
   expect(statusBox).not.toBeNull();
   expect(noteBox).not.toBeNull();
   expect(segmentBoxes.every((box) => box !== null)).toBe(true);
@@ -138,29 +143,29 @@ async function assertStatusAlignment(dialog: Locator) {
 }
 
 async function chooseWeeklyActivity(dialog: Locator) {
-  await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
-  await selectShadOption(dialog.getByRole("combobox", { name: "Activity" }), "t-wires");
-  await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
-  await expectLabelControl(dialog.getByLabel("Repeat until"));
+  await selectShadOption(dialog.getByLabel('Project', { exact: true }), 'p-acme');
+  await selectShadOption(dialog.getByRole('combobox', { name: 'Activity' }), 't-wires');
+  await selectShadOption(dialog.getByRole('combobox', { name: 'Repeat' }), 'weekly');
+  await expectLabelControl(dialog.getByLabel('Repeat until'));
   await expectInControlColumn(dialog.getByText(/Creates \d+ linked allocations/));
 }
 
 async function assertNarrowCreateLayout(page: Page, dialog: Locator, testInfo: TestInfo) {
-  await dialog.getByLabel("Start Date").fill("");
-  await dialog.getByRole("button", { name: "Save" }).click();
-  const error = dialog.getByRole("alert");
-  const errorId = await error.getAttribute("id");
+  await dialog.getByLabel('Start Date').fill('');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  const error = dialog.getByRole('alert');
+  const errorId = await error.getAttribute('id');
   expect(errorId).toBeTruthy();
-  await expect(dialog.getByLabel("Start Date")).toHaveAttribute("aria-describedby", errorId!);
-  await expect(dialog.getByLabel("Start Date")).toBeFocused();
+  await expect(dialog.getByLabel('Start Date')).toHaveAttribute('aria-describedby', errorId!);
+  await expect(dialog.getByLabel('Start Date')).toBeFocused();
 
   await dismissLandscapeHint(page);
   const projectField = dialog
-    .getByRole("combobox", { name: "Project" })
+    .getByRole('combobox', { name: 'Project' })
     .locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
   const fieldBox = await projectField.boundingBox();
-  const labelBox = await projectField.locator(":scope > :first-child").boundingBox();
-  const controlBox = await dialog.getByRole("combobox", { name: "Project" }).boundingBox();
+  const labelBox = await projectField.locator(':scope > :first-child').boundingBox();
+  const controlBox = await dialog.getByRole('combobox', { name: 'Project' }).boundingBox();
   expect(fieldBox).not.toBeNull();
   expect(labelBox).not.toBeNull();
   expect(controlBox).not.toBeNull();
@@ -169,78 +174,90 @@ async function assertNarrowCreateLayout(page: Page, dialog: Locator, testInfo: T
   expect(Math.abs(controlBox!.width - fieldBox!.width)).toBeLessThanOrEqual(1);
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
-  await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_create_narrow.png") });
+  await page.screenshot({ path: testInfo.outputPath('issue_306_allocation_create_narrow.png') });
 }
 
 function registerAlignsCreateRepeatStatusErrorTest() {
-  test("aligns create, repeat, status and error controls, then stacks without narrow overflow", async ({
+  test('aligns create, repeat, status and error controls, then stacks without narrow overflow', async ({
     page,
   }, testInfo: TestInfo) => {
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
     await enableInlineActivityCreation(page);
-    await page.getByRole("link", { name: "Schedule", exact: true }).click();
+    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
-    const dialog = await openCreate(page, "Clark Kent");
+    const dialog = await openCreate(page, 'Clark Kent');
     await assertCreateFields(dialog);
     await assertStatusAlignment(dialog);
     await chooseWeeklyActivity(dialog);
-    await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_create_desktop.png") });
+    await page.screenshot({ path: testInfo.outputPath('issue_306_allocation_create_desktop.png') });
     await assertNarrowCreateLayout(page, dialog, testInfo);
   });
 }
 
 async function assertEditSchedulingRow(page: Page, testInfo: TestInfo) {
-  await page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "Edit allocation" });
-  await expectLabelControl(dialog.getByRole("combobox", { name: "Assignee" }));
+  await page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Edit allocation' });
+  await expectLabelControl(dialog.getByRole('combobox', { name: 'Assignee' }));
   await expectFullWidthSchedulingRow(dialog, [
-    dialog.getByLabel("Start Date"),
+    dialog.getByLabel('Start Date'),
     dialog.getByLabel(/^End/),
-    dialog.getByLabel("Hours / day"),
+    dialog.getByLabel('Hours / day'),
   ]);
-  await expect(dialog.getByRole("combobox", { name: "Repeat" })).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_edit_desktop.png") });
-  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog.getByRole('combobox', { name: 'Repeat' })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('issue_306_allocation_edit_desktop.png') });
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
 }
 
 async function assertDaysAndBlocks(page: Page) {
-  await chooseSchedulingMode(page, "Days");
-  let dialog = await openCreate(page, "Clark Kent");
+  await chooseSchedulingMode(page, 'Days');
+  let dialog = await openCreate(page, 'Clark Kent');
   await expectFullWidthSchedulingRow(
     dialog,
-    ["Start Date", "Days of work", "Days over"].map((label) => dialog.getByLabel(label, { exact: true })),
+    ['Start Date', 'Days of work', 'Days over'].map((label) =>
+      dialog.getByLabel(label, { exact: true }),
+    ),
   );
-  await expect(dialog.getByText(/^Ends /).locator("xpath=ancestor::*[@data-allocation-span-row][1]")).toBeAttached();
-  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(
+    dialog.getByText(/^Ends /).locator('xpath=ancestor::*[@data-allocation-span-row][1]'),
+  ).toBeAttached();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
 
-  await chooseSchedulingMode(page, "Blocks");
-  dialog = await openCreate(page, "Clark Kent");
-  await expectFullWidthSchedulingRow(dialog, [dialog.getByLabel("Start Date"), dialog.getByLabel("Days over")]);
-  await expect(dialog.getByText(/^Ends /).locator("xpath=ancestor::*[@data-allocation-span-row][1]")).toBeAttached();
-  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await chooseSchedulingMode(page, 'Blocks');
+  dialog = await openCreate(page, 'Clark Kent');
+  await expectFullWidthSchedulingRow(dialog, [
+    dialog.getByLabel('Start Date'),
+    dialog.getByLabel('Days over'),
+  ]);
+  await expect(
+    dialog.getByText(/^Ends /).locator('xpath=ancestor::*[@data-allocation-span-row][1]'),
+  ).toBeAttached();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
 }
 
 async function assertExternalVariants(page: Page, testInfo: TestInfo) {
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("switch", { name: "Show external resources" }).click();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('switch', { name: 'Show external resources' }).click();
   await showPlaceholders(page);
-  await page.getByRole("link", { name: "Schedule", exact: true }).click();
+  await page.getByRole('link', { name: 'Schedule', exact: true }).click();
   await setZoom(page, 4);
 
-  let dialog = await openCreate(page, "Kord Industries");
-  await expectFullWidthSchedulingRow(dialog, [dialog.getByLabel("Start Date"), dialog.getByLabel(/^End/)]);
-  await expect(dialog.getByRole("checkbox", { name: "Ignore working days" })).toHaveCount(0);
-  await dialog.getByRole("button", { name: "Cancel" }).click();
+  let dialog = await openCreate(page, 'Kord Industries');
+  await expectFullWidthSchedulingRow(dialog, [
+    dialog.getByLabel('Start Date'),
+    dialog.getByLabel(/^End/),
+  ]);
+  await expect(dialog.getByRole('checkbox', { name: 'Ignore working days' })).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
 
-  dialog = await openCreate(page, "Placeholder");
-  await expectInControlColumn(dialog.getByText("Placeholder — locked to its bound project."));
-  await expect(dialog.getByLabel("Project", { exact: true })).toBeEnabled();
-  await page.screenshot({ path: testInfo.outputPath("issue_306_allocation_placeholder.png") });
+  dialog = await openCreate(page, 'Placeholder');
+  await expectInControlColumn(dialog.getByText('Placeholder — locked to its bound project.'));
+  await expect(dialog.getByLabel('Project', { exact: true })).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath('issue_306_allocation_placeholder.png') });
 }
 
 function registerUsesFullWidthSchedulingRowTest() {
-  test("uses the full-width scheduling row for edit, Days, Blocks and External variants", async ({
+  test('uses the full-width scheduling row for edit, Days, Blocks and External variants', async ({
     page,
   }, testInfo: TestInfo) => {
     await assertEditSchedulingRow(page, testInfo);
@@ -250,19 +267,19 @@ function registerUsesFullWidthSchedulingRowTest() {
 }
 
 function registerStacksHourlyThreeFieldRowTests() {
-  test("stacks the hourly three-field row without clipping at 360px", async ({ page }) => {
-    const dialog = await openCreate(page, "Clark Kent");
+  test('stacks the hourly three-field row without clipping at 360px', async ({ page }) => {
+    const dialog = await openCreate(page, 'Clark Kent');
     await dismissLandscapeHint(page);
     await expectStackedSchedulingRow(dialog, [
-      dialog.getByLabel("Start Date"),
+      dialog.getByLabel('Start Date'),
       dialog.getByLabel(/^End/),
-      dialog.getByLabel("Hours / day"),
+      dialog.getByLabel('Hours / day'),
     ]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
   });
 }
 
-test.describe("Allocation modal label/control layout", () => {
+test.describe('Allocation modal label/control layout', () => {
   registerBeforeEachHooks();
   registerAlignsCreateRepeatStatusErrorTest();
   registerUsesFullWidthSchedulingRowTest();

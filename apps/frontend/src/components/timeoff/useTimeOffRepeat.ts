@@ -1,46 +1,48 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
 import {
   defaultTimeOffRepeatUntilDate,
   maximumTimeOffRepeatUntilDate,
   RepeatingDateError,
-} from "@capacitylens/shared/lib/repeatingDates";
-import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
-import { buildRepeatedTimeOffDrafts } from "@/lib/repeatingTimeOff";
-import type { TimeOffRepeatSelection } from "@/lib/repeatingTimeOff";
-import type { Draft } from "@/store/useStore";
+} from '@capacitylens/shared/lib/repeatingDates';
+import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
+import { buildRepeatedTimeOffDrafts } from '@/lib/repeatingTimeOff';
+import type { TimeOffRepeatSelection } from '@/lib/repeatingTimeOff';
+import type { Draft } from '@/store/useStore';
 
 /** Repeat cadence choices available for a time-off draft. */
-export type TimeOffRepeatChoice = "none" | TimeOffRepeatSelection;
+export type TimeOffRepeatChoice = 'none' | TimeOffRepeatSelection;
 
 interface TimeOffRepeatDraftInput {
   resourceId: string;
-  startDate: ISODate | "";
-  endDate: ISODate | "";
+  startDate: ISODate | '';
+  endDate: ISODate | '';
   type: TimeOffType;
   note: string;
 }
 
 /** Manages repeat cadence, end date, and preview state for a time-off draft. */
 export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
-  const [repeat, setRepeat] = useState<TimeOffRepeatChoice>("none");
-  const [repeatUntil, setRepeatUntil] = useState<ISODate | "">("");
+  const [repeat, setRepeat] = useState<TimeOffRepeatChoice>('none');
+  const [repeatUntil, setRepeatUntil] = useState<ISODate | ''>('');
   const repeatUntilIsSuggested = useRef(false);
 
   useEffect(() => {
-    if (repeat !== "none" && repeatUntilIsSuggested.current && isValidISODate(input.startDate)) {
+    if (repeat !== 'none' && repeatUntilIsSuggested.current && isValidISODate(input.startDate)) {
       setRepeatUntil(defaultTimeOffRepeatUntilDate(input.startDate));
     }
   }, [input.startDate, repeat]);
 
   const changeRepeat = (value: string) => {
     const next = value as TimeOffRepeatChoice;
-    if (repeat === "none" && next !== "none") {
+    if (repeat === 'none' && next !== 'none') {
       repeatUntilIsSuggested.current = true;
-      if (isValidISODate(input.startDate)) setRepeatUntil(defaultTimeOffRepeatUntilDate(input.startDate));
-    } else if (next === "none") {
+      if (isValidISODate(input.startDate)) {
+        setRepeatUntil(defaultTimeOffRepeatUntilDate(input.startDate));
+      }
+    } else if (next === 'none') {
       repeatUntilIsSuggested.current = false;
-      setRepeatUntil("");
+      setRepeatUntil('');
     }
     setRepeat(next);
   };
@@ -50,10 +52,12 @@ export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
     setRepeatUntil(value);
   };
 
-  const maximum = isValidISODate(input.startDate) ? maximumTimeOffRepeatUntilDate(input.startDate) : undefined;
+  const maximum = isValidISODate(input.startDate)
+    ? maximumTimeOffRepeatUntilDate(input.startDate)
+    : undefined;
   const preview = useMemo(() => {
     if (
-      repeat === "none" ||
+      repeat === 'none' ||
       !isValidISODate(input.startDate) ||
       !isValidISODate(input.endDate) ||
       !isValidISODate(repeatUntil)
@@ -76,7 +80,15 @@ export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
       }
       throw error;
     }
-  }, [input.endDate, input.note, input.resourceId, input.startDate, input.type, repeat, repeatUntil]);
+  }, [
+    input.endDate,
+    input.note,
+    input.resourceId,
+    input.startDate,
+    input.type,
+    repeat,
+    repeatUntil,
+  ]);
 
   return { repeat, repeatUntil, maximum, preview, changeRepeat, changeRepeatUntil };
 }

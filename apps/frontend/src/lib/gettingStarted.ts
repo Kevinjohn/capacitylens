@@ -1,6 +1,6 @@
-import type { AppData } from "@capacitylens/shared/types/entities";
-import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
-import { lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
+import type { AppData } from '@capacitylens/shared/types/entities';
+import { isBuiltinClient } from '@capacitylens/shared/data/internalClient';
+import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
 
 // Derive onboarding outcomes from scoped data so checklist rendering shares one pure rule.
 
@@ -23,17 +23,21 @@ export interface GettingStartedSteps {
 export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   const people = new Set(
     data.resources
-      .filter((resource) => lifecycleStatus(resource) === "active" && resource.kind === "person")
+      .filter((resource) => lifecycleStatus(resource) === 'active' && resource.kind === 'person')
       .map(({ id }) => id),
   );
-  const clients = new Set(data.clients.filter((client) => lifecycleStatus(client) === "active").map(({ id }) => id));
+  const clients = new Set(
+    data.clients.filter((client) => lifecycleStatus(client) === 'active').map(({ id }) => id),
+  );
   const onboardingClientIds = new Set(
     data.clients
-      .filter((client) => lifecycleStatus(client) === "active" && !isBuiltinClient(client))
+      .filter((client) => lifecycleStatus(client) === 'active' && !isBuiltinClient(client))
       .map(({ id }) => id),
   );
   const projects = new Map(
-    data.projects.filter((project) => lifecycleStatus(project) === "active").map((project) => [project.id, project]),
+    data.projects
+      .filter((project) => lifecycleStatus(project) === 'active')
+      .map((project) => [project.id, project]),
   );
   const coherentProject = (projectId: string | null | undefined): boolean => {
     if (!projectId) return false;
@@ -42,19 +46,28 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   };
   const activities = new Map(
     data.activities
-      .filter((activity) => lifecycleStatus(activity) === "active")
+      .filter((activity) => lifecycleStatus(activity) === 'active')
       .map((activity) => [activity.id, activity]),
   );
   const coherentActivities = new Map(
     [...activities.values()].map((activity) => [
       activity.id,
-      activity.kind !== "project" || coherentProject(activity.projectId),
+      activity.kind !== 'project' || coherentProject(activity.projectId),
     ]),
   );
   const scheduled = data.allocations.some((allocation) => {
-    if (!people.has(allocation.resourceId) || coherentActivities.get(allocation.activityId) !== true) return false;
+    if (
+      !people.has(allocation.resourceId) ||
+      coherentActivities.get(allocation.activityId) !== true
+    ) {
+      return false;
+    }
     const activity = activities.get(allocation.activityId);
-    return activity?.kind !== "repeatable" || allocation.projectId == null || coherentProject(allocation.projectId);
+    return (
+      activity?.kind !== 'repeatable' ||
+      allocation.projectId == null ||
+      coherentProject(allocation.projectId)
+    );
   });
   return {
     person: people.size > 0,

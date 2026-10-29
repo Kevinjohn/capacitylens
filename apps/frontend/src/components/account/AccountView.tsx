@@ -1,15 +1,15 @@
-import { useAuth } from "@/auth/authContext";
-import demoAvatarUrl from "@/assets/avatar-demo.svg";
-import { m } from "@/i18n";
-import { FAKE_USER, useDemoAuthActive } from "@/lib/fakeAuth";
-import { DEFAULT_COLORS } from "@/lib/palette";
-import { LogOut } from "lucide-react";
-import { useState } from "react";
-import { Avatar, ListPage } from "@/components/common/ui";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { SecuritySection } from "@/components/settings/SecuritySection";
-import { SettingsSection } from "@/components/settings/SettingsSection";
+import { useAuth } from '@/auth/authContext';
+import demoAvatarUrl from '@/assets/avatar-demo.svg';
+import { m } from '@/i18n';
+import { FAKE_USER, useDemoAuthActive } from '@/lib/fakeAuth';
+import { DEFAULT_COLORS } from '@/lib/palette';
+import { LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { Avatar, ListPage } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { SecuritySection } from '@/components/settings/SecuritySection';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 
 type ResolveIdentityOptions = { auth: ReturnType<typeof useAuth>; demo: boolean };
 function resolveIdentity({ auth, demo }: ResolveIdentityOptions) {
@@ -31,7 +31,9 @@ function EmailCell({ email }: { email: string | undefined }) {
               {email}
             </span>
           </TooltipTrigger>
-          <TooltipContent className="max-w-[min(20rem,calc(100vw-2rem))] break-all">{email}</TooltipContent>
+          <TooltipContent className="max-w-[min(20rem,calc(100vw-2rem))] break-all">
+            {email}
+          </TooltipContent>
         </Tooltip>
       )}
     </td>
@@ -71,7 +73,11 @@ export function AccountView() {
               <tbody>
                 <tr data-testid="account-identity-row">
                   <td className="py-2 px-4">
-                    <Avatar name={name} color={DEFAULT_COLORS.account} {...(imageUrl ? { imageUrl } : {})} />
+                    <Avatar
+                      name={name}
+                      color={DEFAULT_COLORS.account}
+                      {...(imageUrl ? { imageUrl } : {})}
+                    />
                   </td>
                   <td className="max-w-52 py-2 px-4 font-medium text-ink whitespace-nowrap">
                     <span className="block truncate" title={name}>
@@ -81,13 +87,23 @@ export function AccountView() {
                   <EmailCell email={email} />
                   <td className="py-2 px-4 text-right whitespace-nowrap">
                     <div className="flex justify-end gap-2">
-                      {auth.authMode !== "off" && (
-                        <Button type="button" size="sm" variant="outline" onClick={() => setPasswordOpen(true)}>
+                      {auth.authMode !== 'off' && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPasswordOpen(true)}
+                        >
                           {m.settings_security_change_password()}
                         </Button>
                       )}
-                      {auth.authMode !== "off" && (
-                        <Button type="button" size="sm" variant="danger-soft" onClick={() => void auth.signOut()}>
+                      {auth.authMode !== 'off' && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="danger-soft"
+                          onClick={() => void auth.signOut()}
+                        >
                           <LogOut data-icon="inline-start" />
                           {m.nav_sign_out()}
                         </Button>
@@ -99,7 +115,7 @@ export function AccountView() {
             </table>
           </div>
         </SettingsSection>
-        {auth.authMode !== "off" && (
+        {auth.authMode !== 'off' && (
           <SecuritySection passwordOpen={passwordOpen} onPasswordOpenChange={setPasswordOpen} />
         )}
       </div>

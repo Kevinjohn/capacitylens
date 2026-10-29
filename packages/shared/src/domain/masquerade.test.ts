@@ -1,23 +1,23 @@
-import { describe, expect, it } from "vitest";
-import { MASQUERADE_END_REASONS, MASQUERADE_ERROR_CODES } from "./masquerade.js";
+import { describe, expect, it } from 'vitest';
+import { MASQUERADE_END_REASONS, MASQUERADE_ERROR_CODES } from './masquerade.js';
 
-describe("masquerade contracts", () => {
-  it("keeps the public end reasons and error codes stable", () => {
+describe('masquerade contracts', () => {
+  it('keeps the public end reasons and error codes stable', () => {
     expect(MASQUERADE_END_REASONS).toEqual([
-      "explicit",
-      "account_switch",
-      "sign_out",
-      "session_expired",
-      "session_revoked",
-      "caller_invalidated",
-      "target_invalidated",
+      'explicit',
+      'account_switch',
+      'sign_out',
+      'session_expired',
+      'session_revoked',
+      'caller_invalidated',
+      'target_invalidated',
     ]);
     expect(MASQUERADE_ERROR_CODES).toEqual({
-      active: "MASQUERADE_ACTIVE",
-      readOnly: "MASQUERADE_READ_ONLY",
-      ended: "MASQUERADE_ENDED",
-      contextRequired: "MASQUERADE_CONTEXT_REQUIRED",
-      contextChanged: "MASQUERADE_CONTEXT_CHANGED",
+      active: 'MASQUERADE_ACTIVE',
+      readOnly: 'MASQUERADE_READ_ONLY',
+      ended: 'MASQUERADE_ENDED',
+      contextRequired: 'MASQUERADE_CONTEXT_REQUIRED',
+      contextChanged: 'MASQUERADE_CONTEXT_CHANGED',
     });
   });
 });

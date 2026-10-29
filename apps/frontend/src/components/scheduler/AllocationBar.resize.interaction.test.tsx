@@ -1,180 +1,245 @@
-import { requireCreated } from "@/test/requireCreated";
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
-import { AllocationBar } from "./AllocationBar";
-import { useStore } from "@/store/useStore";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "@/test/fixtures";
-import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
+import { requireCreated } from '@/test/requireCreated';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { screen, fireEvent } from '@testing-library/react';
+import { AllocationBar } from './AllocationBar';
+import { useStore } from '@/store/useStore';
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from '@/test/fixtures';
+import { renderWithTooltip as render, GEOM, indexAtClientX } from './__tests__/schedulerTestKit';
 
 import {
   barFor,
   getStoredAllocation,
   seedAllocation,
   settlePlanning,
-} from "./__tests__/allocationBarInteractionTestKit";
+} from './__tests__/allocationBarInteractionTestKit';
 
 beforeEach(async () => resetStoreWithAccount());
 
-const enableDays = () => useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "days" });
+const enableDays = () =>
+  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: 'days' });
 
 function registerDayModeResizeTests() {
-  it("rescales hours/day when the end is resized by keyboard (Shift+arrow)", async () => {
+  it('rescales hours/day when the end is resized by keyboard (Shift+arrow)', async () => {
     await enableDays();
 
     const a = await seedAllocation();
-    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
 
-    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
+    fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true });
     await settlePlanning();
     const after = getStoredAllocation(a.id);
 
-    expect(after.endDate).toBe("2026-06-04");
+    expect(after.endDate).toBe('2026-06-04');
     expect(after.hoursPerDay).toBe(6);
   });
 
-  it("leaves hours/day untouched on a move (span unchanged)", async () => {
+  it('leaves hours/day untouched on a move (span unchanged)', async () => {
     await enableDays();
     const a = await seedAllocation();
-    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
 
-    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+    fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' });
     await settlePlanning();
     const after = getStoredAllocation(a.id);
     expect(after.hoursPerDay).toBe(8);
   });
 
-  it("rescales hours/day when the end grip is dragged", async () => {
+  it('rescales hours/day when the end grip is dragged', async () => {
     await enableDays();
     const a = await seedAllocation();
-    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
 
-    fireEvent.pointerDown(screen.getByTestId("resize-end"), { clientX: 144, button: 0 });
+    fireEvent.pointerDown(screen.getByTestId('resize-end'), { clientX: 144, button: 0 });
 
-    document.dispatchEvent(new MouseEvent("pointermove", { clientX: 192, bubbles: true }));
-    document.dispatchEvent(new MouseEvent("pointerup", { clientX: 192, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 192, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 192, bubbles: true }));
     await settlePlanning();
 
     const after = getStoredAllocation(a.id);
-    expect(after.endDate).toBe("2026-06-04");
+    expect(after.endDate).toBe('2026-06-04');
     expect(after.hoursPerDay).toBe(6);
   });
 }
 
 function registerDayModeKeyboardNoticeTests() {
-  it("surfaces a non-blocking notice when a shrink-resize clamps the work volume at the cap", async () => {
+  it('surfaces a non-blocking notice when a shrink-resize clamps the work volume at the cap', async () => {
     await enableDays();
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const r = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
+    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
+    const t = await requireCreated(
+      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
+    );
+    const r = await requireCreated(
+      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+    );
     // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h of work. Shrinking to 1 working
     // day would need 48h/day, clamped to 24, so half the volume is lost (the user must be told).
     const a = requireCreated(
       await st.addAllocation({
         resourceId: r.id,
         activityId: t.id,
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
+        startDate: '2026-06-01',
+        endDate: '2026-06-02',
         hoursPerDay: 24,
-        status: "confirmed",
+        status: 'confirmed',
       }),
     );
-    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
 
-    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowLeft", shiftKey: true });
+    fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowLeft', shiftKey: true });
     await settlePlanning();
     const after = getStoredAllocation(a.id);
-    expect(after.endDate).toBe("2026-06-01");
+    expect(after.endDate).toBe('2026-06-01');
     expect(after.hoursPerDay).toBe(24);
     const notice = useStore.getState().notice;
     expect(notice?.message).toMatch(/capped at 24h\/day/i);
     // The truncation warning must remain until dismissed because it is the only signal of lost work volume.
-    expect(notice?.tone).toBe("warning");
+    expect(notice?.tone).toBe('warning');
   });
 
-  it("does NOT show the cap notice on a normal in-range resize", async () => {
+  it('does NOT show the cap notice on a normal in-range resize', async () => {
     await enableDays();
 
     const a = await seedAllocation();
-    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
 
-    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
+    fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true });
     await settlePlanning();
     const after = getStoredAllocation(a.id);
     expect(after.hoursPerDay).toBe(6);
 
-    expect(useStore.getState().notice?.message ?? "").not.toMatch(/capped/i);
+    expect(useStore.getState().notice?.message ?? '').not.toMatch(/capped/i);
   });
 }
 
 function registerDayModePointerNoticeTests() {
-  it("raises the PERSISTENT warning tone when a POINTER shrink-resize clamps the work volume", async () => {
+  it('raises the PERSISTENT warning tone when a POINTER shrink-resize clamps the work volume', async () => {
     // Pointer resize must publish the same persistent truncation warning as keyboard resize when the hours cap reduces work volume.
     await enableDays();
     const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const r = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
+    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
+    const t = await requireCreated(
+      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
+    );
+    const r = await requireCreated(
+      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+    );
 
     const a = requireCreated(
       await st.addAllocation({
         resourceId: r.id,
         activityId: t.id,
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
+        startDate: '2026-06-01',
+        endDate: '2026-06-02',
         hoursPerDay: 24,
-        status: "confirmed",
+        status: 'confirmed',
       }),
     );
-    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
 
-    fireEvent.pointerDown(screen.getByTestId("resize-end"), { clientX: 96, button: 0 });
-    document.dispatchEvent(new MouseEvent("pointermove", { clientX: 48, bubbles: true }));
-    document.dispatchEvent(new MouseEvent("pointerup", { clientX: 48, bubbles: true }));
+    fireEvent.pointerDown(screen.getByTestId('resize-end'), { clientX: 96, button: 0 });
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 48, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 48, bubbles: true }));
     await settlePlanning();
 
     const after = getStoredAllocation(a.id);
-    expect(after.endDate).toBe("2026-06-01");
+    expect(after.endDate).toBe('2026-06-01');
     expect(after.hoursPerDay).toBe(24);
     const notice = useStore.getState().notice;
     expect(notice?.message).toMatch(/capped at 24h\/day/i);
 
-    expect(notice?.tone).toBe("warning");
+    expect(notice?.tone).toBe('warning');
   });
 
-  it("keeps the POINTER move confirmation TRANSIENT (info) when nothing is clamped", async () => {
+  it('keeps the POINTER move confirmation TRANSIENT (info) when nothing is clamped', async () => {
     await enableDays();
 
     const a = await seedAllocation();
-    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
 
-    fireEvent.pointerDown(screen.getByTestId("allocation-bar"), { clientX: 50, button: 0 });
+    fireEvent.pointerDown(screen.getByTestId('allocation-bar'), { clientX: 50, button: 0 });
 
-    document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
-    document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
     await settlePlanning();
 
     const notice = useStore.getState().notice;
-    expect(notice?.message ?? "").not.toMatch(/capped/i);
-    expect(notice?.tone).toBe("info");
+    expect(notice?.message ?? '').not.toMatch(/capped/i);
+    expect(notice?.tone).toBe('info');
   });
 
-  it("hourly mode keeps hours/day fixed on resize (regression guard)", async () => {
+  it('hourly mode keeps hours/day fixed on resize (regression guard)', async () => {
     const a = await seedAllocation();
-    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
 
-    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
+    fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true });
     await settlePlanning();
     const after = getStoredAllocation(a.id);
-    expect(after.endDate).toBe("2026-06-04");
+    expect(after.endDate).toBe('2026-06-04');
     expect(after.hoursPerDay).toBe(8);
   });
 }
 
 function registerDayModeSuite() {
-  describe("days mode preserves volume on resize", () => {
+  describe('days mode preserves volume on resize', () => {
     registerDayModeResizeTests();
     registerDayModeKeyboardNoticeTests();
     registerDayModePointerNoticeTests();
@@ -183,4 +248,4 @@ function registerDayModeSuite() {
 
 // Keyboard edits announce the updated visible-window conflict result through the polite live region; pointer drag feedback remains visual.
 
-describe("AllocationBar day-mode resize interactions", registerDayModeSuite);
+describe('AllocationBar day-mode resize interactions', registerDayModeSuite);

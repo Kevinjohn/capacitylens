@@ -1,18 +1,22 @@
-import { useId, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { apiRouteUrl } from "@/api/queryClient";
-import { apiFetch } from "@/data/requestTimeout";
-import { readApiError } from "@/lib/readApiError";
+import { useId, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { apiRouteUrl } from '@/api/queryClient';
+import { apiFetch } from '@/data/requestTimeout';
+import { readApiError } from '@/lib/readApiError';
 import {
   MAX_NAME_LENGTH,
   parseUserName,
   normalizeUserText,
   unicodeCharacterCount,
-} from "@capacitylens/shared/lib/strings";
-import { DEFAULT_TIME_ZONE, listSupportedTimeZones, resolveTimeZoneOptionLabel } from "@/lib/timezones";
-import { m } from "@/i18n";
+} from '@capacitylens/shared/lib/strings';
+import {
+  DEFAULT_TIME_ZONE,
+  listSupportedTimeZones,
+  resolveTimeZoneOptionLabel,
+} from '@/lib/timezones';
+import { m } from '@/i18n';
 
 /** Collects the company name and fixed calendar convention after native identity authentication. */
 export function CompanySetup({
@@ -25,7 +29,7 @@ export function CompanySetup({
   onSignOut: () => Promise<void> | void;
 }) {
   const id = useId();
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1);
   const [timeZone, setTimeZone] = useState(DEFAULT_TIME_ZONE);
   const [busy, setBusy] = useState(false);
@@ -46,10 +50,10 @@ export function CompanySetup({
     setBusy(true);
     setError(null);
     try {
-      const response = await apiFetch(apiRouteUrl("api.installation.company", {}), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+      const response = await apiFetch(apiRouteUrl('api.installation.company', {}), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: canonicalName, weekStartsOn, timeZone }),
       });
       if (response.status === 409 && (await onConflict())) return;
@@ -89,7 +93,7 @@ export function CompanySetup({
           <select
             id={`${id}-week`}
             value={weekStartsOn}
-            onChange={(event) => setWeekStartsOn(event.target.value === "0" ? 0 : 1)}
+            onChange={(event) => setWeekStartsOn(event.target.value === '0' ? 0 : 1)}
             disabled={busy}
             className="h-9 w-full rounded-md border bg-surface px-3 text-sm"
           >
@@ -118,10 +122,21 @@ export function CompanySetup({
             {error}
           </p>
         )}
-        <Button data-testid="company-setup-submit" type="submit" disabled={busy || !name.trim()} className="w-full">
+        <Button
+          data-testid="company-setup-submit"
+          type="submit"
+          disabled={busy || !name.trim()}
+          className="w-full"
+        >
           {busy ? m.company_setup_creating() : m.company_setup_create()}
         </Button>
-        <Button type="button" variant="link" disabled={busy} onClick={() => void onSignOut()} className="w-full">
+        <Button
+          type="button"
+          variant="link"
+          disabled={busy}
+          onClick={() => void onSignOut()}
+          className="w-full"
+        >
           {m.company_setup_sign_out()}
         </Button>
       </form>

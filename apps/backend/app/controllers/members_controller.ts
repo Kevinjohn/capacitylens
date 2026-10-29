@@ -1,32 +1,32 @@
-import type { HttpContext } from '@adonisjs/core/http'
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import type { Role } from '@capacitylens/shared/account/types'
-import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/types'
-import { assertCompanyAction } from '#services/auth/authorization'
-import { withActor } from '#services/auth/current_actor'
-import { writeAudit } from '#services/audit'
+import type { HttpContext } from '@adonisjs/core/http';
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import type { Role } from '@capacitylens/shared/account/types';
+import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/types';
+import { assertCompanyAction } from '#services/auth/authorization';
+import { withActor } from '#services/auth/current_actor';
+import { writeAudit } from '#services/audit';
 import {
   AccountCommandError,
   claimAccountCommand,
   completeAccountCommand,
   readAccountCommand,
-} from '#services/account_commands'
+} from '#services/account_commands';
 import {
   changeMemberRole,
   changeMemberStatus,
   enableMemberAccess,
   MembershipError,
   removeMember,
-} from '#services/membership/member_mutations'
+} from '#services/membership/member_mutations';
 import {
   confirmMemberSignIn,
   readMemberSignInTracking,
   setMemberSignInTracking,
-} from '#services/membership/sign_in_tracking'
+} from '#services/membership/sign_in_tracking';
 import {
   readMemberResourceFields,
   readResourceCandidates,
-} from '#services/member_resources/directory'
+} from '#services/member_resources/directory';
 
 function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
   return (
@@ -34,13 +34,14 @@ function fields(value: unknown, allowed: string[]): value is Record<string, unkn
     typeof value === 'object' &&
     !Array.isArray(value) &&
     Object.keys(value).every((key) => allowed.includes(key))
-  )
+  );
 }
 
 function replyMemberError(ctx: HttpContext, error: unknown) {
-  if (error instanceof MembershipError || error instanceof AccountCommandError)
-    return ctx.response.status(error.status).send({ error: error.message, code: error.code })
-  throw error
+  if (error instanceof MembershipError || error instanceof AccountCommandError) {
+    return ctx.response.status(error.status).send({ error: error.message, code: error.code });
+  }
+  throw error;
 }
 
 async function semanticMutation<T>(
@@ -49,10 +50,10 @@ async function semanticMutation<T>(
   payload: unknown,
   work: (trx: TransactionClientContract, actor: { actorId: string; role: Role }) => Promise<T>
 ) {
-  const command = readAccountCommand(ctx)
-  const accountId = ctx.params.accountId
+  const command = readAccountCommand(ctx);
+  const accountId = ctx.params.accountId;
   return withActor(ctx, async (_actor, trx) => {
-    const actor = await assertCompanyAction(accountId, 'manageMembers', trx)
+    const actor = await assertCompanyAction(accountId, 'manageMembers', trx);
     const claim = await claimAccountCommand(trx, {
       accountId,
       actorId: actor.actorId,
@@ -60,19 +61,19 @@ async function semanticMutation<T>(
       payload,
       command,
       kind: 'semantic',
-    })
-    if (claim.replayed) return claim.result as T
-    const result = await work(trx, actor)
-    await completeAccountCommand(trx, command.commandId, result)
-    return result
-  })
+    });
+    if (claim.replayed) return claim.result as T;
+    const result = await work(trx, actor);
+    await completeAccountCommand(trx, command.commandId, result);
+    return result;
+  });
 }
 
 export default class MembersController {
   async index(ctx: HttpContext) {
-    const accountId = ctx.params.accountId
+    const accountId = ctx.params.accountId;
     const directory = await withActor(ctx, async (_actor, trx) => {
-      const actor = await assertCompanyAction(accountId, 'manageMembers', trx)
+      const actor = await assertCompanyAction(accountId, 'manageMembers', trx);
       const [rows, restrictions, tracking, resourceCandidates] = await Promise.all([
         trx
           .from('memberships as member')
@@ -103,13 +104,13 @@ export default class MembersController {
           .orderBy('restriction.principal_id', 'asc'),
         readMemberSignInTracking(accountId, trx),
         readResourceCandidates(trx, accountId),
-      ])
-      const denied = new Set(restrictions.map((row) => String(row.principal_id)))
-      const memberIds = new Set(rows.map((row) => String(row.user_id)))
-      const resourceFields = await readMemberResourceFields(trx, accountId, [...memberIds])
-      const members = []
+      ]);
+      const denied = new Set(restrictions.map((row) => String(row.principal_id)));
+      const memberIds = new Set(rows.map((row) => String(row.user_id)));
+      const resourceFields = await readMemberResourceFields(trx, accountId, [...memberIds]);
+      const members = [];
       for (const row of rows) {
-        const userId = String(row.user_id)
+        const userId = String(row.user_id);
         members.push({
           userId,
           role: row.role,
@@ -122,11 +123,11 @@ export default class MembersController {
           signInConfirmed: tracking.enabled ? tracking.confirmations.has(userId) : null,
           isSelf: actor.actorId === userId,
           ...resourceFields.get(userId),
-        })
+        });
       }
       for (const row of restrictions) {
-        const userId = String(row.principal_id)
-        if (memberIds.has(userId)) continue
+        const userId = String(row.principal_id);
+        if (memberIds.has(userId)) continue;
         members.push({
           userId,
           role: row.role,
@@ -139,24 +140,28 @@ export default class MembersController {
           signInConfirmed: tracking.enabled ? tracking.confirmations.has(userId) : null,
           isSelf: actor.actorId === userId,
           resourceLink: null,
-        })
+        });
       }
-      return { members, signInTrackingEnabled: tracking.enabled, resourceCandidates }
-    })
-    return ctx.response.ok(directory)
+      return { members, signInTrackingEnabled: tracking.enabled, resourceCandidates };
+    });
+    return ctx.response.ok(directory);
   }
 
   async tracking(ctx: HttpContext) {
-    if (!fields(ctx.request.body(), ['enabled']) || typeof ctx.request.body().enabled !== 'boolean')
-      return ctx.response.badRequest({ error: 'enabled must be a Boolean.' })
-    const enabled = ctx.request.body().enabled as boolean
-    const accountId = ctx.params.accountId
+    if (
+      !fields(ctx.request.body(), ['enabled']) ||
+      typeof ctx.request.body().enabled !== 'boolean'
+    ) {
+      return ctx.response.badRequest({ error: 'enabled must be a Boolean.' });
+    }
+    const enabled = ctx.request.body().enabled as boolean;
+    const accountId = ctx.params.accountId;
     await withActor(ctx, async (_actor, trx) => {
-      const actor = await assertCompanyAction(accountId, 'manageMemberSignInTracking', trx)
-      const current = await readMemberSignInTracking(accountId, trx)
-      await setMemberSignInTracking(accountId, enabled, trx)
-      if (!current.enabled && enabled) await confirmMemberSignIn(accountId, actor.actorId, trx)
-      if (current.enabled !== enabled)
+      const actor = await assertCompanyAction(accountId, 'manageMemberSignInTracking', trx);
+      const current = await readMemberSignInTracking(accountId, trx);
+      await setMemberSignInTracking(accountId, enabled, trx);
+      if (!current.enabled && enabled) await confirmMemberSignIn(accountId, actor.actorId, trx);
+      if (current.enabled !== enabled) {
         await writeAudit(trx, {
           accountId,
           actorId: actor.actorId,
@@ -164,15 +169,17 @@ export default class MembersController {
           entity: 'account',
           entityId: accountId,
           fields: ['memberSignInTracking'],
-        })
-    })
-    return ctx.response.ok({ enabled })
+        });
+      }
+    });
+    return ctx.response.ok({ enabled });
   }
 
   async changeRole(ctx: HttpContext) {
-    const body: unknown = ctx.request.body()
-    if (!fields(body, ['role']) || !isAccountRole(body.role))
-      return ctx.response.badRequest({ error: 'Invalid member role.' })
+    const body: unknown = ctx.request.body();
+    if (!fields(body, ['role']) || !isAccountRole(body.role)) {
+      return ctx.response.badRequest({ error: 'Invalid member role.' });
+    }
     try {
       const result = await semanticMutation(
         ctx,
@@ -189,17 +196,18 @@ export default class MembersController {
             userId: ctx.params.userId,
             role: body.role as Role,
           })
-      )
-      return ctx.response.ok(result)
+      );
+      return ctx.response.ok(result);
     } catch (error) {
-      return replyMemberError(ctx, error)
+      return replyMemberError(ctx, error);
     }
   }
 
   async changeStatus(ctx: HttpContext) {
-    const body: unknown = ctx.request.body()
-    if (!fields(body, ['status']) || !isMembershipStatus(body.status))
-      return ctx.response.badRequest({ error: 'Invalid member status.' })
+    const body: unknown = ctx.request.body();
+    if (!fields(body, ['status']) || !isMembershipStatus(body.status)) {
+      return ctx.response.badRequest({ error: 'Invalid member status.' });
+    }
     try {
       const result = await semanticMutation(
         ctx,
@@ -216,10 +224,10 @@ export default class MembersController {
             userId: ctx.params.userId,
             status: body.status as 'active' | 'disabled' | 'archived',
           })
-      )
-      return ctx.response.ok(result)
+      );
+      return ctx.response.ok(result);
     } catch (error) {
-      return replyMemberError(ctx, error)
+      return replyMemberError(ctx, error);
     }
   }
 
@@ -236,10 +244,10 @@ export default class MembersController {
             actorRole: actor.role,
             userId: ctx.params.userId,
           })
-      )
-      return ctx.response.ok(result)
+      );
+      return ctx.response.ok(result);
     } catch (error) {
-      return replyMemberError(ctx, error)
+      return replyMemberError(ctx, error);
     }
   }
 
@@ -252,10 +260,10 @@ export default class MembersController {
           actorRole: actor.role,
           userId: ctx.params.userId,
         })
-      )
-      return ctx.response.noContent()
+      );
+      return ctx.response.noContent();
     } catch (error) {
-      return replyMemberError(ctx, error)
+      return replyMemberError(ctx, error);
     }
   }
 }

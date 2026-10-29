@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { m } from "@/i18n";
-import { useAuth } from "@/auth/authContext";
-import { useStore } from "@/store/useStore";
-import { Modal } from "@/components/common/ui";
-import { SelectField } from "@/components/common/fields/SelectField";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { useOwnershipTransfer } from "./useOwnershipTransfer";
-import type { OwnershipTransferController } from "./useOwnershipTransfer";
-import { ActionProofDialog } from "@/auth/ActionProofDialog";
+import { useState } from 'react';
+import { m } from '@/i18n';
+import { useAuth } from '@/auth/authContext';
+import { useStore } from '@/store/useStore';
+import { Modal } from '@/components/common/ui';
+import { SelectField } from '@/components/common/fields/SelectField';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { useOwnershipTransfer } from './useOwnershipTransfer';
+import type { OwnershipTransferController } from './useOwnershipTransfer';
+import { ActionProofDialog } from '@/auth/ActionProofDialog';
 
 function TransferForm({
   controller,
@@ -82,7 +82,12 @@ function TransferContent({
         <Alert variant="destructive">
           <AlertDescription>{controller.error}</AlertDescription>
           {!controller.directoryLoaded && (
-            <Button type="button" size="sm" variant="outline" onClick={() => void controller.refresh()}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void controller.refresh()}
+            >
               {m.ownership_transfer_retry()}
             </Button>
           )}
@@ -94,7 +99,12 @@ function TransferContent({
         </p>
       )}
       {showForm && (
-        <TransferForm controller={controller} selected={selected} setSelected={setSelected} onTransfer={onTransfer} />
+        <TransferForm
+          controller={controller}
+          selected={selected}
+          setSelected={setSelected}
+          onTransfer={onTransfer}
+        />
       )}
     </div>
   );
@@ -103,7 +113,7 @@ function TransferContent({
 /** Shows the Owner a one-step transfer to an active Admin. */
 export function OwnershipTransferCard() {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState('');
   const [proofTarget, setProofTarget] = useState<string | null>(null);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { refreshAuth } = useAuth();
@@ -112,7 +122,10 @@ export function OwnershipTransferCard() {
   if (!controller.available) return null;
 
   return (
-    <section data-testid="ownership-transfer-card" className="flex flex-wrap items-start justify-between gap-3">
+    <section
+      data-testid="ownership-transfer-card"
+      className="flex flex-wrap items-start justify-between gap-3"
+    >
       <div className="flex max-w-2xl flex-col gap-1">
         <h2 className="font-semibold">{m.ownership_transfer_heading()}</h2>
         <p className="text-sm text-muted-foreground">{m.ownership_transfer_intro()}</p>
