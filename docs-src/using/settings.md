@@ -10,7 +10,7 @@ next: false
 Choose how the schedule looks in your browser, and set the planning rules your whole company
 shares.
 
-![Settings showing My display preferences and the company anonymisation action](../screenshots/flows/using_settings_1.png)
+![Settings showing company setup, scheduling features and My display preferences](../screenshots/flows/using_settings_1.png)
 
 Open **Settings** near the bottom of the left menu. One scrollable page holds four groups. Each
 row's question-mark button, **About &lt;section&gt;**, opens a fuller explanation.
@@ -32,7 +32,7 @@ managing the plan.
 These preferences are saved in this browser. They don't change a teammate's display or travel
 with an export.
 
-![My display preferences above Data and support, including the company anonymisation action](../screenshots/flows/settings_schedule_device.png)
+![Settings showing company setup and scheduling features above My display preferences](../screenshots/flows/settings_schedule_device.png)
 
 - **Schedule on this device:** **Minimise weekends** narrows Saturday and Sunday so the working
   week gets more room. Weekend work still appears.
@@ -98,7 +98,7 @@ Owners and Admins can open it. Only an Owner or Admin can change it.
 
 ## Scheduling features
 
-The **Company features** section holds the company-wide switches. **Use disciplines** starts on;
+The **Company features** section holds the company-wide switches. New production companies start with **Use disciplines** off;
 the others start off. Turning a switch off hides the feature without deleting data, and turning
 it back on restores it.
 
@@ -204,8 +204,8 @@ Owners and Admins can copy build details and a support report from
 
 <span id="your-personal-account"></span>
 
-Your sign-in, password, company login and **Sign out** are on the [Account](/using/account) page
-at the bottom of the left menu, not in Settings.
+Your signed-in identity, password controls and **Sign out** are on the
+[Account](/using/account) page at the bottom of the left menu, not in Settings.
 
 ## If a company won't load
 

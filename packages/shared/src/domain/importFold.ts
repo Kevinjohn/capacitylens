@@ -352,7 +352,8 @@ function runImport(input: ImportInput) {
 }
 
 /**
- * Replace the active account's slice with an imported dataset. Imported entities
+ * Legacy direct-store fold, retained for compatibility; current portable imports use strict Beta transfer.
+ * Replace the active account's slice with a legacy dataset. Imported entities
  * keep their relationships but are given fresh ids (an exported file carries the
  * source account's ids; the store matches entities by id globally, so a shared id
  * would let an edit in one account silently rewrite another's row). Value-level
@@ -360,8 +361,7 @@ function runImport(input: ImportInput) {
  * referential rule the store/server enforce is applied: a record whose required
  * foreign key dangles after remap is dropped, a dangling optional key is unbound,
  * and allocations / time-off with a broken range or placeholder-rule violation are
- * dropped. This matters doubly for the server import path. A leftover dangling ref
- * would be rejected by SQLite's foreign keys and fail the whole import. Returns the
+ * dropped. This helper is not the current server import path. Returns the
  * next AppData plus how many records landed vs. were skipped. `incoming` must be a structurally
  * complete AppData produced by the transfer parser/migrator; a non-array scoped table fails loudly
  * here as defence in depth instead of disappearing from both counters.

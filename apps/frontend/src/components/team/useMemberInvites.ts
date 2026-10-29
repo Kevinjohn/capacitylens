@@ -72,6 +72,7 @@ function createSubmitInvite({
         clear();
         void reloadInvites();
       } catch (e) {
+        if (!isActiveAccount(accountId)) return;
         // Invitation creation may have committed despite a lost response, so reconcile before sending another.
         await reconcileUnknownMutation(
           resolveInviteMutationError(m.settings_members_unknown_invite_creation(), e),
@@ -121,6 +122,7 @@ function createRevokeInvite({
         setNotice(m.settings_members_invite_revoked());
         void reloadInvites();
       } catch (e) {
+        if (!isActiveAccount(accountId)) return;
         // A lost revocation response does not prove the invitation is still live; reconcile before retrying.
         await reconcileUnknownMutation(
           m.settings_members_error_detail({
@@ -153,6 +155,7 @@ function createResendInvite({
         } else setNotice(m.settings_invite_not_emailed(), 'warning');
         void reloadInvites();
       } catch (e) {
+        if (!isActiveAccount(accountId)) return;
         console.warn('Invitation resend failed', e);
         fail(null, resolveInviteMutationError(m.settings_invite_resend_failed(), e));
       }

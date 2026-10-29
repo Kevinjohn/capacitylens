@@ -449,7 +449,7 @@ it('does not let a late typed write response close a form after its company chan
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const other = useStore.getState().addAccount({ name: 'Stark Industries', color: '#111111' });
+    const other = useStore.getState().addAccount({ name: 'Stark Industries', color: '#2d75da' });
     if (!other) throw new Error('Expected second account');
     useStore.getState().setActiveAccount(other.id);
 
@@ -477,7 +477,7 @@ it('does not surface a late typed write rejection after its company changed', as
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const other = useStore.getState().addAccount({ name: 'Stark Industries', color: '#111111' });
+    const other = useStore.getState().addAccount({ name: 'Stark Industries', color: '#2d75da' });
     if (!other) throw new Error('Expected second account');
     useStore.getState().setActiveAccount(other.id);
 
@@ -560,6 +560,8 @@ it('edits a placeholder bound to an archived project without forcing a reassignm
     }),
   );
   useStore.getState().archiveEntity('projects', project.id);
+  // Adopt this direct fixture edit before the form captures its canonical save revision.
+  await useStore.getState().refreshPlanning();
   render(<ResourceForm resource={placeholder} onClose={onClose} />);
 
   const select = screen.getByLabelText('Bound project');

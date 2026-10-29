@@ -28,10 +28,16 @@ async function acceptBootstrap(client: ApiClient) {
   const token = await bootstrapInvitation(email);
   const preview = await client.get(`/api/invites/${token}/preview`).send();
   preview.assertStatus(200);
+  const oversized = await client
+    .post(`/api/invites/${token}/signup`)
+    .header('sec-fetch-site', 'same-origin')
+    .json({ name: '𐐀'.repeat(101), password })
+    .send();
+  oversized.assertStatus(400);
   const accepted = await client
     .post(`/api/invites/${token}/signup`)
     .header('sec-fetch-site', 'same-origin')
-    .json({ name: 'Bruce Wayne', password })
+    .json({ name: '𐐀'.repeat(100), password })
     .send();
   accepted.assertStatus(201);
   rememberSessionCookie(accepted);
@@ -39,7 +45,9 @@ async function acceptBootstrap(client: ApiClient) {
 }
 
 async function setUp(client: ApiClient, cookie: string, name = 'Wayne Enterprises') {
-  return asDataOwner(client.post('/api/installation/company'), cookie).json({ name }).send();
+  return asDataOwner(client.post('/api/installation/company'), cookie)
+    .json({ name, weekStartsOn: 1, timeZone: 'Etc/GMT' })
+    .send();
 }
 
 test.group('authenticated first company setup', (group) => {
@@ -92,6 +100,66 @@ test.group('authenticated first company setup', (group) => {
     const duplicate = await setUp(client, cookie, 'Stark Industries');
     duplicate.assertStatus(409);
     assert.lengthOf(await db.from('accounts'), 1);
+  });
+
+  for (const choice of [
+    { description: 'name-only caller', fields: {}, weekStart: 1, timezone: 'Etc/GMT' },
+    {
+      description: 'week-start-only caller',
+      fields: { weekStartsOn: 0 },
+      weekStart: 0,
+      timezone: 'Etc/GMT',
+    },
+    {
+      description: 'timezone-only caller',
+      fields: { timeZone: 'America/New_York' },
+      weekStart: 1,
+      timezone: 'America/New_York',
+    },
+  ]) {
+    test(`keeps omitted calendar fields compatible for a ${choice.description}`, async ({
+      client,
+      assert,
+    }) => {
+      const { cookie } = await acceptBootstrap(client);
+      const result = await asDataOwner(client.post('/api/installation/company'), cookie)
+        .json({ name: 'Wayne Enterprises', ...choice.fields })
+        .send();
+      result.assertStatus(201);
+      const account = await db.from('accounts').first();
+      assert.equal(account.week_starts_on, choice.weekStart);
+      assert.equal(account.timezone, choice.timezone);
+      for (const table of companyTables) assert.lengthOf(await db.from(table), 1);
+    });
+  }
+
+  test('initial calendar choices are validated before any company rows and persisted atomically', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie } = await acceptBootstrap(client);
+    for (const extra of [
+      { weekStartsOn: 2, timeZone: 'Etc/GMT' },
+      { weekStartsOn: 0, timeZone: 'Gotham/Invalid' },
+      { weekStartsOn: null, timeZone: 'Etc/GMT' },
+      { weekStartsOn: 1, timeZone: '+01:00' },
+      { weekStartsOn: 1, timeZone: null },
+      { weekStartsOn: 1, timeZone: '' },
+      { weekStartsOn: '1', timeZone: 'Etc/GMT' },
+    ]) {
+      const refused = await asDataOwner(client.post('/api/installation/company'), cookie)
+        .json({ name: 'Wayne Enterprises', ...extra })
+        .send();
+      refused.assertStatus(400);
+      for (const table of companyTables) assert.lengthOf(await db.from(table), 0);
+    }
+    const response = await asDataOwner(client.post('/api/installation/company'), cookie)
+      .json({ name: 'Wayne Enterprises', weekStartsOn: 0, timeZone: 'America/New_York' })
+      .send();
+    response.assertStatus(201);
+    const account = await db.from('accounts').first();
+    assert.equal(account.week_starts_on, '0');
+    assert.equal(account.timezone, 'America/New_York');
   });
 
   test('ordinary registration cannot take the first identity, before or racing the bootstrap', async ({

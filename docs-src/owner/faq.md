@@ -22,7 +22,8 @@ Yes. Once their row in **Team & access** shows **Admin**, send them
 ## Why is the Admin invitation still pending?
 
 They have not accepted it yet. Ask whether the email arrived; if not, select **Resend** under
-**Outstanding invites**. Once they accept, approve them under **Waiting for approval**.
+**Outstanding invites**. After accepting, they must select **Ask for access** before their request
+appears under **Waiting for approval**. Once it appears, approve them.
 
 ## Does an Admin invitation transfer ownership?
 
@@ -53,7 +54,7 @@ language.
 
 The app keeps the company and its members while you can anonymise resource details. To retire the
 installation and its data, ask the installer.
-[Anonymise the company](/owner/responsibilities#anonymise-the-company)
+[Anonymise all people](/owner/responsibilities#anonymise-all-people)
 
 ## Why am I asked to confirm my sign-in?
 
@@ -80,9 +81,9 @@ On **Schedule**, a day shows red when someone is booked for more than they can d
 ## How do we get our data out?
 
 Open **Settings → Data and support → Import and export** and select **Export JSON**. The file holds
-the company's scheduling records, such as people, clients, projects, bookings and time off, and can
-be imported into another CapacityLens installation. It does not include members or settings. There
-is no CSV or spreadsheet export.
+the company's scheduling records, such as people, clients, projects, bookings and time off, plus
+the supported company settings. It can be imported into another CapacityLens installation. It does
+not include identities, sessions or memberships. There is no CSV or spreadsheet export.
 
 ## My Admin is leaving. What do I do?
 

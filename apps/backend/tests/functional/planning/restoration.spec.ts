@@ -4,6 +4,7 @@ import type { ApiClient } from '@japa/api-client';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
+import Allocation from '#models/allocation';
 import Activity from '#models/activity';
 import Resource from '#models/resource';
 import { encodeRow, readState } from '#services/state_repository';
@@ -134,6 +135,47 @@ test.group('session-bound allocation restoration', (suite) => {
   suite.setup(() => freshDatabase());
   suite.each.setup(async () => {
     await resetPlanningFixture();
+  });
+
+  test('an unexpected restoration assertion escapes and rollback leaves the group reusable', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const [id] = await createAllocations(client, cookie, 1);
+    const deleted = await deleteOne(client, cookie, id!, 1);
+    deleted.assertStatus(200);
+    const groupId = deleted.body().restoration.replacementGroupId;
+    const unexpected = new Error('SENTINEL_RESTORATION_ASSERTION');
+    const retainedBefore = await db.from('allocations').where('id', id!).first();
+    const revisionBefore = await currentRevision(client, cookie);
+    const originalSerialize = Allocation.prototype.serialize;
+    try {
+      Allocation.prototype.serialize = function (...args) {
+        const serialized = originalSerialize.apply(this, args);
+        if (this.id === id && this.deletionGroupId === groupId)
+          Object.defineProperty(serialized, 'activityId', {
+            configurable: true,
+            get() {
+              throw unexpected;
+            },
+          });
+        return serialized;
+      };
+      const failed = await restore(client, cookie, groupId, revisionBefore);
+      failed.assertStatus(500);
+      assert.notEqual(failed.body().code, 'restoration_conflict');
+    } finally {
+      Allocation.prototype.serialize = originalSerialize;
+    }
+    assert.isNull(await consumedAt(groupId));
+    assert.equal(await currentRevision(client, cookie), revisionBefore);
+    assert.deepEqual(await db.from('allocations').where('id', id!).first(), retainedBefore);
+    const retry = await restore(client, cookie, groupId, revisionBefore);
+    retry.assertStatus(200);
+    assert.isDefined(await stored(id!));
   });
 
   test('delete and restore repeat with a fresh group each time and keep the row intact', async ({
@@ -1090,8 +1132,12 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     deletion.assertStatus(200);
     const before = await readState(accountId, true);
     const target = before.projects.find((row) => !row.isPrivate)!;
+    const retainedAllocation = await db.from('allocations').where('id', allocationId!).first();
+    assert.isNotNull(retainedAllocation?.deleted_at);
     const other = randomUUID();
     const consumed = randomUUID();
+    const otherRowIds = [randomUUID(), randomUUID()];
+    const consumedRowId = randomUUID();
     for (const [id, consumedInstant] of [
       [other, null],
       [consumed, new Date().toISOString()],
@@ -1108,14 +1154,14 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       await db.table('deleted_rows').multiInsert([
         {
           group_id: id,
-          entity: 'closures',
-          row_id: randomUUID(),
+          entity: 'allocations',
+          row_id: id === other ? otherRowIds[0]! : consumedRowId,
           payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
           group_id: id,
-          entity: 'phases',
-          row_id: randomUUID(),
+          entity: 'allocations',
+          row_id: id === other ? otherRowIds[1]! : randomUUID(),
           payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
@@ -1126,6 +1172,17 @@ test.group('typed catalogue and time-off restoration', (suite) => {
         },
       ]);
     }
+    const retainedFixtureRow = (id: string, groupId: string) => ({
+      ...retainedAllocation,
+      id,
+      deletion_group_id: groupId,
+    });
+    await db
+      .table('allocations')
+      .insert([
+        ...otherRowIds.map((id) => retainedFixtureRow(id, other)),
+        retainedFixtureRow(consumedRowId, consumed),
+      ]);
     const mutationId = randomUUID();
     const intent = {
       operation: 'catalogue.update',

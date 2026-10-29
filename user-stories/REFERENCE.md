@@ -28,9 +28,9 @@ address once that address is confirmed.
 when removed; an archived person still needs **Restore membership**. Removed restrictions remain visible to administrators in
 the inactive member directory. Owner and self protections apply to both actions.
 
-> CapacityLens is a multi-tenant resource scheduler. It is **server-backed by default** (an empty
-> env means the same-origin SQLite API). The app is **multi-tenant by Account**: you pick a company
-> on load and the whole dataset is scoped to it. An explicit in-browser **demo build**
+> CapacityLens is server-backed by default (an empty env means the same-origin SQLite API). A
+> production installation contains one company, returned by the server; conflicting company data
+> is refused for operator resolution. The in-browser **demo build**
 > (`VITE_CAPACITYLENS_DEMO=1`) keeps data in memory with no authentication or network calls and resets on
 > reload — that
 > is the build these manual stories run against, started with `pnpm run dev:demo`, selecting the
@@ -41,16 +41,15 @@ the inactive member directory. Owner and self protections apply to both actions.
 ## Launching the app (for a human tester)
 
 1. From the project root run `pnpm run dev:demo` and open **the URL Vite prints**
-   (<http://127.0.0.1:5173>; `localhost:5173` also works). If Vite exits with a
-   port-in-use error, another dev server is squatting 5173 — find it with
-   `lsof -nP -iTCP:5173 -sTCP:LISTEN` and kill it (strict port is deliberate).
+   (5173 is the lane-zero example; use the printed port if another lane is selected). If Vite exits
+   with a port-in-use error, check the port named in that error. Use the repository's orphan-safe
+   cleanup (`pnpm run lanes --stop-orphans`) for unclaimed listeners; preserve active claimed lanes.
 2. **First run** seeds a demo dataset (see _Seed data_ below).
 3. Production opens the sole company returned by the server and keeps the requested route. The
    active company id remains session-only and is never persisted. If an installation contains
    multiple stored companies, the server returns an actionable conflict and the UI offers no
    selection controls. The temporary in-memory demo retains its fictional two-company picker and
-   switch action. While signed in, its picker shows _"Signed in as Bruce Wayne"_ with a **Sign out**
-   link. In the demo, **`New company`**
+   switch action, but has no sign-in or sign-out action. In the demo, **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
    Monday/Sunday, default Monday), **Timezone** (a searchable combobox that detects and preselects
@@ -59,13 +58,16 @@ the inactive member directory. Owner and self protections apply to both actions.
    `data-testid="create-language"`; English-only until Paraglide). Company colour uses the default
    preset automatically rather than asking for a one-off choice during demo onboarding. The demo
    does not offer **Start with example data**. The calendar fields are set once during creation
-   and are then disabled in Settings. The native installation has a one-field first-run company form and no example-data checkbox.
-   On an empty native installation, the initial sign-in identity reaches **Set up your company**
-   (`data-testid="company-setup"`). Enter **Company name** (`company-setup-name`) and select
+   and are then disabled in Settings. The native installation has a first-run form for company name,
+   week start and time zone, with no example-data checkbox. On an empty native installation, the
+   initial sign-in identity reaches **Set up your company** (`data-testid="company-setup"`). Enter
+   **Company name** (`company-setup-name`), choose the week start and time zone, and select
    **Create company** (`company-setup-submit`) to become its Owner and open Schedule without
-   stopping or restarting the service. Failed setup keeps the name and displays a retryable error.
+   stopping or restarting the service. Company names accept up to 100 Unicode code points and reject
+   unsupported characters; invalid text is refused rather than silently truncated. Failed setup retains the values and displays a retryable error.
    Setup creates defaults, Internal client and one active Owner atomically; it leaves credentials
-   and existing admission rules unchanged and refuses any existing company or membership. Until
+   and existing admission rules unchanged and refuses any existing company or membership. The form
+   defaults to Monday and `Etc/GMT`. Until
    the first company exists, the server refuses additional open signup even when configured on;
    the initial identity can still sign in and finish setup. Afterwards the configured signup policy applies.
    Production does not offer company selection, switching, ordinary additional-company creation or
@@ -78,9 +80,10 @@ the inactive member directory. Owner and self protections apply to both actions.
 4. The application opens with a non-blocking **How CapacityLens works** region
    (`data-testid="product-orientation"`) above the page. It explains the week-by-week people and
    work model and says CapacityLens does not manage tasks, tickets or deadlines. **Got it**
-   dismisses it for this person and company on this device. It has no sidebar action for reopening.
+   dismisses it for this person and company on this device. Eligible users see it automatically;
+   there is no sidebar reopen action.
    The versioned preference is implemented by
-   `src/lib/productOrientation.ts`; it is never in `AppData` or an export.
+   `apps/frontend/src/lib/productOrientation.ts`; it is never in `AppData` or an export.
 5. Every application page shows a **Getting started** progress bar (`data-testid="getting-started-progress"`)
    from 0 to 5. Its card (`data-testid="getting-started"`) opens by default on Schedule and can be
    shown or hidden from the bar on any page. The five independent milestones are **Add someone to
@@ -155,10 +158,11 @@ An otherwise unmatched or stale URL renders the branded **Page not found** scree
 matching stays strict: while signed out, a truncated or nested token URL remains behind the usable
 sign-in wall rather than being treated as a valid bearer entry.
 
-Loading or reloading any valid section URL serves the application shell. A reload clears the
-session-only active company; exactly one complete, valid company resumes automatically, while every
-other directory shows the picker. Choosing from the picker keeps the requested URL and continues to
-that section. Unknown extensionless URLs still reach the in-app
+Loading or reloading any valid section URL serves the application shell. In production, the sole
+company resumes automatically; inconsistent company data produces a conflict instead of a picker.
+The demo clears its session-only active company on reload and resumes its company picker. Choosing
+from that picker keeps the requested URL and continues to that section. Unknown extensionless URLs
+still reach the in-app
 **Page not found** screen; missing asset and API paths remain real HTTP errors.
 
 Settings is one page with four permanent groups in order: **Company setup**, **Scheduling features**,
@@ -184,10 +188,11 @@ other companies remain unchanged.
 A signed-in Owner confirms the exact import with their password after preview. A recent sign-in alone is insufficient. The proof binds the Owner, native session,
 company, document and planning revision, is spent once in the same transaction as the import,
 and cannot authorize another operation. A stale revision or failed write leaves the data unchanged.
-A changed import keeps stable IDs and member links, clears deletion restoration groups and writes
-one revision and audit entry. An unchanged import writes neither. The server flushes pending browser
-edits, suspends persistence during replacement and reloads authoritative state before resuming.
-If the response is uncertain and state cannot be reconciled, the browser requires a reload.
+A changed import keeps stable IDs and valid member links, clears deletion restoration groups and
+writes one revision and audit entry. An unchanged import writes neither. The import is one atomic,
+Owner-authorized operation and does not replay queued browser edits. If its response is uncertain,
+the client suspends further commands and reloads the authoritative company slice before accepting
+more edits; review that state before retrying.
 The demo applies the same strict document in page memory and refresh restores its seed.
 
 See the [beta transfer contract](../docs-src/using/settings.md#beta-transfer-contract).
@@ -205,15 +210,14 @@ addresses truncate like Team & access rows and reveal in full on pointer hover o
 It offers password change in a dialog.
 A confirmed password change clears the dialog fields even if follow-up cleanup fails, and tells the user their new password is active. An uncertain transport result tells them to try signing in with the new password before submitting another change.
 The page hides active-session details. The in-memory demo never invents credential controls.
-Every persisted server session is authenticated. Company Settings contains
-company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
-otherwise, and the demo persona's face in the demo build. The row always reads **Sign out**, never
-"Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
-It appears on every persisted server deploy and in the demo build.
+Every persisted server session is authenticated. Company Settings contains company and device
+configuration only. The native sign-in identity uses initials; the demo uses the fictional persona's
+face. The row reads **Sign out** on persisted server sessions. The demo does not render credential
+controls.
 
 **Badge shape.** Shared role and status badges use a compact pill silhouette. This applies to the
 company picker and sidebar roles, invite roles, Team & access posture, placeholder resources,
-company-login connection state. Their semantic colour remains independent:
+placeholder resources. Their semantic colour remains independent:
 brand/default, neutral, warning, danger and outline badges keep their existing meanings.
 
 **Collapse / expand.** A toggle button at the **top-left** of the sidebar (accessible name
@@ -246,32 +250,17 @@ phone's first contact). **Got it** (or Escape / backdrop) dismisses it for the s
 (`sessionStorage` key `capacitylens/rotateHintDismissed`); rotating to landscape hides it. It
 never appears on desktop viewports or in landscape.
 
-**Overlapping save and page close (server mode).** If an ordinary background save is still in
-flight when the page is hidden or closed, the teardown keepalive sends the newest complete intent
-immediately. The server orders both requests per browser session, so the newest edit wins whether
-the ordinary request or the teardown request arrives first. A removal performed before the first
-save acknowledges is also preserved, including removal of a newly created row that uses the
-archive lifecycle. Teardown lifecycle archives travel in the same ordered atomic batch as ordinary
-changes, so an older in-flight creation cannot recreate the archived row. If the page survives in
-the back/forward cache and local state restores a row after its confirmed teardown archive, the
-foreground retry unarchives that remembered row even when its local content already matches the pre-teardown save
-baseline. An unrelated writer's intervening edit still produces the normal conflict-and-reload path.
-On a conflict, the sticky notice says the edit was not saved and that CapacityLens is reloading the
-latest copy; it does not claim reload completion before the authoritative read succeeds. If that
-read fails, every write remains gated and connectivity recovery retries the read before any clean or
-rebased follow-up save.
-Every successful non-superseded batch receipt must identify the server-owned revision for each
-written row exactly once. If that receipt is absent, partial, duplicated or names another row,
-CapacityLens treats the commit state as uncertain, reloads the authoritative company slice before
-accepting another write, and shows: **The server could not confirm every saved change, so the latest
-server copy was reloaded. Review your recent changes and re-apply anything missing.**
-A failed write also leaves the persistent save-error banner visible above the current page. If a
-page-closing save is too large to dispatch, a sticky notice asks the user to keep the page open until
-the warning clears and retry. Its
-normal-size body copy uses the opaque danger token so it clears WCAG AA in both themes.
-If a later company switch safely rebases a newer edit made while its slice loads but must discard
-the older failed write, the newer edit still saves and the sticky re-apply notice remains visible;
-success for the rebase never hides the independent loss.
+**Planning writes and uncertain outcomes (server mode).** Each typed planning mutation carries a
+client-minted mutation id and the company revision it was based on. The server applies it atomically
+or returns a revision conflict; the client reloads the current company slice and leaves the change
+for the user to review and reapply. If the response is lost or ambiguous, the client looks up that
+mutation id until the server reports its committed revision or that the outcome is unknown. It does
+not queue offline writes, replay a complete client snapshot, or automatically rebase changes.
+Successful reads return the current authorized planning slice and revision together.
+
+An older write from a different client revision is refused and must be resolved by reading the
+current state before the user retries. The browser does not assume a failed response means the
+operation failed.
 
 ## Seed data (first run)
 
@@ -548,15 +537,15 @@ weeks"). Then icon-only **Prev**/**Next** chevron buttons (accessible names "Pre
 `aria-label`, hover titles "Back one week"/"Forward one week" — the words no longer show) and a
 text **Today** button. The **Jump to date** date input is HIDDEN from the toolbar as of #173 (a
 deliberate product decision — people rarely look far ahead, and a month list is the likely future
-affordance); its component (`src/components/scheduler/JumpToDateInput.tsx`) is retained, gated
+affordance); its component (`apps/frontend/src/components/scheduler/JumpToDateInput.tsx`) is retained, gated
 behind `SHOW_JUMP_TO_DATE` in `SchedulerToolbar.tsx`, and its behaviour is covered by
-`src/components/scheduler/JumpToDateInput.test.tsx` plus the `goToDate` tests in
-`src/store/useStore.test.ts` rather than through the toolbar UI.
+`apps/frontend/src/components/scheduler/JumpToDateInput.test.tsx` plus the `goToDate` tests in
+`apps/frontend/src/store/useStore.test.ts` rather than through the toolbar UI.
 The week dropdown opens below its trigger so all five options, including **1 week**, are immediately
 visible without scrolling.
 **Navigation always re-anchors the grid's left edge to the week start** (the account
 `weekStartsOn`, default Monday): choosing a **Weeks visible** level, a **Prev/Next** pan, and
-**Today** all snap the leftmost column to that week's Monday so the helicopter view always
+**Today** all snap the leftmost column to the configured week start so the helicopter view always
 opens on a week boundary. (The hidden **Jump to date** picker snaps the same way when re-enabled —
 see the tests above.)
 A pure window resize / Minimise-weekends toggle does NOT re-anchor — it preserves the exact
@@ -616,10 +605,10 @@ account and NOT in export) — like the theme and bar-label toggles. On → narr
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See _Weekend
 columns_ above.
 
-**Date format (account-level).** Settings → **Date format** has a control labelled
+**Date format (company-level).** Settings → **Date format** has a control labelled
 `Date format`, with four options shown as samples: **9 Sep** (default), **9th Sep**, **Sep 9**,
-**Sep 9th**. It is **account data** — stored on the account, omitted from Settings JSON exports, changed by an editor
-or above and applied to every member; a viewer sees the control disabled. It sets day/month order and
+**Sep 9th**. It is **company data** — stored with the company and included in supported portable
+exports, changed by an editor or above and applied to every member; a viewer sees the control disabled. It sets day/month order and
 whether the day number carries an ordinal on planning dates, including single calendar dates and
 ranges, and takes effect without a reload. A standalone range crossing a year carries the year at
 both ends. The Overview's ordered week-column headers are the deliberate narrow exception:
@@ -635,15 +624,16 @@ Machine dates in inputs, exports and URLs are unchanged.
 
 **Company-wide working days (account-level).** Settings → **Company-wide working days** exposes a two-row table:
 seven abbreviated weekday headings and seven checkboxes directly beneath them, in the account's
-configured week order. A new company selects the first five days of that week by default
-(Monday–Friday for a Monday start; Sunday–Thursday for a Sunday start).
+configured week order. The demo company-creation helper defaults to the first five days of the
+selected week. Production first-company setup currently starts Monday–Friday regardless of the
+chosen week start.
 Changing the week-start presentation only reorders these controls; it never changes the saved
 selection. Editors and above may change the selection; Viewers can read it but cannot edit it.
 The selection cannot be emptied: when exactly one day remains checked, that checkbox is disabled
 (still visibly checked) and a visible explanation — `At least one company working day is
-required.` — is referenced from the checkbox via `aria-describedby`. The store rejects an empty
-company week outright, and every repair boundary (import, server write, startup) heals an empty or
-malformed stored selection to the week-start-aware default.
+required.` — is referenced from the checkbox via `aria-describedby`. The store and supported beta
+transfer reject supplied empty or malformed selections; startup uses the week-start-aware default
+when no usable selection is stored.
 
 The account selection governs **capacity**, not just interaction. Each person's **effective working
 week** is the intersection of company-wide working days and their personal working pattern;
@@ -712,9 +702,9 @@ consequences remain in destructive confirmation dialogs rather than depending on
 **Company features (per-account).** Settings → **Scheduling features** holds one **Company features**
 section with five independent switches, in order: **Use disciplines**, **Show placeholders**, **Show
 external resources**, **Inline activity creation** and **Show task field in schedule**. Its help
-action (`About Company features`) explains each one. **Use disciplines** is on by default
-(`disciplinesEnabled` absent reads as on; the temporary in-memory demo creates new companies with it
-off). **Show placeholders**, **Show external resources**, **Inline activity creation** and **Show task
+action (`About Company features`) explains each one. **Use disciplines** starts off for a new
+production company; the in-memory demo and missing-field fallback may enable it. **Show placeholders**,
+**Show external resources**, **Inline activity creation** and **Show task
 field in schedule** are off by default (absent reads as off).
 
 **Placeholders and external resources (per-account, default OFF).** The **Show placeholders** and
@@ -724,9 +714,8 @@ is assigned. An External resource is a third party such as a partner agency, fre
 subcontractor; it represents work leaving the team and carries no capacity. Both switches are off
 by default.
 These are **per-account** settings (`placeholdersEnabled` and `externalEnabled` on the Account,
-both absent = off, toggled via
-`updateAccount` — mirroring `disciplinesEnabled`; synced but omitted from the scoped planning-data
-export). **Off** (the out-of-the-box state) → every placeholder is hidden:
+both absent = off, toggled via `updateAccount`). They are included with supported company settings
+in the full beta export and import. **Off** (the out-of-the-box state) → every placeholder is hidden:
 no row in the schedule (and no contribution to utilisation), no entry in the assignee picker or
 command palette, and the Resources page hides its _Placeholders_ section + _Add placeholder_ button.
 The **Time off** views honour it too: the Time-off list hides any time-off entry whose resource is a
@@ -788,17 +777,17 @@ Unattributed All-projects allocations retain their resource-derived colours; att
 their effective project's colour.
 
 **Disciplines (account-level).** Settings → **Company features** has the switch **Use disciplines**.
-It is on for a company created on the server (absent reads as on); the temporary in-memory demo
-creates new companies with it off. Turning it off hides disciplines across the whole app — the **Disciplines** nav
+It starts off for a new production company; the temporary in-memory demo and missing-field fallback
+may enable it. Turning it off hides disciplines across the whole app — the **Disciplines** nav
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
 resource form also hides its **Discipline** field when the company has no disciplines to choose from.
 schedule then groups capacity-tracked resources by **Studio** and **Supplementary** engagement
 (or one **Resources** band when nobody is Supplementary), followed by External / 3rd party.
-It's stored on the account
-(`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
-data itself is kept and reappears if switched back on. Both seed companies leave it on.
+It's stored on the account (`disciplinesEnabled`), included with supported company settings in a
+full beta export and import, and applies to everyone on that company; the discipline data itself is
+kept and reappears if switched back on. Both seed companies leave it on.
 
 **Engagement grouping (derived, no setting).** People are grouped by engagement only while the
 company has at least one active, capacity-tracked **Supplementary** person (archived people and
@@ -848,13 +837,13 @@ timestamp captured by the client when the server response arrives or its failure
 server values are a point-in-time snapshot, not a live monitor, and copying does not request them
 again. The fixed allowlist is: app version, a validated build revision when present, deployment
 mode and export schema; separately labelled server connectivity, database status, last applied
-migration and newest completed snapshot modification time; this
-browser session's save counters (saves failed, retries armed, reconciliations resolved, reloads
-superseded, edits rebased, edits discarded, saving suspended); and the browser's user agent,
-viewport, time zone and language. A browser value outside its expected shape reads **Unknown**.
+migration and newest snapshot file modification time; and the browser's viewport, time zone and
+language. The user-agent field is always **Unknown** because caller-controlled text is omitted.
+A browser value outside its expected shape reads **Unknown**.
 The page is present in demo mode too, with server values unavailable. A missing or unavailable
 value is shown as **Unknown** or **unavailable**; a missing migration means it was unavailable
-or invalid, while an unknown snapshot timestamp does not assert that no backup exists. Operators
+or invalid, while an unknown snapshot timestamp does not assert that no backup exists or establish
+that a snapshot completed successfully. Operators
 verify service logs and completed snapshots separately from database readiness. Browser constants
 are never presented as the server's migration. The report
 contains no customer names, emails, identifiers, filesystem paths, hostnames, secrets, invite or session values, raw
@@ -945,7 +934,7 @@ An accept is refused (403) while **Disable Access** applies to that address. An 
 expired link shows `invite-error`: **This invitation is invalid or has expired. Ask the person who
 invited you for a new link.** In the in-memory demo build (`VITE_CAPACITYLENS_DEMO=1`) the page
 shows **Invite links work only when CapacityLens is connected to a server.** and makes no request.
-The link page is `src/components/invites/InviteAccept.tsx`; the create UI is the Members section
+The link page is `apps/frontend/src/components/invites/InviteAccept.tsx`; the create UI is the Members section
 below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
@@ -959,10 +948,9 @@ active role in a plain-language summary sentence. The full allowed/not-allowed c
 schedule writes, member administration, time-off-note visibility and private client/project-name
 visibility — is collapsed behind a **See full capabilities** disclosure
 (`data-testid="capabilities-toggle"`, reporting its state through `aria-expanded`), so the page opens
-on the member table rather than on reference material. On a deploy where the sidebar company block renders — two or
-more accessible companies — that block also shows the resolved role (`data-testid="active-role"`)
-and Viewer retains the explicit **View only** wording; with access to a single company this panel is
-the only place the role is stated. Where
+on the member table rather than on reference material. When the selected-company block renders, it
+also shows the resolved role (`data-testid="active-role"`) independently of the number of
+accessible companies; a Viewer also gets the explicit **View only** wording. Where
 there is no company directory to show, the page says plainly that Team & access lists the people who
 sign in, not the resources you schedule, and that adding a Resource does not create an app login;
 neither record implicitly creates the other.
@@ -1088,7 +1076,8 @@ from anyone who is not the current Owner or to someone who is not an eligible Ad
 
 The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; returns
 `{members, signInTrackingEnabled}` and each member carries `status` plus nullable
-`signInConfirmed`; OFF → `{members:[], signInTrackingEnabled:false}`),
+`signInConfirmed`; disabling sign-in tracking stops and clears observations but does not hide the
+member directory),
 `PUT /api/accounts/:accountId/member-sign-in-tracking {enabled}` (Owner only; desired-state and
 idempotent; disabling erases every observation),
 `PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role or attempted Owner assignment,
@@ -1100,14 +1089,15 @@ against yourself, or by the role
 rules — a non-active membership authorizes nothing, so the member's own reads 403 until restored
 while the administrative directory keeps listing them),
 `DELETE /api/accounts/:accountId/members/:userId` (204; 403 for the Owner or yourself),
-`GET /api/accounts/:accountId/invites` (gated manageInvites; NO token; OFF → `{invites:[]}`),
+`GET /api/accounts/:accountId/invites` (gated manageInvites; returns invitation metadata and never
+returns a token),
 `POST /api/accounts/:accountId/invites/:id/resend` (200; emails a new link and stops the old one),
 `DELETE /api/accounts/:accountId/invites/:id` (204, cross-tenant-safe), and
 `POST /api/invites {accountId, email, role}` (201 `{…, emailed: true}`, 202 when the email failed,
 503 `MAIL_UNAVAILABLE` without email delivery; 400 for `owner` from every caller — ownership is
 transferred, never invited). Admission uses `GET /api/admission/requests` and
 `POST /api/admission/:userId/approve|reject|revoke` (Owner/Admin). The management UI is
-`src/components/team/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
+`apps/frontend/src/components/team/MembersSection.tsx`, composed by `apps/frontend/src/components/team/TeamAccessView.tsx`;
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
 
@@ -1127,12 +1117,13 @@ including after the caller is demoted; a changed command payload or scope confli
 requires a current Owner. Story `user-stories/settings/US-SET-18-ownership-transfer.md`;
 spec `e2e/ownership-transfer.auth.spec.ts`.
 
-**Password reset route (`/reset-password/:token`; server mode, password auth).** The page an
+**Password reset route (`/reset-password/:token`; server mode, password auth).** The public page an
 emailed reset link opens: heading **Reset password**, a **New password** field
 (`data-testid="reset-new-password"`), a **Confirm new password** field
 (`data-testid="reset-confirm-password"`) and a **Set new password** button
-(`data-testid="reset-submit"`). It renders **without a session** — unlike `/invite/:token` there is
-no login wall in front of it (the visitor is exactly the person who cannot sign in). Client
+(`data-testid="reset-submit"`). It renders **without a session**. Invitation links also open a
+public entry page, which previews the invitation and then offers the appropriate signup or sign-in
+step before acceptance. Client
 pre-checks (mismatch, under 15 characters) show a field error without a request; the server is the
 authority on redeem (`POST /api/auth/reset-password`). Success shows _"Password updated. Sign in
 with your new password."_ (`data-testid="reset-success"`) with a **Go to sign in** link (a full page
@@ -1140,7 +1131,7 @@ load onto the login wall); every previous session ends. An invalid / already-use
 shows _"This reset link is invalid, already used, or expired. Request a new one from the sign-in
 page."_ — the token is single-use and expires after one hour. The endpoint returns **400** with
 `code: "INVALID_TOKEN"` for invalid, consumed and expired proofs. In local/demo mode the page shows
-a short "server mode only" note and makes no request. The page is `src/auth/ResetPassword.tsx`.
+a short "server mode only" note and makes no request. The page is `apps/frontend/src/auth/ResetPassword.tsx`.
 
 **Viewer read-only mode (server + auth-on).** On an auth-on, server-backed deploy a member's account
 **role** (`owner` | `admin` | `editor` | `viewer`) drives the UI. `GET /api/accounts` now returns
@@ -1162,8 +1153,8 @@ to **viewer**, the whole app goes **read-only**:
 - **The toolbar hides the Draw-mode toggle and Undo/Redo** (nothing to draw/undo); navigation +
   filters (reads) stay.
 - A subtle **"View only" badge** (`data-testid="view-only"`) sits in the sidebar footer beside the
-  company name, on the deploys where that block renders at all (two or more accessible
-  companies). A single-company viewer reads their role on **Settings → Team & access**.
+  company name. It appears for the selected company regardless of directory size; a Viewer also
+  receives the **View only** qualifier. **Settings → Team & access** provides the same role summary.
   The **server 403** (the write tier is editor+; a viewer's write is rejected) is the AUTHORITATIVE
   backstop — the client gating is UX + defense-in-depth. As a second local guard, the store no-ops a
   viewer's `add*`/`update*`/`delete*`/`importData` — including company creation — and surfaces a
@@ -1172,24 +1163,26 @@ to **viewer**, the whole app goes **read-only**:
   company; a stale missing target is a no-op, while an existing foreign target is rejected. The
   in-memory demo remains editable without a membership role. Persisted writes require an authenticated
   company member and CapacityLens never queues changes for later.
-  The provider is `src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
-  `src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
+  The provider is `apps/frontend/src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
+  `apps/frontend/src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
   spec `e2e/viewer.auth.spec.ts`.
 
 **Demo identity (not real auth).** The `VITE_CAPACITYLENS_DEMO=1` build opens straight on the
 company picker; there is no sign-in step and no Sign out. The sidebar and Account page show the
-fictional **Bruce Wayne** identity from `src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
+fictional **Bruce Wayne** identity from `apps/frontend/src/lib/fakeAuth.ts` (avatar: `apps/frontend/src/assets/avatar-demo.svg`).
 Scheduling data remains in memory and resets when the page reloads.
 
 **Product orientation.** The application shell can show a normal-flow region headed **How
 CapacityLens works** (`data-testid="product-orientation"`) for every role and for the no-company
 Account view. It does not hide navigation or page content. **Got it** dismisses it with a versioned,
 per-person and per-company device preference (`capacitylens/productOrientation/v1/...`); storage
-failure leaves it dismissed for the current mount. There is no sidebar action for reopening it;
-eligible entry can show it again when its preference is absent. Sources: `src/components/ProductOrientation.tsx`,
-`src/components/useProductOrientation.ts`, `src/lib/productOrientation.ts`; coverage:
-`src/components/AppShell.productOrientation.test.tsx`, `src/components/ProductOrientation.test.tsx`,
-`src/lib/productOrientation.test.ts`, and `e2e/product-orientation.spec.ts`.
+failure leaves it dismissed for the current mount. Eligible users see it automatically until
+dismissed; there is no sidebar reopen action. Sources:
+`apps/frontend/src/components/ProductOrientation.tsx`,
+`apps/frontend/src/components/useProductOrientation.ts`, `apps/frontend/src/lib/productOrientation.ts`;
+coverage: `apps/frontend/src/components/AppShell.productOrientation.test.tsx`,
+`apps/frontend/src/components/ProductOrientation.test.tsx`,
+`apps/frontend/src/lib/productOrientation.test.ts`, and `e2e/product-orientation.spec.ts`.
 
 ## Command palette
 
@@ -1270,11 +1263,13 @@ first-company setup when no installation company exists),
 to an Owner or Admin of an empty company on a server-backed deploy),
 `archived-resources-section`, `archived-clients-section`, `archived-projects-section` and
 `archived-activities-section` (expanded sections below their active management lists; shown in the
-in-memory demo and to owners/admins on a persisted server), `archived-row` (one per directly archived row;
-carries a **Restore <name>** + **Delete <name>** button),
+in-memory demo and to Editors or above on a persisted server; Editor entries expose only identity
+details needed for restore, while Owners/Admins can use the fuller inactive-data view), `archived-row`
+(one per directly archived record or descendant hidden by an archived parent; a direct row carries
+a **Restore <name>** action, while an inherited-hidden row links to its parent. Eligible resource rows
+may also offer **Anonymise** to an Owner or Admin),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
-deploy that also renders the company block, which needs two or more accessible companies; absent for
-any non-viewer role and wherever the company block is hidden),
+deploy whenever the selected-company block renders; absent for non-viewer roles),
 `diagnostics-report` (Diagnostics page support-report card), `diagnostics-report-text` (the report text it copies), `copy-diagnostics` (Diagnostics page copy action; server and demo modes), `settings-build-details` (Diagnostics → Build details section), `build-stamp` (Diagnostics → Build details; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Diagnostics → Build details mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
@@ -1324,14 +1319,14 @@ multiple).
   compound labels, scheduler bars and popovers, forms, confirmation dialogs and the command palette.
   Quotation marks are display chrome: straight or curly outer quotes are removed before storage, and
   the non-owner projection adds exactly one pair of straight double quotes. A private code name that
-  becomes empty after normalisation is rejected by every ordinary write path; a malformed imported
-  private row is repaired fail-closed to a distinct, stable `Confidential #<record tag>` label instead
-  of exposing its real name or collapsing several private rows onto one indistinguishable label.
+  becomes empty after normalisation is rejected by every ordinary write path; a malformed private
+  row in a supported beta transfer is refused before replacement rather than exposing its real name
+  or collapsing several private rows onto one indistinguishable label.
 
 - **Management list ordering.** The **Resources**, **Disciplines**, **Clients** and **Projects**
-  management lists are alphabetical by the name shown in each row. With the default engagement
-  grouping on, Resources keeps Studio, Supplementary, Placeholders and External as separate
-  sections; turning it off combines Studio and Supplementary into one People list. Each section
+  management lists are alphabetical by the name shown in each row. When the derived engagement
+  grouping applies, Resources keeps Studio, Supplementary, Placeholders and External as separate
+  sections. There is no setting to turn grouping off. Each section
   sorts independently. Favourite people appear first within their engagement partition and
   favourite external parties appear first in External; each favourite and non-favourite partition
   remains alphabetical. Projects sort by effective client name and then effective project name,
@@ -1374,18 +1369,19 @@ multiple).
   of the schedule** with **no utilisation / over-markers**. Their allocations carry `hoursPerDay: 0`
   and are a **literal start/end span** (`ignoreWeekends: true` — the **Ignore working days** checkbox
   is hidden and every date counts as a plain calendar day); they're excluded from the Time-off picker, and the
-  write boundary rejects time off OR a non-zero load for an external on _any_ path (a direct/crafted
-  write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
+  write boundary rejects time off OR a non-zero load for an external on _any_ ordinary typed write
+  path. A supported beta transfer with invalid external time off or non-zero load is refused before
+  replacement; the current import flow does not promise repair or coercion. They are
   **hidden by default** behind the per-account **Show external resources** pref (Settings → Placeholders and external resources,
   `externalEnabled` on the Account, default off); when on, an **External** section appears under the **Resources**
   tab (with a labelled question-mark explainer modal + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
   their data is kept. The old standalone `/external` route now **redirects to `/resources`**.
 - **Archived resources/clients/projects/activities are hidden from scheduling, active lists,
-  form option-pickers and the command palette.** They remain in the database and exports. Owners
-  and Admins see them in inline archive sections on their management pages. The shared `activeOnly`
-  projection applies to client views and ordinary server reads; `includeInactive=1` is a separate
-  privileged read. `e2e/archived.spec.ts` covers the visible archive journey.
+  form option-pickers and the command palette.** They remain in the database and exports. Editors
+  can restore eligible records from identity-only inline archive entries; Admins have a fuller
+  inactive-data view. Inactive server rows are fetched separately from the ordinary planning
+  slice. `e2e/archived.spec.ts` covers the visible archive journey.
 
 ### List archive affordance
 
@@ -1398,11 +1394,12 @@ transport. Undo uses the typed inverse operation.
 
 ### Inline archives and resource anonymisation
 
-Each management page ends with archive sections for Owners and Admins. Resources group non-empty
-Archived Studio, Supplementary, External and placeholder rows. **Restore** returns a directly
-archived row to active planning. Descendants hidden by an archived parent link to that parent
-instead of offering a misleading restore action. Inactive server rows stay outside the ordinary
-planning store and are refetched after a lifecycle change.
+Admins have a fuller inactive-data view. Editors can restore eligible archived records through
+inline archive entries that expose only the identity details needed to choose a record. Resources
+group non-empty Archived Studio, Supplementary, External and placeholder rows for Admins.
+**Restore** returns a directly archived row to active planning. Descendants hidden by an archived
+parent link to that parent instead of offering a misleading restore action. Inactive server rows
+stay outside the ordinary planning store and are refetched after a lifecycle change.
 
 Archived resources also offer **Anonymise** to Owners and Admins, with confirmation. Anonymising
 replaces the resource's name and role with obfuscated labels, clears its avatar and dependent notes,
@@ -1416,20 +1413,17 @@ activities stay unchanged, as do the company, memberships and planning links. In
 deployment the Owner confirms the exact action with their password; in the
 editable demo it happens in temporary page memory without login or proof.
 
-### Generic scoped write privacy
+### Typed planning operations and tenant privacy
 
-Generic scoped writes do not expose whether a guessed id belongs to another company. A PATCH has
-no required company assertion, so a non-member receives the same `404 {"error":"Not found"}` for
-a foreign row and an absent row; row-specific guards such as the built-in Internal-client rule run
-only after that tenant boundary. DELETE requires `?accountId=…`: a caller unauthorized for that
-asserted company receives the same 403 for either id, while an authorized caller receives the same
-404 for a foreign or absent id.
-PUT authorizes the body's company before looking up the id, so a non-member likewise receives one
-indistinguishable response. Insufficient-role members still receive 403 for rows in a company they
-can already read.
-The built-in **Internal** client remains server-managed: generic POST cannot create one and direct
-writes cannot modify the active singleton. A legacy-id PUT that atomically replaces the generated
-singleton and reparents its projects is an Admin/Owner operation; an Editor receives 403. The same authority applies to a direct PUT and the atomic batch path.
+Planning changes use typed routes scoped to the company in the request path. The server independently
+checks the active identity's membership and role before applying the operation, then validates every
+referenced record against that company. An entity ID alone never grants access; client-side scoping
+does not replace server authorization.
+
+The built-in **Internal** client is server-managed. Typed catalogue creation cannot create a second
+built-in client, typed updates cannot change the active singleton, and archive or unarchive operations
+refuse it. Supported beta transfers validate that the document contains exactly one canonical,
+active built-in Internal client.
 
 ### Server lifecycle routes
 
@@ -1450,15 +1444,15 @@ return **404**.
 
 - **Error mapping:** an illegal archive transition returns **409**; a cross-account or absent target
   follows the typed planning tenant guard; insufficient role returns **403**.
-- **Inactive-ancestor write guard:** generic POST/PUT/PATCH and batch writes return **400** when the
-  target row would sit beneath an archived or soft-deleted client, project or resource, including
+- **Inactive-ancestor write guard:** typed planning operations refuse new or changed references when
+  the target row would sit beneath an archived or deleted client, project or resource, including
   inherited ancestry such as phase → project → client and allocation → activity → project → client.
   The same shared ancestry graph drives the normal active-only read, so an accepted descendant write
   cannot immediately disappear from that view. Demo/local store creates and reparenting apply the
   same closure, while an unrelated edit may retain its already-stored parent reference. Existing
   retained rows are not deleted by this guard.
-- **Admin "read inactive":** `GET /api/state?accountId=…&includeInactive=1` returns archived rows
-  to Owners and Admins; omitting the flag returns the active-only view.
+- **Read inactive:** the dedicated inactive-data view is available to Owners and Admins; ordinary
+  planning reads remain active-only.
 - **Typed planning deletes** for allocations, time off, phases and disciplines preserve their
   respective association rules. Archive and restore retain resource, client, project and
   activity records and their links; resource anonymisation scrubs identifying details.
@@ -1546,7 +1540,8 @@ return **404**.
   14 days from today); that red flag stays on the fixed window regardless of zoom/pan, distinct from
   the zoomable %.
 - **Validation:** required fields per form; an allocation/time-off range must be non-empty
-  and not reversed (end ≥ start); hours must be > 0; colours are chosen from a preset
+  and not reversed (end ≥ start); capacity-counting Hours allocations require positive hours.
+  Blocks spans and External allocations may validly use zero hours; colours are chosen from a preset
   swatch palette (always a valid 6-digit hex `#rrggbb`).
 
 ## Conventions for these stories
@@ -1564,7 +1559,7 @@ return **404**.
   and actionable. A successful invitation keeps the newly selected company active while its account
   list refreshes.
 - Company management data is fetched only for members who may manage it. Removing a client or
-  project through the normal UI is not reversed by booking Undo/Redo, and keyboard or pointer
+  project through the normal UI is not reversed by allocation gesture history, and keyboard or pointer
   allocation gestures stop cleanly when focus, capture or the initiating button is lost.
 - A deleted person's retained tombstone contains neither their original name nor role; the displayed
   identifier is an opaque `Removed person #…` label.

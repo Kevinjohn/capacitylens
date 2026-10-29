@@ -1,16 +1,6 @@
-// Single source of truth for the product brand. Both the client (UI wordmarks, page title,
-// feedback subject, recovery copy) and the server (backup filenames, log prefixes) import from
-// here so the name is defined once and can never drift between the two halves.
-
-/**
- * The product's public display name.
- *
- * Invariant: this is the only place the brand string is literal in code. Every user-facing
- * "CapacityLens" (wordmarks, copy, feedback subjects, server log/backup prefixes) reads through this
- * constant, change it here and the whole app/server follows. Do not re-hardcode the name elsewhere.
- * The sole documented exception is `index.html`: it is static HTML served before any module loads,
- * so it cannot import this constant and keeps the brand literal in its <title>/no-JS copy.
- */
+/** Shared product display name used by importing UI and server surfaces.
+ * Static documents and backend configuration also carry display branding. Backup filenames,
+ * retention matching and storage/wire identifiers have independent stable contracts. */
 export const APP_NAME = 'CapacityLens';
 
 /**

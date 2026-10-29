@@ -226,19 +226,19 @@ describe('account CRUD', () => {
 
   it('addAccount works with no active account (bootstraps the first tenant)', () => {
     expect(s().activeAccountId).toBeNull();
-    const a = present(s().addAccount({ name: 'Ferris Co', color: '#6366f1' }));
+    const a = present(s().addAccount({ name: 'Ferris Co', color: '#2d75da' }));
     expect(a.id).toBeTruthy();
     expect(s().data.accounts).toHaveLength(1);
   });
 
   it('addAccount is a read-only no-op for a viewer', () => {
-    const existing = present(s().addAccount({ name: 'Existing', color: '#6366f1' }));
+    const existing = present(s().addAccount({ name: 'Existing', color: '#2d75da' }));
     s().setActiveAccount(existing.id);
     s().setActiveRole('viewer');
     const dataBefore = s().data;
     const summariesBefore = s().accountSummaries;
 
-    const created = s().addAccount({ name: 'Forbidden', color: '#3b82f6' });
+    const created = s().addAccount({ name: 'Forbidden', color: '#2d75da' });
 
     expect(created).toBeNull();
     expect(s().data).toBe(dataBefore);
@@ -250,7 +250,7 @@ describe('account CRUD', () => {
   });
 
   it('updateAccount renames', async () => {
-    const a = present(s().addAccount({ name: 'Old', color: '#1' }));
+    const a = present(s().addAccount({ name: 'Old', color: '#2d75da' }));
     await selectAccount(a.id);
     await s().updateAccount(a.id, { name: 'New' });
     expect(s().data.accounts[0]?.name).toBe('New');

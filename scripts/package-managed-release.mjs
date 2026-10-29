@@ -299,7 +299,7 @@ export async function packageManagedRelease(outputPath = 'production') {
 // logs hold customer data. A release is built from a clean tree, so any of these means a mistake.
 const operatorStatePatterns = [
   [/^\.env(?:\..+)?$|\.env$/, 'an environment file'],
-  [/\.db(?:$|[-.])/, 'a database file'],
+  [/\.(?:db|sqlite3)(?:$|[-.])/, 'a database file'],
   [/^backups$/, 'a backup directory'],
   [/-audit\.jsonl/, 'an audit log'],
 ];

@@ -150,6 +150,7 @@ describe('CapacityOverviewTable date style', () => {
     useStore
       .getState()
       .replaceAll({ ...data, accounts: [makeAccount({ id: 'account', dateStyle: 'day-month' })] });
+    await useStore.getState().refreshPlanning();
     renderTable();
     expect(screen.getByRole('columnheader', { name: /10 – 13 Sep/ })).toBeInTheDocument();
 

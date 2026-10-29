@@ -27,14 +27,20 @@ installer for a new one.
 
 ## Set up your company
 
-![Set up your company screen with one Company name field and Create company](../screenshots/flows/company_first_run_setup.png)
+![Set up your company screen with Company name, Week starts on, Time zone and Create company](../screenshots/flows/company_first_run_setup.jpg)
 
-Enter **Company name** and select **Create company**. Your company opens on Schedule, with you as
-Owner. The service keeps running throughout setup. If a save fails, the name stays in the form and
-the error explains what to do before trying again.
+Enter **Company name**, choose whether the week starts on Monday or Sunday, and choose the company's
+time zone. Then select **Create company**. These calendar choices are stored with the company and
+cannot be changed later. The form starts with Monday and `Etc/GMT` selected. Your company opens on
+Schedule, with you as Owner. The service keeps running throughout setup. If a save fails, the values
+stay in the form and the error explains what to do before trying again.
 
-The company starts with Monday as the first day of the week, Monday–Friday as working days and
-day-based scheduling. It contains the built-in Internal client and no sample scheduling records.
+The company name may contain up to 100 Unicode code points and must not include unsupported
+characters. Invalid input is rejected; the browser does not silently truncate the name.
+
+The company starts with Monday–Friday as working days and day-based scheduling. Company name and
+calendar choices are submitted together with the Owner, defaults and built-in Internal client in one
+setup operation. No sample scheduling records are added.
 Setup is available only when your identity is the only sign-in and no company or membership exists.
 The server blocks open signup until your company exists, so another signup cannot interrupt this
 first-run setup. If several identities already exist, ask whoever manages hosting to resolve

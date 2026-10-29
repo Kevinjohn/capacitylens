@@ -157,11 +157,13 @@ jobs:
 
   # Scheduled and push failures have no pull request status to draw attention to them.
   # Run this report even if an earlier job fails or is canceled before a step starts.
-  # The reporter ignores superseded push cancellations and closes the report after a clean run.
+  # The reporter ignores superseded push cancellations, reconciles visible duplicates after
+  # publishing, and closes reports after a clean run. Concurrent creates converge on a later
+  # push or scheduled run if GitHub's issue list is stale during both post-create reads.
   notify:
     name: Report an unattended failure
     if: always() && (github.event_name == 'schedule' || github.event_name == 'push')
-    needs: [secrets, sbom, containers, dast]
+    needs: [dependency-review, secrets, sbom, containers, dast]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -179,6 +181,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           # Plain text rather than JSON: these are YAML expressions, where quoting JSON is a trap.
           RESULTS: |
+            dependency-review=${{ needs.dependency-review.result }}
             secrets=${{ needs.secrets.result }}
             sbom=${{ needs.sbom.result }}
             containers=${{ needs.containers.result }}

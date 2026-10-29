@@ -44,7 +44,7 @@ if (await portInUse(WEB_PORT)) {
 const children = [];
 let shuttingDown = false;
 
-// Stop both detached child process groups so neither server outlives the other.
+// Attempt bounded cleanup of both detached child process trees.
 async function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -67,7 +67,7 @@ function start(label, args, env) {
   });
   children.push(child);
   // Either child exiting tears the whole stack down. A dead API or a dead web server both mean
-  // dev is broken, and we never leave the survivor orphaned.
+  // dev is broken, and we attempt bounded cleanup of both child trees.
   child.on('exit', (code, signal) => {
     if (shuttingDown) return;
     console.error(

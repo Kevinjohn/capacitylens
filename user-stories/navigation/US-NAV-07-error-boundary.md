@@ -17,18 +17,17 @@ the error message is shown, and one button restarts the app cleanly.
 
 **Precondition:** Seeded app open. A human can't naturally crash a render, so this is
 primarily covered by the linked automated test, which renders a child that throws
-(the canonical mechanism is in `src/components/common/ErrorBoundary.test.tsx`: a `Boom`
+(the canonical mechanism is in `apps/frontend/src/components/common/ErrorBoundary.test.tsx`: a `Boom`
 component that does `throw new Error('boom')`).
 
-**To verify manually:** temporarily add `throw new Error('manual crash')` to the top of
-a rendered component (e.g. `SchedulerGrid`), save, and load that screen.
+Use the linked automated test to verify the failure state. Do not add a temporary crash to a
+working component just to trigger the boundary manually.
 
 1. The normal screen does not render; instead the error screen appears.
 2. It shows the heading **"Something went wrong"** and, below it, the thrown error's
    message text.
 3. A **Reload** button is present.
-4. Click **Reload** — the page reloads (remove the injected `throw` first so the app
-   comes back up).
+4. Click **Reload** — the page reloads and the application returns to its normal state.
 
 ## Acceptance criteria
 

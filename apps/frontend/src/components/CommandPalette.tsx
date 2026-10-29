@@ -170,8 +170,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Per-account view pref (default off): when off, placeholders are not offered as jump targets.
   // Per-account view pref (default off): when off, external / 3rd parties are not offered as
   // jump targets, their schedule row is hidden, so jumping to it would scroll to nothing.
-  // Internal-project results also jump to the schedule, so omit them when their bars are hidden.
-  // Internal activities deliberately remain below: they open the complete management list instead.
+  // Active Internal projects remain searchable. Internal activities open the management list.
 
   const [query, setQuery] = useState('');
   const [queryTooLong, setQueryTooLong] = useState(false);

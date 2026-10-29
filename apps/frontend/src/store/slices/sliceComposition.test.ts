@@ -29,11 +29,8 @@ describe('store slice composition', () => {
     ];
 
     const keySets = slices.map((slice) => new Set(Object.keys(slice)));
-    for (let left = 0; left < keySets.length; left += 1) {
-      for (let right = left + 1; right < keySets.length; right += 1) {
-        const leftKeys = keySets[left];
-        const rightKeys = keySets[right];
-        if (!leftKeys || !rightKeys) throw new Error('Expected slice key sets');
+    for (const [left, leftKeys] of keySets.entries()) {
+      for (const rightKeys of keySets.slice(left + 1)) {
         expect([...leftKeys].filter((key) => rightKeys.has(key))).toEqual([]);
       }
     }

@@ -448,6 +448,11 @@ test.group('native read-only masquerade', (group) => {
     read.assertStatus(200);
     assert.notInclude(JSON.stringify(read.body()), 'Wayne Confidential Client');
     assert.include(JSON.stringify(read.body()), 'Nightwing');
+    const inactiveExport = await asSession(
+      client.get('/api/state?accountId=a-studio&includeInactive=1'),
+      cookie
+    ).send();
+    inactiveExport.assertStatus(403);
     const foreign = await asSession(client.get('/api/state?accountId=a-loft'), cookie).send();
     foreign.assertStatus(403);
     const account = await asSession(client.get('/api/accounts'), cookie).send();

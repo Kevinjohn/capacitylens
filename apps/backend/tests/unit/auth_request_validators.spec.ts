@@ -36,11 +36,13 @@ test.group('ordinary request validator normalization', () => {
     );
   });
 
-  test('bounds names and opaque cursors by code units', async ({ assert }) => {
+  test('bounds names by code points and opaque cursors by code units', async ({ assert }) => {
     const credentials = { email: 'clark@wayne.example', password: '😀'.repeat(15) };
-    const allowed = await signUpValidator.validate({ ...credentials, name: '😀'.repeat(50) });
-    assert.equal(allowed.name.length, 100);
-    await assert.rejects(() => signUpValidator.validate({ ...credentials, name: '😀'.repeat(51) }));
+    const allowed = await signUpValidator.validate({ ...credentials, name: '😀'.repeat(100) });
+    assert.equal([...allowed.name].length, 100);
+    await assert.rejects(() =>
+      signUpValidator.validate({ ...credentials, name: '😀'.repeat(101) })
+    );
     assert.deepEqual(
       await admissionQueryValidator.validate({ cursor: '😀'.repeat(256), extra: true }),
       { cursor: '😀'.repeat(256) }

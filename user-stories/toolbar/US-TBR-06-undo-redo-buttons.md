@@ -1,10 +1,10 @@
 # US-TBR-06 — Undo / Redo toolbar buttons
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/restoration-cleanup.spec.ts`, `e2e/toolbar.spec.ts` → "undoes and redoes with the toolbar buttons, disabled when the stack is empty"
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "undoes and redoes with the toolbar buttons, disabled when the stack is empty"
 
 ## Goal
 
-Reverse and re-apply the last booking change straight from the toolbar — a visible **Undo** / **Redo** pair the manager can see and click, with no need to know the keyboard shortcut.
+Reverse and re-apply eligible acknowledged planning changes from the toolbar — a visible **Undo** / **Redo** pair the manager can see and click, with no need to know the keyboard shortcut.
 
 ## Why
 
@@ -27,14 +27,10 @@ The keyboard path (**⌘Z** / **⌘⇧Z**, see US-TBR-07) is fast for power user
 - ✅ After a reversible edit (delete the **Brand System** bar, total `allocation-bar` count drops by one) the **Undo** button becomes **enabled**.
 - ✅ Clicking **Undo** restores the exact bar (count returns to the original) and **enables** the **Redo** button.
 - ✅ Clicking **Redo** re-applies the delete (count drops by one again).
-- ✅ The buttons act on booking (allocation) history only. Other changes, such as archiving,
-  time off, catalogue edits and imports, do not enter it and do not enable the buttons.
+- ✅ The buttons use page-local history for eligible acknowledged typed planning changes. Imports and
+  irreversible privacy actions have no inverse and do not enter it; a genuine remote change or
+  context switch clears history.
 - ✅ The global **⌘Z** / **⌘⇧Z** shortcut still performs the same undo/redo and is ignored while typing in a text field — that keyboard path and its typing guard are covered by **US-TBR-07**.
-
-- ✅ An actual client/project privacy or code-name change, or activity-kind change, asks once before
-  clearing pending company-wide deleted-item recovery: **This change clears N restorable items**.
-  It skips the confirmation for zero items or unchanged relevant fields. Cancelling keeps the draft
-  and recovery copies; confirming saves and clears them together. Ordinary edits keep the copies.
 
 **Documentation:** [Clients and projects](../../docs-src/using/projects.md),
 [Activities](../../docs-src/using/activities.md).

@@ -39,6 +39,5 @@ export type ScopedPatch<K extends ScopedEntityKey> = {
     : Omit<ScopedRow<K>, keyof Entity>[P];
 };
 
-// Mirror the server lifecycle table set so local actions preserve retained tombstones.
-/** Entity tables that participate in the archive, delete, and purge lifecycle. */
+/** Resource and catalogue tables with archive/restore actions. Retained deletion of other planning rows is separate. */
 export type LifecycleEntity = 'resources' | 'clients' | 'projects' | 'activities';

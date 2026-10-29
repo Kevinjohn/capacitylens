@@ -50,7 +50,7 @@ export async function seedAllocation(overrides: Partial<Allocation> = {}): Promi
   );
 }
 
-/** Creates an allocation whose capacity signal is outside the visible test window. */
+/** Creates a visible allocation whose archived activity is excluded from capacity signals. */
 export async function seedVisibleAllocationWithHiddenCapacity(): Promise<Allocation> {
   const st = useStore.getState();
   const hiddenClient = await requireCreated(st.addClient({ name: 'Archived client', color: '#1' }));

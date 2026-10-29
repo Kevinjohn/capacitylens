@@ -1,20 +1,22 @@
 ---
 title: OpenSSF Baseline self-assessment
-description: CapacityLens answers every OpenSSF Baseline Level 1, 2 and 3 control with repository evidence and visible gaps.
+description: Dated evidence and gaps for the OpenSSF Baseline criteria assessed on 9 September 2026.
 ---
 
 # Review the OpenSSF Baseline self-assessment
 
-This page records CapacityLens's answers to every control in OpenSSF Baseline Levels 1–3. It helps
-maintainers complete the public assessment and shows contributors where stronger controls are still
-needed. The public [OpenSSF project record](https://www.bestpractices.dev/projects/14555) remains the
-authoritative badge status.
+This page records the repository evidence and gaps reviewed for the OpenSSF Baseline Levels 1–3
+criteria set identified below. It helps maintainers complete the related public assessment and shows
+contributors where stronger controls were still needed at review time. The public
+[OpenSSF project record](https://www.bestpractices.dev/projects/14555) remains the authoritative
+badge status.
 
-The assessment uses the [`v2026.02.19` criteria](https://www.bestpractices.dev/en/projects/1/baseline-1)
-currently presented by BadgeApp and was reviewed against the repository on 9 September 2026. The
-upstream OSPS Baseline published [`v2026.08.28`](https://baseline.openssf.org/versions/2026-08-28) on
-28 August 2026, but BadgeApp has not yet adopted that version. Reconcile this ledger when its public
-questionnaire changes. **Met** means the repository or its GitHub configuration supplies evidence.
+This ledger records answers reviewed against the [`v2026.02.19` criteria](https://www.bestpractices.dev/en/projects/1/baseline-1)
+on 9 September 2026. The upstream OSPS Baseline published [`v2026.08.28`](https://baseline.openssf.org/versions/2026-08-28)
+on 28 August 2026. This is a dated assessment, not a claim that these criteria match the questionnaire
+currently shown by BadgeApp. Before submitting or updating the public assessment, compare it with the
+current questionnaire and reconcile changed criteria and controls. **Met** means the repository or its
+GitHub configuration supplied evidence at that review.
 **Unmet** identifies real work still required. **N/A** includes a reason. This document does not claim
 that an unsubmitted level has been awarded.
 

@@ -108,9 +108,9 @@ test.group('M5 documentation and policy contracts', () => {
 
     for (const target of links) {
       const [path, fragment] = target.split('#', 2);
-      const absolute = resolve(ROOT, path ?? '');
+      const absolute = resolve(ROOT, path);
       assert.isTrue(existsSync(absolute), `Missing README target ${target}`);
-      if (!fragment || !/\.md$/i.test(path ?? '')) continue;
+      if (!fragment || !/\.md$/i.test(path)) continue;
       const headings = markdownHeadings(readFileSync(absolute, 'utf8'));
       const slugs = new Set([...headings].map(markdownSlug));
       assert.isTrue(slugs.has(decodeURIComponent(fragment)), `Missing README fragment ${target}`);

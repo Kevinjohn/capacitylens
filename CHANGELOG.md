@@ -9,9 +9,32 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Reopen “How CapacityLens works” from the sidebar after dismissing the introduction.
+
 - `pnpm run check:changed` runs only the formatting, lint, type-check, test and documentation checks that a branch's changed files need (#1603). `--static` leaves whole test suites to one combined run, and a fresh worktree builds the application its backend tests read (#1657).
 
 ### Fixed
+
+- Preserve a newly opened form and its unsaved draft when an earlier save finishes.
+- Refuse allocation saves based on an obsolete planning revision instead of overwriting concurrent changes.
+- Keep invitation intent and delayed member feedback within their originating principal and action context.
+- Preserve committed-operation logging warnings after the following planning refresh.
+
+- Let Editors restore archived records from a limited identity list while keeping inactive details and private names protected.
+- Keep archived planning records out of ordinary planning reads and mutation replies.
+- Enforce administrative authority for example data and inactive exports, and allow administrators to clear retained links for disabled or restricted members.
+- Apply the shared name rules consistently, accept up to 100 Unicode code points, and save the chosen first-company week start and time zone atomically.
+- Clear an activity's old phase when changing projects; match searches across names and roles; keep generated labels distinct and list ordering stable.
+- Show a neutral colour for ordinary resources without a discipline, reject invalid supplied scheduling values, and distinguish real small capacity excess from floating-point noise.
+- Keep identifying user-agent text out of diagnostics and verification-link bearers out of the supplied proxy access logs.
+- Align setup, lifecycle, privacy, import, diagnostics and operator guidance with current behavior.
+
+- Return to sign-in after a committed password change even when its dialog was dismissed.
+- Stop surviving development-server descendants when their launcher exits.
+- Preserve interrupted development identities and explain supported operator admission recovery.
+- Keep unexpected restore failures distinguishable, report bounded database diagnostics, and avoid false audit warnings or unchanged-link audit events.
+- Reject incomplete planning and admission responses instead of presenting them as complete.
+- Correct native setup, portable date-format, ownership-recovery and company-closure guidance.
 
 - Align scheduler accessible names with visible avatar and lane content.
 - Record bounded password sign-in outcomes, including automatic sign-in after registration.
@@ -28,6 +51,8 @@ new features and **patch** versions carry fixes.
 - Align remaining security-header and first-company guides with native setup and the supported Google provider.
 
 ### Changed
+
+- Read member/resource associations in one company-scoped batch and remove retired confirmation-return/provider-error protocols and unused internal contracts.
 
 - Use package-managed storage for planning deletion and restoration, preserving session-bound Undo/Redo while preventing old recovery groups from affecting replacement rows or newer deletions.
 - Pin Lucid soft deletes to the verified 0.1.1-alpha release archive.

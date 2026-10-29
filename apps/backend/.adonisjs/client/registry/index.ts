@@ -12,6 +12,12 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/planning","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/planning","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/planning","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/planning","type":0,"val":"planning","end":""}],
     types: placeholder as Registry['api.planning.show']['types'],
   },
+  'api.planning.archive': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/accounts/:accountId/planning/archive',
+    tokens: [{"old":"/api/accounts/:accountId/planning/archive","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/planning/archive","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/planning/archive","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/planning/archive","type":0,"val":"planning","end":""},{"old":"/api/accounts/:accountId/planning/archive","type":0,"val":"archive","end":""}],
+    types: placeholder as Registry['api.planning.archive']['types'],
+  },
   'api.planning.lookup': {
     methods: ["GET","HEAD"],
     pattern: '/api/accounts/:accountId/planning/mutations/:mutationId',

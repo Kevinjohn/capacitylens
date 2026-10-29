@@ -352,8 +352,8 @@ describe('danger-soft button hover contrast', () => {
 // 3:1 against every checked light and dark adjacency. Pin token values because
 // jsdom cannot resolve the CSS variables used by the rendered indicator.
 describe('AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)', () => {
-  const RING_INK = '#1c2230';
-  const RING_HALO = '#ffffff';
+  const RING_INK = token('light', 'c-focus-ink');
+  const RING_HALO = token('light', 'c-focus-halo');
 
   // Backgrounds the focus ring can sit adjacent to, in both themes. The over-cell + weekend hexes are
   // the sRGB resolution of the index.css `color-mix(in oklab, …)` tokens (verified to the rgb values
@@ -361,14 +361,37 @@ describe('AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)', ()
   const ADJACENCIES: Record<string, string> = {
     'over-cell (light)': '#fb9ea1',
     'over-cell (dark)': '#934956',
-    'canvas (light) --c-base': '#f4f5f8',
-    'canvas (dark) --c-base': '#0e1016',
-    'surface (light) --c-surface': '#ffffff',
-    'surface (dark) --c-surface': '#161922',
+    'canvas (light) --c-base': token('light', 'c-base'),
+    'canvas (dark) --c-base': token('dark', 'c-base'),
+    'surface (light) --c-surface': token('light', 'c-surface'),
+    'surface (dark) --c-surface': token('dark', 'c-surface'),
 
     'weekend (light)': '#eaebed',
     'weekend (dark)': '#22252e',
   };
+
+  it('binds precomputed mixed grounds to their CSS recipes and constituents', () => {
+    const compact = (value: string) => value.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, '');
+    expect(token('light', 'c-focus-ink')).toBe('#1c2230');
+    expect(token('light', 'c-focus-halo')).toBe('#ffffff');
+    expect(token('dark', 'c-focus-ink')).toBe('#1c2230');
+    expect(token('dark', 'c-focus-halo')).toBe('#ffffff');
+    expect(compact(token('light', 'c-danger-cell'))).toBe(
+      'color-mix(inoklab,var(--c-danger)50%,white)',
+    );
+    expect(compact(token('dark', 'c-danger-cell'))).toBe(
+      'color-mix(inoklab,var(--c-danger)60%,#0e1016)',
+    );
+    expect(token('light', 'c-danger')).toBe('#e11d48');
+    expect(token('dark', 'c-danger')).toBe('#fb7185');
+    for (const theme of ['light', 'dark'] as const) {
+      expect(compact(token(theme, 'c-weekend'))).toBe(
+        `color-mix(inoklab,var(--c-ink)${theme === 'light' ? 8 : 7}%,var(--c-surface))`,
+      );
+      expect(token(theme, 'c-ink')).toBe(theme === 'light' ? '#1c2230' : '#e7eaf0');
+      expect(token(theme, 'c-surface')).toBe(theme === 'light' ? '#ffffff' : '#161922');
+    }
+  });
 
   // The palest + darkest discipline swatches (read live from the palette, so a palette edit can't make
   // this stale): the extreme grounds an opaque bar fill can be. Palest = highest contrast vs black ink;

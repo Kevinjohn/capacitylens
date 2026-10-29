@@ -53,23 +53,23 @@
   },
   {
     "path": "docs-src/screenshots/flows/getting_started_five_steps.png",
-    "sha256": "db4c4b9e40bd5ee07231628eff237c113698ad2a9d968e0783334a5373adba0b"
+    "sha256": "9f593f67c0b764f46714e4e8c16925d858ccab23214e8f4ec904e99d54abd165"
   },
   {
     "path": "docs-src/screenshots/flows/account_identity_current.jpg",
-    "sha256": "c823115e2dd8474fe85adbc720fdc9a841e36f1664227518beefcd53a7cbff61"
+    "sha256": "b3d58866687d30eaab51106e5e228f610905725529d7abeee339a07bc95666c7"
   },
   {
     "path": "docs-src/screenshots/flows/account_change_password_form.jpg",
-    "sha256": "118b4cc3cefbc4bff7a5f22fcc460455e43b68fc42e792c4c2316dbaa563f9b8"
+    "sha256": "8b6d5999af29b5c39f98c19b870502ff7ed00499269a4faab4d1bed2a83d0ad6"
   },
   {
     "path": "docs-src/screenshots/flows/viewer_access_current.jpg",
-    "sha256": "073916f75ea6c75d092e9bbbcfa5de0077c69930f4d93a24d5b2dadee5b911cb"
+    "sha256": "fa43d3bb085431101ea47324db0109b8e76a335a9bb15996a2e46fdbef072d73"
   },
   {
     "path": "docs-src/screenshots/flows/editor_access_current.jpg",
-    "sha256": "86b8ede33319a70029a230a495ce4f559d5d2dc1784700310c805fa3893b27a0"
+    "sha256": "96eaec30ca8c1a0b6da0d85104ea652415e13da612401325fd8368945fb48b84"
   },
   {
     "path": "docs-src/screenshots/flows/owner_delete_company_confirmation.jpg",
@@ -77,7 +77,7 @@
   },
   {
     "path": "docs-src/screenshots/flows/owner_members_current.jpg",
-    "sha256": "a84db1fc5ff5928ba357f2eb61a0db37a03330fad3ca8cf59ebb54c8fbd7d080"
+    "sha256": "fcc757c009f7aa40f435bef40cb18cbada09b531299833b9aa40e2f4b7bdec08"
   },
   {
     "path": "docs-src/screenshots/flows/owner_transfer_nomination.jpg",
@@ -93,31 +93,31 @@
   },
   {
     "path": "docs-src/screenshots/flows/admin_add_person_form.jpg",
-    "sha256": "e5e4e17846a16299036fd6148e26208e15aa264e0a228b62732db23941eba041"
+    "sha256": "1025306d45214718f083816f8947dcc5dc78d2855483c0408b3edea9653f61f9"
   },
   {
     "path": "docs-src/screenshots/flows/admin_link_resource_choice.jpg",
-    "sha256": "a56d1307839dc82a8526c04f1094b609983c4a0b39b65133dcbca81ae11feb97"
+    "sha256": "02fc6f8d35ad2d28f02cd647c7ef767487c4796bb39d5c583fc68a7d90b1b757"
   },
   {
     "path": "docs-src/screenshots/flows/admin_resource_link_remove.jpg",
-    "sha256": "d70a89184e54845d76398638daba939853d0eec3746e696e366b84b15ec39fe7"
+    "sha256": "137ac0e875ea752e0c0393854c1db35387ca70649bbd1de4b3f2c01c5482ef83"
   },
   {
     "path": "docs-src/screenshots/flows/admin_member_actions.jpg",
-    "sha256": "f2db3d4231ded0608da0b4f2c52081e9c78813f9ed57c023d821a0dbe3d38765"
+    "sha256": "78067570234cdddb6189dbd0ec05b514182e63fb8879684f76a1e8e6a258b6d1"
   },
   {
     "path": "docs-src/screenshots/flows/admin_change_member_role.jpg",
-    "sha256": "540de730fade7f3332a0931b9c3accebca1d5d34a534a73cf0dcc57ac33094b7"
+    "sha256": "7e9936d69f6731e7ef0c7a7249e4ee37cee45bcae319176d2d38dcea1c6a4231"
   },
   {
     "path": "docs-src/screenshots/flows/admin_invite_editor_form.jpg",
-    "sha256": "270ec072078fae3b777aed1aa47c354d5080fb847a08bdc9bd1cffae8f6665da"
+    "sha256": "61d608505affd28fab8c57be01c1e2601ac9f927bd481ee94b1af681c42969c0"
   },
   {
     "path": "docs-src/screenshots/flows/invite_admin_role_form.jpg",
-    "sha256": "f73299dadaa8973e114571af8913cabe3502b8561522c0b728cac317d20cdde3"
+    "sha256": "845c347149e516cab1767fb2476367ec53695a5308f6d54e679f5777ff3a2993"
   },
   {
     "path": "docs-src/screenshots/flows/join_invitation_preview.jpg",
@@ -158,5 +158,17 @@
   {
     "path": "docs-src/screenshots/steps/using_invitation_preview.png",
     "sha256": "e9d9fa0aff25ec96dc60a09e1f06f42b6de094c8b0ccd23cbe11853fdaa21046"
+  },
+  {
+    "path": "docs-src/screenshots/flows/company_first_run_setup.jpg",
+    "sha256": "5b5e34f057be1e695f5da615fa29fbf60282df276f89dbf5221c727e48ae3896"
+  },
+  {
+    "path": "docs-src/screenshots/flows/diagnostics.jpg",
+    "sha256": "aa132fc6520c215682fbdb9a81c1721f7de7f24f8296d5ee1875020bd01af3b0"
+  },
+  {
+    "path": "docs-src/screenshots/flows/editor_archive_restore.jpg",
+    "sha256": "4dffaf167d4bb62650565018d402391e664e28f65477cb3fad9eba135a0bfc72"
   }
 ]

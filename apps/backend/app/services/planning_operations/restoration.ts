@@ -7,6 +7,7 @@ import {
   assertScopedRefs,
 } from '@capacitylens/shared/domain/mutations';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
+import { DomainError } from '@capacitylens/shared/domain/errors';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
@@ -32,6 +33,16 @@ function conflict(): never {
     'restoration_conflict',
     'The deleted records can no longer be restored.'
   );
+}
+
+/** Maps expected domain refusals to a restoration conflict while surfacing implementation faults. */
+function assertRestorationCandidate(assertion: () => void) {
+  try {
+    assertion();
+  } catch (error) {
+    if (error instanceof DomainError) conflict();
+    throw error;
+  }
 }
 
 function affectedRows(result: number | unknown[]): number {
@@ -206,7 +217,7 @@ export async function restoreGroup(
     account?.weekStartsOn === 0 ? 0 : 1
   );
   for (const { entity, row } of rows) {
-    try {
+    assertRestorationCandidate(() => {
       if (entity === 'allocations') {
         const allocation = row as unknown as Allocation;
         const activity = dependencies.activities.find((item) => item.id === allocation.activityId);
@@ -230,9 +241,7 @@ export async function restoreGroup(
       if (entity === 'timeOff') {
         assertResourceExists(dependencies, accountId, String(row.resourceId));
       }
-    } catch {
-      conflict();
-    }
+    });
   }
   for (const { entity, id, row } of rows) {
     if (row.accountId !== accountId || row.id !== id) conflict();
@@ -261,11 +270,9 @@ export async function restoreGroup(
       conflict();
     }
     const candidate = { ...child, [field]: parentId };
-    try {
+    assertRestorationCandidate(() => {
       assertScopedRefs(current, accountId, entity, candidate, child);
-    } catch {
-      conflict();
-    }
+    });
     await trx
       .from(TABLE_NAMES[entity])
       .where({ id: rowId, account_id: accountId })
@@ -300,7 +307,7 @@ export async function unconsumedGroupId(
  * surviving-child links are not items. An expired sign-in's groups wait only for pruning.
  */
 export async function countRestorableItems(trx: TransactionClientContract, accountId: string) {
-  const result = await trx
+  const markers = await trx
     .from('deleted_rows')
     .join('deleted_groups', 'deleted_groups.group_id', 'deleted_rows.group_id')
     .join('account_sessions', 'account_sessions.id', 'deleted_groups.session_id')
@@ -308,9 +315,18 @@ export async function countRestorableItems(trx: TransactionClientContract, accou
     .whereNull('deleted_groups.consumed_at')
     .where('account_sessions.expires_at', '>', new Date().toISOString())
     .whereRaw("json_extract(deleted_rows.payload_json, '$.kind') = ?", ['row'])
-    .count('* as total')
-    .first();
-  return Number(result?.total ?? 0);
+    .select('deleted_rows.entity', 'deleted_rows.row_id', 'deleted_rows.group_id');
+  let total = 0;
+  for (const marker of markers) {
+    if (!isRetainedTable(marker.entity)) continue;
+    const row = await retainedQuery(trx, accountId, marker.entity)
+      .onlyTrashed()
+      .where('id', marker.row_id)
+      .where('deletion_group_id', marker.group_id)
+      .first();
+    if (row) total++;
+  }
+  return total;
 }
 
 /** Carries only the count required for an explicit, revision-bound cleanup decision. */

@@ -491,6 +491,10 @@ function registerSourceCalendarTest() {
       ...useStore.getState().data,
       resources: useStore.getState().data.resources.filter((resource) => resource.id !== src.id),
     });
+    // Publish the fixture's live-state change before the eventual typed reassignment.
+    await act(async () => {
+      await useStore.getState().refreshPlanning();
+    });
     act(() => {
       document.dispatchEvent(
         new MouseEvent('pointermove', {

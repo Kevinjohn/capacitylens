@@ -24,7 +24,9 @@ Admin. Confirm this particular transfer with your password. A recent sign-in alo
 
 The change takes effect immediately. The selected Admin does not separately sign in to accept or
 consent. Choose carefully: once confirmed, they hold the Owner role and you no longer do. The member
-list and your available company actions refresh to match the new roles.
+list and your available company actions refresh to match the new roles. If the connection fails and
+you cannot tell whether the transfer completed, check the current roles before trying again. A retry
+of the same command returns its original result without transferring ownership twice.
 
 ## Replace the schedule with an import
 

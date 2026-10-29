@@ -15,7 +15,7 @@ is off, as in the demo, everyone can open it.
 
 ## Copy a support report
 
-![Diagnostics: the Support report in the demo, with the report text above Copy diagnostics](../screenshots/flows/diagnostics.png)
+![Diagnostics with observed server checks and the fixed Support report above Copy diagnostics](../screenshots/flows/diagnostics.jpg)
 
 1. Open **Diagnostics**.
 2. Select **Copy diagnostics**. A message confirms the copy, or says the browser blocked the
@@ -25,18 +25,18 @@ is off, as in the demo, everyone can open it.
 The page shows exactly the text that is copied:
 
 - the app version, build revision, deployment mode and export schema;
-- server connectivity, database schema, persistence and backup status, as observed when the page
-  opened (**Snapshot observed**);
-- this browser session's save counters: failed saves, retries, reconciliations, superseded
-  reloads, rebased and discarded edits, and whether saving is suspended;
-- the browser's user agent, window size, time zone and language.
+- server connectivity, database status, the latest schema migration and the newest managed
+  snapshot's file time, as observed when the page opened (**Snapshot observed**);
+- the browser's viewport, time zone and language. The user-agent field is always **Unknown**.
 
-A value the page cannot read shows **Unknown** or **unavailable**. The demo has no server, so its
+A value the page cannot read shows **Unknown** or **unavailable**. The newest snapshot time is
+**Unknown** when it cannot be read or no snapshot is found. This file time does not establish that
+a backup completed successfully, is intact or can be restored. The demo has no server, so its
 server values are always unavailable. If the build provides a revision or feedback address,
 **Build details** shows it and may include a **Send feedback** link.
 
-The native server leaves backup status **unavailable**. Operators check service logs and completed
-snapshots as described in [Backups and restore](/self-hosting/backups-and-restore).
+Diagnostics does not verify backup health. Operators check service logs and completed snapshots as
+described in [Backups and restore](/self-hosting/backups-and-restore).
 
 The report is a snapshot: reopen the page to check the server again.
 

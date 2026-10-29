@@ -30,7 +30,9 @@ theme), not shared account data.
 
 - The Allocation labels on this device row appears before **Utilisation figures on this device** in **My display**.
 - Both switches default to **on** (`aria-checked="true"`).
-- With both on, a bar's label is `Client · Project · Activity` (then `· Nh` outside blocks mode).
+- With both on, a capacity-counting non-External allocation's label is `Client · Project · Activity`
+  (then `· Nh` outside Blocks mode). External bars have no hours label; Blocks spans do not show
+  hours.
 - Switching **Show client name** off removes only the client part; **Show project name** off removes only the project part; both off leaves just the activity.
 - An activity with no project shows no empty separators — missing parts are skipped.
 - The choice survives a reload in the same browser (device-global `capacitylens/barLabelPrefs`), and is **not** included in Export JSON.

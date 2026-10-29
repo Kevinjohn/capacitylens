@@ -4,7 +4,7 @@ import { operatorFixture, withOperatorServer } from './operator_command_support.
 const args = [
   'company:initialize',
   '  Bruce@Wayne.EXAMPLE ',
-  'Wayne Enterprises',
+  '  Wayne   Enterprises  ',
   '--confirm-server-stopped',
 ];
 type Inspection = ReturnType<ReturnType<typeof operatorFixture>['inspect']>;
@@ -150,6 +150,15 @@ test('company initialization rejects invalid input and unconfirmed or unadmitted
         .status,
       0
     );
+    for (const name of ['Wayne😀', 'W'.repeat(101)]) {
+      const refusedName = f.command([
+        'company:initialize',
+        'bruce@wayne.example',
+        name,
+        '--confirm-server-stopped',
+      ]);
+      assert.notEqual(refusedName.status, 0);
+    }
     const inspect = f.inspect();
     inspect.prepare('UPDATE users SET password = NULL').run();
     inspect.close();

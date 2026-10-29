@@ -358,7 +358,7 @@ describe('formatInstant / formatInstantDate', () => {
     expect(formatInstant(Date.parse(instant))).toBe(formatInstant(instant));
   });
 
-  it('keeps the hour, which the 24h reset link and session rows depend on', () => {
+  it('keeps the hour needed to display security deadlines', () => {
     expect(formatInstant(instant)).toContain(':');
     expect(formatInstant(instant)).toContain('45');
   });

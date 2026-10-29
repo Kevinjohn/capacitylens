@@ -1,3 +1,4 @@
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
@@ -165,7 +166,14 @@ function useProjectOptions(activity?: Activity) {
 }
 
 /** Creates or edits an activity and closes after save or cancel. Only project activities carry project and phase attribution. */
-export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
+export function ActivityForm({
+  activity,
+  onClose: close,
+}: {
+  activity?: Activity;
+  onClose: () => void;
+}) {
+  const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addActivity);
   const update = useStore((state) => state.updateActivity);
   const { name, setName, kind, projectId, phaseId, changeKind, changeProject } =
@@ -187,7 +195,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       name: trimmed,
       kind,
       ...(kind === 'project' && projectId ? { projectId } : {}),
-      ...(kind === 'project' && phaseId ? { phaseId } : {}),
+      ...(kind === 'project' ? { phaseId: phaseId || null } : {}),
     };
     // Surface a store-side rejection as a form error rather than an uncaught React error, see the
     // store CRUD contract.

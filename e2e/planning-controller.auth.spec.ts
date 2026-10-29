@@ -507,6 +507,9 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   ] as const) {
     for (const action of ['archive', 'unarchive'] as const) {
       const beforeLifecycle = await planningSnapshot(request, owner.cookie, companyId);
+      const beforeTarget = beforeLifecycle.data[target.entity].find((row) => row.id === target.id);
+      if (action === 'archive') expect(beforeTarget?.id).toBe(target.id);
+      else expect(beforeTarget).toBeUndefined();
       const intent: Intent =
         target.entity === 'resources'
           ? { operation: `resource.${action}`, id: target.id }
@@ -515,11 +518,36 @@ test('unactivated planning controller uses authenticated typed routes and reconc
       const afterLifecycle = await planningSnapshot(request, owner.cookie, companyId);
       expect(afterLifecycle.revision).toBe(beforeLifecycle.revision + 1);
       const changed = afterLifecycle.data[target.entity].find((row) => row.id === target.id);
-      expect(changed?.id).toBe(target.id);
-      if (action === 'archive') expect(typeof changed?.archivedAt).toBe('string');
-      else expect(changed?.archivedAt).toBeNull();
+      if (action === 'archive') expect(changed).toBeUndefined();
+      else expect(changed).toMatchObject({ id: target.id, archivedAt: null });
+
+      const hiddenAllocationIds = new Set(
+        groupedSnapshot.data.allocations
+          .filter((allocation) => {
+            const activity = groupedSnapshot.data.activities.find(
+              (row) => row.id === allocation.activityId,
+            );
+            const projectId = allocation.projectId ?? activity?.projectId;
+            const project = groupedSnapshot.data.projects.find((row) => row.id === projectId);
+            switch (target.entity) {
+              case 'clients':
+                return project?.clientId === target.id;
+              case 'projects':
+                return projectId === target.id;
+              case 'activities':
+                return allocation.activityId === target.id;
+              case 'resources':
+                return allocation.resourceId === target.id;
+            }
+          })
+          .map(({ id }) => id),
+      );
+      const expectedAllocationIds = groupedSnapshot.data.allocations
+        .filter(({ id }) => action === 'unarchive' || !hiddenAllocationIds.has(id))
+        .map(({ id }) => id)
+        .sort();
       expect(afterLifecycle.data.allocations.map(({ id }) => id).sort()).toEqual(
-        groupedSnapshot.data.allocations.map(({ id }) => id).sort(),
+        expectedAllocationIds,
       );
     }
   }

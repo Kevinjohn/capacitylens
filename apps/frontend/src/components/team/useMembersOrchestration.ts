@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessClient';
@@ -111,6 +112,14 @@ interface MemberDirectoryStateInput {
 }
 
 function useMemberDirectoryState(input: MemberDirectoryStateInput) {
+  const mounted = useRef(true);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const actionContext = getMasqueradeContextToken();
   const directoryState = useTeamDirectory({
     enabled: input.enabled,
     activeAccountId: input.activeAccountId,
@@ -125,7 +134,9 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     return input.activeAccountId;
   };
   const isActiveAccount = (accountId: string): boolean =>
-    useStore.getState().activeAccountId === accountId;
+    mounted.current &&
+    useStore.getState().activeAccountId === accountId &&
+    getMasqueradeContextToken() === actionContext;
   const closeActiveAccount = (): void => {
     if (useStore.getState().activeAccountId !== input.activeAccountId) return;
     input.setActiveAccount(null);
@@ -175,14 +186,12 @@ interface MemberMutationStateInput {
 
 function useMemberMutationState(input: MemberMutationStateInput) {
   const refreshDirectory = input.directoryState.reload;
-  const bumpReadiness = () => undefined;
   const reconciliation = createMemberAccessReconciliation({
     activeAccountId: input.activeAccountId,
     invalidateMemberships: input.invalidateMemberships,
     refreshAuth: input.refreshAuth,
     closeActiveAccount: input.directoryState.closeActiveAccount,
     ...input.directoryState.actionDependencies,
-    bumpReadiness,
     replaceAuthorizedDirectory: input.directoryState.replaceAuthorizedDirectory,
   });
   const actions = createMemberMutations({
@@ -190,7 +199,6 @@ function useMemberMutationState(input: MemberMutationStateInput) {
     ...reconciliation,
     refreshDirectory,
     reload: input.directoryState.reload,
-    bumpReadiness,
   });
   const inviteActions = input.createInviteActions({
     clear: input.clear,

@@ -224,7 +224,7 @@ describe('diagnostics client facts', () => {
     const text = formatDiagnostics(readDiagnostics(null, undefined, client));
 
     for (const line of [
-      `User agent: ${client.browser.userAgent}`,
+      'User agent: Unknown',
       'Viewport: 1280×800',
       'Time zone: Europe/London',
       'Language: en-GB',
@@ -295,4 +295,15 @@ describe('diagnostics client facts', () => {
     expect(browser.timeZone).not.toBe('');
     expect(browser.language).not.toBe('');
   });
+});
+
+it('omits printable private text from the user agent', async () => {
+  const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
+  const text = formatDiagnostics(
+    readDiagnostics(null, undefined, {
+      ...client,
+      browser: { ...client.browser, userAgent: 'Mozilla/5.0 Wayne Enterprises Bruce Wayne' },
+    }),
+  );
+  expect(text).not.toContain('Wayne');
 });

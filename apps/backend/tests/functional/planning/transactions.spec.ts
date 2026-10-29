@@ -1,3 +1,6 @@
+import type { HttpContext } from '@adonisjs/core/http';
+import { masqueradeService } from '#services/auth/masquerade';
+import { requestBarrier } from '../../helpers/request_barrier.js';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { test } from '@japa/runner';
@@ -283,6 +286,85 @@ db.exec('COMMIT')`,
       assert.equal(lost.body.code, 'MASQUERADE_CONTEXT_CHANGED');
       assert.isUndefined(lost.body.data);
       assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    });
+  }
+  for (const invalidation of [
+    'actor membership',
+    'target membership',
+    'actor permission',
+  ] as const) {
+    test(`refuses ${invalidation} lost after planning admission without operator fallback`, async ({
+      client,
+      assert,
+      cleanup,
+    }) => {
+      configureAuth(cleanup);
+      const owner = await signIn(client);
+      const target = await signIn(client, 'editor');
+      const started = await session(
+        client.post(`/api/accounts/${accountId}/masquerade`),
+        owner.cookie
+      )
+        .json({ targetUserId: target.userId })
+        .send();
+      started.assertStatus(200);
+      const contextToken = started.body().contextToken as string;
+      const headers = {
+        'cookie': sessionCookieHeader(owner.cookie),
+        'X-Masquerade-Context': contextToken,
+        'sec-fetch-site': 'same-origin',
+      };
+      const url = `http://127.0.0.1:${process.env.CAPACITYLENS_TEST_HTTP_PORT}${planningUrl}`;
+      const control = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+      assert.equal(control.status, 200);
+      assert.equal(
+        ((await control.json()) as { authority: { effectiveActorId: string } }).authority
+          .effectiveActorId,
+        target.userId
+      );
+      const before = await readState(accountId, true);
+      const revisions = await db.from('company_planning_revisions');
+      const audits = await db.from('audit_entries');
+      const service = await masqueradeService();
+      const original = service.resolve.bind(service);
+      const barrier = requestBarrier();
+      service.resolve = async (request: HttpContext) => {
+        const resolved = await original(request);
+        if (request.request.header('x-test-admission-pause') === 'authority-loss')
+          await barrier.pause();
+        return resolved;
+      };
+      const pending = fetch(url, {
+        headers: { ...headers, 'x-test-admission-pause': 'authority-loss' },
+        signal: AbortSignal.timeout(10000),
+      });
+      try {
+        await barrier.entered();
+        await db
+          .from('memberships')
+          .where({
+            account_id: accountId,
+            user_id: invalidation === 'target membership' ? target.userId : owner.userId,
+          })
+          .update(
+            invalidation === 'actor permission' ? { role: 'editor' } : { status: 'archived' }
+          );
+        barrier.release();
+        const refused = await pending;
+        assert.equal(refused.status, 403);
+        const body = (await refused.json()) as Record<string, unknown>;
+        assert.equal(body.code, 'ACCOUNT_MEMBERSHIP_LOST');
+        assert.isUndefined(body.data);
+        assert.isUndefined(body.authority);
+        assert.deepEqual(await readState(accountId, true), before);
+        assert.deepEqual(await db.from('company_planning_revisions'), revisions);
+        assert.deepEqual(await db.from('audit_entries'), audits);
+        assert.lengthOf(await db.from('planning_mutations'), 0);
+      } finally {
+        barrier.release();
+        service.resolve = original;
+        await pending;
+      }
     });
   }
 });

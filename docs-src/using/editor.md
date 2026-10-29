@@ -8,8 +8,8 @@ next: false
 # Plan work as an Editor
 
 Keep the team's plan up to date: bookings, resources, time off, clients, projects, activities and
-ordinary company settings. Admins and Owners manage membership. Only the Owner decides who can
-join, imports data, transfers ownership or anonymises the company.
+ordinary company settings. Admins and Owners manage membership and decide who can join. Only the
+Owner imports data, transfers ownership or anonymises all people.
 
 ![Schedule showing existing bookings, time off, utilisation and the controls for adding work](../screenshots/flows/editor_schedule_current.jpg)
 
@@ -52,6 +52,12 @@ activity from the booking form.
 privacy and placeholders.
 [Archive or restore a client or project](/using/projects#archive-or-restore-a-client-or-project)
 explains what happens to their bookings.
+
+![Editor Resources view with a name-only archived Barbara Gordon row and Restore](../screenshots/flows/editor_archive_restore.jpg)
+
+Editors can restore eligible records from the inline archive, which shows only the identity details
+needed to choose a record. Admins have the fuller inactive-data view. Use the Restore action on the
+matching archived item; restored records keep their existing planning links.
 
 ## Book work
 

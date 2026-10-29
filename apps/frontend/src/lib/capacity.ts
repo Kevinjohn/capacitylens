@@ -8,7 +8,7 @@ import type {
   TimeOff,
 } from '@capacitylens/shared/types/entities';
 import {
-  resolveAllocatedHoursForWeekday,
+  resolveAllocationLoadForWeekday,
   resolveAvailableHoursForWeekday,
 } from './capacity/availability';
 
@@ -79,7 +79,7 @@ export function buildDayCapacity({
     weekday: weekday,
     effectiveWeek: effectiveWeek,
   });
-  const allocated = resolveAllocatedHoursForWeekday({
+  const load = resolveAllocationLoadForWeekday({
     resource: resource,
     date: date,
     allocations: allocations,
@@ -88,9 +88,9 @@ export function buildDayCapacity({
   });
   return {
     date,
-    allocated,
+    allocated: load.hours,
     available,
-    over: hasOverCapacity(allocated, available),
+    over: hasOverCapacity(load.components, available),
   };
 }
 

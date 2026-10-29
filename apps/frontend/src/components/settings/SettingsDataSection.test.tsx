@@ -36,10 +36,6 @@ function renderSection({
 }: { role?: Role | null; serverMode?: boolean } = {}) {
   const props = {
     serverMode,
-    confirmingClear: false,
-    setConfirmingClear: vi.fn(),
-    clearBusy: false,
-    clearLocalStorage: vi.fn(),
   } as unknown as Props;
   return render(
     <PermissionContext.Provider value={{ role }}>
@@ -274,6 +270,7 @@ describe('Company-wide people anonymisation', () => {
     useStore.setState((state) => ({
       data: { ...state.data, resources: [resource], allocations: [allocation] },
     }));
+    await originalPlanning.refreshPlanning();
     await useStore.getState().deleteAllocation(allocation.id);
     expect(useStore.getState().planning.history.past.length).toBeGreaterThan(0);
     renderSection({ serverMode: false });
@@ -365,67 +362,6 @@ describe('Company-wide people anonymisation', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument());
     expect(planningProbe.suspends).toBe(1);
     expect(planningProbe.releases).toBe(0);
-  });
-
-  it('resumes a same-company provider proof only after another explicit click', async () => {
-    sessionStorage.setItem(
-      'capacitylens/company-anonymise-action-proof',
-      JSON.stringify({ accountId: DEFAULT_ACCOUNT_ID, proofId: 'provider-proof' }),
-    );
-    window.history.replaceState(null, '', '/?capacitylensActionConfirmed=1');
-    vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 204 }));
-    renderSection({ role: 'owner' });
-    const dialog = await screen.findByRole('dialog', { name: 'Anonymise all people?' });
-    expect(apiFetch).not.toHaveBeenCalled();
-    await userEvent
-      .setup()
-      .click(within(dialog).getByRole('button', { name: 'Anonymise all people' }));
-    await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
-    expect(apiFetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ body: JSON.stringify({ proofId: 'provider-proof' }) }),
-      expect.any(Number),
-    );
-  });
-
-  it('clears a pending provider continuation when the selected company changes', async () => {
-    sessionStorage.setItem(
-      'capacitylens/company-anonymise-action-proof',
-      JSON.stringify({ accountId: DEFAULT_ACCOUNT_ID, proofId: 'provider-proof' }),
-    );
-    window.history.replaceState(null, '', '/?capacitylensActionConfirmed=1');
-    renderSection({ role: 'owner' });
-    await screen.findByRole('dialog', { name: 'Anonymise all people?' });
-    useStore.setState({ activeAccountId: 'a-loft' });
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    useStore.setState({ activeAccountId: DEFAULT_ACCOUNT_ID });
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(apiFetch).not.toHaveBeenCalled();
-  });
-
-  it('discards wrong-company provider proof and a cancelled continuation', async () => {
-    sessionStorage.setItem(
-      'capacitylens/company-anonymise-action-proof',
-      JSON.stringify({ accountId: 'a-loft', proofId: 'foreign-proof' }),
-    );
-    window.history.replaceState(null, '', '/?capacitylensActionConfirmed=1');
-    const wrong = renderSection({ role: 'owner' });
-    await waitFor(() =>
-      expect(sessionStorage.getItem('capacitylens/company-anonymise-action-proof')).toBeNull(),
-    );
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    wrong.unmount();
-
-    sessionStorage.setItem(
-      'capacitylens/company-anonymise-action-proof',
-      JSON.stringify({ accountId: DEFAULT_ACCOUNT_ID, proofId: 'provider-proof' }),
-    );
-    window.history.replaceState(null, '', '/?capacitylensActionConfirmed=1');
-    renderSection({ role: 'owner' });
-    const dialog = await screen.findByRole('dialog', { name: 'Anonymise all people?' });
-    await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    expect(dialog).not.toBeInTheDocument();
-    expect(apiFetch).not.toHaveBeenCalled();
   });
 
   it('releases suspended planning commands after a definitive refusal', async () => {

@@ -338,6 +338,86 @@ describe('rejectionMessage', () => {
 });
 
 describe('teamAccessClient admission requests', () => {
+  it.each([
+    { userId: 'bruce', email: null, requestedAt: null },
+    { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: 42 },
+  ])('rejects an admission page with a malformed required row', async (row) => {
+    const list = vi
+      .spyOn(accountClient, 'listAdmissionRequests')
+      .mockImplementation(async () => json({ items: [row], nextCursor: null }));
+
+    await expect(teamAccessClient.listAdmissionRequests()).resolves.toMatchObject({
+      kind: 'invalid',
+    });
+    expect(list).toHaveBeenCalledOnce();
+  });
+
+  it('accepts string requestedAt values from fresh response bodies', async () => {
+    const row = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: 'not-a-date' };
+    const list = vi
+      .spyOn(accountClient, 'listAdmissionRequests')
+      .mockImplementation(async (status) =>
+        json(
+          status === 'pending'
+            ? { items: [row], nextCursor: null }
+            : { items: [], nextCursor: null },
+        ),
+      );
+
+    await expect(teamAccessClient.listAdmissionRequests()).resolves.toEqual({
+      kind: 'ok',
+      status: 200,
+      value: [{ ...row, invitedRole: null, approval: 'pending' }],
+    });
+    expect(list).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejects a mixed page instead of returning its valid subset or following its cursor', async () => {
+    const valid = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: null };
+    const malformed = { userId: 'jason', email: 'jason@wayne.test', requestedAt: 42 };
+    const list = vi
+      .spyOn(accountClient, 'listAdmissionRequests')
+      .mockImplementation(async (status, cursor) => {
+        if (status === 'pending' && cursor === null) {
+          return json({ items: [valid, malformed], nextCursor: 'next' });
+        }
+        if (status === 'pending' && cursor === 'next') return json({ items: [], nextCursor: null });
+        return json({ items: [], nextCursor: null });
+      });
+
+    await expect(teamAccessClient.listAdmissionRequests()).resolves.toEqual({
+      kind: 'invalid',
+      status: 200,
+      message: 'The server returned an invalid response.',
+    });
+    expect(list).toHaveBeenCalledOnce();
+    expect(list).toHaveBeenCalledWith('pending', null, undefined);
+  });
+
+  it('discards earlier status rows and stops at a malformed later page', async () => {
+    const valid = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: null };
+    const malformed = { userId: 'jason', email: 'jason@wayne.test', requestedAt: 42 };
+    const list = vi
+      .spyOn(accountClient, 'listAdmissionRequests')
+      .mockImplementation(async (status, cursor) => {
+        if (status === 'pending') return json({ items: [valid], nextCursor: null });
+        if (status === 'rejected' && cursor === null) {
+          return json({ items: [malformed], nextCursor: 'next' });
+        }
+        return json({ items: [], nextCursor: null });
+      });
+
+    await expect(teamAccessClient.listAdmissionRequests()).resolves.toEqual({
+      kind: 'invalid',
+      status: 200,
+      message: 'The server returned an invalid response.',
+    });
+    expect(list.mock.calls).toEqual([
+      ['pending', null, undefined],
+      ['rejected', null, undefined],
+    ]);
+  });
+
   it('reads every page of pending, declined and revoked records', async () => {
     const row = (userId: string) => ({ userId, email: `${userId}@wayne.test`, requestedAt: null });
     const list = vi

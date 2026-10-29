@@ -1,13 +1,13 @@
 ---
 title: Account
-description: Check your signed-in identity, change a local password, connect company login and recover access.
+description: Check your signed-in identity, change your password and recover access.
 prev: false
 next: false
 ---
 
 # Account
 
-Check who you're signed in as, change your password and connect company login. Every member can
+Check who you're signed in as and change your password. Every member can
 use it, including a Viewer.
 
 ![Account showing James Gordon’s identity, email, Change password and Sign out](../screenshots/flows/account_identity_current.jpg)
@@ -45,6 +45,9 @@ Admin.
 
 Account doesn't list your other sessions. Changing your password signs out every browser and
 device.
+
+To leave a company, ask its Owner or Admin to remove your membership. You can rejoin only if an
+Owner or Admin restores access or invites you again, depending on how they removed you.
 
 ## If you can't sign in
 

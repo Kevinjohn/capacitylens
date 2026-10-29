@@ -5,20 +5,13 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CapacityLens</title>
-    <script src="/auth-error-init.js"></script>
     <!-- Set the colour scheme before first paint so dark-mode users don't get a
          flash of light. Mirrors readStoredTheme()/resolveTheme() in
          src/lib/theme.ts (default: light); main.tsx re-applies + wires changes.
          Reads the `capacitylens/theme` key. -->
     <script src="/theme-init.js"></script>
     <noscript>
-      <!-- With scripting disabled, replace the transient/selective-blocking placeholder with the
-           terminal explanation below. When scripting is enabled this style is not applied. -->
-      <style>
-        #root {
-          display: none;
-        }
-      </style>
+      <link rel="stylesheet" href="/no-script.css" />
     </noscript>
   </head>
   <body>

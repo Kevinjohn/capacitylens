@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { masqueradeContextHeaders } from './authTestSupport';
 
 // This journey needs an empty native installation, independently of the shared role fixtures.
-test('the operator setup link creates the first Owner, one company and a usable schedule and opens a usable schedule', async ({
+test('operator setup creates the first Owner, one company and its default client', async ({
   page,
   request,
 }, testInfo) => {
@@ -107,7 +107,16 @@ test('the operator setup link creates the first Owner, one company and a usable 
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(page.getByTestId('company-setup')).toBeVisible();
     await expect(page.getByRole('textbox')).toHaveCount(1);
-    await page.getByLabel('Company name').fill('Wayne Enterprises');
+    const companyName = page.getByLabel('Company name');
+    await companyName.fill('𐐀'.repeat(100));
+    await expect(companyName).toHaveValue('𐐀'.repeat(100));
+    await companyName.fill('𐐀'.repeat(101));
+    await page.getByRole('button', { name: 'Create company', exact: true }).click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(companyName).toHaveValue('𐐀'.repeat(101));
+    await companyName.fill('Wayne Enterprises');
+    await page.getByLabel('Week starts on').selectOption('0');
+    await page.getByLabel('Time zone', { exact: true }).selectOption('America/New_York');
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.screenshot({
       path:
@@ -124,10 +133,12 @@ test('the operator setup link creates the first Owner, one company and a usable 
     const state = await page.request.get(`${origin}/api/state?accountId=${accounts[0]!.id}`);
     const data = await state.json();
     expect(data.accounts[0].name).toBe('Wayne Enterprises');
+    expect(data.accounts[0].weekStartsOn).toBe(0);
+    expect(data.accounts[0].timezone).toBe('America/New_York');
     expect(data.clients).toHaveLength(1);
     expect(data.clients[0].builtin).toBe(true);
     const duplicate = await page.request.post(`${origin}/api/installation/company`, {
-      data: { name: 'Stark Industries' },
+      data: { name: 'Stark Industries', weekStartsOn: 1, timeZone: 'Etc/GMT' },
       headers: await masqueradeContextHeaders(page.request, undefined, origin),
     });
     expect(duplicate.status()).toBe(409);

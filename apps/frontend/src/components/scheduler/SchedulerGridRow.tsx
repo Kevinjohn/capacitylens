@@ -70,7 +70,11 @@ function ResourceIdentity({
         resourceId={resource.id}
         scheduleTitle={scheduleTitle}
         avatarName={resource.name ?? resource.role}
-        color={group.color ?? resource.color}
+        color={
+          resource.kind === 'placeholder' && !resource.disciplineId
+            ? resource.color
+            : (group.color ?? resource.color)
+        }
         placeholder={resource.kind === 'placeholder'}
         {...(imageUrl ? { imageUrl } : {})}
         onViewSchedule={onViewSchedule}

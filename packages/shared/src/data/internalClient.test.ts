@@ -414,8 +414,8 @@ function registerPublicPredicateTests(): void {
     expect(c.id).toBe('internal:a9');
   });
 
-  // A client write must reject a second built-in client in the same account while allowing updates to the existing one.
-  it('wouldAddSecondBuiltin: reproduces the server reject check byte-for-byte', () => {
+  // The shared predicate flags a proposed second built-in for the same account.
+  it('wouldAddSecondBuiltin matches the client-side duplicate built-in write predicate', () => {
     const existing: Client = {
       ...NULLABLE_FIELDS.clients,
       id: 'c-int',

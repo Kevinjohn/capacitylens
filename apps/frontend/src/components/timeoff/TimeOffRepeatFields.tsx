@@ -51,8 +51,7 @@ function buildRepeatOptions(startDate: ISODate | ''): Option[] {
 }
 
 function TimeOffRepeatPreview({ projection }: { projection: RepeatProjection }) {
-  const finalDraft = projection.drafts.at(-1);
-  if (!finalDraft) return null;
+  const finalDraft = projection.drafts.at(-1) as (typeof projection.drafts)[number];
   return (
     <div
       className="flex flex-col gap-1 text-xs text-muted-foreground"

@@ -45,7 +45,9 @@ The suites cover the frontend, backend and shared workspace packages.
   create, move, resize, reassign, duplicate, repeat, grouped creation, archive/unarchive, update
   Undo/Redo, stale-edit refusal, lost-response
   commitment lookup and sign-out cache clearing. The schedule uses the controller for bookings,
-  and Undo and Redo cover booking changes only. Server tests cover session-bound deletion and restoration of bookings,
+  and Undo/Redo share page-local history for eligible acknowledged typed planning changes. History is
+  cleared on context changes and does not cover imports or irreversible privacy actions. Server
+  tests cover session-bound deletion and restoration of bookings,
   time off, closures, phases and disciplines through the typed routes. Deleted rows stay hidden
   from reads and exports. Only the deleting session can restore each group once, with the original
   IDs and timestamps. Tests cover fresh Redo handles, uncertain-response lookup, surviving-child

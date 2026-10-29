@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
@@ -283,3 +284,121 @@ it('does not restore stale values or feedback after a pending password request f
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
   expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('');
 });
+
+it.each([
+  ['normal success', { data: { status: true }, error: null }],
+  [
+    'committed success with a follow-up warning',
+    {
+      data: null,
+      error: { code: 'CREDENTIAL_UPDATE_COMMITTED', message: 'Cleanup failed.', status: 503 },
+    },
+  ],
+])('navigates after %s even when its dialog was dismissed', async (_label, response) => {
+  const assign = vi.fn();
+  vi.stubGlobal('location', { ...window.location, assign });
+  let finish: ((value: unknown) => void) | undefined;
+  changePassword.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  function Harness() {
+    const [open, setOpen] = useState(true);
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Open password dialog</button>
+        <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
+      </>
+    );
+  }
+  render(
+    <AuthContext.Provider value={passwordAuth}>
+      <Harness />
+    </AuthContext.Provider>,
+  );
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: 'current-password' },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+    target: { value: 'a-strong-new-password' },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+    target: { value: 'a-strong-new-password' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
+  await waitFor(() => expect(changePassword).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole('button', { name: m.form_cancel() }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }));
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('');
+  const finishRequest = finish;
+  if (!finishRequest) throw new Error('Password request was not started');
+  await act(async () => finishRequest(response));
+  expect(assign).toHaveBeenCalledTimes(1);
+  expect(assign).toHaveBeenCalledWith('/');
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  vi.unstubAllGlobals();
+});
+
+it.each(['Escape', 'backdrop'] as const)(
+  'navigates after committed password completion dismissed by %s',
+  async (gesture) => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+    let finish: ((value: unknown) => void) | undefined;
+    changePassword.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open password dialog</button>
+          <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
+        </>
+      );
+    }
+    render(
+      <AuthContext.Provider value={passwordAuth}>
+        <Harness />
+      </AuthContext.Provider>,
+    );
+    fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+      target: { value: 'current-password' },
+    });
+    fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+      target: { value: 'a-strong-new-password' },
+    });
+    fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+      target: { value: 'a-strong-new-password' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
+    await waitFor(() => expect(changePassword).toHaveBeenCalledOnce());
+    if (gesture === 'Escape') {
+      fireEvent.keyDown(document, { key: 'Escape' });
+    } else {
+      const overlay = document.querySelector('[data-slot="dialog-overlay"]');
+      if (!overlay) throw new Error('Password dialog backdrop was not rendered');
+      await userEvent.setup().click(overlay);
+    }
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Open password dialog' }));
+    expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue('');
+    const finishRequest = finish;
+    if (!finishRequest) throw new Error('Password request was not started');
+    await act(async () =>
+      finishRequest({
+        data: null,
+        error: { code: 'CREDENTIAL_UPDATE_COMMITTED', message: 'Cleanup failed.', status: 503 },
+      }),
+    );
+    expect(assign).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledWith('/');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  },
+);

@@ -17,7 +17,7 @@ const presets = {
   },
 };
 
-const selected = presets[preset];
+const selected = Object.hasOwn(presets, preset) ? presets[preset] : undefined;
 if (!selected) {
   console.error(`run-preset: unknown preset ${JSON.stringify(preset)}`);
   process.exit(2);

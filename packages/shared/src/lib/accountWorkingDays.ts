@@ -11,7 +11,7 @@ export const isWeekday = (value: unknown): value is Weekday =>
 /** True for an array of distinct weekdays. Emptiness is deliberately not judged here because this
  * shape guard is shared: account/resource weeks require a day, while half-day sets may be empty. */
 export const isWeekdaySet = (days: unknown): days is Weekday[] =>
-  Array.isArray(days) && new Set(days).size === days.length && days.every(isWeekday);
+  Array.isArray(days) && new Set(days).size === days.length && Array.from(days).every(isWeekday);
 
 /** The first five weekdays in a company's configured week, stored as a stable set.
  * Both legal week starts (Sunday and Monday) run 0–4 / 1–5, i.e. already ascending, so taking the
@@ -27,7 +27,7 @@ export function canonicalWeekdaySet(days: readonly Weekday[]): Weekday[] {
 
 /** Repair an absent, empty or malformed account selection to the week-start-aware default. */
 export function normalizeAccountWorkingDays(value: unknown, weekStartsOn: 0 | 1 = 1): Weekday[] {
-  if (!Array.isArray(value) || value.length === 0 || !value.every(isWeekday)) {
+  if (!Array.isArray(value) || value.length === 0 || !Array.from(value).every(isWeekday)) {
     return defaultAccountWorkingDays(weekStartsOn);
   }
   return canonicalWeekdaySet(value);
