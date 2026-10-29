@@ -170,5 +170,17 @@
   {
     "path": "docs-src/screenshots/flows/editor_archive_restore.jpg",
     "sha256": "4dffaf167d4bb62650565018d402391e664e28f65477cb3fad9eba135a0bfc72"
+  },
+  {
+    "path": "docs-src/screenshots/reviews/fresh_install_json_import_before.png",
+    "sha256": "e7a1e75d1d31d20f8c7c02b23c9915e972aa790a903f4d927b597bc584df1595"
+  },
+  {
+    "path": "docs-src/screenshots/reviews/fresh_install_json_preview_after.png",
+    "sha256": "0cf884d08b670fde16d389a05d15728c7f401bd1f1e81aa56ebd5d729bcd7277"
+  },
+  {
+    "path": "docs-src/screenshots/reviews/fresh_install_json_restored_after.png",
+    "sha256": "f14c59046945cdfea50721804245aabf2632ee2e17cabde6a92f74d0a954e99c"
   }
 ]
