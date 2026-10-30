@@ -114,8 +114,12 @@ This is the short, present-tense record of decisions that constrain future work.
 - The portable export is this product's own document and the only import source. Import is
   Owner-only, atomic and not undoable. A malformed or foreign document is rejected, never repaired.
   Identity, sessions, membership and admission records are never part of the export.
-- Beta transfer uses the versioned full company document, preserves scoped IDs and member links,
-  and replaces supported company settings. A redacted document cannot be imported. The Owner
+- Beta transfer uses the versioned full company document, binds the exported company scope to
+  the selected destination company, preserves scheduling IDs and existing member links, and replaces
+  supported company settings. Validate every source row against the exported company before binding;
+  retain the destination company ID and its identity, membership, session and admission records.
+  This permits an unchanged full beta export to restore planning into a fresh installation.
+  A redacted document cannot be imported. The Owner
   previews the destination revision before applying; changed imports advance it and audit once,
   while unchanged imports do neither.
 - Resource and catalogue lifecycle uses archive/restore (Editor and up). Resource anonymisation
