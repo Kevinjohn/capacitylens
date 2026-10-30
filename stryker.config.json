@@ -1,11 +1,13 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation testing covers pure shared domain logic, scheduler helpers, and the reset failure mapper. React hooks are excluded because their lifecycle orchestration is covered by component and browser tests and does not produce isolated function evidence. Run with pnpm run mutation before releases or after core changes; it is too slow for the standard gate. The related frontend/shared test run can exceed 7 minutes on Node 24, so allow extra room for shared validation load. List the Vitest plugin explicitly because Stryker auto-discovery does not find plugins in pnpm's nested node_modules layout.",
+  "_comment": "Mutation testing covers pure shared domain logic, scheduler helpers, and the reset failure mapper. React hooks are excluded because their lifecycle orchestration is covered by component and browser tests and does not produce isolated function evidence. Test kits, support modules and compile-time typecheck fixtures are excluded because mutating test tooling measures nothing. Incremental mode re-tests only mutants whose source or covering tests changed; pass --force for a full campaign, which takes over four hours at concurrency 6. Run with pnpm run mutation before releases or after core changes; it is too slow for the standard gate. The related frontend/shared test run can exceed 7 minutes on Node 24, so allow extra room for shared validation load. List the Vitest plugin explicitly because Stryker auto-discovery does not find plugins in pnpm's nested node_modules layout.",
   "packageManager": "pnpm",
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],
   "reporters": ["html", "clear-text", "progress"],
   "coverageAnalysis": "perTest",
+  "incremental": true,
+  "incrementalFile": "reports/mutation/stryker-incremental.json",
   "mutate": [
     "packages/shared/src/lib/**/*.ts",
     "packages/shared/src/domain/**/*.ts",
@@ -13,7 +15,11 @@
     "!apps/frontend/src/components/scheduler/use*.ts",
     "apps/frontend/src/lib/**/*.ts",
     "apps/frontend/src/auth/resetPasswordFailure.ts",
-    "!**/*.test.ts"
+    "!**/*.test.ts",
+    "!**/*.test.support.ts",
+    "!**/*.testSupport.ts",
+    "!**/*.typecheck.ts",
+    "!**/__tests__/**"
   ],
   "vitest": {
     "configFile": "apps/frontend/vite.config.ts"
