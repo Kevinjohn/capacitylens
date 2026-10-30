@@ -1,4 +1,5 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 
 /** Keeps retained or archived resources identifiable in the member directory. */
 export interface MemberResourceLinkProjection {
@@ -63,4 +64,36 @@ export async function readMemberResourceFields(
     });
   }
   return result;
+}
+
+/** Reads active member person avatars after the caller authorizes company read access. */
+export async function readMemberAvatars(trx: TransactionClientContract, accountId: string) {
+  const rows = await trx
+    .from('account_member_resources as link')
+    .innerJoin('resources as resource', function () {
+      this.on('resource.id', '=', 'link.resource_id').andOn(
+        'resource.account_id',
+        '=',
+        'link.account_id'
+      );
+    })
+    .innerJoin('memberships as member', function () {
+      this.on('member.user_id', '=', 'link.user_id').andOn(
+        'member.account_id',
+        '=',
+        'link.account_id'
+      );
+    })
+    .where('link.account_id', accountId)
+    .where('member.status', 'active')
+    .where('resource.kind', 'person')
+    .whereNull('resource.archived_at')
+    .whereNull('resource.deleted_at')
+    .select('resource.id', 'resource.avatar_url');
+  return {
+    avatars: rows.flatMap((row) => {
+      const imageUrl = parseResourceAvatarUrl(row.avatar_url);
+      return imageUrl ? [{ resourceId: String(row.id), imageUrl }] : [];
+    }),
+  };
 }

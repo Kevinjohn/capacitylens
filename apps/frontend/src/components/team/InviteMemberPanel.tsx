@@ -77,7 +77,21 @@ function InviteHeader({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-function InviteForm(props: InviteMemberPanelProps) {
+function InviteForm(
+  props: Pick<
+    InviteMemberPanelProps,
+    | 'busy'
+    | 'inviteRole'
+    | 'setInviteRole'
+    | 'invitationPreauthorizedEmail'
+    | 'setInvitationPreauthorizedEmail'
+    | 'error'
+    | 'errorField'
+    | 'errorId'
+    | 'clear'
+    | 'roleOptions'
+  >,
+) {
   const { busy, inviteRole, setInviteRole, error, errorField, errorId, clear } = props;
   return (
     <FieldSet className="gap-3">
@@ -135,7 +149,10 @@ function OutstandingInvites({
   busy,
   revokeInvite,
   resendInvite,
-}: InviteMemberPanelProps) {
+}: Pick<
+  InviteMemberPanelProps,
+  'invites' | 'renderedAt' | 'busy' | 'revokeInvite' | 'resendInvite'
+>) {
   if (invites.length === 0) return null;
   return (
     <section data-testid="outstanding-invites" className="flex flex-col gap-2">

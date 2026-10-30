@@ -20,7 +20,6 @@ interface TeamDirectoryOptions {
   enabled: boolean;
   activeAccountId: string | null;
   fail: FieldError['fail'];
-  onInvitesLoaded?: (invites: TeamInvitation[]) => void;
 }
 
 interface DirectorySnapshot {
@@ -179,14 +178,12 @@ function useMemberQueryEffects({
 function useInvitationQueryEffects({
   activeAccountId,
   fail,
-  onInvitesLoaded,
   membersQuery,
   invitationsQuery,
   setDirectory,
 }: {
   activeAccountId: string | null;
   fail: FieldError['fail'];
-  onInvitesLoaded: TeamDirectoryOptions['onInvitesLoaded'];
   membersQuery: ReturnType<typeof useScopedDirectoryQueries>['membersQuery'];
   invitationsQuery: ReturnType<typeof useScopedDirectoryQueries>['invitationsQuery'];
   setDirectory: SetDirectory;
@@ -203,15 +200,7 @@ function useInvitationQueryEffects({
       return;
     }
     setDirectory((previous) => replaceInvites(previous, activeAccountId, result.value));
-    onInvitesLoaded?.(result.value);
-  }, [
-    activeAccountId,
-    membersQuery.data,
-    invitationsQuery.data,
-    fail,
-    onInvitesLoaded,
-    setDirectory,
-  ]);
+  }, [activeAccountId, membersQuery.data, invitationsQuery.data, fail, setDirectory]);
   useEffect(() => {
     if (membersQuery.data?.kind === 'ok' && invitationsQuery.error) {
       fail(null, m.settings_err_server({ error: resolveErrorMessage(invitationsQuery.error) }));
@@ -220,7 +209,7 @@ function useInvitationQueryEffects({
 }
 
 function useDirectoryRead(options: TeamDirectoryOptions) {
-  const { activeAccountId, fail, onInvitesLoaded } = options;
+  const { activeAccountId, fail } = options;
   const { user } = useAuth();
   const masqueradeGeneration = useStore((state) =>
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
@@ -270,7 +259,6 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
   useInvitationQueryEffects({
     activeAccountId,
     fail,
-    onInvitesLoaded,
     membersQuery,
     invitationsQuery,
     setDirectory,

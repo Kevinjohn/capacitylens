@@ -1,5 +1,9 @@
 import { test } from '@japa/runner';
 import {
+  assertPlanningBaseRevision,
+  StalePlanningRevisionError,
+} from '#services/planning_revision';
+import {
   externalCapacityDefaults,
   placeholderCapacityDefaults,
 } from '@capacitylens/shared/types/entities';
@@ -14,8 +18,6 @@ import {
   mutationLookupValidator,
   mutationLookupReplyValidator,
   planningMutationFailureValidator,
-  assertPlanningBaseRevision,
-  StalePlanningRevisionError,
   type PlanningMutationInput,
   type PlanningMutationSuccess,
 } from '#validators/planning_operations';

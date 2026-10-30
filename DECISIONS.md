@@ -23,10 +23,12 @@ This is the short, present-tense record of decisions that constrain future work.
 - Shared role and status badges use a compact pill silhouette. Their semantic colours continue to
   distinguish brand/default, neutral, warning, danger and outline states.
 - Employment type is recorded for people but does not add a visual badge to the schedule or roster.
-- Product orientation is non-blocking and shown automatically to eligible users until dismissed; there is no sidebar reopen action. Dismissal is a
-  versioned device preference scoped to the signed-in person and company (with stable demo, local
-  and no-company scopes), never company data or export data. A copy change may bump the version to
-  show materially changed guidance again.
+- Product orientation is non-blocking and shown automatically to eligible users until dismissed.
+  The sidebar action can reopen it at any time. Dismissal is a versioned device preference scoped
+  to the signed-in person and company (with stable demo, local and no-company scopes), never
+  company data or export data. Reopening focuses the guidance; automatic background state changes
+  do not repeatedly steal focus. A copy change may bump the version to show materially changed
+  guidance again.
 - A new setting needs a user who cannot proceed without it. Prefer deriving a value from what the
   operator or company already told us.
 - Intentional friction against task tracking: inline **Add activity** and the **Task** field stay

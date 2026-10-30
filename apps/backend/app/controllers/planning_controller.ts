@@ -9,6 +9,7 @@ import {
   validatePlanningMutationId,
 } from '#services/planning';
 import { BatchRequestError } from '#services/planning_operations/errors';
+import { StalePlanningRevisionError } from '#services/planning_revision';
 import { RestorationConfirmationError } from '#services/planning_operations/restoration';
 import { PlanningOperationError } from '#services/planning_operations/execute';
 import { accountErrorResponse } from 'adonisjs-account-kit';
@@ -23,7 +24,6 @@ import {
   settingsMutationValidator,
   planningMutationValidator,
   planningMutationErrorCodes,
-  StalePlanningRevisionError,
 } from '#validators/planning_operations';
 import type {
   PlanningMutationInput,

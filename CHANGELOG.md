@@ -15,6 +15,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Correct company settings help to say disciplines start off in a new company.
 - Restore full beta JSON exports into a fresh company while preserving scheduling IDs, relationships and destination access.
 
 - Preserve a newly opened form and its unsaved draft when an earlier save finishes.

@@ -14,7 +14,7 @@ import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { installationCompanyId, isInvitableRole } from '#services/account_kit/policy';
 import { invalidAdmission, missingAdmission } from '#services/admission/errors';
-import { signInWithPassword } from '#controllers/auth_controller';
+import { signInWithPassword } from '#services/auth/password_sign_in';
 import db from '@adonisjs/lucid/services/db';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';

@@ -58,8 +58,7 @@ Each row is a [person](/reference/glossary#person): a teammate, a freelancer or 
 [placeholder](/reference/glossary#placeholder) for an unfilled role. A placeholder row says "Placeholder"
 instead of a name and has a faint diagonal hatch on its header.
 
-When your company uses [disciplines](/reference/glossary#discipline), the default, rows are grouped under
-them. Favourites come first in each group, alphabetically, then everyone else, then placeholders.
+When your company uses [disciplines](/reference/glossary#discipline), rows are grouped under them. Favourites come first in each group, alphabetically, then everyone else, then placeholders.
 Favourites are shared with the whole company, not a personal preference. Favourite external
 parties lead the External group.
 

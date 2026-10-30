@@ -21,10 +21,7 @@ export const E2E_RUN_PRESETS: Readonly<
 /**
  * Returns the API origin selected for a Playwright run.
  */
-export function serverTestApiOrigin(
-  laneApiPort: number,
-  environment?: Readonly<Record<string, string | undefined>>,
-): string;
+export function serverTestApiOrigin(laneApiPort: number): string;
 
 /**
  * Resolves the Playwright projects and server profile from run settings.

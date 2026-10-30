@@ -81,7 +81,7 @@ the inactive member directory. Owner and self protections apply to both actions.
    (`data-testid="product-orientation"`) above the page. It explains the week-by-week people and
    work model and says CapacityLens does not manage tasks, tickets or deadlines. **Got it**
    dismisses it for this person and company on this device. Eligible users see it automatically;
-   there is no sidebar reopen action.
+   the **How CapacityLens works** sidebar action can reopen it at any time.
    The versioned preference is implemented by
    `apps/frontend/src/lib/productOrientation.ts`; it is never in `AppData` or an export.
 5. Every application page shows a **Getting started** progress bar (`data-testid="getting-started-progress"`)
@@ -703,7 +703,8 @@ consequences remain in destructive confirmation dialogs rather than depending on
 section with five independent switches, in order: **Use disciplines**, **Show placeholders**, **Show
 external resources**, **Inline activity creation** and **Show task field in schedule**. Its help
 action (`About Company features`) explains each one. **Use disciplines** starts off for a new
-production company; the in-memory demo and missing-field fallback may enable it. **Show placeholders**,
+production company; a missing saved value uses the on fallback, and the in-memory demo has it on.
+**Show placeholders**,
 **Show external resources**, **Inline activity creation** and **Show task
 field in schedule** are off by default (absent reads as off).
 
@@ -777,8 +778,9 @@ Unattributed All-projects allocations retain their resource-derived colours; att
 their effective project's colour.
 
 **Disciplines (account-level).** Settings → **Company features** has the switch **Use disciplines**.
-It starts off for a new production company; the temporary in-memory demo and missing-field fallback
-may enable it. Turning it off hides disciplines across the whole app — the **Disciplines** nav
+It starts off for a new production company; a missing saved value uses the on fallback, and the
+temporary in-memory demo also enables it. Turning it off hides disciplines across the whole app —
+the **Disciplines** nav
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
@@ -1177,7 +1179,7 @@ CapacityLens works** (`data-testid="product-orientation"`) for every role and fo
 Account view. It does not hide navigation or page content. **Got it** dismisses it with a versioned,
 per-person and per-company device preference (`capacitylens/productOrientation/v1/...`); storage
 failure leaves it dismissed for the current mount. Eligible users see it automatically until
-dismissed; there is no sidebar reopen action. Sources:
+dismissed; the **How CapacityLens works** sidebar action can reopen it at any time. Sources:
 `apps/frontend/src/components/ProductOrientation.tsx`,
 `apps/frontend/src/components/useProductOrientation.ts`, `apps/frontend/src/lib/productOrientation.ts`;
 coverage: `apps/frontend/src/components/AppShell.productOrientation.test.tsx`,
@@ -1456,10 +1458,12 @@ return **404**.
 - **Typed planning deletes** for allocations, time off, phases and disciplines preserve their
   respective association rules. Archive and restore retain resource, client, project and
   activity records and their links; resource anonymisation scrubs identifying details.
-- **Disciplines are optional (account-level).** Default **on**. When a company turns them off
-  (Settings → Disciplines → _Use disciplines_) disciplines are hidden everywhere and the schedule
-  uses engagement fallback bands — see the _Disciplines (account-level)_ note above. The seed companies leave it
-  **on**, so every story below runs with disciplines visible.
+- **Disciplines are optional (account-level).** New production companies start with disciplines
+  **off**. A missing saved value uses the on fallback, and the temporary in-memory demo enables
+  them; both seed companies leave them **on**, so stories using the demo run with disciplines
+  visible. When a company turns disciplines off (Settings → Company features → _Use disciplines_),
+  they are hidden everywhere and the schedule uses engagement fallback bands — see the _Disciplines
+  (account-level)_ note above.
 - **Engagement is separate from employment and discipline.** A person is either **Studio** or
   **Supplementary**, defaulting to Studio. The resource form shows Engagement as an always-visible
   two-choice group instead of a dropdown; editing preserves the existing employment value. Placeholders are
