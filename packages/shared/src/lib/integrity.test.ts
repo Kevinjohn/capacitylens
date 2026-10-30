@@ -8,6 +8,7 @@ import {
   deleteProjectCascade,
   deleteResourceCascade,
   deleteActivityCascade,
+  effectiveProjectId,
   isValidISODate,
   parseISOTimestamp,
   validateAllocationAssignment,
@@ -49,6 +50,24 @@ describe('withoutAllocationAttribution', () => {
       updatedAt: 'after',
     });
     expect(original).toHaveProperty('projectId', 'p1');
+    expect(original).toHaveProperty('updatedAt', 'before');
+  });
+
+  it('preserves extra fields and the existing timestamp when no restamp is supplied', () => {
+    const original = { id: 'al1', projectId: 'p1', updatedAt: 'before', note: 'Keep me' };
+    const cleared = withoutAllocationAttribution(original);
+    expect(cleared).toEqual({ id: 'al1', projectId: null, updatedAt: 'before', note: 'Keep me' });
+    expect(cleared).not.toBe(original);
+  });
+});
+
+describe('effectiveProjectId', () => {
+  it('uses allocation attribution when present, otherwise activity attribution', () => {
+    expect(effectiveProjectId({ projectId: 'allocation' }, { projectId: 'activity' })).toBe(
+      'allocation',
+    );
+    expect(effectiveProjectId({ projectId: null }, { projectId: 'activity' })).toBe('activity');
+    expect(effectiveProjectId({ projectId: null }, { projectId: null })).toBeUndefined();
   });
 });
 

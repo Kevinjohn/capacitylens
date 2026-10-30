@@ -24,6 +24,7 @@ const INSERT_ORDER = [
   'closures',
 ] as const;
 const INSERT_CHUNK_SIZE = 32;
+const ID_LOOKUP_CHUNK_SIZE = 200;
 
 function fingerprint(data: AppData) {
   const rows = APP_DATA_KEYS.map((key) => [
@@ -35,6 +36,36 @@ function fingerprint(data: AppData) {
 
 function portableFingerprint(data: AppData, accountId: string) {
   return fingerprint(buildBetaExport(data, { accountId, completeness: 'full' }).data);
+}
+
+// Scheduling IDs are primary keys across every company, so a document exported from another
+// company on this server cannot be inserted while that company still holds the same rows. Refusing
+// here keeps preview and apply in agreement instead of surfacing a constraint failure after the
+// Owner has confirmed with a password.
+async function assertNoForeignIdCollision(
+  trx: TransactionClientContract,
+  accountId: string,
+  data: AppData
+) {
+  for (const key of INSERT_ORDER) {
+    const ids = data[key].map((row) => row.id);
+    for (let offset = 0; offset < ids.length; offset += ID_LOOKUP_CHUNK_SIZE) {
+      const foreign = await trx
+        .from(TABLE_NAMES[key])
+        .whereIn('id', ids.slice(offset, offset + ID_LOOKUP_CHUNK_SIZE))
+        .whereNot('account_id', accountId)
+        .select('id')
+        .first();
+      if (foreign) {
+        throw new BatchRequestError(
+          'The import contains scheduling IDs used by another company on this server.',
+          409,
+          undefined,
+          'IMPORT_ID_COLLISION'
+        );
+      }
+    }
+  }
 }
 
 async function context(trx: TransactionClientContract, accountId: string) {
@@ -60,6 +91,7 @@ export async function previewBetaAccountTransfer(
   const current = await readStateWithClient(trx, accountId, true);
   if (current.accounts.length !== 1) throw new BatchRequestError('Company not found.', 404);
   const prepared = prepareBetaImport(document, await context(trx, accountId));
+  await assertNoForeignIdCollision(trx, accountId, prepared.data);
   const changed = portableFingerprint(current, accountId) !== fingerprint(prepared.data);
   const baseRevision = await getPlanningRevision(trx, accountId);
   return { baseRevision, imported: prepared.imported, changed };
@@ -85,6 +117,7 @@ export async function applyBetaAccountTransfer(
     );
   }
   const prepared = prepareBetaImport(document, await context(trx, accountId));
+  await assertNoForeignIdCollision(trx, accountId, prepared.data);
   if (portableFingerprint(current, accountId) === fingerprint(prepared.data)) {
     return { imported: prepared.imported, changed: false, revision };
   }

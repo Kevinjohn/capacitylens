@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { Role } from '@capacitylens/shared/domain/access';
@@ -56,8 +56,6 @@ beforeEach(() => {
   buildMode.demo = false;
   useStore.setState({ masquerade: { kind: 'inactive' } });
 });
-
-afterEach(() => {});
 
 describe('TeamAccessView access presentation', () => {
   it('labels the demo honestly and says why there is no membership directory', () => {

@@ -220,6 +220,14 @@ function confirmLocalImport(
   try {
     const prepared = prepareBetaImport(document, { accountId, memberResourceLinks: [] });
     const current = useStore.getState().data;
+    for (const key of SCOPED_KEYS) {
+      const retainedIds = new Set(
+        current[key].filter((row) => row.accountId !== accountId).map((row) => row.id),
+      );
+      if (prepared.data[key].some((row) => retainedIds.has(row.id))) {
+        throw new Error('The import contains scheduling IDs used by another demo company.');
+      }
+    }
     const next = {
       ...current,
       accounts: [

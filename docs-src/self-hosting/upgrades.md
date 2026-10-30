@@ -33,6 +33,23 @@ After a successful upgrade, start the service and check `/health/ready`. Keep th
 new release has passed sign-in, reads, writes and backup checks. Pre-upgrade snapshots are kept
 separately from daily/manual retention; copy them off-host and keep the needed recovery points.
 
+## Restore beta planning into a fresh installation
+
+A full beta-native JSON export can transfer planning without upgrading the source database. While
+the source still runs, sign in as its Owner and download **Export JSON** from **Settings → Data and
+support → Import and export**. Keep the file unchanged and preserve the source database.
+
+Follow [Install without Docker](/self-hosting/install-without-docker) with a new database path,
+bootstrap a new Owner and create the destination company. As that Owner, select **Import JSON**,
+preview the full file and confirm **Replace data** with your destination password. The imported
+name, supported settings and scheduling records replace the initial company data; its company ID
+and sign-in records remain local. Scheduling IDs and relationships are preserved. Reinvite members
+and establish their person links as needed.
+
+Check all imported records and settings, make an allocation edit, and reload before retiring the
+source installation. This transfers only full `capacitylens-beta` version `1` documents. It does
+not convert alpha exports or migrate authentication. Redacted and malformed documents are refused.
+
 ## Databases from before password-only sign-in
 
 A database created before the move to password-only sign-in cannot be upgraded: `app:upgrade` and

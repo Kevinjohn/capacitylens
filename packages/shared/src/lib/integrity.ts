@@ -190,12 +190,28 @@ export function allocationAttributionAllowed(kind: unknown): boolean {
   return kind === 'repeatable';
 }
 
-/** Return a fresh row with allocation-level attribution removed and, when supplied, restamped. */
-export function withoutAllocationAttribution<T extends object>(row: T, updatedAt?: unknown): T {
-  const cleared = { ...row } as T & { projectId?: unknown; updatedAt?: unknown };
-  Object.assign(cleared, { projectId: null });
-  if (updatedAt !== undefined) cleared.updatedAt = updatedAt;
-  return cleared;
+type WithoutAllocationAttribution<T> = {
+  [Key in keyof T]: Key extends 'projectId'
+    ? null
+    : Key extends 'updatedAt'
+      ? Allocation['updatedAt']
+      : T[Key];
+};
+
+/**
+ * Returns a fresh row with allocation-level attribution removed and, when supplied, restamped.
+ * Requires an existing valid allocation attribution and timestamp shape; preserves other fields.
+ */
+export function withoutAllocationAttribution<T extends Pick<Allocation, 'projectId' | 'updatedAt'>>(
+  row: T,
+  updatedAt?: Allocation['updatedAt'],
+): WithoutAllocationAttribution<T> {
+  // The spread preserves each union variant's other fields; only these two fields are replaced.
+  return {
+    ...row,
+    projectId: null,
+    updatedAt: updatedAt ?? row.updatedAt,
+  } as WithoutAllocationAttribution<T>;
 }
 
 /** Check that a project-attributed placeholder allocation matches its bound project.

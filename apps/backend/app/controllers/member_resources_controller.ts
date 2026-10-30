@@ -10,7 +10,7 @@ import { writeAudit } from '#services/audit';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
 import { invalidAdmission } from '#services/admission/errors';
 import { renderAdmissionFailure } from '#services/admission/http';
-import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
+import { readMemberAvatars } from '#services/member_resources/directory';
 
 function bodyOf(value: unknown, keys: string[]): Record<string, unknown> {
   if (
@@ -118,34 +118,7 @@ export default class MemberResourcesController {
       const { accountId } = ctx.params;
       return await withActor(ctx, async (_actor, trx) => {
         await assertCompanyAction(accountId, 'read', trx);
-        const rows = await trx
-          .from('account_member_resources as link')
-          .innerJoin('resources as resource', function () {
-            this.on('resource.id', '=', 'link.resource_id').andOn(
-              'resource.account_id',
-              '=',
-              'link.account_id'
-            );
-          })
-          .innerJoin('memberships as member', function () {
-            this.on('member.user_id', '=', 'link.user_id').andOn(
-              'member.account_id',
-              '=',
-              'link.account_id'
-            );
-          })
-          .where('link.account_id', accountId)
-          .where('member.status', 'active')
-          .where('resource.kind', 'person')
-          .whereNull('resource.archived_at')
-          .whereNull('resource.deleted_at')
-          .select('resource.id', 'resource.avatar_url');
-        return ctx.response.ok({
-          avatars: rows.flatMap((row) => {
-            const imageUrl = parseResourceAvatarUrl(row.avatar_url);
-            return imageUrl ? [{ resourceId: row.id, imageUrl }] : [];
-          }),
-        });
+        return ctx.response.ok(await readMemberAvatars(trx, accountId));
       });
     } catch (error) {
       return renderAdmissionFailure(ctx, error);

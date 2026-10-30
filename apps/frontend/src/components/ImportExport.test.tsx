@@ -278,6 +278,71 @@ describe('beta import and export', () => {
     expect(useStore.getState().past).toEqual([]);
   });
 
+  it('refuses demo imports whose scheduling IDs belong to another company without changing either company', async () => {
+    await useStore.getState().refreshPlanning();
+    const before = structuredClone(useStore.getState().data);
+    const planningBefore = useStore.getState().planning;
+    const incoming = buildBetaExport(seed(), { accountId: 'a-loft', completeness: 'full' });
+    renderTools();
+    await previewFile(incoming);
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull());
+    expect(useStore.getState().notice?.tone).toBe('error');
+    expect(useStore.getState().notice?.message).toMatch(/another demo company/i);
+    expect(useStore.getState().activeAccountId).toBe(accountId);
+    expect(useStore.getState().data).toEqual(before);
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+    expect(useStore.getState().planning).toBe(planningBefore);
+    await useStore.getState().refreshPlanning();
+    expect(useStore.getState().data).toEqual(before);
+    const retry = document();
+    const retryAccount = retry.data.accounts[0];
+    if (!retryAccount) throw new Error('The retry fixture has no company.');
+    retryAccount.name = 'Wayne Enterprises restored';
+    await previewFile(retry);
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
+    await waitFor(() =>
+      expect(useStore.getState().data.accounts.find((row) => row.id === accountId)?.name).toBe(
+        'Wayne Enterprises restored',
+      ),
+    );
+    expect(useStore.getState().notice?.tone).not.toBe('error');
+  });
+
+  it('imports a different source company into the demo when its scheduling IDs do not collide', async () => {
+    const before = structuredClone(useStore.getState().data);
+    const incoming = document();
+    const incomingAccount = incoming.data.accounts[0];
+    if (!incomingAccount) throw new Error('The import fixture has no company.');
+    incomingAccount.id = 'source-company';
+    incomingAccount.name = 'Wayne Enterprises restored';
+    for (const key of SCOPED_KEYS) {
+      for (const row of incoming.data[key]) row.accountId = 'source-company';
+    }
+    renderTools();
+    await previewFile(incoming);
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull());
+    const after = useStore.getState().data;
+    expect(after.accounts.find((row) => row.id === accountId)).toEqual({
+      ...incoming.data.accounts[0],
+      id: accountId,
+    });
+    expect(after.accounts.find((row) => row.id === 'a-loft')).toEqual(
+      before.accounts.find((row) => row.id === 'a-loft'),
+    );
+    for (const key of SCOPED_KEYS) {
+      expect(after[key].filter((row) => row.accountId === accountId)).toEqual(
+        incoming.data[key].map((row) => ({ ...row, accountId })),
+      );
+      expect(after[key].filter((row) => row.accountId === 'a-loft')).toEqual(
+        before[key].filter((row) => row.accountId === 'a-loft'),
+      );
+    }
+    expect(useStore.getState().activeAccountId).toBe(accountId);
+    expect(useStore.getState().notice?.tone).not.toBe('error');
+  });
+
   it('invalidates typed Undo and old restoration handles in the same demo import publication', async () => {
     await useStore.getState().refreshPlanning();
     const allocation = useStore

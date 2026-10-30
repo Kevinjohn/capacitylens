@@ -26,7 +26,7 @@ row; a [link](#link-a-person-to-a-member) joins the two.
 2. Enter a **Name**. Everything else is optional.
 3. Add a **Role** if useful, such as "Senior Designer".
 4. Choose a **Discipline**: the group they appear under on Schedule, which also sets their colour.
-   It shows only while the company uses [disciplines](/using/disciplines), the default.
+   It shows only while the company uses [disciplines](/using/disciplines).
 5. Choose an **Engagement**: **Studio** for the core team or **Supplementary** for additional
    capacity. It only changes which section they appear in, not their discipline, role, working
    days or utilisation.
