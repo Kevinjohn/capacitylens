@@ -186,6 +186,8 @@ then import the unchanged file while signed in as that Owner. The company ID and
 company scope bind to the selected destination; scheduling IDs and relationships stay unchanged.
 The imported company name and settings replace the setup values. Destination members and sign-in
 records remain in place; invite other people again and link members to imported people as needed.
+A file whose scheduling IDs are already used by another company on the same installation is
+refused before anything changes.
 See [Install without Docker](/self-hosting/install-without-docker) for the fresh setup steps.
 
 ### Anonymise all people
