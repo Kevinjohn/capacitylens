@@ -123,6 +123,29 @@ test.group('beta transfer apply', (group) => {
     assert.isFalse((repeatPreview.body() as { changed: boolean }).changed);
   });
 
+  test('refuses a document whose scheduling IDs belong to another company on this server', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie } = await resetAuthenticatedData(client, true);
+    const foreign = buildBetaExport(seed(), { accountId: 'a-loft', completeness: 'full' });
+    const before = await readState(accountId, true);
+    const otherBefore = await readState('a-loft', true);
+    const baseRevision = await revision();
+    const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+      .json({ accountId, document: foreign })
+      .send();
+    preview.assertStatus(409);
+    assert.deepInclude(preview.body(), { code: 'IMPORT_ID_COLLISION' });
+    const actionProof = await proof(client, cookie, { baseRevision, document: foreign });
+    const result = await apply(client, cookie, foreign, baseRevision, actionProof);
+    result.assertStatus(409);
+    assert.deepInclude(result.body(), { code: 'IMPORT_ID_COLLISION' });
+    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState('a-loft', true), otherBefore);
+    assert.equal(await revision(), baseRevision);
+  });
+
   test('requires exact action proof even immediately after owner sign-in', async ({
     client,
     assert,
