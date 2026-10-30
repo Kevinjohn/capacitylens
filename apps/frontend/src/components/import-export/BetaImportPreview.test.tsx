@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import type { PreparedBetaImport } from '@capacitylens/shared/data/betaTransfer';
 import { seed } from '@capacitylens/shared/data/seed';
 import { BetaImportPreview } from './BetaImportPreview';
 
@@ -12,7 +13,7 @@ describe('Beta import preview', () => {
       accountId: context.accountId,
       completeness: 'full',
     });
-    const onPrepared = vi.fn();
+    const onPrepared = vi.fn<(prepared: PreparedBetaImport) => void>();
     render(<BetaImportPreview document={document} context={context} onPrepared={onPrepared} />);
     expect(screen.getByRole('status')).toHaveTextContent('Wayne Enterprises');
     expect(screen.getByText(/No data has changed/)).toBeVisible();
@@ -21,12 +22,35 @@ describe('Beta import preview', () => {
     expect(onPrepared).toHaveBeenCalledWith(expect.objectContaining({ data: document.data }));
   });
 
+  it('previews a full export for a fresh destination company while preserving source IDs', () => {
+    const document = buildBetaExport(seed(), {
+      accountId: context.accountId,
+      completeness: 'full',
+    });
+    const onPrepared = vi.fn<(prepared: PreparedBetaImport) => void>();
+    render(
+      <BetaImportPreview
+        document={document}
+        context={{ accountId: 'new-company', memberResourceLinks: [] }}
+        onPrepared={onPrepared}
+      />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Wayne Enterprises');
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(onPrepared).toHaveBeenCalledTimes(1);
+    const prepared = onPrepared.mock.calls[0]?.[0];
+    expect(prepared?.data.accounts).toEqual([{ ...document.data.accounts[0], id: 'new-company' }]);
+    expect(prepared?.data.clients).toEqual(
+      document.data.clients.map((row) => ({ ...row, accountId: 'new-company' })),
+    );
+  });
+
   it('shows actionable failures without offering preparation and clears stale success on context change', () => {
     const document = buildBetaExport(seed(), {
       accountId: context.accountId,
       completeness: 'full',
     });
-    const onPrepared = vi.fn();
+    const onPrepared = vi.fn<(prepared: PreparedBetaImport) => void>();
     const { rerender } = render(
       <BetaImportPreview document={document} context={context} onPrepared={onPrepared} />,
     );
