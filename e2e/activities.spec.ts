@@ -76,6 +76,7 @@ test('fills the Activity kind control with equal segments without changing its i
   await expect(segments).toHaveText(['Internal', 'All projects', 'Project-specific']);
   await expectEqualFullWidthSegments(dialog, field, group, segments, false);
   await selectShadOption(dialog.getByLabel('Project'), 'p-acme');
+  await expect(dialog.getByLabel('Project')).toBeFocused();
 
   const projectSpecific = dialog.getByRole('radio', { name: 'Project-specific' });
   const crossProject = dialog.getByRole('radio', { name: 'All projects' });

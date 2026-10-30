@@ -23,3 +23,22 @@ withoutAllocationAttribution(row, 42);
 withoutAllocationAttribution(row, { value: 'after' });
 
 void [preservedId, clearedProject, timestamp, previousProject, previousTimestamp];
+
+function checkUnion(
+  unionRow:
+    | { kind: 'annotated'; note: string; projectId: string; updatedAt: string }
+    | { kind: 'weighted'; weight: number; projectId: null; updatedAt: string },
+) {
+  const result = withoutAllocationAttribution(unionRow, 'after');
+  const project: null = result.projectId;
+  const updatedAt: string = result.updatedAt;
+  if (result.kind === 'annotated') {
+    const note: string = result.note;
+    void note;
+  } else {
+    const weight: number = result.weight;
+    void weight;
+  }
+  void [project, updatedAt];
+}
+void checkUnion;

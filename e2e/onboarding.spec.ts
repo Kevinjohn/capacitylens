@@ -23,6 +23,9 @@ test.describe('onboarding: capture-then-freeze language / week-start / time zone
     await tz.click();
     await expect(page.getByRole('option', { name: 'GMT (UTC+00:00)', exact: true })).toBeVisible();
     await expect(page.getByRole('option', { name: /London.*Europe\/London/ })).toBeVisible();
+    await expect
+      .poll(async () => (await page.getByRole('listbox').boundingBox())?.y ?? -1)
+      .toBeGreaterThanOrEqual(0);
     const list = await page.getByRole('listbox').boundingBox();
     expect(list).not.toBeNull();
     expect(list!.y).toBeGreaterThanOrEqual(0);

@@ -12,8 +12,11 @@ import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities
 import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import { withActor } from '#services/auth/current_actor';
-import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
-import { assertPlanningBaseRevision } from '#services/planning_revision';
+import {
+  getPlanningRevision,
+  advancePlanningRevision,
+  assertPlanningBaseRevision,
+} from '#services/planning_revision';
 import {
   executePlanningIntent,
   PlanningOperationError,
