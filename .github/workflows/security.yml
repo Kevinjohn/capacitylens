@@ -9,7 +9,7 @@ on:
         type: boolean
         default: false
   push:
-    branches: [main]
+    branches: [platform/adonisjs]
     tags: ['v*']
   schedule:
     - cron: '19 4 * * 2'

@@ -17,10 +17,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Require the main branch for manual publication
-        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+      - name: Require the default branch for manual publication
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/platform/adonisjs'
         run: |
-          echo "::error::Documentation can only be published from main."
+          echo "::error::Documentation can only be published from platform/adonisjs."
           exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

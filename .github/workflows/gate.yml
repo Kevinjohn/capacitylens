@@ -1,11 +1,10 @@
 name: gate
 
-# Main pull requests receive static analysis and CodeQL; the protected Adonis fork also calls this gate.
+# Pull requests receive static analysis and CodeQL; branch pushes reach this gate through gate-adonis.yml.
 on:
   workflow_dispatch:
   workflow_call:
   push:
-    branches: [main]
     tags: ['v*']
   # Monthly run on the default branch: tag runs never feed the README's unqualified badge
   # (it reflects default-branch runs only), so without this the badge reads "no status"

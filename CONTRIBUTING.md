@@ -8,7 +8,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 
 1. Check [DECISIONS.md](DECISIONS.md) and the open issues; for anything beyond a small fix, open an
    issue and agree the approach before writing code.
-2. Fork the repository and create a branch from `main`.
+2. Fork the repository and create a branch from `platform/adonisjs`.
 3. Follow [Set up](#set-up) below to install and run the app.
 4. Make one focused change. Keep unrelated formatting and refactors out.
 5. Typo and documentation changes: run `pnpm run format`, and `pnpm run docs:build` if you edited
@@ -48,9 +48,8 @@ updates stay monthly and patch-only. Advisories are checked by
 `pnpm run gate:deps`. Keep [pnpm-workspace.yaml](pnpm-workspace.yaml) overrides only for a specific
 advisory when consumers still allow the affected version; explain the reason beside the override
 and remove it when no longer needed. Track a wider security upgrade and any exception in the issue
-or pull request that owns the change. Dependabot reads its configuration from default `main`, and
-scheduled workflows run there too: while this policy is only on a feature branch, do not rely on its
-weekly updates or monthly report being active.
+or pull request that owns the change. Dependabot reads its configuration from the default branch,
+`platform/adonisjs`, and scheduled workflows run there too.
 
 Choose checks for the changed boundary. Run focused tests first; framework or Tuyau changes also
 need generated route types and the relevant backend/client type checks. Dependency and code changes
@@ -285,8 +284,8 @@ pnpm run e2e:all
 These conditions are local-development guidance for choosing extra checks before opening a pull
 request. Pull requests run static analysis and CodeQL; documentation changes also run the docs
 build. The full application/backend gate, native packages and Chromium/Firefox/WebKit
-E2E suites run on `main` pushes, schedules or manual dispatch. Check the workflow files for the
-current triggers and dispatch any required pre-merge evidence explicitly.
+E2E suites run on `platform/adonisjs` pushes, schedules or manual dispatch. Check the workflow files
+for the current triggers and dispatch any required pre-merge evidence explicitly.
 
 User-visible changes should update `user-stories/REFERENCE.md`, the matching story and its E2E
 spec. New domain fields must flow through shared types, full fixtures, server table columns and

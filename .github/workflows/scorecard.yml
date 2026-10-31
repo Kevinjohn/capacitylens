@@ -2,7 +2,7 @@ name: Scorecard
 
 on:
   push:
-    branches: [main]
+    branches: [platform/adonisjs]
   schedule:
     - cron: '30 1 * * 6'
 
