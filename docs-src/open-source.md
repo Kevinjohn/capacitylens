@@ -8,7 +8,7 @@ description: Get support, report a problem, improve the documentation, or contri
 Get help, report a problem or contribute a change. CapacityLens is open source under the GNU
 Affero General Public License v3.0. Read the
 [source code](https://github.com/Kevinjohn/capacitylens) and the full
-[licence](https://github.com/Kevinjohn/capacitylens/blob/main/LICENSE). You may run a modified
+[licence](https://github.com/Kevinjohn/capacitylens/blob/platform/adonisjs/LICENSE). You may run a modified
 version for your company under its terms, including those for providing the software over a
 network.
 
@@ -19,7 +19,7 @@ network.
 ## Get help
 
 For a usage or operating question, when nothing appears broken, follow the
-[support guide](https://github.com/Kevinjohn/capacitylens/blob/main/SUPPORT.md). Include the
+[support guide](https://github.com/Kevinjohn/capacitylens/blob/platform/adonisjs/SUPPORT.md). Include the
 release version, the guide page, what you were trying to do, what happened and any non-sensitive
 error message.
 
@@ -34,11 +34,11 @@ do. You don't need to be a developer: clear bug reports and documentation correc
 
 ## Contribute a change
 
-Read the [contribution guide](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md)
+Read the [contribution guide](https://github.com/Kevinjohn/capacitylens/blob/platform/adonisjs/CONTRIBUTING.md)
 first. It covers setup, standards, tests, signed commits and the pull-request process.
 
 For documentation, edit the Markdown sources under `docs-src/`, follow the
-[documentation style guide](https://github.com/Kevinjohn/capacitylens/blob/main/docs-src/STYLE.md),
+[documentation style guide](https://github.com/Kevinjohn/capacitylens/blob/platform/adonisjs/docs-src/STYLE.md),
 and rebuild the committed site before opening a pull request.
 
 ## Report a vulnerability

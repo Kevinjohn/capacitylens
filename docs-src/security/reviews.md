@@ -72,5 +72,5 @@ together for the current state of that evidence and what it does not claim to co
 
 ## What's next
 
-Report a vulnerability through the process in the [security policy](https://github.com/Kevinjohn/capacitylens/blob/main/SECURITY.md),
+Report a vulnerability through the process in the [security policy](https://github.com/Kevinjohn/capacitylens/blob/platform/adonisjs/SECURITY.md),
 or go back to the [Security and privacy](/security/) for the plain-language summary.

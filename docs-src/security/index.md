@@ -37,5 +37,5 @@ security review, the threat model, the control inventories and the mutation-test
 Use [GitHub private vulnerability reporting](https://github.com/Kevinjohn/capacitylens/security/advisories/new),
 never a public issue, discussion or pull request. Include the affected version or commit,
 prerequisites, reproduction steps and impact. The maintainer aims to acknowledge reports within
-five working days. The full [security policy](https://github.com/Kevinjohn/capacitylens/blob/main/SECURITY.md)
+five working days. The full [security policy](https://github.com/Kevinjohn/capacitylens/blob/platform/adonisjs/SECURITY.md)
 covers scope and the response process.
