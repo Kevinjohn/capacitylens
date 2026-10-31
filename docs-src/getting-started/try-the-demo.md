@@ -26,7 +26,7 @@ You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x; check w
 
    Replace `vX.Y.Z` with the newest tag on the
    [releases page](https://github.com/Kevinjohn/capacitylens/releases/latest). Otherwise you run
-   unreleased changes on `main`.
+   unreleased changes on `platform/adonisjs`.
 
 2. Start the demo:
 

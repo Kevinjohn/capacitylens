@@ -5,7 +5,7 @@ description: The automated checks used to validate CapacityLens and what each on
 
 # How CapacityLens is tested
 
-Contributor check commands are listed in [`CONTRIBUTING.md`](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md).
+Contributor check commands are listed in [`CONTRIBUTING.md`](https://github.com/Kevinjohn/capacitylens/blob/platform/adonisjs/CONTRIBUTING.md).
 
 The suites cover the frontend, backend and shared workspace packages.
 

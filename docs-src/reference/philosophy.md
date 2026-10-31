@@ -6,7 +6,7 @@ description: What CapacityLens deliberately does not do, the rules it follows wh
 # Philosophy
 
 CapacityLens answers one question for small agencies: who is free next week? This page explains what it leaves out and why. The full list of standing
-decisions is in [DECISIONS.md](https://github.com/Kevinjohn/capacitylens/blob/main/DECISIONS.md).
+decisions is in [DECISIONS.md](https://github.com/Kevinjohn/capacitylens/blob/platform/adonisjs/DECISIONS.md).
 
 ## What it deliberately is not
 

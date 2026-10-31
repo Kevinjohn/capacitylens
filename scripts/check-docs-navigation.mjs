@@ -37,6 +37,14 @@ if (sidebarTargets.size === 0) {
   failures.push('no sidebar-linked pages were found');
 }
 
+// `main` is retired history; a source link there shows contributors outdated instructions.
+const retiredBranchLink = /github\.com\/Kevinjohn\/capacitylens\/(?:blob|tree)\/main\//;
+for (const file of htmlFiles) {
+  if (retiredBranchLink.test(readFileSync(file, 'utf8'))) {
+    failures.push(`${relative(siteDir, file)}: links to the retired main branch`);
+  }
+}
+
 for (const targetFile of sidebarTargets) {
   const html = readFileSync(targetFile, 'utf8');
   const sidebar = html.match(/<aside class="VPSidebar"[\s\S]*?<\/aside>/)?.[0] ?? '';

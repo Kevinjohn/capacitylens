@@ -35,12 +35,12 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 
 ## Working and delivery rules
 
-- Make repository changes only in the assigned worktree, never the primary checkout. On this fork, fetch `origin/platform/adonisjs` and create a unique feature branch and sibling worktree from it; resume existing work only in its assigned worktree. Target `platform/adonisjs` for pull requests, or the predecessor branch for an unmerged stack. Never open a pull request to `main` until the owner authorises cutover.
+- Make repository changes only in the assigned worktree, never the primary checkout. On this fork, fetch `origin/platform/adonisjs` and create a unique feature branch and sibling worktree from it; resume existing work only in its assigned worktree. Target `platform/adonisjs` for pull requests, or the predecessor branch for an unmerged stack. `main` is retired read-only history; never open a pull request to it.
 - `DECISIONS.md` states the target; code may lag until the owning issue lands.
 - Record new implementation, design or investigation plans in a GitHub issue; do not add repository Markdown plans. Keep settled scope and existing plans authoritative.
 - Use the Node version in `.nvmrc` and `pnpm` for JavaScript package operations. Do not use npm, npx or yarn.
 - Run focused checks while implementing; the default submission gate is `pnpm run gate:all` plus `pnpm run e2e`, unless the accepted scope defines a narrower required gate. Do not add fixed file-size, test-size, coverage-floor or naming-ratchet requirements. Do not run Docker for routine work.
-- Commit each feature change with `git commit -s`. Never push task commits to `main`; publish a ready pull request only after review and required checks.
+- Commit each feature change with `git commit -s`. Never push task commits to `platform/adonisjs`; publish a ready pull request only after review and required checks.
 - A pull request stays open until the user explicitly authorizes merging that specific pull request. Preserve unrelated work; never rewrite history without explicit authorization.
 - Do not build or run Docker images or alter Dockerfiles, Compose, Docker workflows or Docker tests unless the task explicitly authorizes that Docker work.
 - Before public delivery, inspect all outgoing text and metadata for privacy, secrets and the public naming restrictions in the global instructions.

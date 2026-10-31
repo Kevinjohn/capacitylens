@@ -17,7 +17,7 @@ on:
       - '.github/actions/setup/action.yml'
       - '.github/workflows/docs.yml'
   push:
-    branches: [main]
+    branches: [platform/adonisjs]
     paths:
       - 'docs-src/**'
       - 'docs/**'

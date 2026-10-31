@@ -17,7 +17,7 @@ This is a small project with no paid bounty program or guaranteed SLA. The maint
 acknowledge reports within five working days, validate them, coordinate a fix and publish an
 advisory after a patched release is available. Reporters may request credit or anonymity.
 
-Only the latest release and current `main` are supported. Older releases may not receive fixes.
+Only the latest release and current `platform/adonisjs` are supported. Older releases may not receive fixes.
 
 ## Scope
 
