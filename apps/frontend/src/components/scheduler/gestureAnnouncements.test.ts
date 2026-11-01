@@ -31,7 +31,15 @@ const alloc = (
   endDate: ISODate,
   hoursPerDay = 8,
 ): Allocation =>
-  makeAllocation({ id, accountId: A, resourceId, activityId: 't1', startDate, endDate, hoursPerDay });
+  makeAllocation({
+    id,
+    accountId: A,
+    resourceId,
+    activityId: 't1',
+    startDate,
+    endDate,
+    hoursPerDay,
+  });
 
 function seed(resources: Resource[], allocations: Allocation[]): void {
   useStore.setState((state) => ({
@@ -50,7 +58,10 @@ beforeEach(() => resetStoreWithAccount());
 
 describe('readCapacityAnnouncement', () => {
   it('is silent for an unknown or untracked resource', () => {
-    seed([person('r1'), person('ext', { kind: 'external' })], [alloc('a', 'ext', '2026-06-01', '2026-06-02')]);
+    seed(
+      [person('r1'), person('ext', { kind: 'external' })],
+      [alloc('a', 'ext', '2026-06-01', '2026-06-02')],
+    );
     expect(readCapacityAnnouncement('missing')).toBe('');
     expect(readCapacityAnnouncement('ext')).toBe('');
   });
@@ -73,7 +84,10 @@ describe('readCapacityAnnouncement', () => {
       ],
     );
     expect(readCapacityAnnouncement('r1')).toBe(overOne);
-    seed([person('r1')], [alloc('a', 'r1', '2026-06-01', '2026-06-03'), alloc('b', 'r1', '2026-06-02', '2026-06-03')]);
+    seed(
+      [person('r1')],
+      [alloc('a', 'r1', '2026-06-01', '2026-06-03'), alloc('b', 'r1', '2026-06-02', '2026-06-03')],
+    );
     expect(readCapacityAnnouncement('r1')).toBe(over(2));
   });
 
@@ -90,11 +104,20 @@ describe('readCapacityAnnouncement', () => {
   });
 
   it('clamps the counted days to the visible window on both sides', () => {
-    seed([person('r1')], [alloc('a', 'r1', '2026-05-25', '2026-06-05'), alloc('b', 'r1', '2026-05-25', '2026-06-05')]);
+    seed(
+      [person('r1')],
+      [alloc('a', 'r1', '2026-05-25', '2026-06-05'), alloc('b', 'r1', '2026-05-25', '2026-06-05')],
+    );
     expect(readCapacityAnnouncement('r1')).toBe(over(5));
-    seed([person('r1')], [alloc('a', 'r1', '2026-06-10', '2026-06-19'), alloc('b', 'r1', '2026-06-10', '2026-06-19')]);
+    seed(
+      [person('r1')],
+      [alloc('a', 'r1', '2026-06-10', '2026-06-19'), alloc('b', 'r1', '2026-06-10', '2026-06-19')],
+    );
     expect(readCapacityAnnouncement('r1')).toBe(over(3));
-    seed([person('r1')], [alloc('a', 'r1', '2026-06-22', '2026-06-23'), alloc('b', 'r1', '2026-06-22', '2026-06-23')]);
+    seed(
+      [person('r1')],
+      [alloc('a', 'r1', '2026-06-22', '2026-06-23'), alloc('b', 'r1', '2026-06-22', '2026-06-23')],
+    );
     expect(readCapacityAnnouncement('r1')).toBe(clear);
   });
 });
