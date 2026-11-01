@@ -1,0 +1,105 @@
+{
+  "application_revision": "c7e3aaa5c88cd7fea7bca10d8ae1148a7cbe74de",
+  "date": "2026-11-01",
+  "mode": "pnpm run dev:demo",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "fictional_company": "Wayne Enterprises",
+  "completed": true,
+  "steps": [
+    {
+      "action": "Select demo company and dismiss orientation",
+      "result": "Wayne Enterprises Schedule, 6 allocations, initial over-capacity markers visible"
+    },
+    {
+      "action": "Hover tentative Visual Design and drag from Bruce Wayne to Clark Kent",
+      "result": "Existing allocation appears in Clark row; total remains 6; Bruce visible utilisation changes 86% to 57%, Clark 50% to 70%; current seeded dates retain 3 overcapacity days on Clark, so reassignment is not claimed to solve every capacity conflict"
+    },
+    {
+      "action": "Draw two-day empty span on Bruce row; choose LexCorp / Metropolis Rebrand and Workshop; Save",
+      "result": "Allocation count 7; existing overcapacity warning did not prevent permitted save; both Project and required Activity selected"
+    },
+    {
+      "action": "Select 8 weeks then recorded 4-week range",
+      "result": "Both choices supported; four-week Schedule visible"
+    },
+    {
+      "action": "Clients: add Daily Planet through Name field and Save",
+      "result": "Client visible in list"
+    },
+    {
+      "action": "Projects: add Website Relaunch; choose Daily Planet; Save",
+      "result": "Project visible in list"
+    },
+    {
+      "action": "Resources: add Selina Kyle; role Illustrator; discipline Design; Studio and weekday defaults retained; Save",
+      "result": "New resource visible in list"
+    },
+    {
+      "action": "Schedule: draw 26–30 October for Selina; choose Daily Planet / Website Relaunch and Design; Save",
+      "result": "Daily Planet · Website Relaunch · Design · 8 h visible; total allocations 8"
+    },
+    {
+      "action": "Open Overview; confirm Ledger/four-week table; toggle Tentative off/on",
+      "result": "Selina and all 5 people visible; committed/tentative/free legend present; no missing control or broken recorded workflow found"
+    }
+  ],
+  "differences": [
+    "Calendar dates and seeded allocation/capacity values have advanced from the October 2026 recording. Current demo does not guarantee the same per-person capacity outcome after an identical reassignment.",
+    "Current orientation/checklist can appear before Schedule and is dismissed through its UI.",
+    "Historical recording is retained as an illustrative workflow, not a current calendar/load fixture."
+  ],
+  "screenshots": [
+    {
+      "path": "replay/replay_schedule_initial.png",
+      "sha256": "d7bafd3ee79bfcff8621e53d293a050711721d74efb77ff24111c39f1d234571",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_reassigned.png",
+      "sha256": "6b9cab2bb5ae2b034e950e69d8f92c35296cfd423afcf523e5aef971f4021c9d",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_clients_created.png",
+      "sha256": "261072bfd7435a9aa0a695ecfa69178f35583da8ac283dd286cb8b8d3fe4c742",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_projects_created.png",
+      "sha256": "2e9dec019e4020d7b1eb8d83e0f88e4ebe39a97b33edbf8fcbfa0641b7dd5010",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_resource_created.png",
+      "sha256": "bfff6dbcaa1d1571058c0c4d9ba82fa7e099af8669b3c91fc9d228d0a51dcaab",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_schedule_completed.png",
+      "sha256": "8c10163f7a34cd829c09d06356582ea142aa440250a7ae255cdebb291f421bad",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_overview_final.png",
+      "sha256": "ba842d3fc1ea3235a547d1dc89dc703aa78bc59c5edaf55f1bf9f478515615e9",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    }
+  ],
+  "playback": {
+    "mp4": {
+      "duration_seconds": 51.6,
+      "ended": true,
+      "current_time_seconds": 51.6,
+      "media_error": null,
+      "elapsed_seconds": 51.769
+    },
+    "gif": {
+      "duration_seconds": 51.6,
+      "elapsed_seconds": 53,
+      "method": "Timed playback supplemented by exact complete frame/delta inspection"
+    }
+  }
+}

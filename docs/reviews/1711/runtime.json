@@ -1,0 +1,42 @@
+{
+  "application_revision": "c7e3aaa5c88cd7fea7bca10d8ae1148a7cbe74de",
+  "test_path": "apps/backend/tests/functional/membership/member_directory_storage.spec.ts",
+  "test_sha256": "fd59395d0cdabe0383dbe46d9c5a24f5e176ecc8de8bdd57b469ad84958d300a",
+  "production_service_sha256": "796ed114bb2f1988a1119bafd3353a74fd37f097936f6247a5f3904dc71f8f46",
+  "node_version": "24.21.0",
+  "pnpm_version": "11.4.0",
+  "command": "pnpm --filter @capacitylens/backend exec node ace test functional --files=tests/functional/membership/member_directory_storage.spec.ts --no-clear",
+  "final_focused_result": {
+    "exit_status": 0,
+    "passed_tests": 2,
+    "failed_tests": 0
+  },
+  "red_probes": [
+    {
+      "bypassed_guard": "membership role",
+      "observed_failure": "membership role must reach its own service guard: expected [Function] to throw an error",
+      "exit_status": 1,
+      "passed_tests": 1,
+      "failed_tests": 1,
+      "service_restored_after_probe": true
+    },
+    {
+      "bypassed_guard": "membership status",
+      "observed_failure": "membership status must reach its own service guard: expected [Function] to throw an error",
+      "exit_status": 1,
+      "passed_tests": 1,
+      "failed_tests": 1,
+      "service_restored_after_probe": true
+    },
+    {
+      "bypassed_guard": "restriction-only role",
+      "observed_failure": "restriction-only role must reach its own service guard: expected [Function] to throw an error",
+      "exit_status": 1,
+      "passed_tests": 1,
+      "failed_tests": 1,
+      "service_restored_after_probe": true
+    }
+  ],
+  "meaning": "Each distinct service guard is required by a matching real-storage rejection assertion. Authenticated HTTP reads return the existing debug-off generic 500; healthy/restored controls are 200. Product-state snapshots and tenant isolation are asserted by the committed test.",
+  "fixture": "Valid restriction rows are corrupted offline with one same-length value patch in the disposable test file. SQLite CHECK and foreign-key enforcement remain active; schema is identical before/after and invalid SQL writes still fail. The sole native connection is closed while the logical pool is retained. No production code or repair behavior is added."
+}
