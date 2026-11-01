@@ -106,7 +106,10 @@ The full recorded workflow was exercised through UI controls at 1920×1080: choo
 inspect/hover capacity, reassign the tentative booking, draw and save Bruce's Workshop booking,
 change the visible weeks, add Daily Planet, add Website Relaunch under that client, add Selina Kyle
 as an Illustrator in Design, draw and save her Design allocation, and open the four-week Overview
-Ledger. The allocation count progresses 6 → 7 → 8; the new entities and bookings are visible.
+Ledger. The allocation count progresses 6 → 7 → 8. Both new bookings use upcoming dates: Bruce
+on 2–3 November and Selina on 9–13 November. Row-level assertions confirm Bruce has zero free
+days of two available for 2–8 November, and Selina has zero free days of five available for
+9–15 November. The new entities, bookings and their effect on upcoming availability are visible.
 Eight-week navigation is also available. The Tentative control was toggled off and on.
 
 Calendar/example-load differences are explicit in the replay record. In the current example,

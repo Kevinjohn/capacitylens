@@ -18,8 +18,12 @@
       "result": "Existing allocation appears in Clark row; total remains 6; Bruce visible utilisation changes 86% to 57%, Clark 50% to 70%; current seeded dates retain 3 overcapacity days on Clark, so reassignment is not claimed to solve every capacity conflict"
     },
     {
-      "action": "Draw two-day empty span on Bruce row; choose LexCorp / Metropolis Rebrand and Workshop; Save",
-      "result": "Allocation count 7; existing overcapacity warning did not prevent permitted save; both Project and required Activity selected"
+      "action": "Draw 2–3 November on Bruce row; choose LexCorp / Metropolis Rebrand and Workshop; Save",
+      "result": "Allocation count 7; both Project and required Activity selected; the future booking is saved",
+      "dates": [
+        "2026-11-02",
+        "2026-11-03"
+      ]
     },
     {
       "action": "Select 8 weeks then recorded 4-week range",
@@ -38,12 +42,16 @@
       "result": "New resource visible in list"
     },
     {
-      "action": "Schedule: draw 26–30 October for Selina; choose Daily Planet / Website Relaunch and Design; Save",
-      "result": "Daily Planet · Website Relaunch · Design · 8 h visible; total allocations 8"
+      "action": "Schedule: draw 9–13 November for Selina; choose Daily Planet / Website Relaunch and Design; Save",
+      "result": "Daily Planet · Website Relaunch · Design · 8 h visible; total allocations 8",
+      "dates": [
+        "2026-11-09",
+        "2026-11-13"
+      ]
     },
     {
       "action": "Open Overview; confirm Ledger/four-week table; toggle Tentative off/on",
-      "result": "Selina and all 5 people visible; committed/tentative/free legend present; no missing control or broken recorded workflow found"
+      "result": "All 5 people visible; Bruce has 0d free of 2d for 2–8 November and Selina has 0d free of 5d for 9–15 November, matching their future bookings. Tentative control and committed/tentative/free legend remain usable."
     }
   ],
   "differences": [
@@ -54,37 +62,37 @@
   "screenshots": [
     {
       "path": "replay/replay_schedule_initial.png",
-      "sha256": "d7bafd3ee79bfcff8621e53d293a050711721d74efb77ff24111c39f1d234571",
+      "sha256": "281dff786c8be0549e10335777d1f3c7182135c4b7fbd50ad9da3b1e0c034c03",
       "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
     },
     {
       "path": "replay/replay_reassigned.png",
-      "sha256": "6b9cab2bb5ae2b034e950e69d8f92c35296cfd423afcf523e5aef971f4021c9d",
+      "sha256": "32bf7245d5776695d8a373e46ab6508160bb91d7e712abdfd12f7c496ea29546",
       "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
     },
     {
       "path": "replay/replay_clients_created.png",
-      "sha256": "261072bfd7435a9aa0a695ecfa69178f35583da8ac283dd286cb8b8d3fe4c742",
+      "sha256": "2f83092948c19540612125d5879577fe4853805a383f0e5637ac2beecdbe3a6e",
       "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
     },
     {
       "path": "replay/replay_projects_created.png",
-      "sha256": "2e9dec019e4020d7b1eb8d83e0f88e4ebe39a97b33edbf8fcbfa0641b7dd5010",
+      "sha256": "5dd1f71cbdc006060e43021bfa79cb6e8a5022e557180ae7070cf0e8dc2bf338",
       "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
     },
     {
       "path": "replay/replay_resource_created.png",
-      "sha256": "bfff6dbcaa1d1571058c0c4d9ba82fa7e099af8669b3c91fc9d228d0a51dcaab",
+      "sha256": "46199c54d68f08c11785a2981443d91f7121fc5a284b22a99a7b02e96f6f6947",
       "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
     },
     {
       "path": "replay/replay_schedule_completed.png",
-      "sha256": "8c10163f7a34cd829c09d06356582ea142aa440250a7ae255cdebb291f421bad",
+      "sha256": "f00400689d352957fa3457d17c1e11f95f7611105b9fe4980d0b3669de4cf24b",
       "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
     },
     {
       "path": "replay/replay_overview_final.png",
-      "sha256": "ba842d3fc1ea3235a547d1dc89dc703aa78bc59c5edaf55f1bf9f478515615e9",
+      "sha256": "7fb416553e0aa0d5979b7e84ccf2abbeeffa35f07bbfb5dff875d80f9373f09a",
       "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
     }
   ],
@@ -101,5 +109,38 @@
       "elapsed_seconds": 53,
       "method": "Timed playback supplemented by exact complete frame/delta inspection"
     }
-  }
+  },
+  "availability_assertions": [
+    {
+      "person": "Bruce Wayne",
+      "week": [
+        "2026-11-02",
+        "2026-11-08"
+      ],
+      "booked_dates": [
+        "2026-11-02",
+        "2026-11-03"
+      ],
+      "expected_free_days": 0,
+      "observed_free_days": 0,
+      "available_days": 2,
+      "assertion_passed": true
+    },
+    {
+      "person": "Selina Kyle",
+      "week": [
+        "2026-11-09",
+        "2026-11-15"
+      ],
+      "booked_dates": [
+        "2026-11-09",
+        "2026-11-13"
+      ],
+      "expected_free_days": 0,
+      "observed_free_days": 0,
+      "available_days": 5,
+      "assertion_passed": true
+    }
+  ],
+  "booking_window": "Both new bookings use upcoming dates inside Overview; the full journey was repeated from a fresh demo and row-level free-day results asserted."
 }
