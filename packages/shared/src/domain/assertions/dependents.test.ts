@@ -37,7 +37,12 @@ const account: Account = {
   createdAt: TS,
   updatedAt: TS,
 };
-const client: Client = { ...NULLABLE_FIELDS.clients, ...meta('c1'), name: 'Gotham City', color: '#3b82f6' };
+const client: Client = {
+  ...NULLABLE_FIELDS.clients,
+  ...meta('c1'),
+  name: 'Gotham City',
+  color: '#3b82f6',
+};
 const project = (id: ID): Project => ({
   ...NULLABLE_FIELDS.projects,
   ...meta(id),
@@ -111,7 +116,10 @@ function codeOf(run: () => void): DomainErrorCode | undefined {
 
 describe('assertResourceKindAllowsDependents', () => {
   it('names the external-conversion code for a loaded allocation or any time off', () => {
-    const loaded = data({ resources: [person('r1')], allocations: [allocation('al1', 'r1', 't1')] });
+    const loaded = data({
+      resources: [person('r1')],
+      allocations: [allocation('al1', 'r1', 't1')],
+    });
     expect(codeOf(() => assertResourceKindAllowsDependents(loaded, A1, 'r1', 'external'))).toBe(
       'resource_external_dependents',
     );
@@ -126,8 +134,13 @@ describe('assertResourceKindAllowsDependents', () => {
       resources: [person('r1')],
       allocations: [allocation('al1', 'r1', 't1', 0)],
     });
-    expect(codeOf(() => assertResourceKindAllowsDependents(zero, A1, 'r1', 'external'))).toBeUndefined();
-    const loaded = data({ resources: [person('r1')], allocations: [allocation('al1', 'r1', 't1')] });
+    expect(
+      codeOf(() => assertResourceKindAllowsDependents(zero, A1, 'r1', 'external')),
+    ).toBeUndefined();
+    const loaded = data({
+      resources: [person('r1')],
+      allocations: [allocation('al1', 'r1', 't1')],
+    });
     expect(
       codeOf(() => assertResourceKindAllowsDependents(loaded, A1, 'r1', 'placeholder')),
     ).toBeUndefined();
@@ -259,7 +272,9 @@ describe('assertActivityProjectAllowsDependents', () => {
       ),
     ).toBe('activity_project_dependents');
     expect(
-      codeOf(() => assertActivityProjectAllowsDependents(bound, A1, 't1', projectActivity('t1', 'p2'))),
+      codeOf(() =>
+        assertActivityProjectAllowsDependents(bound, A1, 't1', projectActivity('t1', 'p2')),
+      ),
     ).toBe('activity_project_dependents');
   });
 
@@ -313,7 +328,9 @@ describe('assertResourceExists', () => {
   it('names the invalid, inactive and external time-off codes', () => {
     expect(codeOf(() => assertResourceExists(data(), A1, 'r1'))).toBe('time_off_resource_invalid');
     const archived = data({ resources: [person('r1', { archivedAt: TS })] });
-    expect(codeOf(() => assertResourceExists(archived, A1, 'r1'))).toBe('time_off_resource_inactive');
+    expect(codeOf(() => assertResourceExists(archived, A1, 'r1'))).toBe(
+      'time_off_resource_inactive',
+    );
     const externalParty = data({ resources: [person('r1', { kind: 'external' })] });
     expect(codeOf(() => assertResourceExists(externalParty, A1, 'r1'))).toBe(
       'time_off_external_resource',
@@ -321,7 +338,9 @@ describe('assertResourceExists', () => {
   });
 
   it('passes for an active person and for an unchanged archived reference', () => {
-    expect(codeOf(() => assertResourceExists(data({ resources: [person('r1')] }), A1, 'r1'))).toBeUndefined();
+    expect(
+      codeOf(() => assertResourceExists(data({ resources: [person('r1')] }), A1, 'r1')),
+    ).toBeUndefined();
     const archived = data({ resources: [person('r1', { archivedAt: TS })] });
     expect(
       codeOf(() => assertResourceExists(archived, A1, 'r1', { resourceId: 'r1' })),
