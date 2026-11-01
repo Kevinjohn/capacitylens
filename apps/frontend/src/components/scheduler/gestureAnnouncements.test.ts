@@ -137,7 +137,7 @@ describe('readCapacityGestureAdvisory', () => {
         alloc('a', 'ext', '2026-06-01', '2026-06-02'),
       ],
     );
-    const input = { bar: makeBar({ allocation: own }), isBlocks: false, dates, reconciledHours: 8 };
+    const input = { bar: makeBar({ allocation: own }), isBlocks: false, dates, reconciledHours: 9 };
     expect(readCapacityGestureAdvisory({ ...input, effectiveResourceId: 'missing' })).toBe('');
     expect(readCapacityGestureAdvisory({ ...input, effectiveResourceId: 'ext' })).toBe('');
   });
