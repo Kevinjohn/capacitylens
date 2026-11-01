@@ -96,11 +96,13 @@ describe('readCapacityAnnouncement', () => {
       [person('r1')],
       [
         alloc('late', 'r1', '2026-06-08', '2026-06-09'),
-        alloc('a', 'r1', '2026-06-02', '2026-06-03'),
-        alloc('b', 'r1', '2026-06-02', '2026-06-03'),
+        alloc('late2', 'r1', '2026-06-08', '2026-06-09'),
+        alloc('a', 'r1', '2026-06-02', '2026-06-02'),
+        alloc('a2', 'r1', '2026-06-02', '2026-06-02'),
+        alloc('mid', 'r1', '2026-06-04', '2026-06-05', 4),
       ],
     );
-    expect(readCapacityAnnouncement('r1')).toBe(over(2));
+    expect(readCapacityAnnouncement('r1')).toBe(over(3));
   });
 
   it('clamps the counted days to the visible window on both sides', () => {
@@ -128,7 +130,13 @@ describe('readCapacityGestureAdvisory', () => {
   const own = alloc('own', 'r1', '2026-06-01', '2026-06-02');
 
   it('is silent for an unknown or untracked resource', () => {
-    seed([person('ext', { kind: 'external' })], [alloc('a', 'ext', '2026-06-01', '2026-06-02')]);
+    seed(
+      [person('r1'), person('ext', { kind: 'external' })],
+      [
+        alloc('other', 'r1', '2026-06-01', '2026-06-02'),
+        alloc('a', 'ext', '2026-06-01', '2026-06-02'),
+      ],
+    );
     const input = { bar: makeBar({ allocation: own }), isBlocks: false, dates, reconciledHours: 8 };
     expect(readCapacityGestureAdvisory({ ...input, effectiveResourceId: 'missing' })).toBe('');
     expect(readCapacityGestureAdvisory({ ...input, effectiveResourceId: 'ext' })).toBe('');
