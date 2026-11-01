@@ -38,3 +38,5 @@ its Owner and Admins.
 - Rejecting or revoking approval refuses company data on the person's next request.
 - When `CAPACITYLENS_ALLOWED_EMAIL_DOMAINS` is set, only those address domains can be admitted.
 - An address the company removed cannot rejoin through an invitation.
+- A pending approval decision keeps its feedback and refresh within the originating sign-in and
+  company when the administrator leaves the page or changes context.

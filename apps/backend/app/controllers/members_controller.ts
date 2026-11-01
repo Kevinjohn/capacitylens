@@ -34,6 +34,11 @@ function fields(value: unknown, allowed: string[]): value is Record<string, unkn
   );
 }
 
+function readRouteParam(value: unknown) {
+  // Adonis calls the controller after matching a route, so each parameter is already a string.
+  return value as string;
+}
+
 function replyMemberError(ctx: HttpContext, error: unknown) {
   if (error instanceof MembershipError || error instanceof AccountCommandError) {
     return ctx.response.status(error.status).send({ error: error.message, code: error.code });
@@ -41,14 +46,16 @@ function replyMemberError(ctx: HttpContext, error: unknown) {
   throw error;
 }
 
-async function semanticMutation<T>(
-  ctx: HttpContext,
-  operation: string,
-  payload: unknown,
-  work: (trx: TransactionClientContract, actor: { actorId: string; role: Role }) => Promise<T>
-) {
+interface SemanticMutationInput<T> {
+  accountId: string;
+  operation: string;
+  payload: unknown;
+  work: (trx: TransactionClientContract, actor: { actorId: string; role: Role }) => Promise<T>;
+}
+
+async function semanticMutation<T>(ctx: HttpContext, input: SemanticMutationInput<T>) {
+  const { accountId, operation, payload, work } = input;
   const command = readAccountCommand(ctx);
-  const accountId = ctx.params.accountId;
   return withActor(ctx, async (_actor, trx) => {
     const actor = await assertCompanyAction(accountId, 'manageMembers', trx);
     const claim = await claimAccountCommand(trx, {
@@ -68,7 +75,7 @@ async function semanticMutation<T>(
 
 export default class MembersController {
   async index(ctx: HttpContext) {
-    const accountId = ctx.params.accountId;
+    const accountId = readRouteParam(ctx.params.accountId);
     const directory = await withActor(ctx, async (_actor, trx) => {
       const actor = await assertCompanyAction(accountId, 'manageMembers', trx);
       return readMemberDirectory(trx, accountId, actor.actorId);
@@ -77,14 +84,12 @@ export default class MembersController {
   }
 
   async tracking(ctx: HttpContext) {
-    if (
-      !fields(ctx.request.body(), ['enabled']) ||
-      typeof ctx.request.body().enabled !== 'boolean'
-    ) {
+    const body: unknown = ctx.request.body();
+    if (!fields(body, ['enabled']) || typeof body.enabled !== 'boolean') {
       return ctx.response.badRequest({ error: 'enabled must be a Boolean.' });
     }
-    const enabled = ctx.request.body().enabled as boolean;
-    const accountId = ctx.params.accountId;
+    const enabled = body.enabled;
+    const accountId = readRouteParam(ctx.params.accountId);
     await withActor(ctx, async (_actor, trx) => {
       const actor = await assertCompanyAction(accountId, 'manageMemberSignInTracking', trx);
       const current = await readMemberSignInTracking(accountId, trx);
@@ -109,23 +114,26 @@ export default class MembersController {
     if (!fields(body, ['role']) || !isAccountRole(body.role)) {
       return ctx.response.badRequest({ error: 'Invalid member role.' });
     }
+    const role = body.role;
+    const accountId = readRouteParam(ctx.params.accountId);
+    const userId = readRouteParam(ctx.params.userId);
     try {
-      const result = await semanticMutation(
-        ctx,
-        'change-member-role',
-        {
-          userId: ctx.params.userId,
-          role: body.role,
+      const result = await semanticMutation(ctx, {
+        accountId,
+        operation: 'change-member-role',
+        payload: {
+          userId,
+          role,
         },
-        (trx, actor) =>
+        work: (trx, actor) =>
           changeMemberRole(trx, {
-            accountId: ctx.params.accountId,
+            accountId,
             actorId: actor.actorId,
             actorRole: actor.role,
-            userId: ctx.params.userId,
-            role: body.role as Role,
-          })
-      );
+            userId,
+            role,
+          }),
+      });
       return ctx.response.ok(result);
     } catch (error) {
       return replyMemberError(ctx, error);
@@ -137,23 +145,26 @@ export default class MembersController {
     if (!fields(body, ['status']) || !isMembershipStatus(body.status)) {
       return ctx.response.badRequest({ error: 'Invalid member status.' });
     }
+    const status = body.status;
+    const accountId = readRouteParam(ctx.params.accountId);
+    const userId = readRouteParam(ctx.params.userId);
     try {
-      const result = await semanticMutation(
-        ctx,
-        'change-member-status',
-        {
-          userId: ctx.params.userId,
-          status: body.status,
+      const result = await semanticMutation(ctx, {
+        accountId,
+        operation: 'change-member-status',
+        payload: {
+          userId,
+          status,
         },
-        (trx, actor) =>
+        work: (trx, actor) =>
           changeMemberStatus(trx, {
-            accountId: ctx.params.accountId,
+            accountId,
             actorId: actor.actorId,
             actorRole: actor.role,
-            userId: ctx.params.userId,
-            status: body.status as 'active' | 'disabled' | 'archived',
-          })
-      );
+            userId,
+            status,
+          }),
+      });
       return ctx.response.ok(result);
     } catch (error) {
       return replyMemberError(ctx, error);
@@ -161,19 +172,21 @@ export default class MembersController {
   }
 
   async enableAccess(ctx: HttpContext) {
+    const accountId = readRouteParam(ctx.params.accountId);
+    const userId = readRouteParam(ctx.params.userId);
     try {
-      const result = await semanticMutation(
-        ctx,
-        'enable-member-access',
-        { userId: ctx.params.userId },
-        (trx, actor) =>
+      const result = await semanticMutation(ctx, {
+        accountId,
+        operation: 'enable-member-access',
+        payload: { userId },
+        work: (trx, actor) =>
           enableMemberAccess(trx, {
-            accountId: ctx.params.accountId,
+            accountId,
             actorId: actor.actorId,
             actorRole: actor.role,
-            userId: ctx.params.userId,
-          })
-      );
+            userId,
+          }),
+      });
       return ctx.response.ok(result);
     } catch (error) {
       return replyMemberError(ctx, error);
@@ -181,15 +194,21 @@ export default class MembersController {
   }
 
   async remove(ctx: HttpContext) {
+    const accountId = readRouteParam(ctx.params.accountId);
+    const userId = readRouteParam(ctx.params.userId);
     try {
-      await semanticMutation(ctx, 'remove-member', { userId: ctx.params.userId }, (trx, actor) =>
-        removeMember(trx, {
-          accountId: ctx.params.accountId,
-          actorId: actor.actorId,
-          actorRole: actor.role,
-          userId: ctx.params.userId,
-        })
-      );
+      await semanticMutation(ctx, {
+        accountId,
+        operation: 'remove-member',
+        payload: { userId },
+        work: (trx, actor) =>
+          removeMember(trx, {
+            accountId,
+            actorId: actor.actorId,
+            actorRole: actor.role,
+            userId,
+          }),
+      });
       return ctx.response.noContent();
     } catch (error) {
       return replyMemberError(ctx, error);

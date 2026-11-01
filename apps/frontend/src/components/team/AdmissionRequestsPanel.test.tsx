@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { AdmissionRequest } from '@/account/teamAccessClient';
 import { AdmissionRequestsPanel } from './AdmissionRequestsPanel';
@@ -59,5 +59,31 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
     await waitFor(() => expect(screen.getByTestId('admission-approve')).toBeEnabled());
     expect(decide).toHaveBeenCalledWith('u1', 'approve');
     expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not refresh after a pending decision settles after unmount', async () => {
+    let finishDecision!: (
+      value: Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>,
+    ) => void;
+    const decision = new Promise<Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>>(
+      (resolve) => {
+        finishDecision = resolve;
+      },
+    );
+    const list = vi
+      .spyOn(teamAccessClient, 'listAdmissionRequests')
+      .mockResolvedValue({ kind: 'ok', status: 200, value: [pendingRequest] });
+    vi.spyOn(teamAccessClient, 'decideAdmission').mockReturnValueOnce(decision);
+
+    const view = render(<AdmissionRequestsPanel />);
+    await screen.findByTestId('admission-request');
+    fireEvent.click(screen.getByTestId('admission-approve'));
+    view.unmount();
+
+    await act(async () => {
+      finishDecision({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' });
+    });
+
+    expect(list).toHaveBeenCalledTimes(1);
   });
 });

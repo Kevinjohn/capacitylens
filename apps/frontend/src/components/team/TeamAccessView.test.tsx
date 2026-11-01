@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { PermissionContext } from '@/auth/permissionContext';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
+import { teamAccessClient } from '@/account/teamAccessClient';
+import type { AdmissionRequest } from '@/account/teamAccessClient';
 import { TeamAccessView } from './TeamAccessView';
 import { useStore } from '@/store/useStore';
 
@@ -22,9 +24,9 @@ vi.mock('./OwnershipTransferCard', () => ({
   OwnershipTransferCard: () => <div data-testid="ownership-transfer-card">Ownership controls</div>,
 }));
 
-const auth = (authMode: AuthContextValue['authMode']): AuthContextValue => ({
+const auth = (authMode: AuthContextValue['authMode'], userId = 'me'): AuthContextValue => ({
   authMode,
-  user: authMode === 'off' ? null : { id: 'me', email: 'me@example.com' },
+  user: authMode === 'off' ? null : { id: userId, email: 'me@example.com' },
   canCreateAccount: true,
   refreshAuth: async () => {},
   signOut: async () => {},
@@ -36,10 +38,11 @@ function renderView(
   status: 'not-applicable' | 'pending' | 'resolved' | 'unavailable' = role
     ? 'resolved'
     : 'not-applicable',
+  userId = 'me',
 ) {
   return render(
     <MemoryRouter>
-      <AuthContext.Provider value={auth(authMode)}>
+      <AuthContext.Provider value={auth(authMode, userId)}>
         <PermissionContext.Provider value={{ role, status }}>
           <TeamAccessView />
         </PermissionContext.Provider>
@@ -56,6 +59,8 @@ beforeEach(() => {
   buildMode.demo = false;
   useStore.setState({ masquerade: { kind: 'inactive' } });
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('TeamAccessView access presentation', () => {
   it('labels the demo honestly and says why there is no membership directory', () => {
@@ -156,4 +161,69 @@ describe('TeamAccessView member management', () => {
     expect(controls).not.toBeInTheDocument();
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
   });
+
+  it.each(['principal', 'company'] as const)(
+    'replaces admission requests when the %s context changes and ignores the old decision',
+    async (changedContext) => {
+      const request: AdmissionRequest = {
+        userId: 'u1',
+        email: 'diana.prince@example.com',
+        requestedAt: null,
+        invitedRole: 'viewer',
+        approval: 'pending',
+      };
+      let finishDecision!: (
+        value: Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>,
+      ) => void;
+      const oldDecision = new Promise<Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>>(
+        (resolve) => {
+          finishDecision = resolve;
+        },
+      );
+      const list = vi
+        .spyOn(teamAccessClient, 'listAdmissionRequests')
+        .mockResolvedValue({ kind: 'ok', status: 200, value: [request] });
+      const decide = vi
+        .spyOn(teamAccessClient, 'decideAdmission')
+        .mockReturnValueOnce(oldDecision)
+        .mockResolvedValue({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' });
+
+      useStore.setState({ activeAccountId: 'a-studio' });
+      const view = renderView('admin', 'password-only');
+      await screen.findByTestId('admission-request');
+      fireEvent.click(screen.getByTestId('admission-approve'));
+      const listingCountBeforeContextChange = list.mock.calls.length;
+
+      if (changedContext === 'principal') {
+        view.rerender(
+          <MemoryRouter>
+            <AuthContext.Provider value={auth('password-only', 'next-principal')}>
+              <PermissionContext.Provider value={{ role: 'admin', status: 'resolved' }}>
+                <TeamAccessView />
+              </PermissionContext.Provider>
+            </AuthContext.Provider>
+          </MemoryRouter>,
+        );
+      } else {
+        act(() => useStore.setState({ activeAccountId: 'a-loft' }));
+      }
+
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(listingCountBeforeContextChange + 1));
+      const successorListingCount = listingCountBeforeContextChange + 1;
+      expect(await screen.findByTestId('admission-request')).toHaveTextContent(request.email);
+
+      await act(async () => {
+        finishDecision({ kind: 'ok', status: 200, value: true });
+      });
+
+      expect(list).toHaveBeenCalledTimes(successorListingCount);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+      const decisionCountBeforeCurrentAction = decide.mock.calls.length;
+      fireEvent.click(screen.getByTestId('admission-approve'));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Approval is unavailable.');
+      expect(decide).toHaveBeenCalledTimes(decisionCountBeforeCurrentAction + 1);
+      expect(list).toHaveBeenCalledTimes(successorListingCount + 1);
+    },
+  );
 });

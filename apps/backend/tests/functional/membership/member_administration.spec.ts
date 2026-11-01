@@ -125,6 +125,112 @@ test.group('company member administration', (group) => {
     refused.assertStatus(403);
   });
 
+  test('invalid member inputs and unknown fields are rejected without side effects', async ({
+    client,
+    assert,
+  }) => {
+    const owner = await signUpAndIn(client, {
+      email: 'bruce.wayne@wayne.example',
+      password,
+      name: 'Bruce Wayne',
+    });
+    owner.assertStatus(200);
+    const ownerCookie = owner.cookie('adonis-session')!.value;
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    );
+    const editor = await signUpAndIn(client, {
+      email: 'clark.kent@wayne.example',
+      password,
+      name: 'Clark Kent',
+    });
+    editor.assertStatus(200);
+    const editorId = await userId('clark.kent@wayne.example');
+    const now = new Date().toISOString();
+    await db.table('memberships').insert({
+      id: 'member-clark',
+      account_id: 'a-studio',
+      user_id: editorId,
+      role: 'editor',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    });
+
+    const memberPath = `/api/accounts/a-studio/members/${editorId}`;
+    const requests = [
+      {
+        name: 'invalid role',
+        send: () => signed(client.patch(memberPath), ownerCookie).json({ role: 'operator' }).send(),
+        error: 'Invalid member role.',
+      },
+      {
+        name: 'unknown role field',
+        send: () =>
+          signed(client.patch(memberPath), ownerCookie).json({ role: 'admin', extra: true }).send(),
+        error: 'Invalid member role.',
+      },
+      {
+        name: 'invalid status',
+        send: () =>
+          signed(client.patch(`${memberPath}/status`), ownerCookie)
+            .json({ status: 'removed' })
+            .send(),
+        error: 'Invalid member status.',
+      },
+      {
+        name: 'unknown status field',
+        send: () =>
+          signed(client.patch(`${memberPath}/status`), ownerCookie)
+            .json({ status: 'disabled', extra: true })
+            .send(),
+        error: 'Invalid member status.',
+      },
+      {
+        name: 'invalid tracking value',
+        send: () =>
+          signed(client.put('/api/accounts/a-studio/member-sign-in-tracking'), ownerCookie)
+            .json({ enabled: 'true' })
+            .send(),
+        error: 'enabled must be a Boolean.',
+      },
+      {
+        name: 'unknown tracking field',
+        send: () =>
+          signed(client.put('/api/accounts/a-studio/member-sign-in-tracking'), ownerCookie)
+            .json({ enabled: true, extra: true })
+            .send(),
+        error: 'enabled must be a Boolean.',
+      },
+    ];
+
+    for (const request of requests) {
+      const response = await request.send();
+      response.assertStatus(400);
+      assert.deepEqual(response.body(), { error: request.error }, request.name);
+    }
+
+    const member = await db
+      .from('memberships')
+      .where({ account_id: 'a-studio', user_id: editorId })
+      .first();
+    assert.include(member, { role: 'editor', status: 'active' });
+    const revision = await db
+      .from('company_planning_revisions')
+      .where('account_id', 'a-studio')
+      .first();
+    assert.equal(Number(revision?.revision), 1);
+    assert.isNull(
+      await db
+        .from('company_settings')
+        .where({ account_id: 'a-studio', key: 'member-sign-in-tracking' })
+        .first()
+    );
+    assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-studio'), 0);
+  });
+
   test('an authorized Admin receives input refusal for direct Owner assignment, but cannot edit the Owner', async ({
     client,
     assert,

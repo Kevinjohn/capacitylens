@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAccountRole } from '@capacitylens/shared/account/types';
 import { m } from '@/i18n';
 import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
@@ -28,17 +28,22 @@ export function AdmissionRequestsPanel() {
   const [listing, setListing] = useState<Listing>({ kind: 'loading' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mounted = useRef(false);
 
   const load = useCallback((signal?: AbortSignal) => {
     return fetchListing(signal).then((next) => {
-      if (!signal?.aborted) setListing(next);
+      if (mounted.current && !signal?.aborted) setListing(next);
     });
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
     const controller = new AbortController();
     void load(controller.signal);
-    return () => controller.abort();
+    return () => {
+      mounted.current = false;
+      controller.abort();
+    };
   }, [load]);
 
   const decide = async (request: AdmissionRequest, decision: 'approve' | 'reject') => {
@@ -46,15 +51,17 @@ export function AdmissionRequestsPanel() {
     setError(null);
     try {
       const result = await teamAccessClient.decideAdmission(request.userId, decision);
+      if (!mounted.current) return;
       if (result.kind !== 'ok') {
         setError(resolveRejectionMessage(result, m.settings_admission_failed()));
       }
       await load();
     } catch (failure) {
+      if (!mounted.current) return;
       console.warn('AdmissionRequestsPanel: decision failed', failure);
       setError(m.settings_admission_failed());
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   };
 

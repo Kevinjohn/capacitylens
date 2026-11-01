@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
+import { useAuth } from '@/auth/authContext';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { resolveAccessLabel, resolveAccessSummary } from '@/lib/accessCopy';
 import { resolveAccessExperience } from '@/lib/resolveAccessExperience';
@@ -167,6 +168,7 @@ function AccessManagement({ authenticated, mayManage, permissionStatus }: Access
 /** Coordinates member management, invitations, admission approval, and ownership. */
 export function TeamAccessView() {
   const activeAccountId = useStore((state) => state.activeAccountId);
+  const { user } = useAuth();
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
@@ -210,7 +212,7 @@ export function TeamAccessView() {
       {authenticated &&
         !masqueradeActive &&
         (resolvedRole === 'owner' || resolvedRole === 'admin') && (
-          <AdmissionRequestsPanel key={activeAccountId} />
+          <AdmissionRequestsPanel key={JSON.stringify([activeAccountId, user?.id])} />
         )}
 
       {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}
