@@ -446,11 +446,20 @@ describe('createAllocationCommands repeats', () => {
     expect(input.onClose).not.toHaveBeenCalled();
   });
 
-  it('reports an unresolved resource at form level instead of projecting', async () => {
-    const input = validInput({ ...weekly, selectedResource: undefined });
-    await submit(input);
-    expectFailed(input, null, 'The selected resource could not be resolved for repeat projection.');
-    expect(input.addAllocations).not.toHaveBeenCalled();
+  it('reports an unresolved resource or week at form level instead of projecting', async () => {
+    for (const unresolved of [
+      { selectedResource: undefined },
+      { selectedEffectiveWeek: undefined },
+    ]) {
+      const input = validInput({ ...weekly, ...unresolved });
+      await submit(input);
+      expectFailed(
+        input,
+        null,
+        'The selected resource could not be resolved for repeat projection.',
+      );
+      expect(input.addAllocations).not.toHaveBeenCalled();
+    }
   });
 
   it('reports a repeat range failure on the repeat cutoff', async () => {
