@@ -777,6 +777,43 @@ function registerBuildSchedulerModelTest23() {
       `Scheduler omitted ${corruptTimeOff.id}: invalid date range.`,
     );
   });
+
+  it('leaves day states untouched by a closure it omits for an invalid range', () => {
+    const d = dataset();
+    const buildRows = (data: AppData) =>
+      buildSchedulerModel({
+        data,
+        geom,
+        days,
+        visibleWindow: { start, end },
+        overSoonWindow: { start, end },
+        filters: buildEmptyFilters(),
+        preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+      })
+        .flatMap((group) => group.rows)
+        .map(({ resource, dayStates, utilization }) => ({
+          id: resource.id,
+          dayStates,
+          utilization,
+        }));
+    const clean = buildRows(d);
+    expect(clean.some((row) => row.dayStates.some((state) => !state.creationBlocked))).toBe(true);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const corruptClosure = {
+      id: 'corrupt-closure',
+      accountId: 'acct-test',
+      createdAt: 't',
+      updatedAt: 't',
+      name: 'Company shutdown',
+      startDate: '2026-02-30',
+      endDate: end,
+    };
+
+    expect(buildRows({ ...d, closures: [corruptClosure] })).toEqual(clean);
+    expect(error).toHaveBeenCalledWith(
+      `Scheduler omitted ${corruptClosure.id}: invalid date range.`,
+    );
+  });
 }
 
 function registerBuildSchedulerModelTest24() {
