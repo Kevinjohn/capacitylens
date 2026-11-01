@@ -308,6 +308,26 @@ describe('assertActivityProjectAllowsDependents', () => {
     ).toBeUndefined();
   });
 
+  it('skips an unchanged edit even when a legacy attribution would be stripped', () => {
+    // Only all-projects work may carry attribution, so the pair check would compare the stored p2
+    // attribution with the stripped p1 project and refuse an edit that moves nothing.
+    const legacy = data({
+      resources: [placeholder('r1', 'p2')],
+      allocations: [{ ...allocation('al1', 'r1', 't1'), projectId: 'p2' }],
+    });
+    expect(
+      codeOf(() =>
+        assertActivityProjectAllowsDependents(
+          legacy,
+          A1,
+          't1',
+          projectActivity('t1', 'p1'),
+          projectActivity('t1', 'p1'),
+        ),
+      ),
+    ).toBeUndefined();
+  });
+
   it('skips an allocation whose resource no longer resolves', () => {
     const orphaned = data({ allocations: [allocation('al1', 'ghost', 't1')] });
     expect(
