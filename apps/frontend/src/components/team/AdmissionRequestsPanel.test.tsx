@@ -86,4 +86,64 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
 
     expect(list).toHaveBeenCalledTimes(1);
   });
+
+  it('aborts an in-flight refresh and stops the actual paginated client before its next page', async () => {
+    let resolveRefreshPage!: (response: Response) => void;
+    let markRefreshStarted!: () => void;
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve;
+    });
+    const refreshPage = new Promise<Response>((resolve) => {
+      resolveRefreshPage = resolve;
+    });
+    const calls: { status: string; cursor: string | null; signal: AbortSignal | null }[] = [];
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), 'http://api.test');
+      if (init?.method === 'POST') return new Response(null, { status: 204 });
+
+      const status = url.searchParams.get('status') ?? '';
+      const cursor = url.searchParams.get('cursor');
+      calls.push({ status, cursor, signal: init?.signal as AbortSignal | null });
+      if (
+        status === 'pending' &&
+        cursor === null &&
+        calls.filter((call) => call.status === 'pending').length === 2
+      ) {
+        markRefreshStarted();
+        return refreshPage;
+      }
+      if (status === 'pending') {
+        return Response.json({
+          items: [
+            {
+              userId: 'u1',
+              email: pendingRequest.email,
+              requestedAt: null,
+              invitation: { role: 'viewer' },
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+      return Response.json({ items: [], nextCursor: null });
+    });
+
+    const view = render(<AdmissionRequestsPanel />);
+    await screen.findByTestId('admission-request');
+    fireEvent.click(screen.getByTestId('admission-approve'));
+    await refreshStarted;
+    const refreshSignal = calls.at(-1)?.signal;
+    expect(refreshSignal).toBeTruthy();
+
+    view.unmount();
+    expect(refreshSignal?.aborted).toBe(true);
+
+    await act(async () => {
+      resolveRefreshPage(Response.json({ items: [], nextCursor: 'next-page' }));
+      await refreshPage;
+    });
+
+    expect(calls.some((call) => call.cursor === 'next-page')).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(5);
+  });
 });

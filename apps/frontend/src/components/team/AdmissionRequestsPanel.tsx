@@ -10,12 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 type Listing =
   { kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; requests: AdmissionRequest[] };
 
-async function fetchListing(signal?: AbortSignal): Promise<Listing> {
+async function fetchListing(signal: AbortSignal): Promise<Listing> {
   try {
     const result = await teamAccessClient.listAdmissionRequests(signal);
     return result.kind === 'ok' ? { kind: 'ready', requests: result.value } : { kind: 'failed' };
   } catch (failure) {
-    if (!signal?.aborted) console.warn('AdmissionRequestsPanel: listing failed', failure);
+    // A retired panel cannot surface a late read failure to its successor context.
+    if (!signal.aborted) console.warn('AdmissionRequestsPanel: listing failed', failure);
     return { kind: 'failed' };
   }
 }
@@ -28,40 +29,45 @@ export function AdmissionRequestsPanel() {
   const [listing, setListing] = useState<Listing>({ kind: 'loading' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const mounted = useRef(false);
+  const controllerRef = useRef<AbortController | null>(null);
 
-  const load = useCallback((signal?: AbortSignal) => {
+  const load = useCallback((signal: AbortSignal) => {
     return fetchListing(signal).then((next) => {
-      if (mounted.current && !signal?.aborted) setListing(next);
+      if (!signal.aborted) setListing(next);
     });
   }, []);
 
   useEffect(() => {
-    mounted.current = true;
     const controller = new AbortController();
+    controllerRef.current = controller;
     void load(controller.signal);
     return () => {
-      mounted.current = false;
       controller.abort();
+      if (controllerRef.current === controller) controllerRef.current = null;
     };
   }, [load]);
 
   const decide = async (request: AdmissionRequest, decision: 'approve' | 'reject') => {
+    const controller = controllerRef.current;
+    // A retired panel has no listing lifetime to own another action.
+    if (!controller) return;
+    const signal = controller.signal;
     setBusy(true);
     setError(null);
     try {
       const result = await teamAccessClient.decideAdmission(request.userId, decision);
-      if (!mounted.current) return;
+      if (controllerRef.current !== controller) return;
       if (result.kind !== 'ok') {
         setError(resolveRejectionMessage(result, m.settings_admission_failed()));
       }
-      await load();
+      await load(signal);
     } catch (failure) {
-      if (!mounted.current) return;
+      // A retired panel must not surface a late decision failure in a successor context.
+      if (controllerRef.current !== controller) return;
       console.warn('AdmissionRequestsPanel: decision failed', failure);
       setError(m.settings_admission_failed());
     } finally {
-      if (mounted.current) setBusy(false);
+      if (controllerRef.current === controller) setBusy(false);
     }
   };
 
@@ -89,7 +95,8 @@ export function AdmissionRequestsPanel() {
               variant="outline"
               onClick={() => {
                 setListing({ kind: 'loading' });
-                void load();
+                const signal = controllerRef.current?.signal;
+                if (signal && !signal.aborted) void load(signal);
               }}
             >
               {m.settings_admission_retry()}

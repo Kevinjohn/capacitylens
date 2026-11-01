@@ -206,6 +206,7 @@ test.group('company member administration', (group) => {
       },
     ];
 
+    const receipts = await db.from('command_results').where('account_id', 'a-studio').orderBy('id');
     for (const request of requests) {
       const response = await request.send();
       response.assertStatus(400);
@@ -229,6 +230,10 @@ test.group('company member administration', (group) => {
         .first()
     );
     assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-studio'), 0);
+    assert.deepEqual(
+      await db.from('command_results').where('account_id', 'a-studio').orderBy('id'),
+      receipts
+    );
   });
 
   test('an authorized Admin receives input refusal for direct Owner assignment, but cannot edit the Owner', async ({

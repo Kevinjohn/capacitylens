@@ -15,6 +15,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Reject `.sqlite` files and chained symlinks that escape the release when building archives.
 - Keep pending admission decisions and their refreshes within the originating sign-in and company.
 - Correct company settings help to say disciplines start off in a new company.
 - Restore full beta JSON exports into a fresh company while preserving scheduling IDs, relationships and destination access.

@@ -66,13 +66,17 @@ async function semanticMutation<T>(ctx: HttpContext, input: SemanticMutationInpu
       command,
       kind: 'semantic',
     });
-    if (claim.replayed) return claim.result as T;
+    if (claim.replayed) {
+      // The claim binds company, actor, operation and payload to this operation's stored result.
+      return claim.result as T;
+    }
     const result = await work(trx, actor);
     await completeAccountCommand(trx, command.commandId, result);
     return result;
   });
 }
 
+/** Lists company members and applies member commands under live management authority. */
 export default class MembersController {
   async index(ctx: HttpContext) {
     const accountId = readRouteParam(ctx.params.accountId);
@@ -136,6 +140,7 @@ export default class MembersController {
       });
       return ctx.response.ok(result);
     } catch (error) {
+      // Domain and receipt refusals retain their status; unexpected failures escape the mapper.
       return replyMemberError(ctx, error);
     }
   }
@@ -167,6 +172,7 @@ export default class MembersController {
       });
       return ctx.response.ok(result);
     } catch (error) {
+      // Domain and receipt refusals retain their status; unexpected failures escape the mapper.
       return replyMemberError(ctx, error);
     }
   }
@@ -189,6 +195,7 @@ export default class MembersController {
       });
       return ctx.response.ok(result);
     } catch (error) {
+      // Domain and receipt refusals retain their status; unexpected failures escape the mapper.
       return replyMemberError(ctx, error);
     }
   }
@@ -211,6 +218,7 @@ export default class MembersController {
       });
       return ctx.response.noContent();
     } catch (error) {
+      // Domain and receipt refusals retain their status; unexpected failures escape the mapper.
       return replyMemberError(ctx, error);
     }
   }

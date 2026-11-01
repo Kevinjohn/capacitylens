@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { arch, platform } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -454,6 +454,33 @@ test('refuses operator state and symlinks that leave the release', async (contex
   await assert.rejects(() => inspectArchiveTree(root), /absolute links outside the release/);
 });
 
+test('resolves symlink targets through internal links before checking release confinement', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'capacitylens-archive-symlink-test-'));
+  const outside = join(dirname(root), `${basename(root)}-outside.txt`);
+  context.after(async () => {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { force: true });
+  });
+  await writeFile(outside, 'outside the release');
+  await symlink('.', join(root, 'dir'));
+  await symlink(`dir/../${basename(outside)}`, join(root, 'escape'));
+
+  await assert.rejects(() => inspectArchiveTree(root), /escape links outside the release/);
+});
+
+test('reports dangling and cyclic release symlinks as filesystem failures', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'capacitylens-archive-unresolved-test-'));
+  context.after(() => rm(root, { recursive: true, force: true }));
+
+  await symlink('missing-target', join(root, 'dangling'));
+  await assert.rejects(() => inspectArchiveTree(root), { code: 'ENOENT' });
+  await rm(join(root, 'dangling'));
+
+  await symlink('cycle-b', join(root, 'cycle-a'));
+  await symlink('cycle-a', join(root, 'cycle-b'));
+  await assert.rejects(() => inspectArchiveTree(root), { code: 'ELOOP' });
+});
+
 test('writes checksums in sha256sum format', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'capacitylens-checksum-test-'));
   context.after(() => rm(root, { recursive: true, force: true }));
@@ -464,7 +491,14 @@ test('writes checksums in sha256sum format', async (context) => {
   );
 });
 
-for (const filename of ['db.sqlite3', 'db.sqlite3-wal', 'db.sqlite3-shm']) {
+for (const filename of [
+  'db.sqlite3',
+  'db.sqlite3-wal',
+  'db.sqlite3-shm',
+  'db.sqlite',
+  'db.sqlite-wal',
+  'db.sqlite-shm',
+]) {
   test(`rejects nested operator database ${filename}`, async (context) => {
     const root = await mkdtemp(join(tmpdir(), 'capacitylens-database-test-'));
     context.after(() => rm(root, { recursive: true, force: true }));
