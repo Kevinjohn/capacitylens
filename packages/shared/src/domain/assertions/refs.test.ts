@@ -10,6 +10,7 @@ import type {
   Phase,
   Project,
   Resource,
+  ScopedEntity,
   ScopedEntityKey,
 } from '../../types/entities.js';
 import { DomainError } from '../errors.js';
@@ -123,7 +124,7 @@ function codeOf(run: () => void): DomainErrorCode | undefined {
 function scoped(
   key: ScopedEntityKey,
   record: Record<string, unknown>,
-  existing?: Record<string, unknown>,
+  existing?: ScopedEntity | Record<string, unknown>,
   options?: { fullRow?: boolean },
 ) {
   return codeOf(() => assertScopedRefs(data(), A1, key, record, existing, undefined, options));
