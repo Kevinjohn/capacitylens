@@ -67,7 +67,9 @@ describe('project selection helpers', () => {
 
   it('resolveAttributedProject returns a project only for an all-projects activity with a concrete choice', () => {
     expect(resolveAttributedProject(repeatableActivity, 'p1')).toBe('p1');
-    expect(resolveAttributedProject(repeatableActivity, INTERNAL_PROJECT_SELECTION)).toBeUndefined();
+    expect(
+      resolveAttributedProject(repeatableActivity, INTERNAL_PROJECT_SELECTION),
+    ).toBeUndefined();
     expect(resolveAttributedProject(repeatableActivity, ANY_PROJECT_SELECTION)).toBeUndefined();
     expect(resolveAttributedProject(projectActivity, 'p1')).toBeUndefined();
     expect(resolveAttributedProject(undefined, 'p1')).toBeUndefined();
@@ -87,9 +89,10 @@ describe('project selection helpers', () => {
       [{ kind: 'project', projectId: 'p2' }, 'p1', false],
     ];
     for (const [activity, selection, expected] of table) {
-      expect(isActivityInProjectSelection(activity, selection), `${activity.kind}/${selection}`).toBe(
-        expected,
-      );
+      expect(
+        isActivityInProjectSelection(activity, selection),
+        `${activity.kind}/${selection}`,
+      ).toBe(expected);
     }
   });
 
@@ -148,9 +151,9 @@ describe('buildEffectiveAllocationValues', () => {
     const pastLimit = { startDate: addDaysISO(LAST_UNLIMITED_START, 1), ignoreWeekends: true };
     expect(daysInclusive(LAST_UNLIMITED_START, MAX_ISO_DATE)).toBe(MAX_SPAN_DAYS);
     for (const mode of ['hourly', 'days'] as const) {
-      expect(buildEffectiveAllocationValues(input({ ...atLimit, mode })).spanLimitedByDateDomain).toBe(
-        false,
-      );
+      expect(
+        buildEffectiveAllocationValues(input({ ...atLimit, mode })).spanLimitedByDateDomain,
+      ).toBe(false);
       expect(
         buildEffectiveAllocationValues(input({ ...pastLimit, mode })).spanLimitedByDateDomain,
       ).toBe(true);
