@@ -203,6 +203,12 @@ describe('buildEffectiveAllocationValues', () => {
 
   it('collapses an invalid span to a single day and reports a span that overruns the date domain', () => {
     expect(buildEffectiveAllocationValues(input({ daysOver: 0 })).endDate).toBe('2026-06-01');
+    expect(buildEffectiveAllocationValues(input({ daysOver: 0 })).spanFitsDateDomain).toBe(false);
+    expect(
+      buildEffectiveAllocationValues(
+        input({ effectiveWeek: undefined, ignoreWeekends: true, daysOver: 6 }),
+      ).endDate,
+    ).toBe('2026-06-06');
     const lastDay = { startDate: MAX_ISO_DATE, ignoreWeekends: true };
     expect(buildEffectiveAllocationValues(input({ ...lastDay, daysOver: 1 }))).toMatchObject({
       maximumDaysOver: 1,
