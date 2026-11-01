@@ -24,7 +24,7 @@ import {
 } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
 import { buildActiveGestureData } from './gestureLanes';
-import { listRenderableClosures } from './schedulerModelIndexing';
+import { listRenderableDateRanges } from './schedulerModelIndexing';
 
 interface ReadCapacityGestureAdvisoryInput {
   bar: BarLayout;
@@ -69,7 +69,7 @@ export function readCapacityAnnouncement(resourceId: ID): string {
   if (end > visible.end) end = visible.end;
   if (start > end) return m.scheduler_sr_announce_clear({ name });
 
-  const timeOff = listTimeOffApplyingTo(resourceId, data.timeOff);
+  const timeOff = listTimeOffApplyingTo(resourceId, listRenderableDateRanges(data.timeOff));
   const effectiveWeek = effectiveWorkingWeek(
     resource,
     listAccountWorkingDays(storedData, activeAccountId),
@@ -81,7 +81,7 @@ export function readCapacityAnnouncement(resourceId: ID): string {
     start: start,
     end: end,
     effectiveWeek: effectiveWeek,
-    closures: listRenderableClosures(data.closures),
+    closures: listRenderableDateRanges(data.closures),
   }).filter((day) => day.over).length;
   return formatCapacityAnnouncement(name, overDays);
 }
@@ -106,7 +106,10 @@ export function readCapacityGestureAdvisory({
       ),
       blocksMode: isBlocks,
     });
-    const timeOff = listTimeOffApplyingTo(effectiveResourceId, data.timeOff);
+    const timeOff = listTimeOffApplyingTo(
+      effectiveResourceId,
+      listRenderableDateRanges(data.timeOff),
+    );
     const result = buildCapacityAdvisory({
       resource: resource,
       proposal: {
@@ -123,7 +126,7 @@ export function readCapacityGestureAdvisory({
         resource,
         listAccountWorkingDays(storedData, activeAccountId),
       ),
-      closures: listRenderableClosures(data.closures),
+      closures: listRenderableDateRanges(data.closures),
     });
     advisory = formatCapacityAdvisory(result, 'toast');
   }

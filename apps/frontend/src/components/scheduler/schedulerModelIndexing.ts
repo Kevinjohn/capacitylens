@@ -27,12 +27,14 @@ export function reportInvalidScheduleDateRangeOnce(row: { id: string }): void {
   console.error(`Scheduler omitted ${row.id}: invalid date range.`);
 }
 
-/** Closures the scheduler can honour. Day states, drawing, shading, forms and announcements all
- * read this list so a corrupt closure is ignored everywhere alike rather than in some paths only. */
-export function listRenderableClosures(closures: Closure[]): Closure[] {
-  return closures.filter((closure) => {
-    const renderable = hasRenderableDateRange(closure);
-    if (!renderable) reportInvalidScheduleDateRangeOnce(closure);
+/** Closures or time off the scheduler can honour. Day states, drawing, shading, forms and
+ * announcements all read this list so the scheduler ignores a corrupt row in every path alike. */
+export function listRenderableDateRanges<
+  T extends { id: string; startDate: ISODate; endDate: ISODate },
+>(rows: T[]): T[] {
+  return rows.filter((row) => {
+    const renderable = hasRenderableDateRange(row);
+    if (!renderable) reportInvalidScheduleDateRangeOnce(row);
     return renderable;
   });
 }

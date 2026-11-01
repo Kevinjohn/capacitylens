@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ID, ISODate } from '@capacitylens/shared/types/entities';
-import { DEFAULT_ACCOUNT_ID, makeAccount, makeClosure } from '@/test/fixtures';
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeClosure, makeTimeOff } from '@/test/fixtures';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 import { useStore } from '@/store/useStore';
 import { SchedulerGrid } from './SchedulerGrid';
@@ -65,6 +65,27 @@ describe('SchedulerGrid draw gate', () => {
     });
     useStore.setState((state) => ({
       data: { ...state.data, closures: [...state.data.closures, corrupt] },
+    }));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Draw on 3 June' }));
+
+    const dialog = await screen.findByRole('dialog', { name: /new allocation/i });
+    expect(within(dialog).getByLabelText('Start Date')).toHaveValue('2026-06-03');
+    expect(error).toHaveBeenCalledWith(`Scheduler omitted ${corrupt.id}: invalid date range.`);
+    error.mockRestore();
+  });
+
+  it('opens over time off omitted for an invalid date range', async () => {
+    const corrupt = makeTimeOff({
+      id: 'time-off-corrupt',
+      accountId: ACTIVE_ACCOUNT_ID,
+      startDate: '2026-02-30',
+      endDate: '2026-06-07',
+    });
+    useStore.setState((state) => ({
+      data: { ...state.data, timeOff: [...state.data.timeOff, corrupt] },
     }));
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(<SchedulerGrid />, { wrapper: MemoryRouter });

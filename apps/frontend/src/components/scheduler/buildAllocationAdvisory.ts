@@ -10,7 +10,7 @@ import { buildRepeatingAllocationAdvisory } from '@/lib/repeatingAllocations';
 
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
 import type { buildRepeatProjection } from './buildRepeatProjection';
-import { listRenderableClosures } from './schedulerModelIndexing';
+import { listRenderableDateRanges } from './schedulerModelIndexing';
 
 type AdvisoryInput = Pick<
   AllocationModalSnapshot,
@@ -59,7 +59,7 @@ function buildRepeatAdvisory(
 ) {
   const { data, repeatProjection, resourceId, selectedEffectiveWeek, selectedResource } = input;
   if (!repeatProjection || !selectedResource || selectedEffectiveWeek === undefined) return null;
-  const resourceTimeOff = listTimeOffApplyingTo(resourceId, data.timeOff);
+  const resourceTimeOff = listTimeOffApplyingTo(resourceId, listRenderableDateRanges(data.timeOff));
   const { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations } =
     buildRepeatingAllocationAdvisory({
       resource: selectedResource,
@@ -67,7 +67,7 @@ function buildRepeatAdvisory(
       timeOff: resourceTimeOff,
       proposedDrafts: repeatProjection.drafts,
       effectiveWeek: selectedEffectiveWeek,
-      closures: listRenderableClosures(data.closures),
+      closures: listRenderableDateRanges(data.closures),
     });
   return (
     formatCapacityAdvisory(
@@ -110,9 +110,9 @@ function buildSingleAdvisory(
           ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
         },
         otherAllocations,
-        timeOff: listTimeOffApplyingTo(resourceId, data.timeOff),
+        timeOff: listTimeOffApplyingTo(resourceId, listRenderableDateRanges(data.timeOff)),
         effectiveWeek: selectedEffectiveWeek,
-        closures: listRenderableClosures(data.closures),
+        closures: listRenderableDateRanges(data.closures),
       }),
       'form',
     ) || null
