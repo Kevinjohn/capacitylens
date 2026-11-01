@@ -24,6 +24,7 @@ import {
 } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
 import { buildActiveGestureData } from './gestureLanes';
+import { listRenderableClosures } from './schedulerModelIndexing';
 
 interface ReadCapacityGestureAdvisoryInput {
   bar: BarLayout;
@@ -80,7 +81,7 @@ export function readCapacityAnnouncement(resourceId: ID): string {
     start: start,
     end: end,
     effectiveWeek: effectiveWeek,
-    closures: data.closures,
+    closures: listRenderableClosures(data.closures),
   }).filter((day) => day.over).length;
   return formatCapacityAnnouncement(name, overDays);
 }
@@ -122,7 +123,7 @@ export function readCapacityGestureAdvisory({
         resource,
         listAccountWorkingDays(storedData, activeAccountId),
       ),
-      closures: data.closures,
+      closures: listRenderableClosures(data.closures),
     });
     advisory = formatCapacityAdvisory(result, 'toast');
   }

@@ -27,6 +27,16 @@ export function reportInvalidScheduleDateRangeOnce(row: { id: string }): void {
   console.error(`Scheduler omitted ${row.id}: invalid date range.`);
 }
 
+/** Closures the scheduler can honour. Day states, drawing, shading, forms and announcements all
+ * read this list so a corrupt closure is ignored everywhere alike rather than in some paths only. */
+export function listRenderableClosures(closures: Closure[]): Closure[] {
+  return closures.filter((closure) => {
+    const renderable = hasRenderableDateRange(closure);
+    if (!renderable) reportInvalidScheduleDateRangeOnce(closure);
+    return renderable;
+  });
+}
+
 // Reused for a bucket miss so a day with no allocations / no time off doesn't allocate a throwaway
 // array per resource-day (this runs days × resources times on every model rebuild).
 /** Stable empty allocation list shared by rows with no allocations. */

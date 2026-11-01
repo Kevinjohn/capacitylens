@@ -10,6 +10,7 @@ import { buildRepeatingAllocationAdvisory } from '@/lib/repeatingAllocations';
 
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
 import type { buildRepeatProjection } from './buildRepeatProjection';
+import { listRenderableClosures } from './schedulerModelIndexing';
 
 type AdvisoryInput = Pick<
   AllocationModalSnapshot,
@@ -66,7 +67,7 @@ function buildRepeatAdvisory(
       timeOff: resourceTimeOff,
       proposedDrafts: repeatProjection.drafts,
       effectiveWeek: selectedEffectiveWeek,
-      closures: data.closures,
+      closures: listRenderableClosures(data.closures),
     });
   return (
     formatCapacityAdvisory(
@@ -111,7 +112,7 @@ function buildSingleAdvisory(
         otherAllocations,
         timeOff: listTimeOffApplyingTo(resourceId, data.timeOff),
         effectiveWeek: selectedEffectiveWeek,
-        closures: data.closures,
+        closures: listRenderableClosures(data.closures),
       }),
       'form',
     ) || null

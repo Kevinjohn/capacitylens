@@ -813,6 +813,7 @@ function registerBuildSchedulerModelTest23() {
     expect(error).toHaveBeenCalledWith(
       `Scheduler omitted ${corruptClosure.id}: invalid date range.`,
     );
+    error.mockRestore();
   });
 }
 

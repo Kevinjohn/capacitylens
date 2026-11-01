@@ -55,4 +55,25 @@ describe('SchedulerGrid draw gate', () => {
     const dialog = await screen.findByRole('dialog', { name: /new allocation/i });
     expect(within(dialog).getByLabelText('Start Date')).toHaveValue('2026-06-03');
   });
+
+  it('opens over a closure omitted for an invalid date range', async () => {
+    const corrupt = makeClosure({
+      id: 'closure-corrupt',
+      accountId: ACTIVE_ACCOUNT_ID,
+      startDate: '2026-02-30',
+      endDate: '2026-06-07',
+    });
+    useStore.setState((state) => ({
+      data: { ...state.data, closures: [...state.data.closures, corrupt] },
+    }));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Draw on 3 June' }));
+
+    const dialog = await screen.findByRole('dialog', { name: /new allocation/i });
+    expect(within(dialog).getByLabelText('Start Date')).toHaveValue('2026-06-03');
+    expect(error).toHaveBeenCalledWith(`Scheduler omitted ${corrupt.id}: invalid date range.`);
+    error.mockRestore();
+  });
 });

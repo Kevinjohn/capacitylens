@@ -15,6 +15,7 @@ import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { ID, ISODate } from '@capacitylens/shared/types/entities';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { isCreationStartBlocked } from './creationAvailability';
+import { listRenderableClosures } from './schedulerModelIndexing';
 import { SchedulerGridRows } from './SchedulerGridRows';
 import type { ModalState } from './schedulerGridModal';
 import { useSchedulerGridPreferences, useSchedulerGridModel } from './useSchedulerGridModel';
@@ -131,7 +132,7 @@ function openDrawModal({
       date: startDate,
       timeOff: scopedData.timeOff,
       accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
-      closures: drawMode === 'timeoff' ? [] : scopedData.closures,
+      closures: drawMode === 'timeoff' ? [] : listRenderableClosures(scopedData.closures),
     })
   ) {
     return;
