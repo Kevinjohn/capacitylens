@@ -273,6 +273,9 @@ describe('assertScopedRefs resources', () => {
     );
     expect(scoped('resources', { name: 'Clark Kent' }, bound)).toBeUndefined();
     expect(scoped('resources', { kind: 'placeholder', projectId: 'p1' })).toBeUndefined();
+    // Without a known kind the placeholder rule has nothing to compare.
+    expect(scoped('resources', { projectId: 'p1' })).toBeUndefined();
+    expect(scoped('resources', { kind: null, projectId: 'p1' })).toBeUndefined();
   });
 
   it('keeps the resource kind immutable and rejects a corrupt stored kind', () => {
