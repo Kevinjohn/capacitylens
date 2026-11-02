@@ -1,6 +1,6 @@
 ---
 title: OpenSSF Baseline self-assessment
-description: Dated evidence and gaps for the OpenSSF Baseline criteria assessed on 9 September 2026.
+description: OpenSSF Baseline assessment from 9 September 2026, with branch-protection evidence updated on 2 November 2026.
 ---
 
 # Review the OpenSSF Baseline self-assessment
@@ -19,6 +19,10 @@ current questionnaire and reconcile changed criteria and controls. **Met** means
 GitHub configuration supplied evidence at that review.
 **Unmet** identifies real work still required. **N/A** includes a reason. This document does not claim
 that an unsubmitted level has been awarded.
+
+Branch references and protection evidence were updated on 2 November 2026 for the return to `main`.
+GitHub requires pull requests and the `Lint and type-check` status check, including for administrators.
+The remaining assessment retains its original review date.
 
 ## Project information
 
@@ -86,7 +90,7 @@ that an unsubmitted level has been awarded.
 | `OSPS-VM-03.01` — Can reporters contact the project privately about vulnerabilities? | Met | GitHub Private Vulnerability Reporting is the primary documented route. |
 | `OSPS-VM-04.01` — Will discovered vulnerabilities be published publicly? | Met | `SECURITY.md` commits to publishing an advisory after a patched release; release notes and the changelog record relevant fixes. |
 
-Level 2 is not currently claimable because `OSPS-QA-03.01` and `OSPS-QA-06.01` remain unmet.
+Level 2 is not currently claimable because `OSPS-QA-06.01` remains unmet.
 
 ## Baseline Level 3
 
