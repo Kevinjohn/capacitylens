@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { request } from 'node:http';
 import { createServer } from 'node:https';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect } from '@playwright/test';
 import { runPackagedSmoke } from './smoke-packaged-server.mjs';
+import { createLoopbackHttpProxyHandler } from './loopbackHttpProxy.mjs';
 
 /** Reject a deployment whose policy permits the stylesheet injection this journey guards. */
 export function assertStrictStylePolicy(policy) {
@@ -63,24 +63,7 @@ async function startTlsEdge(baseUrl, workDir) {
   );
   const edge = createServer(
     { key: await readFile(keyPath), cert: await readFile(certificatePath) },
-    (incoming, outgoing) => {
-      const upstream = request(
-        new URL(incoming.url, baseUrl),
-        {
-          method: incoming.method,
-          headers: incoming.headers,
-        },
-        (response) => {
-          outgoing.writeHead(response.statusCode, response.headers);
-          response.pipe(outgoing);
-        },
-      );
-      upstream.on('error', () => {
-        outgoing.writeHead(502);
-        outgoing.end('Native acceptance upstream unavailable');
-      });
-      incoming.pipe(upstream);
-    },
+    createLoopbackHttpProxyHandler(new URL(baseUrl).port),
   );
   edge.listen(0, '127.0.0.1');
   await once(edge, 'listening');

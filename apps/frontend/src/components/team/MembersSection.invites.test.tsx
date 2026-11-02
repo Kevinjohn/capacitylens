@@ -258,11 +258,11 @@ function registerInviteMutationTransitionTests(): void {
 
 function registerInviteValidationTests(): void {
   it.each([
-    [201, true, 'Invitation emailed to diana@example.test'],
+    [201, true, /Invitation emailed to diana@example\.test/],
     [
       202,
       false,
-      'The invitation was saved, but the email could not be sent. Use Resend to try again.',
+      /The invitation was saved, but the email could not be sent\. Use Resend to try again\./,
     ],
   ])('emails a new invitation and reports a %s delivery', async (status, emailed, notice) => {
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
@@ -276,7 +276,7 @@ function registerInviteValidationTests(): void {
     fillAddressedInvite();
     fireEvent.click(screen.getByTestId('invite-submit'));
 
-    await expectNotice(new RegExp(notice.replace(/[.]/g, '\\.')));
+    await expectNotice(notice);
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
     expect(JSON.parse(String(post?.[1]?.body))).toEqual({
       accountId: DEFAULT_ACCOUNT_ID,
