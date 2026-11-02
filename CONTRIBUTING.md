@@ -32,6 +32,11 @@ smoke-tests native packages on macOS arm64; that job does not add a production-h
 promise. The runtime floors are declared in [package.json](package.json) and enforced before the
 backend starts in [node_version.ts](apps/backend/start/node_version.ts).
 
+Keep patch and minor updates within the existing runtime and browser requirements. Check dependency
+engines, peers and generated output, and verify on the minimum supported Node 24 version. Treat an
+increase to a minimum requirement as a separate product decision; a newer package alone does not
+justify excluding an otherwise supported installation.
+
 Use `nvm use` and the pinned pnpm version before changing dependencies. Ranges live in the root,
 [backend](apps/backend/package.json), [frontend](apps/frontend/package.json) and
 [shared](packages/shared/package.json) manifests; [pnpm-lock.yaml](pnpm-lock.yaml) records the

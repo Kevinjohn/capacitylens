@@ -5,7 +5,6 @@ import type { Config } from '@japa/runner/types';
 import { pluginAdonisJS } from '@japa/plugin-adonisjs';
 import { dbAssertions } from '@adonisjs/lucid/plugins/db';
 import testUtils from '@adonisjs/core/services/test_utils';
-import { authApiClient } from '@adonisjs/auth/plugins/api_client';
 import type { Registry } from '../.adonisjs/client/registry/schema.d.ts';
 import { createServer } from 'node:http';
 import { configureNodeServer } from '#start/resource_limits';
@@ -31,7 +30,6 @@ export const plugins: Config['plugins'] = [
   pluginAdonisJS(app),
   dbAssertions(app),
   apiClient(),
-  authApiClient(app),
 ];
 
 /**
