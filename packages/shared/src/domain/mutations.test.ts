@@ -1336,6 +1336,10 @@ describe('parent project edits preserve placeholder allocation assignments', () 
 });
 
 const registerRemapAndValidateImportPart1 = (incoming: () => AppData) => {
+  it("preserves remapAndValidateImport's public four-argument runtime arity", () => {
+    expect(remapAndValidateImport.length).toBe(4);
+  });
+
   it('imports into the active account with FRESH ids and remapped foreign keys', () => {
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, incoming(), TS);
     expect(imported).toBe(3);

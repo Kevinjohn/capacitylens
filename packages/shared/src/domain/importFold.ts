@@ -363,6 +363,6 @@ function remapAndValidateImport(
   return runImport({ data, accountId, incoming, now });
 }
 
-Object.defineProperty(remapAndValidateImport, 'length', { value: 4, configurable: true });
+Object.defineProperty(remapAndValidateImport, 'length', { value: 4 });
 
 export { remapAndValidateImport };
