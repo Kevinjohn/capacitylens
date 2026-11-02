@@ -322,6 +322,10 @@ framework defaults; any other departure needs a decision recorded here first.
   preserve the declared Node runtime floors, browser build target and production host boundary.
   Raising a minimum requirement is a separate product decision justified by a concrete benefit,
   not an incidental consequence of updating a package.
+- The launch dependency baseline uses TypeScript 5.9.3, pinned in the root, backend and frontend
+  manifests. Package consumer peer ranges may allow a newer compiler without changing this
+  baseline. A dependency that requires a higher compiler, Node floor or browser target needs a
+  separate launch-compatibility decision supported by validation ([issue #1731](https://github.com/Kevinjohn/capacitylens/issues/1731)).
 - Keep formatting, type checking, lint, dependency security checks, product builds and meaningful
   unit, functional and browser tests. No coverage floor, file-size cap, test-size cap, suppression
   ratchet or custom structural rule. Add a focused check only when experience shows it protects a

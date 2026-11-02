@@ -46,6 +46,12 @@ its consumers. Account Kit is a vendored release archive: changing its pin also 
 packaging and can affect sign-in, admission and sessions, so include the relevant backend auth tests
 and packaged smoke checks.
 
+TypeScript 5.9.3 is the tested compiler baseline for the launch dependency set and is pinned in the
+root, backend and frontend manifests. A package's consumer peer range may allow a newer compiler
+without requiring this repository to adopt it. If an upgrade requires a higher compiler, Node floor
+or browser target, make that a separate launch-compatibility decision supported by validation
+([issue #1731](https://github.com/Kevinjohn/capacitylens/issues/1731)).
+
 The intended registry policy in [Dependabot configuration](.github/dependabot.yml) is separate
 weekly groups for npm patch and minor updates, with majors reviewed manually from the
 [monthly major report](.github/workflows/major-dependency-report.yml). GitHub Actions and Docker
