@@ -1,8 +1,9 @@
 /* eslint-disable prettier/prettier */
 /// <reference path="../manifest.d.ts" />
 
-import type { ExtractBody, ExtractErrorResponse, ExtractQuery, ExtractQueryForGet, ExtractResponse } from '@tuyau/core/types'
+import type { ExtractBody, ExtractErrorResponse, ExtractQuery, ExtractQueryForGet, ExtractRawResponse, ExtractResponse, Method, PathWithRegistry, PatternsByMethod, RouteWithRegistry } from '@tuyau/core/types'
 import type { InferInput } from '@vinejs/vine/types'
+import type { routes } from './index.ts'
 
 export type ParamValue = string | number | bigint | boolean
 
@@ -17,6 +18,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
     }
   }
   'api.planning.archive': {
@@ -29,6 +31,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
     }
   }
   'api.planning.lookup': {
@@ -41,6 +44,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
     }
   }
   'api.planning.allocation.create': {
@@ -53,6 +57,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreate']>>>
     }
   }
   'api.planning.allocation.update': {
@@ -65,6 +70,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationUpdate']>>>
     }
   }
   'api.planning.allocation.createGroup': {
@@ -77,6 +83,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreateGroup']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreateGroup']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreateGroup']>>>
     }
   }
   'api.planning.allocation.delete': {
@@ -89,6 +96,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDelete']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDelete']>>>
     }
   }
   'api.planning.allocation.deleteGroup': {
@@ -101,6 +109,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDeleteGroup']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDeleteGroup']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDeleteGroup']>>>
     }
   }
   'api.planning.restoreGroup': {
@@ -113,6 +122,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['restoreGroup']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['restoreGroup']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['restoreGroup']>>>
     }
   }
   'api.planning.resource.create': {
@@ -125,6 +135,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceCreate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceCreate']>>>
     }
   }
   'api.planning.resource.update': {
@@ -137,6 +148,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUpdate']>>>
     }
   }
   'api.planning.timeOff.create': {
@@ -149,6 +161,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffCreate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffCreate']>>>
     }
   }
   'api.planning.timeOff.update': {
@@ -161,6 +174,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffUpdate']>>>
     }
   }
   'api.planning.timeOff.delete': {
@@ -173,6 +187,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDelete']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDelete']>>>
     }
   }
   'api.planning.timeOff.deleteGroup': {
@@ -185,6 +200,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDeleteGroup']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDeleteGroup']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDeleteGroup']>>>
     }
   }
   'api.planning.closure.create': {
@@ -197,6 +213,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureCreate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureCreate']>>>
     }
   }
   'api.planning.closure.update': {
@@ -209,6 +226,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
     }
   }
   'api.planning.closure.delete': {
@@ -221,6 +239,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureDelete']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureDelete']>>>
     }
   }
   'api.planning.client.create': {
@@ -233,6 +252,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientCreate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientCreate']>>>
     }
   }
   'api.planning.client.update': {
@@ -245,6 +265,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUpdate']>>>
     }
   }
   'api.planning.client.archive': {
@@ -257,6 +278,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientArchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientArchive']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientArchive']>>>
     }
   }
   'api.planning.client.unarchive': {
@@ -269,6 +291,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUnarchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUnarchive']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUnarchive']>>>
     }
   }
   'api.planning.project.create': {
@@ -281,6 +304,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectCreate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectCreate']>>>
     }
   }
   'api.planning.project.update': {
@@ -293,6 +317,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUpdate']>>>
     }
   }
   'api.planning.project.archive': {
@@ -305,6 +330,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectArchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectArchive']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectArchive']>>>
     }
   }
   'api.planning.project.unarchive': {
@@ -317,6 +343,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUnarchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUnarchive']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUnarchive']>>>
     }
   }
   'api.planning.activity.create': {
@@ -329,6 +356,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityCreate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityCreate']>>>
     }
   }
   'api.planning.activity.update': {
@@ -341,6 +369,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
     }
   }
   'api.planning.activity.archive': {
@@ -353,6 +382,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityArchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityArchive']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityArchive']>>>
     }
   }
   'api.planning.activity.unarchive': {
@@ -365,6 +395,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUnarchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUnarchive']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUnarchive']>>>
     }
   }
   'api.planning.phase.create': {
@@ -377,6 +408,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseCreate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseCreate']>>>
     }
   }
   'api.planning.phase.update': {
@@ -389,6 +421,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseUpdate']>>>
     }
   }
   'api.planning.phase.delete': {
@@ -401,6 +434,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseDelete']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseDelete']>>>
     }
   }
   'api.planning.discipline.create': {
@@ -413,6 +447,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineCreate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineCreate']>>>
     }
   }
   'api.planning.discipline.update': {
@@ -425,6 +460,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
     }
   }
   'api.planning.discipline.delete': {
@@ -437,6 +473,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineDelete']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineDelete']>>>
     }
   }
   'api.planning.resource.archive': {
@@ -449,6 +486,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceArchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceArchive']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceArchive']>>>
     }
   }
   'api.planning.resource.unarchive': {
@@ -461,6 +499,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUnarchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUnarchive']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUnarchive']>>>
     }
   }
   'api.planning.allocation.duplicate': {
@@ -473,6 +512,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
     }
   }
   'api.planning.allocation.repeat': {
@@ -485,6 +525,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
     }
   }
   'api.planning.timeOff.repeat': {
@@ -497,6 +538,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffRepeat']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffRepeat']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffRepeat']>>>
     }
   }
   'api.planning.settings.update': {
@@ -509,6 +551,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').settingsMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>
     }
   }
   'api.installation.company': {
@@ -521,6 +564,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
     }
   }
   'api.accounts.index': {
@@ -533,6 +577,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['index']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['index']>>>
     }
   }
   'api.transfer.preview': {
@@ -545,6 +590,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
     }
   }
   'api.transfer.apply': {
@@ -557,6 +603,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
     }
   }
   'api.state': {
@@ -569,6 +616,7 @@ export interface Registry {
       query: ExtractQueryForGet<InferInput<(typeof import('#validators/export_query').exportQueryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
     }
   }
   'api.accounts.anonymise': {
@@ -581,6 +629,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
     }
   }
   'api.resources.anonymise': {
@@ -593,6 +642,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
     }
   }
   'api.example-data': {
@@ -605,6 +655,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/example_data_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/example_data_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/example_data_controller').default['store']>>>
     }
   }
   'api.getting-started.show': {
@@ -617,6 +668,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['show']>>>
     }
   }
   'api.getting-started.update': {
@@ -629,6 +681,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['update']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['update']>>>
     }
   }
   'api.auth.me': {
@@ -641,6 +694,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['me']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['me']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['me']>>>
     }
   }
   'api.auth.sign-up': {
@@ -653,6 +707,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/auth_requests').signUpValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signUp']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signUp']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signUp']>>>
     }
   }
   'api.auth.sign-in': {
@@ -665,6 +720,7 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/auth_requests').signInValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signIn']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signIn']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signIn']>>>
     }
   }
   'api.auth.sign-out': {
@@ -677,6 +733,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signOut']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signOut']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signOut']>>>
     }
   }
   'api.auth.action-proof.password': {
@@ -689,6 +746,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['password']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['password']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['password']>>>
     }
   }
   'api.auth.request-reset': {
@@ -701,6 +759,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['requestReset']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['requestReset']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['requestReset']>>>
     }
   }
   'api.auth.inspect-reset': {
@@ -713,6 +772,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['inspectReset']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['inspectReset']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['inspectReset']>>>
     }
   }
   'api.auth.reset-password': {
@@ -725,6 +785,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['resetPassword']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['resetPassword']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['resetPassword']>>>
     }
   }
   'api.auth.change-password': {
@@ -737,6 +798,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['changePassword']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['changePassword']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['changePassword']>>>
     }
   }
   'api.auth.verification.send': {
@@ -749,6 +811,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['send']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['send']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['send']>>>
     }
   }
   'api.auth.verification.inspect': {
@@ -761,6 +824,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
     }
   }
   'api.auth.verification.complete': {
@@ -773,6 +837,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
     }
   }
   'api.members.index': {
@@ -785,6 +850,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['index']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['index']>>>
     }
   }
   'api.members.tracking': {
@@ -797,6 +863,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['tracking']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['tracking']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['tracking']>>>
     }
   }
   'api.members.role': {
@@ -809,6 +876,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeRole']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeRole']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeRole']>>>
     }
   }
   'api.members.status': {
@@ -821,6 +889,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeStatus']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeStatus']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeStatus']>>>
     }
   }
   'api.members.enable-access': {
@@ -833,6 +902,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['enableAccess']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['enableAccess']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['enableAccess']>>>
     }
   }
   'api.members.remove': {
@@ -845,6 +915,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['remove']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['remove']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['remove']>>>
     }
   }
   'api.invites.create': {
@@ -857,6 +928,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['create']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['create']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['create']>>>
     }
   }
   'api.invites.index': {
@@ -869,6 +941,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
     }
   }
   'api.invites.resend': {
@@ -881,6 +954,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['resend']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['resend']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['resend']>>>
     }
   }
   'api.invites.revoke': {
@@ -893,6 +967,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['revoke']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['revoke']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['revoke']>>>
     }
   }
   'api.invites.preview': {
@@ -905,6 +980,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['preview']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['preview']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['preview']>>>
     }
   }
   'api.invites.sign-up': {
@@ -917,6 +993,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
     }
   }
   'api.admission.show': {
@@ -929,6 +1006,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['show']>>>
     }
   }
   'api.admission.request': {
@@ -941,6 +1019,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['request']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['request']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['request']>>>
     }
   }
   'api.admission.complete': {
@@ -953,6 +1032,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['complete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['complete']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['complete']>>>
     }
   }
   'api.admission.index': {
@@ -965,6 +1045,7 @@ export interface Registry {
       query: ExtractQueryForGet<InferInput<(typeof import('#validators/admission_query').admissionQueryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
     }
   }
   'api.admission.approve': {
@@ -977,6 +1058,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['approve']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['approve']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['approve']>>>
     }
   }
   'api.admission.reject': {
@@ -989,6 +1071,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['reject']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['reject']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['reject']>>>
     }
   }
   'api.admission.revoke': {
@@ -1001,6 +1084,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['revoke']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['revoke']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['revoke']>>>
     }
   }
   'api.member-resources.set': {
@@ -1013,6 +1097,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['setLink']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['setLink']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['setLink']>>>
     }
   }
   'api.member-resources.clear': {
@@ -1025,6 +1110,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
     }
   }
   'api.member-resources.avatars': {
@@ -1037,6 +1123,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['avatars']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['avatars']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['avatars']>>>
     }
   }
   'api.masquerade.start': {
@@ -1049,6 +1136,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['start']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['start']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['start']>>>
     }
   }
   'api.masquerade.status': {
@@ -1061,6 +1149,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['status']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['status']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['status']>>>
     }
   }
   'api.masquerade.end': {
@@ -1073,6 +1162,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['end']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['end']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['end']>>>
     }
   }
   'api.ownership.transfer': {
@@ -1085,6 +1175,7 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
     }
   }
   'api.health': {
@@ -1097,6 +1188,7 @@ export interface Registry {
       query: {}
       response: unknown
       errorResponse: unknown
+      rawResponse: ExtractRawResponse<unknown>
     }
   }
   'api.diagnostics': {
@@ -1109,6 +1201,31 @@ export interface Registry {
       query: {}
       response: unknown
       errorResponse: unknown
+      rawResponse: ExtractRawResponse<unknown>
     }
   }
+}
+
+export namespace Route {
+  export type Request<Name extends keyof typeof routes> = RouteWithRegistry.Request<typeof routes, Name>
+  export type Response<Name extends keyof typeof routes> = RouteWithRegistry.Response<typeof routes, Name>
+  export type Params<Name extends keyof typeof routes> = RouteWithRegistry.Params<typeof routes, Name>
+  export type Body<Name extends keyof typeof routes> = RouteWithRegistry.Body<typeof routes, Name>
+  export type Query<Name extends keyof typeof routes> = RouteWithRegistry.Query<typeof routes, Name>
+  export type Error<Name extends keyof typeof routes> = RouteWithRegistry.Error<typeof routes, Name>
+}
+
+export namespace Path {
+  export type Request<M extends Method, P extends PatternsByMethod<typeof routes, M>> =
+    PathWithRegistry.Request<typeof routes, M, P>
+  export type Response<M extends Method, P extends PatternsByMethod<typeof routes, M>> =
+    PathWithRegistry.Response<typeof routes, M, P>
+  export type Params<M extends Method, P extends PatternsByMethod<typeof routes, M>> =
+    PathWithRegistry.Params<typeof routes, M, P>
+  export type Body<M extends Method, P extends PatternsByMethod<typeof routes, M>> =
+    PathWithRegistry.Body<typeof routes, M, P>
+  export type Query<M extends Method, P extends PatternsByMethod<typeof routes, M>> =
+    PathWithRegistry.Query<typeof routes, M, P>
+  export type Error<M extends Method, P extends PatternsByMethod<typeof routes, M>> =
+    PathWithRegistry.Error<typeof routes, M, P>
 }

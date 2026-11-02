@@ -60,6 +60,61 @@ test.group('password sign-in and sessions', (group) => {
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 1);
   });
 
+  test('a late request cannot recreate its database session after sign-out', async ({
+    client,
+    assert,
+  }) => {
+    await owner();
+    const { cookie } = await signIn(client, email, password);
+    const session = await db.from('adonis_sessions').select('id').first();
+    assert.isNotNull(session, 'sign-in creates a database-backed Adonis session');
+
+    const service = await masqueradeService();
+    const original = service.resolve.bind(service);
+    const barrier = requestBarrier();
+    service.resolve = async (request) => {
+      const resolved = await original(request);
+      if (request.request.url().endsWith('/getting-started')) {
+        request.session.put('lateSessionWrite', 'after-sign-out');
+        const commit = request.session.commit.bind(request.session);
+        request.session.commit = async () => {
+          await barrier.pause();
+          await commit();
+        };
+      }
+      return resolved;
+    };
+
+    const pending = dismiss(client, cookie);
+    try {
+      // The real handler completes before session middleware attempts its database-store commit.
+      await barrier.entered();
+      const signedOut = await asDataOwner(client.post('/api/auth/sign-out'), cookie).send();
+      signedOut.assertStatus(200);
+      assert.isNull(
+        await db.from('adonis_sessions').where('id', session!.id).first(),
+        'sign-out removes the old framework session before the pending request resumes'
+      );
+
+      barrier.release();
+      const late = await pending;
+      assert.equal(
+        late.status(),
+        200,
+        'the request was authorized before logout and reaches its response'
+      );
+      assert.isNull(
+        await db.from('adonis_sessions').where('id', session!.id).first(),
+        'the late framework-session write does not recreate the destroyed row'
+      );
+      await expectStatus(accounts(client, cookie), 401);
+    } finally {
+      barrier.release();
+      service.resolve = original;
+      await pending;
+    }
+  });
+
   test('unconfirmed, unadmitted and disabled identities cannot reach company data', async ({
     client,
     assert,
