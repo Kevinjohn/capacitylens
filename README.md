@@ -3,8 +3,10 @@
 **Who's free next week?**
 
 <a href="docs-src/screenshots/demo.mp4">
-  <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is dragged to a colleague with room, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
+  <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is reassigned to a colleague, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
 </a>
+
+Illustrative October 2026 walkthrough with fictional data. Dates and sample bookings in the current demo vary; check each person’s capacity indicators when moving work.
 
 Every small agency answers that question badly. It lives in someone's head, a colour-coded
 spreadsheet, or a group chat at 5pm on a Friday. So work gets promised to people who are already

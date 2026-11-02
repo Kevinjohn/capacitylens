@@ -1,0 +1,146 @@
+{
+  "application_revision": "c7e3aaa5c88cd7fea7bca10d8ae1148a7cbe74de",
+  "date": "2026-11-01",
+  "mode": "pnpm run dev:demo",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "fictional_company": "Wayne Enterprises",
+  "completed": true,
+  "steps": [
+    {
+      "action": "Select demo company and dismiss orientation",
+      "result": "Wayne Enterprises Schedule, 6 allocations, initial over-capacity markers visible"
+    },
+    {
+      "action": "Hover tentative Visual Design and drag from Bruce Wayne to Clark Kent",
+      "result": "Existing allocation appears in Clark row; total remains 6; Bruce visible utilisation changes 86% to 57%, Clark 50% to 70%; current seeded dates retain 3 overcapacity days on Clark, so reassignment is not claimed to solve every capacity conflict"
+    },
+    {
+      "action": "Draw 2–3 November on Bruce row; choose LexCorp / Metropolis Rebrand and Workshop; Save",
+      "result": "Allocation count 7; both Project and required Activity selected; the future booking is saved",
+      "dates": [
+        "2026-11-02",
+        "2026-11-03"
+      ]
+    },
+    {
+      "action": "Select 8 weeks then recorded 4-week range",
+      "result": "Both choices supported; four-week Schedule visible"
+    },
+    {
+      "action": "Clients: add Daily Planet through Name field and Save",
+      "result": "Client visible in list"
+    },
+    {
+      "action": "Projects: add Website Relaunch; choose Daily Planet; Save",
+      "result": "Project visible in list"
+    },
+    {
+      "action": "Resources: add Selina Kyle; role Illustrator; discipline Design; Studio and weekday defaults retained; Save",
+      "result": "New resource visible in list"
+    },
+    {
+      "action": "Schedule: draw 9–13 November for Selina; choose Daily Planet / Website Relaunch and Design; Save",
+      "result": "Daily Planet · Website Relaunch · Design · 8 h visible; total allocations 8",
+      "dates": [
+        "2026-11-09",
+        "2026-11-13"
+      ]
+    },
+    {
+      "action": "Open Overview; confirm Ledger/four-week table; toggle Tentative off/on",
+      "result": "All 5 people visible; Bruce has 0d free of 2d for 2–8 November and Selina has 0d free of 5d for 9–15 November, matching their future bookings. Tentative control and committed/tentative/free legend remain usable."
+    }
+  ],
+  "differences": [
+    "Calendar dates and seeded allocation/capacity values have advanced from the October 2026 recording. Current demo does not guarantee the same per-person capacity outcome after an identical reassignment.",
+    "Current orientation/checklist can appear before Schedule and is dismissed through its UI.",
+    "Historical recording is retained as an illustrative workflow, not a current calendar/load fixture."
+  ],
+  "screenshots": [
+    {
+      "path": "replay/replay_schedule_initial.png",
+      "sha256": "281dff786c8be0549e10335777d1f3c7182135c4b7fbd50ad9da3b1e0c034c03",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_reassigned.png",
+      "sha256": "32bf7245d5776695d8a373e46ab6508160bb91d7e712abdfd12f7c496ea29546",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_clients_created.png",
+      "sha256": "2f83092948c19540612125d5879577fe4853805a383f0e5637ac2beecdbe3a6e",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_projects_created.png",
+      "sha256": "5dd1f71cbdc006060e43021bfa79cb6e8a5022e557180ae7070cf0e8dc2bf338",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_resource_created.png",
+      "sha256": "46199c54d68f08c11785a2981443d91f7121fc5a284b22a99a7b02e96f6f6947",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_schedule_completed.png",
+      "sha256": "f00400689d352957fa3457d17c1e11f95f7611105b9fe4980d0b3669de4cf24b",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    },
+    {
+      "path": "replay/replay_overview_final.png",
+      "sha256": "7fb416553e0aa0d5979b7e84ccf2abbeeffa35f07bbfb5dff875d80f9373f09a",
+      "visual_qa": "Original-resolution content and caption fit checked; fictional demo data only, no visible credentials or private fields."
+    }
+  ],
+  "playback": {
+    "mp4": {
+      "duration_seconds": 51.6,
+      "ended": true,
+      "current_time_seconds": 51.6,
+      "media_error": null,
+      "elapsed_seconds": 51.769
+    },
+    "gif": {
+      "duration_seconds": 51.6,
+      "elapsed_seconds": 53,
+      "method": "Timed playback supplemented by exact complete frame/delta inspection"
+    }
+  },
+  "availability_assertions": [
+    {
+      "person": "Bruce Wayne",
+      "week": [
+        "2026-11-02",
+        "2026-11-08"
+      ],
+      "booked_dates": [
+        "2026-11-02",
+        "2026-11-03"
+      ],
+      "expected_free_days": 0,
+      "observed_free_days": 0,
+      "available_days": 2,
+      "assertion_passed": true
+    },
+    {
+      "person": "Selina Kyle",
+      "week": [
+        "2026-11-09",
+        "2026-11-15"
+      ],
+      "booked_dates": [
+        "2026-11-09",
+        "2026-11-13"
+      ],
+      "expected_free_days": 0,
+      "observed_free_days": 0,
+      "available_days": 5,
+      "assertion_passed": true
+    }
+  ],
+  "booking_window": "Both new bookings use upcoming dates inside Overview; the full journey was repeated from a fresh demo and row-level free-day results asserted."
+}

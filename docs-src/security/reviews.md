@@ -25,6 +25,14 @@ Dated 2026-09-09. Answers every control in OpenSSF Baseline Levels 1–3 with re
 including explicit unmet controls instead of treating configured tools as proof of enforcement.
 Read this when completing or checking the project's public OpenSSF badge entry.
 
+## [Member storage and media verification — 2026-11-01](/security/reviews/member-storage-media-2026-11-01)
+
+A focused follow-up to the structural review: real SQLite and authenticated HTTP tests for malformed
+member-directory storage, plus a 64-asset historical-media investigation. It records full-size still
+inspection, complete recording/frame coverage, metadata scope, current-demo replay, retention
+decisions and the missing original-ledger limitation. Downloadable manifests pin every asset and
+frame; this is bounded verification evidence, not a general privacy or security certification.
+
 ## [Security review — 2026-08-18](/security/reviews/security-review-2026-08-18)
 
 The alpha4 reassessment covered the complete source at that time and the security-relevant delta
