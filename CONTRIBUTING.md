@@ -11,8 +11,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 2. Fork the repository and create a branch from `main`.
 3. Follow [Set up](#set-up) below to install and run the app.
 4. Make one focused change. Keep unrelated formatting and refactors out.
-5. Typo and documentation changes: run `pnpm run format`, and `pnpm run docs:build` if you edited
-   `docs-src/`. No other checks are needed.
+5. Typo and documentation changes: run `pnpm run format`. If you edited `docs-src/`, also run
+   `pnpm run docs:build` and commit the generated `docs/` output. No other checks are needed.
 6. Code changes: add a test that fails without the change, then run the checks in
    [Before opening a pull request](#before-opening-a-pull-request).
 7. Add an entry under `CHANGELOG.md` → `Unreleased` if users will notice the change.
@@ -32,6 +32,11 @@ smoke-tests native packages on macOS arm64; that job does not add a production-h
 promise. The runtime floors are declared in [package.json](package.json) and enforced before the
 backend starts in [node_version.ts](apps/backend/start/node_version.ts).
 
+Keep patch and minor updates within the existing runtime and browser requirements. Check dependency
+engines, peers and generated output, and verify on the minimum supported Node 24 version. Treat an
+increase to a minimum requirement as a separate product decision; a newer package alone does not
+justify excluding an otherwise supported installation.
+
 Use `nvm use` and the pinned pnpm version before changing dependencies. Ranges live in the root,
 [backend](apps/backend/package.json), [frontend](apps/frontend/package.json) and
 [shared](packages/shared/package.json) manifests; [pnpm-lock.yaml](pnpm-lock.yaml) records the
@@ -40,6 +45,12 @@ and frontend Tuyau dependencies compatible, then regenerate the backend route cl
 its consumers. Account Kit is a vendored release archive: changing its pin also changes native
 packaging and can affect sign-in, admission and sessions, so include the relevant backend auth tests
 and packaged smoke checks.
+
+TypeScript 5.9.3 is the tested compiler baseline for the launch dependency set and is pinned in the
+root, backend and frontend manifests. A package's consumer peer range may allow a newer compiler
+without requiring this repository to adopt it. If an upgrade requires a higher compiler, Node floor
+or browser target, make that a separate launch-compatibility decision supported by validation
+([issue #1731](https://github.com/Kevinjohn/capacitylens/issues/1731)).
 
 The intended registry policy in [Dependabot configuration](.github/dependabot.yml) is separate
 weekly groups for npm patch and minor updates, with majors reviewed manually from the
@@ -184,9 +195,9 @@ and supported company settings. It excludes identity, sessions, memberships, rol
 records and device preferences. Only a full-completeness document can be prepared for import.
 
 Shared preparation strictly validates fields and references, including account scope and current
-member-to-person links. It rejects invalid data instead of repairing or remapping it. Redacted
-exports preserve the server-projected confidential values and cannot be restored as a full
-replacement.
+member-to-person links. It rejects invalid data instead of repairing or remapping it. Export callers
+must redact confidential values before document construction; the completeness marker does not
+redact data. A redacted export cannot be restored as a full replacement.
 
 The public entry point is `@capacitylens/shared/data/betaTransfer`: `buildBetaExport`,
 `serializeBetaExport`, `parseBetaExport` and `prepareBetaImport`. Preparation receives explicit
@@ -194,22 +205,16 @@ server-owned `{ accountId, memberResourceLinks }` context and returns `{ data, i
 `imported` includes the account row. Export callers must supply an authorized, confidentially
 projected dataset; the completeness marker grants no authority.
 
-This is a preparation-only contract. The beta preview validates data and passes the prepared result
-to its caller; it does not write to the server. Settings still uses the legacy importer and
-exporter. Before activation, the writer must recheck authority and privileged proof, the expected
-company revision and current member links inside its transaction. It must reject IDs already owned
-by another company, preserve member/resource associations and durable planning mutation identities,
-and replace planning rows and supported settings atomically. A changed replacement advances the
-company revision and audit once; an unchanged replacement does neither. Do not pass prepared beta
-data to the legacy remapping writer.
-
-Before activation, import replacement, anonymisation and privacy scrubbing must invalidate affected
-server-side restoration groups in the same transaction as the data change. Retained recovery data
-must not restore replaced or scrubbed information after commit. Real SQLite acceptance must prove
-that committed invalidation refuses restoration and that a failed transaction rolls back both the
-data change and invalidation. Invalidation must preserve durable planning mutation commitment
-identities. Coordinate this integration with the existing backend transaction and import/export
-owners; do not add a competing writer.
+Settings now uses this contract for server and demo import/export. Server preview and apply go
+through `POST /api/transfer/preview` and `POST /api/transfer/apply`; demo import uses the same strict
+document validation in page memory. Server apply requires the live Owner and a single-use password
+proof bound to the exact document, company and previewed revision. Inside the transaction it checks
+the current revision and member links again, refuses scheduling IDs held by another company, then
+replaces the company slice and supported settings atomically. It retains the destination company ID,
+member links and durable planning mutation identities. A changed replacement clears pending
+restoration groups, writes one audit row and advances the revision; an unchanged replacement does
+none of these. Keep restoration cleanup in the same transaction as replacement, and do not route
+prepared beta data through the legacy remapping writer.
 
 ## Before opening a pull request
 
@@ -232,8 +237,16 @@ documentation when its sources change. Run the focused checks for changed behavi
 the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).
 
 Authentication and account changes require focused backend tests for the affected authority and
-failure paths. Provider checks use controlled responses; live-provider checks need an authorized
-test registration and must be reported separately.
+failure paths. Use controlled responses for external-service behavior; any live-service check needs
+an authorized test account and must be reported separately.
+
+## Documentation and GitHub Pages
+
+Edit Markdown in `docs-src/`; `docs/` is generated site output and is committed with its source.
+Run `pnpm run docs:build` after changing documentation and include the generated output in the
+same change. GitHub Pages publishes on release publication or when an authorized maintainer
+manually runs `gh workflow run pages.yml --ref main`. The manual workflow accepts only `main`, so
+merge the source and generated output before publishing.
 
 ## Native production dialog acceptance
 
@@ -304,11 +317,12 @@ In brief:
 - Put environment-independent domain rules in `packages/shared/`; do not duplicate them in UI/server code.
 - Preserve the three distinct workload signals and their time windows.
 - Add tests that fail without the change.
-- Never commit secrets, production data, generated output or personal deployment notes.
+- Never commit secrets, production data, generated application output or personal deployment notes.
+  The generated `docs/` site is the exception; rebuild it from `docs-src/` and commit it with its source.
 
-Authentication changes need explicit threat-oriented tests. Google is the
-supported company provider; Microsoft is deferred and GitHub is retired. Provider changes must
-remain secure when configuration is missing, partial or malicious.
+Authentication changes need explicit threat-oriented tests. Account Kit owns password-only sign-in;
+there is no identity-provider or social sign-in. Tests should cover the affected authority and
+failure paths, including missing or invalid configuration.
 
 ## Pull requests
 

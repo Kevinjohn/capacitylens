@@ -97,6 +97,12 @@ Read the [documentation](https://kevinjohn.github.io/capacitylens/) online, open
 sources in [`docs-src/`](docs-src/). [What is CapacityLens?](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html)
 is the one-page introduction.
 
+To update the site, edit `docs-src/` and run `pnpm run docs:build`, then commit the sources and
+rebuilt `docs/` together. Documentation checks verify that they match. GitHub Pages publishes the
+committed output on a published release or a manual run of **Publish documentation** from `main`;
+a documentation merge alone does not update the live site. See the
+[documentation contribution instructions](CONTRIBUTING.md#documentation-and-github-pages).
+
 ## Project status
 
 CapacityLens is alpha software with a single maintainer. Beta will mean the upgrade path and the
@@ -123,12 +129,14 @@ and the [standing decisions](DECISIONS.md).
 CapacityLens is [AGPL-3.0-only](LICENSE). Product names and logos are handled separately in
 [TRADEMARKS.md](TRADEMARKS.md).
 
-[![gate](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate.yml)
-[![E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml)
-[![test coverage](https://codecov.io/gh/Kevinjohn/capacitylens/graph/badge.svg)](https://codecov.io/gh/Kevinjohn/capacitylens)
-[![CodeQL](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml)
+[![Validation including E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate-adonis.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate-adonis.yml?query=branch%3Amain)
+[![Frontend coverage](https://codecov.io/gh/Kevinjohn/capacitylens/branch/main/graph/badge.svg?flag=frontend)](https://app.codecov.io/gh/Kevinjohn/capacitylens/tree/main/apps/frontend/src)
+[![CodeQL](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml?query=branch%3Amain)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kevinjohn/capacitylens/badge)](https://scorecard.dev/viewer/?uri=github.com/Kevinjohn/capacitylens)
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/14555/baseline)](https://www.bestpractices.dev/projects/14555)
 [![Docker build](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml)
-[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js&logoColor=white)](.nvmrc)
+[![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+
+Validation includes application/backend checks, native packages and Chromium, Firefox and WebKit
+E2E tests. Coverage measures frontend source files; backend coverage is not included.
