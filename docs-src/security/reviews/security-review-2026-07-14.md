@@ -9,7 +9,10 @@ This dated review includes the former offline snapshot feature. That feature and
 storage, encryption and worker support have since been removed; see [Browser privacy](/security/privacy#what-stays-in-the-browser).
 
 
-> Current state (2026-10-09): CapacityLens no longer provides local MFA. Claims below about local TOTP describe the review date. Google and Microsoft company-provider policy owns MFA; enabling company sign-in alone does not enable it.
+> Historical scope: This review predates the Account Kit cutover and describes the authentication and
+> framework implementation that existed on 2026-07-14. Those findings are not the current product
+> posture: CapacityLens now uses password-only sign-in, with no local MFA or identity-provider sign-in.
+> See [Sign-in and access](/company-login/) and [Security and privacy](/security/).
 
 ## Executive conclusion
 

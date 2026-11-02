@@ -97,6 +97,12 @@ Read the [documentation](https://kevinjohn.github.io/capacitylens/) online, open
 sources in [`docs-src/`](docs-src/). [What is CapacityLens?](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html)
 is the one-page introduction.
 
+To update the site, edit `docs-src/` and run `pnpm run docs:build`, then commit the sources and
+rebuilt `docs/` together. Documentation checks verify that they match. GitHub Pages publishes the
+committed output on a published release or a manual run of **Publish documentation** from `main`;
+a documentation merge alone does not update the live site. See the
+[documentation contribution instructions](CONTRIBUTING.md#documentation-and-github-pages).
+
 ## Project status
 
 CapacityLens is alpha software with a single maintainer. Beta will mean the upgrade path and the
