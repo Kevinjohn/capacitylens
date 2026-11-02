@@ -115,42 +115,33 @@ function buildIdMaps(rows: ImportTables): ImportIdMaps {
 function remapImportedRows({ rows, idMaps, accountId, now }: RemapInput): ImportTables {
   // Remap before sanitising, stamp every row into the destination account, and still give later
   // duplicate source IDs distinct primary keys. Loose rows remain repairable in later passes.
-  const brought: ImportTables = {
-    disciplines: [],
-    resources: [],
-    clients: [],
-    projects: [],
-    phases: [],
-    activities: [],
-    allocations: [],
-    timeOff: [],
-    closures: [],
-  };
   const usedIds = new Set<ID>();
-  for (const key of SCOPED_KEYS) {
-    brought[key] = rows[key].map((entity) => {
-      const mapped = typeof entity.id === 'string' ? (idMaps[key].get(entity.id) as ID) : newId();
-      const id = usedIds.has(mapped) ? newId() : mapped;
-      usedIds.add(id);
-      const copy: ImportRow = { ...entity, id, accountId, createdAt: now, updatedAt: now };
-      for (const field of Object.keys(FK_TARGET)) {
-        const target = FK_TARGET[field];
-        const reference = copy[field];
-        if (
-          target !== undefined &&
-          typeof reference === 'string' &&
-          idMaps[target].has(reference)
-        ) {
-          copy[field] = idMaps[target].get(reference);
+  return Object.fromEntries(
+    SCOPED_KEYS.map((key) => [
+      key,
+      rows[key].map((entity) => {
+        const mapped = typeof entity.id === 'string' ? (idMaps[key].get(entity.id) as ID) : newId();
+        const id = usedIds.has(mapped) ? newId() : mapped;
+        usedIds.add(id);
+        const copy: ImportRow = { ...entity, id, accountId, createdAt: now, updatedAt: now };
+        for (const field of Object.keys(FK_TARGET)) {
+          const target = FK_TARGET[field];
+          const reference = copy[field];
+          if (
+            target !== undefined &&
+            typeof reference === 'string' &&
+            idMaps[target].has(reference)
+          ) {
+            copy[field] = idMaps[target].get(reference);
+          }
         }
-      }
-      const sanitized = sanitizeImportedRecord(key, copy);
-      return key === 'resources' && sanitized.deletedAt != null
-        ? (obfuscateResource(sanitized as unknown as Resource) as unknown as ImportRow)
-        : sanitized;
-    });
-  }
-  return brought;
+        const sanitized = sanitizeImportedRecord(key, copy);
+        return key === 'resources' && sanitized.deletedAt != null
+          ? (obfuscateResource(sanitized as unknown as Resource) as unknown as ImportRow)
+          : sanitized;
+      }),
+    ]),
+  ) as ImportTables;
 }
 
 const idSet = (rows: ImportRow[]) => new Set(rows.map((row) => row.id as string));
@@ -372,6 +363,6 @@ function remapAndValidateImport(
   return runImport({ data, accountId, incoming, now });
 }
 
-Object.defineProperty(remapAndValidateImport, 'length', { value: 4, configurable: true });
+Object.defineProperty(remapAndValidateImport, 'length', { value: 4 });
 
 export { remapAndValidateImport };

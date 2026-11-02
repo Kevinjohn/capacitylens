@@ -30,7 +30,6 @@ export interface RepeatingDateResult {
   startDates: ISODate[];
 }
 
-const FIRST_SUPPORTED_YEAR = 1;
 const LAST_SUPPORTED_YEAR = 9999;
 const MONTHS_PER_YEAR = 12;
 const MAX_REPEAT_MONTHS = 6;
@@ -80,18 +79,6 @@ export class RepeatingDateError extends RangeError {
   }
 }
 
-// Guard absolute-month arithmetic against unsupported years and months so callers can clamp
-// RangeErrors instead of emitting dates outside the supported domain. Share the Gregorian rule with integrity.ts.
-function countDaysInMonth(year: number, month: number): number {
-  if (!Number.isSafeInteger(year) || year < FIRST_SUPPORTED_YEAR || year > LAST_SUPPORTED_YEAR) {
-    throw new RangeError('Date falls outside the supported four-digit ISO year range.');
-  }
-  if (!Number.isSafeInteger(month) || month < 1 || month > MONTHS_PER_YEAR) {
-    throw new RangeError('Month must be a whole number from 1 through 12.');
-  }
-  return daysInGregorianMonth(year, month);
-}
-
 function buildIsoDate(year: number, month: number, day: number): ISODate {
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
@@ -118,14 +105,10 @@ export function maximumRepeatUntilDate(
   policy: RepeatingDatePolicy = ALLOCATION_REPEAT_POLICY,
 ): ISODate {
   parseDateParts(startDate);
-  try {
-    const target = addCalendarMonthsClamped(startDate, policy.maximumCalendarMonths);
-    return policy.maximumCutoff === 'month-end' ? endOfCalendarMonth(target) : target;
-    // Clamp a range beyond the supported calendar to its final date; rethrow unrelated failures.
-  } catch (error) {
-    if (error instanceof RangeError) return MAX_ISO_DATE;
-    throw error;
-  }
+  const target = addCalendarMonthsClamped(startDate, policy.maximumCalendarMonths);
+  // Clamp a range beyond the supported calendar to its final date.
+  if (target === undefined) return MAX_ISO_DATE;
+  return policy.maximumCutoff === 'month-end' ? endOfCalendarMonth(target) : target;
 }
 
 /** Suggest the selected policy’s default cutoff, bounded by its maximum and the four-digit ISO date domain.
@@ -136,15 +119,12 @@ export function defaultRepeatUntilDate(
   policy: RepeatingDatePolicy = ALLOCATION_REPEAT_POLICY,
 ): ISODate {
   const maximum = maximumRepeatUntilDate(startDate, policy);
-  let suggested: ISODate;
-  try {
-    // Resolve the target month before applying the selected anchor-day or month-end cutoff policy.
-    const target = addCalendarMonthsClamped(startDate, policy.defaultCalendarMonths);
+  // Resolve the target month before applying the selected anchor-day or month-end cutoff policy.
+  const target = addCalendarMonthsClamped(startDate, policy.defaultCalendarMonths);
+  // Clamp an out-of-domain suggestion to the last supported date so enabling repeat never creates an invalid date.
+  let suggested: ISODate = MAX_ISO_DATE;
+  if (target !== undefined) {
     suggested = policy.defaultCutoff === 'month-end' ? endOfCalendarMonth(target) : target;
-  } catch (error) {
-    // Clamp an out-of-domain suggestion to the last supported date so enabling repeat never creates an invalid date; rethrow unrelated failures.
-    if (error instanceof RangeError) suggested = MAX_ISO_DATE;
-    else throw error;
   }
   return suggested > maximum ? maximum : suggested;
 }
@@ -163,28 +143,26 @@ export function defaultTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
   return defaultRepeatUntilDate(startDate, TIME_OFF_REPEAT_POLICY);
 }
 
-function addCalendarMonthsClamped(date: ISODate, months: number): ISODate {
-  if (!Number.isSafeInteger(months)) {
-    throw new RangeError('Calendar-month offset must be a safe integer.');
-  }
+// Undefined when the offset is not a safe integer or the target month falls outside the
+// supported four-digit ISO years, so callers clamp instead of emitting an unsupported date.
+function addCalendarMonthsClamped(date: ISODate, months: number): ISODate | undefined {
+  if (!Number.isSafeInteger(months)) return undefined;
   const { year, month, day } = parseDateParts(date);
   const absoluteMonth = (year - 1) * MONTHS_PER_YEAR + (month - 1) + months;
   const lastAbsoluteMonth = LAST_SUPPORTED_YEAR * MONTHS_PER_YEAR - 1;
-  if (absoluteMonth < 0 || absoluteMonth > lastAbsoluteMonth) {
-    throw new RangeError('Repeating dates extend beyond the supported four-digit ISO year range.');
-  }
+  if (absoluteMonth < 0 || absoluteMonth > lastAbsoluteMonth) return undefined;
   const targetYear = Math.floor(absoluteMonth / MONTHS_PER_YEAR) + 1;
   const targetMonth = (absoluteMonth % MONTHS_PER_YEAR) + 1;
   return buildIsoDate(
     targetYear,
     targetMonth,
-    Math.min(day, countDaysInMonth(targetYear, targetMonth)),
+    Math.min(day, daysInGregorianMonth(targetYear, targetMonth)),
   );
 }
 
 function endOfCalendarMonth(date: ISODate): ISODate {
   const { year, month } = parseDateParts(date);
-  return buildIsoDate(year, month, countDaysInMonth(year, month));
+  return buildIsoDate(year, month, daysInGregorianMonth(year, month));
 }
 
 function applyRepeatingStartDate(
@@ -222,16 +200,6 @@ function buildWeeklyStartDates(
   return startDates;
 }
 
-function buildMonthlyCandidate(startDate: ISODate, monthOffset: number): ISODate | undefined {
-  try {
-    return addCalendarMonthsClamped(startDate, monthOffset);
-    // Stop monthly generation at the supported calendar boundary; rethrow unrelated failures.
-  } catch (error) {
-    if (error instanceof RangeError) return undefined;
-    throw error;
-  }
-}
-
 function buildMonthlyStartDates(
   startDate: ISODate,
   repeatUntil: ISODate,
@@ -239,7 +207,7 @@ function buildMonthlyStartDates(
 ): ISODate[] {
   const startDates: ISODate[] = [];
   for (let monthOffset = 1; monthOffset <= policy.maximumCalendarMonths; monthOffset += 1) {
-    const candidate = buildMonthlyCandidate(startDate, monthOffset);
+    const candidate = addCalendarMonthsClamped(startDate, monthOffset);
     if (candidate === undefined || candidate > repeatUntil) break;
     startDates.push(candidate);
   }
@@ -247,7 +215,7 @@ function buildMonthlyStartDates(
 }
 
 function lastMatchingWeekdayOfMonth(year: number, month: number, weekday: number): ISODate {
-  const lastDay = countDaysInMonth(year, month);
+  const lastDay = daysInGregorianMonth(year, month);
   const lastDate = buildIsoDate(year, month, lastDay);
   const daysBack = (weekdayOf(lastDate) - weekday + 7) % 7;
   return buildIsoDate(year, month, lastDay - daysBack);
@@ -269,7 +237,7 @@ function buildMonthlyLastWeekdayStartDates(
 
   const startDates: ISODate[] = [];
   for (let monthOffset = 1; monthOffset <= policy.maximumCalendarMonths; monthOffset += 1) {
-    const monthAnchor = buildMonthlyCandidate(startDate, monthOffset);
+    const monthAnchor = addCalendarMonthsClamped(startDate, monthOffset);
     if (monthAnchor === undefined) break;
     const target = parseDateParts(monthAnchor);
     const candidate = lastMatchingWeekdayOfMonth(target.year, target.month, weekday);
