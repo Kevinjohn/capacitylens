@@ -133,6 +133,7 @@ test.group('M1 HTTP contract', (group) => {
 
     const disallowed = await client.get('/api/health').header('origin', 'https://attacker.example');
     assert.isUndefined(disallowed.header('access-control-allow-origin'));
+    assert.isUndefined(disallowed.header('access-control-allow-credentials'));
     assert.equal(disallowed.status(), 200);
 
     const preflight = await client
@@ -142,6 +143,7 @@ test.group('M1 HTTP contract', (group) => {
       .header('access-control-request-headers', 'content-type');
     assert.equal(preflight.status(), 204);
     assert.equal(preflight.header('access-control-allow-origin'), allowed);
+    assert.equal(preflight.header('access-control-allow-credentials'), 'true');
 
     const planning = await client.get('/api/accounts/a-studio/planning');
     assert.equal(planning.status(), 200);

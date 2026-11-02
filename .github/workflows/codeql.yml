@@ -3,9 +3,9 @@ name: CodeQL
 on:
   workflow_dispatch:
   pull_request:
-    branches: [platform/adonisjs]
+    branches: [main]
   push:
-    branches: [platform/adonisjs]
+    branches: [main]
   schedule:
     - cron: '31 5 * * 1'
 

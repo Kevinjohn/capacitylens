@@ -2,7 +2,7 @@ name: AdonisJS fork gate
 
 on:
   push:
-    branches: [platform/adonisjs]
+    branches: [main]
   workflow_dispatch:
 
 permissions:

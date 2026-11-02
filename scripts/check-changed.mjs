@@ -1,6 +1,6 @@
 // Check only what this branch changed, before the full gate:
 //
-//   pnpm run check:changed           changes since the merge-base with origin/platform/adonisjs
+//   pnpm run check:changed           changes since the merge-base with origin/main
 //   pnpm run check:changed <base>    changes since the merge-base with <base>
 //   pnpm run check:changed --static  the same, without dependency lookups or whole test suites
 //
@@ -13,7 +13,7 @@ import { assertSupportedNodeVersion } from '../apps/backend/start/node_version.t
 import { nonColourEnvironment, spawnPnpm } from './pnpmSpawn.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const defaultBase = 'origin/platform/adonisjs';
+const defaultBase = 'origin/main';
 // Japa keeps its process alive after a planner error, so a step that never exits must still fail.
 // The backend test runner turns SIGTERM into a graceful shutdown that can hang too, hence SIGKILL.
 const stepLimits = { timeoutMs: 20 * 60_000, killGraceMs: 10_000 };
