@@ -361,6 +361,8 @@ export const teamAccessClient = {
           await accountClient.listAdmissionRequests(status, cursor, signal),
           parseAdmissionPage(status),
         );
+        // Cancellation can arrive during decoding; another cursor or status must not start.
+        signal?.throwIfAborted();
         if (page.kind !== 'ok') return page;
         requests.push(...page.value.requests);
         cursor = page.value.nextCursor;

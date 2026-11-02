@@ -1058,6 +1058,7 @@ presented before the member directory, matching the action-first pattern of the 
   **Approval revoked** (`data-testid="admission-decided"`), with **Approve** only. The list reads
   every page, shows **Loading people waiting for approval…** while it loads, and offers **Try
   again** after a failed load.
+  A pending decision cannot refresh or display feedback in a different sign-in or company context.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) with a
   row per unaccepted invite (`data-testid="invite-row"`): **Email** with its expiry date (or
   **Expired**), **Role**, and **Actions** holding **Resend** (`data-testid="invite-resend"`), which

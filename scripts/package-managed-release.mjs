@@ -8,6 +8,7 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  realpath,
   readlink,
   rename,
   rm,
@@ -299,16 +300,17 @@ export async function packageManagedRelease(outputPath = 'production') {
 // logs hold customer data. A release is built from a clean tree, so any of these means a mistake.
 const operatorStatePatterns = [
   [/^\.env(?:\..+)?$|\.env$/, 'an environment file'],
-  [/\.(?:db|sqlite3)(?:$|[-.])/, 'a database file'],
+  [/\.(?:db|sqlite3?)(?:$|[-.])/, 'a database file'],
   [/^backups$/, 'a backup directory'],
   [/-audit\.jsonl/, 'an audit log'],
 ];
 
 /**
- * Refuse operator state and any symlink that resolves outside the release.
+ * Refuses known operator-state filenames and symlinks whose resolved targets leave the release.
  * @throws When the tree contains operator state or escaping symlinks, or filesystem inspection fails.
  */
 export async function inspectArchiveTree(root) {
+  const canonicalRoot = await realpath(root);
   const refusals = [];
   const visit = async (directory) => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -323,6 +325,16 @@ export async function inspectArchiveTree(root) {
         const resolved = resolve(directory, target);
         if (isAbsolute(target) || (resolved !== root && !resolved.startsWith(`${root}${sep}`))) {
           refusals.push(`${shown} links outside the release (${target})`);
+        } else {
+          const actualTarget = await realpath(path);
+          const relativeTarget = relative(canonicalRoot, actualTarget);
+          if (
+            relativeTarget === '..' ||
+            relativeTarget.startsWith(`..${sep}`) ||
+            isAbsolute(relativeTarget)
+          ) {
+            refusals.push(`${shown} links outside the release (${target})`);
+          }
         }
       } else if (entry.isDirectory()) {
         await visit(path);

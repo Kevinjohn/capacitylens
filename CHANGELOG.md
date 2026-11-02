@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Reject `.sqlite` files and chained symlinks that escape the release when building archives.
+- Keep pending admission decisions and their refreshes within the originating sign-in and company.
 - Stop a company closure or time off with an invalid date range from blocking schedule days that the schedule shows as open (#1706).
 - Correct company settings help to say disciplines start off in a new company.
 - Restore full beta JSON exports into a fresh company while preserving scheduling IDs, relationships and destination access.
