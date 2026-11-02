@@ -4,11 +4,13 @@ name: gate
 on:
   workflow_dispatch:
   workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        description: Token for optional frontend coverage reporting.
+        required: false
   push:
     tags: ['v*']
-  # Monthly run on the default branch: tag runs never feed the README's unqualified badge
-  # (it reflects default-branch runs only), so without this the badge reads "no status"
-  # between releases. Also doubles as a bit-rot canary for the toolchain.
+  # Keep a standalone bit-rot check in addition to validation on main pushes.
   schedule:
     - cron: '17 6 3 * *'
 
@@ -78,6 +80,19 @@ jobs:
           APP_KEY: capacitylens-build-key-0123456789abcdef
           APP_URL: http://127.0.0.1
           SESSION_DRIVER: memory
+
+      - name: Upload frontend coverage to Codecov
+        if: env.CODECOV_TOKEN != ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          files: apps/frontend/coverage/lcov.info
+          flags: frontend
+          disable_search: true
+          # Reporting availability must not change the validation result.
+          fail_ci_if_error: false
 
   backend:
     name: Backend
