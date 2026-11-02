@@ -1,4 +1,4 @@
-name: AdonisJS fork gate
+name: Validation
 
 on:
   push:
@@ -15,12 +15,14 @@ concurrency:
 jobs:
   validation:
     uses: ./.github/workflows/gate.yml
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   browsers:
     uses: ./.github/workflows/e2e.yml
 
   gate:
-    name: AdonisJS fork gate
+    name: Validation
     needs: [validation, browsers]
     if: ${{ always() }}
     runs-on: ubuntu-latest
