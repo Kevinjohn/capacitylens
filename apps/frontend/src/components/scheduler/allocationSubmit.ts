@@ -8,6 +8,7 @@ import { parseText } from '@/lib/validation';
 import type { useStore } from '@/store/useStore';
 import { resolveEndDate, validateAllocationDraft } from './allocationDraft';
 import { resolveEffectiveWeekCreationBlockReason } from './creationAvailability';
+import { listRenderableDateRanges } from './schedulerModelIndexing';
 
 import type { FieldError } from '@/hooks/useFieldError';
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
@@ -147,9 +148,9 @@ function rejectsNewPlacement({ command, draft, newPlacement }: RejectNewPlacemen
   const blocked = resolveEffectiveWeekCreationBlockReason({
     resource: command.selectedResource,
     date: draft.startDate,
-    timeOff: command.data.timeOff,
+    timeOff: listRenderableDateRanges(command.data.timeOff),
     effectiveWeek: command.selectedEffectiveWeek,
-    closures: command.data.closures,
+    closures: listRenderableDateRanges(command.data.closures),
   });
   if (blocked === 'non-working') {
     command.fail('startDate', m.form_allocation_err_start_non_working());
