@@ -5,6 +5,7 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import type { GroupModel, RowModel } from './schedulerModel';
 import type { buildSchedulerDensity } from './layout';
 import { buildLayout, resolveVirtualWindow } from './virtualWindow';
+import { listRenderableDateRanges } from './schedulerModelIndexing';
 import type { useSchedulerViewport } from './useSchedulerViewport';
 
 interface UseSchedulerGridVirtualizationInput {
@@ -75,11 +76,8 @@ export function useSchedulerGridVirtualization({
   const visibleClosures = useMemo(
     () =>
       timelineStart && timelineEnd
-        ? data.closures.filter(
-            (closure) =>
-              closure.startDate <= closure.endDate &&
-              closure.endDate >= timelineStart &&
-              closure.startDate <= timelineEnd,
+        ? listRenderableDateRanges(data.closures).filter(
+            (closure) => closure.endDate >= timelineStart && closure.startDate <= timelineEnd,
           )
         : [],
     [data.closures, timelineEnd, timelineStart],
