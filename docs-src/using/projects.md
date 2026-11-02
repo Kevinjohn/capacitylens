@@ -47,14 +47,25 @@ alphabetical position. See [Roles and permissions](/getting-started/roles-and-pe
 
 ![The Add client form with the privacy explanation below the Code name input](../screenshots/flows/client_private_name.jpg)
 
-## Archive or delete a client or project
+## Archive or restore a client or project
 
 Select the delete icon in the row and confirm **Archive client?** or **Archive project?** Archiving
 a client hides its projects and their bookings from Schedule. Archiving a project hides every
 booking made under it, including All-projects bookings that count towards it. Nothing is lost.
 
-Owners and Admins see **Archived clients** and **Archived projects** at the bottom of each page.
-Select **Restore** to bring the item and its bookings back, or **Delete** to remove it from those
-lists. **Delete** anonymises any personal data and can't be undone; the item's bookings stay hidden.
+Admins see the full inactive-data view. Editors can restore eligible archived clients and projects
+from the inline archive, which exposes only the identity details needed to choose the record.
+Select **Restore** to bring the item and its bookings back. Archiving keeps the records and their
+links; clients and projects have no anonymise action.
 
 Next: [Schedule and change work](/using/schedule-work) — book against a project.
+
+## Before clearing deleted-item recovery
+
+![Confirmation showing the number of restorable items, Cancel and Save change](../screenshots/flows/restoration_cleanup_confirmation.png)
+
+Changing client/project privacy or a code name, or an activity's kind, clears pending deleted-item
+recovery copies for the whole company, including unrelated deleted items. If any exist, one
+confirmation says **This change clears N restorable items**. Select **Cancel** to keep the draft
+and recovery options, or **Save change** to save and clear those copies together. With none to
+clear, or no change to those fields, the warning is skipped. Ordinary edits keep the copies.

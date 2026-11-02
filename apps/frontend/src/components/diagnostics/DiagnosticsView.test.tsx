@@ -1,0 +1,168 @@
+import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthContext } from '@/auth/authContext';
+import { DiagnosticsView } from './DiagnosticsView';
+
+const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
+const migration = 'database/migrations/202610220002_add_planning_restoration_origin';
+const snapshotAt = '2026-09-10T12:00:00.000Z';
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', fetchMock.fetch);
+  fetchMock.fetch.mockReset();
+  fetchMock.fetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      server: {
+        connectivity: 'ok',
+        database: { status: 'ok' },
+        schema: { migration },
+        backup: { newestSnapshotAt: snapshotAt },
+      },
+    }),
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+
+const reportText = () => screen.getByTestId('diagnostics-report-text');
+
+describe('DiagnosticsView — report', () => {
+  it('shows client diagnostics in demo mode without requesting the server route', () => {
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d');
+    render(<DiagnosticsView />);
+
+    expect(screen.getByRole('heading', { name: 'Diagnostics', level: 1 })).toBeInTheDocument();
+    expect(reportText()).toHaveTextContent('Build revision: a1b2c3d');
+    expect(reportText()).toHaveTextContent('Deployment mode: demo');
+    expect(reportText()).toHaveTextContent('Database: unavailable');
+    expect(reportText()).toHaveTextContent(/Time zone: \S+/);
+    expect(fetchMock.fetch).not.toHaveBeenCalled();
+  });
+
+  it('never includes the signed-in identity', () => {
+    render(
+      <AuthContext.Provider
+        value={{
+          authMode: 'password-only',
+          user: { id: 'u-1', name: 'Bruce Wayne', email: 'bruce@wayne.example' },
+          canCreateAccount: false,
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <DiagnosticsView />
+      </AuthContext.Provider>,
+    );
+
+    expect(reportText()).not.toHaveTextContent('Sign-in mode');
+    expect(reportText()).not.toHaveTextContent('Bruce Wayne');
+    expect(reportText()).not.toHaveTextContent('@');
+  });
+
+  it('keeps a safe server projection from a non-OK response', async () => {
+    fetchMock.fetch.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        server: {
+          connectivity: 'ok',
+          database: { status: 'unavailable' },
+          schema: { migration },
+          backup: { newestSnapshotAt: snapshotAt },
+          secret: 'must not render',
+        },
+      }),
+    });
+    render(<DiagnosticsView />);
+
+    await waitFor(() => expect(reportText()).toHaveTextContent(`Newest snapshot: ${snapshotAt}`));
+    expect(reportText()).toHaveTextContent('Database: unavailable');
+    expect(reportText()).toHaveTextContent('Schema migration: Unknown');
+    expect(reportText()).not.toHaveTextContent('must not render');
+  });
+});
+
+describe('DiagnosticsView — observation', () => {
+  it('records the client time when a diagnostics snapshot fails', async () => {
+    const observedAt = '2026-09-11T10:11:12.123Z';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(observedAt));
+    fetchMock.fetch.mockRejectedValueOnce(new TypeError('offline'));
+    try {
+      render(<DiagnosticsView />);
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(reportText()).toHaveTextContent(`Snapshot observed: ${observedAt}`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps a pending server snapshot unobserved until its response arrives', async () => {
+    const observedAt = '2026-09-11T10:11:12.123Z';
+    let resolveResponse: ((response: unknown) => void) | undefined;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(observedAt));
+    fetchMock.fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    try {
+      render(<DiagnosticsView />);
+      expect(reportText()).toHaveTextContent('Snapshot observed: Unknown');
+
+      await act(async () => {
+        resolveResponse?.({
+          ok: true,
+          json: async () => ({
+            server: {
+              connectivity: 'ok',
+              database: { status: 'ok' },
+              schema: { migration },
+              backup: { newestSnapshotAt: null },
+            },
+          }),
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(reportText()).toHaveTextContent(`Snapshot observed: ${observedAt}`);
+      expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`);
+      expect(reportText()).toHaveTextContent('Newest snapshot: Unknown');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('DiagnosticsView — clipboard', () => {
+  it('copies the shown report and reports both clipboard success and failure', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({ writeText } as unknown as Clipboard);
+    render(<DiagnosticsView />);
+
+    await waitFor(() => expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`));
+    expect(reportText()).toHaveTextContent(`Newest snapshot: ${snapshotAt}`);
+    const fetchCountBeforeCopy = fetchMock.fetch.mock.calls.length;
+
+    await user.click(screen.getByTestId('copy-diagnostics'));
+    expect(writeText).toHaveBeenCalledWith(reportText().textContent);
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('CapacityLens diagnostics'));
+    expect(fetchMock.fetch).toHaveBeenCalledTimes(fetchCountBeforeCopy);
+    expect(screen.getByRole('status')).toHaveTextContent('Diagnostics copied.');
+
+    writeText.mockRejectedValueOnce(new Error('denied'));
+    await user.click(screen.getByTestId('copy-diagnostics'));
+    expect(screen.getByRole('status')).toHaveTextContent('Diagnostics could not be copied');
+  });
+});

@@ -13,20 +13,23 @@ user-visible proof that the value came back from SQLite rather than surviving on
 
 ## How (end-to-end)
 
-**Precondition:** Server-backed app open with a company selected.
+**Precondition:** Sign in to the server-backed app and open its company.
 
 1. Add a client and save it.
-2. Reload the page, reselect the company, and confirm the client remains.
+2. Reload the page and confirm the server opens the same company with the client still present.
 3. Rename that client, save, and reload again.
 4. Archive the client, reload, and inspect active and inactive views.
-5. While a newly created lifecycle row is still saving, close or hide the page after undoing its
-   creation; when the page survives through back/forward cache, undo again to restore it.
+5. In a second session, change the same company while the first session is open. In the first
+   session, try an edit based on its older company revision and review the conflict response.
 
 ## Acceptance criteria
 
 - ✅ A saved client survives a full reload through SQLite.
 - ✅ A saved rename survives a full reload.
 - ✅ An archived row remains hidden after reload and still exists in inactive data.
-- ✅ A page-closing lifecycle archive cannot be overtaken by its older in-flight creation.
-- ✅ Undo after a confirmed back/forward-cache archive durably unarchives the row before becoming clean.
-- ✅ The in-memory demo is deliberately different: reload restores its canonical seed.
+- ✅ A stale planning mutation is refused on revision conflict and the client reloads the current
+  company slice so the user can review and reapply the intended change.
+- ✅ If the response to a mutation is uncertain, its mutation id is looked up before the user retries;
+  absence is not treated as failure while the request may still be executing.
+- ✅ The in-memory demo stays editable, including booking changes and Undo/Redo, but stores its data
+  only for the current page. Reload restores its canonical seed and clears its history.

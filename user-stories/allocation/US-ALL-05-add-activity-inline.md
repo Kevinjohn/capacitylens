@@ -27,6 +27,7 @@ Agencies normally reuse activities created on the Activities page so names stay 
 - ✅ Inline activity creation is off when the workspace has no saved preference. The **Activity** picker remains available for selecting existing activities.
 - ✅ The workspace switch preserves an explicitly saved on or off choice. When enabled, the inline field appears and its placeholder follows the **Project** selection (`…or add a new internal activity`, `…or add a new all-projects activity`, or `…or add a new activity` for a real project).
 - ✅ Typing a name and clicking **Add activity** creates the activity under the selected project and immediately selects it as the allocation's **Activity** (the **Activity** select now shows _Accessibility Audit_), and the input clears.
+- ✅ If the assignee, project or activity selection changes while an inline activity is being created, the completed creation does not replace that newer selection.
 - ✅ The new activity is a real activity of that project — it appears on the **Activities** page and in the **Project-specific** group of the **Activity** dropdown afterwards.
 - ✅ Clicking **Add activity** with an empty name creates no activity and shows "Enter a name for the new activity." With _Internal_ or _No specific project_ selected, a named **Add activity** creates the corresponding internal or All-projects activity.
 - ✅ Saving with the newly-added activity selected creates an allocation bar labelled _Accessibility Audit_.

@@ -1,0 +1,34 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.client.tsbuildinfo",
+    "rootDir": "./",
+    "outDir": "./node_modules/.cache/capacitylens-client-types",
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmit": false
+  },
+  "references": [
+    {
+      "path": "../../packages/shared/tsconfig.build.json"
+    }
+  ],
+  "include": [
+    "./app/**/*.ts",
+    "./config/**/*.ts",
+    "./database/**/*.ts",
+    "./start/**/*.ts",
+    "./providers/**/*.ts",
+    "./hooks/**/*.ts",
+    "./adonisrc.ts",
+    "./.adonisjs/server/**/*.ts"
+  ],
+  "exclude": [
+    "./node_modules/**",
+    "./build/**",
+    "./tests/**",
+    "./scripts/**",
+    "./.adonisjs/client/registry/index.ts"
+  ]
+}

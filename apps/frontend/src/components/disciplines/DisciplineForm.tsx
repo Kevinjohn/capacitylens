@@ -1,0 +1,90 @@
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
+import { useState } from 'react';
+import { useStore } from '@/store/useStore';
+import { useActiveScopedData } from '@/store/useScopedData';
+import { useFieldError } from '@/hooks/useFieldError';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { validatePresetColor, parseName } from '@/lib/validation';
+import { isStaleEdit } from '@/lib/isStaleEdit';
+import { m } from '@/i18n';
+import { ColorField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { FieldError } from '@/components/ui/field';
+import { DEFAULT_COLORS } from '@/lib/palette';
+import type { Discipline } from '@capacitylens/shared/types/entities';
+
+/** Creates or edits a discipline with its name and colour, closing after save or cancel. New disciplines receive the next canonical sortOrder. */
+export function DisciplineForm({
+  discipline,
+  onClose: close,
+}: {
+  discipline?: Discipline;
+  onClose: () => void;
+}) {
+  const onClose = useFormLifetimeClose(close);
+  const add = useStore((state) => state.addDiscipline);
+  const update = useStore((state) => state.updateDiscipline);
+  // Append new disciplines after the maximum sortOrder so gaps from deleted disciplines cannot collide. Edits retain the existing order.
+  const disciplines = useActiveScopedData().disciplines;
+  const nextSortOrder = disciplines.reduce((max, item) => Math.max(max, item.sortOrder + 1), 0);
+  const [name, setName] = useState(discipline?.name ?? '');
+  const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline);
+  const sortOrder = discipline?.sortOrder ?? nextSortOrder;
+  const { error, errorField, errorId, fail } = useFieldError();
+
+  const submit = async () => {
+    const trimmed = parseName(name, fail);
+    if (!trimmed) return;
+    if (!validatePresetColor(color, fail)) return;
+    // Surface a store-side rejection as a form error rather than an uncaught React error, see the
+    // store CRUD contract.
+    try {
+      if (discipline) {
+        if (
+          isStaleEdit(useStore.getState().data.disciplines, discipline.id, discipline.updatedAt)
+        ) {
+          fail(null, m.form_discipline_err_changed());
+          return;
+        }
+        await update(discipline.id, { name: trimmed, color, sortOrder });
+      } else {
+        const result = await add({ name: trimmed, color, sortOrder });
+        if (result.kind === 'blocked') return;
+      }
+      onClose();
+    } catch (e) {
+      fail(null, resolveErrorMessage(e));
+    }
+  };
+
+  return (
+    <Modal
+      title={discipline ? m.form_discipline_edit_title() : m.form_discipline_add_title()}
+      onClose={onClose}
+      onSubmit={() => {
+        void submit();
+      }}
+      footer={<FormActions onCancel={onClose} />}
+    >
+      <TextField
+        label={m.form_discipline_name_label()}
+        value={name}
+        onChange={setName}
+        autoFocus
+        required
+        invalid={errorField === 'name'}
+        describedById={errorId}
+        layout="label-control"
+      />
+      <ColorField
+        label={m.form_discipline_colour_label()}
+        value={color}
+        onChange={setColor}
+        invalid={errorField === 'color'}
+        describedById={errorId}
+        layout="label-control"
+      />
+      <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
+    </Modal>
+  );
+}

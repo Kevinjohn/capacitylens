@@ -1,6 +1,6 @@
 # US-RES-05 — Set a resource's working days
 
-**Area:** Resources · **Persona:** Studio manager · **Coverage:** **Unit:** `src/lib/capacity.test.ts` (full, half and non-working capacity) + `src/components/resources/ResourceForm.test.tsx` · **E2E:** `e2e/resources.spec.ts` (persist a mixed working-week pattern).
+**Area:** Resources · **Persona:** Studio manager · **Coverage:** **Unit:** `apps/frontend/src/lib/capacity.test.ts` (full, half and non-working capacity) + `apps/frontend/src/components/resources/ResourceForm.test.tsx` · **E2E:** `e2e/resources.spec.ts` (persist a mixed working-week pattern).
 
 ## Goal
 

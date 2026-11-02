@@ -31,7 +31,9 @@ Changing working days recalculates capacity for existing work; it does not move 
 
 ![Settings: Scheduling features with the Company features switches visible](../screenshots/flows/admin_company_settings_2.png)
 
-Under **Company features**, **Use disciplines** starts on for a new company; the others start off.
+Under **Company features**, all options start off for a new company. Existing companies keep
+their settings, which may differ. The temporary in-memory demo has **Use disciplines** on in both
+example companies.
 
 | Setting                     | What it changes                                                          |
 | --------------------------- | ------------------------------------------------------------------------ |

@@ -1,86 +1,107 @@
-import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import test from "node:test";
-import { parseDocument } from "yaml";
-import { gateCommands } from "./gateCommands.mjs";
-import { verifyDependabotConfiguration, verifyDependencyUpdatePolicy } from "./check-dependabot.mjs";
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import test from 'node:test';
+import { parseDocument } from 'yaml';
+import { gateCommands } from './gateCommands.mjs';
+import {
+  verifyDependabotConfiguration,
+  verifyDependencyUpdatePolicy,
+} from './check-dependabot.mjs';
 
 const entry = (changes = {}) => ({
-  "package-ecosystem": "npm",
-  directory: "/",
-  schedule: { interval: "monthly" },
+  'package-ecosystem': 'npm',
+  directory: '/',
+  schedule: { interval: 'monthly' },
   ...changes,
 });
 const config = (updates = [entry()]) => ({ version: 2, updates });
 
-test("accepts the checked-in YAML and the existing three schedule choices", () => {
+test('accepts the checked-in YAML and the existing three schedule choices', () => {
   assert.equal(
-    verifyDependabotConfiguration(readFileSync(new URL("../.github/dependabot.yml", import.meta.url), "utf8")),
+    verifyDependabotConfiguration(
+      readFileSync(new URL('../.github/dependabot.yml', import.meta.url), 'utf8'),
+    ),
     3,
   );
-  for (const interval of ["daily", "weekly", "monthly"]) {
-    assert.equal(verifyDependabotConfiguration(JSON.stringify(config([entry({ schedule: { interval } })]))), 1);
+  for (const interval of ['daily', 'weekly', 'monthly']) {
+    assert.equal(
+      verifyDependabotConfiguration(JSON.stringify(config([entry({ schedule: { interval } })]))),
+      1,
+    );
   }
   assert.equal(
-    verifyDependabotConfiguration(JSON.stringify(config([entry(), entry({ "package-ecosystem": "docker" })]))),
+    verifyDependabotConfiguration(
+      JSON.stringify(config([entry(), entry({ 'package-ecosystem': 'docker' })])),
+    ),
     2,
   );
   assert.equal(
-    verifyDependabotConfiguration(JSON.stringify(config([entry({ directory: "", "package-ecosystem": "" })]))),
+    verifyDependabotConfiguration(
+      JSON.stringify(config([entry({ directory: '', 'package-ecosystem': '' })])),
+    ),
     1,
   );
 });
 
-test("checks the weekly grouped npm policy and preserves monthly patch-only infrastructure updates", () => {
-  const source = readFileSync(new URL("../.github/dependabot.yml", import.meta.url), "utf8");
+test('checks the weekly grouped npm policy and preserves monthly patch-only infrastructure updates', () => {
+  const source = readFileSync(new URL('../.github/dependabot.yml', import.meta.url), 'utf8');
   assert.equal(verifyDependencyUpdatePolicy(source), true);
 
   const document = parseDocument(source);
   const updates = document.toJS().updates;
-  updates[0].groups.minor["update-types"] = ["patch"];
+  updates[0].groups.minor['update-types'] = ['patch'];
   assert.throws(
     () => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })),
     /group minor updates separately/,
   );
 
-  updates[0].groups.minor["update-types"] = ["minor"];
-  updates[0].groups.major = { "update-types": ["version-update:semver-major"] };
+  updates[0].groups.minor['update-types'] = ['minor'];
+  updates[0].groups.major = { 'update-types': ['version-update:semver-major'] };
   assert.throws(
     () => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })),
     /only separate patch and minor/,
   );
   delete updates[0].groups.major;
-  updates[0]["open-pull-requests-limit"] = 5;
-  assert.throws(() => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })), /must be 2/);
-  updates[0]["open-pull-requests-limit"] = 2;
-  updates[0].ignore[0]["update-types"].push("version-update:semver-minor");
+  updates[0]['open-pull-requests-limit'] = 5;
+  assert.throws(
+    () => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })),
+    /must be 2/,
+  );
+  updates[0]['open-pull-requests-limit'] = 2;
+  updates[0].ignore[0]['update-types'].push('version-update:semver-minor');
   assert.throws(
     () => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })),
     /ignore only automatic major/,
   );
 
-  updates[0].ignore[0]["update-types"] = ["version-update:semver-major"];
-  updates[1].schedule.interval = "weekly";
+  updates[0].ignore[0]['update-types'] = ['version-update:semver-major'];
+  updates[1].schedule.interval = 'weekly';
   assert.throws(
     () => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })),
     /github-actions updates must remain monthly/,
   );
 });
 
-test("rejects invalid version, updates, entry fields and schedules with a useful diagnostic", () => {
-  for (const value of [null, [], {}, { version: "2" }, { version: 1 }]) {
+test('rejects invalid version, updates, entry fields and schedules with a useful diagnostic', () => {
+  for (const value of [null, [], {}, { version: '2' }, { version: 1 }]) {
     assert.throws(() => verifyDependabotConfiguration(JSON.stringify(value)), /version must be 2/);
   }
-  for (const updates of [undefined, null, {}, "updates", []]) {
-    assert.throws(() => verifyDependabotConfiguration(JSON.stringify({ version: 2, updates })), /non-empty list/);
+  for (const updates of [undefined, null, {}, 'updates', []]) {
+    assert.throws(
+      () => verifyDependabotConfiguration(JSON.stringify({ version: 2, updates })),
+      /non-empty list/,
+    );
   }
   for (const value of [undefined, null, 1, true, [], {}]) {
     assert.throws(
-      () => verifyDependabotConfiguration(JSON.stringify(config([entry({ "package-ecosystem": value })]))),
+      () =>
+        verifyDependabotConfiguration(
+          JSON.stringify(config([entry({ 'package-ecosystem': value })])),
+        ),
       /package-ecosystem/,
     );
     assert.throws(
@@ -88,35 +109,52 @@ test("rejects invalid version, updates, entry fields and schedules with a useful
       /directory/,
     );
   }
-  for (const schedule of [undefined, null, [], {}, 1, "monthly", { interval: "yearly" }, { interval: true }]) {
-    assert.throws(() => verifyDependabotConfiguration(JSON.stringify(config([entry({ schedule })]))), /schedule/);
+  for (const schedule of [
+    undefined,
+    null,
+    [],
+    {},
+    1,
+    'monthly',
+    { interval: 'yearly' },
+    { interval: true },
+  ]) {
+    assert.throws(
+      () => verifyDependabotConfiguration(JSON.stringify(config([entry({ schedule })]))),
+      /schedule/,
+    );
   }
-  for (const invalid of [null, [], "entry", 1]) {
-    assert.throws(() => verifyDependabotConfiguration(JSON.stringify(config([entry(), invalid]))), /package-ecosystem/);
+  for (const invalid of [null, [], 'entry', 1]) {
+    assert.throws(
+      () => verifyDependabotConfiguration(JSON.stringify(config([entry(), invalid]))),
+      /package-ecosystem/,
+    );
   }
 });
 
-test("retains YAML 1.1 scalar types and rejects aliases, unsafe tags and timestamps", () => {
+test('retains YAML 1.1 scalar types and rejects aliases, unsafe tags and timestamps', () => {
   const valid =
-    "version: 2\nupdates:\n  - package-ecosystem: npm\n    directory: /\n    schedule: {interval: monthly}\n";
+    'version: 2\nupdates:\n  - package-ecosystem: npm\n    directory: /\n    schedule: {interval: monthly}\n';
   assert.equal(verifyDependabotConfiguration(valid), 1);
-  for (const value of ["yes", "off", "2026-09-05"]) {
-    assert.throws(() => verifyDependabotConfiguration(valid.replace("directory: /", `directory: ${value}`)));
+  for (const value of ['yes', 'off', '2026-09-05']) {
+    assert.throws(() =>
+      verifyDependabotConfiguration(valid.replace('directory: /', `directory: ${value}`)),
+    );
   }
   for (const addition of [
-    "extra: !unknown value\n",
-    "extra: !!set {one: null}\n",
-    "extra: 2026-09-05\n",
-    "extra: &value hello\nother: *value\n",
+    'extra: !unknown value\n',
+    'extra: !!set {one: null}\n',
+    'extra: 2026-09-05\n',
+    'extra: &value hello\nother: *value\n',
   ]) {
     assert.throws(() => verifyDependabotConfiguration(valid + addition));
   }
-  assert.equal(verifyDependabotConfiguration(valid + "extra: &unused hello\n"), 1);
+  assert.equal(verifyDependabotConfiguration(valid + 'extra: &unused hello\n'), 1);
 });
 
-test("fails closed on syntax errors, duplicate keys and multiple YAML documents", () => {
+test('fails closed on syntax errors, duplicate keys and multiple YAML documents', () => {
   for (const source of [
-    "version: [",
+    'version: [',
     `version: 1\nversion: 2\nupdates: ${JSON.stringify([entry()])}`,
     `${JSON.stringify(config())}\n---\nversion: 1`,
   ]) {
@@ -124,19 +162,23 @@ test("fails closed on syntax errors, duplicate keys and multiple YAML documents"
   }
 });
 
-test("CLI reports success and fails on invalid content, missing files and extra arguments", (t) => {
-  const directory = mkdtempSync(join(tmpdir(), "dependabot-validator-"));
+test('CLI reports success and fails on invalid content, missing files and extra arguments', (t) => {
+  const directory = mkdtempSync(join(tmpdir(), 'dependabot-validator-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const path = join(directory, "configuration with spaces.yml");
-  const cli = fileURLToPath(new URL("./check-dependabot.mjs", import.meta.url));
+  const path = join(directory, 'configuration with spaces.yml');
+  const cli = fileURLToPath(new URL('./check-dependabot.mjs', import.meta.url));
   const run = (...args) =>
-    spawnSync(process.execPath, [cli, ...args], { cwd: directory, encoding: "utf8", timeout: 10_000 });
+    spawnSync(process.execPath, [cli, ...args], {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
   const current = run();
   assert.equal(current.status, 0, current.stderr);
   assert.match(current.stdout, /3 update entries and repository policy verified/);
-  writeFileSync(path, readFileSync(new URL("../.github/dependabot.yml", import.meta.url), "utf8"));
+  writeFileSync(path, readFileSync(new URL('../.github/dependabot.yml', import.meta.url), 'utf8'));
   assert.equal(run(path).status, 0);
-  writeFileSync(path, "version: 1");
+  writeFileSync(path, 'version: 1');
   const invalid = run(path);
   assert.equal(invalid.status, 1);
   assert.match(invalid.stderr, /version must be 2/);
@@ -144,45 +186,51 @@ test("CLI reports success and fails on invalid content, missing files and extra 
   const missing = run(path);
   assert.match(missing.stderr, /ENOENT/);
   assert.equal(missing.status, 1);
-  const extra = run(path, "extra");
+  const extra = run(path, 'extra');
   assert.match(extra.stderr, /optional configuration path/);
   assert.equal(extra.status, 1);
 });
 
-test("the application gate owns configuration validation and its regressions in CI", () => {
-  const commands = gateCommands("app");
-  for (const command of ["policy:dependabot", "policy:dependabot:test", "dependency:major-report:test"]) {
-    assert.equal(commands.filter((args) => args.join(" ") === `run ${command}`).length, 1);
+test('the application gate owns configuration validation and its regressions in CI', () => {
+  const commands = gateCommands('app');
+  for (const command of [
+    'policy:dependabot',
+    'policy:dependabot:test',
+    'dependency:major-report:test',
+  ]) {
+    assert.equal(commands.filter((args) => args.join(' ') === `run ${command}`).length, 1);
   }
   const workflow = parseDocument(
-    readFileSync(new URL("../.github/workflows/gate.yml", import.meta.url), "utf8"),
+    readFileSync(new URL('../.github/workflows/gate.yml', import.meta.url), 'utf8'),
   ).toJS();
-  assert.ok(workflow.jobs.application.steps.some(({ run }) => run === "pnpm run gate"));
-  assert.ok(!workflow.jobs["workflow-lint"].steps.some(({ run }) => run?.includes("ruby -e")));
+  assert.ok(workflow.jobs.application.steps.some(({ run }) => run === 'pnpm run gate'));
+  assert.ok(!workflow.jobs['workflow-lint'].steps.some(({ run }) => run?.includes('ruby -e')));
 });
 
 // The dependabot-summary workflow's shell step pipes through host `jq`, which is not
 // installed by default on every contributor machine (notably macOS). Skip with a clear
 // reason instead of failing on an unrelated missing-binary error.
-const hasJq = spawnSync("jq", ["--version"], { stdio: "ignore" }).status === 0;
+const hasJq = spawnSync('jq', ['--version'], { stdio: 'ignore' }).status === 0;
 
 function loadDependabotSummaryRun() {
   const run = parseDocument(
-    readFileSync(new URL("../.github/workflows/dependabot-summary.yml", import.meta.url), "utf8"),
+    readFileSync(new URL('../.github/workflows/dependabot-summary.yml', import.meta.url), 'utf8'),
   )
     .toJS()
-    .jobs.summary.steps.find((step) => typeof step.run === "string" && step.run.includes("set -euo pipefail"))?.run;
-  assert.equal(typeof run, "string", "expected the dependabot-summary workflow's shell step");
+    .jobs.summary.steps.find(
+      (step) => typeof step.run === 'string' && step.run.includes('set -euo pipefail'),
+    )?.run;
+  assert.equal(typeof run, 'string', "expected the dependabot-summary workflow's shell step");
   return run;
 }
 
 const runDependabotSummary = (pages, t) => {
   const dependabotSummaryRun = loadDependabotSummaryRun();
-  const directory = mkdtempSync(join(tmpdir(), "dependabot-summary-"));
+  const directory = mkdtempSync(join(tmpdir(), 'dependabot-summary-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const fixture = join(directory, "commits.json");
-  const comment = join(directory, "comment.md");
-  const gh = join(directory, "gh");
+  const fixture = join(directory, 'commits.json');
+  const comment = join(directory, 'comment.md');
+  const gh = join(directory, 'gh');
   writeFileSync(fixture, JSON.stringify(pages));
   writeFileSync(
     gh,
@@ -211,45 +259,45 @@ exit 1
 `,
     { mode: 0o755 },
   );
-  const result = spawnSync("bash", ["-euo", "pipefail", "-c", dependabotSummaryRun], {
+  const result = spawnSync('bash', ['-euo', 'pipefail', '-c', dependabotSummaryRun], {
     cwd: directory,
-    encoding: "utf8",
+    encoding: 'utf8',
     timeout: 10_000,
     env: {
       ...process.env,
       DEPENDABOT_COMMITS_FIXTURE: fixture,
       DEPENDABOT_COMMENT_OUTPUT: comment,
-      HEAD_REF: "dependabot/npm_and_yarn/example",
+      HEAD_REF: 'dependabot/npm_and_yarn/example',
       PATH: `${directory}:${process.env.PATH}`,
-      PR: "123",
-      REPO: "example/repository",
+      PR: '123',
+      REPO: 'example/repository',
     },
   });
-  return { comment: existsSync(comment) ? readFileSync(comment, "utf8") : "", result };
+  return { comment: existsSync(comment) ? readFileSync(comment, 'utf8') : '', result };
 };
 
 test(
-  "summarises only the newest Dependabot commit across paginated responses",
-  { skip: !hasJq && "jq is not installed" },
+  'summarises only the newest Dependabot commit across paginated responses',
+  { skip: !hasJq && 'jq is not installed' },
   (t) => {
     const { comment, result } = runDependabotSummary(
       [
         [
           {
-            author: { login: "dependabot[bot]" },
+            author: { login: 'dependabot[bot]' },
             commit: {
               message:
-                "- dependency-name: old-name\n  dependency-version: 1.0.0\n  update-type: version-update:semver-patch\nBumps old-name from `0.9.0` to `1.0.0`.",
+                '- dependency-name: old-name\n  dependency-version: 1.0.0\n  update-type: version-update:semver-patch\nBumps old-name from `0.9.0` to `1.0.0`.',
             },
           },
-          { author: { login: "maintainer" }, commit: { message: "Merge branch main" } },
+          { author: { login: 'maintainer' }, commit: { message: 'Merge branch main' } },
         ],
         [
           {
-            author: { login: "dependabot[bot]" },
+            author: { login: 'dependabot[bot]' },
             commit: {
               message:
-                "- dependency-name: new-name\n  dependency-version: 2.0.0\n  update-type: version-update:semver-minor\nBumps new-name from `1.0.0` to `2.0.0`.",
+                '- dependency-name: new-name\n  dependency-version: 2.0.0\n  update-type: version-update:semver-minor\nBumps new-name from `1.0.0` to `2.0.0`.',
             },
           },
         ],
@@ -265,19 +313,19 @@ test(
 );
 
 test(
-  "exits without a summary when no paginated commit is authored by Dependabot",
-  { skip: !hasJq && "jq is not installed" },
+  'exits without a summary when no paginated commit is authored by Dependabot',
+  { skip: !hasJq && 'jq is not installed' },
   (t) => {
     const { comment, result } = runDependabotSummary(
       [
-        [{ author: { login: "maintainer" }, commit: { message: "Merge branch main" } }],
-        [{ author: { login: "release-bot" }, commit: { message: "Release" } }],
+        [{ author: { login: 'maintainer' }, commit: { message: 'Merge branch main' } }],
+        [{ author: { login: 'release-bot' }, commit: { message: 'Release' } }],
       ],
       t,
     );
 
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stderr, /No Dependabot commit found/);
-    assert.equal(comment, "");
+    assert.equal(comment, '');
   },
 );

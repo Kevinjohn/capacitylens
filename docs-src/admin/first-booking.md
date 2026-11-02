@@ -24,9 +24,9 @@ Book one piece of work to check everything is ready. You need a
 2. ![New allocation for Bruce Wayne: Project, Activity, dates, daily hours and Save](../screenshots/flows/using_schedule_work_2.png)
 
    **Fill in the form.** Choose **Project**, then **Activity**. For work without a project, choose
-   **Internal** or **No specific project**. Check the assignee, dates, amount and status, then
-   select **Save**. The amount is **Days of work** in a company that plans in Days, the default,
-   or **Hours / day** in one that plans in Hours.
+   **Internal** or **No specific project**. Check the assignee, dates and status, then select
+   **Save**. In **Days** or **Hours** mode, enter the amount as **Days of work** or **Hours / day**.
+   In **Blocks** mode, choose the start date and duration in days; there is no hours amount.
 
 </div>
 

@@ -1,6 +1,6 @@
 # US-NAV-16 — Find help and start the role-based tour
 
-**Area:** Navigation & shell · **Persona:** Any company member · **Linked coverage:** `e2e/navigation.spec.ts`, `e2e/mobile.spec.ts`, `e2e/help.auth.spec.ts`, `src/components/AppShell.test.tsx`, `src/components/CommandPalette.test.tsx`, `src/components/HelpView.test.tsx`
+**Area:** Navigation & shell · **Persona:** Any company member · **Linked coverage:** `e2e/navigation.spec.ts`, `e2e/mobile.spec.ts`, `e2e/help.auth.spec.ts`, `apps/frontend/src/components/AppShell.test.tsx`, `apps/frontend/src/components/CommandPalette.test.tsx`, `apps/frontend/src/components/HelpView.test.tsx`
 
 **Documentation:** [Help](../../docs-src/using/help.md), [Take a role-based tour](../../docs-src/getting-started/roles-and-permissions.md#take-a-role-based-tour)
 
@@ -24,5 +24,5 @@ Viewers need a way to understand the read-only schedule. The same tour remains u
 - Help (`/help`) is available to Owner, Admin, Editor and Viewer, above Account in the expanded, collapsed and mobile sidebar.
 - Direct navigation sets the page title to **Help · CapacityLens**. The command palette lists Help exactly once and navigates to `/help`.
 - The page links to the existing user guides and provides a **Show tour** launcher.
-- The launcher uses the shared permission, offline, duplicate-start and failure behavior. Starting away from Schedule opens Schedule first; a Viewer sees progress 1 of 2.
+- The launcher uses the shared permission, duplicate-start and failure behavior. Starting away from Schedule opens Schedule first; a Viewer sees progress 1 of 2.
 - Help and its tour remain available when Getting started is hidden or dismissed.

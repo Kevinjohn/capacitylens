@@ -1,9 +1,14 @@
-import { expect, test } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
-import { seedFixtureMember } from "./authDatabaseFixtures";
-import { waitForAppLanding } from "./appEntrySupport";
+import { expect, test } from './fixtures';
+import {
+  AUTH_PASSWORD,
+  bootstrapOrg,
+  seedFixtureMember,
+  sendPlanningFixtureCommand,
+  signUpUser,
+} from './authTestSupport';
+import { waitForAppLanding } from './browserTestSupport';
 
-test.use({ contextOptions: { reducedMotion: "reduce" } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 const STAMP = Date.now();
 const OWNER = `lucius-fox-${STAMP}@capacitylens.dev`;
@@ -11,70 +16,74 @@ const ADMIN = `barbara-gordon-${STAMP}@capacitylens.dev`;
 const EDITOR = `dick-grayson-${STAMP}@capacitylens.dev`;
 const VIEWER = `tim-drake-${STAMP}@capacitylens.dev`;
 const ACCOUNT = `Wayne Privacy Studio ${STAMP}`;
-const REAL_CLIENT = "Kane Industries Acquisition";
-const REAL_PROJECT = "Gotham Renewal";
+const REAL_CLIENT = 'Kane Industries Acquisition';
+const REAL_PROJECT = 'Gotham Renewal';
 
-async function signInAndOpen(page: import("@playwright/test").Page, email: string) {
-  await page.goto("/");
-  await page.getByRole("heading", { name: "Sign in" }).waitFor();
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(AUTH_PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("button", { name: ACCOUNT, exact: true }).click();
-  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
-  await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
+async function signInAndOpen(page: import('@playwright/test').Page, email: string) {
+  await page.goto('/');
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(AUTH_PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
+  await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
+  await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
 }
 
 async function assertPrivateNamesForMember(
-  page: import("@playwright/test").Page,
-  context: import("@playwright/test").BrowserContext,
-  role: "admin" | "editor" | "viewer",
+  page: import('@playwright/test').Page,
+  context: import('@playwright/test').BrowserContext,
+  role: 'admin' | 'editor' | 'viewer',
   email: string,
 ) {
   await context.clearCookies();
   await signInAndOpen(page, email);
 
-  await page.getByRole("link", { name: "Clients", exact: true }).click();
-  const clientRow = page.getByTestId("client-row").filter({ hasText: '"Nightwing"' });
+  await page.getByRole('link', { name: 'Clients', exact: true }).click();
+  const clientRow = page.getByTestId('client-row').filter({ hasText: '"Nightwing"' });
   await expect(clientRow).toBeVisible();
   await expect(page.getByText(REAL_CLIENT, { exact: true })).toHaveCount(0);
-  if (role === "viewer") {
-    await expect(clientRow.getByRole("button", { name: /^Edit / })).toHaveCount(0);
+  if (role === 'viewer') {
+    await expect(clientRow.getByRole('button', { name: /^Edit / })).toHaveCount(0);
   } else {
-    await clientRow.getByRole("button", { name: /^Edit / }).click();
-    const dialog = page.getByRole("dialog", { name: "Edit client" });
-    await expect(dialog.getByLabel("Name", { exact: true })).toBeDisabled();
-    await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue('"Nightwing"');
-    await expect(dialog.getByRole("switch", { name: "Use code name" })).toHaveCount(0);
-    await expect(dialog.getByLabel("Code name", { exact: true })).toHaveCount(0);
-    await expect(dialog.getByText("Only an account owner can change this private name.")).toBeVisible();
+    await clientRow.getByRole('button', { name: /^Edit / }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit client' });
+    await expect(dialog.getByLabel('Name', { exact: true })).toBeDisabled();
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('"Nightwing"');
+    await expect(dialog.getByRole('switch', { name: 'Use code name' })).toHaveCount(0);
+    await expect(dialog.getByLabel('Code name', { exact: true })).toHaveCount(0);
+    await expect(
+      dialog.getByText('Only an account owner can change this private name.'),
+    ).toBeVisible();
     await expect(dialog.getByText(REAL_CLIENT, { exact: true })).toHaveCount(0);
-    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
   }
 
-  await page.getByRole("link", { name: "Projects", exact: true }).click();
-  const projectRow = page.getByTestId("project-row").filter({ hasText: '"Aurora"' });
+  await page.getByRole('link', { name: 'Projects', exact: true }).click();
+  const projectRow = page.getByTestId('project-row').filter({ hasText: '"Aurora"' });
   await expect(projectRow).toBeVisible();
   await expect(page.getByText(REAL_PROJECT, { exact: true })).toHaveCount(0);
-  if (role === "viewer") {
-    await expect(projectRow.getByRole("button", { name: /^Edit / })).toHaveCount(0);
+  if (role === 'viewer') {
+    await expect(projectRow.getByRole('button', { name: /^Edit / })).toHaveCount(0);
   } else {
-    await projectRow.getByRole("button", { name: /^Edit / }).click();
-    const dialog = page.getByRole("dialog", { name: "Edit project" });
-    await expect(dialog.getByLabel("Name", { exact: true })).toBeDisabled();
-    await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue('"Aurora"');
-    await expect(dialog.getByRole("switch", { name: "Use code name" })).toHaveCount(0);
-    await expect(dialog.getByLabel("Code name", { exact: true })).toHaveCount(0);
-    await expect(dialog.getByText("Only an account owner can change this private name.")).toBeVisible();
+    await projectRow.getByRole('button', { name: /^Edit / }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit project' });
+    await expect(dialog.getByLabel('Name', { exact: true })).toBeDisabled();
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('"Aurora"');
+    await expect(dialog.getByRole('switch', { name: 'Use code name' })).toHaveCount(0);
+    await expect(dialog.getByLabel('Code name', { exact: true })).toHaveCount(0);
+    await expect(
+      dialog.getByText('Only an account owner can change this private name.'),
+    ).toBeVisible();
     await expect(dialog.getByText(REAL_PROJECT, { exact: true })).toHaveCount(0);
-    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
   }
 }
 
 function seedMembers(
   accountId: string,
   members: ReadonlyArray<{
-    role: "admin" | "editor" | "viewer";
+    role: 'admin' | 'editor' | 'viewer';
     user: { cookie: string; email: string };
   }>,
 ) {
@@ -84,45 +93,37 @@ function seedMembers(
 }
 
 async function seedPrivateNames(
-  request: import("@playwright/test").APIRequestContext,
+  request: import('@playwright/test').APIRequestContext,
   accountId: string,
   ownerCookie: string,
 ) {
-  const now = new Date().toISOString();
-  const clientId = `privacy-client-${STAMP}`;
-  const projectId = `privacy-project-${STAMP}`;
-  const clientWrite = await request.put(`${AUTH_API}/api/clients/${clientId}`, {
-    headers: { cookie: ownerCookie, "content-type": "application/json" },
-    data: {
+  const clientId = crypto.randomUUID();
+  const projectId = crypto.randomUUID();
+  await sendPlanningFixtureCommand(request, ownerCookie, accountId, 'clients', {
+    operation: 'catalogue.create',
+    entity: {
+      entity: 'clients',
       id: clientId,
-      accountId,
-      name: REAL_CLIENT,
-      color: "#76a5e7",
-      isPrivate: true,
-      codeName: "Nightwing",
-      createdAt: now,
-      updatedAt: now,
+      fields: { name: REAL_CLIENT, color: '#76a5e7', isPrivate: true, codeName: 'Nightwing' },
     },
   });
-  expect(clientWrite.status()).toBe(200);
-  const projectWrite = await request.put(`${AUTH_API}/api/projects/${projectId}`, {
-    headers: { cookie: ownerCookie, "content-type": "application/json" },
-    data: {
+  await sendPlanningFixtureCommand(request, ownerCookie, accountId, 'projects', {
+    operation: 'catalogue.create',
+    entity: {
+      entity: 'projects',
       id: projectId,
-      accountId,
-      clientId,
-      name: REAL_PROJECT,
-      color: "#e776b8",
-      isPrivate: true,
-      codeName: "Aurora",
-      createdAt: now,
-      updatedAt: now,
+      fields: {
+        clientId,
+        name: REAL_PROJECT,
+        color: '#e776b8',
+        isPrivate: true,
+        codeName: 'Aurora',
+      },
     },
   });
-  expect(projectWrite.status()).toBe(200);
 }
 
-test("non-owners see protected code names without owner controls or real-name leaks", async ({
+test('non-owners see protected code names without owner controls or real-name leaks', async ({
   page,
   request,
   context,
@@ -134,9 +135,9 @@ test("non-owners see protected code names without owner controls or real-name le
     signUpUser(VIEWER),
   ]);
   const members = [
-    { role: "admin", user: adminUser },
-    { role: "editor", user: editorUser },
-    { role: "viewer", user: viewerUser },
+    { role: 'admin', user: adminUser },
+    { role: 'editor', user: editorUser },
+    { role: 'viewer', user: viewerUser },
   ] as const;
 
   const accountId = await bootstrapOrg(request, owner.cookie, ACCOUNT);

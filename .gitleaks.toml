@@ -1,6 +1,6 @@
 # Full-history scans allowlist specific values so real credentials in the same files remain detectable.
 # Path allowlists skip whole files and could hide credentials beside accepted fixtures.
-# Add only anchored patterns for values that are fake by construction.
+# Add only anchored patterns for reviewed development values.
 [extend]
 useDefault = true
 
@@ -25,4 +25,13 @@ regexes = [
   # The production-defaults test uses this repeated hexadecimal counter as its dummy secret.
   # Historical commits retain the value, so keep the exception exact for full-history scans.
   '''^0123456789abcdef0123456789abcdef$''',
+  # Deterministic AdonisJS test-runner/CI and localhost e2e keys from the development branch.
+  # Exact values keep other APP_KEY credentials reportable, including ones in the same files.
+  '''^capacitylens-test-key-0123456789abcdef$''',
+  '''^capacitylens-e2e-key-0123456789abcdef$''',
+  # The scaffold .env.example key is public development data; native packaging generates its own
+  # key at runtime. Exact matching keeps arbitrary generated keys reportable.
+  '''^zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi$''',
+  # Fixed idempotency key for the invalid multiple-owner test, not an authentication credential.
+  '''^ownership-broken-owner-key-0001$''',
 ]

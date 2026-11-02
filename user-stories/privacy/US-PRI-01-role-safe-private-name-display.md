@@ -1,8 +1,8 @@
 # US-PRI-01 — Show private names according to account role
 
 **Area:** Privacy / whole app · **Persona:** Account owner and agency member · **Coverage:**
-`server/src/app.authz.test.ts` → "private client/project names — owner-only server projection";
-`server/src/db.accountStore.test.ts`; client/project/list/archived component tests (manual
+`apps/backend/tests/functional/auth/native_authorization.spec.ts` → "private client/project names — owner-only server projection";
+`apps/backend/tests/unit/state_transformer.spec.ts`; client/project/list/archived component tests (manual
 cross-surface pass until a dedicated auth-backed E2E is added)
 
 ## Goal
@@ -19,7 +19,7 @@ individual screens to remember to hide names.
 
 ## How (end-to-end)
 
-**Precondition:** In an auth-enabled server account, the owner has created private client
+**Precondition:** In a persisted server account, the owner has created private client
 `Real Client Ltd` / code `Nightwing` and private project `Secret Launch` / code `Aurora`, with an
 activity and allocation under the project. The account also has an admin, editor and viewer.
 
@@ -39,8 +39,7 @@ activity and allocation under the project. The account also has an admin, editor
   - **Admin, editor and viewer:** receive `name` as exactly one straight-quoted code name
     (`"Nightwing"` / `"Aurora"`), keep `isPrivate: true`, receive no `codeName`, and receive no real
     private name anywhere in the response body.
-  - **Trusted local/demo and auth-off server:** are owner-equivalent because there is no membership
-    identity to hide data from.
+  - **In-memory demo:** is owner-equivalent because it has no membership identities.
 - ✅ **PRI-DISPLAY-02 — All surfaces.** The same quoted label flows through client/project lists; client and project filters/selects;
   compound `Client / Project` labels; scheduler allocation bars/popovers; forms; command-palette
   results; active, archived and deleted views; and archive/delete/purge confirmation copy.
@@ -53,5 +52,3 @@ activity and allocation under the project. The account also has an admin, editor
   compound label; making one private never implicitly changes the other.
 - ✅ **PRI-DISPLAY-06 — Public/scope invariants.** Public clients/projects and every non-client/project entity are unchanged. The built-in
   **Internal** client always remains public and continues to display as **Internal**.
-- ✅ **PRI-DISPLAY-07 — Offline parity.** A non-owner offline snapshot contains the same projected labels returned by the server; it does
-  not recreate or cache the removed real names/raw code names. An owner's snapshot may contain them.

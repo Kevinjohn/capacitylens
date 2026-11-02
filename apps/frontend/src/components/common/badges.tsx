@@ -1,0 +1,49 @@
+import { memo } from 'react';
+import { resolveAccessibleBarColors } from '@capacitylens/shared/lib/color';
+import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { resolveAvatarInitials } from '@/lib/metadata';
+
+/** Shows a preset colour without changing its semantic value. */
+export function ColorSwatch({ color }: { color: string }) {
+  return (
+    <span
+      className="inline-block size-3 rounded-sm ring-1 ring-inset ring-black/10"
+      style={{ backgroundColor: color }}
+    />
+  );
+}
+
+// All props are primitives, so the default shallow prop compare is exact, memoised to skip
+// re-rendering every row's avatar when an unrelated sibling in a list (e.g. SchedulerGrid) updates.
+/** Shows a person or entity avatar with the supplied name and colour. */
+export const Avatar = memo(function AvatarComponent({
+  name,
+  color,
+  size = 28,
+  placeholder = false,
+  imageUrl,
+}: {
+  name: string;
+  color: string;
+  size?: number;
+  placeholder?: boolean;
+  /** An already-validated account or scheduled-person avatar URL. When set, the photo renders over
+   * the initials; the Radix primitive keeps the initials as the fallback while loading/on error. */
+  imageUrl?: string;
+}) {
+  const initials = resolveAvatarInitials(name, placeholder);
+  // Keep the initials legible (white-on-mid-tone often fails AA) by nudging the fill.
+  const { bg: background, ink } = resolveAccessibleBarColors(color);
+  return (
+    <ShadAvatar
+      aria-hidden
+      style={{ width: size, height: size, backgroundColor: background, color: ink }}
+      className="ring-2 ring-surface"
+    >
+      {imageUrl && <AvatarImage src={imageUrl} alt="" referrerPolicy="no-referrer" />}
+      <AvatarFallback className="bg-transparent text-2xs font-semibold text-inherit">
+        {initials}
+      </AvatarFallback>
+    </ShadAvatar>
+  );
+});

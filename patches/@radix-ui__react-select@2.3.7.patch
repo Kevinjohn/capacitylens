@@ -1,0 +1,40 @@
+diff --git a/dist/index.js b/dist/index.js
+index 06d9d5060b10358369b63a2843764be45be9abe9..132eec4a3a029fc91ebb1844d638102cfb728be6 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -799,15 +799,6 @@ var SelectViewport = /* @__PURE__ */ React.forwardRef(
+     const composedRefs = (0, import_react_compose_refs.useComposedRefs)(forwardedRef, contentContext.onViewportChange);
+     const prevScrollTopRef = React.useRef(0);
+     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+-        "style",
+-        {
+-          dangerouslySetInnerHTML: {
+-            __html: `[data-radix-select-viewport]{scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}[data-radix-select-viewport]::-webkit-scrollbar{display:none}`
+-          },
+-          nonce
+-        }
+-      ),
+       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Collection.Slot, { scope: __scopeSelect, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+         import_react_primitive.Primitive.div,
+         {
+diff --git a/dist/index.mjs b/dist/index.mjs
+index d3c861eeb58b610e8fed2eadf48a39a4de7efdac..f08ff0a571ff2600b3c68a5813654e85d5be3644 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -729,15 +729,6 @@ var SelectViewport = /* @__PURE__ */ React.forwardRef(
+     const composedRefs = useComposedRefs(forwardedRef, contentContext.onViewportChange);
+     const prevScrollTopRef = React.useRef(0);
+     return /* @__PURE__ */ jsxs(Fragment2, { children: [
+-      /* @__PURE__ */ jsx(
+-        "style",
+-        {
+-          dangerouslySetInnerHTML: {
+-            __html: `[data-radix-select-viewport]{scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}[data-radix-select-viewport]::-webkit-scrollbar{display:none}`
+-          },
+-          nonce
+-        }
+-      ),
+       /* @__PURE__ */ jsx(Collection.Slot, { scope: __scopeSelect, children: /* @__PURE__ */ jsx(
+         Primitive.div,
+         {

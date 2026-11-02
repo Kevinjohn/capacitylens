@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.turbo/
 dist
 dist-ssr
 /production/
@@ -46,8 +47,9 @@ stryker.log
 # Local handbook and extraction workspace
 /to-my-siblings/
 
-# Generated Paraglide output is rebuilt from the committed project and message sources.
-src/paraglide/
+# Generated Paraglide output and cache are rebuilt from the committed project and message sources.
+/apps/frontend/src/paraglide/
+/apps/frontend/project.inlang/cache/
 
 # Build artifacts (incremental TS, local SQLite DB + WAL/SHM)
 *.tsbuildinfo

@@ -1,0 +1,140 @@
+import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
+import {
+  buildCapacityAdvisory,
+  applyCapacityMode,
+  formatCapacityAdvisory,
+  listTimeOffApplyingTo,
+} from '@/lib/capacity';
+import { buildRepeatingAllocationAdvisory } from '@/lib/repeatingAllocations';
+
+import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
+import type { buildRepeatProjection } from './buildRepeatProjection';
+import { listRenderableDateRanges } from './schedulerModelIndexing';
+
+type AdvisoryInput = Pick<
+  AllocationModalSnapshot,
+  | 'attributedProjectId'
+  | 'create'
+  | 'editId'
+  | 'effEndDate'
+  | 'effHoursPerDay'
+  | 'ignoreWeekends'
+  | 'isBlocks'
+  | 'isExternal'
+  | 'repeat'
+  | 'resourceId'
+  | 'selectedResource'
+  | 'selectedEffectiveWeek'
+  | 'startDate'
+> & {
+  data: Pick<AllocationModalSnapshot['data'], 'allocations' | 'closures' | 'timeOff'>;
+  repeatProjection: ReturnType<typeof buildRepeatProjection>;
+};
+
+function canBuildAdvisory(input: AdvisoryInput) {
+  const {
+    effEndDate: endDate,
+    isExternal,
+    selectedResource,
+    selectedEffectiveWeek,
+    startDate,
+  } = input;
+  if (
+    isExternal ||
+    !selectedResource ||
+    selectedEffectiveWeek === undefined ||
+    !startDate ||
+    !endDate
+  ) {
+    return false;
+  }
+  const span = daysInclusive(startDate, endDate);
+  return span >= 1 && span <= MAX_SPAN_DAYS;
+}
+
+function buildRepeatAdvisory(
+  input: AdvisoryInput,
+  existingLoad: AdvisoryInput['data']['allocations'],
+) {
+  const { data, repeatProjection, resourceId, selectedEffectiveWeek, selectedResource } = input;
+  if (!repeatProjection || !selectedResource || selectedEffectiveWeek === undefined) return null;
+  const resourceTimeOff = listTimeOffApplyingTo(resourceId, listRenderableDateRanges(data.timeOff));
+  const { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations } =
+    buildRepeatingAllocationAdvisory({
+      resource: selectedResource,
+      existingLoad,
+      timeOff: resourceTimeOff,
+      proposedDrafts: repeatProjection.drafts,
+      effectiveWeek: selectedEffectiveWeek,
+      closures: listRenderableDateRanges(data.closures),
+    });
+  return (
+    formatCapacityAdvisory(
+      {
+        overDays: overCapacityAllocations,
+        timeOffDays: timeOffAllocations,
+        nonEffectiveStartAllocations,
+      },
+      'repeat',
+    ) || null
+  );
+}
+
+function buildSingleAdvisory(
+  input: AdvisoryInput,
+  otherAllocations: AdvisoryInput['data']['allocations'],
+) {
+  const {
+    attributedProjectId,
+    data,
+    effEndDate: endDate,
+    effHoursPerDay: hoursPerDay,
+    ignoreWeekends,
+    resourceId,
+    selectedEffectiveWeek,
+    selectedResource,
+    startDate,
+  } = input;
+  if (!selectedResource || selectedEffectiveWeek === undefined) return null;
+  return (
+    formatCapacityAdvisory(
+      buildCapacityAdvisory({
+        resource: selectedResource,
+        proposal: {
+          resourceId,
+          startDate,
+          endDate,
+          hoursPerDay,
+          ignoreWeekends,
+          ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
+        },
+        otherAllocations,
+        timeOff: listTimeOffApplyingTo(resourceId, listRenderableDateRanges(data.timeOff)),
+        effectiveWeek: selectedEffectiveWeek,
+        closures: listRenderableDateRanges(data.closures),
+      }),
+      'form',
+    ) || null
+  );
+}
+
+/** Computes capacity and repeat warnings for the current allocation draft. */
+export function buildAllocationAdvisory(input: AdvisoryInput) {
+  const { create, data, editId, isBlocks, repeat, resourceId } = input;
+
+  if (!canBuildAdvisory(input)) return null;
+  // Project load through the active scheduling mode so modal warnings agree with grid and gesture feedback, including stored hourly values in blocks mode.
+  const others = applyCapacityMode({
+    allocations: data.allocations.filter(
+      (allocation) => allocation.resourceId === resourceId && allocation.id !== editId,
+    ),
+    blocksMode: isBlocks,
+  });
+  if (create && repeat !== 'none') {
+    // The repeat variant counts whole occurrences rather than days; the two tallies otherwise read
+    // and render identically, so they share the one advisory sentence builder.
+    return buildRepeatAdvisory(input, others);
+  }
+  return buildSingleAdvisory(input, others);
+}

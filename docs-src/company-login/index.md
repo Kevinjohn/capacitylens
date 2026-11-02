@@ -1,125 +1,69 @@
 ---
-title: Company login
-description: Sign in with a password, Google Workspace or Microsoft, connect an existing account, and manage access safely.
+title: Sign-in and access
+description: Sign in with a password, accept an invitation, wait for approval and join your company.
 ---
 
-# Company login
+# Sign-in and access
 
-Sign in with a password, Google Workspace or Microsoft Entra ID, whichever the installer has
-turned on. The demo, and an installation with `CAPACITYLENS_MODE=off`, have no sign-in.
+Everyone signs in with an email address and password. The in-memory demo does not need a real
+sign-in; every persisted server requires a signed-in, approved company member. CapacityLens has no
+Google, Microsoft or other company sign-in.
 
-With company login, CapacityLens sends you to Google or Microsoft and never sees your provider
-password. A provider account alone does not grant access: the first person on an empty
-installation needs the installer's approval, and after that each company decides who may join.
+## Join through an invitation
 
-## Passwords and company sign-in
+An Owner or Admin invites you from **Team & access**, and CapacityLens emails you the link. The link
+works once and expires after seven days. Ask for a new invitation if yours has expired; the Owner or
+Admin can also select **Resend**, which replaces the earlier link.
 
-![Sign-in screen with configured providers above the password form](../screenshots/company_sign_in_password.png)
+1. Open the link. The page shows the company and the role you were invited with.
+2. Enter your **Name** and choose a **Password**, then select **Accept invitation**. Your address is
+   the one the invitation was sent to.
+3. Select **Ask for access**. An Owner or Admin approves new people in **Team & access** under
+   **Waiting for approval**. Select **Check again** once they tell you it's done, and the company
+   opens with the role on your invitation. Nobody joins as Owner.
 
-In mixed mode (`password-and-sso`), each configured provider appears once, stacked above the password form
-with an **or use your password** divider between them. GitHub is an experimental extra option in
-this mode only. Provider-only sign-in shows no password form; password-only sign-in shows no
-provider area.
+An invitation creates a new sign-in. If your address already has one, sign in instead and ask the
+installer to record the invitation for that account with the `account-kit:admission:grant-invitation`
+operator command. CapacityLens never merges two sign-ins because their addresses match.
 
-First-Owner setup has its own field order. Microsoft setup, for example, asks for an email address
-before the provider step so it can run its mailbox proof.
+An invitation does not put you on the schedule. An Owner or Admin links your membership to a
+scheduled person after you join.
 
-When company login is required (`sso-only`), people must use Google or Microsoft. Passwords and GitHub, including
-older sessions, cannot satisfy it.
+## When you see a limited screen
 
-[Set up Google or Microsoft sign-in](/company-login/set-up-company-login) covers registration and
-server settings. [Require company sign-in](/company-login/move-to-single-sign-on) covers switching
-everyone to a provider.
+A signed-in person who cannot open the company yet sees only the next step:
 
-## Invitations and the first Owner
+- **Confirm your email address.** Select **Email me a confirmation link**, then open the link and
+  choose your password.
+- **Waiting for access.** Select **Ask for access** if you haven't, then wait for an Owner or Admin.
+- **Access refused.** An Owner or Admin declined or withdrew your access. Ask them if this is a
+  mistake.
+- **Join company.** You are approved but not yet a member, for example after the installer recorded
+  an invitation for an existing sign-in. Select **Join company** to join with the invited role, or
+  as a Viewer when none was recorded.
 
-On an empty installation, the installer can allow specific email addresses to create the first
-Google or Microsoft identity. That person follows [Set up your company](/owner/) to become its
-Owner. The allowance closes once the first identity exists.
+Approval, refusal and withdrawal take effect on your next request.
 
-After that, the Owner chooses **Who can join** in **Team & access**: **Invitation only** (the
-default), open registration, approved email domains, or approved domains plus invitations. An
-Admin can see the policy and ask the Owner to change it. Joining through a policy gives Viewer
-access; an addressed invitation can grant its chosen role. **Approved domains** match exactly, so
-`team.example.com` is not `example.com`.
-
-To join, open the company's joining link and choose a sign-in method. An existing password user
-signs in first, then selects **Join company**. The server admits only identities with current
-trusted email proof that meet the company's policy:
-
-- Password signup through an open or domain policy is not available.
-- When email delivery is enabled, a password user can choose **Email me a verification link** and
-  open it within 60 minutes while signed in to join through an open or approved-domain policy.
-- Microsoft may use its same-browser mailbox check when the address is not already proven.
-- An invitation must be addressed to the verified email.
-
-A company can disable someone's access even when its joining policy allows them.
-
-## Connect an existing account
-
-1. Sign in to your existing account and open **Account → Security**.
-2. Under **Company sign-in**, choose **Connect Google** or **Connect Microsoft**. You may be asked
-   to confirm it's you.
-3. Sign in at the provider with the same email address. Your local email must already be verified.
-
-Connecting keeps your memberships and work. CapacityLens never merges accounts because their email
-addresses match, and a provider identity already connected to someone else cannot be connected
-again.
-
-Microsoft may send a one-time link to prove you control the mailbox. Open it in the same browser
-within 15 minutes, then select **Confirm and continue**. Returning Microsoft sign-in uses the saved
-identity and does not repeat the check.
-[Microsoft mailbox proof](/company-login/set-up-company-login#microsoft-mailbox-proof) covers what
-to do when the email does not arrive or the link expires.
-
-### If connecting fails
-
-- **You cancel Confirm it's you.** No connection starts.
-- **Confirmation cannot refresh your session.** Sign out, sign in again and retry.
-- **Your local email is unverified.** There is no email-correction button in Account, and the
-  joining verification link does not verify your local email. Ask your installer. They confirm you
-  own the mailbox, and an Owner or Admin then runs the repair in
-  [Connect existing accounts](/company-login/move-to-single-sign-on#connect-existing-accounts). The
-  repair signs you out everywhere, so sign in again before retrying.
-
-## Sessions and sensitive actions
+## Passwords and sessions
 
 <span id="sessions-and-staying-signed-in"></span>
 
-A session lasts at most twelve hours from sign-in; activity does not extend it. Thirty minutes
-without activity also signs you out.
+You stay signed in until fourteen days pass without activity, or until you sign out. Changing your
+password in **Account**, or resetting it, signs you out everywhere, including the
+browser you used. Sign in again with the new password.
 
-These actions ask you to confirm your identity again when needed: connecting or repairing a
-company identity, transferring ownership, resetting another member's password, revoking another
-member's sessions, deleting a company, and importing or purging company data. Invitations, role
-changes and removing members need only the right role.
+Select **Forgot password?** on the sign-in page to receive a reset link by email. Owners and Admins
+cannot reset another member's password or end their sessions from the product; the installer's
+operator commands cover a locked-out person.
 
-If confirming through Google or Microsoft takes you away from the page, return and submit the
-action again. Confirming does not apply the original change.
+Transferring ownership, importing company data and anonymising every person in the company ask for
+your password again for each action. Other administration needs only the right role.
 
-## Multi-factor sign-in at your provider
-
-CapacityLens has no local MFA. If your agency requires MFA, set it up at Google or Microsoft.
-Enabling company sign-in does not turn it on, and CapacityLens cannot see or enforce the
-provider's policy or tell whether a challenge happened. Test the policy, its recovery path and
-session behaviour before relying on it.
+Invitations, address confirmation and password resets are emailed, so they need the server's email
+delivery. Without it, CapacityLens says so instead of sending.
 
 ## When someone leaves
 
-1. Disable their work account at the provider.
-2. In **Team & access**, remove their membership or select **Disable Access**.
-3. Select **Revoke sessions** to end their existing CapacityLens sessions across all their
-   companies. This needs the corresponding authority. Disabling them at the provider does not end
-   those sessions.
-
-In mixed mode, a verified GitHub sign-in is also bound by a **Disable Access** restriction on the
-selected address.
-
-## If someone returns with a new sign-in
-
-A **Disable Access** restriction follows a new sign-in with the same address only when both
-identities proved mailbox ownership, through verified company sign-in or a completed mailbox check.
-An invitation or an older "email verified" flag does not count. An established Microsoft sign-in
-keeps its stable identity, but a returning sign-in does not add mailbox proof to an older identity
-without it. An Owner or Admin can still manage the original restriction from **No longer active**
-in **Team & access**.
+In **Team & access**, remove their membership or select **Disable Access**. They lose company access
+on their next request. Neither can rejoin until an Owner or Admin selects **Enable Access** under
+**No longer active**; a removed person returns with the role they held when removed.

@@ -16,7 +16,7 @@ who else is busy. You don't need to install or set up anything.
 
 Before you start:
 
-- The invitation page offers the ways your company signs in: a password, Google or Microsoft.
+- You choose a password when you accept the invitation, then an Owner or Admin approves you.
 - If the link has expired, ask whoever sent it for a new one.
 - CapacityLens is built for a computer screen. It opens on a phone, but isn't designed for
   scheduling there.

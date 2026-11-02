@@ -68,7 +68,7 @@ For one person's absence, [record time off](/using/time-off#record-time-off).
 
 <span id="owner-and-operator-handoffs"></span>
 
-Ask the Owner to transfer ownership, delete the company or import scheduling data. Ask the installer
+Ask the Owner to transfer ownership, anonymise the company or import scheduling data. Ask the installer
 about backups, upgrades and company-login setup. When something goes wrong, copy a report
 from [Diagnostics](/admin/diagnostics).
 

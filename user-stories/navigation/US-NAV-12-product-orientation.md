@@ -1,11 +1,11 @@
 # US-NAV-12 — See a concise explanation of how CapacityLens works
 
-**Area:** Navigation & shell · **Persona:** Anyone entering a company or the personal Account page · **Linked coverage:** `src/components/ProductOrientation.test.tsx`, `src/components/AppShell.productOrientation.test.tsx`, `src/lib/productOrientation.test.ts`, `e2e/fake-signin.spec.ts`
+**Area:** Navigation & shell · **Persona:** Anyone entering a company or the personal Account page · **Linked coverage:** `apps/frontend/src/components/ProductOrientation.test.tsx`, `apps/frontend/src/components/AppShell.productOrientation.test.tsx`, `apps/frontend/src/lib/productOrientation.test.ts`, `e2e/product-orientation.spec.ts`
 
 **Documentation:** [What is CapacityLens?](../../docs-src/getting-started/what-is-capacitylens.md), [Editor journey](../../docs-src/using/editor.md), [Viewer journey](../../docs-src/using/viewer.md)
 
-**Sources:** `src/components/ProductOrientation.tsx`, `src/components/useProductOrientation.ts`,
-`src/lib/productOrientation.ts`, `src/components/AppShell.tsx`, `src/components/AppSidebar.tsx`
+**Sources:** `apps/frontend/src/components/ProductOrientation.tsx`, `apps/frontend/src/components/useProductOrientation.ts`,
+`apps/frontend/src/lib/productOrientation.ts`, `apps/frontend/src/components/AppShell.tsx`, `apps/frontend/src/components/AppSidebar.tsx`
 
 ## Goal
 
@@ -23,15 +23,16 @@ schedule, navigation and account recovery paths usable.
 **Precondition:** Start from a clean browser profile or remove the current product-orientation
 dismissal keys from local storage.
 
-1. Open CapacityLens, complete the demo sign-in if it appears, and choose **Wayne Enterprises**.
+1. Open the demo and choose **Wayne Enterprises** from its company picker.
 2. The application opens normally. A region headed **How CapacityLens works** appears above the
    page and explains the week-by-week view, rows and scheduled work, and the product boundary.
    The Schedule link and page remain available while it is visible.
 3. Click **Got it**. The region closes without changing page.
 4. Reload and choose the same company. The explanation stays closed for this person, company and
    device.
-5. The explanation has no sidebar action. It appears automatically on eligible entry and can be
-   dismissed with **Got it** while the rest of the application remains usable.
+5. The explanation stays dismissed on reload for this person, company and device. Choose
+   **How CapacityLens works** in the sidebar to reopen it; focus moves to its heading. Dismiss it
+   again with **Got it** and focus returns to the sidebar trigger.
 6. Repeat from the personal **Account** page with no active company. The same explanation remains
    available and its dismissal is stored independently from company dismissals.
 
@@ -47,5 +48,6 @@ dismissal keys from local storage.
   of company data or an export. The no-company state has its own stable scope.
 - A storage failure does not block the application: the region stays dismissed for the current
   mount and can return on a later load.
-- The explanation has no product-orientation sidebar action in expanded, collapsed or mobile
-  navigation. Automatic background state changes do not steal focus repeatedly.
+- Eligible new users see the region automatically until they dismiss it. The **How CapacityLens
+  works** sidebar action reopens it after dismissal and focuses its heading; dismissing it returns
+  focus to the trigger. Automatic background state changes do not repeatedly steal focus.

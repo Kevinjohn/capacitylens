@@ -39,7 +39,7 @@ settings, off by default. Early users treated activities as a task list: one com
 - **Narrowing availability keeps bookings.** If you reduce someone's hours, their bookings stay put
   and show as over capacity.
 - **One date format for the company.** The date format is a company setting, not a personal one.
-- **Offline is read-only.** Offline access is opt-in per device, keeps a snapshot for up to seven
-  days and never queues edits.
+- **The server owns the schedule.** A connection is required. Failed requests stay visible;
+  browser persistence never substitutes for a server response and edits are never queued.
 
 Next: [How it compares](/getting-started/how-it-compares) — where another tool fits better.

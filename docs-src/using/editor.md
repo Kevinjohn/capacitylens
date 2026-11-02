@@ -8,8 +8,8 @@ next: false
 # Plan work as an Editor
 
 Keep the team's plan up to date: bookings, resources, time off, clients, projects, activities and
-ordinary company settings. Admins and Owners manage membership. Only the Owner decides who can
-join, imports data, transfers ownership or deletes the company.
+ordinary company settings. Admins and Owners manage membership and decide who can join. Only the
+Owner imports data, transfers ownership or anonymises all people.
 
 ![Schedule showing existing bookings, time off, utilisation and the controls for adding work](../screenshots/flows/editor_schedule_current.jpg)
 
@@ -20,8 +20,8 @@ join, imports data, transfers ownership or deletes the company.
 ![Team & access identifying the Editor role and its restrictions](../screenshots/flows/editor_access_current.jpg)
 
 Open **Team & access** near the bottom of the menu and check your role. If it says Viewer, ask an
-Owner or Admin for Editor access. If you belong to several companies, use **Switch company** to
-choose the plan you mean to change; your role can differ in each.
+Owner or Admin for Editor access. If the installation reports more than one stored company, ask
+the installer to resolve it before continuing.
 
 Signing in alone doesn't make you a member: follow [Join your team](/using/join-your-team) with
 the address you were invited on. Being on the schedule doesn't give someone a sign-in, either.
@@ -50,8 +50,14 @@ activity from the booking form.
 [Resources](/using/resources), [Disciplines](/using/disciplines),
 [Clients and projects](/using/projects) and [Activities](/using/activities) explain the forms,
 privacy and placeholders.
-[Archive or delete a client or project](/using/projects#archive-or-delete-a-client-or-project)
+[Archive or restore a client or project](/using/projects#archive-or-restore-a-client-or-project)
 explains what happens to their bookings.
+
+![Editor Resources view with a name-only archived Barbara Gordon row and Restore](../screenshots/flows/editor_archive_restore.jpg)
+
+Editors can restore eligible records from the inline archive, which shows only the identity details
+needed to choose a record. Admins have the fuller inactive-data view. Use the Restore action on the
+matching archived item; restored records keep their existing planning links.
 
 ## Book work
 
@@ -117,10 +123,3 @@ was saved. [Day-to-day FAQ](/using/faq) covers connection messages.
 ### Why do I see a code name instead of a client's name?
 
 Only the Owner sees confidential real names, whatever your role. Use the code name.
-
-<span id="i-am-using-an-offline-snapshot"></span>
-
-### Can I make changes from an offline snapshot?
-
-The snapshot is read-only, even for an Editor. Edits are never queued for later. Reconnect before
-changing work. [Offline access](/using/settings#offline-access) explains the seven-day limit.

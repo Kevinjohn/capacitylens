@@ -7,56 +7,53 @@ description: The whole setup on one page, for the person doing all of it. Instal
 
 <span id="get-started-quickly"></span>
 
-At a small agency, one person often installs CapacityLens, owns the company and sets the
-work. This page is that whole route, from download to a booking on screen. Each step links
-to the guide with the detail.
+Whoever manages your hosting installs CapacityLens. The company Owner then names the company
+and prepares the schedule, or hands that work to an Admin. One person may hold these roles;
+hosting maintenance still needs someone with the technical skills.
 
 ## Install it
 
-You need a server with Node 24 and a hostname pointing at it. On a managed host such as Forge
-you never open a terminal.
+You need a server with Node 24, a hostname and an HTTPS proxy on the same machine. Managed hosts
+may provide controls for these steps; check that they support the required process and storage.
 
 <div class="steps">
 
 1. **Download** the release archive from the
    [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 
-2. **Pick a folder** for the data. The database file is created there on first start.
+2. **Pick a folder** for the data. The database upgrade initializes its SQLite file there.
 
-3. **Configure** with one command. It prints your settings, with the secrets and a one-time
-   setup token generated for you:
+3. **Configure** the private environment file from the archive's example. Fill in the public
+   HTTPS address, database path, application key, account secret and email delivery settings.
+   Follow the [native installation guide](/self-hosting/install-without-docker) for the exact commands.
 
-   ```bash
-   node server/dist/index.mjs init --public-url https://capacity.example.com --db /var/lib/capacitylens/capacitylens.db
-   ```
+4. **Start it** after the initial database upgrade, as a background process with HTTPS at the
+   same-machine proxy. The [installation guide](/self-hosting/install-without-docker#_4-upgrade-the-database-and-start-the-service)
+   gives the exact upgrade and service commands.
 
-4. **Start it** as a background process, with HTTPS in front.
-
-5. **Open the address.**
+5. **Print the setup link** for the Owner's email address. The
+   [installation guide](/self-hosting/install-without-docker) gives the command.
 
 </div>
 
 [Install CapacityLens](/self-hosting/install) has the exact commands for a managed host and
 for your own Linux server.
 
-## Create your company
+## Access a company
 
 <div class="steps">
 
-1. ![Owner sign-in setup form with name, email, Create a password and Owner setup token fields and Create my sign-in](../screenshots/steps/owner_setup_sign_in_form.png)
+1. ![Accept invite page for Company setup with Name and Password fields and Accept invitation](../screenshots/steps/owner_setup_sign_in_form.png)
 
-   **Sign in.** Enter your name, email and a password, and paste the setup token from step 3.
-   Select **Create my sign-in**.
+   **Sign in.** Open the setup link the installer printed for you. Enter your name and a password
+   and select **Accept invitation**.
 
-2. ![Company form with Company name, Week starts on, Timezone, Language, Start with example data ticked and Create company](../screenshots/steps/owner_create_company_form.png)
-
-   **Create the company.** Name it and choose the day your week starts and your time zone. These
-   two **cannot be changed later**. Clear **Start with example data** if you'd rather start
-   empty. Select **Create company**.
+2. **Create the company.** On **Set up your company**, enter **Company name** and select
+   **Create company**. Schedule opens with you as Owner; no server restart is needed.
 
 </div>
 
-[Set up your company](/owner/) covers company login and what stays with the Owner.
+[Access your company](/owner/) covers first-company setup.
 
 ## Make the schedule yours
 

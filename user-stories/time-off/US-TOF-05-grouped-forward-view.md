@@ -1,6 +1,6 @@
 # US-TOF-05 — Scan current and future time off by resource
 
-**Area:** Time off · **Persona:** Studio manager · **Linked automated coverage:** `src/components/timeoff/timeOffView.test.ts` (grouping and ordering), `src/components/timeoff/TimeOffList.test.tsx` and `src/components/timeoff/CompanyClosureSection.test.tsx` (mounted company-week rollover, account settings, placeholders, lifecycle and permissions), `e2e/timeoff.spec.ts` → "groups current and future entries by resource"
+**Area:** Time off · **Persona:** Studio manager · **Linked automated coverage:** `apps/frontend/src/components/timeoff/timeOffView.test.ts` (grouping and ordering), `apps/frontend/src/components/timeoff/TimeOffList.test.tsx` and `apps/frontend/src/components/timeoff/CompanyClosureSection.test.tsx` (mounted company-week rollover, account settings, placeholders, lifecycle and permissions), `e2e/timeoff.spec.ts` → "groups current and future entries by resource"
 
 ## Goal
 
@@ -40,5 +40,5 @@ See [Review current and upcoming time off](../../docs-src/using/time-off.md#revi
   shown safely in a final **(unknown)** section. Time off beneath an archived resource remains hidden.
 - ✅ Empty sections explain their purpose. **Add closure** and **Add time off** appear once each,
   beside their section headings, including when no entries remain in the forward view.
-- ✅ Each row keeps its date-specific Edit/Delete accessible name. Editing, deleting, confirmation,
-  Undo and role-based mutation visibility target the correct underlying entry after sorting.
+- ✅ Each row keeps its date-specific Edit/Delete accessible name. Editing, deleting, confirmation
+  and role-based mutation visibility target the correct underlying entry after sorting.

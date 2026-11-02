@@ -20,12 +20,14 @@ Yes. Add them in Resources and don't invite them.
 
 ## Can I get an invitation link back?
 
-No. Revoke it under **Outstanding invites** in **Team & access** and create a new one.
+No. CapacityLens only emails it. Select **Resend** under **Outstanding invites** in **Team & access**
+to email a fresh link.
 
-## Why does a Resource link need attention?
+## Someone accepted, but they still can't see the schedule
 
-The person proposed in the invitation was linked elsewhere or no longer available when it was
-accepted. Select **Choose another person** or **Dismiss** on the member's row.
+Check **Waiting for approval** in **Team & access** and select **Approve**. If they are not listed,
+ask them to select **Ask for access** on their screen.
+[Approve new people](/admin/invite-teammates#approve-new-people)
 
 ## Why is a Settings control disabled?
 
@@ -39,12 +41,7 @@ access** needs Admin or Owner.
 No. Week start and time zone are fixed when the company is created, and English is the only
 language. **Date format** in Settings changes how dates appear.
 
-## Why can't I change who can join?
+## Do I set up email or sign-in?
 
-Only the Owner can change the joining policy. Admins can see it and copy the joining link.
-[Review who can join](/admin/invite-teammates#review-who-can-join)
-
-## Do I set up company login?
-
-No. The installer configures the login provider; you invite members and check their access.
-[Company login](/company-login/)
+No. The installer sets up email delivery, which invitations need. Everyone signs in with a
+password. [Sign-in and access](/company-login/)

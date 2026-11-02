@@ -37,5 +37,6 @@ when the switch goes back on, so it never breaks a dataset that already has plac
 - The switch defaults to **off** (`aria-checked="false"`) — placeholders are hidden out of the box.
 - With it **off**: no placeholder row appears on the schedule (and a placeholder contributes nothing to per-discipline / overall utilisation), no placeholder option appears in the assignee picker or the ⌘K command palette, and the Resources page hides its **Placeholders** section and **Add placeholder** button. A dataset that already contains placeholders **hides** them — it never errors.
 - With it **on**: a placeholder shows the literal name **"Placeholder"** with a **"?"** avatar (its role/discipline as secondary text); the assignee picker labels it **"Placeholder (slot)"**.
+- A placeholder bound to an archived or deleted project, or to a project whose client is archived or deleted, stays hidden with that project in active views and returns when the ancestor is restored.
 - Editing an allocation that already targets a placeholder keeps that placeholder selectable in the assignee picker even while the pref is off, so editing never silently reassigns the work.
 - The choice survives a reload (stored **per-account** as `placeholdersEnabled` on the Account, absent = off) and is carried in Export JSON like other account settings.

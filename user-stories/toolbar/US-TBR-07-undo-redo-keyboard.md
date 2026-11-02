@@ -21,6 +21,11 @@ Power users expect the standard keyboard undo/redo. But those keys must not stea
 
 ## Acceptance criteria
 
-- ✅ With focus outside any field, **⌘Z** undoes the last edit (the deleted bar returns) and **⌘⇧Z** redoes it (the bar disappears again).
+- ✅ With focus outside any field, **⌘Z** undoes the last booking change (the deleted bar returns) and **⌘⇧Z** redoes it (the bar disappears again).
 - ✅ While focus is in the **Search people…** text input, **⌘Z** is ignored at the app level — it does not undo a schedule change (it acts on the field's text instead).
-- ✅ The guard covers text **input** / **textarea** / contentEditable; after blurring the search box, **⌘Z** undoes app-level edits again.
+- ✅ The guard covers text **input** / **textarea** / contentEditable; after blurring the search box, **⌘Z** undoes booking changes again.
+- ✅ The shortcut uses the same page-local history as the toolbar for eligible acknowledged typed
+  planning changes. Imports and irreversible privacy actions have no inverse in that history.
+- ✅ An eligible acknowledged change remains undoable after a background refresh containing only its own acknowledged revisions; a genuine remote change clears the history to protect the other writer’s work.
+
+**Documentation:** [Undo and redo](../../docs-src/using/read-the-schedule.md).

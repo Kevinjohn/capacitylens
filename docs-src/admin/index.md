@@ -44,17 +44,18 @@ the Owner or installation guides.
    **Save**. Drag the bar to move it; **Undo** puts it back.
    [Make the first booking](/admin/first-booking)
 
-5. ![Invite someone dialog with Role set to Editor, an email address, Link to Resource set to Diana Prince and Create invite](../screenshots/steps/admin_invite_editor_dialog.png)
+5. ![Invite someone dialog with Role set to Editor, an email address and Create invite](../screenshots/steps/admin_invite_editor_dialog.png)
 
    **Invite the team.** Open **Team & access** and select **Invite someone**. Choose a role,
-   enter their email and pick their row under **Link to Resource**, so their own work is waiting
-   for them. Select **Create invite**. [Invite teammates](/admin/invite-teammates)
+   enter their email and select **Create invite**. Once they accept, approve them under **Waiting
+   for approval** and link them to their row. [Invite teammates](/admin/invite-teammates)
 
 </div>
 
 The **Getting started** checklist on Schedule ticks off steps 2 to 4 as you go, in any order.
 If the Owner kept the example data, those steps may already be done. The example records are
-ordinary: delete them from Resources, Clients and Projects when you no longer need them.
+ordinary editable records: archive them from Resources, Clients and Projects when you no longer
+need them. Archived rows remain stored and can be restored from their archived section.
 
 ## Who gets which role
 

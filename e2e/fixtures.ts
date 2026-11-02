@@ -1,16 +1,40 @@
-import { expect, test as base } from "@playwright/test";
-import type { APIRequestContext, BrowserContext, BrowserContextOptions, Locator, Page } from "@playwright/test";
+import { expect, test as base } from '@playwright/test';
+import type {
+  APIRequestContext,
+  BrowserContext,
+  BrowserContextOptions,
+  Locator,
+  Page,
+} from '@playwright/test';
+import { clearAuthE2ECompanies, waitForAuthE2EBaseline } from './authTestSupport';
 
 export { expect, type APIRequestContext, type Locator, type Page };
 
 type PageErrorObserver = { observePage: (page: Page) => void };
 type CapacityLensFixtures = {
+  authCompanyIsolation: void;
   newObservedContext: (options?: BrowserContextOptions) => Promise<BrowserContext>;
   pageErrorObserver: PageErrorObserver;
 };
 
 /** Every browser spec fails if application code raises on any page registered with the fixture. */
 export const test = base.extend<CapacityLensFixtures>({
+  authCompanyIsolation: [
+    // Playwright requires a destructuring pattern for an automatic fixture with no inputs.
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, use, testInfo) => {
+      if (testInfo.project.name === 'auth-backed') {
+        await waitForAuthE2EBaseline();
+        clearAuthE2ECompanies();
+      }
+      try {
+        await use();
+      } finally {
+        if (testInfo.project.name === 'auth-backed') clearAuthE2ECompanies();
+      }
+    },
+    { auto: true },
+  ],
   pageErrorObserver: [
     // Playwright requires a destructuring pattern even when an automatic fixture has no inputs.
     // eslint-disable-next-line no-empty-pattern
@@ -21,13 +45,17 @@ export const test = base.extend<CapacityLensFixtures>({
       const observePage = (page: Page) => {
         if (observedPages.has(page)) return;
         observedPages.add(page);
-        page.on("pageerror", recordError);
+        page.on('pageerror', recordError);
       };
       await use({ observePage });
-      observedPages.forEach((page) => page.off("pageerror", recordError));
+      observedPages.forEach((page) => page.off('pageerror', recordError));
       if (errors.length > 0) {
-        const details = errors.map((error, index) => `${index + 1}. ${error.stack ?? error.message}`).join("\n\n");
-        throw new Error(`Uncaught browser exception${errors.length === 1 ? "" : "s"}:\n\n${details}`);
+        const details = errors
+          .map((error, index) => `${index + 1}. ${error.stack ?? error.message}`)
+          .join('\n\n');
+        throw new Error(
+          `Uncaught browser exception${errors.length === 1 ? '' : 's'}:\n\n${details}`,
+        );
       }
     },
     { auto: true },
@@ -35,11 +63,11 @@ export const test = base.extend<CapacityLensFixtures>({
   context: async ({ context, pageErrorObserver }, use) => {
     const observePage = pageErrorObserver.observePage;
     context.pages().forEach(observePage);
-    context.on("page", observePage);
+    context.on('page', observePage);
     try {
       await use(context);
     } finally {
-      context.off("page", observePage);
+      context.off('page', observePage);
     }
   },
   newObservedContext: async ({ browser, pageErrorObserver }, use) => {
@@ -49,11 +77,11 @@ export const test = base.extend<CapacityLensFixtures>({
       const context = await browser.newContext(options);
       const observePage = pageErrorObserver.observePage;
       context.pages().forEach(observePage);
-      context.on("page", observePage);
+      context.on('page', observePage);
       contexts.add(context);
       listeners.set(context, observePage);
       return context;
     });
-    contexts.forEach((context) => context.off("page", listeners.get(context)!));
+    contexts.forEach((context) => context.off('page', listeners.get(context)!));
   },
 });

@@ -3,8 +3,10 @@
 **Who's free next week?**
 
 <a href="docs-src/screenshots/demo.mp4">
-  <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is dragged to a colleague with room, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
+  <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is reassigned to a colleague, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
 </a>
+
+Illustrative October 2026 walkthrough with fictional data. Dates and sample bookings in the current demo vary; check each person’s capacity indicators when moving work.
 
 Every small agency answers that question badly. It lives in someone's head, a colour-coded
 spreadsheet, or a group chat at 5pm on a Friday. So work gets promised to people who are already
@@ -21,11 +23,11 @@ own server, and the only cost is that server
 
 ## Get started
 
-**Installing it?** Install it (five short steps, about ten minutes on a host that already runs
-Node 24), add HTTPS, check backups and hand over:
+**Manage the hosting?** Install it in five steps on a host that runs Node 24, ending with
+opening the address. You manage HTTPS, backups and upgrades:
 [install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/index.html).
 
-**Own the company?** Sign in with the setup token, create the company, invite an Admin:
+**Own the company?** Open the setup link, create the company, invite an Admin:
 [set up your company](https://kevinjohn.github.io/capacitylens/owner/index.html).
 
 **Set the work?** Add your people, clients and projects, then book the first work:
@@ -39,8 +41,9 @@ Doing all of it yourself? [The whole setup on one page](https://kevinjohn.github
 ## Try it in two minutes
 
 For people comfortable with a terminal: the demo runs on your computer with sample data and no
-sign-in, and needs the developer tools Node 24 and git. Drag things about, book time off, break
-something: changes reset when you reload. Everyone else: watch the walkthrough above instead.
+real sign-in, and needs the developer tools Node 24 and git. Its sample-account picker is cosmetic.
+Drag things about, book time off, break something: changes reset when you reload. Everyone else:
+watch the walkthrough above instead.
 
 ```bash
 corepack enable
@@ -48,8 +51,8 @@ pnpm install
 pnpm run dev:demo
 ```
 
-Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), select the sample
-sign-in on **Choose an account**, then pick a company on **Choose a company**.
+Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), then pick a company
+on **Choose a company**.
 
 ## What you get
 
@@ -60,7 +63,7 @@ sign-in on **Choose an account**, then pick a company on **Choose a company**.
 - **Time off in the same picture:** holidays, closures and each person's start and end dates sit
   beside the work.
 - **How full everyone is:** utilisation per person and across the weeks on screen.
-- **Offline, read-only:** an optional snapshot of the schedule on your device, kept for seven days.
+- **Server-owned scheduling:** a connection is required; failed requests show an error and retry controls.
 - **Your own server:** your data in one SQLite file you control, under AGPL-3.0.
 
 ## What it deliberately isn't
@@ -72,22 +75,20 @@ open Jira.
 There is no importer from spreadsheets or other tools: you enter your people, clients and projects
 in the app, and the JSON import only moves data between CapacityLens installations.
 
-## Install it in five steps
+## Install it
 
-Every release from 0.73.0-alpha.1 carries a server archive. You need Node 24.19.0 or newer within
-24.x and a hostname with HTTPS. Node 26.9.0 or newer within 26.x is
-[experimental](https://kevinjohn.github.io/capacitylens/reference/development.html#check-node-26-compatibility).
-
-1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
-2. **Pick a folder** for the database; its file is created there on first start.
-3. **Configure:** in the unpacked folder, run `node server/dist/index.mjs init --public-url <address> --db <file in step 2's folder>`. It prints the environment file with both secrets generated: paste it into your host's environment editor, or add `--out /etc/capacitylens.env` to write the file.
-4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
-5. **Open the address** and check the first-Owner screen loads. If you are also the Owner, [set up your company](https://kevinjohn.github.io/capacitylens/owner/index.html) with the setup token from step 3; otherwise send the address, and the setup token separately and privately, to the Owner.
-
-[Install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/install.html) has the commands for a managed host or a
-Linux host; [Docker](https://kevinjohn.github.io/capacitylens/self-hosting/install-with-docker.html) is another route. Sign-in is by
-password, with Google Workspace and Microsoft Entra ID as
-[company login](https://kevinjohn.github.io/capacitylens/company-login/index.html) options.
+CapacityLens is currently supplied as a native Node.js release archive. Follow the
+[installation guide](https://kevinjohn.github.io/capacitylens/self-hosting/install.html), then
+configure HTTPS at a proxy on the same machine. Whoever manages your hosting handles ongoing
+maintenance. The operator guides cover
+[configuration](https://kevinjohn.github.io/capacitylens/self-hosting/configuration.html),
+[backups](https://kevinjohn.github.io/capacitylens/self-hosting/backups-and-restore.html),
+[upgrades](https://kevinjohn.github.io/capacitylens/self-hosting/upgrades.html) and
+[monitoring](https://kevinjohn.github.io/capacitylens/self-hosting/monitoring.html). Docker
+support remains optional. Proxies in separate containers or on separate machines are not yet
+supported; use the native same-machine proxy setup for the first release. Sign-in is by password,
+and invitations and password resets need email delivery. See
+[sign-in and access](https://kevinjohn.github.io/capacitylens/company-login/index.html).
 
 ## Documentation
 
@@ -99,9 +100,8 @@ is the one-page introduction.
 ## Project status
 
 CapacityLens is alpha software with a single maintainer. Beta will mean the upgrade path and the
-settings are stable. Database upgrades are tested from thirteen released database
-snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release or any later one
-is expected to upgrade in place.
+settings are stable. The database schema starts from one forward-only baseline migration;
+`app:upgrade` backs up an existing database before running pending migrations.
 [Before you adopt](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html#before-you-adopt)
 covers status, getting your data out and support. See
 [how it is tested](docs-src/reference/how-it-is-tested.md) and the
@@ -109,9 +109,8 @@ covers status, getting your data out and support. See
 
 ## Contributing
 
-React, TypeScript and Vite in the browser; Fastify and Better Auth over Node's built-in SQLite on
-the server; a shared TypeScript domain in `shared/` for the scheduling rules. Start with
-[CONTRIBUTING.md](CONTRIBUTING.md), then the [development guide](docs-src/reference/development.md#checks)
+React, TypeScript and Vite in the browser; AdonisJS and Lucid over SQLite on the server; a shared
+TypeScript domain package for the scheduling rules. Start with [CONTRIBUTING.md](CONTRIBUTING.md)
 and the [standing decisions](DECISIONS.md).
 
 [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·
@@ -125,8 +124,8 @@ CapacityLens is [AGPL-3.0-only](LICENSE). Product names and logos are handled se
 [TRADEMARKS.md](TRADEMARKS.md).
 
 [![gate](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate.yml)
-[![E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml)
-[![test coverage](https://codecov.io/gh/Kevinjohn/capacitylens/graph/badge.svg?branch=main)](https://codecov.io/gh/Kevinjohn/capacitylens)
+[![E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml)
+[![test coverage](https://codecov.io/gh/Kevinjohn/capacitylens/graph/badge.svg)](https://codecov.io/gh/Kevinjohn/capacitylens)
 [![CodeQL](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kevinjohn/capacitylens/badge)](https://scorecard.dev/viewer/?uri=github.com/Kevinjohn/capacitylens)
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/14555/baseline)](https://www.bestpractices.dev/projects/14555)

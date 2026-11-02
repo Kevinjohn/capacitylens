@@ -50,7 +50,7 @@ Overview's columns, and leaves the table as it was.
 
 ## Look further ahead
 
-![Overview with twelve week columns, weekly totals and the Load curve display](../screenshots/flows/using_overview_2.png)
+![Overview with 12 weeks selected in Load curve mode and tentative work visible](../screenshots/flows/using_overview_2.png)
 
 Choose **8 weeks** or **12 weeks** to add more weeks, and scroll across to reach them. Weeks follow
 the company's Monday or Sunday start, and each heading shows its dates. The subtitle under the

@@ -1,0 +1,38 @@
+import type { ReactNode } from 'react';
+import { cn } from '@/lib/cn';
+
+interface TogglePillProps {
+  pressed: boolean;
+  onPressedChange: (pressed: boolean) => void;
+  children: ReactNode;
+  /** Optional swatch rendered before the label, such as the tentative hatch. */
+  swatch?: ReactNode;
+  className?: string;
+}
+
+/** A boolean toggle pill keeps selection distinct through its paired fill and text tokens. */
+export function TogglePill({
+  pressed,
+  onPressedChange,
+  children,
+  swatch,
+  className,
+}: TogglePillProps) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      data-state={pressed ? 'on' : 'off'}
+      onClick={() => onPressedChange(!pressed)}
+      className={cn(
+        'inline-flex cursor-pointer items-center gap-[7px] rounded-[9px] border border-line px-[11px] py-[7px] text-[12.5px] font-medium leading-4 whitespace-nowrap transition-colors outline-none',
+        'hover:border-faint focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        pressed ? 'bg-brand-soft text-brand-soft-ink' : 'bg-surface text-muted-foreground',
+        className,
+      )}
+    >
+      {swatch}
+      {children}
+    </button>
+  );
+}

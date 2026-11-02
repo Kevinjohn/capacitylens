@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Adjust your own display preferences, then find the company-wide switches, offline access and data controls on the same page.
+description: Adjust your own display preferences, then find the company-wide switches and data controls on the same page.
 prev: false
 next: false
 ---
@@ -10,7 +10,7 @@ next: false
 Choose how the schedule looks in your browser, and set the planning rules your whole company
 shares.
 
-![Settings showing My display and this-browser preferences](../screenshots/flows/using_settings_1.png)
+![Settings showing company setup, scheduling features and My display preferences](../screenshots/flows/using_settings_1.png)
 
 Open **Settings** near the bottom of the left menu. One scrollable page holds four groups. Each
 row's question-mark button, **About &lt;section&gt;**, opens a fuller explanation.
@@ -20,7 +20,7 @@ row's question-mark button, **About &lt;section&gt;**, opens a fuller explanatio
 | My display          | Only you, in this browser. Everyone can change it.                                                                     |
 | Company setup       | Everyone. Editors and above change units, working days and date format; only Owners and Admins change Overview access. |
 | Scheduling features | Everyone. Editors and above change the **Company features** switches. A Viewer sees them disabled.                     |
-| Data and support    | Example data, import and export, offline access and company details. Actions depend on your role.                      |
+| Data and support    | Example data, import and export, resource anonymisation and company details. Actions depend on your role. |
 
 ![Settings with the Company setup group, full-width choices and compact rows](../screenshots/flows/settings_overview.png)
 
@@ -32,7 +32,7 @@ managing the plan.
 These preferences are saved in this browser. They don't change a teammate's display or travel
 with an export.
 
-![The My display group with Schedule on this device, allocation labels, utilisation figures and appearance preferences](../screenshots/flows/settings_schedule_device.png)
+![Settings showing company setup and scheduling features above My display preferences](../screenshots/flows/settings_schedule_device.png)
 
 - **Schedule on this device:** **Minimise weekends** narrows Saturday and Sunday so the working
   week gets more room. Weekend work still appears.
@@ -77,16 +77,18 @@ booking ignores working days.
 
 Choose how planning dates read for everyone: **9 Sep**, **9th Sep**, **Sep 9** or **Sep 9th**.
 It applies to dates and ranges across the app, including Schedule and Time off, and takes effect
-without a reload. You can undo it.
+without a reload.
+Saved company setting changes, including date format, can be undone and redone in the current page
+session. Reloading starts a new history; the saved setting remains shared by the company.
 
 - Compact weekday dates on Time off always keep the ordinal: with **9 Sep**, a Wednesday reads
   **Wed 9th Sep**.
 - A range crossing a year shows the year at both ends, except in Overview's narrow week headings.
-- The date format is not in the JSON from **Import and export**, and an import keeps the
-  destination company's format.
+- The date format is in the beta JSON from **Import and export**. Importing a full document
+  replaces the destination company's date format along with its other supported settings.
 
-Times tied to an event, such as session and invitation expiry, ownership-transfer deadlines and
-the offline banner's last-updated time, use your browser's language and time zone instead.
+Times tied to an event, such as session and invitation expiry and ownership-transfer deadlines,
+use your browser's language and time zone instead.
 
 ### Overview access
 
@@ -96,7 +98,7 @@ Owners and Admins can open it. Only an Owner or Admin can change it.
 
 ## Scheduling features
 
-The **Company features** section holds the company-wide switches. **Use disciplines** starts on;
+The **Company features** section holds the company-wide switches. New production companies start with **Use disciplines** off;
 the others start off. Turning a switch off hides the feature without deleting data, and turning
 it back on restores it.
 
@@ -137,38 +139,18 @@ tasks without deleting them.
 What you can do here depends on your role. Archived items are restored from their own
 Resources, Clients, Projects or Activities page, not from Settings.
 
-### Offline access
+### Connection errors
 
-Offline access lets you read the schedule on a train or a flaky connection. It is off by default
-and turned on per device.
-
-1. Sign in on the device you want to use offline.
-2. Open **Settings** and turn on **Make this device available offline** under **Offline access**.
-
-CapacityLens then keeps a copy of the last company you opened, on that device only. If a request
-can't reach the server at all, it shows that [snapshot](/reference/glossary#snapshot-offline) with a banner saying
-the data is cached.
-
-- The snapshot is read-only. While it is shown, nobody can create, edit, delete, import or change
-  membership, whatever their role. Nothing is queued to apply later.
-- It lasts seven days. After that it is gone and you need a connection. A company you haven't
-  opened within that time isn't available offline.
-- It refreshes when you load the schedule online. If the server answers with an error or is too
-  slow, you get a retry screen rather than old data.
-
-Turning the setting off, or signing out, clears the snapshot from that device.
-
-::: warning
-Don't turn on offline access on a shared or borrowed device. The snapshot is encrypted on disk,
-but anyone using the browser while you're signed in can see it in the app.
-:::
+CapacityLens needs a server connection to read and save the company schedule. If a request fails,
+use the retry or recovery control offered after reconnecting. A visible edit is not proof that it
+was saved. The app never replaces a failed read with a browser snapshot or queues changes for later.
 
 ### Example data
 
 Owners and Admins see **Example data** only while the company has no people, clients, projects or
 bookings. **Add example data** adds two people, a client, a project and a few bookings across
-this week and next. They are ordinary records; delete them like any others. The request is refused
-if the company already holds any of these, including archived or deleted ones.
+this week and next. They are ordinary records that can be archived. The request is refused
+if the company already holds any of these, including archived ones.
 
 <!-- Compatibility anchor for existing links to import and export. -->
 
@@ -179,10 +161,43 @@ if the company already holds any of these, including archived or deleted ones.
 **Export JSON** downloads the current company's scheduling records. **Import JSON** replaces those
 records after you confirm; in signed-in server deployments, only an Owner can import.
 
-Files must be valid UTF-8 JSON of at most 5 MiB. Invalid or ambiguous JSON is refused before
-anything is replaced. Recognised older record values may be repaired or skipped, and the skipped
-count is shown afterwards. The company's settings, including date format, and your browser
-preferences are not part of the file.
+The file must be a full `capacitylens-beta` version `1` export. It includes the company and its
+planning records, with their IDs and supported settings. It excludes members, sign-in details and
+browser preferences. A redacted export can be inspected but cannot replace company data. Invalid
+fields and missing links are refused rather than repaired.
+
+Choose a file and select **Continue** to preview it without changing anything. Review the company
+and record count, then select **Replace data**. In a signed-in installation, confirm this exact
+import with your password. A recent sign-in alone is not enough. The confirmation is bound to this
+file and company. Cancel leaves the company unchanged. If the company changed since the preview,
+preview again before retrying.
+
+### Beta transfer contract {#beta-transfer-contract}
+
+Import replaces the selected company's scheduling records and supported settings atomically. It
+keeps scheduling IDs in the file and existing member-to-person links, which means every linked person
+must still be present. Another company's data stays in place. An import cannot be undone. Export
+before replacing data if you may need the current version. The temporary demo performs the same
+strict file checks in page memory and refuses scheduling IDs already used by another demo
+company; refreshing restores the demo seed.
+
+A full beta export also restores into a fresh installation. Create its Owner and company first,
+then import the unchanged file while signed in as that Owner. The company ID and every row's
+company scope bind to the selected destination; scheduling IDs and relationships stay unchanged.
+The imported company name and settings replace the setup values. Destination members and sign-in
+records remain in place; invite other people again and link members to imported people as needed.
+A file whose scheduling IDs are already used by another company on the same installation is
+refused before anything changes.
+See [Install without Docker](/self-hosting/install-without-docker) for the fresh setup steps.
+
+### Anonymise all people
+
+An Owner can select **Anonymise all people** to remove personal details and dependent booking and
+time-off notes across the company, including placeholders and external people. Clients, projects
+and activities stay unchanged. The company,
+its members and planning links remain. This cannot be undone. A signed-in Owner confirms the exact
+action with their password. In the editable demo, the same change stays
+in temporary page memory and does not require sign-in. Refreshing resets the demo.
 
 ### Company details {#calendar}
 
@@ -193,16 +208,16 @@ created and cannot be changed.
 Owners and Admins can copy build details and a support report from
 [Diagnostics](/admin/diagnostics).
 
-![Appearance preferences above Data and support, with Import and export closed](../screenshots/flows/settings_account_disclosures.png)
+![Data and support with company anonymisation, Import and export closed, and company details](../screenshots/flows/settings_account_disclosures.png)
 
 ## Change your sign-in or password
 
 <span id="your-personal-account"></span>
 
-Your sign-in, password, company login and **Sign out** are on the [Account](/using/account) page
-at the bottom of the left menu, not in Settings.
+Your signed-in identity, password controls and **Sign out** are on the
+[Account](/using/account) page at the bottom of the left menu, not in Settings.
 
 ## If a company won't load
 
 If a selected company can't be loaded, a recovery screen hides the previous company's data.
-Select **Retry** to load it again, or choose another company.
+Select **Retry** to load it again. The temporary demo also offers a return to its company picker.

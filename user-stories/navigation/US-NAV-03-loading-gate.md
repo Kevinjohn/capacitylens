@@ -1,6 +1,6 @@
 # US-NAV-03 — Content is gated on hydration
 
-**Area:** Navigation & shell · **Persona:** User · **Coverage:** `src/components/AppShell.test.tsx`
+**Area:** Navigation & shell · **Persona:** User · **Coverage:** `apps/frontend/src/components/AppShell.test.tsx`
 
 ## Goal
 

@@ -11,7 +11,6 @@
 
 # Version control / CI
 .git
-.gitignore
 .github
 
 # Local SQLite databases + WAL/SHM sidecars (the image must not bake in data)
@@ -53,7 +52,7 @@ code-reviews
 .issue-fix-state
 e2e
 **/*.test.*
-!shared/tsconfig.test.json
+!packages/shared/tsconfig.test.json
 **/*.spec.*
 .vscode
 .idea
@@ -63,3 +62,8 @@ e2e
 Dockerfile
 docker-compose.yml
 .dockerignore
+
+**/build
+**/.adonisjs
+production
+release

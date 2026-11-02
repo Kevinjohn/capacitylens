@@ -6,13 +6,14 @@
 
 ## Goal
 
-Reach every part of CapacityLens from the left sidebar, so each section's screen actually loads.
+Reach every part of CapacityLens using the sidebar as the primary navigation, while routes and the
+command palette remain available as alternate ways to reach a permitted section.
 
 ## Why
 
-The sidebar is the only way around the app. If any link is mis-wired or a screen
-fails to render, that whole area of the tool is unreachable — and a manager can't
-trust the schedule they can't navigate to. This story proves the available routes are live.
+The sidebar makes the main sections visible and easy to reach. If a link is mis-wired or a screen
+fails to render, that area is harder to find; direct links and the command palette also provide
+navigation paths. This story proves the available routes are live.
 
 ## How (end-to-end)
 
@@ -23,8 +24,8 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
    **Projects**, **Activities**, **Time off**, then — below a divider, pinned to the bottom of the
    list as the administration group — **Team & access**, **Settings** and, for Owners, Admins and
    sign-in-off sessions, **Diagnostics**. At the very bottom sits
-   one avatar-led **Account** row. Real auth shows the company name, role and **Switch company** only
-   when two or more companies are accessible; auth-off/demo retains the company context and switch.
+   one avatar-led **Account** row. Production shows the server-selected company and role without a
+   switch action; the temporary demo retains its company picker and switch.
 2. Click **Overview**. The URL is `/overview` and its four-week table renders.
 3. Click **Schedule**. The URL is `/` and the timeline grid (`scheduler-grid`) renders.
 4. Click **Resources**. The URL is `/resources` and the Resource list shows
@@ -61,14 +62,14 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 - ✅ **Team & access** and **Settings** are the last two links, in that order, below the divider —
   they never appear among the working destinations above it.
 - ✅ The sidebar has exactly one avatar-led **Account** row at the bottom and no separate **Sign out**
-  row. Real and demo sign-out is on **Account**; auth-off/local has no sign-out action.
+  row. Persisted sessions sign out from **Account**; the demo's sample-account choice can also be
+  cleared there.
 - ✅ **Schedule** renders the scheduler grid (`data-testid="scheduler-grid"`).
 - ✅ Each available destination renders its screen with at least the seeded rows /
   fields visible (e.g. _Bruce Wayne_ on Resources, _Queen Consolidated_ on Clients, the
   **Company details** heading on Settings).
 - ✅ Navigating away and back (e.g. Resources → Schedule) re-renders each screen
   without a blank page or console error.
-- ✅ Loading or reloading a valid destination URL serves the application shell rather than an HTTP 404. A reload with exactly one valid company opens it automatically at the originally requested
-  destination. First entry, explicit **Switch company**, and multi-company reloads keep the picker.
+- ✅ Loading or reloading a valid destination URL serves the application shell rather than an HTTP 404. The server-selected company opens at the originally requested destination. Production has no picker; the demo retains its picker for switching companies.
 - ✅ An unknown extensionless URL reaches the application's **Page not found** screen, while missing
   asset and API paths remain real HTTP errors rather than receiving the application shell.

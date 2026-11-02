@@ -1,51 +1,23 @@
-import { test, expect } from "./fixtures";
-import { API, resetServer } from "./serverTestState";
-import { waitForAppLanding } from "./appEntrySupport";
+import { test, expect } from './dbFixtures';
+import { resetServer } from './serverTestState';
+import { waitForAppLanding } from './browserTestSupport';
 
-test.describe("single-company reload entry", () => {
+test.describe('single-company reload entry', () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: false });
+    await resetServer({ request: request, withSeed: true });
   });
 
-  test("resumes a deep route once, but keeps first entry and explicit switching on the picker", async ({
-    page,
-    request,
-  }) => {
-    const created = await request.post(`${API}/api/orgs`, { data: { name: "Wayne Enterprises" } });
-    expect(created.status()).toBe(201);
-    const company = (await created.json()) as { id: string; name: string };
-
-    await page.goto("/clients");
-    const picker = page.getByRole("heading", { name: "Choose a company" });
-    await expect(picker).toBeVisible();
-    await page.getByRole("button", { name: company.name, exact: true }).click();
-    await waitForAppLanding(page, page.locator("#main"));
-    await expect(page.getByRole("heading", { name: "Clients", exact: true })).toBeVisible();
-
+  test('opens and resumes a deep route without a company picker', async ({ page }) => {
+    await page.goto('/clients');
+    await waitForAppLanding(page, page.locator('#main'));
+    await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Switch company/i })).toHaveCount(0);
     const reload = await page.reload();
     expect([200, 304]).toContain(reload?.status());
     await expect(page).toHaveURL(/\/clients$/);
-    await expect(page.getByRole("heading", { name: "Clients", exact: true })).toBeVisible();
-    await expect(picker).toHaveCount(0);
-
-    await page.getByRole("button", { name: "Switch company" }).click();
-    await expect(picker).toBeVisible();
-    await expect(page).toHaveURL(/\/clients$/);
-
-    await page.getByRole("button", { name: company.name, exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Clients", exact: true })).toBeVisible();
-
-    const deleted = await request.delete(`${API}/api/accounts/${company.id}`, {
-      headers: {
-        "Idempotency-Key": `e2e-single-company-delete-${company.id}`,
-        "X-Account-Command-Id": `e2e-single-company-delete-${company.id}`,
-      },
-    });
-    expect(deleted.status()).toBe(204);
-
-    await page.reload();
-    await expect(page.getByRole("heading", { name: "Set up your company" })).toBeVisible();
-    await expect(page).toHaveURL(/\/clients$/);
-    await expect(page.locator("#main")).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Switch company/i })).toHaveCount(0);
   });
 });

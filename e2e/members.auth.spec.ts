@@ -1,21 +1,21 @@
-import { test, expect } from "./fixtures";
-import type { APIRequestContext, Page } from "./fixtures";
-import type { BrowserContext } from "@playwright/test";
+import { test, expect } from './fixtures';
+import type { APIRequestContext, Page } from './fixtures';
+import type { BrowserContext } from '@playwright/test';
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
   signUpUser as signUp,
   signUpUserWithId,
-} from "./authTestSupport";
-import { seedFixtureMember } from "./authDatabaseFixtures";
-import { selectShadOption } from "./browserTestSupport";
-import { waitForAppLanding } from "./appEntrySupport";
+  seedFixtureMember,
+  masqueradeContextHeaders,
+} from './authTestSupport';
+import { waitForAppLanding, selectShadOption } from './browserTestSupport';
 
-test.use({ contextOptions: { reducedMotion: "reduce" } });
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // This spec exercises owner and admin member management against the password-mode auth server. Owner A
-// bootstraps an org and seeds admin B plus editor C in the disposable database. As B, it changes C's
+// creates the first company and seeds admin B plus editor C in the disposable database. As B, it changes C's
 // role, creates and revokes an invite, and verifies that owners cannot be assigned, changed, removed,
 // or read across accounts through ordinary member endpoints. Owner A then disables and restores C from
 // the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
@@ -25,34 +25,43 @@ const ADMIN = `m-admin-${STAMP}@capacitylens.dev`;
 const EDITOR = `m-editor-${STAMP}@capacitylens.dev`;
 
 async function setupMembersApi(request: APIRequestContext) {
-  const [owner, admin, editor] = await Promise.all([signUpUserWithId(OWNER), signUp(ADMIN), signUpUserWithId(EDITOR)]);
+  const [owner, admin, editor] = await Promise.all([
+    signUpUserWithId(OWNER),
+    signUp(ADMIN),
+    signUpUserWithId(EDITOR),
+  ]);
   const accountId = await bootstrapOrg(request, owner.cookie, `Members Studio ${STAMP}`);
   for (const [who, role] of [
-    [admin, "admin"],
-    [editor, "editor"],
+    [admin, 'admin'],
+    [editor, 'editor'],
   ] as const) {
     seedFixtureMember(accountId, who.email, role);
   }
   const grant = await request.patch(`${API}/api/accounts/${accountId}/members/${editor.userId}`, {
-    headers: { cookie: admin.cookie },
-    data: { role: "owner" },
+    headers: await masqueradeContextHeaders(request, admin.cookie),
+    data: { role: 'owner' },
   });
   expect(grant.status()).toBe(400);
-  const touchOwner = await request.patch(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
-    headers: { cookie: admin.cookie },
-    data: { role: "editor" },
-  });
+  const touchOwner = await request.patch(
+    `${API}/api/accounts/${accountId}/members/${owner.userId}`,
+    {
+      headers: await masqueradeContextHeaders(request, admin.cookie),
+      data: { role: 'editor' },
+    },
+  );
   expect(touchOwner.status()).toBe(403);
-  // An Admin cannot start the ownership ceremony: it belongs to the Owner, and the nominee's own
-  // consent belongs to the nominee. The ceremony itself is covered by ownership-transfer.auth.spec.
-  const adminNominate = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
-    headers: { cookie: admin.cookie },
+  // Only the current Owner can confirm the atomic handover, covered by ownership-transfer.auth.spec.
+  const adminTransfer = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
+    headers: await masqueradeContextHeaders(request, admin.cookie),
     data: { toUserId: editor.userId },
   });
-  expect(adminNominate.status()).toBe(403);
-  const selfRemove = await request.delete(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
-    headers: { cookie: owner.cookie },
-  });
+  expect(adminTransfer.status()).toBe(403);
+  const selfRemove = await request.delete(
+    `${API}/api/accounts/${accountId}/members/${owner.userId}`,
+    {
+      headers: await masqueradeContextHeaders(request, owner.cookie),
+    },
+  );
   expect(selfRemove.status()).toBe(403);
   const crossTenant = await request.get(`${API}/api/accounts/some-other-account-${STAMP}/members`, {
     headers: { cookie: admin.cookie },
@@ -61,27 +70,16 @@ async function setupMembersApi(request: APIRequestContext) {
   return { owner, admin, editor, accountId };
 }
 
-async function createViewerInvite(page: Page): Promise<void> {
-  await page.getByTestId("invite-open").click();
-  const dialog = page.getByRole("dialog", { name: "Invite someone" });
-  await selectShadOption(dialog.getByTestId("invite-role"), "viewer");
-  await dialog.getByTestId("invite-preauth").fill(`m-viewer-${STAMP}@capacitylens.dev`);
-  await dialog.getByTestId("invite-submit").click();
-  await expect(dialog.getByTestId("invite-link")).toContainText("/invite/");
-  await dialog.getByRole("button", { name: "Cancel" }).click();
-}
-
-async function revokeViewerInvite(page: Page): Promise<void> {
-  await page.getByTestId("invite-open").click();
-  const dialog = page.getByRole("dialog", { name: "Invite someone" });
-  await expect(dialog.getByTestId("invite-link")).toHaveCount(0);
-  await dialog.getByRole("button", { name: "Cancel" }).click();
-  const inviteRows = page.getByTestId("invite-row");
-  await expect(inviteRows).toHaveCount(1);
-  const viewerInvite = inviteRows.filter({ hasText: "Viewer" });
-  await expect(viewerInvite).toContainText("expires");
-  await viewerInvite.getByTestId("invite-revoke").click();
-  await expect(inviteRows).toHaveCount(0);
+/** Without mail delivery the server refuses to invite, and the dialog says why instead of saving a link. */
+async function refuseInviteWithoutMail(page: Page): Promise<void> {
+  await page.getByTestId('invite-open').click();
+  const dialog = page.getByRole('dialog', { name: 'Invite someone' });
+  await selectShadOption(dialog.getByTestId('invite-role'), 'viewer');
+  await dialog.getByTestId('invite-preauth').fill(`m-viewer-${STAMP}@capacitylens.dev`);
+  await dialog.getByTestId('invite-submit').click();
+  await expect(dialog).toContainText('Invitations need email delivery');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByTestId('invite-row')).toHaveCount(0);
 }
 
 async function manageAdminMembers(
@@ -90,47 +88,54 @@ async function manageAdminMembers(
   scenario: Awaited<ReturnType<typeof setupMembersApi>>,
 ) {
   const { admin, editor, accountId } = scenario;
-  await page.goto("/");
-  await page.getByRole("heading", { name: "Sign in" }).waitFor();
-  await page.getByLabel("Email").fill(ADMIN);
-  await page.getByLabel("Password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true }).click();
-  await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
-  await page.getByRole("button", { name: "Got it" }).click();
-  await expect(page.getByTestId("getting-started")).toBeVisible();
-  await page.getByRole("link", { name: "Team & access" }).click();
-  await expect(page.getByTestId("current-access")).toContainText("Admin");
-  await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
-  await expect(page.getByText("View the schedule")).toHaveCount(0);
-  await page.getByTestId("capabilities-toggle").click();
-  await expect(page.getByText("View the schedule")).toBeVisible();
-  await page.getByTestId("capabilities-toggle").click();
-  const rows = page.getByTestId("member-row");
+  await page.goto('/');
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
+  await page.getByLabel('Email').fill(ADMIN);
+  await page.getByLabel('Password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
+  await page.getByRole('button', { name: 'Got it' }).click();
+  await expect(page.getByTestId('getting-started')).toBeVisible();
+  await page.getByRole('link', { name: 'Team & access' }).click();
+  await expect(page.getByTestId('current-access')).toContainText('Admin');
+  await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
+  await expect(page.getByText('View the schedule')).toHaveCount(0);
+  await page.getByTestId('capabilities-toggle').click();
+  await expect(page.getByText('View the schedule')).toBeVisible();
+  await page.getByTestId('capabilities-toggle').click();
+  const rows = page.getByTestId('member-row');
   await expect(rows).toHaveCount(3);
   await expect(page.getByText(OWNER)).toBeVisible();
   await expect(page.getByText(EDITOR)).toBeVisible();
   await expect(page.locator('[data-testid="invite-role"] option[value="owner"]')).toHaveCount(0);
-  await expect(page.getByTestId("member-make-owner")).toHaveCount(0);
+  await expect(page.getByTestId('member-make-owner')).toHaveCount(0);
   const editorRow = rows.filter({ hasText: EDITOR });
-  await editorRow.getByTestId("member-edit").click();
-  await selectShadOption(page.getByRole("dialog").getByTestId("member-role-select").getByRole("combobox"), "viewer");
-  await expect(page.getByRole("dialog")).toContainText(EDITOR);
-  await expect(page.getByRole("dialog")).toContainText("Read-only schedule access");
-  await page.getByRole("dialog").getByTestId("member-role-save").click();
+  await editorRow.getByTestId('member-edit').click();
+  await selectShadOption(
+    page.getByRole('dialog').getByTestId('member-role-select').getByRole('combobox'),
+    'viewer',
+  );
+  await expect(page.getByRole('dialog')).toContainText(EDITOR);
+  await expect(page.getByRole('dialog')).toContainText('Read-only schedule access');
+  await page.getByRole('dialog').getByTestId('member-role-save').click();
   await expect
     .poll(async () => {
-      const res = await request.get(`${API}/api/accounts/${accountId}/members`, { headers: { cookie: admin.cookie } });
+      const res = await request.get(`${API}/api/accounts/${accountId}/members`, {
+        headers: { cookie: admin.cookie },
+      });
       const members = (await res.json()).members as Array<{ userId: string; role: string }>;
       return members.find((member) => member.userId === editor.userId)?.role;
     })
-    .toBe("viewer");
-  await createViewerInvite(page);
-  await editorRow.getByTestId("member-edit").click();
-  await selectShadOption(page.getByRole("dialog").getByTestId("member-role-select").getByRole("combobox"), "editor");
-  await page.getByRole("dialog").getByTestId("member-role-save").click();
-  await revokeViewerInvite(page);
+    .toBe('viewer');
+  await refuseInviteWithoutMail(page);
+  await editorRow.getByTestId('member-edit').click();
+  await selectShadOption(
+    page.getByRole('dialog').getByTestId('member-role-select').getByRole('combobox'),
+    'editor',
+  );
+  await page.getByRole('dialog').getByTestId('member-role-save').click();
 }
 
 // Ownership changes require the transfer ceremony; ordinary member-row actions cannot grant or remove ownership.
@@ -142,9 +147,9 @@ async function assertOwnershipIsNotAMemberRowAction(
   editor: { userId: string },
   accountId: string,
 ) {
-  await expect(ownerPage.getByTestId("member-make-owner")).toHaveCount(0);
+  await expect(ownerPage.getByTestId('member-make-owner')).toHaveCount(0);
   const retired = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
-    headers: { cookie: owner.cookie },
+    headers: await masqueradeContextHeaders(request, owner.cookie),
     data: { toUserId: editor.userId },
   });
   expect(retired.status()).toBe(404);
@@ -152,41 +157,46 @@ async function assertOwnershipIsNotAMemberRowAction(
 }
 
 async function manageOwnerMembers(
-  newObservedContext: (options?: { reducedMotion?: "reduce" }) => Promise<BrowserContext>,
+  newObservedContext: (options?: { reducedMotion?: 'reduce' }) => Promise<BrowserContext>,
   request: APIRequestContext,
   scenario: Awaited<ReturnType<typeof setupMembersApi>>,
 ) {
   const { owner, editor, accountId } = scenario;
-  const ownerContext = await newObservedContext({ reducedMotion: "reduce" });
+  const ownerContext = await newObservedContext({ reducedMotion: 'reduce' });
   const ownerPage = await ownerContext.newPage();
-  await ownerPage.goto("/");
-  await ownerPage.getByRole("heading", { name: "Sign in" }).waitFor();
-  await ownerPage.getByLabel("Email").fill(OWNER);
-  await ownerPage.getByLabel("Password").fill(PASSWORD);
-  await ownerPage.getByRole("button", { name: "Sign in" }).click();
-  await ownerPage.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true }).click();
-  await waitForAppLanding(ownerPage, ownerPage.locator("#main"));
-  await ownerPage.getByRole("link", { name: "Team & access" }).click();
-  await expect(ownerPage.getByTestId("current-access")).toContainText("Owner");
-  const ownerTarget = ownerPage.getByTestId("member-row").filter({ hasText: EDITOR });
-  await ownerTarget.getByTestId("member-menu").click();
-  await ownerPage.getByTestId("member-disable").click();
-  await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Disable Access" }).click();
+  await ownerPage.goto('/');
+  await ownerPage.getByRole('heading', { name: 'Sign in' }).waitFor();
+  await ownerPage.getByLabel('Email').fill(OWNER);
+  await ownerPage.getByLabel('Password').fill(PASSWORD);
+  await ownerPage.getByRole('button', { name: 'Sign in' }).click();
+  await expect(ownerPage.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
+  await waitForAppLanding(ownerPage, ownerPage.locator('#main'));
+  await ownerPage.getByRole('link', { name: 'Team & access' }).click();
+  await expect(ownerPage.getByTestId('current-access')).toContainText('Owner');
+  const ownerTarget = ownerPage.getByTestId('member-row').filter({ hasText: EDITOR });
+  await ownerTarget.getByTestId('member-menu').click();
+  await ownerPage.getByTestId('member-disable').click();
+  await ownerPage.getByRole('alertdialog').getByRole('button', { name: 'Disable Access' }).click();
   await expect(
-    ownerPage.getByTestId("members-table").getByTestId("member-row").filter({ hasText: EDITOR }),
+    ownerPage.getByTestId('members-table').getByTestId('member-row').filter({ hasText: EDITOR }),
   ).toHaveCount(0);
-  const inactiveToggle = ownerPage.getByTestId("members-inactive-toggle");
-  await expect(inactiveToggle).toHaveAttribute("aria-expanded", "false");
+  const inactiveToggle = ownerPage.getByTestId('members-inactive-toggle');
+  await expect(inactiveToggle).toHaveAttribute('aria-expanded', 'false');
   await inactiveToggle.click();
   const inactiveTarget = ownerPage
-    .getByTestId("members-inactive-table")
-    .getByTestId("member-row")
+    .getByTestId('members-inactive-table')
+    .getByTestId('member-row')
     .filter({ hasText: EDITOR });
-  await expect(inactiveTarget).toContainText("Access disabled");
+  await expect(inactiveTarget).toContainText('Access disabled');
   await expect
     .poll(async () => {
-      const res = await request.get(`${API}/api/accounts/${accountId}/members`, { headers: { cookie: owner.cookie } });
-      const members = (await res.json()).members as Array<{ userId: string; accessDisabled: boolean }>;
+      const res = await request.get(`${API}/api/accounts/${accountId}/members`, {
+        headers: { cookie: owner.cookie },
+      });
+      const members = (await res.json()).members as Array<{
+        userId: string;
+        accessDisabled: boolean;
+      }>;
       return members.find((member) => member.userId === editor.userId)?.accessDisabled;
     })
     .toBe(true);
@@ -194,16 +204,23 @@ async function manageOwnerMembers(
     headers: { cookie: editor.cookie },
   });
   expect(disabledRead.status()).toBe(403);
-  await inactiveTarget.getByTestId("member-menu").click();
-  await expect(ownerPage.getByTestId("member-disable")).toHaveCount(0);
-  await ownerPage.getByTestId("member-enable").click();
-  await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Enable Access" }).click();
-  await expect(ownerTarget).not.toContainText("Access disabled");
-  await expect(ownerPage.getByTestId("members-inactive-toggle")).toHaveCount(0);
-  await assertOwnershipIsNotAMemberRowAction(ownerContext, ownerPage, request, owner, editor, accountId);
+  await inactiveTarget.getByTestId('member-menu').click();
+  await expect(ownerPage.getByTestId('member-disable')).toHaveCount(0);
+  await ownerPage.getByTestId('member-enable').click();
+  await ownerPage.getByRole('alertdialog').getByRole('button', { name: 'Enable Access' }).click();
+  await expect(ownerTarget).not.toContainText('Access disabled');
+  await expect(ownerPage.getByTestId('members-inactive-toggle')).toHaveCount(0);
+  await assertOwnershipIsNotAMemberRowAction(
+    ownerContext,
+    ownerPage,
+    request,
+    owner,
+    editor,
+    accountId,
+  );
 }
 
-test("admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak", async ({
+test('admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak', async ({
   page,
   request,
   newObservedContext,

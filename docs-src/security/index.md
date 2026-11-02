@@ -11,19 +11,16 @@ vulnerability. The operator's configuration, network and backup policy also matt
 
 ## What's on by default
 
-- **Passwords.** New and changed passwords are checked against the Have I Been Pwned
-  breached-password list and stored with a modern, slow hashing algorithm.
-  [Company login](/company-login/) through Google or Microsoft is a first-class alternative.
-- **Multi-factor sign-in.** There is no local MFA. If your agency requires MFA, configure it in
-  Google's or Microsoft's own policy; CapacityLens cannot enforce or verify it.
-  [Multi-factor sign-in at your provider](/company-login/#multi-factor-sign-in-at-your-provider)
-  explains the limits.
-- **Sessions.** A session lasts at most twelve hours and expires after thirty minutes of
-  inactivity. The cookie is host-only, confined to your exact CapacityLens address, and held back
-  from cross-site background requests; it is only sent on the top-level return from your identity
-  provider during company login. Signing out ends the current session; changing a local password
-  revokes your other sessions. Account shows no session list. An authorised Owner or Admin can revoke a
-  teammate's sessions in **Team & access**.
+- **Passwords.** Everyone [signs in](/company-login/) with an email address and a password, stored
+  with a modern, slow hashing algorithm. Passwords are not checked against a breached-password list.
+- **Multi-factor sign-in.** There is none. CapacityLens has no Google, Microsoft or other company
+  sign-in through which to require it.
+- **Joining.** A new person needs an emailed invitation and an Owner's or Admin's approval before
+  they see company data.
+- **Sessions.** A session ends after fourteen days without use. The cookie is confined to your
+  exact CapacityLens address and held back from cross-site background requests. Signing out ends
+  the current session; changing your password ends every session. There is no session list, and no
+  one can end a teammate's sessions.
 - **Isolation between companies.** Every request checks the signed-in person's membership and role
   in that company before reading or changing anything.
 - **No tracking.** No product analytics, advertising or crash-reporting service.

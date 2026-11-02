@@ -30,7 +30,7 @@ jobs:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
       # Tags whose major.minor.patch is at most this one predate the runnable server archive and keep
       # their original assets. Every later tag must build it: a missing packager fails the run.
-      LAST_RELEASE_WITHOUT_ARCHIVE: "0.72.0"
+      LAST_RELEASE_WITHOUT_ARCHIVE: '0.72.0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -44,8 +44,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
+        env:
+          NODE_ENV: production
+          CAPACITYLENS_SECRET: capacitylens-build-secret-0123456789abcdef
+          CAPACITYLENS_PUBLIC_URL: https://127.0.0.1
+          HOST: 127.0.0.1
+          PORT: '0'
+          LOG_LEVEL: error
+          APP_KEY: capacitylens-test-key-0123456789abcdef
+          APP_URL: http://127.0.0.1
+          SESSION_DRIVER: memory
       - name: Package the web build
-        run: tar -czf capacitylens-web.tar.gz dist
+        run: |
+          if [ -d apps/frontend/dist ]; then
+            tar -czf capacitylens-web.tar.gz -C apps/frontend dist
+          else
+            tar -czf capacitylens-web.tar.gz dist
+          fi
       - name: Generate the release SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
@@ -71,7 +86,11 @@ jobs:
       - name: Package the runnable server archive
         if: steps.archive.outputs.enabled == 'true'
         run: |
-          pnpm --filter capacitylens-server run build:runtime
+          # Historical release tags retain their original server build command.
+          # The current workspace build already compiles the Adonis backend.
+          if [ ! -f apps/backend/package.json ]; then
+            pnpm --filter capacitylens-server run build:runtime
+          fi
           pnpm run package:managed-release
           pnpm run package:release-archive
       - name: List the release assets

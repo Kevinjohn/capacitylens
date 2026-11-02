@@ -1,0 +1,101 @@
+import { MASQUERADE_ERROR_CODES } from '@capacitylens/shared/domain/masquerade';
+import type { MasqueradeErrorCode } from '@capacitylens/shared/domain/masquerade';
+import { noteAuditWarning } from '@/lib/auditWarning';
+import { readApiErrorCode } from '@/lib/readApiError';
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+
+let masqueradeEndedHandler: (() => void) | null = null;
+
+/** Register the session-projection recovery hook without coupling the common fetch layer to React. */
+export function setMasqueradeEndedHandler(handler: (() => void) | null): void {
+  masqueradeEndedHandler = handler;
+}
+
+// Interactive calls fail quickly; whole-slice reads and writes need a longer deadline
+// to complete on a healthy but slow server. A timed-out batch has an uncertain commit
+// boundary and requires authoritative reconciliation before another write.
+/** Default deadline for interactive API requests. */
+export const API_REQUEST_TIMEOUT_MS = 15_000;
+/** Longer deadline for whole-slice API reads and writes. */
+export const API_BULK_TIMEOUT_MS = 120_000;
+
+/** Browser fetch failures that mean the service was unreachable rather than semantically invalid. */
+export function isTransportFailure(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    (typeof DOMException !== 'undefined' &&
+      error instanceof DOMException &&
+      (error.name === 'AbortError' || error.name === 'TimeoutError'))
+  );
+}
+
+/** Builds a request signal using the supplied millisecond deadline, or the interactive
+ * default when omitted. Null disables the client deadline for keepalive teardown.
+ * A caller signal is always honored and can abort before the deadline.
+ */
+export function createRequestSignal(
+  signal?: AbortSignal | null,
+  timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
+): AbortSignal {
+  const timeout = timeoutMs === null ? null : AbortSignal.timeout(timeoutMs);
+  if (timeout && signal) return AbortSignal.any([signal, timeout]);
+  if (timeout) return timeout;
+  if (signal) return signal;
+
+  return new AbortController().signal;
+}
+
+/** Read a recognized masquerade failure code without consuming the caller's response body. */
+export async function readMasqueradeErrorCode(
+  response: Response,
+): Promise<MasqueradeErrorCode | null> {
+  const code = await readApiErrorCode(response);
+  return Object.values(MASQUERADE_ERROR_CODES).some((candidate) => candidate === code)
+    ? (code as MasqueradeErrorCode)
+    : null;
+}
+
+/** Fetches an API response with a caller signal and the selected deadline. */
+export async function apiFetch(
+  input: RequestInfo | URL,
+  requestOptions: RequestInit = {},
+  timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const headers = headersWithMasqueradeContext(input, requestOptions);
+  const response = await fetch(input, {
+    ...requestOptions,
+    ...(headers === undefined ? {} : { headers }),
+    signal: createRequestSignal(requestOptions.signal, timeoutMs),
+  });
+  // Follow immediate action feedback; actions with later asynchronous work also retain this header
+  // when choosing their final notice.
+  noteAuditWarning(response, { defer: true });
+  if (!response.ok) {
+    const code = await readMasqueradeErrorCode(response);
+    if (
+      code === MASQUERADE_ERROR_CODES.ended ||
+      code === MASQUERADE_ERROR_CODES.contextChanged ||
+      code === MASQUERADE_ERROR_CODES.contextRequired
+    ) {
+      masqueradeEndedHandler?.();
+    }
+  }
+  return response;
+}
+
+function headersWithMasqueradeContext(
+  input: RequestInfo | URL,
+  requestOptions: RequestInit,
+): HeadersInit | undefined {
+  const method = (
+    requestOptions.method ?? (input instanceof Request ? input.method : 'GET')
+  ).toUpperCase();
+  if (method === 'OPTIONS') return requestOptions.headers;
+  const token = getMasqueradeContextToken();
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  new Headers(requestOptions.headers).forEach((value, name) => headers.set(name, value));
+  if (!headers.has('X-Masquerade-Context') && token !== null) {
+    headers.set('X-Masquerade-Context', token);
+  }
+  return headers;
+}

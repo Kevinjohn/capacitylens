@@ -1,0 +1,152 @@
+import { ChevronDown } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Button } from '@/components/ui/button';
+import { Field, FieldError } from '@/components/ui/field';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RequiredFieldLabel } from '@/components/common/fields/fieldLayout';
+import type { Option } from '@/components/common/ui';
+import { m } from '@/i18n';
+import { cn } from '@/lib/cn';
+import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/localQueryInput';
+
+interface TimeZoneFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Option[];
+}
+
+function TimeZoneMenu({
+  popupId,
+  label,
+  value,
+  options,
+  onSelect,
+}: Pick<TimeZoneFieldProps, 'label' | 'value' | 'options'> & {
+  popupId: string;
+  onSelect: (value: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [queryTooLong, setQueryTooLong] = useState(false);
+  const queryErrorId = useId();
+
+  return (
+    <PopoverContent
+      id={popupId}
+      aria-label={label}
+      align="start"
+      sideOffset={8}
+      collisionPadding={8}
+      className="max-h-[calc(100dvh-1rem)] w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] overflow-hidden p-0"
+    >
+      <Command label={m.picker_timezone_search()} className="min-h-0 max-h-full">
+        <div className="flex min-w-0 shrink-0 flex-col border-b px-3 py-1">
+          <CommandInput
+            maxLength={MAX_LOCAL_QUERY_CODE_UNITS}
+            className="h-10"
+            autoFocus
+            placeholder={m.picker_timezone_search()}
+            aria-label={m.picker_timezone_search()}
+            value={query}
+            onValueChange={(nextQuery) => {
+              setQuery(nextQuery);
+              if (nextQuery.length <= MAX_LOCAL_QUERY_CODE_UNITS) setQueryTooLong(false);
+            }}
+            onPaste={(event) => {
+              setQueryTooLong(rejectOverlongQueryPaste(event));
+            }}
+            aria-invalid={queryTooLong || undefined}
+            aria-describedby={queryTooLong ? queryErrorId : undefined}
+          />
+          {queryTooLong && (
+            <FieldError id={queryErrorId}>{m.validation_text_too_long()}</FieldError>
+          )}
+        </div>
+        <CommandList
+          aria-label={label}
+          className="min-h-0 max-h-[min(16rem,calc(var(--radix-popover-content-available-height)-3.5rem))]"
+        >
+          <CommandEmpty>{m.picker_timezone_no_results()}</CommandEmpty>
+          {options.map((option) => (
+            <CommandItem
+              key={option.value}
+              value={`${option.value} ${option.label}`}
+              data-value={option.value}
+              onSelect={() => onSelect(option.value)}
+              className={cn(option.value === value && 'font-medium')}
+            >
+              {option.label}
+            </CommandItem>
+          ))}
+        </CommandList>
+      </Command>
+    </PopoverContent>
+  );
+}
+
+/**
+ * Render a searchable, keyboard-accessible IANA time-zone combobox.
+ *
+ * The selected value remains the canonical IANA identifier while the supplied option labels may
+ * include friendly names, current abbreviations, and offsets. Closing the popover restores focus
+ * to the trigger so form keyboard flow remains predictable.
+ */
+export function TimeZoneField({ label, value, onChange, options }: TimeZoneFieldProps) {
+  const id = useId();
+  const popupId = `${id}-options`;
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+
+  const changeOpen = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) triggerRef.current?.focus();
+  };
+
+  return (
+    <Field>
+      <RequiredFieldLabel htmlFor={id} label={label} />
+      <Popover open={open} onOpenChange={changeOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            ref={triggerRef}
+            id={id}
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={open ? popupId : undefined}
+            aria-haspopup="dialog"
+            className="w-full justify-between gap-2 font-normal"
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setOpen(true);
+              }
+            }}
+          >
+            <span className="truncate text-left">{selected?.label ?? value}</span>
+            <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+          </Button>
+        </PopoverTrigger>
+        <TimeZoneMenu
+          popupId={popupId}
+          label={label}
+          value={value}
+          options={options}
+          onSelect={(nextValue) => {
+            onChange(nextValue);
+            changeOpen(false);
+          }}
+        />
+      </Popover>
+    </Field>
+  );
+}

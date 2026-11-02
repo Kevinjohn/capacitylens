@@ -33,6 +33,8 @@ seed window — see _Seed data_ in REFERENCE.md).
    reads `Sep 9 – Oct 14`; one that crosses a year reads `Dec 28, 2026 – Jan 8, 2027`.
 5. Reload, or sign in from another browser: **Sep 9** is still the checked option, because the
    choice belongs to the company.
+6. In the same page session, change the format again and use **Undo** and **Redo**. Each action updates
+   the checked option and visible planning dates for the company.
 
 ## Acceptance criteria
 
@@ -43,6 +45,8 @@ seed window — see _Seed data_ in REFERENCE.md).
   every other account setting gives a role that cannot change it.
 - The choice sets day/month order and whether the day number carries an ordinal on planning dates,
   including single calendar dates and ranges, and takes effect **without a reload**.
+- A saved date-format change enters page-local Undo/Redo history; Undo restores the previous company
+  setting and Redo reapplies the new one.
 - A date range inside one month shows the month once (`9 – 14 Sep`, `Sep 9 – 14`); a range across two
   months shows both (`9 Sep – 14 Oct`, `Sep 9 – Oct 14`).
 - A standalone date range that crosses a year collapses nothing: both ends carry the year
@@ -52,14 +56,14 @@ seed window — see _Seed data_ in REFERENCE.md).
   the calendar context, so their one cross-year week may read `28 Dec – 3 Jan`. Screen-reader names
   that state the two dates separately, such as an allocation bar's, carry the year on the general rule.
 - Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal, whatever the preference.
-- The choice is **account data**: it is stored on the account, changing it is undoable, and every
-  member of the company sees it. It is **not** a device preference. Settings JSON exports omit
-  company settings; importing scheduling data preserves the destination company's date format.
+- The choice is **company data**: it is stored with the company, and every
+  member of the company sees it. It is **not** a device preference. Supported portable exports
+  include the company date format; importing a full document replaces the destination company's
+  date format with the exported value.
 - Server instants use the viewer's browser locale and local time zone instead. This includes session
   creation and expiry, password-reset expiry, invitation expiry in the Team & access member panel
   and on the invitee's Accept invite page, ownership-transfer deadlines and ownership outcome dates.
-  The offline read-only banner's last-updated timestamp also uses the viewer's browser locale and
-  local time zone. The exception still applies when an instant is shown as a date without a time:
+  The exception still applies when an instant is shown as a date without a time:
   the browser's time zone decides which local calendar day it falls on, and its locale decides the
   date order.
 - Existing date-and-time displays keep their time, while existing compact date-only displays stay

@@ -1,6 +1,6 @@
 # US-RES-06 — Use fixed resource working hours
 
-**Area:** Resources · **Persona:** Studio manager · **Coverage:** **Unit:** `src/components/resources/ResourceForm.test.tsx` · **E2E:** `e2e/resources.spec.ts` → "uses fixed working hours without showing an hours field"
+**Area:** Resources · **Persona:** Studio manager · **Coverage:** **Unit:** `apps/frontend/src/components/resources/ResourceForm.test.tsx` · **E2E:** `e2e/resources.spec.ts` → "uses fixed working hours without showing an hours field"
 
 ## Goal
 

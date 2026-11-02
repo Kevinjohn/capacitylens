@@ -1,6 +1,6 @@
 ---
-title: Create your company
-description: Sign in as the first Owner, create the company and choose the calendar rules that apply to everyone.
+title: Access your company
+description: Create your sign-in, name your company in the browser and open its schedule.
 prev: false
 next: false
 ---
@@ -9,47 +9,43 @@ next: false
 <span id="steps"></span>
 <span id="what-s-next"></span>
 
-# Create your company
+# Access your company
 
-Sign in with the setup token from your installer, then create the company. You need the
-CapacityLens address and that token.
+Your installer sends you a one-time setup link. Opening it creates your sign-in; naming the company
+then makes you its Owner.
 
 ## Sign in for the first time
 
-![First Owner sign-in setup with Name, Email, Create a password and Owner setup token fields](../screenshots/flows/owner_first_signin_setup.jpg)
+![Accept invite page showing Company setup as the role, with Name, Password and Accept invitation](../screenshots/flows/owner_first_signin_setup.jpg)
 
-1. Open the address. The sign-in page says **Setup the account Owner**.
-2. Enter your name, email and password, and paste the token into **Owner setup token**.
-3. Select **Create my sign-in**.
+1. Open the setup link. **Accept invite** shows **Company setup** as the role.
+2. Enter your **Name** and choose a **Password**. Your email is the address the installer used.
+3. Select **Accept invitation**.
 
-The token is not shown again. If you do not have it, or the form rejects it, ask the installer.
+The link works once and expires after seven days. If it has expired or was already used, ask the
+installer for a new one.
 
-If the installer set up [company login](/reference/glossary#company-login), choose that provider
-instead and use the email address the installer approved for the first Owner. If no provider
-accepts your address, ask the installer to check the first-Owner setup before you try a different
-identity.
+## Set up your company
 
-## Create the company
+![Set up your company screen with Company name, Week starts on, Time zone and Create company](../screenshots/flows/company_first_run_setup.jpg)
 
-![First company setup with Company name, Week starts on, Timezone, Language and Start with example data selected](../screenshots/flows/owner_first_company_setup.jpg)
+Enter **Company name**, choose whether the week starts on Monday or Sunday, and choose the company's
+time zone. Then select **Create company**. These calendar choices are stored with the company and
+cannot be changed later. The form starts with Monday and `Etc/GMT` selected. Your company opens on
+Schedule, with you as Owner. The service keeps running throughout setup. If a save fails, the values
+stay in the form and the error explains what to do before trying again.
 
-1. Enter the **Company name**.
-2. Choose **Week starts on** and **Timezone**. The list is searchable and starts with your browser's
-   time zone. These two apply to everyone and **cannot be changed later**, so agree them
-   with your team first.
-3. **Start with example data** adds fictional people, a client, a project and sample bookings. It
-   is selected by default for your first company. For a real company, clear it so your Admin
-   starts with an empty schedule. Example records are ordinary: if you keep them, delete them one
-   by one like any others.
-4. Select **Create company**. CapacityLens opens Schedule.
+The company name may contain up to 100 Unicode code points and must not include unsupported
+characters. Invalid input is rejected; the browser does not silently truncate the name.
 
-**Language** offers only English. Week start and time zone stay visible, read only, under
-**Settings → Data and support → Company details**.
-
-## If adding the example data fails
-
-The company is still created. An Owner or Admin can retry from **Settings → Data and support →
-Example data** while the company has no people, clients, projects or bookings. The in-memory demo
-does not show the checkbox.
+The company starts with Monday–Friday as working days and day-based scheduling. Company name and
+calendar choices are submitted together with the Owner, defaults and built-in Internal client in one
+setup operation. No sample scheduling records are added.
+Setup is available only when your identity is the only sign-in and no company or membership exists.
+The server blocks open signup until your company exists, so another signup cannot interrupt this
+first-run setup. If several identities already exist, ask whoever manages hosting to resolve
+access. Setup cannot create a second company or replace an Owner.
+The temporary [demo](/getting-started/try-the-demo) lets you explore fictional companies without
+storing their records.
 
 Next: [Appoint an Admin](/owner/appoint-an-admin) — hand the day-to-day running to someone else.

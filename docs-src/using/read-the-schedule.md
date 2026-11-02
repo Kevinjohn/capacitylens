@@ -58,8 +58,7 @@ Each row is a [person](/reference/glossary#person): a teammate, a freelancer or 
 [placeholder](/reference/glossary#placeholder) for an unfilled role. A placeholder row says "Placeholder"
 instead of a name and has a faint diagonal hatch on its header.
 
-When your company uses [disciplines](/reference/glossary#discipline), the default, rows are grouped under
-them. Favourites come first in each group, alphabetically, then everyone else, then placeholders.
+When your company uses [disciplines](/reference/glossary#discipline), rows are grouped under them. Favourites come first in each group, alphabetically, then everyone else, then placeholders.
 Favourites are shared with the whole company, not a personal preference. Favourite external
 parties lead the External group.
 
@@ -174,7 +173,7 @@ with no matching work. Their rows are dimmed: candidates to staff, not people al
 **Clear Filters** resets the search, every dropdown and **Show unallocated**, and turns
 **Tentative** back on.
 
-With edit access, undo and redo every change from the toolbar or with **Ctrl+Z** (**⌘Z** on macOS). The grid
+With edit access, undo and redo your booking changes from the toolbar or with **Ctrl+Z** (**⌘Z** on macOS). The grid
 updates live as you drag; there is nothing to refresh.
 
 ## Jump to a page with the command palette

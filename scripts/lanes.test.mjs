@@ -1,33 +1,38 @@
-import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import test from "node:test";
-import { laneDirectory } from "./laneClaims.mjs";
-import { leftoverPids, surveyLanes } from "./lanes.mjs";
-import { portsForLane } from "./ports.mjs";
+import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+import { laneDirectory } from './laneClaims.mjs';
+import { leftoverPids, surveyLanes } from './lanes.mjs';
+import { portsForLane } from './ports.mjs';
 
 function scratch() {
-  const cache = mkdtempSync(join(tmpdir(), "lanes-report-"));
+  const cache = mkdtempSync(join(tmpdir(), 'lanes-report-'));
   return { XDG_CACHE_HOME: cache, HOME: cache };
 }
 
 test("only an unclaimed listener from this repository's worktrees is a leftover", async () => {
   const environment = scratch();
-  const worktree = mkdtempSync(join(tmpdir(), "lanes-worktree-"));
-  const elsewhere = mkdtempSync(join(tmpdir(), "lanes-elsewhere-"));
-  mkdirSync(join(worktree, "server"));
+  const worktree = mkdtempSync(join(tmpdir(), 'lanes-worktree-'));
+  const elsewhere = mkdtempSync(join(tmpdir(), 'lanes-elsewhere-'));
+  mkdirSync(join(worktree, 'server'));
   const directory = laneDirectory(environment);
   mkdirSync(directory, { recursive: true });
-  writeFileSync(join(directory, "1.json"), JSON.stringify({ pid: process.pid, worktree, share: 1, token: "t" }));
+  writeFileSync(
+    join(directory, '1.json'),
+    JSON.stringify({ pid: process.pid, worktree, share: 1, token: 't' }),
+  );
 
   const listeners = new Map([
-    [portsForLane(0).web, { pid: 1000, directory: join(worktree, "server") }],
+    [portsForLane(0).web, { pid: 1000, directory: join(worktree, 'server') }],
     [portsForLane(1).web, { pid: 1001, directory: worktree }],
     [portsForLane(2).web, { pid: 1002, directory: elsewhere }],
     [portsForLane(3).web, { pid: null, directory: null }],
   ]);
-  const byPid = new Map([...listeners.values()].map((listener) => [listener.pid, listener.directory]));
+  const byPid = new Map(
+    [...listeners.values()].map((listener) => [listener.pid, listener.directory]),
+  );
 
   const rows = await surveyLanes({
     environment,
@@ -48,9 +53,9 @@ test("only an unclaimed listener from this repository's worktrees is a leftover"
   );
 });
 
-test("a run that claims its lane during the scan is not a leftover", async () => {
+test('a run that claims its lane during the scan is not a leftover', async () => {
   const environment = scratch();
-  const worktree = mkdtempSync(join(tmpdir(), "lanes-worktree-"));
+  const worktree = mkdtempSync(join(tmpdir(), 'lanes-worktree-'));
   const directory = laneDirectory(environment);
   mkdirSync(directory, { recursive: true });
   const port = portsForLane(4).web;
@@ -61,7 +66,10 @@ test("a run that claims its lane during the scan is not a leftover", async () =>
     probe: async (probed) => {
       if (probed !== port) return false;
       // Another worktree claims lane 4 and starts its server while this survey is scanning.
-      writeFileSync(join(directory, "4.json"), JSON.stringify({ pid: process.pid, worktree, share: 1, token: "t" }));
+      writeFileSync(
+        join(directory, '4.json'),
+        JSON.stringify({ pid: process.pid, worktree, share: 1, token: 't' }),
+      );
       return true;
     },
     owner: () => 1004,
@@ -74,12 +82,19 @@ test("a run that claims its lane during the scan is not a leftover", async () =>
   );
 });
 
-test("an empty or missing lane directory reports nothing in use", async () => {
-  const rows = await surveyLanes({ environment: scratch(), worktrees: [], probe: async () => false });
+test('an empty or missing lane directory reports nothing in use', async () => {
+  const rows = await surveyLanes({
+    environment: scratch(),
+    worktrees: [],
+    probe: async () => false,
+  });
   assert.deepEqual(rows, []);
 });
 
-test("a process is stopped once, and never when it also serves a claimed lane", () => {
+test('a process is stopped once, and never when it also serves a claimed lane', () => {
   const row = (pid, orphan) => ({ pid, orphan });
-  assert.deepEqual(leftoverPids([row(1, true), row(1, true), row(2, true), row(2, false), row(null, false)]), [1]);
+  assert.deepEqual(
+    leftoverPids([row(1, true), row(1, true), row(2, true), row(2, false), row(null, false)]),
+    [1],
+  );
 });

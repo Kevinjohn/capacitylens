@@ -1,11 +1,11 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
-import { STATIC_SPA_ROUTES } from "./staticSpaRoutes.mjs";
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { STATIC_SPA_ROUTES } from './staticSpaRoutes.mjs';
 
-const shell = await readFile(resolve("dist/index.html"));
+const shell = await readFile(resolve('dist/index.html'));
 
 for (const route of STATIC_SPA_ROUTES) {
-  const document = await readFile(resolve("dist", route, "index.html"));
+  const document = await readFile(resolve('dist', route, 'index.html'));
   if (!document.equals(shell)) {
     throw new Error(`SPA route document /${route}/index.html differs from dist/index.html.`);
   }

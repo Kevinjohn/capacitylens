@@ -1,0 +1,124 @@
+import { useId } from 'react';
+import type { ReactNode } from 'react';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldContent, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { useMarkFormDirty } from '@/components/common/formDirty';
+import { buildProductFieldLayoutProps } from './buildProductFieldLayoutProps';
+import type { ProductFieldLayout } from './fieldTypes';
+
+/** Accessible on/off field shared by settings and privacy controls. */
+export function SwitchField({
+  label,
+  description,
+  descriptionPlacement = 'label',
+  checked,
+  onChange,
+  disabled = false,
+  layout = 'stacked',
+}: {
+  label: string;
+  description?: string;
+  /** Keep the default beside the label, or group it below the control in compact rows. */
+  descriptionPlacement?: 'label' | 'control';
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
+}) {
+  const markDirty = useMarkFormDirty();
+  const descriptionId = useId();
+  const controlId = useId();
+  const descriptionInControl = description && descriptionPlacement === 'control';
+  const control = (
+    <Switch
+      id={controlId}
+      data-form-dirty-managed
+      checked={checked}
+      aria-describedby={description ? descriptionId : undefined}
+      onCheckedChange={(next) => {
+        markDirty();
+        onChange(next);
+      }}
+      disabled={disabled}
+    />
+  );
+  let fieldContent: ReactNode = control;
+  if (layout === 'label-control') {
+    fieldContent = <div className="flex min-h-9 items-center">{control}</div>;
+  }
+  if (descriptionInControl) {
+    fieldContent = (
+      <FieldContent className="min-h-9 justify-center">
+        {control}
+        <FieldDescription id={descriptionId}>{description}</FieldDescription>
+      </FieldContent>
+    );
+  }
+  return (
+    <Field
+      orientation={layout === 'label-control' ? 'vertical' : 'horizontal'}
+      data-disabled={disabled || undefined}
+      {...buildProductFieldLayoutProps(layout)}
+    >
+      <FieldContent>
+        <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+        {description && !descriptionInControl && (
+          <FieldDescription id={descriptionId}>{description}</FieldDescription>
+        )}
+      </FieldContent>
+      {fieldContent}
+    </Field>
+  );
+}
+
+/** Accessible checkbox field with the same opt-in product layouts as the other form controls. */
+export function CheckboxField({
+  label,
+  checked,
+  onChange,
+  disabled = false,
+  layout = 'stacked',
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
+}) {
+  const markDirty = useMarkFormDirty();
+  const controlId = useId();
+  const control = (
+    <Checkbox
+      id={controlId}
+      data-form-dirty-managed
+      checked={checked}
+      disabled={disabled}
+      onCheckedChange={(next) => {
+        markDirty();
+        onChange(next === true);
+      }}
+    />
+  );
+  return (
+    <Field
+      orientation={layout === 'label-control' ? 'vertical' : 'horizontal'}
+      data-disabled={disabled || undefined}
+      {...buildProductFieldLayoutProps(layout)}
+    >
+      {layout === 'label-control' ? (
+        <>
+          <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+          <div className="flex min-h-9 items-center">{control}</div>
+        </>
+      ) : (
+        <>
+          {control}
+          <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+        </>
+      )}
+    </Field>
+  );
+}

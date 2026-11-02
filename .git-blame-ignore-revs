@@ -8,3 +8,9 @@
 
 # style: apply Prettier across the repository
 20a9dcb9174b99e144c36181fb71724da18d3859
+
+# style: apply Prettier with single quotes and width 100 outside the backend
+097489f45af07a5ea10346333305bf006b2f1e26
+
+# style: keep semicolons in the backend and reformat
+8b605ef868b16d712b2c63b18df83625fe004445

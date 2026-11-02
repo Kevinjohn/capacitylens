@@ -24,7 +24,7 @@ the page directly.
 | List members and manage invites                       |     —      |     —      |    Yes     |    Yes     |
 | Disable or Enable Access; archive or restore a member |     —      |     —      |    Yes     |    Yes     |
 | Export the schedule                                   | Code names | Code names | Code names | Real names |
-| Import, delete the company, transfer ownership        |     —      |     —      |     —      |    Yes     |
+| Import or anonymise the company; transfer ownership   |     —      |     —      |     —      |    Yes     |
 
 Each company has exactly one Owner. Nobody becomes Owner through an invitation or a role change, only
 through [an ownership transfer](#hand-the-company-to-someone-else). An Admin can invite, remove,
@@ -43,9 +43,10 @@ covers each action. If a company has no Owner at all, follow
 
 Three separate things can look like a [person](/reference/glossary#person) in the interface:
 
-- A **sign-in identity**: the email and password, or company login, someone uses to reach
-  CapacityLens. One identity can belong to several companies.
-- A **member**: that identity's role in one company, created by
+- A **sign-in identity**: the email and password someone uses to reach CapacityLens. A production
+  installation contains one company; the in-memory demo has two fictional companies and no sign-in
+  identities.
+- A **member**: that identity's role in the installation's company, created by
   [inviting them](/admin/invite-teammates).
 - A **person** on the schedule: a row that can receive bookings and time off.
 
@@ -54,10 +55,9 @@ schedule. Freelancers and contractors can be scheduled without ever getting a si
 
 ## Hand the company to someone else
 
-Ownership moves in three steps: the Owner nominates an active Admin, the Admin agrees, and the
-Owner confirms. Nothing changes until all three happen.
-[Transfer ownership](/owner/responsibilities#transfer-ownership) has the procedure and recovery
-steps.
+Only the Owner can transfer ownership. Choose an active, unrestricted Admin and confirm **Transfer
+ownership**. The selected Admin becomes Owner and you become Admin immediately; they do not need to
+agree separately. See [Transfer ownership](/owner/responsibilities#transfer-ownership).
 
 ## Take a role-based tour
 
@@ -76,8 +76,7 @@ for lower roles:
 | Viewer | Two, read-only                                                |
 
 On an installed server, the Admin tour includes a stop about example data; the demo leaves it out.
-The tour is unavailable while permissions are being checked or can't be confirmed, and while you
-are viewing a read-only [offline snapshot](/reference/glossary#snapshot-offline).
+The tour is unavailable while permissions are being checked or can't be confirmed.
 
 ## View the company as a member
 
@@ -87,15 +86,22 @@ An Owner or Admin can see what another active member sees without changing their
 access**, select the eye button on the member's row and confirm. A red bar reading **Masquerading as
 _name_** stays visible throughout.
 
-You see the company with that member's role and redactions, but you cannot change anything; the
-server blocks every change. It never applies to another company. An Admin who views the company as
-the Owner sees what the Owner sees, including real names.
+You can read the company using that member's role and redactions, but you cannot change data. The
+server refuses every write and every company, membership, or authentication route while this view is
+active, except **End now** and sign out. Each company request still checks both your access and the
+member’s access. An Admin who views the
+company as the Owner sees what the Owner sees, including real names.
 
-Select **End now** to return to your own view. Switching company, signing out, a revoked or expired
-session, a disabled membership on either side, or a server restart also ends it. The server keeps a
-record of when it starts and ends.
+The banner shows the deadline: a view lasts 15 minutes. Select **End now** to return to your own
+view sooner. The view applies to all your signed-in sessions; another tab updates when you return
+to it or make a request. Switching company ends the view for all sessions before changing company.
+Signing out ends that session only; your other sessions keep the view until it ends or expires.
 
-## Check what exports and offline snapshots contain
+If a view changes while you are working, the app reloads the correct view before allowing changes.
+An interrupted action is never submitted automatically: check the restored screen and try again.
+The server records starts, ends, expiry and invalidation.
+
+## Check what exports contain
 
 An export hides the same things as the screen. Only an Owner's export holds real names:
 
@@ -103,11 +109,6 @@ An export hides the same things as the screen. Only an Owner's export holds real
 | ---------------------------- | --------------- | ---------- | ---------- |
 | Archived and deleted rows    | Left out        | Included   | Included   |
 | Private client/project names | Code names      | Code names | Real names |
-
-[Offline access](/using/settings#offline-access) always behaves like Viewer access: while a cached
-snapshot is open, nobody can create, edit, delete, import or change membership. A snapshot holds
-what that person could see when last online, so an Owner's snapshot may contain real private names.
-Protect the Owner's device accordingly.
 
 <span id="what-s-next"></span>
 

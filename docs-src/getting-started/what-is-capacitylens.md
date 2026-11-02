@@ -19,6 +19,9 @@ unsold. Someone finds out about a new project the week before their holiday.
 CapacityLens puts the whole team on one screen that everyone can read, so you can see trouble
 coming and move work around before it lands.
 
+The **How CapacityLens works** introduction can be reopened from the same-named item in the
+sidebar.
+
 ## What you get
 
 - **The weeks ahead at a glance.** Show 1, 2, 4, 6 or 8 weeks, filtered by client, project or
@@ -59,8 +62,8 @@ it to see their own week.
   path and the settings are stable.
 - **Leaving.** Your data is one SQLite database file on your server, and **Export JSON** in
   Settings downloads the company's scheduling records. The AGPL lets anyone continue the code.
-- **Outside services.** None is needed to run it. Email, sign-in through Google, Microsoft or
-  GitHub, and the breached-password check (on by default) are the only ones it can use.
+- **Outside services.** Email delivery is the only one. Invitations, address confirmation and
+  password resets are sent by email.
 - **Support.** Community help on a best-effort basis, with no guaranteed response time.
   [Get help](/open-source#get-help) explains where to ask.
 

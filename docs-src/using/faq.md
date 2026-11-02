@@ -52,8 +52,9 @@ Your company can switch [Disciplines](/using/disciplines) off.
 
 ## Can I use CapacityLens without a connection?
 
-Turn on **Make this device available offline** in Settings to keep a seven-day, read-only snapshot
-on that device. You can't make changes offline. [Offline access](/using/settings#offline-access)
+The company schedule needs a server connection. If a read or save fails, reconnect and use the
+retry or recovery control offered. Changes are never queued for later. The separate demo keeps
+data only in memory and resets when you reload. [Connection errors](/using/settings#connection-errors)
 
 ## Where do clients, projects and activities come from?
 

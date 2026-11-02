@@ -1,0 +1,391 @@
+import {
+  applyCapacityMode,
+  buildDayCapacity,
+  resolveUtilizationFromCapacity,
+} from '@/lib/capacity';
+import { addDaysISO, eachDayISO, rangesOverlap } from '@capacitylens/shared/lib/dateMath';
+import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from '@/lib/metadata';
+import {
+  buildExternalBand,
+  buildDisciplineGroups,
+  hasSupplementaryResources,
+} from '@/store/selectors';
+import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities';
+import type { AppData, ISODate, Resource, Weekday } from '@capacitylens/shared/types/entities';
+import { NEUTRAL_COLOR } from '@/lib/palette';
+import { packLanes, resolveLaneTop, resolveRowHeightForLanes } from '@/lib/lanePacking';
+import type { LaneLayout } from '@/lib/lanePacking';
+import { laneLayout as compactLaneLayout } from './layout';
+import {
+  createDisplayNameComparator,
+  createEngagementFavouriteDisplayNameComparator,
+  createFavouriteDisplayNameComparator,
+} from '@/lib/displayOrder';
+import {
+  bucketByCoveredDate,
+  groupByResourceId,
+  hasRenderableDateRange,
+  reportInvalidScheduleDateRangeOnce,
+  NO_ALLOCATIONS,
+  NO_TIME_OFF,
+  NO_CLOSURES,
+} from './schedulerModelIndexing';
+import { createAllocationFilters } from './schedulerModelFilters';
+import { createRowBuilder } from './schedulerRowModel';
+import { createCapacitySource } from './schedulerRowCapacity';
+import type {
+  GroupModel,
+  SchedulerModelOptions,
+  SchedulerResourceGroup,
+} from './schedulerModelTypes';
+
+interface ApplyVisibleUtilizationInput {
+  model: GroupModel[];
+  data: AppData;
+  start: ISODate;
+  end: ISODate;
+  accountWorkingDays: Weekday[];
+  blocksMode?: boolean | undefined;
+  laneLayout?: LaneLayout | undefined;
+  partiallyExposesNextColumn?: boolean | undefined;
+}
+
+interface BuildResourceGroupsInput {
+  data: AppData;
+  disciplinesEnabled: boolean;
+  groupByEngagement: boolean;
+}
+
+interface BuildFallbackGroupsInput {
+  resources: Resource[];
+  groupByEngagement: boolean;
+  /** The single band used when engagement grouping is off. */
+  ungrouped: { key: string; title: string; color?: string };
+}
+
+interface CreateResourceComparatorInput {
+  groupByEngagement: boolean;
+  comparators: {
+    byDisplayName: (a: Resource, b: Resource) => number;
+    byFavouriteDisplayName: (a: Resource, b: Resource) => number;
+    byEngagementFavouriteDisplayName: (a: Resource, b: Resource) => number;
+  };
+}
+
+interface CreateSchedulerRowBuilderInput {
+  options: SchedulerModelOptions;
+  accountWorkingDays: Weekday[];
+  blocksMode: boolean;
+}
+
+export type {
+  BarLayout,
+  DayState,
+  TimeOffBlock,
+  RowModel,
+  GroupModel,
+  SchedulerModelOptions,
+} from './schedulerModelTypes';
+
+function includeRenderableDateRange<T extends { id: string; startDate: ISODate; endDate: ISODate }>(
+  row: T,
+): boolean {
+  const renderable = hasRenderableDateRange(row);
+  if (!renderable) reportInvalidScheduleDateRangeOnce(row);
+  return renderable;
+}
+
+// The scheduler's pure projection owns view-model shapes; presentation consumes those shapes without introducing a reverse dependency. Computation errors must propagate rather than be swallowed.
+
+function projectVisibleLanes({
+  row,
+  start,
+  end,
+  layout,
+  partiallyExposesNextColumn,
+}: {
+  row: GroupModel['rows'][number];
+  start: ISODate;
+  end: ISODate;
+  layout: LaneLayout;
+  partiallyExposesNextColumn: boolean;
+}) {
+  // The visible window is day-quantized, but a non-aligned scroll can expose the next column.
+  // Pack that partial column too so its bars cannot fall through to lane 0 over visible work.
+  const packingEnd = partiallyExposesNextColumn ? addDaysISO(end, 1) : end;
+  const visibleBars = row.bars.filter(({ allocation }) =>
+    rangesOverlap(allocation.startDate, allocation.endDate, start, packingEnd),
+  );
+  const { lanes, laneCount } = packLanes(visibleBars.map(({ allocation }) => allocation));
+  const laneById = new Map(lanes.map(({ id, lane }) => [id, lane]));
+  const bars = row.bars.map((bar) => {
+    const top = resolveLaneTop(laneById.get(bar.allocation.id) ?? 0, layout);
+    if (top === bar.top) return bar;
+    return { ...bar, top };
+  });
+  const rowHeight = resolveRowHeightForLanes(laneCount, layout);
+  return {
+    bars: bars.some((bar, index) => bar !== row.bars[index]) ? bars : row.bars,
+    rowHeight,
+  };
+}
+
+/** Recompute the visible-window percentage and lane layout while retaining the expensive bar
+ * geometry and timeline-day model. Horizontal scrolling changes this projection, not the static
+ * schedule. Off-screen overlaps must not make the row taller than the work currently in view. */
+export function applyVisibleUtilization({
+  model,
+  data,
+  start,
+  end,
+  accountWorkingDays,
+  blocksMode = false,
+  laneLayout = compactLaneLayout,
+  partiallyExposesNextColumn = false,
+}: ApplyVisibleUtilizationInput): GroupModel[] {
+  const days = eachDayISO(start, end);
+  const allocations = groupByResourceId(data.allocations, { include: includeRenderableDateRange });
+  const personalTimeOff = groupByResourceId(data.timeOff, { include: includeRenderableDateRange });
+  const closuresByDate = bucketByCoveredDate(
+    data.closures.filter(includeRenderableDateRange),
+    days,
+  );
+  return model.map((group) => {
+    const rows = group.rows.map((row) => {
+      const visibleLanes = projectVisibleLanes({
+        row,
+        start,
+        end,
+        layout: laneLayout,
+        partiallyExposesNextColumn,
+      });
+
+      if (isExternalResource(row.resource)) {
+        if (
+          row.utilization === 0 &&
+          visibleLanes.bars === row.bars &&
+          visibleLanes.rowHeight === row.rowHeight
+        ) {
+          return row;
+        }
+        return { ...row, ...visibleLanes, utilization: 0 };
+      }
+      const resourceAllocations = applyCapacityMode({
+        allocations: allocations.get(row.resource.id) ?? [],
+        blocksMode: blocksMode,
+      });
+      const resourceTimeOff = personalTimeOff.get(row.resource.id) ?? [];
+      const effectiveWeek = effectiveWorkingWeek(row.resource, accountWorkingDays);
+      // Bucket load once per row so scrolling does not rescan every allocation for every date. Preserve insertion order because floating-point addition is order-dependent.
+      const allocationsByDate = bucketByCoveredDate(resourceAllocations, days);
+      const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, days);
+      const next = resolveUtilizationFromCapacity(
+        days.map((date) =>
+          buildDayCapacity({
+            resource: row.resource,
+            date: date,
+            allocations: allocationsByDate.get(date) ?? NO_ALLOCATIONS,
+            timeOff: personalTimeOffByDate.get(date) ?? NO_TIME_OFF,
+            effectiveWeek: effectiveWeek,
+            closures: closuresByDate.get(date) ?? NO_CLOSURES,
+          }),
+        ),
+      );
+      if (
+        next === row.utilization &&
+        visibleLanes.bars === row.bars &&
+        visibleLanes.rowHeight === row.rowHeight
+      ) {
+        return row;
+      }
+      return { ...row, ...visibleLanes, utilization: next };
+    });
+    return rows.some((row, index) => row !== group.rows[index]) ? { ...group, rows } : group;
+  });
+}
+
+const UNASSIGNED_BAND = { key: 'unassigned', title: 'Unassigned', color: NEUTRAL_COLOR };
+const ALL_RESOURCES_BAND = { key: 'resources', title: 'Resources' };
+
+function buildFallbackGroups({
+  resources,
+  groupByEngagement,
+  ungrouped,
+}: BuildFallbackGroupsInput): SchedulerResourceGroup[] {
+  if (!groupByEngagement) {
+    return resources.length ? [{ ...ungrouped, discipline: null, resources }] : [];
+  }
+  return [
+    {
+      ...ungrouped,
+      key: 'engagement-studio',
+      title: 'Studio',
+      discipline: null,
+      resources: resources.filter((resource) => resource.engagement === 'studio'),
+    },
+    {
+      ...ungrouped,
+      key: 'engagement-supplementary',
+      title: 'Supplementary',
+      discipline: null,
+      resources: resources.filter((resource) => resource.engagement === 'supplementary'),
+    },
+  ].filter((group) => group.resources.length > 0);
+}
+
+function buildResourceGroups({
+  data,
+  disciplinesEnabled,
+  groupByEngagement,
+}: BuildResourceGroupsInput): SchedulerResourceGroup[] {
+  const groups: SchedulerResourceGroup[] = [];
+  if (disciplinesEnabled) {
+    const disciplineGroups = buildDisciplineGroups(data);
+    for (const group of disciplineGroups) {
+      if (group.discipline) {
+        groups.push({
+          ...group,
+          key: group.discipline.id,
+          title: group.discipline.name,
+          ...(group.discipline.color ? { color: group.discipline.color } : {}),
+        });
+      }
+    }
+    const unassigned =
+      disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
+    groups.push(
+      ...buildFallbackGroups({
+        resources: unassigned,
+        groupByEngagement,
+        ungrouped: UNASSIGNED_BAND,
+      }),
+    );
+  } else {
+    groups.push(
+      ...buildFallbackGroups({
+        resources: data.resources.filter(isCapacityTracked),
+        groupByEngagement,
+        ungrouped: ALL_RESOURCES_BAND,
+      }),
+    );
+  }
+  const external = buildExternalBand(data.resources);
+  if (external) {
+    groups.push({
+      ...external,
+      key: 'external',
+      title: 'External / 3rd party',
+      color: NEUTRAL_COLOR,
+    });
+  }
+  return groups;
+}
+
+function createResourceComparator({
+  groupByEngagement,
+  comparators,
+}: CreateResourceComparatorInput): (a: Resource, b: Resource) => number {
+  const comparePeople = groupByEngagement
+    ? comparators.byEngagementFavouriteDisplayName
+    : comparators.byFavouriteDisplayName;
+  return (a, b) => {
+    const placeholderOrder = Number(a.kind === 'placeholder') - Number(b.kind === 'placeholder');
+    if (placeholderOrder !== 0) return placeholderOrder;
+    return a.kind === 'placeholder' ? comparators.byDisplayName(a, b) : comparePeople(a, b);
+  };
+}
+
+function createSchedulerRowBuilder({
+  options,
+  accountWorkingDays,
+  blocksMode,
+}: CreateSchedulerRowBuilderInput) {
+  const { data, geom, days, visibleWindow, overSoonWindow, filters, preferences } = options;
+  const allocationFilters = createAllocationFilters(filters, preferences, data);
+  const seriesEndByKey = new Map<string, ISODate>();
+  const allocationsByResource = groupByResourceId(data.allocations, {
+    visit: (allocation) => {
+      if (!allocation.seriesId || !isValidISODate(allocation.endDate)) return;
+      const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
+      const current = seriesEndByKey.get(key);
+      if (current === undefined || allocation.endDate > current) {
+        seriesEndByKey.set(key, allocation.endDate);
+      }
+    },
+  });
+  const closures = data.closures.filter(includeRenderableDateRange);
+  return {
+    buildRow: createRowBuilder({
+      model: { geom, days },
+      accountWorkingDays,
+      blocksMode,
+      laneLayout: options.laneLayout ?? compactLaneLayout,
+      allocationsByResource,
+      timeOffByResource: groupByResourceId(data.timeOff.filter(includeRenderableDateRange)),
+      closures,
+      seriesEndByKey,
+      allocationFilters,
+      capacitySource: createCapacitySource({
+        days,
+        visibleWindow,
+        overSoonWindow,
+        closures,
+        blocksMode,
+      }),
+    }),
+    resourceVisible: allocationFilters.resourceVisible,
+  };
+}
+
+/** Projects scoped scheduling data into grouped resource rows and visible bars. */
+export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[] {
+  const { data, filters, preferences } = options;
+  const {
+    disciplinesEnabled,
+    accountWorkingDays = [1, 2, 3, 4, 5],
+    blocksMode = false,
+  } = preferences;
+
+  const groupByEngagement = hasSupplementaryResources(data.resources);
+  // Resolve the shared placeholder label once per model build so sorting reuses it while still following the active locale.
+  const placeholderLabel = resolvePlaceholderDisplayName();
+  const resolveDisplayName = (resource: Resource): string =>
+    resource.kind === 'placeholder' ? placeholderLabel : resolveResourceDisplayName(resource);
+  const byFavouriteResourceDisplayName =
+    createFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
+  const byEngagementFavouriteResourceDisplayName =
+    createEngagementFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
+  const byResourceDisplayName = createDisplayNameComparator<Resource>(resolveDisplayName);
+  const byResourceOrder = createResourceComparator({
+    groupByEngagement,
+    comparators: {
+      byDisplayName: byResourceDisplayName,
+      byFavouriteDisplayName: byFavouriteResourceDisplayName,
+      byEngagementFavouriteDisplayName: byEngagementFavouriteResourceDisplayName,
+    },
+  });
+  const { buildRow, resourceVisible } = createSchedulerRowBuilder({
+    options,
+    accountWorkingDays,
+    blocksMode,
+  });
+
+  const groups = buildResourceGroups({ data, disciplinesEnabled, groupByEngagement });
+  return groups
+    .map((group) => ({
+      key: group.key,
+      title: group.title,
+      ...(group.color ? { color: group.color } : {}),
+      external: !!group.external,
+
+      rows: group.resources
+        .filter(resourceVisible)
+        .sort(byResourceOrder)
+        .map(buildRow)
+
+        .filter((row) => filters.showUnmatched || !row.dimmed),
+    }))
+    .filter((group) => group.rows.length > 0);
+}

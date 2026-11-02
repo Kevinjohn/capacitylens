@@ -1,76 +1,39 @@
 ---
 title: Install and run CapacityLens
-description: Your first steps as the installer. Install from the release archive, put HTTPS in front, check backups and hand the address to the Owner.
+description: Install the native CapacityLens archive, configure HTTPS and backups, and hand the service to its Owner.
 prev: false
 next: false
 ---
 
-<span id="choose-an-installation-route"></span>
-<span id="the-moving-parts"></span>
-<span id="common-questions"></span>
-<span id="what-s-next"></span>
-
 # Install and run CapacityLens
 
-You put CapacityLens on a server and hand it to the company's Owner. It is one Node process and
-one SQLite file. There is no database server to run and nothing to build. On a host that already
-runs Node 24 and has a hostname pointing at it, the install takes about ten minutes.
+CapacityLens runs as one Node process and stores company data in SQLite. These five steps are for
+whoever manages your hosting. That person also handles backups, upgrades and service health.
+The expected installation is the native release archive with an HTTPS proxy on the same machine.
 
-<div class="steps">
+1. **Download** and unpack the archive for your host.
+2. **Choose a data folder** outside the release directory.
+3. **Configure** the private environment, secrets, public address and backups.
+4. **Start** the service after its database upgrade, with HTTPS at the same-machine proxy.
+5. **Open** the address and complete sign-in and company naming in the browser.
 
-1. **Install it** in [five short steps](/self-hosting/install): download the release archive,
-   pick a folder for the data, generate the settings with one command, start the server, and open
-   the address. They are the same on a managed host such as Forge as on your own Linux server.
-   Check the [server size](/self-hosting/install#server-size) first.
+[Install without Docker](/self-hosting/install-without-docker) gives the exact Linux commands;
+[Deploy on a managed host](/self-hosting/managed-vps/) explains the process-manager requirements.
+Existing [Docker support](/self-hosting/install-with-docker) remains optional. A proxy in a
+separate container or on another machine is not supported.
 
-2. **Put HTTPS in front.** A managed host issues the certificate for you. On your own server,
-   [Caddy does it in four lines](/self-hosting/install-without-docker#https). Finish this before
-   anyone enters a password. [TLS and networking](/self-hosting/tls-and-networking)
+Before handover, read [Configuration](/self-hosting/configuration),
+[TLS and networking](/self-hosting/tls-and-networking), [Backups and restore](/self-hosting/backups-and-restore),
+[Upgrades](/self-hosting/upgrades) and [Monitoring](/self-hosting/monitoring).
 
-3. **Check backups.** In production, CapacityLens snapshots the database as it starts and every
-   hour after that, into a `backups` folder beside it. Set `CAPACITYLENS_BACKUP_DIR` to change
-   where. [Copy the snapshots](/self-hosting/backups-and-restore#copy-snapshots-off-the-server)
-   and the environment file off the server.
+## Support
 
-4. ![Owner sign-in setup form with name, email, Create a password and Owner setup token fields and Create my sign-in](../screenshots/steps/owner_setup_sign_in_form.png)
+The operator owns backups, upgrades, service health, disk capacity and changes to sign-in settings.
+For an incident, see [When something goes wrong](/self-hosting/incidents). For community help, see
+[Get help](/open-source#get-help); do not include credentials, bearer links or private customer
+data in a public report.
 
-   **Hand over.** Decide on [account email](/self-hosting/configuration#account-email) first:
-   without it, invitations are links someone copies and sends, and there are no password-reset
-   emails. Check `https://your-address/api/health` shows `"ok":true`. If you are also the
-   Owner, continue with [Set up your company](/owner/). Otherwise send the Owner the address and
-   that guide, and send the setup token separately and privately. This is the screen they will
-   see. After the Owner has signed in, remove `CAPACITYLENS_SETUP_TOKEN` and restart.
-   [Verify and hand over](/self-hosting/verify-and-hand-over)
+## Other ways to try CapacityLens
 
-</div>
-
-## What you're taking on
-
-Self-hosting means you, or someone you name, own the service after handover. That means keeping
-backups tested, watching health and disk space, installing new releases, and making configuration
-changes through a reviewed restart, agreed with an Owner or Admin when they affect sign-in or
-members. To hear about new releases, watch the
-[GitHub repository](https://github.com/Kevinjohn/capacitylens) for releases (**Watch** →
-**Custom** → **Releases**). Support is community help on a best-effort basis, with no guaranteed response time. [Get
-help](/open-source#get-help) explains where to ask.
-
-## Follow the full steps for your host
-
-- [Deploy on a managed host](/self-hosting/managed-vps/) such as Forge, Ploi or
-  RunCloud, working in the platform's own screens.
-- [Install without Docker](/self-hosting/install-without-docker) on a Linux host with systemd.
-
-## Other ways to install
-
-- [Install with Docker](/self-hosting/install-with-docker) if your host already runs Docker.
-- [Try the demo](/getting-started/try-the-demo) first if you only want to look around.
-
-## Run it
-
-- [Configuration](/self-hosting/configuration): every setting, including sign-in and storage.
-- [Company login](/company-login/): Google or Microsoft sign-in, and moving a team onto it.
-- [Upgrades](/self-hosting/upgrades) to a newer release.
-- [Monitoring and health checks](/self-hosting/monitoring) for health, storage and certificates.
-- [When something goes wrong](/self-hosting/incidents) for diagnosis and recovery.
-- [Recover a blocked ownership transfer](/self-hosting/ownership-transfer-recovery).
-- [Install and operations FAQ](/self-hosting/faq).
+[Try the demo](/getting-started/try-the-demo) for temporary sample data. The demo is not an
+installation route and must not hold production scheduling data.

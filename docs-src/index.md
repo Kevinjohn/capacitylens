@@ -13,7 +13,9 @@ CapacityLens puts that answer on one shared screen. People run down the side, da
 the top, and their work and time off sit in between. Red means someone is booked for more than
 they can do that day.
 
-<video controls muted playsinline preload="metadata" src="./screenshots/demo.mp4" aria-label="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is dragged to a colleague with room, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." style="width: 100%; border-radius: 8px;"></video>
+<video controls muted playsinline preload="metadata" src="./screenshots/demo.mp4" aria-label="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is reassigned to a colleague, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." style="width: 100%; border-radius: 8px;"></video>
+
+Illustrative October 2026 walkthrough with fictional data. Dates and sample bookings in the current demo vary; check each person’s capacity indicators when moving work.
 
 You book work by the day and read the plan by the week. CapacityLens does not track tasks,
 budgets or timesheets.
@@ -31,12 +33,11 @@ own server, and the only cost is that server ([server size](/self-hosting/instal
 <span id="day-to-day-usage"></span>
 <span id="self-hosting-operations"></span>
 
-**I'm installing it.** You put CapacityLens on a server and give the Owner its address: install it
-(five short steps, about ten minutes on a host that already runs Node 24), add HTTPS, check
-backups and hand over. [Start the installation](/self-hosting/)
+**I manage the hosting.** Install CapacityLens in five steps on a Node 24 host, ending with Open.
+You handle HTTPS, backups, upgrades and service health. [Start the installation](/self-hosting/)
 
-**I own the company.** You create the company and invite someone to run it day to day. Four
-steps, and then you can stop. [Set up your company](/owner/)
+**I own the company.** Create your sign-in, name the company in the browser and invite someone
+to run it day to day. [Access your company](/owner/)
 
 **I set the work.** You add the team, the clients and the projects, then book people onto work.
 Five steps to a working schedule. [Get the schedule ready](/admin/)
@@ -45,8 +46,7 @@ Five steps to a working schedule. [Get the schedule ready](/admin/)
 the first screen. [See your work](/using/)
 
 Doing all of it yourself? Small agencies often do.
-[The whole setup on one page](/getting-started/quick-start) takes you from download to your
-first booking.
+[The quick start](/getting-started/quick-start) covers installation, browser company setup and the first booking.
 
 Want a look first? Watch the walkthrough above. If you are comfortable with a terminal,
 [try the demo](/getting-started/try-the-demo) on your own computer with sample data: it needs the
@@ -54,9 +54,8 @@ developer tools Node and git, but no server and no sign-in.
 
 ## How setup fits together
 
-1. **The installer** puts CapacityLens on a server and gives the Owner an address and a one-time
-   setup token.
-2. **The Owner** signs in with that token, creates the company and invites an Admin.
+1. **The installer** puts CapacityLens on a server and sends the Owner a one-time setup link.
+2. **The Owner** opens that link, chooses a password, creates the company and invites an Admin.
 3. **The Admin** invites the team, adds the people to schedule and books the first work.
 4. **Everyone else** accepts their invitation and opens Schedule.
 

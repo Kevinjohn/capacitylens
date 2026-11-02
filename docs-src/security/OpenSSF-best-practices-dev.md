@@ -1,22 +1,28 @@
 ---
 title: OpenSSF Baseline self-assessment
-description: CapacityLens answers every OpenSSF Baseline Level 1, 2 and 3 control with repository evidence and visible gaps.
+description: OpenSSF Baseline assessment from 9 September 2026, with branch-protection evidence updated on 2 November 2026.
 ---
 
 # Review the OpenSSF Baseline self-assessment
 
-This page records CapacityLens's answers to every control in OpenSSF Baseline Levels 1–3. It helps
-maintainers complete the public assessment and shows contributors where stronger controls are still
-needed. The public [OpenSSF project record](https://www.bestpractices.dev/projects/14555) remains the
-authoritative badge status.
+This page records the repository evidence and gaps reviewed for the OpenSSF Baseline Levels 1–3
+criteria set identified below. It helps maintainers complete the related public assessment and shows
+contributors where stronger controls were still needed at review time. The public
+[OpenSSF project record](https://www.bestpractices.dev/projects/14555) remains the authoritative
+badge status.
 
-The assessment uses the [`v2026.02.19` criteria](https://www.bestpractices.dev/en/projects/1/baseline-1)
-currently presented by BadgeApp and was reviewed against the repository on 9 September 2026. The
-upstream OSPS Baseline published [`v2026.08.28`](https://baseline.openssf.org/versions/2026-08-28) on
-28 August 2026, but BadgeApp has not yet adopted that version. Reconcile this ledger when its public
-questionnaire changes. **Met** means the repository or its GitHub configuration supplies evidence.
+This ledger records answers reviewed against the [`v2026.02.19` criteria](https://www.bestpractices.dev/en/projects/1/baseline-1)
+on 9 September 2026. The upstream OSPS Baseline published [`v2026.08.28`](https://baseline.openssf.org/versions/2026-08-28)
+on 28 August 2026. This is a dated assessment, not a claim that these criteria match the questionnaire
+currently shown by BadgeApp. Before submitting or updating the public assessment, compare it with the
+current questionnaire and reconcile changed criteria and controls. **Met** means the repository or its
+GitHub configuration supplied evidence at that review.
 **Unmet** identifies real work still required. **N/A** includes a reason. This document does not claim
 that an unsubmitted level has been awarded.
+
+Branch references and protection evidence were updated on 2 November 2026 for the return to `main`.
+GitHub requires pull requests and the `Lint and type-check` status check, including for administrators.
+The remaining assessment retains its original review date.
 
 ## Project information
 
@@ -37,7 +43,7 @@ that an unsubmitted level has been awarded.
 | --- | --- | --- |
 | `OSPS-AC-01.01` — Does access to sensitive repository resources require multi-factor sign-in? | Met | GitHub requires two-factor sign-in for contributors and protects sensitive settings and credentials. Public source remains intentionally readable. |
 | `OSPS-AC-02.01` — Are new collaborators assigned the lowest privileges by default or granted access manually? | Met | External contributors have no direct rights and propose changes through forks and pull requests. Repository access is granted explicitly. |
-| `OSPS-AC-03.01` — Are direct commits to the primary branch prevented? | Met | The protected `main` branch accepts changes through pull requests. |
+| `OSPS-AC-03.01` — Are direct commits to the primary branch prevented? | Met | The protected `main` default branch accepts changes through pull requests. |
 | `OSPS-AC-03.02` — Is deletion of the primary branch protected by an explicit control? | Met | GitHub protection prevents deletion and force pushes to `main`. |
 | `OSPS-BR-01.01` — Is untrusted CI metadata validated or safely handled before use? | Met | Workflows do not evaluate contributor-controlled titles, messages or metadata as commands. Shell variables are quoted and permissions are constrained. |
 | `OSPS-BR-01.03` — Is untrusted code kept away from privileged CI credentials and assets? | Met | Pull-request analysis uses `pull_request`, not `pull_request_target`; workflows declare permissions and checkouts disable persisted credentials. |
@@ -69,22 +75,22 @@ that an unsubmitted level has been awarded.
 | `OSPS-BR-04.01` — Does every release describe functional and security changes? | Met | GitHub release notes and [`CHANGELOG.md`](https://github.com/Kevinjohn/capacitylens/blob/main/CHANGELOG.md) provide human-readable changes and security entries. |
 | `OSPS-BR-05.01` — Does the build use standard tooling to obtain dependencies? | Met | pnpm reads the workspace manifests and exact lockfile. |
 | `OSPS-BR-06.01` — Are release assets signed or represented in a signed manifest containing hashes? | Met | The release workflow creates GitHub build attestations and publishes an in-toto provenance bundle for the packaged build and SPDX SBOM. |
-| `OSPS-DO-06.01` — Is dependency selection, retrieval and tracking documented? | Met | The [development guide](../reference/development.md#ci-jobs) documents dependency policy, pnpm, the lockfile, Dependabot and validation. |
+| `OSPS-DO-06.01` — Is dependency selection, retrieval and tracking documented? | Met | [`CONTRIBUTING.md`](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md) documents pnpm-based setup and validation; the root manifest, lockfile and Dependabot configuration track dependencies. |
 | `OSPS-DO-07.01` — Are build instructions and prerequisites documented? | Met | The README and `CONTRIBUTING.md` specify Node 24, pnpm, installation, development and complete validation commands. |
 | `OSPS-GV-01.01` — Are members with access to sensitive resources listed? | Met | [`GOVERNANCE.md`](https://github.com/Kevinjohn/capacitylens/blob/main/GOVERNANCE.md) records the maintainer-led model; the repository owner is publicly identified through GitHub and package metadata. |
 | `OSPS-GV-01.02` — Are project roles and responsibilities documented? | Met | `GOVERNANCE.md` describes product direction, review, release, security response and contributor progression. |
 | `OSPS-GV-03.02` — Does the contributor guide define acceptable contributions? | Met | `CONTRIBUTING.md` defines scope, coding, testing, security, submission and DCO requirements. |
 | `OSPS-LE-01.01` — Must contributors assert legal authority for every commit? | Met | Contributor commits require DCO sign-off, documented in `CONTRIBUTING.md` and checked by CI. |
-| `OSPS-QA-03.01` — Must automated status checks pass or be explicitly bypassed before `main` accepts a commit? | Unmet | Current branch protection requires pull requests but deliberately does not require status checks while there is one active maintainer. Full workflows report after merge. |
+| `OSPS-QA-03.01` — Must automated status checks pass or be explicitly bypassed before `main` accepts a commit? | Met | Branch protection requires pull requests and the `Lint and type-check` status check; admins are subject to the rule. |
 | `OSPS-QA-06.01` — Does CI run an automated test suite before every commit is accepted? | Unmet | Contributors run the complete local gates and CodeQL analyzes pull requests, but application and browser suites currently report after merge rather than blocking every merge. |
-| `OSPS-SA-01.01` — Does design documentation describe system actors and actions? | Met | The [account-boundary design](https://github.com/Kevinjohn/capacitylens/blob/main/docs-src/decisions/account-boundary.md), [threat model](threat-model.md) and development reference describe people, trust boundaries, components and operations. |
-| `OSPS-SA-02.01` — Are the released software's external interfaces documented? | Met | Self-hosting, sign-in, account-boundary and development references describe browser, HTTP, configuration, identity-provider and persistence interfaces. |
+| `OSPS-SA-01.01` — Does design documentation describe system actors and actions? | Met | The [account-boundary design](https://github.com/Kevinjohn/capacitylens/blob/main/docs-src/decisions/account-boundary.md) and [threat model](threat-model.md) describe people, trust boundaries, components and operations. |
+| `OSPS-SA-02.01` — Are the released software's external interfaces documented? | Met | Self-hosting, password sign-in, SMTP configuration, account-boundary and test references describe browser, HTTP, configuration and persistence interfaces. |
 | `OSPS-SA-03.01` — Has the project performed a security assessment? | Met | The [dated security review](reviews/security-review-2026-08-18.md), ASVS ledger, threat model and control inventories identify likely and high-impact risks. |
 | `OSPS-VM-01.01` — Is there a coordinated-disclosure policy with a response timeframe? | Met | `SECURITY.md` requests private reports, targets acknowledgement within five working days and explains validation, repair and advisory publication. |
 | `OSPS-VM-03.01` — Can reporters contact the project privately about vulnerabilities? | Met | GitHub Private Vulnerability Reporting is the primary documented route. |
 | `OSPS-VM-04.01` — Will discovered vulnerabilities be published publicly? | Met | `SECURITY.md` commits to publishing an advisory after a patched release; release notes and the changelog record relevant fixes. |
 
-Level 2 is not currently claimable because `OSPS-QA-03.01` and `OSPS-QA-06.01` remain unmet.
+Level 2 is not currently claimable because `OSPS-QA-06.01` remains unmet.
 
 ## Baseline Level 3
 
@@ -93,7 +99,7 @@ Level 2 is not currently claimable because `OSPS-QA-03.01` and `OSPS-QA-06.01` r
 | `OSPS-AC-04.02` — Does each CI job receive only the permissions it needs? | Met | Workflows declare minimal permissions; write, attestation and identity-token rights are limited to the release job that consumes them. |
 | `OSPS-BR-01.04` — Is trusted collaborator input sanitized before CI uses it? | Met | Manual release input is treated as an existing tag, passed as a quoted value and resolved by GitHub checkout rather than evaluated as shell code. |
 | `OSPS-BR-02.02` — Is every release asset associated with a unique release identifier? | Met | Assets attach to a uniquely tagged GitHub release and their provenance subjects contain cryptographic identities. |
-| `OSPS-BR-07.02` — Is there a policy for storing, accessing and rotating secrets? | Met | Security inventories, self-hosting configuration and incident guidance define storage boundaries, access expectations and rotation steps. |
+| `OSPS-BR-07.02` — Is there a policy for storing, accessing and rotating secrets? | Met | Security inventories, self-hosting configuration and incident guidance define storage boundaries, access expectations and rotation steps for `APP_KEY` and SMTP credentials. |
 | `OSPS-DO-03.01` — Are there user instructions for verifying release integrity and authenticity? | Unmet | Attestations are generated, but the public documentation does not yet give consumers a complete verification command and expected result. |
 | `OSPS-DO-03.02` — Do verification instructions identify the expected release author or process? | Unmet | The release workflow has a GitHub identity, but consumer-facing verification documentation does not yet pin and explain the expected identity. |
 | `OSPS-DO-04.01` — Is each release's support scope and duration documented? | Met | `SECURITY.md` states that only the latest release and current `main` are supported; `SUPPORT.md` defines the available support routes. |
@@ -101,7 +107,7 @@ Level 2 is not currently claimable because `OSPS-QA-03.01` and `OSPS-QA-06.01` r
 | `OSPS-GV-04.01` — Must collaborators be reviewed before receiving escalated access? | Unmet | The governance document describes progression but does not define an enforceable vetting and approval policy for sensitive access. |
 | `OSPS-QA-02.02` — Are compiled release assets delivered with an SBOM? | Met | The release workflow publishes an SPDX JSON SBOM alongside the packaged web build and provenance bundle. |
 | `OSPS-QA-04.02` — Do all repositories in a multi-repository release enforce equivalent security requirements? | N/A | CapacityLens releases are built from one repository. |
-| `OSPS-QA-06.02` — Is it documented when and how tests run? | Met | `CONTRIBUTING.md` and the development guide describe local commands, CI jobs, coverage expectations and affected-risk checks. |
+| `OSPS-QA-06.02` — Is it documented when and how tests run? | Met | `CONTRIBUTING.md` and the [test reference](../reference/how-it-is-tested.md) describe local commands, CI jobs, coverage expectations and affected-risk checks. |
 | `OSPS-QA-06.03` — Must major changes add or update automated tests? | Met | `CONTRIBUTING.md` requires tests that fail without a behavior change and names extra threat-oriented suites for sensitive changes. |
 | `OSPS-QA-07.01` — Does every change require approval from a human other than its author? | Unmet | CapacityLens currently has one active maintainer and branch protection deliberately requires no non-author approval. |
 | `OSPS-SA-03.02` — Has the project performed threat modelling and attack-surface analysis? | Met | The [threat model](threat-model.md), attack inventory, ASVS ledger and dated reviews cover trust boundaries, critical paths, threats and mitigations. |

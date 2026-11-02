@@ -1,6 +1,6 @@
 # US-SET-01 — Team calendar settings are set at creation, then frozen
 
-**Area:** Settings · **Persona:** Studio manager · **Linked automated coverage:** `e2e/onboarding.spec.ts` (capture at creation + read-only summary in Settings), `e2e/settings-calendar.spec.ts` (frozen summary/help + Settings axe), `e2e/onboarding.db.spec.ts` (server 409), `src/lib/timezones.test.ts` (numeric UTC offset labels and DST)
+**Area:** Settings · **Persona:** Studio manager · **Linked automated coverage:** `e2e/onboarding.spec.ts` (capture at creation + read-only summary in Settings), `e2e/settings-calendar.spec.ts` (frozen summary/help + Settings axe), `e2e/onboarding.db.spec.ts` (server 409), `apps/frontend/src/lib/timezones.test.ts` (numeric UTC offset labels and DST)
 
 **Documentation:** [Settings](../../docs-src/using/settings.md)
 
@@ -22,7 +22,8 @@ week-start or time zone after work is scheduled would silently re-interpret ever
 
 **Capture (at creation):**
 
-1. From the company picker, click **New company**.
+1. In the temporary demo, use **New company** from its picker. A server installation needs
+   a provisioned company; this release has no first-company creation form.
 2. The inline form shows **Company name**, **Week starts on** (Monday/Sunday, default Monday),
    and a searchable **Timezone** combobox preselected to the browser's IANA zone. Its options
    keep the local and common zones first and show a friendly name, current abbreviation and
@@ -46,6 +47,6 @@ row shows a compact read-only summary: **Company name**, **Week starts on** and 
   form controls or ordinary company-name editing control are shown.
 - Its question-mark action opens a labelled modal explaining that the values were selected at
   creation and cannot be changed here.
-- A direct API `PATCH` of `language`, `weekStartsOn` or `timezone` on an existing account is rejected
-  with **409**, and the stored value is unchanged.
+- A typed settings `PATCH` may initialise `language`, `weekStartsOn` or `timezone` once; a later
+  change is rejected with **409**, and the stored value is unchanged.
 - The Settings page passes an axe accessibility audit (no violations).

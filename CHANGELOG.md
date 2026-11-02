@@ -7,12 +7,226 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Reopen “How CapacityLens works” from the sidebar after dismissing the introduction.
+
+- `pnpm run check:changed` runs only the formatting, lint, type-check, test and documentation checks that a branch's changed files need (#1603). `--static` leaves whole test suites to one combined run, and a fresh worktree builds the application its backend tests read (#1657).
+
 ### Fixed
 
-- Credentialed CORS responses now use only explicitly configured origins; same-origin proxy requests remain supported without extra cross-origin permission.
+- Reject `.sqlite` files and chained symlinks that escape the release when building archives.
+- Keep pending admission decisions and their refreshes within the originating sign-in and company.
+- Stop a company closure or time off with an invalid date range from blocking schedule days that the schedule shows as open (#1706).
+- Correct company settings help to say disciplines start off in a new company.
+- Restore full beta JSON exports into a fresh company while preserving scheduling IDs, relationships and destination access.
+
+- Preserve a newly opened form and its unsaved draft when an earlier save finishes.
+- Refuse allocation saves based on an obsolete planning revision instead of overwriting concurrent changes.
+- Keep invitation intent and delayed member feedback within their originating principal and action context.
+- Preserve committed-operation logging warnings after the following planning refresh.
+
+- Let Editors restore archived records from a limited identity list while keeping inactive details and private names protected.
+- Keep archived planning records out of ordinary planning reads and mutation replies.
+- Enforce administrative authority for example data and inactive exports, and allow administrators to clear retained links for disabled or restricted members.
+- Apply the shared name rules consistently, accept up to 100 Unicode code points, and save the chosen first-company week start and time zone atomically.
+- Clear an activity's old phase when changing projects; match searches across names and roles; keep generated labels distinct and list ordering stable.
+- Show a neutral colour for ordinary resources without a discipline, reject invalid supplied scheduling values, and distinguish real small capacity excess from floating-point noise.
+- Keep identifying user-agent text out of diagnostics and verification-link bearers out of the supplied proxy access logs.
+- Align setup, lifecycle, privacy, import, diagnostics and operator guidance with current behavior.
+
+- Return to sign-in after a committed password change even when its dialog was dismissed.
+- Stop surviving development-server descendants when their launcher exits.
+- Preserve interrupted development identities and explain supported operator admission recovery.
+- Keep unexpected restore failures distinguishable, report bounded database diagnostics, and avoid false audit warnings or unchanged-link audit events.
+- Reject incomplete planning and admission responses instead of presenting them as complete.
+- Correct native setup, portable date-format, ownership-recovery and company-closure guidance.
+
+- Align scheduler accessible names with visible avatar and lane content.
+- Record bounded password sign-in outcomes, including automatic sign-in after registration.
+- Pull the pinned Node container base from Docker Hub so replacement CI avoids the anonymous ECR Public quota.
+
+- Hide a placeholder from active views when its bound project or that project's client is archived or deleted.
+- Preserve caller cancellation when generated API requests pass through the request timeout handler.
+- Validate the public origin consistently for emailed account links, cookies and transport security; reject malformed operator limits and retire unused configuration declarations.
+- Show unexpected error details only in development; test and production responses stay generic.
+- Load company and planning data correctly when opening or refreshing nested app URLs.
+- Explain when a password update succeeded but follow-up cleanup failed, clear obsolete form values, and give recovery guidance when the response is uncertain.
+- Remove the unaudited Account Kit reset-link command; operator-issued Owner recovery continues through the audited stopped-server command.
+
+- Align remaining security-header and first-company guides with native setup and the supported Google provider.
+
+### Changed
+
+- Read member/resource associations in one company-scoped batch and remove retired confirmation-return/provider-error protocols and unused internal contracts.
+
+- Use package-managed storage for planning deletion and restoration, preserving session-bound Undo/Redo while preventing old recovery groups from affecting replacement rows or newer deletions.
+- Pin Lucid soft deletes to the verified 0.1.1-alpha release archive.
+- Use a shared, read-only member view across signed-in sessions, with a 15-minute deadline, context-safe recovery and durable lifecycle audit (#1646).
+
+- Adopt the pinned Lucid soft-delete alpha for backend lifecycle models, with strict UTC timestamp serialization and tenant-scoped integration checks. Archive controls and planning restoration behavior are unchanged.
+- Set new and password-replacement hashes to the OWASP-minimum scrypt profile for the 16 MiB memory target. Legacy hashes remain verifiable, but sign-in does not automatically rehash them.
+
+- Update Account Kit to 0.1.3; account behavior, configuration and the database schema are unchanged.
+- Product API error codes now use uppercase consistently, and export queries reject unsupported fields.
+- Docker Compose now requires an HTTPS `CAPACITYLENS_PUBLIC_URL`, and the first setup link comes from `docker compose exec api node ace.js account-kit:admission:bootstrap`. The sign-in mode, setup token, breached-password, Google and backup-interval settings are removed from Compose and `.env.example`.
+- Accounts now run on Account Kit with password sign-in only. Invitations are emailed and last
+  seven days, with **Resend** in Team & access; accepting one confirms the address, and an Owner or
+  Admin then approves the person under **Waiting for approval**. The first Owner opens a one-time
+  setup link printed by `node ace.js account-kit:admission:bootstrap`, which replaces the setup
+  token. Email delivery is required, production needs an HTTPS public address, sessions end after
+  fourteen days without use, and a password change ends every session. Administrative password
+  reset and session revocation, the joining policy and joining link, and the breached-password
+  check are removed. Databases from before this change are refused at upgrade; start a fresh
+  database.
+- Remove Google sign-in, the sign-in mode switch and the dormant Microsoft verification screen from the AdonisJS fork; password sign-in is the only method until Account Kit social sign-in is adopted.
+- The demo opens straight on the company picker; the cosmetic **Choose an account** step and its Sign out are gone. Diagnostics no longer report a sign-in mode.
+- Removing a member now keeps them out until an Owner or Admin selects **Enable Access**, which restores the role they held when removed, even if their role changed while access was disabled; you can no longer remove yourself. **Waiting for approval** keeps declined and revoked people so a decision can be reversed, reads every page and offers **Try again** after a failed load. The access screen explains a missing invitation or refused email domain, and the confirmation and invitation pages tell an unreachable server or a lost answer apart from an invalid link. Invitations whose email failed report the saved invitation instead of an error, queued mail failures are logged, and email confirmation enforces the password length limits.
+- Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example no longer duplicates application HSTS or configures obsolete CSP reporting. `db:seed` now adds missing fixture rows without replacing existing product data or audit history. Diagnostics now show the last applied migration and newest completed snapshot modification time.
+
+- Native first-run setup now lets the sole signed-in identity enter a company name in the browser
+  and become its Owner without stopping the service. Setup refuses existing company access or
+  multiple pre-company identities and leaves credentials and admission unchanged. Additional open
+  signup is blocked until the first company exists, even when enabled in configuration.
+- Privacy, code-name and activity-kind changes ask once before clearing pending company-wide
+  deleted-item recovery copies, showing the number affected and skipping the warning when none
+  are lost. Cancellation keeps the draft and recovery copies unchanged.
+- Persisted access now requires an authenticated principal and one provisioned company. The
+  temporary demo keeps its editable, volatile multi-company picker. Retired generic company and
+  batch writes, browser sync queues and their recovery controls; scheduling changes use typed
+  planning commands and server revisions.
+- Frozen company calendar fields now reject a second typed settings change with 409.
+- Resource and catalogue records now use typed archive and restore actions. Owners and Admins can
+  anonymise a person; only an Owner can anonymise all people in the company. Clients, projects,
+  activities, the company, memberships and planning links remain while personal details and
+  dependent notes are scrubbed.
+- Removed company deletion, lifecycle soft-delete and purge actions, including the 30-day purge
+  countdown and generic lifecycle routes.
+- First sign-in leads to browser company setup on an empty installation; refreshed Settings guide
+  screenshots retain the explicit people-only anonymisation scope.
+
+### Fixed
+
+- Keep a newer allocation target selection when inline activity creation finishes after the user changes it.
+- Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
+
+### Added
+
+- Beta-native company export, preview and atomic Owner import now preserve stable planning IDs,
+  company settings and member links. Ownership transfer and import require a single-use
+  confirmation bound to the exact action and native session; password or linked Google identity
+  can confirm, and a recent sign-in alone cannot. Unchanged imports leave revision and audit
+  untouched.
+
+- Typed planning writes now cover disciplines, phases, personal time off, closures and company
+  settings. Session-bound deletion restoration reconnects surviving phase and discipline links
+  without overwriting later edits, and Undo/Redo covers the migrated actions in the editable demo
+  and authenticated app.
+
+- Typed allocation deletion and restoration routes. Deleting one allocation or a listed set saves
+  the complete rows as a restoration group bound to the deleting company, person and session;
+  restoring it reinserts them unchanged, once, with one revision and audit entry per action.
+  Commitment lookup returns the unconsumed group to its own session, and revoking a person's
+  sessions removes their groups.
+
+- Typed allocation-group creation and catalogue/resource archive and unarchive operations preserve
+  stable IDs and commit one revision per action. Existing deletion and Undo paths remain active
+  while their complete replacement is unfinished.
+
+- Transactional company planning snapshots and typed resource operations with one company revision,
+  stale-edit refusal, atomic audit recording and actor-scoped mutation commitment lookup. Existing
+  callers share the revision during transition; session-bound deletion restoration remains gated.
+
+### Removed
+
+- Custom structural gate checks (typed-lint, shared-environment, typecheck-graph, build-tsconfig,
+  script-environment, import-cycle and dependency-scanner tests) and the automated cryptographic
+  inventory check with its machine-readable ledger. The cryptographic inventory remains a reviewed
+  document.
+
+- The released-migration manifest, its checksum checks and down migrations. The schema is one
+  forward-only baseline migration; `app:upgrade` writes a timestamped pre-upgrade snapshot of any
+  existing database before running pending migrations.
+
+- Production company selection, switching, multi-company configuration and ordinary additional-company creation. Server-backed installations now select their sole company; the in-memory demo retains its temporary company picker.
+- Optional offline scheduling snapshots, browser snapshot encryption and the offline application shell. The company schedule requires a server connection; display preferences and the temporary demo remain available.
+
+- Retired the legacy server workspace and switched validation, native packaging and Docker deployment to the current application.
+
+### Fixed
+
+- Concurrent manual and scheduled backup retention preserves the newest completed recovery point.
+  Manual backup failures also report errors cleaning up temporary files.
+
+- Preserve planning drafts through admission-only configuration and pending invitation changes,
+  and identify invalidated view-as authority as planning context loss.
+- Reject phase moves that would invalidate linked activities, and audit dependent attribution
+  repairs atomically with their company revision.
+- Clear typed planning history for activity-kind edits whose dependent attribution cannot be
+  recovered by an ordinary inverse.
+- Preserve Undo and Redo after background refreshes acknowledge this browser’s saved schedule edits (#1502).
+- Hide company onboarding during view-as member so read-only navigation does not show a forbidden-request error (#1503).
+- Explain when a password-reset link is invalid, used or expired instead of suggesting another attempt (#1505).
+
+- Keep password resets and password changes compatible with the updated account-kit, preserving existing credentials and recovery links during the storage upgrade.
+
+- The native archive uses password authentication and database sessions, with open production
+  access disabled in the installation example.
+- Dialogs keep body scroll locked under the strict production CSP using static application CSS and
+  measured inline style attributes, with the previous scrollbar compensation restored on close.
+
 - Invalid account-access, checklist and masquerade responses now show the existing error feedback instead of accepting malformed fields (#1449).
 
 ### Changed
+
+- Keep the no-login demo editable with temporary in-memory scheduling data, while requiring
+  authenticated company membership for every persisted server. Retire anonymous persisted
+  `CAPACITYLENS_MODE=off` access.
+- The schedule saves every booking change as one typed planning request: create, move, resize,
+  reassign, duplicate, repeat and delete. Toolbar and keyboard Undo and Redo replay those booking
+  changes through typed inverses, and Undo of a deletion restores the saved rows. Undo and Redo
+  now cover booking changes only, and import and deletion messages no longer offer an undo shortcut.
+  Other changes no longer send bookings in the general batch. A stale edit shows the server's schedule without a
+  toast, a refused change keeps the schedule and shows a refusal, and a lost sign-in clears the
+  schedule and its history together. The demo keeps booking changes in page memory only.
+- The server sends host-only one-year HSTS and `Secure` `__Host-` session cookies whenever
+  `CAPACITYLENS_PUBLIC_URL` is HTTPS; `CAPACITYLENS_HTTPS` is removed. With
+  `CAPACITYLENS_TRUST_PROXY_HEADERS` set, forwarded client address and scheme headers are trusted
+  from loopback connections only, and rate limits key on the nearest untrusted address; otherwise
+  no forwarded header is trusted.
+
+- Native SQLite snapshots run at startup and every 24 hours, retaining the configured number of
+  completed managed backups. Manual snapshots use the same retention; pre-upgrade recovery
+  snapshots remain separate. Removed interval configuration and the backup health latch.
+- Prepared a nonpersisted planning cache controller with generated typed requests and real-server
+  checks for revision ordering, acknowledgement, uncertainty and typed history. Request timeouts
+  retain their original mutation for commitment lookup; obsolete contexts suppress completion
+  results, and activity-kind updates clear incomplete typed history. Canonical reads require explicit
+  server write authority, typed history keeps at most 50 entries, and pure non-delete command builders
+  prepare field-preserving typed requests. This milestone uses the existing real authentication;
+  later identity-link integration is separate.
+
+- Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
+
+- Updated the account credential integration while preserving existing password-reset links, password policies, and stopped-server Owner recovery.
+
+- Native operator commands provide verified online backups, backup-before-upgrade, audited
+  sole-Owner recovery links and a guarded snapshot/archive reset into a new database path.
+  Backup outcomes are checked through logs and snapshots.
+
+- The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
+  changes, audit and session revocation committed together.
+
+- Google is the available company sign-in provider. A new Google identity needs the first-user
+  allowlist or an invitation addressed to its verified email; returning from Google does not join a
+  company or accept an invitation until the person completes that action.
+
+- Reusing a one-time invitation command returns a conflict instead of replaying its bearer link;
+  refresh the invitation list and replace the link if the original response was lost.
+
+- Ownership transfers now take effect when the Owner confirms a handover to an active, unrestricted
+  Admin. The selected Admin becomes Owner and the caller becomes Admin; the nominee does not
+  separately consent.
 
 - Body text, buttons, fields and menus use 13px type instead of 14px, for a denser desktop
   layout. Line heights and control sizes are unchanged.
@@ -27,11 +241,18 @@ new features and **patch** versions carry fixes.
 
 ### Documentation
 
-- Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup. Every user guide was edited for length and one consistent voice, and the managed-host guide is now a single page. Statements that contradicted the app or each other were corrected, and upgrades now include a working rollback for Docker Compose, Linux and managed hosts.
+- Align current security guidance and the ASVS ledger with the password-only Account Kit controls.
+- Replaced retired framework and repository-policy references with the native Adonis operator
+  guides. Installation, backup, upgrade, reset, monitoring and external TLS instructions now use
+  the current packaged commands and paths; Docker mechanics remain deferred pending image work.
+- Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup. Every user guide was edited for length and one consistent voice, and the managed-host guide is now a single page. Statements that contradicted the app or each other were corrected, and upgrades include verified-snapshot rollback for Linux and managed hosts; Docker rollback remains deferred pending image work.
 - Added complete Editor and Viewer starting routes, expanded Owner, Admin, joining, Account and discipline journeys, and added current screenshots for role-specific controls. Corrected operator guidance for MFA, provider linking, backups and monitoring.
 
 ### Added
 
+- A beta-native JSON transfer contract and frontend preview. The versioned format validates a
+  complete single-account dataset and rejects malformed or cross-scope data; the existing Settings
+  import/export controls remain on the legacy writer until backend replacement is integrated (#1520).
 - A role-based schedule tour that begins with the caller's role, includes lower-role guidance, and
   disables its Getting started launcher while permissions are unresolved or an offline snapshot is read-only (#969).
 - A shared Help page above Account in the sidebar and command palette. Every role can start its

@@ -1,0 +1,148 @@
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
+import { useState } from 'react';
+import { todayISO } from '@capacitylens/shared/lib/dateMath';
+import type { Closure } from '@capacitylens/shared/types/entities';
+import { m } from '@/i18n';
+import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { isStaleEdit } from '@/lib/isStaleEdit';
+import { parseText } from '@/lib/validation';
+import { resolveTimeZone } from '@/store/selectors';
+import { useStore } from '@/store/useStore';
+import { DateField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { FieldError } from '@/components/ui/field';
+
+type ClosureFormFieldsProps = {
+  name: string;
+  onNameChange: (value: string) => void;
+  startDate: string;
+  onStartDateChange: (value: string) => void;
+  endDate: string;
+  onEndDateChange: (value: string) => void;
+  error: string | null;
+  errorField: string | null;
+  errorId: string;
+};
+
+function ClosureFormFields(props: ClosureFormFieldsProps) {
+  return (
+    <>
+      <TextField
+        label={m.form_closure_name_label()}
+        value={props.name}
+        onChange={props.onNameChange}
+        autoFocus
+        required
+        invalid={props.errorField === 'name'}
+        describedById={props.errorId}
+        layout="label-control"
+      />
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+        <DateField
+          label={m.form_closure_start_label()}
+          value={props.startDate}
+          onChange={props.onStartDateChange}
+          required
+          invalid={props.errorField === 'dates'}
+          describedById={props.errorId}
+        />
+        <DateField
+          label={m.form_closure_end_label()}
+          value={props.endDate}
+          onChange={props.onEndDateChange}
+          required
+          invalid={props.errorField === 'dates'}
+          describedById={props.errorId}
+        />
+      </div>
+      <FieldError
+        id={props.errorId}
+        tabIndex={props.error && props.errorField === null ? -1 : undefined}
+      >
+        {props.error}
+      </FieldError>
+      <RequiredLegend />
+    </>
+  );
+}
+
+/** Creates or edits a company closure with guarded date fields. */
+export function ClosureForm({
+  closure,
+  onClose: close,
+}: {
+  closure?: Closure;
+  onClose: () => void;
+}) {
+  const onClose = useFormLifetimeClose(close);
+  const add = useStore((state) => state.addClosure);
+  const update = useStore((state) => state.updateClosure);
+  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
+  const today = todayISO(calendarTimeZone);
+  const [name, setName] = useState(closure?.name ?? '');
+  const [startDate, setStartDate] = useState(closure?.startDate ?? today);
+  const [endDate, setEndDate] = useState(closure?.endDate ?? today);
+  const fieldError = useFieldError();
+  const { error, errorField, errorId, fail, clear } = fieldError;
+  useFieldErrorFocus(fieldError);
+
+  const submit = async () => {
+    const cleanName = parseText(name, fail, {
+      requiredMessage: m.form_closure_err_name_required(),
+    });
+    if (!cleanName) return;
+    if (!startDate || !endDate) {
+      fail('dates', m.form_closure_err_dates_required());
+      return;
+    }
+    if (endDate < startDate) {
+      fail('dates', m.form_closure_err_end_before_start());
+      return;
+    }
+
+    const patch = { name: cleanName, startDate, endDate };
+    try {
+      if (closure) {
+        if (isStaleEdit(useStore.getState().data.closures, closure.id, closure.updatedAt)) {
+          fail(null, m.form_closure_err_changed());
+          return;
+        }
+        await update(closure.id, patch);
+      } else {
+        const result = await add(patch);
+        if (result.kind === 'blocked') return;
+      }
+      onClose();
+    } catch (cause) {
+      // Surface the rejected closure write at the form boundary so invalid data remains correctable.
+      fail(
+        null,
+        cause instanceof Error ? resolveErrorMessage(cause) : m.form_closure_err_save_failed(),
+      );
+    }
+  };
+
+  return (
+    <Modal
+      title={closure ? m.form_closure_edit_title() : m.form_closure_add_title()}
+      onClose={onClose}
+      onSubmit={() => {
+        void submit();
+      }}
+      onEdit={clear}
+      footer={<FormActions onCancel={onClose} />}
+    >
+      <ClosureFormFields
+        name={name}
+        onNameChange={setName}
+        startDate={startDate}
+        onStartDateChange={setStartDate}
+        endDate={endDate}
+        onEndDateChange={setEndDate}
+        error={error}
+        errorField={errorField}
+        errorId={errorId}
+      />
+    </Modal>
+  );
+}

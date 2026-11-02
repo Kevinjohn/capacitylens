@@ -26,7 +26,7 @@ row; a [link](#link-a-person-to-a-member) joins the two.
 2. Enter a **Name**. Everything else is optional.
 3. Add a **Role** if useful, such as "Senior Designer".
 4. Choose a **Discipline**: the group they appear under on Schedule, which also sets their colour.
-   It shows only while the company uses [disciplines](/using/disciplines), the default.
+   It shows only while the company uses [disciplines](/using/disciplines).
 5. Choose an **Engagement**: **Studio** for the core team or **Supplementary** for additional
    capacity. It only changes which section they appear in, not their discipline, role, working
    days or utilisation.
@@ -135,9 +135,11 @@ without deleting anything. Turn the switch back on to restore them.
 Select the delete icon in the person's row and confirm **Archive resource?** Archiving hides them
 from Schedule and the assignee picker but keeps their past bookings.
 
-Owners and Admins see archived resources at the bottom of Resources, grouped as **Archived
-Studio**, **Archived Supplementary**, **Archived External** and **Archived placeholders**. Select
-**Restore** to bring someone back, or **Delete** to remove the record from those lists. **Delete**
-anonymises any personal data and can't be undone.
+Admins see the full inactive-data view. Editors can restore an eligible archived resource from the
+inline archive, which exposes only the identity details needed to choose the record. Select
+**Restore** to bring someone back with its planning links. An Owner or Admin can select
+**Anonymise** on an archived resource to replace its name and role with anonymous labels, remove
+its avatar and clear notes from its bookings and time off. The resource and its planning links
+remain; anonymisation can't be undone.
 
 Next: [Schedule and change work](/using/schedule-work) — book the person.

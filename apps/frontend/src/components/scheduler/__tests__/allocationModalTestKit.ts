@@ -1,0 +1,95 @@
+import { requireCreated } from '@/test/requireCreated';
+
+import { expect } from 'vitest';
+import type userEvent from '@testing-library/user-event';
+import { useStore } from '@/store/useStore';
+import type { AppData, Weekday } from '@capacitylens/shared/types/entities';
+import {
+  DEFAULT_ACCOUNT_ID,
+  makeActivity,
+  makeAppData,
+  makeClient,
+  makeProject,
+  makeResourceDraft,
+} from '@/test/fixtures';
+import { chooseOption } from './schedulerTestKit';
+
+/** Fails the test when a required value is absent. */
+export function required<T>(value: T | undefined | null, message: string): T {
+  expect(value).toBeDefined();
+  if (value === undefined || value === null) throw new Error(message);
+  return value;
+}
+
+/** Returns the first test result or fails when the list is empty. */
+export function first<T>(values: T[]): T {
+  return required(values[0], 'Expected a non-empty test result.');
+}
+
+/** Finds the enclosing form or fails the test. */
+export function closestForm(control: HTMLElement): HTMLFormElement {
+  return required(control.closest('form'), 'Expected the allocation control to belong to a form.');
+}
+
+/** Account fixture ID used by allocation modal tests. */
+export const ACC = DEFAULT_ACCOUNT_ID;
+const originalAddAllocation = useStore.getState().addAllocation;
+const originalAddAllocations = useStore.getState().addAllocations;
+const originalAddActivity = useStore.getState().addActivity;
+
+/** Builds the base account data for allocation modal tests. */
+export function base(): AppData {
+  return makeAppData({
+    clients: [makeClient({ accountId: ACC, color: '#111' })],
+    projects: [
+      makeProject({ accountId: ACC }),
+      makeProject({ id: 'p2', accountId: ACC, name: 'Other', color: '#06b6d4' }),
+    ],
+    activities: [
+      makeActivity({ accountId: ACC }),
+      makeActivity({ id: 't2', accountId: ACC, name: 'Other activity', projectId: 'p2' }),
+    ],
+  });
+}
+
+/** Restores original allocation and activity actions after a test replaces them. */
+export function restoreStoreAllocationActions(): void {
+  // Zustand state writes replace the state object while retaining action references. Restore these
+  // explicitly so a spy installed in one test cannot survive on a later state object.
+  useStore.setState({
+    addAllocation: originalAddAllocation,
+    addAllocations: originalAddAllocations,
+    addActivity: originalAddActivity,
+  });
+}
+
+/** Resets allocation modal fixtures and patched actions between tests. */
+export async function resetAllocationModalStore(): Promise<void> {
+  restoreStoreAllocationActions();
+  useStore.getState().replaceAll(base());
+  useStore.getState().setActiveAccount(ACC);
+  await useStore.getState().refreshPlanning();
+  // Enable placeholders for assignment fixtures because the picker hides them by default. A current hidden assignee remains selectable while editing.
+  await useStore.getState().updateAccount(ACC, { placeholdersEnabled: true });
+}
+
+/** Builds a person fixture with the supplied display name. */
+export const person = (name: string) => makeResourceDraft({ name, role: 'Dev', color: '#111' });
+
+/** Enables day scheduling for the test account. */
+export const enableDays = (workingDays?: Weekday[]) =>
+  useStore
+    .getState()
+    .updateAccount(ACC, { schedulingMode: 'days', ...(workingDays && { workingDays }) });
+
+/** Adds a person fixture to the test account. */
+export const addPerson = () =>
+  requireCreated(
+    useStore.getState().addResource(makeResourceDraft({ name: 'Tyler', color: '#111111' })),
+  );
+
+/** Completes the visible allocation assignment fields in a modal test. */
+export const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
+  await chooseOption(user, 'Project', 'Ferris / Lightning');
+  await chooseOption(user, 'Activity', 'Wireframes');
+};

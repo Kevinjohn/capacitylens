@@ -3,7 +3,8 @@ const serverBackedSpec = /\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$/i;
 /**
  * Matches core Playwright specs that do not require the server.
  */
-export const coreSpecPattern = /^(?!.*\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$).*\.spec\.(?:ts|tsx|mts|cts)$/i;
+export const coreSpecPattern =
+  /^(?!.*\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$).*\.spec\.(?:ts|tsx|mts|cts)$/i;
 
 /**
  * Keep report paths non-empty and reject lossy aliases instead of merging nominally distinct runs.
@@ -11,9 +12,11 @@ export const coreSpecPattern = /^(?!.*\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$).
  * @throws When a non-empty name contains characters outside letters, digits, underscores and hyphens.
  */
 export function parseReportPhaseName(value: string | undefined): string {
-  if (!value) return "default";
+  if (!value) return 'default';
   if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
-    throw new Error("CAPACITYLENS_E2E_PHASE may contain only letters, numbers, underscores and hyphens.");
+    throw new Error(
+      'CAPACITYLENS_E2E_PHASE may contain only letters, numbers, underscores and hyphens.',
+    );
   }
   return value;
 }
@@ -23,7 +26,11 @@ export function parseReportPhaseName(value: string | undefined): string {
  * file-filter regular expressions or directories might select.
  */
 export function selectsOnlyExplicitCoreSpecs(argv: readonly string[]): boolean {
-  const explicitSpecs = argv.filter((argument) => !argument.startsWith("-") && explicitSpecPath.test(argument));
+  const explicitSpecs = argv.filter(
+    (argument) => !argument.startsWith('-') && explicitSpecPath.test(argument),
+  );
 
-  return explicitSpecs.length > 0 && explicitSpecs.every((argument) => !serverBackedSpec.test(argument));
+  return (
+    explicitSpecs.length > 0 && explicitSpecs.every((argument) => !serverBackedSpec.test(argument))
+  );
 }

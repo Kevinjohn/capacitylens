@@ -46,7 +46,7 @@ server {
 
     # These SPA paths contain single-use bearer values and must not enter the nginx access log even
     # when the API itself is hosted on another origin.
-    location ~ ^/(invite|reset-password)/ {
+    location ~ ^/(invite|reset-password|verify-email)/ {
         access_log off;
         add_header Cache-Control "no-store";
         include /etc/nginx/capacitylens-security-headers.conf;

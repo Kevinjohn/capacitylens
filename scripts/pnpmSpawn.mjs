@@ -1,10 +1,10 @@
-import crossSpawn from "cross-spawn";
+import crossSpawn from 'cross-spawn';
 
 /** Build deterministic non-colour child output without inheriting contradictory controls. */
 export function nonColourEnvironment(extra = {}, parent = process.env) {
   const env = { ...parent, ...extra };
   delete env.NO_COLOR;
-  env.FORCE_COLOR = "0";
+  env.FORCE_COLOR = '0';
   return env;
 }
 
@@ -16,7 +16,7 @@ export function nonColourEnvironment(extra = {}, parent = process.env) {
  * shell-dependent quoting behavior.
  */
 export function spawnPnpm(args, options = {}) {
-  return crossSpawn("pnpm", args, {
+  return crossSpawn('pnpm', args, {
     ...options,
     shell: false,
   });
@@ -24,7 +24,7 @@ export function spawnPnpm(args, options = {}) {
 
 /** Synchronous counterpart for deliberately sequential orchestration phases. */
 export function spawnPnpmSync(args, options = {}) {
-  return crossSpawn.sync("pnpm", args, {
+  return crossSpawn.sync('pnpm', args, {
     ...options,
     shell: false,
   });

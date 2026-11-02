@@ -1,0 +1,603 @@
+import type {
+  ClientMasqueradeEndReason,
+  MasqueradeState,
+  MasqueradeStatus,
+} from '@capacitylens/shared/domain/masquerade';
+import { setMasqueradeEndedHandler } from '@/data/requestTimeout';
+import { useStore } from '@/store/useStore';
+import { createPlanningTransport } from '@/data/planning/planningTransport';
+import { masqueradeApi } from './masqueradeApi';
+import { setMasqueradeContextToken } from './masqueradeContext';
+import { reprojectAccess } from './reprojectAccess';
+import {
+  publishMasqueradeAccount,
+  restoreMasqueradeProjection,
+} from './masqueradeProjectionRecovery';
+import type { FinishProjectionResult } from './masqueradeProjectionRecovery';
+
+export type FlushPendingWritesResult = { kind: 'clean' } | { kind: 'blocked' };
+type RefreshOutcome = { kind: 'reloaded' } | { kind: 'failed' };
+
+interface ReleaseSuspensionInput {
+  dropParkedEdits: boolean;
+}
+
+interface BeginStartInput {
+  generation: number;
+  accountId: string;
+  targetUserId: string;
+  flush: FlushPendingWritesResult;
+}
+
+interface EndProjectionInput {
+  reason: ClientMasqueradeEndReason;
+  finish: (state: MasqueradeState) => Promise<FinishProjectionResult>;
+  failureMessage: string;
+  options: { onNoState: NoStatePolicy };
+}
+
+type ResumeWrites = (options?: { dropParkedEdits?: boolean }) => void;
+type EndProjectionResult =
+  { kind: 'inactive' } | { kind: 'superseded' } | { kind: 'noop' } | { kind: 'failed' };
+type NoStatePolicy = 'succeed' | 'wait';
+
+function isSwitchSuccessful(outcome: RefreshOutcome): boolean {
+  return outcome.kind === 'reloaded';
+}
+
+/** Store and persistence operations required to switch masquerade accounts safely. */
+export interface MasqueradeControllerDependencies {
+  flush: () => Promise<FlushPendingWritesResult>;
+  suspend: () => ResumeWrites | null;
+  reproject: (accountId: string, includeAccountSummaries?: boolean) => Promise<boolean>;
+  switchAccount: (accountId: string | null) => Promise<RefreshOutcome>;
+  readBootstrapAccount: (accountId: string) => Promise<string | null>;
+  api: typeof masqueradeApi;
+}
+
+/** Sole owner of the persistence suspension used by identity masquerade transitions. */
+export class MasqueradeController {
+  private readonly dependencies: MasqueradeControllerDependencies;
+  private resumeWrites: ResumeWrites | null = null;
+  private generation = 0;
+  private startPendingGeneration: number | null = null;
+
+  constructor(dependencies: MasqueradeControllerDependencies) {
+    this.dependencies = dependencies;
+  }
+
+  /** Revoke every in-flight projection before an outgoing identity can publish again. */
+  invalidate(): void {
+    ++this.generation;
+    this.startPendingGeneration = null;
+    this.releaseSuspension({ dropParkedEdits: true });
+    setMasqueradeContextToken(null);
+    useStore.getState().setMasquerade({ kind: 'inactive' });
+  }
+
+  private acquireSuspension(): boolean {
+    if (this.resumeWrites) return true;
+    this.resumeWrites = this.dependencies.suspend();
+    return this.resumeWrites !== null;
+  }
+
+  private releaseSuspension({ dropParkedEdits }: ReleaseSuspensionInput): void {
+    const resume = this.resumeWrites;
+    this.resumeWrites = null;
+    resume?.({ dropParkedEdits });
+  }
+
+  private fail(message: string): false {
+    useStore.getState().setNotice(message, 'error');
+    return false;
+  }
+
+  private ownsRuntime(generation: number, kind: 'starting' | 'active' | 'ending'): boolean {
+    const runtime = useStore.getState().masquerade;
+    return (
+      runtime.kind === kind && runtime.generation === generation && this.generation === generation
+    );
+  }
+
+  /** Capture the owning projection so a late status read cannot replace a newer transition. */
+  captureStatusReconciliation(): () => boolean {
+    const generation = this.generation;
+    const accountId = useStore.getState().activeAccountId;
+    const runtime = useStore.getState().masquerade;
+    return () =>
+      this.generation === generation &&
+      useStore.getState().activeAccountId === accountId &&
+      useStore.getState().masquerade === runtime;
+  }
+
+  private async reconcileStatusAfterContextError(): Promise<void> {
+    const isCurrent = this.captureStatusReconciliation();
+    try {
+      const status = await this.dependencies.api.status(
+        useStore.getState().activeAccountId ?? undefined,
+      );
+      if (isCurrent()) await this.adoptStatus(status);
+    } catch (error) {
+      console.warn('Masquerade context status could not be reconciled', error);
+    }
+  }
+
+  private beginStartAfterFlush({
+    generation,
+    accountId,
+    targetUserId,
+    flush,
+  }: BeginStartInput): boolean {
+    if (this.startPendingGeneration !== generation) return false;
+    this.startPendingGeneration = null;
+    if (this.generation !== generation) return false;
+    if (useStore.getState().masquerade.kind !== 'inactive') return false;
+    if (flush.kind !== 'clean' || !useStore.getState().planningReadyForReplacement()) {
+      return this.fail(
+        'Finish loading or resolving company changes before starting a member view.',
+      );
+    }
+    if (!this.acquireSuspension()) {
+      return this.fail(
+        'Finish loading or resolving company changes before starting a member view.',
+      );
+    }
+    useStore
+      .getState()
+      .setMasquerade({ kind: 'starting', pending: { accountId, targetUserId }, generation });
+    return true;
+  }
+
+  private failOwnedStart(generation: number, error: unknown): false {
+    if (!this.ownsRuntime(generation, 'starting')) return false;
+    this.releaseSuspension({ dropParkedEdits: false });
+    useStore.getState().setMasquerade({ kind: 'inactive' });
+    return this.fail(error instanceof Error ? error.message : 'Masquerade could not be started.');
+  }
+
+  private async finishStartProjection(
+    generation: number,
+    accountId: string,
+    state: MasqueradeState,
+  ): Promise<boolean> {
+    try {
+      const projected = await this.dependencies.reproject(accountId, false);
+      if (!this.ownsRuntime(generation, 'starting')) return false;
+      if (!projected) {
+        return this.fail(
+          'The member view started, but its data could not be loaded. Retry or end the masquerade.',
+        );
+      }
+    } catch (error) {
+      // A failed target projection must remain visible only to its owning masquerade generation.
+      if (!this.ownsRuntime(generation, 'starting')) return false;
+      console.error('Masquerade target projection could not be loaded', error);
+      return this.fail(
+        'The member view started, but its data could not be loaded. Retry or end the masquerade.',
+      );
+    }
+    useStore.getState().clearUndoHistory();
+    publishMasqueradeAccount(state);
+    useStore.getState().setMasquerade({ kind: 'active', state, generation });
+    return true;
+  }
+
+  async start(accountId: string, targetUserId: string): Promise<boolean> {
+    // Not fail(): the in-flight start usually succeeds, and an error notice is created with
+    // duration Infinity, so a double-click would leave a permanent error banner over a working
+    // member view. This is ordinary feedback about a duplicate click, not a failure.
+    if (this.startPendingGeneration !== null) {
+      useStore.getState().setNotice('A member view is already starting.', 'info');
+      return false;
+    }
+    if (useStore.getState().masquerade.kind !== 'inactive') {
+      return this.fail('End the current masquerade before starting another.');
+    }
+    const generation = ++this.generation;
+    this.startPendingGeneration = generation;
+    let flush: FlushPendingWritesResult;
+    try {
+      flush = await this.dependencies.flush();
+    } catch (error) {
+      // Release the pending start claim and show the save failure only while this start generation still owns the UI.
+      if (this.startPendingGeneration !== generation) return false;
+      this.startPendingGeneration = null;
+      if (this.generation !== generation) return false;
+      return this.fail(
+        error instanceof Error ? error.message : 'Pending changes could not be saved.',
+      );
+    }
+    if (!this.beginStartAfterFlush({ generation, accountId, targetUserId, flush })) return false;
+    if (!this.ownsRuntime(generation, 'starting')) return false;
+    let state: MasqueradeState;
+    try {
+      state = await this.dependencies.api.start(accountId, targetUserId);
+    } catch (error) {
+      // Preserve start-generation ownership while surfacing a refused or failed masquerade start.
+      return this.failOwnedStart(generation, error);
+    }
+    if (!this.ownsRuntime(generation, 'starting')) return false;
+    setMasqueradeContextToken(state.token);
+    useStore
+      .getState()
+      .setMasquerade({ kind: 'starting', pending: { accountId, targetUserId }, state, generation });
+    return this.finishStartProjection(generation, accountId, state);
+  }
+
+  async retryProjection(): Promise<boolean> {
+    const runtime = useStore.getState().masquerade;
+    if (runtime.kind === 'inactive') return false;
+    const state = runtime.state;
+    if (!state) return false;
+    const generation = runtime.generation;
+    if (useStore.getState().activeAccountId === null) {
+      return this.loadColdProjection(state, generation);
+    }
+    if (!this.acquireSuspension()) {
+      return this.fail(
+        'Finish loading or resolving company changes before retrying the member view.',
+      );
+    }
+    try {
+      const projected = await this.dependencies.reproject(state.accountId, false);
+      if (!this.ownsRuntime(generation, runtime.kind)) return false;
+      if (!projected) {
+        return this.fail('The member view could not be loaded.');
+      }
+    } catch (error) {
+      // Keep a failed projection retry visible without letting an older generation overwrite the current view.
+      if (!this.ownsRuntime(generation, runtime.kind)) return false;
+      console.error('Masquerade projection retry failed', error);
+      return this.fail('The member view could not be loaded.');
+    }
+    useStore.getState().clearUndoHistory();
+    publishMasqueradeAccount(state);
+    useStore.getState().setMasquerade({ kind: 'active', state, generation });
+    return true;
+  }
+
+  async end(
+    reason: ClientMasqueradeEndReason = 'explicit',
+    navigate?: (to: string) => void,
+  ): Promise<boolean> {
+    const runtime = useStore.getState().masquerade;
+    // A selected company can still lack a trustworthy projection after its first canonical read fails.
+    // Once End is confirmed, return to the picker rather than exposing that unread projection.
+    const cold =
+      useStore.getState().activeAccountId === null ||
+      (runtime.kind === 'starting' && !this.resumeWrites);
+    const ended = await this.endProjection({
+      reason: reason,
+      finish: async (state) => {
+        if (cold) {
+          const outcome = await this.dependencies.switchAccount(null);
+          return isSwitchSuccessful(outcome)
+            ? { kind: 'finished' }
+            : {
+                kind: 'failed',
+                message:
+                  'The real account view could not be restored. Retry ending the masquerade.',
+              };
+        }
+        if (!(await this.dependencies.reproject(state.accountId))) {
+          return {
+            kind: 'failed',
+            message: 'The real account view could not be restored. Retry ending the masquerade.',
+          };
+        }
+        return { kind: 'finished' };
+      },
+      failureMessage: 'Masquerade could not be ended.',
+      options: { onNoState: 'succeed' },
+    });
+    if (ended.kind === 'inactive') navigate?.('/');
+    return ended.kind !== 'failed';
+  }
+
+  async transitionAccount(accountId: string | null): Promise<boolean> {
+    const runtime = useStore.getState().masquerade;
+    if (runtime.kind === 'inactive') {
+      // A start still flushing belongs to the old company and must not run after the switch.
+      if (this.startPendingGeneration !== null) {
+        ++this.generation;
+        this.startPendingGeneration = null;
+      }
+      return isSwitchSuccessful(await this.dependencies.switchAccount(accountId));
+    }
+    const ended = await this.endProjection({
+      reason: 'account_switch',
+      finish: async () => {
+        const outcome = await this.dependencies.switchAccount(accountId);
+        if (!isSwitchSuccessful(outcome)) {
+          return { kind: 'failed', message: 'The selected company could not be loaded.' };
+        }
+        return { kind: 'finished' };
+      },
+      failureMessage: 'The company switch could not be completed.',
+      options: { onNoState: 'wait' },
+    });
+    if (ended.kind === 'superseded') {
+      return this.fail('A newer masquerade is active. End it before switching companies.');
+    }
+    return ended.kind === 'inactive';
+  }
+
+  private async endProjection({
+    reason,
+    finish,
+    failureMessage,
+    options,
+  }: EndProjectionInput): Promise<EndProjectionResult> {
+    const runtime = useStore.getState().masquerade;
+    const state = runtime.kind === 'inactive' ? null : runtime.state;
+    if (!state) {
+      if (options.onNoState === 'succeed') return { kind: 'noop' };
+      this.fail('Wait for the current masquerade transition to finish.');
+      return { kind: 'failed' };
+    }
+    const cold =
+      runtime.kind !== 'inactive' &&
+      useStore.getState().activeAccountId === null &&
+      !this.resumeWrites;
+    if (!cold && !this.acquireSuspension()) {
+      this.fail('Finish loading or resolving company changes before ending the member view.');
+      return { kind: 'failed' };
+    }
+    const generation = ++this.generation;
+    useStore.getState().setMasquerade({ kind: 'ending', state, generation });
+    try {
+      await this.dependencies.api.end(state.token, reason);
+      if (!this.ownsRuntime(generation, 'ending')) return { kind: 'superseded' };
+      const projection = await restoreMasqueradeProjection({
+        state,
+        readStatus: () =>
+          this.dependencies.api.status(useStore.getState().activeAccountId ?? undefined),
+        isCurrent: () => this.ownsRuntime(generation, 'ending'),
+        publishActive: (status) =>
+          useStore.getState().setMasquerade({
+            kind: 'starting',
+            pending: { accountId: status.accountId, targetUserId: status.targetUserId },
+            state: status,
+            generation,
+          }),
+        restoreProjection: finish,
+        onProjectionFailure: (message) => this.fail(message),
+      });
+      if (projection.kind === 'active') {
+        await this.retryProjection();
+        return { kind: 'superseded' };
+      }
+      if (projection.kind === 'superseded') return { kind: 'superseded' };
+      if (projection.kind === 'failed') return { kind: 'failed' };
+      this.releaseSuspension({ dropParkedEdits: true });
+      useStore.getState().clearUndoHistory();
+      useStore.getState().setMasquerade({ kind: 'inactive' });
+      return { kind: 'inactive' };
+    } catch (error) {
+      // Return a typed failed outcome only to the owning end generation so stale completions cannot change current recovery state.
+      if (!this.ownsRuntime(generation, 'ending')) return { kind: 'superseded' };
+      this.fail(error instanceof Error ? error.message : failureMessage);
+      try {
+        const projection = await restoreMasqueradeProjection({
+          state,
+          readStatus: () =>
+            this.dependencies.api.status(useStore.getState().activeAccountId ?? undefined),
+          isCurrent: () => this.ownsRuntime(generation, 'ending'),
+          publishActive: (status) =>
+            useStore.getState().setMasquerade({
+              kind: 'starting',
+              pending: { accountId: status.accountId, targetUserId: status.targetUserId },
+              state: status,
+              generation,
+            }),
+          restoreProjection: finish,
+          onProjectionFailure: (message) => this.fail(message),
+        });
+        if (projection.kind === 'superseded') return { kind: 'superseded' };
+        if (projection.kind === 'failed') return { kind: 'failed' };
+        if (projection.kind === 'active') {
+          return (await this.retryProjection()) ? { kind: 'superseded' } : { kind: 'failed' };
+        }
+        if (!this.ownsRuntime(generation, 'ending')) return { kind: 'superseded' };
+        this.releaseSuspension({ dropParkedEdits: true });
+        useStore.getState().clearUndoHistory();
+        useStore.getState().setMasquerade({ kind: 'inactive' });
+        return { kind: 'inactive' };
+      } catch (reconciliationError) {
+        console.warn('Masquerade end status could not be reconciled', reconciliationError);
+      }
+      return { kind: 'failed' };
+    }
+  }
+
+  /** Adopt status before PermissionProvider publishes an effective role, preventing a writable frame. */
+  async adoptStatus(status: MasqueradeStatus): Promise<void> {
+    setMasqueradeContextToken(status.contextToken);
+    if (!status.active) {
+      const current = useStore.getState().masquerade;
+      if (
+        current.kind === 'starting' &&
+        current.state &&
+        useStore.getState().activeAccountId === null
+      ) {
+        ++this.generation;
+        useStore.getState().setMasquerade({ kind: 'inactive' });
+        return;
+      }
+      if (current.kind === 'active' || current.kind === 'starting') {
+        this.restoreServerEndedProjection();
+      }
+      return;
+    }
+    await this.adoptActiveStatus(status);
+  }
+
+  private async adoptActiveStatus(
+    status: Extract<MasqueradeStatus, { active: true }>,
+  ): Promise<void> {
+    const current = useStore.getState().masquerade;
+    // The controller already owns these transitions. A membership invalidation triggered by its
+    // own reproject must not publish `active` before that authoritative reload has completed.
+    if (current.kind === 'starting') {
+      if (current.state?.token === status.token) {
+        if (!this.resumeWrites) await this.retryProjection();
+        return;
+      }
+    }
+    if (current.kind === 'ending') return;
+    if (
+      current.kind === 'active' &&
+      current.state.token === status.token &&
+      current.state.accountId === status.accountId &&
+      current.state.targetUserId === status.targetUserId &&
+      current.state.effectiveRole === status.effectiveRole
+    ) {
+      return;
+    }
+    const generation = ++this.generation;
+    if (useStore.getState().activeAccountId === null) {
+      useStore.getState().setMasquerade({
+        kind: 'starting',
+        pending: { accountId: status.accountId, targetUserId: status.targetUserId },
+        state: status,
+        generation,
+      });
+      await this.loadColdProjection(status, generation);
+      return;
+    }
+    useStore.getState().setMasquerade({
+      kind: 'starting',
+      pending: { accountId: status.accountId, targetUserId: status.targetUserId },
+      state: status,
+      generation,
+    });
+    if (!this.acquireSuspension()) {
+      this.fail('Finish loading or resolving company changes before entering the member view.');
+      return;
+    }
+    await this.finishStartProjection(generation, status.accountId, status);
+  }
+
+  private async loadColdProjection(state: MasqueradeState, generation: number): Promise<boolean> {
+    try {
+      const name = await this.dependencies.readBootstrapAccount(state.accountId);
+      if (!this.ownsRuntime(generation, 'starting')) return false;
+      if (name === null) {
+        return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+      }
+      useStore.getState().setAccountSummaries({
+        list: [{ id: state.accountId, name, role: state.effectiveRole }],
+        complete: true,
+      });
+      useStore.getState().setActiveAccount(state.accountId);
+      if (!(await this.dependencies.reproject(state.accountId, false))) {
+        if (this.ownsRuntime(generation, 'starting')) {
+          return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+        }
+        return false;
+      }
+      if (!this.ownsRuntime(generation, 'starting')) return false;
+      if (!this.acquireSuspension()) {
+        return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+      }
+      useStore.getState().clearUndoHistory();
+      publishMasqueradeAccount(state);
+      const loadedName =
+        useStore.getState().data.accounts.find((account) => account.id === state.accountId)?.name ??
+        name;
+      useStore.getState().setAccountSummaries({
+        list: [{ id: state.accountId, name: loadedName, role: state.effectiveRole }],
+        complete: true,
+      });
+      useStore.getState().setMasquerade({ kind: 'active', state, generation });
+      return true;
+    } catch (error) {
+      if (!this.ownsRuntime(generation, 'starting')) return false;
+      console.error('Masquerade projection could not be loaded', error);
+      return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+    }
+  }
+
+  /** A projected read reported that server-side revalidation ended this session's masquerade. */
+  restoreServerEndedProjection(): void {
+    const runtime = useStore.getState().masquerade;
+    if (runtime.kind === 'inactive') {
+      void this.reconcileStatusAfterContextError();
+      return;
+    }
+    if (runtime.kind === 'ending') return;
+    const state = runtime.state;
+    if (!state) return;
+    if (!this.acquireSuspension()) return;
+    const generation = ++this.generation;
+    useStore.getState().setMasquerade({ kind: 'ending', state, generation });
+    void this.restoreAfterServerEnd(state, generation);
+  }
+
+  private async restoreAfterServerEnd(state: MasqueradeState, generation: number): Promise<void> {
+    try {
+      const projection = await restoreMasqueradeProjection({
+        state,
+        readStatus: () =>
+          this.dependencies.api.status(useStore.getState().activeAccountId ?? undefined),
+        isCurrent: () => this.ownsRuntime(generation, 'ending'),
+        publishActive: (status) =>
+          useStore.getState().setMasquerade({
+            kind: 'starting',
+            pending: { accountId: status.accountId, targetUserId: status.targetUserId },
+            state: status,
+            generation,
+          }),
+        restoreProjection: async (current) =>
+          (await this.dependencies.reproject(current.accountId))
+            ? { kind: 'finished' }
+            : {
+                kind: 'failed',
+                message:
+                  'The masquerade ended, but the real account view could not be restored. Retry.',
+              },
+        onProjectionFailure: (message) => this.fail(message),
+      });
+      if (projection.kind === 'active') {
+        await this.retryProjection();
+        return;
+      }
+      if (projection.kind !== 'restored') return;
+    } catch (error) {
+      // A completed remote end still needs visible recovery if reloading the real account fails.
+      if (!this.ownsRuntime(generation, 'ending')) return;
+      console.error('The real account projection could not be restored', error);
+      this.fail('The masquerade ended, but the real account view could not be restored. Retry.');
+      return;
+    }
+    if (!this.ownsRuntime(generation, 'ending')) return;
+    this.releaseSuspension({ dropParkedEdits: true });
+    useStore.getState().clearUndoHistory();
+    useStore.getState().setMasquerade({ kind: 'inactive' });
+  }
+}
+
+/** Coordinates account switching into and out of masquerade mode. */
+export const masqueradeController = new MasqueradeController({
+  flush: async () => ({
+    kind: useStore.getState().planningReadyForReplacement() ? 'clean' : 'blocked',
+  }),
+  suspend: () => useStore.getState().suspendPlanningCommands(),
+  reproject: reprojectAccess,
+  switchAccount: async (accountId) => {
+    useStore.getState().setActiveAccount(accountId);
+    return accountId === null || (await useStore.getState().refreshPlanning())
+      ? { kind: 'reloaded' }
+      : { kind: 'failed' };
+  },
+  readBootstrapAccount: async (accountId) => {
+    const snapshot = await createPlanningTransport().read(
+      { identity: Symbol('masquerade bootstrap'), companyId: accountId },
+      new AbortController().signal,
+    );
+    return snapshot.data.accounts.find((account) => account.id === accountId)?.name ?? null;
+  },
+  api: masqueradeApi,
+});
+
+setMasqueradeEndedHandler(() => masqueradeController.restoreServerEndedProjection());
