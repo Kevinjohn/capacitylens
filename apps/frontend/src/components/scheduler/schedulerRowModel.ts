@@ -28,12 +28,14 @@ import type {
 } from './schedulerModelTypes';
 
 interface CreateRowBuilderInput {
-  model: Pick<SchedulerModelOptions, 'data' | 'geom' | 'days'>;
+  model: Pick<SchedulerModelOptions, 'geom' | 'days'>;
   accountWorkingDays: NonNullable<SchedulerModelOptions['preferences']['accountWorkingDays']>;
   blocksMode: boolean;
   laneLayout: NonNullable<SchedulerModelOptions['laneLayout']>;
   allocationsByResource: Map<ID, Allocation[]>;
   timeOffByResource: Map<ID, TimeOff[]>;
+  // Renderable closures only, so day states and capacity omit the same invalid rows.
+  closures: SchedulerModelOptions['data']['closures'];
   seriesEndByKey: Map<string, ISODate>;
   allocationFilters: ReturnType<typeof createAllocationFilters>;
   capacitySource: ReturnType<typeof createCapacitySource>;
@@ -123,7 +125,7 @@ function buildDayStates(input: {
   resource: Resource;
   days: ISODate[];
   blocksMode: boolean;
-  closures: CreateRowBuilderInput['model']['data']['closures'];
+  closures: CreateRowBuilderInput['closures'];
   effectiveWeek: ReturnType<typeof effectiveWorkingWeek>;
   capacity: CapacitySource;
 }): Pick<RowModel, 'dayStates' | 'conflictDayCount' | 'partialCapacityDayCount'> {
@@ -162,12 +164,13 @@ function buildDayStates(input: {
 
 /** Builds resource rows against one shared scheduler model context. */
 export function createRowBuilder({
-  model: { data, geom: geometry, days },
+  model: { geom: geometry, days },
   accountWorkingDays,
   blocksMode,
   laneLayout,
   allocationsByResource,
   timeOffByResource,
+  closures,
   seriesEndByKey,
   allocationFilters,
   capacitySource: { capacitySourceFor, visDays: visibleDays, overDays },
@@ -212,7 +215,7 @@ export function createRowBuilder({
       resource,
       days,
       blocksMode,
-      closures: data.closures,
+      closures,
       effectiveWeek,
       capacity,
     });

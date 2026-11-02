@@ -318,12 +318,13 @@ function createSchedulerRowBuilder({
   const closures = data.closures.filter(includeRenderableDateRange);
   return {
     buildRow: createRowBuilder({
-      model: { data, geom, days },
+      model: { geom, days },
       accountWorkingDays,
       blocksMode,
       laneLayout: options.laneLayout ?? compactLaneLayout,
       allocationsByResource,
       timeOffByResource: groupByResourceId(data.timeOff.filter(includeRenderableDateRange)),
+      closures,
       seriesEndByKey,
       allocationFilters,
       capacitySource: createCapacitySource({

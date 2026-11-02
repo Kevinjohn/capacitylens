@@ -15,6 +15,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Stop a company closure or time off with an invalid date range from blocking schedule days that the schedule shows as open (#1706).
 - Correct company settings help to say disciplines start off in a new company.
 - Restore full beta JSON exports into a fresh company while preserving scheduling IDs, relationships and destination access.
 
