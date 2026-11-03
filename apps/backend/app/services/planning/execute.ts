@@ -10,12 +10,12 @@ import {
   unarchive,
 } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
-import { BatchRequestError } from '#services/planning_operations/errors';
-import { createServerRevision } from '#services/planning_operations/revision';
+import { BatchRequestError } from '#services/planning/errors';
+import { createServerRevision } from '#services/planning/server_timestamp';
 import { encodeRow } from '#services/state_repository';
-import { TABLE_NAMES } from '#services/planning_operations/entity_policy';
+import { TABLE_NAMES } from '#services/planning/entity_policy';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning_operations';
-import type { BatchCapabilities } from '#services/planning_operations/data_policy';
+import type { BatchCapabilities } from '#services/planning/data_policy';
 import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js';
 import {
   deleteAllocations,

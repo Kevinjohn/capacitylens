@@ -6,7 +6,7 @@ import {
   ActionProofError,
   consumeActionProof,
 } from '#services/auth/action_proof';
-import { dataContextForActor } from '#services/planning_operations/data_policy';
+import { dataContextForActor } from '#services/planning/data_policy';
 
 export default class AnonymiseController {
   async resource(ctx: HttpContext) {

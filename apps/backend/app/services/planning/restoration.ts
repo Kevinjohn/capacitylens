@@ -12,8 +12,8 @@ import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWor
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
 import { retainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
-import { TABLE_NAMES } from '#services/planning_operations/entity_policy';
-import { createServerRevision } from '#services/planning_operations/revision';
+import { TABLE_NAMES } from '#services/planning/entity_policy';
+import { createServerRevision } from '#services/planning/server_timestamp';
 import { existingRow, PlanningOperationError } from './writer.js';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */

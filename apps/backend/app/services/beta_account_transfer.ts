@@ -7,8 +7,8 @@ import {
 } from '@capacitylens/shared/data/betaTransfer';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { encodeRow, readStateWithClient } from '#services/state_repository';
-import { TABLE_NAMES } from '#services/planning_operations/entity_policy';
-import { BatchRequestError } from '#services/planning_operations/errors';
+import { TABLE_NAMES } from '#services/planning/entity_policy';
+import { BatchRequestError } from '#services/planning/errors';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 

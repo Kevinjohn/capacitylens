@@ -3,12 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { freshDatabase } from '../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState, readStateWithClient, resetState } from '#services/state_repository';
-import {
-  executePlanningIntent,
-  PlanningOperationError,
-} from '#services/planning_operations/execute';
+import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning_operations';
-import type { BatchCapabilities } from '#services/planning_operations/data_policy';
+import type { BatchCapabilities } from '#services/planning/data_policy';
 
 const owner: BatchCapabilities = {
   role: 'owner',

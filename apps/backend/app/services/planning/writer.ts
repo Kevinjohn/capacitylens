@@ -13,11 +13,11 @@ import {
   assertFrozenAccountFields,
   prepareEntityWrite,
   TABLE_NAMES,
-} from '#services/planning_operations/entity_policy';
-import { BatchRequestError } from '#services/planning_operations/errors';
-import { createServerRevision } from '#services/planning_operations/revision';
+} from '#services/planning/entity_policy';
+import { BatchRequestError } from '#services/planning/errors';
+import { createServerRevision } from '#services/planning/server_timestamp';
 import { validateEntityRow } from '#validators/entities/index';
-import type { BatchCapabilities } from '#services/planning_operations/data_policy';
+import type { BatchCapabilities } from '#services/planning/data_policy';
 import { isRetainedTable, retainedQuery } from './retained_rows.js';
 
 /** A safe refusal whose caller must roll back the enclosing planning transaction. */
