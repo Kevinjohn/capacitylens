@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Retry view-as initialisation after a failure instead of refusing every signed-in request until restart (#1735).
+
 - Reject `.sqlite` files and chained symlinks that escape the release when building archives.
 - Keep pending admission decisions and their refreshes within the originating sign-in and company.
 - Stop a company closure or time off with an invalid date range from blocking schedule days that the schedule shows as open (#1706).
