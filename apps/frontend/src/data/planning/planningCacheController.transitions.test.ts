@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
-import type { PlanningIntent, PlanningMutationSuccess } from '@capacitylens/backend/planning';
+import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { makeAccount, makeAppData, makeClient } from '@/test/fixtures';
 import {
