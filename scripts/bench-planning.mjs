@@ -22,6 +22,8 @@
  *
  * SQL statements are counted by a preload that wraps better-sqlite3 inside the server process,
  * read over SIGUSR2 in a separate untimed pass. Counts include transaction control and pragmas.
+ * The preload stays loaded during the timed samples, so latencies include its per-statement
+ * counter (one extra function call); they are not uninstrumented production figures.
  *
  * The server runs with CAPACITYLENS_RATE_LIMIT=1000000 (the limiter still runs) because the
  * production default of 300 API requests a minute would refuse the sample loop. A large-fixture
@@ -624,7 +626,7 @@ for (const name of options.fixtures) measured.push(await measureFixture(name, op
 const lines = [
   '# Planning benchmark',
   '',
-  `- Git SHA: ${gitSha()}`,
+  `- Harness Git SHA: ${gitSha()} (the measured backend is the packaged artifact below)`,
   `- Node: ${process.version}`,
   `- OS: ${platform()} ${release()} ${arch()}`,
   `- CPU: ${cpus()[0]?.model ?? 'unknown'} x${cpus().length}`,
