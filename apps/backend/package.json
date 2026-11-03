@@ -6,10 +6,7 @@
   "license": "AGPL-3.0-only",
   "exports": {
     "./data": "./.adonisjs/client/data.d.ts",
-    "./registry": "./.adonisjs/client/registry/index.ts",
-    "./planning": {
-      "types": "./app/validators/planning_operations.ts"
-    }
+    "./registry": "./.adonisjs/client/registry/index.ts"
   },
   "scripts": {
     "start": "node bin/server.js",

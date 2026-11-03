@@ -4,7 +4,7 @@ import type { Resource } from '@capacitylens/shared/types/entities';
 import { encodeRow, readStateWithClient } from '#services/state_repository';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
-import { createServerRevision } from '#services/planning_operations/revision';
+import { createServerRevision } from '#services/planning/server_timestamp';
 
 /** Scrubs planning identity and saved undo images in the caller's transaction. */
 export async function anonymiseResources(

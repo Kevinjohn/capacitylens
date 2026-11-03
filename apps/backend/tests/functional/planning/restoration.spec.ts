@@ -9,7 +9,7 @@ import Activity from '#models/activity';
 import Resource from '#models/resource';
 import { encodeRow, readState } from '#services/state_repository';
 import { withTransaction } from '#services/with_transaction';
-import { deleteAllocations } from '#services/planning_operations/restoration';
+import { deleteAllocations } from '#services/planning/restoration';
 import {
   accountId,
   planningUrl,

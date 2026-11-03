@@ -12,7 +12,7 @@ import {
   signIn,
 } from './helpers.js';
 import { withTransaction } from '#services/with_transaction';
-import { countRestorableItems } from '#services/planning_operations/restoration';
+import { countRestorableItems } from '#services/planning/restoration';
 import { encodeRow, readState } from '#services/state_repository';
 
 const tables = {

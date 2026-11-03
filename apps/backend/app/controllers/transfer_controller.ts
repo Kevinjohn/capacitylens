@@ -10,7 +10,7 @@ import {
   ActionProofError,
   consumeActionProof,
 } from '#services/auth/action_proof';
-import { BatchRequestError } from '#services/planning_operations/errors';
+import { BatchRequestError } from '#services/planning/errors';
 import {
   applyBetaAccountTransfer,
   previewBetaAccountTransfer,
