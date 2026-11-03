@@ -2,7 +2,7 @@ import { createStore } from 'zustand/vanilla';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { Account, AppData } from '@capacitylens/shared/types/entities';
-import type { PlanningIntent, PlanningMutationSuccess } from '@capacitylens/backend/planning';
+import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import type {
   PlanningCacheState,
