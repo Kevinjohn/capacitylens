@@ -11,7 +11,7 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
-- The release workflow smoke-tests the packaged archive before upload and never rebuilds assets that already exist.
+- The release workflow smoke-tests the packaged archive before upload and never rebuilds or replaces a server archive that is already published.
 - Reopen “How CapacityLens works” from the sidebar after dismissing the introduction.
 
 - `pnpm run check:changed` runs only the formatting, lint, type-check, test and documentation checks that a branch's changed files need (#1603). `--static` leaves whole test suites to one combined run, and a fresh worktree builds the application its backend tests read (#1657).
@@ -134,12 +134,11 @@ new features and **patch** versions carry fixes.
   sessions removes their groups.
 
 - Typed allocation-group creation and catalogue/resource archive and unarchive operations preserve
-  stable IDs and commit one revision per action. Existing deletion and Undo paths remain active
-  while their complete replacement is unfinished.
+  stable IDs and commit one revision per action.
 
 - Transactional company planning snapshots and typed resource operations with one company revision,
   stale-edit refusal, atomic audit recording and actor-scoped mutation commitment lookup. Existing
-  callers share the revision during transition; session-bound deletion restoration remains gated.
+  callers share the revision during transition.
 
 ### Removed
 
@@ -188,8 +187,8 @@ new features and **patch** versions carry fixes.
   `CAPACITYLENS_MODE=off` access.
 - The schedule saves every booking change as one typed planning request: create, move, resize,
   reassign, duplicate, repeat and delete. Toolbar and keyboard Undo and Redo replay those booking
-  changes through typed inverses, and Undo of a deletion restores the saved rows. Undo and Redo
-  now cover booking changes only, and import and deletion messages no longer offer an undo shortcut.
+  changes through typed inverses, and Undo of a deletion restores the saved rows. Import and
+  deletion messages no longer offer an undo shortcut.
   Other changes no longer send bookings in the general batch. A stale edit shows the server's schedule without a
   toast, a refused change keeps the schedule and shows a refusal, and a lost sign-in clears the
   schedule and its history together. The demo keeps booking changes in page memory only.
@@ -218,7 +217,7 @@ new features and **patch** versions carry fixes.
   sole-Owner recovery links and a guarded snapshot/archive reset into a new database path.
   Backup outcomes are checked through logs and snapshots.
 
-- The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
+- The AdonisJS fork uses native password sign-in and 14-day idle-expiry sessions, with credential
   changes, audit and session revocation committed together.
 
 - Reusing a one-time invitation command returns a conflict instead of replaying its bearer link;
@@ -230,8 +229,8 @@ new features and **patch** versions carry fixes.
 
 - Body text, buttons, fields and menus use 13px type instead of 14px, for a denser desktop
   layout. Line heights and control sizes are unchanged.
-- Ordinary edits reject invalid supplied values instead of silently repairing them; imports retain
-  their separate repair policy. Availability boundaries require valid dates and preserve existing
+- Ordinary edits reject invalid supplied values instead of silently repairing them; imports strictly
+  validate and reject invalid data. Availability boundaries require valid dates and preserve existing
   limits when a write is rejected.
 - Text input uses the same Unicode and whitespace normalization in forms and server writes. Company
   joining accepts the full email and password transport limits, with consistent email handling.
@@ -247,27 +246,25 @@ new features and **patch** versions carry fixes.
   guides. Installation, backup, upgrade, reset, monitoring and external TLS instructions now use
   the current packaged commands and paths; Docker mechanics remain deferred pending image work.
 - Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup. Every user guide was edited for length and one consistent voice, and the managed-host guide is now a single page. Statements that contradicted the app or each other were corrected, and upgrades include verified-snapshot rollback for Linux and managed hosts; Docker rollback remains deferred pending image work.
-- Added complete Editor and Viewer starting routes, expanded Owner, Admin, joining, Account and discipline journeys, and added current screenshots for role-specific controls. Corrected operator guidance for MFA, provider linking, backups and monitoring.
+- Added complete Editor and Viewer starting routes, expanded Owner, Admin, joining, Account and discipline journeys, and added current screenshots for role-specific controls. Corrected operator guidance for backups and monitoring.
 
 ### Added
 
 - A beta-native JSON transfer contract and frontend preview. The versioned format validates a
-  complete single-account dataset and rejects malformed or cross-scope data; the existing Settings
-  import/export controls remain on the legacy writer until backend replacement is integrated (#1520).
+  complete single-account dataset and rejects malformed or cross-scope data; Settings
+  import/export uses native transfer preview and apply (#1520).
 - A role-based schedule tour that begins with the caller's role, includes lower-role guidance, and
   disables its Getting started launcher while permissions are unresolved (#969).
 - A shared Help page above Account in the sidebar and command palette. Every role can start its
   tour there and browse the user guides, including Viewers and people who dismissed Getting started (#1430).
 - The README states the project's status, and the documentation gains three pages: how
   CapacityLens compares with other tools, how it is tested, and the product philosophy.
-- A new company can start with example data: a **Start with example data** box on the create-company
-  form (ticked for a first company), or **Settings, Example data** while the company is empty. It adds
+- A company can start with example data from **Settings, Example data** while it is empty. It adds
   two people, a client, a project and a few bookings across this week and next, as ordinary rows. An
   Owner or Admin can add it, and the server refuses a company that already has people, clients,
   projects or allocations (#1388).
 - A **Diagnostics** page for Owners and Admins, listed under Settings in the sidebar and the command
-  palette. Its support report adds the sign-in mode, this browser session's save counters and the
-  browser's user agent, viewport, time zone and language to the build and server status, and
+  palette. Its support report adds the browser's viewport, time zone and language to the build and server status, and
   **Copy diagnostics** copies it. It contains no names, email addresses, identifiers or company data
   (#1408).
 
@@ -299,7 +296,7 @@ new features and **patch** versions carry fixes.
 - Under `NODE_ENV=production`, an unset `CAPACITYLENS_CORS_ORIGIN` now allows the origin of
   `CAPACITYLENS_PUBLIC_URL` instead of the local development origins. An explicitly empty value
   still allows none, and Docker Compose keeps passing it empty (#1407).
-- `.env.example` is regrouped as the operator reference: required, common, company providers, mail
+- `.env.example` is regrouped as the operator reference: required, common, mail
   and operations. Development and test variables moved to the development guide (#1407).
 - Every `SMALLSASS_ACCOUNT_*` setting is renamed to `CAPACITYLENS_*` with the same suffix, for
   example `SMALLSASS_ACCOUNT_SECRET` becomes `CAPACITYLENS_SECRET`. Rename these variables in your
@@ -321,9 +318,8 @@ new features and **patch** versions carry fixes.
 - Password MFA is hidden: `SMALLSASS_ACCOUNT_REQUIRE_MFA` is no longer read, the enrolment screen no
   longer appears, and Account no longer shows MFA status. Its startup warning is gone (#1407).
 - `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED`, `CAPACITYLENS_STORAGE_ENCRYPTED` and
-  `CAPACITYLENS_SECURITY_LOG_FORWARDING` and their startup warnings are gone. Requiring multi-factor
-  sign-in at the provider, encrypting storage and forwarding logs remain operator tasks described in
-  the guides. A missing internal TLS identity still warns, now on its own line (#1407).
+  `CAPACITYLENS_SECURITY_LOG_FORWARDING` and their startup warnings are gone. Encrypting storage and
+  forwarding logs remain operator tasks described in the guides (#1407).
 
 ### Fixed
 
