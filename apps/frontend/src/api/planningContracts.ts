@@ -3,16 +3,22 @@ import type { Route } from '@capacitylens/backend/registry';
 /**
  * Planning wire types derived from the generated route registry. The backend Vine validator stays
  * the only runtime schema; these aliases only name what the generated declarations already carry.
+ *
+ * The generated body is the validator's input type, so the intent admits everything the server
+ * accepts, including numeric and boolean fields supplied as strings. The browser builds intents
+ * with real numbers and booleans; the server validates and normalizes every one, and a wrongly
+ * typed field is refused there rather than caught here.
  */
 type PlanningMutationBody = Route.Body<'api.planning.restoreGroup'>;
 
-/**
- * The generated body is the validator's input type, which also admits numeric strings. The browser
- * only ever holds server-issued integers for these two fields, so it narrows them to numbers.
- */
-export type PlanningExecution = PlanningMutationBody & {
-  baseRevision: number;
-  confirmedRestorationCount?: number;
+/** Execution metadata the browser only ever holds as server-issued integers. */
+type ServerIssuedIntegers = Pick<
+  PlanningMutationBody,
+  'baseRevision' | 'confirmedRestorationCount'
+>;
+
+export type PlanningExecution = Omit<PlanningMutationBody, keyof ServerIssuedIntegers> & {
+  [Field in keyof ServerIssuedIntegers]: Extract<ServerIssuedIntegers[Field], number>;
 };
 export type PlanningIntent = PlanningMutationBody['intent'];
 
