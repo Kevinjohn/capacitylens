@@ -59,9 +59,10 @@ packages/shared/src/
   account/, api/, data/   account policy, HTTP error shapes, export format and seed data
 ```
 
-The rest of `apps/backend/app/services` holds single-purpose modules: `anonymise.ts`,
+The rest of `apps/backend/app/services` includes single-purpose modules: `anonymise.ts`,
 `beta_account_transfer.ts` (export import), `first_company_setup.ts`,
-`initial_company_defaults.ts`, `account_commands.ts` (command receipts), `audit.ts` and
+`initial_company_defaults.ts`, `account_commands.ts` (command receipts), `audit.ts`,
+`cors_policy.ts`, `logging_safety.ts`, `schema_integrity.ts`, `soft_deletes.ts` and
 `with_transaction.ts`.
 
 ## One planning write, end to end
@@ -141,7 +142,7 @@ Then, in order:
 | `NO_CHANGE` | 400 | The intent would change nothing; no revision, marker or audit |
 | `RESTORATION_CONFIRMATION_REQUIRED` | 409 | Pending restoration groups would be cleared; body has `restorableItemCount` |
 | `RESTORATION_CONFIRMATION_STALE` | 409 | The confirmed count no longer matches; body has the new count |
-| No code (`conflict` and others) | 409 | Built-in client, frozen setting or restoration conflict; only status sent |
+| No code (`conflict` and others) | 409 | Built-in client, frozen setting or restoration conflict; an error message without a code |
 | `MASQUERADE_*` | 403, 409, 428 | Refused by the view-as middleware before the controller |
 | Account Kit codes | Kit | Session, address or admission refusals (`ADMISSION_REQUIRED` 403) pass through |
 | No code | 401 | No valid session (trusted-local middleware) |
@@ -286,6 +287,6 @@ Backend test paths are relative to `apps/backend/`.
   `tests/functional/planning/retained_restoration.spec.ts`, `tests/unit/backup.spec.ts`,
   `tests/unit/upgrade_command.spec.ts`, `tests/unit/app_reset_command.spec.ts`,
   `tests/unit/owner_reset_command.spec.ts`, `tests/unit/company_initialize_command.spec.ts`.
-- **Browser coordinator.** The seven frontend files listed under
+- **Browser coordinator.** The frontend files listed under
   [Browser ownership](#browser-ownership), plus `e2e/planning-controller.auth.spec.ts` and
   `e2e/scheduler-persistence.auth.spec.ts`, which drive real typed routes against SQLite.
