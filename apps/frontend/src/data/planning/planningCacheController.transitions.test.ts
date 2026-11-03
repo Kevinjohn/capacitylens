@@ -446,18 +446,18 @@ describe('planning reconciliation transitions', () => {
     expect(h.execute).toHaveBeenCalledOnce();
   });
 
-  // Observation: a successful read does not restore the 'uncertain' status after a failed read.
-  // No consumer reads status 'uncertain'; outcome.kind still drives reconciliation.
-  it('keeps status error with no error after an uncertain write sees a failed then successful read', async () => {
+  it('keeps the write unresolved and writes locked across failed and successful reads until lookup proves it', async () => {
     const h = await uncertain();
     h.read.mockRejectedValueOnce(new TypeError('focus read failed'));
     await h.controller.refresh();
     expect(h.state().planning.status).toBe('error');
-    await expect(h.controller.refresh()).resolves.toBe(true);
-    expect(h.state().planning).toMatchObject({ status: 'error', error: null });
     expect(h.state().planning.outcome?.kind).toBe('uncertain');
-    expect(readPlanningProblem(h.state().planning)).toBeNull();
     expect(() => h.controller.begin({})).toThrow();
+
+    await expect(h.controller.refresh()).resolves.toBe(true);
+    expect(h.state().planning.outcome?.kind).toBe('uncertain');
+    expect(() => h.controller.begin({})).toThrow();
+    expect(h.execute).toHaveBeenCalledOnce();
 
     h.lookup.mockResolvedValueOnce({ status: 'committed', mutationId: 'mutation-1', revision: 2 });
     h.server.revision = 2;
