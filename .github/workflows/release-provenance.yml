@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to rebuild and attest
+        description: Existing release tag to build, attest and upload when its server archive is not yet published
         required: true
         type: string
 
@@ -29,7 +29,7 @@ jobs:
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
-      - name: Check the release for both server archive assets
+      - name: Check the release for the published server archive set
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -38,9 +38,14 @@ jobs:
           set -euo pipefail
           archive="capacitylens-${RELEASE_TAG#v}.tar.gz"
           assets="$(gh release view "$RELEASE_TAG" --json assets -q '.assets[].name')"
-          # Validated assets are never rebuilt or overwritten: re-publishing or a manual dispatch stops here.
-          if grep -qxF "$archive" <<<"$assets" && grep -qxF "$archive.sha256" <<<"$assets"; then
+          has() { grep -qxF "$1" <<<"$assets"; }
+          # Published archive bytes are never rebuilt or replaced: a complete set stops here, and a
+          # partial set fails instead of reaching the clobbering upload below.
+          if has "$archive" && has "$archive.sha256" && has capacitylens-release.intoto.jsonl; then
             echo "present=true" >> "$GITHUB_OUTPUT"
+          elif has "$archive" || has "$archive.sha256"; then
+            echo "::error::$RELEASE_TAG has a partial server archive set. Delete $archive, $archive.sha256 and capacitylens-release.intoto.jsonl from the release, then dispatch this workflow again."
+            exit 1
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
           fi
@@ -131,6 +136,10 @@ jobs:
           # A failed smoke fails the run here, before any asset is listed, attested or uploaded.
           package_scratch="$(mktemp -d)"
           trap 'rm -rf "$package_scratch"' EXIT
+          if [ ! -f scripts/smoke-packaged-server.mjs ]; then
+            echo "::error::$RELEASE_TAG predates the packaged-server smoke test, so its archive cannot be rebuilt and uploaded."
+            exit 1
+          fi
           (cd release && shasum -a 256 --check "$ARCHIVE_NAME.tar.gz.sha256")
           tar -xzf "release/$ARCHIVE_NAME.tar.gz" -C "$package_scratch"
           pnpm run smoke:packaged-server "$package_scratch/$ARCHIVE_NAME/backend"
