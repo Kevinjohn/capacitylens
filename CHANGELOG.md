@@ -7,14 +7,18 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.74.0-alpha.1] - 2026-11-06
+
 ### Added
 
+- The release workflow smoke-tests the packaged archive before upload and never rebuilds assets that already exist.
 - Reopen “How CapacityLens works” from the sidebar after dismissing the introduction.
 
 - `pnpm run check:changed` runs only the formatting, lint, type-check, test and documentation checks that a branch's changed files need (#1603). `--static` leaves whole test suites to one combined run, and a fresh worktree builds the application its backend tests read (#1657).
 
 ### Fixed
 
+- Retry view-as initialisation after a failure instead of refusing every signed-in request until restart (#1735).
 - Reject `.sqlite` files and chained symlinks that escape the release when building archives.
 - Keep pending admission decisions and their refreshes within the originating sign-in and company.
 - Stop a company closure or time off with an invalid date range from blocking schedule days that the schedule shows as open (#1706).
@@ -54,7 +58,7 @@ new features and **patch** versions carry fixes.
 - Explain when a password update succeeded but follow-up cleanup failed, clear obsolete form values, and give recovery guidance when the response is uncertain.
 - Remove the unaudited Account Kit reset-link command; operator-issued Owner recovery continues through the audited stopped-server command.
 
-- Align remaining security-header and first-company guides with native setup and the supported Google provider.
+- Align remaining security-header and first-company guides with native setup.
 
 ### Changed
 
@@ -74,12 +78,12 @@ new features and **patch** versions carry fixes.
   seven days, with **Resend** in Team & access; accepting one confirms the address, and an Owner or
   Admin then approves the person under **Waiting for approval**. The first Owner opens a one-time
   setup link printed by `node ace.js account-kit:admission:bootstrap`, which replaces the setup
-  token. Email delivery is required, production needs an HTTPS public address, sessions end after
+  token. Email delivery is needed for invitations and password reset (not for the first Owner's setup link or company creation), production needs an HTTPS public address, sessions end after
   fourteen days without use, and a password change ends every session. Administrative password
   reset and session revocation, the joining policy and joining link, and the breached-password
   check are removed. Databases from before this change are refused at upgrade; start a fresh
   database.
-- Remove Google sign-in, the sign-in mode switch and the dormant Microsoft verification screen from the AdonisJS fork; password sign-in is the only method until Account Kit social sign-in is adopted.
+- Remove Google sign-in, the sign-in mode switch and the dormant Microsoft verification screen from the AdonisJS fork; password sign-in is the only method.
 - The demo opens straight on the company picker; the cosmetic **Choose an account** step and its Sign out are gone. Diagnostics no longer report a sign-in mode.
 - Removing a member now keeps them out until an Owner or Admin selects **Enable Access**, which restores the role they held when removed, even if their role changed while access was disabled; you can no longer remove yourself. **Waiting for approval** keeps declined and revoked people so a decision can be reversed, reads every page and offers **Try again** after a failed load. The access screen explains a missing invitation or refused email domain, and the confirmation and invitation pages tell an unreachable server or a lost answer apart from an invalid link. Invitations whose email failed report the saved invitation instead of an error, queued mail failures are logged, and email confirmation enforces the password length limits.
 - Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example no longer duplicates application HSTS or configures obsolete CSP reporting. `db:seed` now adds missing fixture rows without replacing existing product data or audit history. Diagnostics now show the last applied migration and newest completed snapshot modification time.
@@ -114,8 +118,8 @@ new features and **patch** versions carry fixes.
 
 - Beta-native company export, preview and atomic Owner import now preserve stable planning IDs,
   company settings and member links. Ownership transfer and import require a single-use
-  confirmation bound to the exact action and native session; password or linked Google identity
-  can confirm, and a recent sign-in alone cannot. Unchanged imports leave revision and audit
+  confirmation bound to the exact action and native session; the password
+  confirms, and a recent sign-in alone cannot. Unchanged imports leave revision and audit
   untouched.
 
 - Typed planning writes now cover disciplines, phases, personal time off, closures and company
@@ -217,10 +221,6 @@ new features and **patch** versions carry fixes.
 - The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
   changes, audit and session revocation committed together.
 
-- Google is the available company sign-in provider. A new Google identity needs the first-user
-  allowlist or an invitation addressed to its verified email; returning from Google does not join a
-  company or accept an invitation until the person completes that action.
-
 - Reusing a one-time invitation command returns a conflict instead of replaying its bearer link;
   refresh the invitation list and replace the link if the original response was lost.
 
@@ -237,10 +237,11 @@ new features and **patch** versions carry fixes.
   joining accepts the full email and password transport limits, with consistent email handling.
 - Import and request JSON parsing reject ambiguous or excessive structure, and approved-domain
   lists and local search fields have explicit limits.
-- Removed local multi-factor enrolment, challenges and recovery codes. Google and Microsoft company providers now own any multi-factor policy; password sign-in and existing credentials remain available in modes that allow them.
+- Removed local multi-factor enrolment, challenges and recovery codes. Password sign-in is the only method.
 
 ### Documentation
 
+- The install guide states that mail is optional for the first Owner's setup link and company creation; without it, invitations and address confirmation are refused with a visible message and the sign-in screen offers no password reset.
 - Align current security guidance and the ASVS ledger with the password-only Account Kit controls.
 - Replaced retired framework and repository-policy references with the native Adonis operator
   guides. Installation, backup, upgrade, reset, monitoring and external TLS instructions now use
@@ -254,7 +255,7 @@ new features and **patch** versions carry fixes.
   complete single-account dataset and rejects malformed or cross-scope data; the existing Settings
   import/export controls remain on the legacy writer until backend replacement is integrated (#1520).
 - A role-based schedule tour that begins with the caller's role, includes lower-role guidance, and
-  disables its Getting started launcher while permissions are unresolved or an offline snapshot is read-only (#969).
+  disables its Getting started launcher while permissions are unresolved (#969).
 - A shared Help page above Account in the sidebar and command palette. Every role can start its
   tour there and browse the user guides, including Viewers and people who dismissed Getting started (#1430).
 - The README states the project's status, and the documentation gains three pages: how
@@ -269,10 +270,6 @@ new features and **patch** versions carry fixes.
   browser's user agent, viewport, time zone and language to the build and server status, and
   **Copy diagnostics** copies it. It contains no names, email addresses, identifiers or company data
   (#1408).
-- `node server/dist/index.mjs init --public-url <url> --db <path>` generates the session secret and
-  setup token and prints the five-line environment file, or writes it with `--out <file>`, readable
-  only by its owner and never over an existing file. The install guides use it instead of `openssl`
-  (#1407).
 
 ### Changed
 
@@ -331,9 +328,6 @@ new features and **patch** versions carry fixes.
 ### Fixed
 
 - Password sign-in reaches the company picker without requesting an unscoped state snapshot (#1338).
-- Update Better Auth to 1.7.7 for upstream security fixes and match its namespaced OAuth state
-  lookup so provider errors keep their configured callback route. Restart provider sign-in or
-  linking flows that were in progress during the upgrade (#1404).
 - Update the transitive `source-map-js` package to 1.2.2 for the indexed source-map
   denial-of-service advisory (#1404).
 
@@ -1787,7 +1781,8 @@ Alpha 2 milestone into one supported prerelease.
 
 Releases before 0.41.0-alpha.3 are in [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.73.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.74.0-alpha.1...HEAD
+[0.74.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.73.0-alpha.1...v0.74.0-alpha.1
 [0.73.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.72.0-alpha.1...v0.73.0-alpha.1
 [0.72.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.71.0-alpha.1...v0.72.0-alpha.1
 [0.71.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.1-alpha.1...v0.71.0-alpha.1
