@@ -29,10 +29,11 @@ const hold = vi.hoisted(() => ({
   entered: null as (() => void) | null,
   writes: 0,
 }));
-vi.mock('@/data/planning/volatilePlanningTransport', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/planning/volatilePlanningTransport')>();
+vi.mock('@/data/planning/storePlanningTransport', async () => {
+  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
+    '@/data/planning/volatilePlanningTransport',
+  );
   return {
-    ...actual,
     createStorePlanningTransport: (read: () => AppData) => {
       const transport = actual.createVolatilePlanningTransport(read);
       return {
