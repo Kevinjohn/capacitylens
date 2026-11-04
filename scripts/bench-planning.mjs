@@ -106,12 +106,13 @@ const cookieOf = (response) =>
 
 // Counts better-sqlite3 statement executions in the server process; SIGUSR2 writes the total.
 const COUNTER_PRELOAD = `
-// A preload that cannot wrap the driver leaves the server running and the count unavailable.
+const { createRequire } = require('node:module');
+const { writeFileSync } = require('node:fs');
+// A preload that cannot wrap the driver leaves the server running and the count unavailable;
+// the SIGUSR2 handler stays installed so the signal never terminates the server.
+let count = null;
 try {
-  const { createRequire } = require('node:module');
-  const { writeFileSync } = require('node:fs');
   const Database = createRequire(process.env.BENCH_BACKEND + '/package.json')('better-sqlite3');
-  let count = 0;
   const statement = Object.getPrototypeOf(new Database(':memory:').prepare('select 1'));
   for (const name of ['run', 'get', 'all', 'iterate']) {
     const original = statement[name];
@@ -119,10 +120,13 @@ try {
   }
   const exec = Database.prototype.exec;
   Database.prototype.exec = function (...args) { count += 1; return exec.apply(this, args); };
-  process.on('SIGUSR2', () => writeFileSync(process.env.BENCH_SQL_COUNT_FILE, String(count)));
+  count = 0;
 } catch (error) {
-  process.stderr.write('[bench] SQL counter unavailable: ' + error.message + '\n');
+  console.error('[bench] SQL counter unavailable:', error.message);
 }
+process.on('SIGUSR2', () => {
+  if (count !== null) writeFileSync(process.env.BENCH_SQL_COUNT_FILE, String(count));
+});
 `;
 
 const ms = (value) => value.toFixed(2);
