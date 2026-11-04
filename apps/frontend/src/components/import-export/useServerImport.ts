@@ -7,6 +7,7 @@ import { readApiError } from '@/lib/readApiError';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { buildSkippedMessage } from './importExportMessages';
 
 type SetNotice = ReturnType<typeof useStore.getState>['setNotice'];
 type ImportTransaction = { committed: boolean; requiresReload: boolean };
@@ -28,17 +29,6 @@ const ownsContext = (context: ImportContext): boolean => {
 
 const parseCount = (value: unknown): number | null =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
-const buildSkippedMessage = (
-  skipped: number,
-  messages: {
-    one: (input: { count: number }) => string;
-    other: (input: { count: number }) => string;
-  },
-): string => {
-  if (skipped === 0) return '';
-  return skipped === 1 ? messages.one({ count: skipped }) : messages.other({ count: skipped });
-};
-
 const markReloadRequired = (context: ImportContext, message: string): void => {
   context.transaction.requiresReload = true;
   context.setRequiresReload(true);
@@ -103,17 +93,11 @@ const completeImport = async (response: Response, context: ImportContext): Promi
   }
   if (imported === 0) {
     context.transaction.committed = false;
-    const why = buildSkippedMessage(skipped, {
-      one: m.data_why_skipped_one,
-      other: m.data_why_skipped_other,
-    });
+    const why = buildSkippedMessage(skipped, 'why');
     context.setNotice(m.data_no_records({ why }), 'error');
     return;
   }
-  const skippedNote = buildSkippedMessage(skipped, {
-    one: m.data_skipped_note_one,
-    other: m.data_skipped_note_other,
-  });
+  const skippedNote = buildSkippedMessage(skipped, 'note');
   const successMessage =
     imported === 1
       ? m.data_imported_server_one({ count: imported, skipped: skippedNote })

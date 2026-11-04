@@ -1,73 +1,23 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
-import {
-  buildBetaExport,
-  parseBetaExport,
-  prepareBetaImport,
-  serializeBetaExport,
-} from '@capacitylens/shared/data/betaTransfer';
-import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
-import { downloadTextFile } from '@/lib/download';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { isServerConfigured } from '@/data/apiConfig';
-import {
-  fetchInactiveSlice,
-  InactiveSliceHttpError,
-  InactiveSliceShapeError,
-} from '@/data/fetchInactiveSlice';
 import { useRole } from '@/auth/permissionContext';
-import { can, canSeePrivateNames } from '@capacitylens/shared/domain/access';
 import { ConfirmDialog, Modal } from './common/ui';
 import { m } from '@/i18n';
-import type { AppData } from '@capacitylens/shared/types/entities';
-import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
-import { APP_NAME } from '@capacitylens/shared/brand';
 import { Button } from './ui/button';
 import { reloadPage } from '@/lib/reloadPage';
 import { useServerImport } from './import-export/useServerImport';
 import { BetaImportPreview } from './import-export/BetaImportPreview';
+import { confirmLocalImport } from './import-export/confirmLocalImport';
+import { summarize } from './import-export/importExportMessages';
+import { useExportAction } from './import-export/useExportAction';
+import { usePendingImport } from './import-export/usePendingImport';
+import type { PendingImport } from './import-export/usePendingImport';
 import { ActionProofDialog } from '@/auth/ActionProofDialog';
 import { API_BASE } from '@/data/apiConfig';
 import { apiFetch } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
-
-// Store message getters so import-summary labels follow the active locale at render time.
-const SUMMARY: [keyof AppData, () => string][] = [
-  ['resources', () => m.data_summary_resources()],
-  ['disciplines', () => m.data_summary_disciplines()],
-  ['clients', () => m.data_summary_clients()],
-  ['projects', () => m.data_summary_projects()],
-  ['phases', () => m.data_summary_phases()],
-  ['activities', () => m.data_summary_activities()],
-  ['allocations', () => m.data_summary_allocations()],
-  ['timeOff', () => m.data_summary_timeoff()],
-  ['closures', () => m.data_summary_closures()],
-];
-
-function summarize(data: AppData): string {
-  const parts = SUMMARY.filter(([key]) => data[key].length > 0).map(
-    ([key, label]) => `${data[key].length} ${label()}`,
-  );
-  return parts.length ? parts.join(', ') : m.data_summary_none();
-}
-
-type PendingImport = { accountId: string | null; document: BetaExportDocument; name: string };
-
-function buildSkippedMessage(skipped: number, variant: 'why' | 'note'): string {
-  if (skipped === 0) return '';
-  if (variant === 'why') {
-    if (skipped === 1) return m.data_why_skipped_one({ count: skipped });
-    return m.data_why_skipped_other({ count: skipped });
-  }
-  if (skipped === 1) return m.data_skipped_note_one({ count: skipped });
-  return m.data_skipped_note_other({ count: skipped });
-}
-
-function buildImportedMessage(imported: number, skipped: number): string {
-  const values = { count: imported, skipped: buildSkippedMessage(skipped, 'note') };
-  if (imported === 1) return m.data_imported_one(values);
-  return m.data_imported_other(values);
-}
 
 function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
   return (
@@ -125,127 +75,6 @@ function ImportConfirmation({
       onCancel={onCancel}
     />
   );
-}
-
-function useExportAction() {
-  const data = useStore((state) => state.data);
-  const setNotice = useStore((state) => state.setNotice);
-  const activeAccountId = useStore((state) => state.activeAccountId);
-  const role = useRole();
-  const serverMode = isServerConfigured();
-  const [busy, setBusy] = useState(false);
-  const inFlight = useRef(false);
-
-  const exportData = async () => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    setBusy(true);
-    try {
-      let exported = data;
-      if (serverMode) {
-        if (!activeAccountId) throw new Error('Choose a company before exporting.');
-        if (role === null || can(role, 'anonymise')) {
-          exported = await fetchInactiveSlice(activeAccountId);
-        }
-      }
-      if (!activeAccountId) throw new Error('Choose a company before exporting.');
-      const completeness = role === null || canSeePrivateNames(role) ? 'full' : 'redacted';
-      downloadTextFile(
-        'capacitylens-data.json',
-        serializeBetaExport(
-          buildBetaExport(exported, { accountId: activeAccountId, completeness }),
-        ),
-      );
-    } catch (error) {
-      // Report the export failure instead of suggesting that an incomplete or unavailable backup was saved.
-      if (error instanceof InactiveSliceHttpError) {
-        setNotice(error.serverMessage ?? m.data_export_failed({ status: error.status }), 'error');
-      } else if (error instanceof InactiveSliceShapeError) {
-        setNotice(m.data_export_incomplete(), 'error');
-      } else {
-        setNotice(m.data_export_error({ error: resolveErrorMessage(error) }), 'error');
-      }
-    } finally {
-      inFlight.current = false;
-      setBusy(false);
-    }
-  };
-
-  return { busy, exportData };
-}
-
-function usePendingImport(
-  activeAccountId: string | null,
-  setNotice: ReturnType<typeof useStore.getState>['setNotice'],
-) {
-  const [pending, setPending] = useState<PendingImport | null>(null);
-  const selectionRef = useRef(0);
-  const accountRef = useRef(activeAccountId);
-
-  useEffect(() => {
-    if (accountRef.current === activeAccountId) return;
-    accountRef.current = activeAccountId;
-    selectionRef.current += 1;
-    setPending(null);
-  }, [activeAccountId]);
-
-  const readFile = async (file: File) => {
-    const selection = ++selectionRef.current;
-    setPending(null);
-    try {
-      const content = await file.text();
-      const parsed = parseBetaExport(content);
-      if (
-        selection !== selectionRef.current ||
-        useStore.getState().activeAccountId !== activeAccountId
-      ) {
-        return;
-      }
-      setPending({ accountId: activeAccountId, document: parsed, name: file.name });
-    } catch (error) {
-      // Only the latest file selection may report a parse failure, or a stale read could overwrite a newer import choice.
-      if (selection !== selectionRef.current) return;
-      setNotice(resolveErrorMessage(error) || m.data_err_invalid_json({ app: APP_NAME }), 'error');
-    }
-  };
-
-  return { pending, readFile, selectionRef, setPending };
-}
-
-function confirmLocalImport(
-  document: BetaExportDocument,
-  accountId: string,
-  setNotice: ReturnType<typeof useStore.getState>['setNotice'],
-): void {
-  try {
-    const prepared = prepareBetaImport(document, { accountId, memberResourceLinks: [] });
-    const current = useStore.getState().data;
-    for (const key of SCOPED_KEYS) {
-      const retainedIds = new Set(
-        current[key].filter((row) => row.accountId !== accountId).map((row) => row.id),
-      );
-      if (prepared.data[key].some((row) => retainedIds.has(row.id))) {
-        throw new Error('The import contains scheduling IDs used by another demo company.');
-      }
-    }
-    const next = {
-      ...current,
-      accounts: [
-        ...current.accounts.filter((row) => row.id !== accountId),
-        ...prepared.data.accounts,
-      ],
-    };
-    for (const key of SCOPED_KEYS) {
-      (next as unknown as Record<string, unknown>)[key] = [
-        ...current[key].filter((row) => row.accountId !== accountId),
-        ...prepared.data[key],
-      ];
-    }
-    useStore.getState().replaceAfterDemoImport(next);
-    setNotice(buildImportedMessage(prepared.imported, 0));
-  } catch (error) {
-    setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), 'error');
-  }
 }
 
 function DataToolControls({
