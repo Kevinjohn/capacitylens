@@ -125,6 +125,7 @@ const referenceSidebar = [
       { text: "OpenSSF Baseline assessment", link: "/security/OpenSSF-best-practices-dev" },
       { text: "Control inventories", link: "/security/control-inventories" },
       { text: "Node 26 discovery", link: "/reference/node26-discovery" },
+      { text: "Architecture", link: "/reference/architecture" },
       { text: "How it is tested", link: "/reference/how-it-is-tested" },
       { text: "Code standards", link: "/reference/code-standards" },
       { text: "Philosophy", link: "/reference/philosophy" },
