@@ -4,8 +4,9 @@
  * Measures `GET /api/accounts/:id/planning` and `PATCH /api/accounts/:id/allocations/:id`
  * (an hours change with a fresh mutation id and the current base revision) against a private
  * loopback server and a throwaway SQLite file. It reports p50, p95 and maximum latency, decoded
- * response bytes and, when the server accepts a preload, SQL statements per request. It is a
- * manual tool: it is not a test suite, is not run in CI, and never touches application code.
+ * response bytes and, when the counter preload can wrap the driver, SQL statements per request.
+ * It is a manual tool: it is not a test suite, is not run in CI, and never touches application
+ * code.
  *
  * Usage (Node 24):
  *   pnpm install --frozen-lockfile && pnpm run build && pnpm run package:managed-release
@@ -105,31 +106,38 @@ const cookieOf = (response) =>
 
 // Counts better-sqlite3 statement executions in the server process; SIGUSR2 writes the total.
 const COUNTER_PRELOAD = `
-const { createRequire } = require('node:module');
-const { writeFileSync } = require('node:fs');
-const Database = createRequire(process.env.BENCH_BACKEND + '/package.json')('better-sqlite3');
-let count = 0;
-const statement = Object.getPrototypeOf(new Database(':memory:').prepare('select 1'));
-for (const name of ['run', 'get', 'all', 'iterate']) {
-  const original = statement[name];
-  statement[name] = function (...args) { count += 1; return original.apply(this, args); };
+// A preload that cannot wrap the driver leaves the server running and the count unavailable.
+try {
+  const { createRequire } = require('node:module');
+  const { writeFileSync } = require('node:fs');
+  const Database = createRequire(process.env.BENCH_BACKEND + '/package.json')('better-sqlite3');
+  let count = 0;
+  const statement = Object.getPrototypeOf(new Database(':memory:').prepare('select 1'));
+  for (const name of ['run', 'get', 'all', 'iterate']) {
+    const original = statement[name];
+    statement[name] = function (...args) { count += 1; return original.apply(this, args); };
+  }
+  const exec = Database.prototype.exec;
+  Database.prototype.exec = function (...args) { count += 1; return exec.apply(this, args); };
+  process.on('SIGUSR2', () => writeFileSync(process.env.BENCH_SQL_COUNT_FILE, String(count)));
+} catch (error) {
+  process.stderr.write('[bench] SQL counter unavailable: ' + error.message + '\n');
 }
-const exec = Database.prototype.exec;
-Database.prototype.exec = function (...args) { count += 1; return exec.apply(this, args); };
-process.on('SIGUSR2', () => writeFileSync(process.env.BENCH_SQL_COUNT_FILE, String(count)));
 `;
 
 const ms = (value) => value.toFixed(2);
 const progress = (text) =>
   console.error(`[bench] ${new Date().toISOString().slice(11, 23)} ${text}`);
 
-// Ctrl-C skips `finally`, so the fixture in progress registers its server and scratch directory here.
+// Ctrl-C or SIGTERM skips `finally`, so the fixture in progress registers its server and scratch directory here.
 let interrupted = null;
-process.once('SIGINT', () => {
-  interrupted?.child?.processHandle.kill('SIGKILL');
-  if (interrupted) rmSync(interrupted.workDir, { recursive: true, force: true });
-  process.exit(130);
-});
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, () => {
+    interrupted?.child?.processHandle.kill('SIGKILL');
+    if (interrupted) rmSync(interrupted.workDir, { recursive: true, force: true });
+    process.exit(130);
+  });
+}
 
 async function stop(child) {
   if (child.outcome) return;
