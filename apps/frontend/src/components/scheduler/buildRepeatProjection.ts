@@ -1,5 +1,6 @@
 import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
-import { isValidISODate, validateAllocationAssignment } from '@capacitylens/shared/lib/integrity';
+import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
 import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';

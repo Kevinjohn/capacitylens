@@ -91,7 +91,7 @@ Then, in order:
    `PlanningController.allocationUpdate`.
 2. `apps/backend/app/controllers/planning_controller.ts` validates the body with
    `ctx.request.validateUsing(allocationMutationValidator)` from
-   `apps/backend/app/validators/planning_operations.ts`.
+   `apps/backend/app/validators/planning/allocation.ts`.
 3. The controller's `execute` checks that the intent's operation equals the route's operation,
    that a catalogue intent names the route's entity, and that the target id equals the route id.
    A mismatch is `VALIDATION_ERROR`.
@@ -149,7 +149,7 @@ Then, in order:
 | None | 500 | Unexpected fault; the transaction rolled back |
 
 The forwarded codes are listed in `planningMutationErrorCodes` in
-`apps/backend/app/validators/planning_operations.ts`; any other `PlanningOperationError` code is
+`apps/backend/app/validators/planning/contracts.ts`; any other `PlanningOperationError` code is
 sent with its status and no `code`.
 
 A request that times out or loses its response is not a failure. The browser marks it
@@ -216,7 +216,11 @@ Controller statuses are `idle`, `loading`, `ready`, `pending`, `refused`, `uncer
 
 These transitions are pinned in `apps/frontend/src/data/planning/planningCacheController.test.ts`,
 `apps/frontend/src/data/planning/planningCacheController.access.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.transitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.contextTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.historyTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.readTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.reconciliationTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.writeTransitions.test.ts`,
 `apps/frontend/src/data/planning/restorationConfirmation.test.ts`,
 `apps/frontend/src/data/planning/typedPlanningFlow.test.ts`,
 `apps/frontend/src/data/planning/volatilePlanningTransport.test.ts`,

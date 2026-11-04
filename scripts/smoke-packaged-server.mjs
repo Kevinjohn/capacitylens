@@ -1,83 +1,30 @@
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { once } from 'node:events';
 import { copyFile, cp, mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  buildSmokeEnvironment,
+  expectJsonStatus,
+  fetchOk,
+  message,
+  reservePort,
+  runAce,
+  startServer,
+  stopServer,
+  STARTUP_TIMEOUT_MS,
+  waitFor,
+  waitUntilReady,
+} from './packagedServer.mjs';
 
-const STARTUP_TIMEOUT_MS = 30_000;
-const REQUEST_TIMEOUT_MS = 10_000;
-const SHUTDOWN_TIMEOUT_MS = 10_000;
 const MEMBER_VIEW_DURATION_MS = 15 * 60_000;
 const RESOURCE_NAME = 'Bruce Wayne Packaged Schedule';
 // The baseline is followed by planning deletion ownership, the member-view control migration and
 // legacy recovery conversion.
 const MIGRATION_COUNT = 4;
-
-function message(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-
-async function reservePort() {
-  const server = createServer();
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const address = server.address();
-  assert.ok(address && typeof address !== 'string');
-  await new Promise((resolveClose, rejectClose) =>
-    server.close((error) => (error ? rejectClose(error) : resolveClose())),
-  );
-  return address.port;
-}
-
-/** Use native password authentication and database sessions in a private loopback fixture. */
-export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port }) {
-  const environment = { ...inherited };
-  delete environment.NODE_PATH;
-  delete environment.NODE_OPTIONS;
-  for (const key of Object.keys(environment)) {
-    if (
-      key.startsWith('CAPACITYLENS_') ||
-      key.startsWith('BETTER_AUTH_') ||
-      key.startsWith('VITE_CAPACITYLENS_') ||
-      key.startsWith('SMALLSASS_ACCOUNT_')
-    )
-      delete environment[key];
-  }
-  return Object.assign(environment, {
-    NODE_ENV: 'production',
-    PORT: String(port),
-    HOST: '127.0.0.1',
-    LOG_LEVEL: 'info',
-    APP_KEY: 'capacitylens-packaged-smoke-key-0123456789abcdef',
-    // Production refuses plain-HTTP public origins; links name HTTPS while the smoke talks to loopback.
-    APP_URL: `https://127.0.0.1:${port}`,
-    SESSION_DRIVER: 'database',
-    CAPACITYLENS_SECRET: 'capacitylens-packaged-secret-0123456789abcdef',
-    CAPACITYLENS_AUDIT: 'on',
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: 'true',
-    CAPACITYLENS_DB: databasePath,
-    CAPACITYLENS_BACKUP_DIR: backupDir,
-    CAPACITYLENS_PUBLIC_URL: `https://127.0.0.1:${port}`,
-  });
-}
-
-function command(backend, environment, ...args) {
-  const result = spawnSync(process.execPath, ['ace.js', ...args], {
-    cwd: backend,
-    env: environment,
-    encoding: 'utf8',
-    timeout: 30_000,
-  });
-  if (result.error) throw result.error;
-  return { status: result.status, output: `${result.stdout}\n${result.stderr}` };
-}
 
 function inspectDatabase(path, expectedResourceName) {
   const database = new DatabaseSync(path, { readOnly: true });
@@ -188,88 +135,6 @@ async function snapshotFiles(directory) {
     if (error?.code === 'ENOENT') return [];
     throw error;
   }
-}
-
-export async function waitFor(description, timeoutMs, check, child) {
-  const deadline = Date.now() + timeoutMs;
-  let lastError;
-  while (Date.now() < deadline) {
-    if (child?.outcome)
-      throw new Error(`Packaged server exited early: ${JSON.stringify(child.outcome)}`);
-    try {
-      const result = await check();
-      if (result) return result;
-    } catch (error) {
-      lastError = error;
-    }
-    await delay(250);
-  }
-  throw new Error(
-    `Timed out waiting for ${description}${lastError ? `: ${message(lastError)}` : ''}`,
-  );
-}
-
-async function fetchOk(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  const body = await response.text();
-  assert.ok(response.ok, `${options.method ?? 'GET'} ${url} returned ${response.status}: ${body}`);
-  return { response, body };
-}
-
-/** Read a JSON response once while retaining its body in assertion failures. */
-export async function expectJsonStatus(response, expectedStatus, description) {
-  const body = await response.text();
-  assert.equal(response.status, expectedStatus, `${description}: ${body}`);
-  return JSON.parse(body);
-}
-
-export function startServer(backend, environment, appendLog) {
-  const processHandle = spawn(process.execPath, ['bin/server.js'], {
-    cwd: backend,
-    env: environment,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  processHandle.stdout.setEncoding('utf8').on('data', appendLog);
-  processHandle.stderr.setEncoding('utf8').on('data', appendLog);
-  const child = { processHandle, outcome: null, exit: null };
-  child.exit = new Promise((resolveExit) => {
-    processHandle.once('error', (error) => {
-      child.outcome = { error: message(error) };
-      resolveExit(child.outcome);
-    });
-    processHandle.once('exit', (code, signal) => {
-      child.outcome = { code, signal };
-      resolveExit(child.outcome);
-    });
-  });
-  return child;
-}
-
-async function stopServer(child) {
-  if (child.outcome) return child.outcome;
-  child.processHandle.kill('SIGTERM');
-  const result = await Promise.race([child.exit, delay(SHUTDOWN_TIMEOUT_MS, null)]);
-  if (result) return result;
-  child.processHandle.kill('SIGKILL');
-  await child.exit;
-  throw new Error('The packaged server did not stop within 10 seconds of SIGTERM.');
-}
-
-async function assertReady(baseUrl, child) {
-  return waitFor(
-    'readiness',
-    STARTUP_TIMEOUT_MS,
-    async () => {
-      const response = await fetch(`${baseUrl}/health/ready`, {
-        signal: AbortSignal.timeout(1_000),
-      });
-      return response.ok;
-    },
-    child,
-  );
 }
 
 /** Write one scheduled allocation through authenticated typed planning routes. */
@@ -396,17 +261,15 @@ export async function runPackagedSmoke({
   let passed = false;
   try {
     await stat(join(backend, 'ace.js'));
-    const initial = command(backend, environment, 'app:upgrade');
+    const initial = runAce(backend, environment, ['app:upgrade']);
     assert.equal(initial.status, 0, initial.output);
     assert.doesNotMatch(initial.output, /Pre-upgrade backup written/);
     assert.equal(inspectDatabase(databasePath).length, MIGRATION_COUNT);
 
     const upgradeDir = join(workDir, 'upgrade snapshots');
-    const upgrade = command(
-      backend,
-      { ...environment, CAPACITYLENS_BACKUP_DIR: upgradeDir },
+    const upgrade = runAce(backend, { ...environment, CAPACITYLENS_BACKUP_DIR: upgradeDir }, [
       'app:upgrade',
-    );
+    ]);
     assert.equal(upgrade.status, 0, upgrade.output);
     const upgradeSnapshot = upgrade.output.match(/Pre-upgrade backup written (.+\.db)/)?.[1];
     assert.ok(upgradeSnapshot, `Upgrade did not name its snapshot: ${upgrade.output}`);
@@ -418,7 +281,7 @@ export async function runPackagedSmoke({
     child = startServer(backend, environment, (chunk) => {
       log += chunk;
     });
-    await assertReady(baseUrl, child);
+    await waitUntilReady(baseUrl, child);
     const scheduledAtStartup = await waitFor(
       'the daily scheduled startup snapshot',
       STARTUP_TIMEOUT_MS,
@@ -443,13 +306,11 @@ export async function runPackagedSmoke({
 
     const credentials = { email: 'bruce@wayne.example', password: 'packaged-password-2026' };
     // The operator prints the first-install link; accepting it creates the first identity.
-    const bootstrap = command(
-      backend,
-      environment,
+    const bootstrap = runAce(backend, environment, [
       'account-kit:admission:bootstrap',
       credentials.email,
       '--role=viewer',
-    );
+    ]);
     // A failed run may still have printed the one-time link; never copy it into CI logs.
     assert.equal(
       bootstrap.status,
@@ -568,7 +429,7 @@ export async function runPackagedSmoke({
     child = startServer(backend, environment, (chunk) => {
       log += chunk;
     });
-    await assertReady(baseUrl, child);
+    await waitUntilReady(baseUrl, child);
 
     const secondOwnerSignIn = await fetch(`${baseUrl}/api/auth/sign-in`, {
       method: 'POST',
@@ -699,7 +560,7 @@ export async function runPackagedSmoke({
     child = startServer(backend, environment, (chunk) => {
       log += chunk;
     });
-    await assertReady(baseUrl, child);
+    await waitUntilReady(baseUrl, child);
     const expiredStart = await fetch(`${baseUrl}/api/accounts/${accountId}/masquerade`, {
       method: 'POST',
       headers: {
@@ -727,7 +588,7 @@ export async function runPackagedSmoke({
       await acceptBrowser({ baseUrl, credentials, workDir, resourceName: resource.name });
 
     const beforeExplicit = await snapshotFiles(backupDir);
-    const explicit = command(backend, environment, 'db:backup');
+    const explicit = runAce(backend, environment, ['db:backup']);
     assert.equal(explicit.status, 0, explicit.output);
     const explicitPath = explicit.output.match(/Backup written (\S+\.db)/)?.[1];
     assert.ok(explicitPath, `Backup command did not name its snapshot: ${explicit.output}`);
@@ -741,7 +602,7 @@ export async function runPackagedSmoke({
     child = startServer(backend, environment, (chunk) => {
       log += chunk;
     });
-    await assertReady(baseUrl, child);
+    await waitUntilReady(baseUrl, child);
     const state = JSON.parse(
       (
         await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, {
@@ -759,14 +620,14 @@ export async function runPackagedSmoke({
     const restoredPath = join(workDir, 'restored.db');
     await copyFile(explicitPath, restoredPath, constants.COPYFILE_EXCL);
     const restoredEnvironment = { ...environment, CAPACITYLENS_DB: restoredPath };
-    const restoreUpgrade = command(backend, restoredEnvironment, 'app:upgrade');
+    const restoreUpgrade = runAce(backend, restoredEnvironment, ['app:upgrade']);
     assert.equal(restoreUpgrade.status, 0, restoreUpgrade.output);
     assert.equal(inspectDatabase(restoredPath, RESOURCE_NAME).length, MIGRATION_COUNT);
     assertAllocationInDatabase(restoredPath, accountId, allocation);
     child = startServer(backend, restoredEnvironment, (chunk) => {
       log += chunk;
     });
-    await assertReady(baseUrl, child);
+    await waitUntilReady(baseUrl, child);
     const restoredSession = JSON.parse(
       (await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body,
     );

@@ -8,7 +8,7 @@ import { createLifecycleSlice } from './slices/lifecycleSlice';
 import { createRuntimeSlice } from './slices/runtimeSlice';
 import { createSchedulerSlice } from './slices/schedulerSlice';
 import { createStoreInternals } from './storeInternal';
-import { createStorePlanningTransport } from '@/data/planning/volatilePlanningTransport';
+import { createStorePlanningTransport } from '@/data/planning/storePlanningTransport';
 import { createTypedPlanningActions } from './typedPlanningActions';
 import { buildEmptyFilters } from './types';
 import type { StoreState } from './types';
