@@ -60,9 +60,10 @@ function harness(transport: PlanningTransport) {
       ...transport,
       read,
       async execute(...args) {
-        const receipt = (await transport.execute(...args)) as PlanningMutationSuccess | null;
+        const receipt = await transport.execute(...args);
         // A malformed reply may carry no receipt; pass it through for the controller to judge.
-        if (receipt) serverSnapshot = { ...serverSnapshot, revision: receipt.revision };
+        const revision = (receipt as PlanningMutationSuccess | null)?.revision;
+        if (revision !== undefined) serverSnapshot = { ...serverSnapshot, revision };
         return receipt;
       },
     },
