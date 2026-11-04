@@ -1,6 +1,6 @@
 import { eachDayISO, weekdayOf } from '../lib/dateMath.js';
 import { effectiveWorkingWeek, effectiveWeekIncludes } from '../lib/effectiveWorkingWeek.js';
-import { isValidISODate } from '../lib/integrity.js';
+import { isValidISODate } from '../lib/isoDates.js';
 import type { ValidationResult } from '../lib/integrity.js';
 import { isExternalResource, isPlaceholderResource } from '../types/entities.js';
 import type { Allocation, ISODate, Resource, Weekday } from '../types/entities.js';

@@ -4,8 +4,8 @@ import { act, render, screen } from '@testing-library/react';
 vi.mock('./masqueradeApi', () => ({
   masqueradeApi: { status: vi.fn(async () => ({ active: false, contextToken: 'idle' })) },
 }));
-vi.mock('@/data/planning/volatilePlanningTransport', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/planning/volatilePlanningTransport')>();
+vi.mock('@/data/planning/storePlanningTransport', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/data/planning/storePlanningTransport')>();
   const { createPlanningTransport } = await import('@/data/planning/planningTransport');
   return { ...actual, createStorePlanningTransport: () => createPlanningTransport() };
 });

@@ -1,5 +1,5 @@
 import type { ISOTimestamp, Resource } from '../../types/entities.js';
-import { parseISOTimestamp } from '../../lib/integrity.js';
+import { parseISOTimestamp } from '../../lib/isoDates.js';
 import { shortIdTag } from '../privateNames.js';
 import { lifecycleStatus, isValidTombstone } from './types.js';
 import type { LifecycleFields } from './types.js';

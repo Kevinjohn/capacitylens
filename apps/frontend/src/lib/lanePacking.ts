@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import type { ID, ISODate } from '@capacitylens/shared/types/entities';
 
 // Greedy first-fit interval partitioning, per resource. Produces the minimum
