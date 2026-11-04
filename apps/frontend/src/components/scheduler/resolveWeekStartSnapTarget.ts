@@ -1,5 +1,5 @@
 import { startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { resolveLeftEdgeDate } from './columnGeometry';
 import type { ColumnGeometry } from './columnGeometry';
 import type { ISODate } from '@capacitylens/shared/types/entities';

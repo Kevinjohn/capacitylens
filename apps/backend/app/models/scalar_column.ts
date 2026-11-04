@@ -1,7 +1,7 @@
 import type { ColumnOptions } from '@adonisjs/lucid/types/model';
 import type { ISODate, ISOTimestamp } from '@capacitylens/shared/types/entities';
 import { isIsoInstant } from '@capacitylens/shared/account/types';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { DateTime } from 'luxon';
 
 type ScalarColumnOptions<T extends string> = Pick<ColumnOptions, 'prepare' | 'consume'> & {

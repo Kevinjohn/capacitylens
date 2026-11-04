@@ -2,7 +2,8 @@ import { APP_DATA_KEYS, MAX_HOURS_PER_DAY } from '../types/entityKeys.js';
 import type { AppData, AppDataKey, Weekday } from '../types/entities.js';
 import { INTERNAL_CLIENT_COLOR } from './internalClient.js';
 import { NEUTRAL_COLOR, isPresetColor } from '../lib/color.js';
-import { isValidISODate, parseISOTimestamp, validateDateRange } from '../lib/integrity.js';
+import { validateDateRange } from '../lib/integrity.js';
+import { isValidISODate, parseISOTimestamp } from '../lib/isoDates.js';
 import {
   MAX_NAME_LENGTH,
   MAX_NOTE_LENGTH,

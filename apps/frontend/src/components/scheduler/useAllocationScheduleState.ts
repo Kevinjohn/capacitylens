@@ -4,7 +4,7 @@ import {
   effectiveWorkingWeek,
   lacksEffectiveWorkingDays,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
   defaultRepeatUntilDate,
   maximumRepeatUntilDate,
