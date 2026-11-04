@@ -1,5 +1,5 @@
 import { addDaysISO, daysInclusive, MAX_ISO_DATE, weekdayOf } from './dateMath.js';
-import { daysInMonth as daysInGregorianMonth, isValidISODate } from './integrity.js';
+import { daysInMonth as daysInGregorianMonth, isValidISODate } from './isoDates.js';
 import type { ISODate } from '../types/entities.js';
 
 /** A supported repeat cadence for transient dated-entry creation. */

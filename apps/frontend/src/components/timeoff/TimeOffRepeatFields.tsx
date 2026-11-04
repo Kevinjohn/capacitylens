@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { parseDate } from '@capacitylens/shared/lib/dateMath';
 import type { ISODate } from '@capacitylens/shared/types/entities';
 import { readActiveDateLocale, m } from '@/i18n';

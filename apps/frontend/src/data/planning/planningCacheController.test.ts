@@ -61,7 +61,9 @@ function harness(transport: PlanningTransport) {
       read,
       async execute(...args) {
         const receipt = await transport.execute(...args);
-        serverSnapshot = { ...serverSnapshot, revision: receipt.revision };
+        // A malformed reply may carry no receipt; pass it through for the controller to judge.
+        const revision = (receipt as PlanningMutationSuccess | null)?.revision;
+        if (revision !== undefined) serverSnapshot = { ...serverSnapshot, revision };
         return receipt;
       },
     },
@@ -118,6 +120,21 @@ describe('planning cache controller', () => {
     expect(execute).toHaveBeenCalledTimes(1);
     expect(execute.mock.calls[0]?.[1].baseRevision).toBe(3);
     expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats an empty acknowledgement as uncertain instead of a declined restoration', async () => {
+    const execute = vi
+      .fn<PlanningTransport['execute']>()
+      .mockResolvedValue(null as unknown as PlanningMutationSuccess);
+    const h = harness({ execute, read: vi.fn(), lookup: vi.fn() });
+    h.controller.setContext(context);
+    await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
+
+    await expect(
+      h.controller.execute(h.controller.begin({ timezone: 'Etc/GMT' }), intent, inverse),
+    ).rejects.toMatchObject({ uncertain: true });
+    expect(h.state().planning.status).toBe('uncertain');
+    expect(h.state().planning.outcome?.kind).toBe('uncertain');
   });
 
   it('keeps unknown commitment uncertain and reconciles without resending', async () => {

@@ -8,7 +8,7 @@ import {
   executePlanningIntent as applyPlanningIntent,
   PlanningOperationError,
 } from '#services/planning/execute';
-import type { PlanningIntent } from '#validators/planning_operations';
+import type { PlanningIntent } from '#validators/planning/contracts';
 import type { BatchCapabilities } from '#services/planning/data_policy';
 
 const owner: BatchCapabilities = {

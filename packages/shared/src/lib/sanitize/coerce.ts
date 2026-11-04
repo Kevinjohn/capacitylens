@@ -1,5 +1,5 @@
 import { cleanText } from '../strings.js';
-import { isValidISODate, parseISOTimestamp } from '../integrity.js';
+import { isValidISODate, parseISOTimestamp } from '../isoDates.js';
 import { normalizeCodeName, privateCodeNameFallback } from '../../domain/privateNames.js';
 import {
   canonicalWeekdaySet,

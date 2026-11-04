@@ -1,7 +1,5 @@
-import { emptyAppData, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
-import { HISTORY_LIMIT } from '@/store/history';
-import { isRecord } from '@capacitylens/shared/lib/isRecord';
-import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
+import type { AppData } from '@capacitylens/shared/types/entities';
 import type {
   PlanningExecution,
   PlanningHistoryEntry,
@@ -10,6 +8,20 @@ import type {
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
 import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import {
+  cloneImmutable,
+  emptyHistory,
+  isDeleteIntent,
+  isLookupHistoryEligible,
+  movedHistory,
+} from './planningHistory';
+import {
+  applyProjection,
+  isProjectionForCompany,
+  isSnapshotForCompany,
+  isValidReceipt,
+  isValidSnapshot,
+} from './planningReceipts';
 
 /** A canonical read normalized by the typed transport; its wire shape remains transport-owned. */
 export interface PlanningSnapshot {
@@ -146,7 +158,8 @@ export class PlanningControllerError extends Error {
   }
 }
 
-const emptyHistory = (): PlanningHistory => ({ past: [], future: [], tipRevision: null });
+// A declined restoration confirmation; distinct from any reply the transport can return.
+const DECLINED = Symbol('declined');
 
 const initialMetadata = (
   context: PlanningClientContext | null = null,
@@ -165,17 +178,6 @@ const initialMetadata = (
 /** Creates the single non-persisted Zustand value used by the planning controller. */
 export function createPlanningCacheState(data: AppData = emptyAppData()): PlanningCacheState {
   return { data, planning: initialMetadata() };
-}
-
-function cloneImmutable<T>(value: T): T {
-  const cloned = structuredClone(value);
-  const freeze = (item: unknown): void => {
-    if (item === null || typeof item !== 'object' || Object.isFrozen(item)) return;
-    Object.freeze(item);
-    for (const child of Object.values(item)) freeze(child);
-  };
-  freeze(cloned);
-  return cloned;
 }
 
 function sameContext(
@@ -230,200 +232,11 @@ export function readPlanningProblem(
   return planning.status === 'error' ? 'unavailable' : null;
 }
 
-function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot {
-  if (!isRecord(snapshot) || !isRecord(snapshot.data)) return false;
-  const data = snapshot.data;
-  return (
-    Number.isSafeInteger(snapshot.revision) &&
-    typeof snapshot.revision === 'number' &&
-    snapshot.revision >= 0 &&
-    Array.isArray(data.accounts) &&
-    data.accounts.every(isRecord) &&
-    SCOPED_KEYS.every((key) => Array.isArray(data[key])) &&
-    SCOPED_KEYS.every((key) => (data[key] as unknown[]).every(isRecord)) &&
-    (snapshot.accessKey === undefined || typeof snapshot.accessKey === 'string') &&
-    typeof snapshot.canWrite === 'boolean'
-  );
-}
-
-function isSnapshotForCompany(snapshot: PlanningSnapshot, companyId: string): boolean {
-  return (
-    snapshot.data.accounts.length === 1 &&
-    snapshot.data.accounts.every((account) => isRecord(account) && account.id === companyId) &&
-    SCOPED_KEYS.every((key) =>
-      snapshot.data[key].every((row) => isRecord(row) && row.accountId === companyId),
-    )
-  );
-}
-
-function isProjectionForCompany(receipt: PlanningMutationSuccess, companyId: string): boolean {
-  if (receipt.projection.mode !== 'patch') return true;
-  return receipt.projection.changed.upserts.every(({ entity, row }) =>
-    entity === 'accounts'
-      ? row.id === companyId
-      : 'accountId' in row && row.accountId === companyId,
-  );
-}
-
-function applyProjection(data: AppData, success: PlanningMutationSuccess): AppData {
-  if (success.projection.mode !== 'patch') return data;
-  const next: AppData = { ...data };
-  const mutable = next as unknown as Record<AppDataKey, Array<{ id: string }>>;
-  const changedKeys = new Set<AppDataKey>();
-  for (const item of success.projection.changed.upserts) changedKeys.add(item.entity);
-  for (const item of success.projection.changed.removed) changedKeys.add(item.entity);
-  for (const key of changedKeys) {
-    const rows = [...data[key]] as unknown as Array<{ id: string }>;
-    const changes = success.projection.changed;
-    const removedIds = new Set(
-      changes.removed.filter((item) => item.entity === key).map((item) => item.id),
-    );
-    const upserts = changes.upserts.filter((item) => item.entity === key) as unknown as Array<{
-      entity: AppDataKey;
-      row: { id: string };
-    }>;
-    const byId = new Map(rows.filter((row) => !removedIds.has(row.id)).map((row) => [row.id, row]));
-    for (const item of upserts) byId.set(item.row.id, item.row);
-    mutable[key] = [...byId.values()];
-  }
-  return next;
-}
-
-function replaceRestoreHandle(intent: PlanningIntent, handle: string | undefined): PlanningIntent {
-  if (intent.operation !== 'planning.restoreGroup' || !handle) return intent;
-  return { ...intent, restorationGroupId: handle };
-}
-
-function isValidReceipt(
-  receipt: unknown,
-  execution: PlanningExecution,
-): receipt is PlanningMutationSuccess {
-  if (!isRecord(receipt) || !isRecord(receipt.restoration) || !isRecord(receipt.projection)) {
-    return false;
-  }
-  const restoration = receipt.restoration;
-  const projection = receipt.projection;
-  const changed = projection.changed;
-  const validRestoration =
-    (restoration.consumedGroupId === null || typeof restoration.consumedGroupId === 'string') &&
-    (restoration.replacementGroupId === null || typeof restoration.replacementGroupId === 'string');
-  const validProjection =
-    (projection.mode === 'refetch' && projection.history === 'clear') ||
-    (projection.mode === 'patch' &&
-      projection.history === 'retain' &&
-      isRecord(changed) &&
-      Array.isArray(changed.upserts) &&
-      Array.isArray(changed.removed));
-  return (
-    receipt.status === 'committed' &&
-    receipt.mutationId === execution.mutationId &&
-    Number.isSafeInteger(receipt.revision) &&
-    typeof receipt.revision === 'number' &&
-    receipt.revision === execution.baseRevision + 1 &&
-    validRestoration &&
-    validProjection
-  );
-}
-
 // K2: only an ended session loses scope. Every 403, membership loss included, is a refusal that
 // keeps the readable rows and history.
 function losesScope(error: unknown): boolean {
   const details = errorDetails(error);
   return details.status === 401 || details.code === 'UNAUTHENTICATED';
-}
-
-function restoreIntent(handle: string): PlanningIntent {
-  return { operation: 'planning.restoreGroup', restorationGroupId: handle };
-}
-
-function isDeleteIntent(intent: PlanningIntent): boolean {
-  return intent.operation.endsWith('.delete') || intent.operation.endsWith('deleteGroup');
-}
-
-function isLookupHistoryEligible(intent: PlanningIntent, inverse: PlanningIntent | null): boolean {
-  if (!inverse) return false;
-  return !(
-    intent.operation === 'catalogue.update' &&
-    ('isPrivate' in intent.entity.changes ||
-      'codeName' in intent.entity.changes ||
-      (intent.entity.entity === 'activities' && 'kind' in intent.entity.changes))
-  );
-}
-
-function movedHistory(
-  history: PlanningHistory,
-  kind: 'new' | 'undo' | 'redo',
-  entry: PlanningHistoryEntry | null,
-  action: PlanningIntent,
-  nextInverse: PlanningIntent | null,
-  replacementHandle: string | undefined,
-  revision: number,
-): PlanningHistory {
-  if (kind === 'new') {
-    if (!entry || !nextInverse) return emptyHistory();
-    const inverse = replaceRestoreHandle(nextInverse, replacementHandle);
-    if (inverse.operation === 'planning.restoreGroup' && inverse.restorationGroupId === '') {
-      return emptyHistory();
-    }
-    return {
-      past: [...history.past, { forward: cloneImmutable(entry.forward), inverse }].slice(
-        -HISTORY_LIMIT,
-      ),
-      future: [],
-      tipRevision: revision,
-    };
-  }
-  if (!entry) return emptyHistory();
-  if (kind === 'undo') {
-    const remaining = history.past.slice(0, -1);
-    let redo: PlanningHistoryEntry;
-    if (action.operation === 'planning.restoreGroup') {
-      redo = cloneImmutable(entry);
-    } else if (replacementHandle) {
-      redo = { forward: restoreIntent(replacementHandle), inverse: cloneImmutable(action) };
-    } else if (
-      entry.forward.operation === 'resource.create' &&
-      action.operation === 'resource.archive'
-    ) {
-      redo = {
-        forward: { operation: 'resource.unarchive', id: action.id },
-        inverse: cloneImmutable(action),
-      };
-    } else if (
-      entry.forward.operation === 'catalogue.create' &&
-      action.operation === 'catalogue.archive'
-    ) {
-      redo = {
-        forward: { operation: 'catalogue.unarchive', entity: action.entity },
-        inverse: cloneImmutable(action),
-      };
-    } else if (isDeleteIntent(action) || entry.forward.operation === 'planning.restoreGroup') {
-      return emptyHistory();
-    } else {
-      redo = { forward: cloneImmutable(entry.forward), inverse: cloneImmutable(action) };
-    }
-    return {
-      past: remaining,
-      future: [...history.future, redo].slice(-HISTORY_LIMIT),
-      tipRevision: revision,
-    };
-  }
-  const remaining = history.future.slice(0, -1);
-  let past: PlanningHistoryEntry;
-  if (action.operation === 'planning.restoreGroup') {
-    past = { forward: cloneImmutable(action), inverse: cloneImmutable(entry.inverse) };
-  } else {
-    const inverse = replaceRestoreHandle(entry.inverse, replacementHandle);
-    if (inverse.operation === 'planning.restoreGroup' && inverse.restorationGroupId === '') {
-      return emptyHistory();
-    }
-    past = { forward: cloneImmutable(action), inverse };
-  }
-  return {
-    past: [...history.past, past].slice(-HISTORY_LIMIT),
-    future: remaining,
-    tipRevision: revision,
-  };
 }
 
 /** Owns one client's planning request ordering and page-local typed history. */
@@ -762,13 +575,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }
   }
 
-  async function perform(
-    draft: PlanningDraft,
-    intent: PlanningIntent,
-    inverse: PlanningIntent | null,
-    kind: 'new' | 'undo' | 'redo',
-    entry: PlanningHistoryEntry | null,
-  ): Promise<PlanningMutationSuccess | null> {
+  function assertCanPerform(draft: PlanningDraft): void {
     const state = store.getState();
     if (!isCurrent(draft.generation, draft.context) || state.planning.revision === null) {
       throw new PlanningControllerError(
@@ -788,20 +595,27 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (state.planning.status !== 'ready' && state.planning.status !== 'refused') {
       throw new PlanningControllerError('Planning is not ready for a new change.');
     }
-    let execution: PlanningExecution = cloneImmutable({
-      mutationId: createMutationId(),
-      baseRevision: draft.baseRevision,
-      intent,
-    });
-    const immutableInverse = inverse ? cloneImmutable(inverse) : null;
+  }
+
+  function startAttempt(
+    draft: PlanningDraft,
+    intent: PlanningIntent,
+    inverse: PlanningIntent | null,
+    kind: 'new' | 'undo' | 'redo',
+    entry: PlanningHistoryEntry | null,
+  ): NonNullable<typeof attempt> {
     const pending: PlanningPendingMutation = {
-      execution,
-      inverse: immutableInverse,
+      execution: cloneImmutable({
+        mutationId: createMutationId(),
+        baseRevision: draft.baseRevision,
+        intent,
+      }),
+      inverse: inverse ? cloneImmutable(inverse) : null,
       historyEntry: entry ? cloneImmutable(entry) : null,
       originalWritable: cloneImmutable(draft.originalWritable),
       kind,
     };
-    const owner = { pending, history: state.planning.history, draft };
+    const owner = { pending, history: store.getState().planning.history, draft };
     attempt = owner;
     store.setState((current) => ({
       planning: {
@@ -812,185 +626,206 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         error: null,
       },
     }));
-    const controller = requestController();
+    return owner;
+  }
+
+  /** Sends the attempt, asking once to confirm restoration cleanup when the server requires it.
+   * Returns DECLINED when the person declines, after restoring the planning state from before. */
+  async function send(
+    owner: NonNullable<typeof attempt>,
+    before: PlanningControllerMetadata,
+    controller: AbortController,
+  ): Promise<PlanningMutationSuccess | typeof DECLINED> {
+    const { pending, draft } = owner;
     try {
-      let receipt: PlanningMutationSuccess;
-      try {
-        receipt = await transport.execute(draft.requestContext, execution, controller.signal);
-      } catch (error) {
-        if (
-          !(error instanceof PlanningControllerError) ||
-          error.code !== 'RESTORATION_CONFIRMATION_REQUIRED' ||
-          !Number.isSafeInteger(error.restorableItemCount) ||
-          error.restorableItemCount === undefined ||
-          error.restorableItemCount <= 0 ||
-          !options.confirmRestorationCleanup
-        ) {
-          throw error;
-        }
-        if (!ownsAttempt(owner) || controller.signal.aborted) throw error;
-        const accepted = await options.confirmRestorationCleanup(
-          error.restorableItemCount,
-          controller.signal,
-        );
-        controller.signal.throwIfAborted();
-        if (!ownsAttempt(owner)) {
-          throw new PlanningControllerError('Planning context changed before confirmation.');
-        }
-        if (!accepted) {
-          attempt = null;
-          store.setState((current) => ({
-            planning:
-              current.planning.revision === state.planning.revision
-                ? state.planning
-                : {
-                    ...current.planning,
-                    status: 'ready',
-                    pending: null,
-                    outcome: null,
-                    error: null,
-                    history: emptyHistory(),
-                  },
-          }));
-          return null;
-        }
-        execution = cloneImmutable({
-          ...execution,
-          confirmedRestorationCount: error.restorableItemCount,
-        });
-        pending.execution = execution;
-        receipt = await transport.execute(draft.requestContext, execution, controller.signal);
-      }
-      if (!ownsAttempt(owner)) {
-        throw new PlanningControllerError(
-          'Planning context changed while the request was pending.',
-        );
-      }
-      if (
-        !isValidReceipt(receipt, execution) ||
-        !isProjectionForCompany(receipt, draft.context.companyId)
-      ) {
-        store.setState((current) => ({
-          planning: {
-            ...current.planning,
-            status: 'uncertain',
-            outcome: { kind: 'uncertain', execution: pending.execution },
-            error: new PlanningControllerError(
-              'The server receipt was invalid; commitment is unknown.',
-              undefined,
-              undefined,
-              true,
-            ),
-          },
-        }));
-        throw new PlanningControllerError(
-          'The server receipt was invalid; commitment is unknown.',
-          undefined,
-          undefined,
-          true,
-        );
-      }
-      acknowledge(
-        owner,
-        receipt.revision,
-        receipt.projection.mode === 'patch' && isLookupHistoryEligible(intent, inverse),
-        receipt.restoration.replacementGroupId ?? undefined,
-        receipt,
-      );
-      await refresh();
-      return isCurrent(draft.generation, draft.context) ? receipt : null;
+      return await transport.execute(draft.requestContext, pending.execution, controller.signal);
     } catch (error) {
-      const details = errorDetails(error);
-      if (error instanceof PlanningControllerError && error.uncertain) throw error;
-      if (losesScope(error)) {
-        if (ownsAttempt(owner)) loseScope();
-        throw new PlanningControllerError(details.message, details.code, details.status);
-      }
-      if (details.code === 'MUTATION_ID_REUSED') {
-        if (ownsAttempt(owner)) {
-          store.setState((current) => ({
-            planning: {
-              ...current.planning,
-              status: 'uncertain',
-              outcome: { kind: 'uncertain', execution: pending.execution },
-              error,
-              pending,
-            },
-          }));
-          await reconcilePending();
-          if (owner.pending.commitment) return null;
-        }
-        throw new PlanningControllerError(details.message, details.code, details.status, true);
-      }
-      if (details.code === 'STALE_REVISION' || details.status === 409) {
-        if (ownsAttempt(owner)) {
-          attempt = null;
-          store.setState((current) => ({
-            planning: {
-              ...current.planning,
-              status: 'refused',
-              pending: null,
-              outcome: {
-                kind: 'refused',
-                mutationId: execution.mutationId,
-                code: details.code ?? 'STALE_REVISION',
-              },
-              error,
-              history:
-                current.planning.revision !== null && current.planning.revision > draft.baseRevision
-                  ? emptyHistory()
-                  : current.planning.history,
-            },
-          }));
-          await refresh();
-        }
-        throw new PlanningControllerError(
-          details.message,
-          details.code ?? 'STALE_REVISION',
-          details.status,
-        );
-      }
       if (
-        details.status !== 408 &&
-        (details.code === 'AUTHORIZATION_DENIED' ||
-          details.code === 'VALIDATION_ERROR' ||
-          details.code === 'NO_CHANGE' ||
-          (details.status !== undefined && details.status < 500))
+        !(error instanceof PlanningControllerError) ||
+        error.code !== 'RESTORATION_CONFIRMATION_REQUIRED' ||
+        !Number.isSafeInteger(error.restorableItemCount) ||
+        error.restorableItemCount === undefined ||
+        error.restorableItemCount <= 0 ||
+        !options.confirmRestorationCleanup
       ) {
-        if (ownsAttempt(owner)) {
-          attempt = null;
-          store.setState((current) => ({
-            planning: {
-              ...current.planning,
-              status: 'refused',
-              pending: null,
-              outcome: {
-                kind: 'refused',
-                mutationId: execution.mutationId,
-                ...(details.code ? { code: details.code } : {}),
-              },
-              error,
-              history:
-                current.planning.revision !== null && current.planning.revision > draft.baseRevision
-                  ? emptyHistory()
-                  : current.planning.history,
-            },
-          }));
-        }
-        throw new PlanningControllerError(details.message, details.code, details.status);
+        throw error;
       }
-      if (ownsAttempt(owner)) {
+      if (!ownsAttempt(owner) || controller.signal.aborted) throw error;
+      const accepted = await options.confirmRestorationCleanup(
+        error.restorableItemCount,
+        controller.signal,
+      );
+      controller.signal.throwIfAborted();
+      if (!ownsAttempt(owner)) {
+        throw new PlanningControllerError('Planning context changed before confirmation.');
+      }
+      if (!accepted) {
+        attempt = null;
         store.setState((current) => ({
-          planning: {
-            ...current.planning,
-            status: 'uncertain',
-            outcome: { kind: 'uncertain', execution: pending.execution },
-            pending,
-            error,
-          },
+          planning:
+            current.planning.revision === before.revision
+              ? before
+              : {
+                  ...current.planning,
+                  status: 'ready',
+                  pending: null,
+                  outcome: null,
+                  error: null,
+                  history: emptyHistory(),
+                },
         }));
+        return DECLINED;
+      }
+      pending.execution = cloneImmutable({
+        ...pending.execution,
+        confirmedRestorationCount: error.restorableItemCount,
+      });
+      return transport.execute(draft.requestContext, pending.execution, controller.signal);
+    }
+  }
+
+  async function acceptReceipt(
+    owner: NonNullable<typeof attempt>,
+    receipt: PlanningMutationSuccess,
+    intent: PlanningIntent,
+    inverse: PlanningIntent | null,
+  ): Promise<PlanningMutationSuccess | null> {
+    const { pending, draft } = owner;
+    if (!ownsAttempt(owner)) {
+      throw new PlanningControllerError('Planning context changed while the request was pending.');
+    }
+    if (
+      !isValidReceipt(receipt, pending.execution) ||
+      !isProjectionForCompany(receipt, draft.context.companyId)
+    ) {
+      store.setState((current) => ({
+        planning: {
+          ...current.planning,
+          status: 'uncertain',
+          outcome: { kind: 'uncertain', execution: pending.execution },
+          error: new PlanningControllerError(
+            'The server receipt was invalid; commitment is unknown.',
+            undefined,
+            undefined,
+            true,
+          ),
+        },
+      }));
+      throw new PlanningControllerError(
+        'The server receipt was invalid; commitment is unknown.',
+        undefined,
+        undefined,
+        true,
+      );
+    }
+    acknowledge(
+      owner,
+      receipt.revision,
+      receipt.projection.mode === 'patch' && isLookupHistoryEligible(intent, inverse),
+      receipt.restoration.replacementGroupId ?? undefined,
+      receipt,
+    );
+    await refresh();
+    return isCurrent(draft.generation, draft.context) ? receipt : null;
+  }
+
+  function markRefused(
+    owner: NonNullable<typeof attempt>,
+    error: unknown,
+    code: string | undefined,
+  ): void {
+    attempt = null;
+    store.setState((current) => ({
+      planning: {
+        ...current.planning,
+        status: 'refused',
+        pending: null,
+        outcome: {
+          kind: 'refused',
+          mutationId: owner.pending.execution.mutationId,
+          ...(code ? { code } : {}),
+        },
+        error,
+        history:
+          current.planning.revision !== null && current.planning.revision > owner.draft.baseRevision
+            ? emptyHistory()
+            : current.planning.history,
+      },
+    }));
+  }
+
+  function markUncertain(owner: NonNullable<typeof attempt>, error: unknown): void {
+    const { pending } = owner;
+    store.setState((current) => ({
+      planning: {
+        ...current.planning,
+        status: 'uncertain',
+        outcome: { kind: 'uncertain', execution: pending.execution },
+        error,
+        pending,
+      },
+    }));
+  }
+
+  /** Records a failed send in planning state and rethrows it as a controller error. Returns null
+   * only when a reused mutation id reconciles to a commitment. */
+  async function settleFailure(owner: NonNullable<typeof attempt>, error: unknown): Promise<null> {
+    const details = errorDetails(error);
+    if (error instanceof PlanningControllerError && error.uncertain) throw error;
+    if (losesScope(error)) {
+      if (ownsAttempt(owner)) loseScope();
+      throw new PlanningControllerError(details.message, details.code, details.status);
+    }
+    if (details.code === 'MUTATION_ID_REUSED') {
+      if (ownsAttempt(owner)) {
+        markUncertain(owner, error);
+        await reconcilePending();
+        if (owner.pending.commitment) return null;
       }
       throw new PlanningControllerError(details.message, details.code, details.status, true);
+    }
+    if (details.code === 'STALE_REVISION' || details.status === 409) {
+      if (ownsAttempt(owner)) {
+        markRefused(owner, error, details.code ?? 'STALE_REVISION');
+        await refresh();
+      }
+      throw new PlanningControllerError(
+        details.message,
+        details.code ?? 'STALE_REVISION',
+        details.status,
+      );
+    }
+    if (
+      details.status !== 408 &&
+      (details.code === 'AUTHORIZATION_DENIED' ||
+        details.code === 'VALIDATION_ERROR' ||
+        details.code === 'NO_CHANGE' ||
+        (details.status !== undefined && details.status < 500))
+    ) {
+      if (ownsAttempt(owner)) markRefused(owner, error, details.code);
+      throw new PlanningControllerError(details.message, details.code, details.status);
+    }
+    if (ownsAttempt(owner)) markUncertain(owner, error);
+    throw new PlanningControllerError(details.message, details.code, details.status, true);
+  }
+
+  async function perform(
+    draft: PlanningDraft,
+    intent: PlanningIntent,
+    inverse: PlanningIntent | null,
+    kind: 'new' | 'undo' | 'redo',
+    entry: PlanningHistoryEntry | null,
+  ): Promise<PlanningMutationSuccess | null> {
+    assertCanPerform(draft);
+    const before = store.getState().planning;
+    const owner = startAttempt(draft, intent, inverse, kind, entry);
+    const controller = requestController();
+    try {
+      const receipt = await send(owner, before, controller);
+      if (receipt === DECLINED) return null;
+      return await acceptReceipt(owner, receipt, intent, inverse);
+    } catch (error) {
+      return await settleFailure(owner, error);
     } finally {
       finishRequest(controller);
     }

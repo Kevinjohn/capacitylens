@@ -1,6 +1,4 @@
-import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpContext } from '@adonisjs/core/http';
-import { errors as vineErrors } from '@vinejs/vine';
 import {
   readPlanning,
   readArchiveRecovery,
@@ -8,114 +6,16 @@ import {
   lookupPlanningMutation,
   validatePlanningMutationId,
 } from '#services/planning';
-import { BatchRequestError } from '#services/planning/errors';
-import { StalePlanningRevisionError } from '#services/planning_revision';
-import { RestorationConfirmationError } from '#services/planning/restoration';
 import { PlanningOperationError } from '#services/planning/execute';
-import { accountErrorResponse } from 'adonisjs-account-kit';
-import { AdmissionRequiredError } from 'adonisjs-account-kit/admission';
-import { IdentityAuthorityError } from '#services/auth/authorization';
-import {
-  allocationMutationValidator,
-  catalogueMutationValidator,
-  resourceMutationValidator,
-  timeOffMutationValidator,
-  closureMutationValidator,
-  settingsMutationValidator,
-  planningMutationValidator,
-  planningMutationErrorCodes,
-} from '#validators/planning_operations';
-import type {
-  PlanningMutationInput,
-  PlanningMutationFailure,
-} from '#validators/planning_operations';
-
-function refusal(error: unknown): {
-  status: number;
-  body: PlanningMutationFailure;
-  headers?: Record<string, string>;
-} {
-  if (error instanceof RestorationConfirmationError) {
-    return {
-      status: 409,
-      body: {
-        error: error.message,
-        code: error.code,
-        restorableItemCount: error.restorableItemCount,
-      } satisfies ProductHttpErrorBody,
-    };
-  }
-  if (error instanceof PlanningOperationError) {
-    const code =
-      planningMutationErrorCodes.find((candidate) => candidate === error.code) ??
-      (error.status === 400
-        ? 'VALIDATION_ERROR'
-        : error.status === 403
-          ? 'AUTHORIZATION_DENIED'
-          : undefined);
-    const status = code === 'VALIDATION_ERROR' ? 400 : error.status;
-    return { status, body: { error: error.message, ...(code ? { code } : {}) } };
-  }
-  if (error instanceof BatchRequestError) {
-    return {
-      status: error.status === 403 ? 403 : 400,
-      body: {
-        error: error.message,
-        code: error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',
-      },
-    };
-  }
-  if (error instanceof StalePlanningRevisionError) {
-    return { status: 409, body: { error: error.message, code: 'STALE_REVISION' } };
-  }
-  if (error instanceof vineErrors.E_VALIDATION_ERROR) {
-    return {
-      status: 400,
-      body: {
-        error: error.messages[0]?.message ?? 'Invalid planning input.',
-        code: 'VALIDATION_ERROR',
-      },
-    };
-  }
-  if (error instanceof AdmissionRequiredError) {
-    return {
-      status: 403,
-      body: {
-        error: 'Company access needs admission.',
-        code: 'ADMISSION_REQUIRED',
-        decision: error.decision,
-      } satisfies ProductHttpErrorBody,
-    };
-  }
-  const kitResponse = accountErrorResponse(error);
-  if (kitResponse && kitResponse.status < 500) {
-    return {
-      status: kitResponse.status,
-      headers: kitResponse.headers,
-      body: {
-        error: kitResponse.body.message,
-        code: kitResponse.body.code,
-        ...(kitResponse.body.committed ? { committed: kitResponse.body.committed } : {}),
-      },
-    };
-  }
-  // Identity resolution failures invalidate the projection; action refusals use PlanningOperationError.
-  if (error instanceof IdentityAuthorityError) {
-    return {
-      status: 403,
-      body: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
-    };
-  }
-  throw error;
-}
-
-function sendRefusal(error: unknown, ctx: HttpContext) {
-  const failure = refusal(error);
-  for (const [name, value] of Object.entries(failure.headers ?? {})) {
-    ctx.response.header(name, value);
-  }
-  return ctx.response.status(failure.status).send(failure.body);
-}
+import { allocationMutationValidator } from '#validators/planning/allocation';
+import { catalogueMutationValidator } from '#validators/planning/catalogue';
+import { resourceMutationValidator } from '#validators/planning/resource';
+import { timeOffMutationValidator } from '#validators/planning/time_off';
+import { closureMutationValidator } from '#validators/planning/closure';
+import { settingsMutationValidator } from '#validators/planning/settings';
+import { planningMutationValidator } from '#validators/planning_operations';
+import type { PlanningMutationInput } from '#validators/planning/contracts';
+import { sendRefusal } from '#services/planning/http_refusal';
 
 /** Resource routes accept only their named operation and matching target; the body never selects a table. */
 export default class PlanningController {
@@ -144,13 +44,16 @@ export default class PlanningController {
     }
   }
 
+  /** Validate the route's body, check that its operation and target match the route, then run it.
+   * Each action passes its own validateUsing call so the route registry can type the body. */
   private async execute(
     ctx: HttpContext,
-    input: PlanningMutationInput,
+    validate: () => Promise<PlanningMutationInput>,
     operation: PlanningMutationInput['intent']['operation'],
     entity?: string
   ) {
     try {
+      const input = await validate();
       if (input.intent.operation !== operation) {
         throw new PlanningOperationError(
           400,
@@ -186,353 +89,332 @@ export default class PlanningController {
   }
 
   async allocationCreate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(allocationMutationValidator);
-      return await this.execute(ctx, input, 'allocation.create');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(allocationMutationValidator),
+      'allocation.create'
+    );
   }
 
   async allocationUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(allocationMutationValidator);
-      return await this.execute(ctx, input, 'allocation.update');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(allocationMutationValidator),
+      'allocation.update'
+    );
   }
 
   async allocationDuplicate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(allocationMutationValidator);
-      return await this.execute(ctx, input, 'allocation.duplicate');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(allocationMutationValidator),
+      'allocation.duplicate'
+    );
   }
 
   async allocationRepeat(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(allocationMutationValidator);
-      return await this.execute(ctx, input, 'allocation.repeat');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(allocationMutationValidator),
+      'allocation.repeat'
+    );
   }
 
   async allocationCreateGroup(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(allocationMutationValidator);
-      return await this.execute(ctx, input, 'allocation.createGroup');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(allocationMutationValidator),
+      'allocation.createGroup'
+    );
   }
 
   async allocationDelete(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(allocationMutationValidator);
-      return await this.execute(ctx, input, 'allocation.delete');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(allocationMutationValidator),
+      'allocation.delete'
+    );
   }
 
   async allocationDeleteGroup(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(allocationMutationValidator);
-      return await this.execute(ctx, input, 'allocation.deleteGroup');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(allocationMutationValidator),
+      'allocation.deleteGroup'
+    );
   }
 
   async restoreGroup(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(planningMutationValidator);
-      return await this.execute(ctx, input, 'planning.restoreGroup');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(planningMutationValidator),
+      'planning.restoreGroup'
+    );
   }
 
   async resourceCreate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(resourceMutationValidator);
-      return await this.execute(ctx, input, 'resource.create');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(resourceMutationValidator),
+      'resource.create'
+    );
   }
 
   async resourceUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(resourceMutationValidator);
-      return await this.execute(ctx, input, 'resource.update');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(resourceMutationValidator),
+      'resource.update'
+    );
   }
 
   async timeOffCreate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(timeOffMutationValidator);
-      return await this.execute(ctx, input, 'timeOff.create');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(timeOffMutationValidator),
+      'timeOff.create'
+    );
   }
 
   async timeOffUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(timeOffMutationValidator);
-      return await this.execute(ctx, input, 'timeOff.update');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(timeOffMutationValidator),
+      'timeOff.update'
+    );
   }
 
   async timeOffDelete(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(timeOffMutationValidator);
-      return await this.execute(ctx, input, 'timeOff.delete');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(timeOffMutationValidator),
+      'timeOff.delete'
+    );
   }
 
   async timeOffDeleteGroup(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(timeOffMutationValidator);
-      return await this.execute(ctx, input, 'timeOff.deleteGroup');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(timeOffMutationValidator),
+      'timeOff.deleteGroup'
+    );
   }
 
   async timeOffRepeat(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(timeOffMutationValidator);
-      return await this.execute(ctx, input, 'timeOff.repeat');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(timeOffMutationValidator),
+      'timeOff.repeat'
+    );
   }
 
   async closureCreate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(closureMutationValidator);
-      return await this.execute(ctx, input, 'closure.create');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(closureMutationValidator),
+      'closure.create'
+    );
   }
 
   async closureUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(closureMutationValidator);
-      return await this.execute(ctx, input, 'closure.update');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(closureMutationValidator),
+      'closure.update'
+    );
   }
 
   async closureDelete(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(closureMutationValidator);
-      return await this.execute(ctx, input, 'closure.delete');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(closureMutationValidator),
+      'closure.delete'
+    );
   }
 
   async settingsUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(settingsMutationValidator);
-      return await this.execute(ctx, input, 'settings.update');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(settingsMutationValidator),
+      'settings.update'
+    );
   }
 
   async clientCreate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.create', 'clients');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.create',
+      'clients'
+    );
   }
 
   async clientUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.update', 'clients');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.update',
+      'clients'
+    );
   }
 
   async clientArchive(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.archive', 'clients');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.archive',
+      'clients'
+    );
   }
 
   async clientUnarchive(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.unarchive', 'clients');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.unarchive',
+      'clients'
+    );
   }
 
   async projectCreate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.create', 'projects');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.create',
+      'projects'
+    );
   }
 
   async projectUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.update', 'projects');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.update',
+      'projects'
+    );
   }
 
   async projectArchive(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.archive', 'projects');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.archive',
+      'projects'
+    );
   }
 
   async projectUnarchive(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.unarchive', 'projects');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.unarchive',
+      'projects'
+    );
   }
 
   async activityCreate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.create', 'activities');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.create',
+      'activities'
+    );
   }
 
   async activityUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.update', 'activities');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.update',
+      'activities'
+    );
   }
 
   async activityArchive(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.archive', 'activities');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.archive',
+      'activities'
+    );
   }
 
   async activityUnarchive(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.unarchive', 'activities');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.unarchive',
+      'activities'
+    );
   }
 
   async phaseCreate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.create', 'phases');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.create',
+      'phases'
+    );
   }
 
   async phaseUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.update', 'phases');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.update',
+      'phases'
+    );
   }
 
   async phaseDelete(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.delete', 'phases');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.delete',
+      'phases'
+    );
   }
 
   async disciplineCreate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.create', 'disciplines');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.create',
+      'disciplines'
+    );
   }
 
   async disciplineUpdate(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.update', 'disciplines');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.update',
+      'disciplines'
+    );
   }
 
   async disciplineDelete(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(catalogueMutationValidator);
-      return await this.execute(ctx, input, 'catalogue.delete', 'disciplines');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(catalogueMutationValidator),
+      'catalogue.delete',
+      'disciplines'
+    );
   }
 
   async resourceArchive(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(resourceMutationValidator);
-      return await this.execute(ctx, input, 'resource.archive');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(resourceMutationValidator),
+      'resource.archive'
+    );
   }
 
   async resourceUnarchive(ctx: HttpContext) {
-    try {
-      const input = await ctx.request.validateUsing(resourceMutationValidator);
-      return await this.execute(ctx, input, 'resource.unarchive');
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    return this.execute(
+      ctx,
+      () => ctx.request.validateUsing(resourceMutationValidator),
+      'resource.unarchive'
+    );
   }
 }

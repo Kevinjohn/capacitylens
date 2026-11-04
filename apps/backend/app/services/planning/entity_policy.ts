@@ -2,11 +2,15 @@ import {
   APP_DATA_KEYS,
   CAPACITY_OVERVIEW_ACCESS_VALUES,
   externalCapacityDefaults,
-  placeholderCapacityDefaults,
   type AppData,
   type AppDataKey,
 } from '@capacitylens/shared/types/entities';
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
+import {
+  fixedWorkingPattern,
+  halfDaysWithinWorkingDays,
+  sameWeekdays,
+} from '@capacitylens/shared/domain/resourceWorkingPattern';
 import {
   INTERNAL_CLIENT_COLOR,
   INTERNAL_CLIENT_NAME,
@@ -101,17 +105,18 @@ function assertResourceFields(
     }
     const days = candidate.workingDays;
     const halves = candidate.halfDays;
-    if (Array.isArray(days) && Array.isArray(halves) && halves.some((day) => !days.includes(day))) {
+    if (Array.isArray(days) && Array.isArray(halves) && !halfDaysWithinWorkingDays(days, halves)) {
       reject('halfDays', 'must be included in workingDays');
     }
     return;
   }
   if (kind !== 'placeholder' && kind !== 'external') return;
-  const defaults = kind === 'external' ? externalCapacityDefaults() : placeholderCapacityDefaults();
+  const pattern = fixedWorkingPattern(kind);
   for (const field of ['workingDays', 'halfDays'] as const) {
     if (
+      pattern &&
       Object.hasOwn(requested, field) &&
-      JSON.stringify(candidate[field]) !== JSON.stringify(defaults[field])
+      !sameWeekdays(candidate[field], pattern[field])
     ) {
       reject(field, "must match this resource kind's defaults");
     }

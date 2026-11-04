@@ -3,7 +3,9 @@ import type { AppData, ScopedEntityKey } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
 import { assert, fail, isId, isOneOf, own } from './betaTransfer.errors.js';
-import { FIELDS, projectBetaData, validateRow } from './betaTransfer.validation.js';
+import { FIELDS } from './betaTransfer.fields.js';
+import { projectBetaData } from './betaTransfer.projection.js';
+import { validateRow } from './betaTransfer.validation.js';
 import { validateBetaReferences } from './betaTransfer.references.js';
 import { BetaTransferError } from './betaTransfer.errors.js';
 
