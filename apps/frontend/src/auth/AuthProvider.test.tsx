@@ -329,11 +329,9 @@ function registerServerModeTest06() {
       principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
       authMode: 'password-only',
     });
-    vi.doMock('@/data/planning/volatilePlanningTransport', async (importOriginal) => {
-      const actual =
-        await importOriginal<typeof import('@/data/planning/volatilePlanningTransport')>();
+    vi.doMock('@/data/planning/storePlanningTransport', async () => {
       const { createPlanningTransport } = await import('@/data/planning/planningTransport');
-      return { ...actual, createStorePlanningTransport: () => createPlanningTransport() };
+      return { createStorePlanningTransport: () => createPlanningTransport() };
     });
     try {
       const { AuthProvider, useStore } = await freshProvider();
@@ -378,10 +376,10 @@ function registerServerModeTest06() {
       expect(authBootstrapMocks.masqueradeStatus).toHaveBeenCalledWith(undefined);
       expect(fetchSpy).toHaveBeenCalled();
     } finally {
-      vi.doMock('@/data/planning/volatilePlanningTransport', async (importOriginal) => {
-        const actual =
-          await importOriginal<typeof import('@/data/planning/volatilePlanningTransport')>();
-        return { ...actual, createStorePlanningTransport: actual.createVolatilePlanningTransport };
+      vi.doMock('@/data/planning/storePlanningTransport', async () => {
+        const { createVolatilePlanningTransport } =
+          await import('@/data/planning/volatilePlanningTransport');
+        return { createStorePlanningTransport: createVolatilePlanningTransport };
       });
     }
   });

@@ -1,5 +1,5 @@
 import { m } from '@/i18n';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { Activity } from '@capacitylens/shared/types/entities';
 import type { useNavigate } from 'react-router-dom';

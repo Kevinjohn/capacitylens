@@ -7,20 +7,19 @@ import {
   externalCapacityDefaults,
   placeholderCapacityDefaults,
 } from '@capacitylens/shared/types/entities';
+import { planningMutationValidator } from '#validators/planning_operations';
+import { allocationMutationValidator } from '#validators/planning/allocation';
+import { catalogueMutationValidator } from '#validators/planning/catalogue';
+import { resourceMutationValidator } from '#validators/planning/resource';
+import { timeOffMutationValidator } from '#validators/planning/time_off';
+import { closureMutationValidator } from '#validators/planning/closure';
+import { settingsMutationValidator } from '#validators/planning/settings';
+import { mutationLookupValidator, mutationLookupReplyValidator } from '#validators/planning/lookup';
 import {
-  planningMutationValidator,
-  allocationMutationValidator,
-  catalogueMutationValidator,
-  resourceMutationValidator,
-  timeOffMutationValidator,
-  closureMutationValidator,
-  settingsMutationValidator,
-  mutationLookupValidator,
-  mutationLookupReplyValidator,
   planningMutationFailureValidator,
   type PlanningMutationInput,
   type PlanningMutationSuccess,
-} from '#validators/planning_operations';
+} from '#validators/planning/contracts';
 
 const uuid = '782b6098-3560-4d96-a2b6-5c8b271c57b3';
 const otherUuid = '86ca2a77-a2e8-4a13-bfa5-7c01f13fd4f5';

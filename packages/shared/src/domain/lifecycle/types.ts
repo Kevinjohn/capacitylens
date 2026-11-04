@@ -1,5 +1,5 @@
 import type { ISOTimestamp } from '../../types/entities.js';
-import { parseISOTimestamp } from '../../lib/integrity.js';
+import { parseISOTimestamp } from '../../lib/isoDates.js';
 
 /** Derive three lifecycle states from valid tombstones; no state column is persisted.
  * Active means neither timestamp is valid. Archived means archivedAt is valid and deletedAt is not.
