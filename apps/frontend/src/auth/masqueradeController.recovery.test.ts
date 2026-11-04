@@ -10,10 +10,11 @@ import { MasqueradeController } from './masqueradeController';
 
 const reads = vi.hoisted(() => ({ fail: false, count: 0 }));
 
-vi.mock('@/data/planning/volatilePlanningTransport', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/planning/volatilePlanningTransport')>();
+vi.mock('@/data/planning/storePlanningTransport', async () => {
+  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
+    '@/data/planning/volatilePlanningTransport',
+  );
   return {
-    ...actual,
     createStorePlanningTransport: (readData: () => AppData) => {
       const transport = actual.createVolatilePlanningTransport(readData);
       return {

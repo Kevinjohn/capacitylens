@@ -1,4 +1,4 @@
-import { parseISOTimestamp } from '@capacitylens/shared/lib/integrity';
+import { parseISOTimestamp } from '@capacitylens/shared/lib/isoDates';
 
 const MAX_TIMESTAMP = Date.parse('9999-12-31T23:59:59.999Z');
 

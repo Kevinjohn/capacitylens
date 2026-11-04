@@ -3,9 +3,10 @@ import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // Unit tests have no API server, so the store's planning cache uses the demo build's volatile transport.
-vi.mock('@/data/planning/volatilePlanningTransport', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/planning/volatilePlanningTransport')>();
-  return { ...actual, createStorePlanningTransport: actual.createVolatilePlanningTransport };
+vi.mock('@/data/planning/storePlanningTransport', async () => {
+  const { createVolatilePlanningTransport } =
+    await import('@/data/planning/volatilePlanningTransport');
+  return { createStorePlanningTransport: createVolatilePlanningTransport };
 });
 
 class MemoryStorage implements Storage {

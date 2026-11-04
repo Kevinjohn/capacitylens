@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { parseDate } from '@capacitylens/shared/lib/dateMath';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
   maximumTimeOffRepeatUntilDate,
   RepeatingDateError,

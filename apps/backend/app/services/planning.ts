@@ -24,13 +24,13 @@ import {
   countRestorableItems,
   RestorationConfirmationError,
 } from '#services/planning/restoration';
-import { mutationLookupValidator } from '#validators/planning_operations';
+import { mutationLookupValidator } from '#validators/planning/lookup';
 import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
   PlanningMutationLookup,
   ProjectedPlanningRow,
-} from '#validators/planning_operations';
+} from '#validators/planning/contracts';
 
 export interface PlanningAuthority {
   actorId: string;
