@@ -47,7 +47,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Non-blocking, reusable product orientation                     | `ProductOrientation.test.tsx` + `AppShell.productOrientation.test.tsx` + `e2e/product-orientation.spec.ts` |
 | [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Setup milestones, progress, dismissal and role-based tour      | `e2e/getting-started.spec.ts` + `e2e/getting-started.db.spec.ts` + auth E2E + `GettingStarted.test.tsx`    |
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company                       | `AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`                          |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `ui.test.tsx` + `designTokens.test.ts` + `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts`                     |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `button.test.tsx` + `designTokens.test.ts` + `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts`                     |
 | [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and start the role-based tour                        | `HelpView.test.tsx` + navigation, mobile and role-auth E2E                                                 |
 
 ## Overview — `capacity-overview/`
