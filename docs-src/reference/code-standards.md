@@ -65,7 +65,7 @@ await assertCompanyAction(accountId, 'write', trx); // throws if refused
 | `get`              | Looks one thing up by key. Returns it, or `null` when absent. Never throws for absence.               | `getMasqueradeContextToken` in `apps/frontend/src/auth/masqueradeContext.ts`         |
 | `list`             | Returns an array of matches, empty when there are none.                                              | `listSnapshots` in `apps/backend/app/services/backup/retention.ts`                |
 | `read`             | Reads from storage, the network or the environment.                                                  | `readApiError` in `apps/frontend/src/lib/readApiError.ts`                         |
-| `parse`            | Turns untrusted input into a typed value and never returns garbage: `null`, a typed error or a default. | `parseISOTimestamp` in `packages/shared/src/lib/integrity.ts`                   |
+| `parse`            | Turns untrusted input into a typed value and never returns garbage: `null`, a typed error or a default. | `parseISOTimestamp` in `packages/shared/src/lib/isoDates.ts`                    |
 | `validate`         | Checks a value that is already typed. Returns a `ValidationResult` and never throws.                 | `validateProjectClient` in `packages/shared/src/lib/integrity.ts`                 |
 | `normalize`        | Returns a repaired copy of the same type.                                                            | `normalizeAccountEmail` in `packages/shared/src/account/validation.ts`            |
 | `resolve`          | Picks one concrete value from preferences or candidates.                                             | `resolveBarColor` in `packages/shared/src/lib/color.ts`                           |
