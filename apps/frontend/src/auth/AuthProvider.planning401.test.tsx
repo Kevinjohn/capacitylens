@@ -15,6 +15,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+// The test resets modules and re-imports the whole application graph, so a cold transform counts against
+// the test body; it measures ~6s on a loaded aarch64 host. DOM waits retain their normal bounds.
 it('revalidates /me after a real planning GET returns 401 and clears private queries', async () => {
   vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
   vi.resetModules();
@@ -64,4 +66,4 @@ it('revalidates /me after a real planning GET returns 401 and clears private que
   expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
   expect(queryClient.getQueryData(['private-account'])).toBeUndefined();
   expect(useStore.getState().masquerade.kind).toBe('inactive');
-});
+}, 20_000);
