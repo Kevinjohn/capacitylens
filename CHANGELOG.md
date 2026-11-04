@@ -7,7 +7,7 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.74.0-alpha.1] - 2026-11-06
+## [0.74.0-alpha.1] - 2026-11-04
 
 ### Added
 
