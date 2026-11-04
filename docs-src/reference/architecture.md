@@ -216,7 +216,11 @@ Controller statuses are `idle`, `loading`, `ready`, `pending`, `refused`, `uncer
 
 These transitions are pinned in `apps/frontend/src/data/planning/planningCacheController.test.ts`,
 `apps/frontend/src/data/planning/planningCacheController.access.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.transitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.contextTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.historyTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.readTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.reconciliationTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCacheController.writeTransitions.test.ts`,
 `apps/frontend/src/data/planning/restorationConfirmation.test.ts`,
 `apps/frontend/src/data/planning/typedPlanningFlow.test.ts`,
 `apps/frontend/src/data/planning/volatilePlanningTransport.test.ts`,
