@@ -44,6 +44,11 @@ const lintConfig = /(?:^|\/)eslint\.config\.[cm]?js$/;
 const formatConfig = /^\.prettier(?:rc[^/]*|ignore)$/;
 // Dependency and workspace changes can break any package without touching its sources.
 const workspaceInput = /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/;
+// The documentation policy spec reads these files and checks that every path a user story links
+// still exists, so a deleted file or a change to them can fail it without touching backend code.
+const documentationPolicySpec = 'apps/backend/tests/functional/policy/documentation_policy.spec.ts';
+const documentationPolicyInput =
+  /^(?:user-stories\/|docs-src\/|packaging\/|apps\/frontend\/messages\/|README\.md$|CHANGELOG(?:-ARCHIVE)?\.md$)/;
 // A filter that matches nothing reports success; these markers turn it into a failure.
 const japaNoTests = /NO TESTS EXECUTED/;
 const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
@@ -89,8 +94,18 @@ export function planChecks(
   const workspaceChanged = paths.some((path) => workspaceInput.test(path));
   const backendSuite =
     sharedChanged || workspaceChanged || backendPaths.some((path) => !backendSpec.test(path));
+  const documentationPolicy = paths.some(
+    (path) => !present.includes(path) || documentationPolicyInput.test(path),
+  );
   const backendSpecs =
-    backendSuite && !staticOnly ? [] : present.filter((path) => backendSpec.test(path));
+    backendSuite && !staticOnly
+      ? []
+      : [
+          ...new Set([
+            ...present.filter((path) => backendSpec.test(path)),
+            ...(documentationPolicy ? [documentationPolicySpec].filter(exists) : []),
+          ]),
+        ];
   const frontendTests = present.filter((path) => frontendTest.test(path));
   const frontendLint = presentCode.filter((path) => path.startsWith('apps/frontend/'));
   const rootLint = presentCode.filter((path) =>
