@@ -21,7 +21,8 @@
  * resources, 40 projects, 120 activities, 30,000 allocations and 2,000 time-off entries.
  *
  * SQL statements are counted by a preload that wraps better-sqlite3 inside the server process,
- * read over SIGUSR2 in a separate untimed pass. Counts include transaction control and pragmas.
+ * read over SIGUSR2 after each request of a separate untimed pass; the figure is the median
+ * per-request delta. Counts include transaction control and pragmas.
  * The preload stays loaded during the timed samples, so latencies include its per-statement
  * counter (one extra function call); they are not uninstrumented production figures.
  *
@@ -121,6 +122,14 @@ process.on('SIGUSR2', () => writeFileSync(process.env.BENCH_SQL_COUNT_FILE, Stri
 const ms = (value) => value.toFixed(2);
 const progress = (text) =>
   console.error(`[bench] ${new Date().toISOString().slice(11, 23)} ${text}`);
+
+// Ctrl-C skips `finally`, so the fixture in progress registers its server and scratch directory here.
+let interrupted = null;
+process.once('SIGINT', () => {
+  interrupted?.child?.processHandle.kill('SIGKILL');
+  if (interrupted) rmSync(interrupted.workDir, { recursive: true, force: true });
+  process.exit(130);
+});
 
 async function stop(child) {
   if (child.outcome) return;
@@ -478,10 +487,12 @@ async function measureFixture(name, options) {
   const baseUrl = `http://127.0.0.1:${port}`;
   let log = '';
   let child;
+  interrupted = { workDir, child: undefined };
   const start = async () => {
     child = startServer(backend, serverEnvironment, (chunk) => {
       log += chunk;
     });
+    interrupted.child = child;
     await waitReady(baseUrl, child);
   };
   try {
@@ -596,12 +607,20 @@ async function measureFixture(name, options) {
             `${name}: ${label} sample ${index + 1}/${options.samples} (${ms(result.elapsed)} ms)`,
           );
       }
-      // Separate, untimed pass: statements per request from the in-process counter.
-      const before = await sqlCount(child, countFile);
-      for (let index = 0; index < SQL_PASS_REQUESTS; index += 1) await operation();
-      const after = await sqlCount(child, countFile);
+      // Separate, untimed pass: the median per-request delta of the in-process counter, so a
+      // background statement between requests cannot make the figure fractional.
+      const deltas = [];
+      let before = await sqlCount(child, countFile);
+      for (let index = 0; index < SQL_PASS_REQUESTS && before !== null; index += 1) {
+        await operation();
+        const after = await sqlCount(child, countFile);
+        if (after !== null) deltas.push(after - before);
+        before = after;
+      }
       const statements =
-        before === null || after === null ? null : (after - before) / SQL_PASS_REQUESTS;
+        deltas.length === SQL_PASS_REQUESTS
+          ? [...deltas].sort((a, b) => a - b)[Math.floor(SQL_PASS_REQUESTS / 2)]
+          : null;
       results[label] = summarise(samples, bytes, statements);
     }
     return { name, counts, results };
@@ -611,6 +630,7 @@ async function measureFixture(name, options) {
   } finally {
     if (child) await stop(child);
     await rm(workDir, { recursive: true, force: true });
+    interrupted = null;
   }
 }
 
