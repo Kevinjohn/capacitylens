@@ -4,7 +4,7 @@ import { freshDatabase } from '../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState, readStateWithClient, resetState } from '#services/state_repository';
 import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
-import type { PlanningIntent } from '#validators/planning_operations';
+import type { PlanningIntent } from '#validators/planning/contracts';
 import type { BatchCapabilities } from '#services/planning/data_policy';
 
 const owner: BatchCapabilities = {

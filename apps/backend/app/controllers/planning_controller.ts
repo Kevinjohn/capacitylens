@@ -15,20 +15,18 @@ import { PlanningOperationError } from '#services/planning/execute';
 import { accountErrorResponse } from 'adonisjs-account-kit';
 import { AdmissionRequiredError } from 'adonisjs-account-kit/admission';
 import { IdentityAuthorityError } from '#services/auth/authorization';
-import {
-  allocationMutationValidator,
-  catalogueMutationValidator,
-  resourceMutationValidator,
-  timeOffMutationValidator,
-  closureMutationValidator,
-  settingsMutationValidator,
-  planningMutationValidator,
-  planningMutationErrorCodes,
-} from '#validators/planning_operations';
+import { allocationMutationValidator } from '#validators/planning/allocation';
+import { catalogueMutationValidator } from '#validators/planning/catalogue';
+import { resourceMutationValidator } from '#validators/planning/resource';
+import { timeOffMutationValidator } from '#validators/planning/time_off';
+import { closureMutationValidator } from '#validators/planning/closure';
+import { settingsMutationValidator } from '#validators/planning/settings';
+import { planningMutationValidator } from '#validators/planning_operations';
+import { planningMutationErrorCodes } from '#validators/planning/contracts';
 import type {
   PlanningMutationInput,
   PlanningMutationFailure,
-} from '#validators/planning_operations';
+} from '#validators/planning/contracts';
 
 function refusal(error: unknown): {
   status: number;

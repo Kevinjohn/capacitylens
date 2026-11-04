@@ -14,7 +14,7 @@ import { BatchRequestError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { encodeRow } from '#services/state_repository';
 import { TABLE_NAMES } from '#services/planning/entity_policy';
-import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning_operations';
+import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import type { BatchCapabilities } from '#services/planning/data_policy';
 import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js';
 import {
