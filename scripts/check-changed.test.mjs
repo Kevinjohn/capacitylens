@@ -338,6 +338,25 @@ test('documentation sources rebuild docs/ and end-to-end specs are reported as s
   assert.deepEqual(labels(steps).slice(-2), ['docs: build and compare docs/', 'e2e']);
 });
 
+test('deleted files and documentation policy inputs run the documentation policy spec', () => {
+  const policy = 'apps/backend/tests/functional/policy/documentation_policy.spec.ts';
+  for (const [paths, exists] of [
+    [['apps/frontend/src/components/a.test.tsx'], (path) => path === policy],
+    [['user-stories/navigation/US-NAV-15.md'], everything],
+    [['README.md'], everything],
+    [['CHANGELOG.md'], everything],
+  ]) {
+    const files = step(planChecks(paths, exists), 'test: 1 backend spec').args;
+    assert.deepEqual(files.slice(-2), ['--files', policy.slice('apps/backend/'.length)], paths[0]);
+  }
+  const both = planChecks([policy, 'user-stories/a.md'], everything);
+  assert.ok(step(both, 'test: 1 backend spec'));
+  assert.equal(
+    step(planChecks(['apps/frontend/src/a.ts'], everything), 'test: 1 backend spec'),
+    undefined,
+  );
+});
+
 test('prepare steps run before every check', () => {
   const steps = planChecks(['apps/frontend/src/App.tsx', 'apps/backend/app/a.ts'], everything);
   const firstCheck = steps.findIndex((candidate) => !candidate.prepare);
