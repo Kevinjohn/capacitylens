@@ -123,6 +123,11 @@
       "types": "./src/lib/accountWorkingDays.ts",
       "default": "./dist/lib/accountWorkingDays.js"
     },
+    "./lib/cascades": {
+      "development": "./src/lib/cascades.ts",
+      "types": "./src/lib/cascades.ts",
+      "default": "./dist/lib/cascades.js"
+    },
     "./lib/dateMath": {
       "development": "./src/lib/dateMath.ts",
       "types": "./src/lib/dateMath.ts",
@@ -142,6 +147,11 @@
       "development": "./src/lib/integrity.ts",
       "types": "./src/lib/integrity.ts",
       "default": "./dist/lib/integrity.js"
+    },
+    "./lib/isoDates": {
+      "development": "./src/lib/isoDates.ts",
+      "types": "./src/lib/isoDates.ts",
+      "default": "./dist/lib/isoDates.js"
     },
     "./lib/isRecord": {
       "development": "./src/lib/isRecord.ts",

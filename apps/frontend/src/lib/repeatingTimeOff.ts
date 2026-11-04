@@ -1,5 +1,5 @@
 import { addDaysISO, daysInclusive } from '@capacitylens/shared/lib/dateMath';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
   generateRepeatingStartDates,
   RepeatingDateError,

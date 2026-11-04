@@ -5,7 +5,7 @@ import {
 } from '@/lib/capacity';
 import { addDaysISO, eachDayISO, rangesOverlap } from '@capacitylens/shared/lib/dateMath';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from '@/lib/metadata';
 import {
   buildExternalBand,

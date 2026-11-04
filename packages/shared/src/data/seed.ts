@@ -1,6 +1,6 @@
 import type { AppData } from '../types/entities.js';
 import { addDaysISO, dayIndex, startOfWeekISO, todayISO } from '../lib/dateMath.js';
-import { isValidISODate } from '../lib/integrity.js';
+import { isValidISODate } from '../lib/isoDates.js';
 import { SEED_WEEK } from './seed/constants.js';
 import { createOrgTables } from './seed/orgTables.js';
 import { createResources } from './seed/resources.js';

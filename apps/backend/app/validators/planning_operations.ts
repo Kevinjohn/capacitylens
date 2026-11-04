@@ -18,7 +18,7 @@ import type {
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
-import { isValidISODate } from '@capacitylens/shared/lib/integrity';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
 import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
