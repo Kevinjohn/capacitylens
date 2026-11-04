@@ -7,7 +7,9 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 ## Your first change
 
 1. Check [DECISIONS.md](DECISIONS.md) and the open issues; for anything beyond a small fix, open an
-   issue and agree the approach before writing code.
+   issue and agree the approach before writing code. The
+   [architecture reference](docs-src/reference/architecture.md) shows where each capability lives
+   and which tests pin it.
 2. Fork the repository and create a branch from `main`.
 3. Follow [Set up](#set-up) below to install and run the app.
 4. Make one focused change. Keep unrelated formatting and refactors out.

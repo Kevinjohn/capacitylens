@@ -7,9 +7,9 @@ import { readState, readStateWithClient, resetState } from '#services/state_repo
 import {
   executePlanningIntent as applyPlanningIntent,
   PlanningOperationError,
-} from '#services/planning_operations/execute';
+} from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning_operations';
-import type { BatchCapabilities } from '#services/planning_operations/data_policy';
+import type { BatchCapabilities } from '#services/planning/data_policy';
 
 const owner: BatchCapabilities = {
   role: 'owner',

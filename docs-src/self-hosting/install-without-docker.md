@@ -59,10 +59,16 @@ sudo -u capacitylens node ace.js generate:key --show
 
 Set matching public HTTPS origins in `APP_URL` and `CAPACITYLENS_PUBLIC_URL`. Set `CAPACITYLENS_DB`
 to `/var/lib/capacitylens/capacitylens.db`, `CAPACITYLENS_BACKUP_DIR` to its backups directory,
-and generate a random value of at least 32 characters for `CAPACITYLENS_SECRET`. Fill in the
-`CAPACITYLENS_MAIL_*` settings: invitations and password resets are emailed. Keep open access
-disabled. See [Configuration](/self-hosting/configuration) for sign-in, mail, proxy and optional
-settings.
+and generate a random value of at least 32 characters for `CAPACITYLENS_SECRET`. Keep open access
+disabled.
+
+Mail is optional for the first Owner: the bootstrap link is printed on the server and company
+creation needs no email. Without the `CAPACITYLENS_MAIL_*` settings, invitations and address
+confirmation are refused with a visible message asking for mail to be configured, the sign-in screen
+offers no password reset, and Owner password recovery uses the stopped-server
+[`owner:reset-password` command](/self-hosting/backups-and-restore#recover-a-sole-owner-s-local-password).
+Fill in the mail settings before inviting anyone else. See
+[Configuration](/self-hosting/configuration) for sign-in, mail, proxy and optional settings.
 
 ## 4. Upgrade the database and start the service
 

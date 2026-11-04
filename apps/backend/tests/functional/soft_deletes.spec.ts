@@ -9,7 +9,7 @@ import { freshDatabase } from '../helpers/fresh_database.js';
 import { resetAuthenticatedData } from '../helpers/authenticated_data_fixture.js';
 import { readState } from '#services/state_repository';
 import { writeAudit } from '#services/audit';
-import { deleteAllocations } from '#services/planning_operations/restoration';
+import { deleteAllocations } from '#services/planning/restoration';
 import {
   restoreArchivedEntity,
   softDeleteArchivedEntity,

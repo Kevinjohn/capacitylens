@@ -8,10 +8,10 @@ import {
   lookupPlanningMutation,
   validatePlanningMutationId,
 } from '#services/planning';
-import { BatchRequestError } from '#services/planning_operations/errors';
+import { BatchRequestError } from '#services/planning/errors';
 import { StalePlanningRevisionError } from '#services/planning_revision';
-import { RestorationConfirmationError } from '#services/planning_operations/restoration';
-import { PlanningOperationError } from '#services/planning_operations/execute';
+import { RestorationConfirmationError } from '#services/planning/restoration';
+import { PlanningOperationError } from '#services/planning/execute';
 import { accountErrorResponse } from 'adonisjs-account-kit';
 import { AdmissionRequiredError } from 'adonisjs-account-kit/admission';
 import { IdentityAuthorityError } from '#services/auth/authorization';

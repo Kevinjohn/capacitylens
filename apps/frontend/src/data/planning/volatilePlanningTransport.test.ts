@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PlanningIntent } from '@capacitylens/backend/planning';
+import type { PlanningIntent } from '@/api/planningContracts';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { makeActivity, makeAllocation, makeAppData, makeResource } from '@/test/fixtures';
 import { createVolatilePlanningTransport } from './volatilePlanningTransport';

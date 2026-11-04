@@ -8,7 +8,7 @@ import type {
   PlanningIntent,
   PlanningMutationLookup,
   PlanningMutationSuccess,
-} from '@capacitylens/backend/planning';
+} from '@/api/planningContracts';
 import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 
 /** A canonical read normalized by the typed transport; its wire shape remains transport-owned. */

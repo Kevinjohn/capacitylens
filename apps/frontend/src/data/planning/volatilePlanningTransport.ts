@@ -1,4 +1,4 @@
-import type { PlanningIntent, PlanningMutationSuccess } from '@capacitylens/backend/planning';
+import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
 import { newId } from '@capacitylens/shared/lib/id';
 import {
   APP_DATA_KEYS,

@@ -1,5 +1,5 @@
 import { test } from '@japa/runner';
-import { createServerRevision } from '#services/planning_operations/revision';
+import { createServerRevision } from '#services/planning/server_timestamp';
 
 test.group('planning operation server revisions', () => {
   const now = Date.parse('2026-07-29T12:00:00.000Z');

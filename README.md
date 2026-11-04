@@ -116,8 +116,9 @@ covers status, getting your data out and support. See
 ## Contributing
 
 React, TypeScript and Vite in the browser; AdonisJS and Lucid over SQLite on the server; a shared
-TypeScript domain package for the scheduling rules. Start with [CONTRIBUTING.md](CONTRIBUTING.md)
-and the [standing decisions](DECISIONS.md).
+TypeScript domain package for the scheduling rules. Start with [CONTRIBUTING.md](CONTRIBUTING.md),
+the [architecture reference](docs-src/reference/architecture.md) and the
+[standing decisions](DECISIONS.md).
 
 [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·
 [Security review](docs-src/security/reviews/security-review-2026-08-18.md) ·

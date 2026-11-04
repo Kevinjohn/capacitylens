@@ -67,7 +67,7 @@ Runtime `node:crypto` importers are accounted for here: `apps/backend/app/models
 UUID identifiers; `account_commands.ts` creates command UUIDs and payload hashes;
 `auth/action_proof.ts` creates proof UUIDs and intent hashes; `auth/request_limit.ts` hashes client
 IP keys; `beta_account_transfer.ts` hashes import snapshots; and
-`planning_operations/restoration.ts` creates restoration-group UUIDs. The browser uses Web Crypto
+`planning/restoration.ts` creates restoration-group UUIDs. The browser uses Web Crypto
 for UUIDs and a command digest. Build scripts use SHA-256 for file integrity; packaged-server smoke
 tooling uses UUIDs. These are identifiers or integrity/limiter hashes, not password or bearer-token
 storage.

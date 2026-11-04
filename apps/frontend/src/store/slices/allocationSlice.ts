@@ -1,7 +1,7 @@
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator, StoreApi } from 'zustand';
-import type { PlanningIntent } from '@capacitylens/backend/planning';
+import type { PlanningIntent } from '@/api/planningContracts';
 import {
   assertAllocationWithinResourceAvailability,
   assertDateRange,

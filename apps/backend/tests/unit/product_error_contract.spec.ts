@@ -1,4 +1,4 @@
-import { RestorationConfirmationError } from '#services/planning_operations/restoration';
+import { RestorationConfirmationError } from '#services/planning/restoration';
 import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
