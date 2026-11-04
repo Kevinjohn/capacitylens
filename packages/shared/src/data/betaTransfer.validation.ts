@@ -12,6 +12,7 @@ import {
   unicodeCharacterCount,
 } from '../lib/strings.js';
 import { parseResourceAvatarUrl } from '../domain/resourceAvatarUrl.js';
+import { halfDaysWithinWorkingDays, sameWeekdays } from '../domain/resourceWorkingPattern.js';
 import { externalCapacityDefaults, placeholderCapacityDefaults } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { assert, fail, isId, isOneOf, own } from './betaTransfer.errors.js';
@@ -347,7 +348,7 @@ export function validateRow(
         'workingDays and halfDays must be unique weekday lists',
       );
       assert(
-        row.halfDays.every((day) => (row.workingDays as Weekday[]).includes(day)),
+        halfDaysWithinWorkingDays(row.workingDays, row.halfDays),
         `${path}.halfDays`,
         'must be a subset of workingDays',
       );
@@ -407,8 +408,8 @@ export function validateRow(
         );
         const defaults = placeholderCapacityDefaults();
         assert(
-          JSON.stringify(row.workingDays) === JSON.stringify(defaults.workingDays) &&
-            JSON.stringify(row.halfDays) === JSON.stringify(defaults.halfDays),
+          sameWeekdays(row.workingDays, defaults.workingDays) &&
+            sameWeekdays(row.halfDays, defaults.halfDays),
           path,
           'placeholder working pattern must use its canonical default',
         );
@@ -425,8 +426,8 @@ export function validateRow(
             row.employmentType === defaults.employmentType &&
             row.engagement === defaults.engagement &&
             row.workingHoursPerDay === defaults.workingHoursPerDay &&
-            JSON.stringify(row.workingDays) === JSON.stringify(defaults.workingDays) &&
-            JSON.stringify(row.halfDays) === JSON.stringify(defaults.halfDays),
+            sameWeekdays(row.workingDays, defaults.workingDays) &&
+            sameWeekdays(row.halfDays, defaults.halfDays),
           path,
           'external resource must use its canonical capacity defaults',
         );
