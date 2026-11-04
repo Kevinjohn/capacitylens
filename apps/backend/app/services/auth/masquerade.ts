@@ -20,9 +20,13 @@ export { PackageMasqueradeError as MasqueradeError };
 
 let servicePromise: Promise<MasqueradeService<HttpContext>> | undefined;
 
-/** Lazily opens the package control store outside any product transaction. */
+/**
+ * Lazily opens the package control store outside any product transaction. A successful promise is
+ * cached and shared by concurrent callers; a rejected one is dropped so the next call retries.
+ */
 export function masqueradeService() {
-  servicePromise ??= createMasqueradeService(config, {
+  if (servicePromise) return servicePromise;
+  const pending = createMasqueradeService(config, {
     environment: app.nodeEnvironment,
     authenticateActor: (ctx) => nativeAdapter.authenticateActor(ctx),
     emitter: { emit: () => undefined },
@@ -32,7 +36,11 @@ export function masqueradeService() {
     },
     observerErrorHandler: (error) => logger.error({ code: 'E_MASQUERADE_OBSERVER_FAILED', error }),
   });
-  return servicePromise;
+  servicePromise = pending;
+  pending.catch(() => {
+    if (servicePromise === pending) servicePromise = undefined;
+  });
+  return pending;
 }
 
 /** Current package mode with product display details, read outside any product transaction. */
