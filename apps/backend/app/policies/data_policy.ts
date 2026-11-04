@@ -1,5 +1,5 @@
 import { BasePolicy } from '@adonisjs/bouncer';
-import type { BatchCapabilities } from '#services/planning_operations/data_policy';
+import type { BatchCapabilities } from '#services/planning/data_policy';
 
 export interface DataPolicyActor {
   id: string;

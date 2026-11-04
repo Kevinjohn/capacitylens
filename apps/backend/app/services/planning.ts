@@ -5,7 +5,7 @@ import { Bouncer } from '@adonisjs/bouncer';
 import DataPolicy from '#policies/data_policy';
 import { activeCompanyRole } from '#services/auth/authorization';
 import { effectiveReadPrincipal } from '#services/auth/masquerade';
-import type { BatchCapabilities } from '#services/planning_operations/data_policy';
+import type { BatchCapabilities } from '#services/planning/data_policy';
 import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
@@ -17,16 +17,13 @@ import {
   advancePlanningRevision,
   assertPlanningBaseRevision,
 } from '#services/planning_revision';
-import {
-  executePlanningIntent,
-  PlanningOperationError,
-} from '#services/planning_operations/execute';
+import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
 import { writeAudit } from '#services/audit';
 import {
   unconsumedGroupId,
   countRestorableItems,
   RestorationConfirmationError,
-} from '#services/planning_operations/restoration';
+} from '#services/planning/restoration';
 import { mutationLookupValidator } from '#validators/planning_operations';
 import type {
   PlanningMutationInput,
