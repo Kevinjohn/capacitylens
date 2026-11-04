@@ -1,4 +1,4 @@
-import type { PlanningIntent } from '@capacitylens/backend/planning';
+import type { PlanningIntent } from '@/api/planningContracts';
 import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
 import {
   externalCapacityDefaults,

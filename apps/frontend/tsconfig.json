@@ -5,8 +5,7 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"],
-      "@capacitylens/backend/registry": ["../backend/.adonisjs/client/registry/index.ts"],
-      "@capacitylens/backend/planning": ["../backend/app/validators/planning_operations.ts"]
+      "@capacitylens/backend/registry": ["../backend/.adonisjs/client/registry/index.ts"]
     }
   }
 }
