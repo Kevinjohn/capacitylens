@@ -158,6 +158,9 @@ export class PlanningControllerError extends Error {
   }
 }
 
+// A declined restoration confirmation; distinct from any reply the transport can return.
+const DECLINED = Symbol('declined');
+
 const initialMetadata = (
   context: PlanningClientContext | null = null,
 ): PlanningControllerMetadata => ({
@@ -627,12 +630,12 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   }
 
   /** Sends the attempt, asking once to confirm restoration cleanup when the server requires it.
-   * Returns null when the person declines, after restoring the planning state from before. */
+   * Returns DECLINED when the person declines, after restoring the planning state from before. */
   async function send(
     owner: NonNullable<typeof attempt>,
     before: PlanningControllerMetadata,
     controller: AbortController,
-  ): Promise<PlanningMutationSuccess | null> {
+  ): Promise<PlanningMutationSuccess | typeof DECLINED> {
     const { pending, draft } = owner;
     try {
       return await transport.execute(draft.requestContext, pending.execution, controller.signal);
@@ -671,7 +674,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
                   history: emptyHistory(),
                 },
         }));
-        return null;
+        return DECLINED;
       }
       pending.execution = cloneImmutable({
         ...pending.execution,
@@ -819,7 +822,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const controller = requestController();
     try {
       const receipt = await send(owner, before, controller);
-      if (receipt === null) return null;
+      if (receipt === DECLINED) return null;
       return await acceptReceipt(owner, receipt, intent, inverse);
     } catch (error) {
       return await settleFailure(owner, error);
