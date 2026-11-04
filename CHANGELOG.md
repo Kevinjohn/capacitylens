@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Publishing a release no longer runs **Publish documentation**, which the Pages environment refused for release tags; publish the site with a manual run from `main`.
+
 ## [0.74.0-alpha.1] - 2026-11-04
 
 ### Added
