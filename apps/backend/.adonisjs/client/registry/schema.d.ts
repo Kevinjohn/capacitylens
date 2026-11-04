@@ -51,10 +51,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/allocations'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreate']>>>
@@ -64,10 +64,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/allocations/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationUpdate']>>>
@@ -77,10 +77,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/allocations/create-group'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreateGroup']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreateGroup']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreateGroup']>>>
@@ -90,10 +90,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/allocations/:id/delete'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDelete']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDelete']>>>
@@ -103,10 +103,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/allocations/delete-group'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDeleteGroup']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDeleteGroup']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDeleteGroup']>>>
@@ -129,10 +129,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/resources'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/resource').resourceMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/resource').resourceMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceCreate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceCreate']>>>
@@ -142,10 +142,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/resources/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/resource').resourceMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/resource').resourceMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUpdate']>>>
@@ -155,10 +155,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/time-off'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffCreate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffCreate']>>>
@@ -168,10 +168,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/time-off/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffUpdate']>>>
@@ -181,10 +181,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/time-off/:id/delete'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDelete']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDelete']>>>
@@ -194,10 +194,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/time-off/delete-group'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDeleteGroup']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDeleteGroup']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDeleteGroup']>>>
@@ -207,10 +207,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/closures'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/closure').closureMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/closure').closureMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureCreate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureCreate']>>>
@@ -220,10 +220,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/closures/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/closure').closureMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/closure').closureMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
@@ -233,10 +233,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/closures/:id/delete'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/closure').closureMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/closure').closureMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureDelete']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureDelete']>>>
@@ -246,10 +246,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/clients'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientCreate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientCreate']>>>
@@ -259,10 +259,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/clients/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUpdate']>>>
@@ -272,10 +272,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/clients/:id/archive'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientArchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientArchive']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientArchive']>>>
@@ -285,10 +285,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/clients/:id/unarchive'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUnarchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUnarchive']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUnarchive']>>>
@@ -298,10 +298,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/projects'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectCreate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectCreate']>>>
@@ -311,10 +311,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/projects/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUpdate']>>>
@@ -324,10 +324,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/projects/:id/archive'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectArchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectArchive']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectArchive']>>>
@@ -337,10 +337,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/projects/:id/unarchive'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUnarchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUnarchive']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUnarchive']>>>
@@ -350,10 +350,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/activities'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityCreate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityCreate']>>>
@@ -363,10 +363,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/activities/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
@@ -376,10 +376,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/activities/:id/archive'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityArchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityArchive']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityArchive']>>>
@@ -389,10 +389,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/activities/:id/unarchive'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUnarchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUnarchive']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUnarchive']>>>
@@ -402,10 +402,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/phases'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseCreate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseCreate']>>>
@@ -415,10 +415,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/phases/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseUpdate']>>>
@@ -428,10 +428,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/phases/:id/delete'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseDelete']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseDelete']>>>
@@ -441,10 +441,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/disciplines'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineCreate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineCreate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineCreate']>>>
@@ -454,10 +454,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/disciplines/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
@@ -467,10 +467,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/disciplines/:id/delete'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/catalogue').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineDelete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineDelete']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineDelete']>>>
@@ -480,10 +480,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/resources/:id/archive'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/resource').resourceMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/resource').resourceMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceArchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceArchive']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceArchive']>>>
@@ -493,10 +493,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/resources/:id/unarchive'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/resource').resourceMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/resource').resourceMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUnarchive']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUnarchive']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUnarchive']>>>
@@ -506,10 +506,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/allocations/:id/duplicate'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
@@ -519,10 +519,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/allocations/:id/repeat'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
@@ -532,10 +532,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/time-off/repeat'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/time_off').timeOffMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffRepeat']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffRepeat']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffRepeat']>>>
@@ -545,10 +545,10 @@ export interface Registry {
     methods: ["PATCH"]
     pattern: '/api/accounts/:accountId/settings'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').settingsMutationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/planning/settings').settingsMutationValidator)>>
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').settingsMutationValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning/settings').settingsMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>

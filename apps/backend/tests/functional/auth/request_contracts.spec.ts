@@ -1,4 +1,4 @@
-import { allocationMutationValidator } from '#validators/planning_operations';
+import { allocationMutationValidator } from '#validators/planning/allocation';
 import { signUpValidator } from '#validators/auth_requests';
 import { registrationDisplayName } from '#services/account_kit/users';
 import { test } from '@japa/runner';
