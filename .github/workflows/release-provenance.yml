@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to rebuild and attest
+        description: Existing release tag to build, attest and upload when its server archive is not yet published
         required: true
         type: string
 
@@ -18,8 +18,42 @@ permissions:
   contents: read
 
 jobs:
+  existing-assets:
+    name: Detect an already published server archive
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Check the release for the published server archive set
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          archive="capacitylens-${RELEASE_TAG#v}.tar.gz"
+          assets="$(gh release view "$RELEASE_TAG" --json assets -q '.assets[].name')"
+          has() { grep -qxF "$1" <<<"$assets"; }
+          # Published archive bytes are never rebuilt or replaced: a complete set stops here, and a
+          # partial set fails instead of reaching the clobbering upload below.
+          if has "$archive" && has "$archive.sha256" && has capacitylens-release.intoto.jsonl; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          elif has "$archive" || has "$archive.sha256"; then
+            echo "::error::$RELEASE_TAG has a partial server archive set. Delete $archive, $archive.sha256 and capacitylens-release.intoto.jsonl from the release, then dispatch this workflow again."
+            exit 1
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
   provenance:
     name: Package, SBOM and provenance
+    needs: existing-assets
+    if: needs.existing-assets.outputs.present != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -93,6 +127,22 @@ jobs:
           fi
           pnpm run package:managed-release
           pnpm run package:release-archive
+      - name: Extract and smoke test the server archive outside the repository
+        if: steps.archive.outputs.enabled == 'true'
+        env:
+          ARCHIVE_NAME: ${{ steps.archive.outputs.name }}
+        run: |
+          set -euo pipefail
+          # A failed smoke fails the run here, before any asset is listed, attested or uploaded.
+          package_scratch="$(mktemp -d)"
+          trap 'rm -rf "$package_scratch"' EXIT
+          if [ ! -f scripts/smoke-packaged-server.mjs ]; then
+            echo "::error::$RELEASE_TAG predates the packaged-server smoke test, so its archive cannot be rebuilt and uploaded."
+            exit 1
+          fi
+          (cd release && shasum -a 256 --check "$ARCHIVE_NAME.tar.gz.sha256")
+          tar -xzf "release/$ARCHIVE_NAME.tar.gz" -C "$package_scratch"
+          pnpm run smoke:packaged-server "$package_scratch/$ARCHIVE_NAME/backend"
       - name: List the release assets
         id: assets
         env:
