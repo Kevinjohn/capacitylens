@@ -99,8 +99,8 @@ is the one-page introduction.
 
 To update the site, edit `docs-src/` and run `pnpm run docs:build`, then commit the sources and
 rebuilt `docs/` together. Documentation checks verify that they match. GitHub Pages publishes the
-committed output on a published release or a manual run of **Publish documentation** from `main`;
-a documentation merge alone does not update the live site. See the
+committed output only on a manual run of **Publish documentation** from `main`; neither a
+documentation merge nor a published release updates the live site. See the
 [documentation contribution instructions](CONTRIBUTING.md#documentation-and-github-pages).
 
 ## Project status

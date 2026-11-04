@@ -246,9 +246,9 @@ an authorized test account and must be reported separately.
 
 Edit Markdown in `docs-src/`; `docs/` is generated site output and is committed with its source.
 Run `pnpm run docs:build` after changing documentation and include the generated output in the
-same change. GitHub Pages publishes on release publication or when an authorized maintainer
-manually runs `gh workflow run pages.yml --ref main`. The manual workflow accepts only `main`, so
-merge the source and generated output before publishing.
+same change. GitHub Pages publishes only when an authorized maintainer runs
+`gh workflow run pages.yml --ref main`; publishing a release does not update the site. The workflow
+accepts only `main`, so merge the source and generated output before publishing.
 
 ## Native production dialog acceptance
 
