@@ -196,6 +196,32 @@ describe('volatile planning transport', () => {
   });
 });
 
+describe('demo resource rules', () => {
+  it('keeps an external resource on its fixed working pattern, like the server', async () => {
+    const external = makeResource({
+      id: 'x1',
+      kind: 'external',
+      name: 'LexCorp',
+      color: '#9ca3af',
+    });
+    const { transport, read } = harness(makeAppData({ resources: [external] }));
+    const { revision } = await transport.read(context, signal);
+
+    await expect(
+      transport.execute(
+        context,
+        {
+          mutationId: 'external-week',
+          baseRevision: revision,
+          intent: { operation: 'resource.update', id: 'x1', changes: { workingDays: [0, 6] } },
+        },
+        signal,
+      ),
+    ).rejects.toThrow(/external resource's workingDays must match its default working pattern/i);
+    expect(read().resources[0]).toMatchObject({ workingDays: [1, 2, 3, 4, 5] });
+  });
+});
+
 describe('demo Restore cleanup', () => {
   it('requires an exact company-wide deleted-row count for actual changes, and preserves pending groups on refusal', async () => {
     const original = makeAllocation();

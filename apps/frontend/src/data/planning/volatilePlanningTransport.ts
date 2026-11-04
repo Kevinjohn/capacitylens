@@ -1,10 +1,6 @@
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
 import { newId } from '@capacitylens/shared/lib/id';
-import {
-  APP_DATA_KEYS,
-  SCOPED_KEYS,
-  placeholderCapacityDefaults,
-} from '@capacitylens/shared/types/entities';
+import { APP_DATA_KEYS, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { archive, unarchive } from '@capacitylens/shared/domain/lifecycle';
@@ -22,6 +18,11 @@ import { hasUsablePrivateCodeName } from '@capacitylens/shared/domain/privateNam
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import { isBuiltinClient } from '@capacitylens/shared/data/internalClient';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
+import {
+  fixedWorkingPattern,
+  halfDaysWithinWorkingDays,
+  sameWeekdays,
+} from '@capacitylens/shared/domain/resourceWorkingPattern';
 import {
   normalizeAccountWorkingDays,
   isWeekdaySet,
@@ -238,7 +239,7 @@ function assertWorkingPattern(resource: Resource): void {
   }
   if (
     !isWeekdaySet(resource.halfDays) ||
-    resource.halfDays.some((day) => !resource.workingDays.includes(day))
+    !halfDaysWithinWorkingDays(resource.workingDays, resource.halfDays)
   ) {
     throw invalid('Half days must be unique whole-number weekdays contained in the working week.');
   }
@@ -289,22 +290,18 @@ function validateResource(
 ): void {
   const merged = { ...previous, ...fields } as unknown as Resource;
   assertScopedRefs(data, companyId, 'resources', fields, previous);
-  if (merged.kind === 'placeholder') {
-    const defaults = placeholderCapacityDefaults();
-    if (Object.hasOwn(fields, 'engagement') && merged.engagement !== 'studio') {
-      throw invalid('A placeholder must use Studio engagement.');
-    }
-    for (const key of ['workingDays', 'halfDays'] as const) {
-      if (!Object.hasOwn(fields, key)) continue;
-      const actual = merged[key];
-      const expected = defaults[key];
-      if (
-        !Array.isArray(actual) ||
-        actual.length !== expected.length ||
-        actual.some((day, index) => day !== expected[index])
-      ) {
-        throw invalid(`A placeholder's ${key} must match its default working pattern.`);
-      }
+  if (
+    merged.kind === 'placeholder' &&
+    Object.hasOwn(fields, 'engagement') &&
+    merged.engagement !== 'studio'
+  ) {
+    throw invalid('A placeholder must use Studio engagement.');
+  }
+  const pattern = fixedWorkingPattern(merged.kind);
+  for (const key of ['workingDays', 'halfDays'] as const) {
+    if (pattern && Object.hasOwn(fields, key) && !sameWeekdays(merged[key], pattern[key])) {
+      const owner = merged.kind === 'external' ? 'An external resource' : 'A placeholder';
+      throw invalid(`${owner}'s ${key} must match its default working pattern.`);
     }
   }
   assertWorkingPattern(merged);

@@ -108,6 +108,11 @@
       "types": "./src/domain/resourceAvatarUrl.ts",
       "default": "./dist/domain/resourceAvatarUrl.js"
     },
+    "./domain/resourceWorkingPattern": {
+      "development": "./src/domain/resourceWorkingPattern.ts",
+      "types": "./src/domain/resourceWorkingPattern.ts",
+      "default": "./dist/domain/resourceWorkingPattern.js"
+    },
     "./domain/tenancy": {
       "development": "./src/domain/tenancy.ts",
       "types": "./src/domain/tenancy.ts",
