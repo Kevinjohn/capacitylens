@@ -77,7 +77,7 @@
     "test:server": "node scripts/with-lane.mjs pnpm --dir apps/backend test",
     "gate:server": "node scripts/with-lane.mjs node scripts/run-gate.mjs backend",
     "policy:sonner-csp:test": "node --test scripts/check-sonner-csp.test.mjs",
-    "policy:gate-runner:test": "node --test scripts/run-gate.test.mjs",
+    "policy:gate-runner:test": "node --test scripts/run-gate.test.mjs scripts/pre-push.test.mjs",
     "policy:check-changed:test": "node --test scripts/check-changed.test.mjs",
     "policy:dependabot": "node scripts/check-dependabot.mjs",
     "policy:dependabot:test": "node --test scripts/check-dependabot.test.mjs",
@@ -91,7 +91,7 @@
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm run lint:staged",
-    "pre-push": "pnpm run check:push"
+    "pre-push": "node scripts/pre-push.mjs"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*"
