@@ -18,6 +18,10 @@ test('a SHA-256 deletion counts as a deletion', () => {
 
 test('a push that sends commits keeps the checks', () => {
   assert.equal(deletesOnly(update), false);
+  assert.equal(
+    deletesOnly(`refs/heads/feature ${'0'.repeat(8)}${'c'.repeat(32)} refs/heads/feature ${sha}\n`),
+    false,
+  );
 });
 
 test('a push mixing a deletion and an update keeps the checks', () => {
