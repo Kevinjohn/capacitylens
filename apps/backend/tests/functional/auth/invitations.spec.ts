@@ -153,21 +153,22 @@ test.group('company invitations', (group) => {
     const sent = await invite(client, cookie, invitee);
     sent.assertStatus(201);
     const token = mail.tokenFor(invitee);
-    // Operators can scope invitations (`account-kit:invite --scope`); the product keeps one membership.
+    // Operators can scope invitations (`account-kit:invite --scope`); the product keeps one
+    // membership with the default-scope role, whichever link is opened.
     await accountKit.invitations.send({
       actorId: ownerId,
       email: invitee,
       role: 'viewer',
       scope: 'alpha',
     });
-    const accepted = await accept(client, token);
+    const accepted = await accept(client, mail.tokenFor(invitee));
     accepted.assertStatus(201);
     const userId = (accepted.body() as { user: { id: string } }).user.id;
     const memberships = await db.from('memberships').where('user_id', userId);
     assert.lengthOf(memberships, 1);
     assert.include(memberships[0], { account_id: accountId, role: 'editor', status: 'active' });
     assert.isEmpty(await db.from('account_invitations').where('email', invitee));
-    await expectStatus(accept(client, mail.tokenFor(invitee)), 400);
+    await expectStatus(accept(client, token), 400);
   });
 
   test('only Owners and Admins invite, never as Owner, and never without mail', async ({
