@@ -10,7 +10,7 @@ new features and **patch** versions carry fixes.
 ### Changed
 
 - Publishing a release no longer runs **Publish documentation**, which the Pages environment refused for release tags; publish the site with a manual run from `main`.
-- Update Account Kit to 0.3.0 and the view-as package to 0.2.0 under their scoped package names (#1762). Invitations gain a `scope` column that CapacityLens leaves at its default, and new installations key view-as modes by their owner columns.
+- Update Account Kit to 0.3.0 and the view-as package to 0.2.0 under their scoped package names (#1762). Invitations gain a `scope` column that CapacityLens leaves at its default, and new installations key view-as modes by their owner columns. A database created from the earlier baseline is refused at startup; start a fresh one as the upgrade guide describes.
 
 ## [0.74.0-alpha.1] - 2026-11-04
 
