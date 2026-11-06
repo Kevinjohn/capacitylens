@@ -1,6 +1,6 @@
 import { ActivitySchema } from '#database/schema';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes';
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
 import { forCompany, forTrustedLocal, requireCompanyScope } from '#models/scoped_model';

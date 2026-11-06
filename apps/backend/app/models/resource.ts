@@ -1,6 +1,6 @@
 import { ResourceSchema } from '#database/schema';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes';
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISODate, ISOTimestamp, Weekday } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
 import { isArrayOf, isBoolean, isOneOf, jsonColumn } from '#models/json_column';

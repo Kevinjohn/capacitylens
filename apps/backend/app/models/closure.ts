@@ -1,5 +1,5 @@
 import { ClosureSchema } from '#database/schema';
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes';
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import { deletedAtColumn } from '#models/scalar_column';
 import type { DateTime } from 'luxon';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
