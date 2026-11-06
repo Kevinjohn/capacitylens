@@ -6,9 +6,9 @@ import type {
   CredentialChangeContext,
   Invitation,
   Trx,
-} from 'adonisjs-account-kit/types';
-import { AccountAdmission } from 'adonisjs-account-kit/admission';
-import type { AdmissionAuthorizeCallbacks } from 'adonisjs-account-kit/admission';
+} from '@kevinjohn/adonisjs-account-kit/types';
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
+import type { AdmissionAuthorizeCallbacks } from '@kevinjohn/adonisjs-account-kit/admission';
 import { can } from '@capacitylens/shared/domain/access';
 import { canAdministerIdentity } from '@capacitylens/shared/account/policy';
 import { isAccountRole, type Role } from '@capacitylens/shared/account/types';
@@ -91,6 +91,14 @@ export const admissionAuthorize: AdmissionAuthorizeCallbacks = {
 export async function onInvitationAccepted(user: AccountUser, invitation: Invitation, trx: Trx) {
   const accountId = await installationCompanyId(trx);
   if (!accountId) return;
+  // One acceptance applies every pending invitation for the address, in ascending scope order,
+  // so the default-scope invitation sets the role and later ones change nothing.
+  const existing = await trx
+    .from('memberships')
+    .where({ account_id: accountId, user_id: String(user.id) })
+    .select('id')
+    .first();
+  if (existing) return;
   if (!isInvitableRole(invitation.role) || !isAccountRole(invitation.role)) {
     throw new Error('Invitation role is unavailable.');
   }

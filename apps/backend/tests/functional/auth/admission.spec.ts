@@ -3,9 +3,9 @@ import type { ApiClient, ApiResponse } from '@japa/api-client';
 import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
-import { AccountAdmission } from 'adonisjs-account-kit/admission';
-import accountKit from 'adonisjs-account-kit/services/main';
-import { PostCommitError } from 'adonisjs-account-kit/errors';
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import { PostCommitError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { resetState } from '#services/state_repository';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import {

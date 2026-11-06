@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import type { ResolvedContext } from 'adonisjs-masquerade';
+import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 
 const contexts = new WeakMap<HttpContext, ResolvedContext>();
 

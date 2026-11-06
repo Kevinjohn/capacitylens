@@ -3,7 +3,7 @@ import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import { randomUUID } from 'node:crypto';
-import { AccountAdmission } from 'adonisjs-account-kit/admission';
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import mail from '@adonisjs/mail/services/main';
 import env from '#start/env';
 

@@ -2,8 +2,12 @@ import { RestorationConfirmationError } from '#services/planning/restoration';
 import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
-import { ThrottledError, PostCommitError, accountErrorResponse } from 'adonisjs-account-kit';
-import { AdmissionRequiredError } from 'adonisjs-account-kit/admission';
+import {
+  ThrottledError,
+  PostCommitError,
+  accountErrorResponse,
+} from '@kevinjohn/adonisjs-account-kit';
+import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
 
@@ -70,12 +74,13 @@ test.group('product error adapters', () => {
           }
         }
         const expected = accountErrorResponse(error)!;
+        const [kitError] = expected.body.errors;
         assert.equal(result.status, expected.status);
         assert.deepEqual(result.headers, expected.headers);
         assert.deepEqual(result.body, {
-          error: expected.body.message,
-          code: expected.body.code,
-          ...(expected.body.committed ? { committed: true } : {}),
+          error: kitError!.message,
+          code: kitError!.code,
+          ...(kitError!.committed ? { committed: true } : {}),
         });
       }
     });

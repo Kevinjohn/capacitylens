@@ -59,7 +59,7 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   # Reviewed release archives are vendored by revision and digest, with no registry release date.
-  - adonisjs-account-kit@0.1.3
-  - adonisjs-masquerade@0.1.1-alpha
+  - '@kevinjohn/adonisjs-account-kit@0.3.0'
+  - '@kevinjohn/adonisjs-masquerade@0.2.0'
   - '@kevinjohn/lucid-soft-deletes@0.1.1-alpha'
   - qs@6.16.0

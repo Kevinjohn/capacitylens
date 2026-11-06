@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
-import accountKit from 'adonisjs-account-kit/services/main';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { captureMail } from '../../helpers/identities.js';
 import {

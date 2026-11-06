@@ -1,9 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
-import accountKit from 'adonisjs-account-kit/services/main';
-import { defineConfig } from 'adonisjs-masquerade';
-import { accountKitAuthority } from 'adonisjs-masquerade/account-kit';
-import { LucidControlStore } from 'adonisjs-masquerade/stores/lucid';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import { defineConfig } from '@kevinjohn/adonisjs-masquerade';
+import { accountKitAuthority } from '@kevinjohn/adonisjs-masquerade/account-kit';
+import { LucidControlStore } from '@kevinjohn/adonisjs-masquerade/stores/lucid';
 import { accountInput } from '#services/auth/current_actor';
 import { sessionUsers } from '#config/auth';
 import { activeCompanyRole } from '#services/auth/authorization';

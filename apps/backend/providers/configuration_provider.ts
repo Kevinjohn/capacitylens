@@ -3,8 +3,8 @@ import env from '#start/env';
 import db from '@adonisjs/lucid/services/db';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import hash from '@adonisjs/core/services/hash';
-import accountKit from 'adonisjs-account-kit/services/main';
-import { AccountAdmission } from 'adonisjs-account-kit/admission';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import User from '#models/user';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 

@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import accountKit from 'adonisjs-account-kit/services/main';
-import { InvalidCredentialsError, ThrottledError } from 'adonisjs-account-kit/errors';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import { InvalidCredentialsError, ThrottledError } from '@kevinjohn/adonisjs-account-kit/errors';
 import env from '#start/env';
 import { sessionGuard, withActor } from '#services/auth/current_actor';
 import { recordMemberSignIn } from '#services/membership/sign_in_tracking';

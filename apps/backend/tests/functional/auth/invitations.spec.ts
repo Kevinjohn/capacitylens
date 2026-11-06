@@ -3,11 +3,11 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import mailService from '@adonisjs/mail/services/main';
-import accountKit from 'adonisjs-account-kit/services/main';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   DeliveryError,
   RegistrationEmailAlreadyRegisteredError,
-} from 'adonisjs-account-kit/errors';
+} from '@kevinjohn/adonisjs-account-kit/errors';
 import env from '#start/env';
 import { resetState } from '#services/state_repository';
 import { freshDatabase } from '../../helpers/fresh_database.js';
@@ -140,6 +140,35 @@ test.group('company invitations', (group) => {
     await expectStatus(planning(), 200);
     await expectStatus(accept(client, token), 400);
     await expectStatus(client.get(`/api/invites/${token}/preview`).send(), 404);
+  });
+
+  test('one acceptance applies every pending invitation for the address into one membership', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    const mail = captureMail(cleanup);
+    const ownerId = await company();
+    const { cookie } = await signIn(client, owner);
+    const sent = await invite(client, cookie, invitee);
+    sent.assertStatus(201);
+    const token = mail.tokenFor(invitee);
+    // Operators can scope invitations (`account-kit:invite --scope`); the product keeps one
+    // membership with the default-scope role, whichever link is opened.
+    await accountKit.invitations.send({
+      actorId: ownerId,
+      email: invitee,
+      role: 'viewer',
+      scope: 'alpha',
+    });
+    const accepted = await accept(client, mail.tokenFor(invitee));
+    accepted.assertStatus(201);
+    const userId = (accepted.body() as { user: { id: string } }).user.id;
+    const memberships = await db.from('memberships').where('user_id', userId);
+    assert.lengthOf(memberships, 1);
+    assert.include(memberships[0], { account_id: accountId, role: 'editor', status: 'active' });
+    assert.isEmpty(await db.from('account_invitations').where('email', invitee));
+    await expectStatus(accept(client, token), 400);
   });
 
   test('only Owners and Admins invite, never as Owner, and never without mail', async ({

@@ -2,7 +2,7 @@ import { test } from '@japa/runner';
 import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
-import { AccountAdmission } from 'adonisjs-account-kit/admission';
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import ConfigurationProvider from '#providers/configuration_provider';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';

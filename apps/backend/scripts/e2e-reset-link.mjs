@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Ignitor } from '@adonisjs/core/ignitor';
-import { AccountKit } from 'adonisjs-account-kit';
+import { AccountKit } from '@kevinjohn/adonisjs-account-kit';
 
 const appRoot = new URL('../', import.meta.url);
 const importer = (filePath) => {

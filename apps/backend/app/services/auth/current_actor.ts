@@ -1,15 +1,18 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import app from '@adonisjs/core/services/app';
 import { errors as authErrors } from '@adonisjs/auth';
-import accountKit from 'adonisjs-account-kit/services/main';
-import { AccountAdmission, AdmissionRequiredError } from 'adonisjs-account-kit/admission';
-import { InvalidSessionError, UnverifiedEmailError } from 'adonisjs-account-kit/errors';
-import type { CurrentAccountInput, Trx } from 'adonisjs-account-kit/types';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import {
+  AccountAdmission,
+  AdmissionRequiredError,
+} from '@kevinjohn/adonisjs-account-kit/admission';
+import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
+import type { CurrentAccountInput, Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import type User from '#models/user';
 import { users } from '#services/account_kit/users';
 import { capturedMasqueradeContext } from '#services/auth/masquerade_request';
-import { MasqueradeError } from 'adonisjs-masquerade';
-import type { ResolvedContext } from 'adonisjs-masquerade';
+import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
+import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 
 const revisionKey = 'accountKitRevision';
 const handleKey = 'accountKitSession';

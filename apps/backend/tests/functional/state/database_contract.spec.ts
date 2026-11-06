@@ -80,6 +80,19 @@ test.group('M1 database contract', (group) => {
     await assertSchemaIntegrity();
   });
 
+  test('readiness refuses invitation storage without the Account Kit scope column', async ({
+    assert,
+  }) => {
+    await db.rawQuery('ALTER TABLE account_invitations RENAME COLUMN scope TO missing_scope');
+    try {
+      await assert.rejects(() => assertSchemaIntegrity(), /account_invitations columns differ/);
+      await assert.rejects(() => checkDatabase(), /account_invitations columns differ/);
+    } finally {
+      await db.rawQuery('ALTER TABLE account_invitations RENAME COLUMN missing_scope TO scope');
+    }
+    await assertSchemaIntegrity();
+  });
+
   test('readiness refuses a missing baseline migration record while schema objects remain intact', async ({
     assert,
   }) => {

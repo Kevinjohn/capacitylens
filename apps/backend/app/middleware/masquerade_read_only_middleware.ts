@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { NextFn } from '@adonisjs/core/types/http';
-import { MasqueradeError } from 'adonisjs-masquerade';
+import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { signedInSession } from '#services/auth/current_actor';
 import { masqueradeService } from '#services/auth/masquerade';
 import { captureMasqueradeContext } from '#services/auth/masquerade_request';

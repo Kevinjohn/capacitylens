@@ -70,7 +70,7 @@ export class AccountGettingStartedDismissalSchema extends BaseModel {
 }
 
 export class AccountInvitationSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'role', 'tokenHash', 'updatedAt'] as const
+  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'role', 'scope', 'tokenHash', 'updatedAt'] as const
   $columns = AccountInvitationSchema.$columns
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
@@ -84,6 +84,8 @@ export class AccountInvitationSchema extends BaseModel {
   declare inviterId: string | null
   @column()
   declare role: string
+  @column()
+  declare scope: string
   @column()
   declare tokenHash: string
   @column()
@@ -537,7 +539,7 @@ export class MasqueradeModeSchema extends BaseModel {
   declare actorIncarnation: string
   @column()
   declare actorStampHash: string | null
-  @column()
+  @column({ isPrimary: true })
   declare authorityNamespace: string
   @column()
   declare expiresAt: string | null
