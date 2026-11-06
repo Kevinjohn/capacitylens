@@ -1,7 +1,7 @@
 import { ProjectSchema } from '#database/schema';
 import { beforeFetch, beforeFind, column, hasMany } from '@adonisjs/lucid/orm';
 import type { HasMany } from '@adonisjs/lucid/types/relations';
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes';
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import { isBoolean, jsonColumn } from '#models/json_column';
 import { deletedAtColumn, isoTimestampColumn } from '#models/scalar_column';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';

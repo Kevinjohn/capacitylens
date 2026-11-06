@@ -152,13 +152,12 @@ Implementation scope and current acceptance evidence remain in the owning GitHub
 
 ## Lucid soft-delete integration
 
-The backend pins `@kevinjohn/lucid-soft-deletes` version `0.1.1-alpha` as the packed asset from the
-[tagged GitHub release](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.1-alpha)
-in [`vendor/lucid-soft-deletes/`](vendor/lucid-soft-deletes/), built from upstream revision
-[`a8e11145dada3f236c4d73422672cb0bf96f692f`](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/commit/a8e11145dada3f236c4d73422672cb0bf96f692f).
-Its SHA-256 is `72b69fd1ba01f64ce9bbd7cf5a358e725270ae57adc72600e2f6f3f58e2691cd`; verify the archive
+The backend pins `@kevinjohn/adonisjs-lucid-soft-delete` version `0.1.4` as the packed asset from the
+[tagged GitHub release](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.4)
+in [`vendor/lucid-soft-deletes/`](vendor/lucid-soft-deletes/). Its SHA-256 is
+`6d9ebe9aab2554f766498c1bd314c9eea8926d88dcad0b0e7bfaa941fca32822`; verify the archive
 against its adjacent checksum with `shasum -a 256 -c
-vendor/lucid-soft-deletes/kevinjohn-lucid-soft-deletes-0.1.1-alpha.tgz.sha256`. This is a release
+vendor/lucid-soft-deletes/kevinjohn-adonisjs-lucid-soft-delete-0.1.4.tgz.sha256`. This is a release
 asset pin, not a registry dependency. Update the archive, checksum, backend manifest and lockfile
 together.
 
