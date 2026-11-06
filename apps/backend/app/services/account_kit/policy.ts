@@ -91,6 +91,14 @@ export const admissionAuthorize: AdmissionAuthorizeCallbacks = {
 export async function onInvitationAccepted(user: AccountUser, invitation: Invitation, trx: Trx) {
   const accountId = await installationCompanyId(trx);
   if (!accountId) return;
+  // The Kit applies every pending invitation for the address in one acceptance; the first one
+  // creates the membership and the rest change nothing.
+  const existing = await trx
+    .from('memberships')
+    .where({ account_id: accountId, user_id: String(user.id) })
+    .select('id')
+    .first();
+  if (existing) return;
   if (!isInvitableRole(invitation.role) || !isAccountRole(invitation.role)) {
     throw new Error('Invitation role is unavailable.');
   }
