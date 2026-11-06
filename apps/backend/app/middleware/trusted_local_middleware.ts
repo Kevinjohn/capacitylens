@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { NextFn } from '@adonisjs/core/types/http';
-import { InvalidSessionError } from 'adonisjs-account-kit/errors';
+import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { currentAccount } from '#services/auth/current_actor';
 
 export default class TrustedLocalMiddleware {

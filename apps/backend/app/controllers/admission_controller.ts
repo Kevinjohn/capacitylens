@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import app from '@adonisjs/core/services/app';
-import { AccountAdmission } from 'adonisjs-account-kit/admission';
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { accountInput, currentAccount, withActor } from '#services/auth/current_actor';
 import { completeMembership } from '#services/membership/admission_membership';
 

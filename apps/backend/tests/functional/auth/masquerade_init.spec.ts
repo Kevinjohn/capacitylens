@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { MasqueradeError } from 'adonisjs-masquerade';
+import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 
 type MasqueradeModule = typeof import('#services/auth/masquerade');
 

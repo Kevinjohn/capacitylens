@@ -6,13 +6,13 @@ import type {
 import app from '@adonisjs/core/services/app';
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
-import { accountErrorResponse } from 'adonisjs-account-kit';
-import { AdmissionRequiredError } from 'adonisjs-account-kit/admission';
+import { accountErrorResponse } from '@kevinjohn/adonisjs-account-kit';
+import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import { IdentityAuthorityError } from '#services/auth/authorization';
 import { ActionProofError } from '#services/auth/action_proof';
 import { AdmissionError } from '#services/admission/errors';
 import { FirstCompanyPendingError } from '#models/user';
-import { MasqueradeError } from 'adonisjs-masquerade';
+import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import {
   classifyLogError,
   reportPrivateFailure,
@@ -124,11 +124,13 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       } satisfies ProductHttpErrorBody);
     }
     const kitResponse = accountErrorResponse(error);
-    if (kitResponse) {
+    // The Kit sends one entry per refusal; the product body carries that entry.
+    const kitError = kitResponse?.body.errors[0];
+    if (kitResponse && kitError) {
       for (const [name, value] of Object.entries(kitResponse.headers)) {
         ctx.response.header(name, value);
       }
-      const { code, message, committed } = kitResponse.body;
+      const { code, message, committed } = kitError;
       return ctx.response.status(kitResponse.status).send({
         error: message,
         code,

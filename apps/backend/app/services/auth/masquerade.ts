@@ -2,8 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http';
 import {
   MasqueradeError as PackageMasqueradeError,
   createMasqueradeService,
-} from 'adonisjs-masquerade';
-import type { MasqueradeService, ModeView } from 'adonisjs-masquerade';
+} from '@kevinjohn/adonisjs-masquerade';
+import type { MasqueradeService, ModeView } from '@kevinjohn/adonisjs-masquerade';
 import app from '@adonisjs/core/services/app';
 import logger from '@adonisjs/core/services/logger';
 import db from '@adonisjs/lucid/services/db';

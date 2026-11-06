@@ -1,7 +1,7 @@
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpContext } from '@adonisjs/core/http';
-import accountKit from 'adonisjs-account-kit/services/main';
-import { InvalidTokenError } from 'adonisjs-account-kit/errors';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import { InvalidTokenError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 import env from '#start/env';
 import { currentAccount } from '#services/auth/current_actor';

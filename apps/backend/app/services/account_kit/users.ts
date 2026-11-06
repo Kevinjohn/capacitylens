@@ -1,4 +1,4 @@
-import { createLucidAdapter } from 'adonisjs-account-kit';
+import { createLucidAdapter } from '@kevinjohn/adonisjs-account-kit';
 import { MAX_NAME_LENGTH, unicodeCharacterCount } from '@capacitylens/shared/lib/strings';
 
 /** The only registration field: a display name, which the sign-up routes have already validated. */

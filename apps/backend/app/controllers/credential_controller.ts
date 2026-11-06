@@ -1,11 +1,11 @@
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpContext } from '@adonisjs/core/http';
-import accountKit from 'adonisjs-account-kit/services/main';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   IdentityNotConfirmedError,
   InvalidTokenError,
   ThrottledError,
-} from 'adonisjs-account-kit/errors';
+} from '@kevinjohn/adonisjs-account-kit/errors';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import env from '#start/env';

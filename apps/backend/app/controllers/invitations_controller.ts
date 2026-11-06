@@ -1,10 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import accountKit from 'adonisjs-account-kit/services/main';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   InvalidTokenError,
   RegistrationEmailAlreadyRegisteredError,
-} from 'adonisjs-account-kit/errors';
-import type { Invitation } from 'adonisjs-account-kit/types';
+} from '@kevinjohn/adonisjs-account-kit/errors';
+import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { MAX_NAME_LENGTH, unicodeCharacterCount } from '@capacitylens/shared/lib/strings';

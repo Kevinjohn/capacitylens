@@ -4,7 +4,7 @@ import { indexPolicies } from '@adonisjs/bouncer';
 import { generateRegistry } from '@tuyau/core/hooks';
 
 async function accountKitCommands() {
-  const commands = await import('adonisjs-account-kit/commands');
+  const commands = await import('@kevinjohn/adonisjs-account-kit/commands');
   return {
     getMetaData: async () => {
       const metadata = await commands.getMetaData();
@@ -44,7 +44,7 @@ export default defineConfig({
     () => import('@adonisjs/session/commands'),
     () => import('@adonisjs/bouncer/commands'),
     accountKitCommands,
-    () => import('adonisjs-account-kit/admission/commands'),
+    () => import('@kevinjohn/adonisjs-account-kit/admission/commands'),
   ],
 
   /*
@@ -73,8 +73,8 @@ export default defineConfig({
     () => import('@adonisjs/bouncer/bouncer_provider'),
     () => import('@adonisjs/mail/mail_provider'),
     () => import('@adonisjs/limiter/limiter_provider'),
-    () => import('adonisjs-account-kit/account_kit_provider'),
-    () => import('adonisjs-account-kit/admission/provider'),
+    () => import('@kevinjohn/adonisjs-account-kit/account_kit_provider'),
+    () => import('@kevinjohn/adonisjs-account-kit/admission/provider'),
     () => import('@kevinjohn/lucid-soft-deletes/provider'),
     () => import('#providers/configuration_provider'),
     () => import('#providers/backup_provider'),

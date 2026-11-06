@@ -1,6 +1,6 @@
 import db from '@adonisjs/lucid/services/db';
-import accountKit from 'adonisjs-account-kit/services/main';
-import type { Trx } from 'adonisjs-account-kit/types';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { withTransaction } from '#services/with_transaction';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';

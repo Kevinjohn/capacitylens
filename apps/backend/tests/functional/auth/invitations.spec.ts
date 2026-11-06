@@ -3,11 +3,11 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import mailService from '@adonisjs/mail/services/main';
-import accountKit from 'adonisjs-account-kit/services/main';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   DeliveryError,
   RegistrationEmailAlreadyRegisteredError,
-} from 'adonisjs-account-kit/errors';
+} from '@kevinjohn/adonisjs-account-kit/errors';
 import env from '#start/env';
 import { resetState } from '#services/state_repository';
 import { freshDatabase } from '../../helpers/fresh_database.js';

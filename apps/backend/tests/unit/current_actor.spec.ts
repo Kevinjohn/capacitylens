@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
 import { errors as authErrors } from '@adonisjs/auth';
-import { InvalidSessionError } from 'adonisjs-account-kit/errors';
+import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { accountInput } from '#services/auth/current_actor';
 
 function contextWhoseGuardThrows(error: Error) {

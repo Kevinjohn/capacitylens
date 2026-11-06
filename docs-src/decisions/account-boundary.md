@@ -1,6 +1,6 @@
 # Account boundary architecture
 
-> Status: implemented with Account Kit (`adonisjs-account-kit`), password sign-in only
+> Status: implemented with Account Kit (`@kevinjohn/adonisjs-account-kit`), password sign-in only
 
 ## Outcome
 

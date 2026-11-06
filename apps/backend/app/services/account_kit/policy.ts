@@ -6,9 +6,9 @@ import type {
   CredentialChangeContext,
   Invitation,
   Trx,
-} from 'adonisjs-account-kit/types';
-import { AccountAdmission } from 'adonisjs-account-kit/admission';
-import type { AdmissionAuthorizeCallbacks } from 'adonisjs-account-kit/admission';
+} from '@kevinjohn/adonisjs-account-kit/types';
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
+import type { AdmissionAuthorizeCallbacks } from '@kevinjohn/adonisjs-account-kit/admission';
 import { can } from '@capacitylens/shared/domain/access';
 import { canAdministerIdentity } from '@capacitylens/shared/account/policy';
 import { isAccountRole, type Role } from '@capacitylens/shared/account/types';

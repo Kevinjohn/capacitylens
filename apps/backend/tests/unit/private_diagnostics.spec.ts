@@ -1,5 +1,5 @@
 import app from '@adonisjs/core/services/app';
-import { InvalidSessionError, UnverifiedEmailError } from 'adonisjs-account-kit/errors';
+import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { IdentityAuthorityError } from '#services/auth/authorization';
 import { ActionProofError } from '#services/auth/action_proof';
 import { test } from '@japa/runner';

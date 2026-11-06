@@ -1,12 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
-import accountKit from 'adonisjs-account-kit/services/main';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   InvalidCredentialsError,
   InvalidSessionError,
   RegistrationEmailAlreadyRegisteredError,
-} from 'adonisjs-account-kit/errors';
-import type { CurrentAccountInput } from 'adonisjs-account-kit/types';
+} from '@kevinjohn/adonisjs-account-kit/errors';
+import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import env from '#start/env';
 import { FirstCompanyPendingError } from '#models/user';
 import { requiresFirstCompanySetup } from '#services/first_company_setup';

@@ -541,7 +541,10 @@ export default class extends BaseSchema {
     });
     this.schema.createTable('account_invitations', (table) => {
       table.increments('id');
-      table.string('email', 254).notNullable().unique();
+      table.string('email', 254).notNullable();
+      // Account Kit scopes invitations; CapacityLens keeps every invitation in the default scope.
+      table.string('scope', 255).notNullable().defaultTo('');
+      table.unique(['email', 'scope']);
       table.string('role', 64).notNullable();
       table.string('inviter_id').nullable().references('id').inTable('users').onDelete('SET NULL');
       table.string('token_hash', 64).notNullable().unique();

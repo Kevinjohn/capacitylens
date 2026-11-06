@@ -1,9 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { MasqueradeError } from 'adonisjs-masquerade';
+import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { currentMasquerade, endMasquerade, startMasquerade } from '#services/auth/masquerade';
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
 import db from '@adonisjs/lucid/services/db';
-import { InvalidSessionError } from 'adonisjs-account-kit/errors';
+import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { signedInSession } from '#services/auth/current_actor';
 
 async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {

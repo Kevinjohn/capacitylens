@@ -1,8 +1,15 @@
 import { publicOrigin } from '#config/public_origin';
 import app from '@adonisjs/core/services/app';
 import env from '#start/env';
-import { createActionUrls, createMailNotifications, defineConfig } from 'adonisjs-account-kit';
-import { withAdmissionCleanup, withInvitationEvidence } from 'adonisjs-account-kit/admission';
+import {
+  createActionUrls,
+  createMailNotifications,
+  defineConfig,
+} from '@kevinjohn/adonisjs-account-kit';
+import {
+  withAdmissionCleanup,
+  withInvitationEvidence,
+} from '@kevinjohn/adonisjs-account-kit/admission';
 import {
   MIN_PASSWORD_LENGTH,
   MAX_PASSWORD_INPUT_CODE_UNITS,
