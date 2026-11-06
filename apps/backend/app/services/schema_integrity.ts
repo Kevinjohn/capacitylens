@@ -324,6 +324,20 @@ export async function assertSchemaIntegrity() {
         'consumed_at',
       ],
     ],
+    [
+      'account_invitations',
+      [
+        'id',
+        'email',
+        'scope',
+        'role',
+        'inviter_id',
+        'token_hash',
+        'expires_at',
+        'created_at',
+        'updated_at',
+      ],
+    ],
     ['deleted_rows', ['id', 'group_id', 'entity', 'row_id', 'payload_json']],
     [
       'action_proofs',
