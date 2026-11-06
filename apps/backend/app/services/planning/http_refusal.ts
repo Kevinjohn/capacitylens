@@ -1,8 +1,8 @@
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpContext } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
-import { accountErrorResponse } from '@kevinjohn/adonisjs-account-kit';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
+import { buildKitRefusal } from '#services/account_kit/refusal';
 import { BatchRequestError } from '#services/planning/errors';
 import { StalePlanningRevisionError } from '#services/planning_revision';
 import { RestorationConfirmationError } from '#services/planning/restoration';
@@ -69,16 +69,8 @@ function refusal(error: unknown): {
       } satisfies ProductHttpErrorBody,
     };
   }
-  const kitResponse = accountErrorResponse(error);
-  const kitError = kitResponse?.body.errors[0];
-  if (kitResponse && kitError && kitResponse.status < 500) {
-    const { code, message, committed } = kitError;
-    return {
-      status: kitResponse.status,
-      headers: kitResponse.headers,
-      body: { error: message, code, ...(committed ? { committed } : {}) },
-    };
-  }
+  const kitRefusal = buildKitRefusal(error);
+  if (kitRefusal && kitRefusal.status < 500) return kitRefusal;
   // Identity resolution failures invalidate the projection; action refusals use PlanningOperationError.
   if (error instanceof IdentityAuthorityError) {
     return {

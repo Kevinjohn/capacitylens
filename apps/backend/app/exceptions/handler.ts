@@ -1,16 +1,15 @@
 import type {
-  HttpErrorBody,
   ProductHttpErrorBody,
   ProductValidationFailure,
 } from '@capacitylens/shared/api/httpErrors';
 import app from '@adonisjs/core/services/app';
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
-import { accountErrorResponse } from '@kevinjohn/adonisjs-account-kit';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import { IdentityAuthorityError } from '#services/auth/authorization';
 import { ActionProofError } from '#services/auth/action_proof';
 import { AdmissionError } from '#services/admission/errors';
+import { buildKitRefusal } from '#services/account_kit/refusal';
 import { FirstCompanyPendingError } from '#models/user';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import {
@@ -123,19 +122,12 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         decision: error.decision,
       } satisfies ProductHttpErrorBody);
     }
-    const kitResponse = accountErrorResponse(error);
-    // The Kit sends one entry per refusal; the product body carries that entry.
-    const kitError = kitResponse?.body.errors[0];
-    if (kitResponse && kitError) {
-      for (const [name, value] of Object.entries(kitResponse.headers)) {
+    const kitRefusal = buildKitRefusal(error);
+    if (kitRefusal) {
+      for (const [name, value] of Object.entries(kitRefusal.headers)) {
         ctx.response.header(name, value);
       }
-      const { code, message, committed } = kitError;
-      return ctx.response.status(kitResponse.status).send({
-        error: message,
-        code,
-        ...(committed ? { committed } : {}),
-      } satisfies HttpErrorBody);
+      return ctx.response.status(kitRefusal.status).send(kitRefusal.body);
     }
     if (error instanceof AdmissionError) {
       return ctx.response.status(error.status).send({
@@ -231,8 +223,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       return;
     }
     // Account Kit refusals are expected outcomes; its server faults are still reported.
-    const kitResponse = accountErrorResponse(error);
-    if (kitResponse && kitResponse.status < 500) return;
+    const kitRefusal = buildKitRefusal(error);
+    if (kitRefusal && kitRefusal.status < 500) return;
     if (
       error instanceof vineErrors.E_VALIDATION_ERROR ||
       classifyParserFailure(error) !== undefined ||
@@ -243,8 +235,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     ) {
       return;
     }
-    const dependencyFailure = Boolean(kitResponse);
-    const errorType = kitResponse ? 'account_kit_failure' : classifyLogError(error);
+    const dependencyFailure = Boolean(kitRefusal);
+    const errorType = kitRefusal ? 'account_kit_failure' : classifyLogError(error);
     if (!dependencyFailure && errorType !== 'unexpected' && errorType !== 'database_constraint') {
       return;
     }
@@ -256,7 +248,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         errorType,
         method: safeRequestMethod(ctx.request.method()),
         path: safeRoutePattern(ctx.route?.pattern),
-        status: errorType === 'database_constraint' ? 400 : (kitResponse?.status ?? 500),
+        status: errorType === 'database_constraint' ? 400 : (kitRefusal?.status ?? 500),
       },
       'HTTP request failed'
     );
