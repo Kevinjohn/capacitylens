@@ -35,6 +35,7 @@ function diagnosticContext() {
       },
     },
     response: {
+      header: () => undefined,
       badRequest: () => send(400),
       forbidden: () => send(403),
       serviceUnavailable: () => send(503),
