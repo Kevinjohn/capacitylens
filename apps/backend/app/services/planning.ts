@@ -6,7 +6,8 @@ import DataPolicy from '#policies/data_policy';
 import { activeCompanyRole } from '#services/auth/authorization';
 import { effectiveReadPrincipal } from '#services/auth/masquerade';
 import type { BatchCapabilities } from '#services/planning/data_policy';
-import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
+import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
+import access from '#config/access_control';
 import type { Role } from '@capacitylens/shared/account/types';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
@@ -79,13 +80,13 @@ async function currentAuthority(
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,
     role,
-    canWrite: !masquerading && can(role, 'write'),
+    canWrite: !masquerading && access.can(role, 'planning:write'),
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   };
   const capabilities: BatchCapabilities = {
     ...authority,
-    canAnonymise: !masquerading && can(role, 'anonymise'),
+    canAnonymise: !masquerading && access.can(role, 'resources:anonymise'),
   };
   return { authority, capabilities, bouncer };
 }

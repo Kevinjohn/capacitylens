@@ -82,7 +82,7 @@ export default class MembersController {
     const accountId = readRouteParam(ctx.params.accountId);
     const directory = await withActor(ctx, async (_actor, trx) => {
       const actor = await assertCompanyAction(accountId, 'manageMembers', trx);
-      return readMemberDirectory(trx, accountId, actor.actorId);
+      return readMemberDirectory(trx, accountId, actor);
     });
     return ctx.response.ok(directory);
   }

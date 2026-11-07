@@ -1,11 +1,13 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { DatabaseQueryBuilderContract } from '@adonisjs/lucid/types/querybuilder';
+import type { MemberActions } from '@capacitylens/shared/account/permissions';
 import {
   isAccountRole,
-  isMembershipStatus,
   type MembershipStatus,
   type Role,
 } from '@capacitylens/shared/account/types';
+import access from '#config/access_control';
+import { lifecycleOf, scopeMemberships, storedRole } from '#services/membership/package_projection';
 import type { MemberResourceLinkProjection } from '#services/member_resources/directory';
 import { readMemberSignInTracking } from '#services/membership/sign_in_tracking';
 import {
@@ -14,11 +16,8 @@ import {
   readResourceCandidates,
 } from '#services/member_resources/directory';
 
-interface MembershipDirectoryRow {
-  user_id: string;
-  role: string;
-  status: string;
-  created_at: string;
+interface PrincipalRow {
+  id: string;
   display_name: string | null;
   email: string | null;
 }
@@ -45,6 +44,7 @@ export interface MemberDirectoryEntry {
   signInConfirmed: boolean | null;
   isSelf: boolean;
   resourceLink: MemberResourceLinkProjection | null;
+  actions: MemberActions;
 }
 
 interface MemberResourceCandidate {
@@ -59,25 +59,47 @@ export interface MemberDirectory {
   resourceCandidates: MemberResourceCandidate[];
 }
 
+/** Server-derived row controls for the actor; every operation is still authorized on its own. */
+function memberActions(
+  actorRole: Role,
+  actorId: string,
+  entry: Omit<MemberDirectoryEntry, 'actions'>
+): MemberActions {
+  const isSelf = entry.userId === actorId;
+  const manage =
+    entry.membershipPresent &&
+    access.canManage({ actorRole, targetRole: entry.role, isSelf }).allowed;
+  const assignable = access
+    .assignableRoles(actorRole)
+    .some(
+      (next) =>
+        next !== entry.role &&
+        access.canAssign({ actorRole, targetRole: entry.role, nextRole: next, isSelf }).allowed
+    );
+  return {
+    changeRole: manage && assignable && entry.status === 'active' && !entry.accessDisabled,
+    changeStatus: manage,
+    remove: manage,
+    enableAccess:
+      entry.accessDisabled &&
+      !isSelf &&
+      access.canManage({ actorRole, targetRole: entry.role, isSelf }).allowed,
+    viewAs:
+      !isSelf &&
+      entry.membershipPresent &&
+      entry.status === 'active' &&
+      !entry.accessDisabled &&
+      access.can(actorRole, 'viewAs:use'),
+  };
+}
+
 /** Builds the member directory after the caller authorizes company member management. */
 export async function readMemberDirectory(
   trx: TransactionClientContract,
   accountId: string,
-  actorId: string
+  actor: { actorId: string; role: Role }
 ): Promise<MemberDirectory> {
-  const membershipQuery: DatabaseQueryBuilderContract<MembershipDirectoryRow> = trx
-    .from('memberships as member')
-    .leftJoin('users as principal', 'principal.id', 'member.user_id')
-    .where('member.account_id', accountId)
-    .select(
-      'member.user_id',
-      'member.role',
-      'member.status',
-      'member.created_at',
-      'principal.display_name',
-      'principal.email'
-    )
-    .orderBy('member.created_at', 'asc');
+  const { actorId } = actor;
   const restrictionQuery: DatabaseQueryBuilderContract<RestrictedPrincipalDirectoryRow> = trx
     .from('account_access_restrictions as restriction')
     .leftJoin('users as principal', 'principal.id', 'restriction.principal_id')
@@ -92,44 +114,49 @@ export async function readMemberDirectory(
     )
     .orderBy('restriction.created_at', 'asc')
     .orderBy('restriction.principal_id', 'asc');
-  const [rows, restrictions, tracking, resourceCandidates] = await Promise.all([
-    membershipQuery,
+  const [memberships, restrictions, tracking, resourceCandidates] = await Promise.all([
+    scopeMemberships(trx, actorId, accountId),
     restrictionQuery,
     readMemberSignInTracking(accountId, trx),
     readResourceCandidates(trx, accountId),
   ]);
   const denied = new Set(restrictions.map((row) => row.principal_id));
-  const memberIds = new Set(rows.map((row) => row.user_id));
+  const memberIds = new Set(memberships.map((m) => String(m.userId)));
+  const principals: PrincipalRow[] = await trx
+    .from('users')
+    .whereIn('id', [...memberIds])
+    .select('id', 'display_name', 'email');
+  const principalById = new Map(principals.map((row) => [String(row.id), row]));
   const resourceFields = await readMemberResourceFields(trx, accountId, [...memberIds]);
   const members: MemberDirectoryEntry[] = [];
-  for (const row of rows) {
-    const userId = row.user_id;
-    if (!isAccountRole(row.role)) throw new Error('Membership has an invalid role.');
-    if (!isMembershipStatus(row.status)) throw new Error('Membership has an invalid status.');
+  for (const m of memberships) {
+    const userId = String(m.userId);
+    const principal = principalById.get(userId);
     // The lookup producer seeds every requested member ID before applying any links.
     const memberResourceFields = resourceFields.get(userId) as MemberResourceFields;
-    members.push({
+    const entry = {
       userId,
-      role: row.role,
-      status: row.status,
+      role: storedRole(m),
+      status: lifecycleOf(m),
       accessDisabled: denied.has(userId),
       membershipPresent: true,
-      createdAt: row.created_at,
-      name: row.display_name ?? null,
-      email: row.email ?? null,
+      createdAt: m.createdAt.toUTC().toISO() as string,
+      name: principal?.display_name ?? null,
+      email: principal?.email ?? null,
       signInConfirmed: tracking.enabled ? tracking.confirmations.has(userId) : null,
       isSelf: actorId === userId,
       ...memberResourceFields,
-    });
+    };
+    members.push({ ...entry, actions: memberActions(actor.role, actorId, entry) });
   }
   for (const row of restrictions) {
     const userId = row.principal_id;
     if (memberIds.has(userId)) continue;
     if (!isAccountRole(row.role)) throw new Error('Access restriction has an invalid role.');
-    members.push({
+    const entry = {
       userId,
       role: row.role,
-      status: 'disabled',
+      status: 'disabled' as const,
       accessDisabled: true,
       membershipPresent: false,
       createdAt: row.created_at,
@@ -138,7 +165,8 @@ export async function readMemberDirectory(
       signInConfirmed: tracking.enabled ? tracking.confirmations.has(userId) : null,
       isSelf: actorId === userId,
       resourceLink: null,
-    });
+    };
+    members.push({ ...entry, actions: memberActions(actor.role, actorId, entry) });
   }
   return { members, signInTrackingEnabled: tracking.enabled, resourceCandidates };
 }

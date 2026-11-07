@@ -9,10 +9,9 @@ import type {
 } from '@kevinjohn/adonisjs-account-kit/types';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import type { AdmissionAuthorizeCallbacks } from '@kevinjohn/adonisjs-account-kit/admission';
-import { can } from '@capacitylens/shared/domain/access';
-import { canAdministerIdentity } from '@capacitylens/shared/account/policy';
 import { isAccountRole, type Role } from '@capacitylens/shared/account/types';
 import { activeCompanyRole, assertCompanyAccessOpen } from '#services/auth/authorization';
+import { canAdministerIdentity } from '#services/auth/identity_policy';
 import { advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 import { AdmissionError } from '#services/admission/errors';
@@ -40,23 +39,21 @@ export async function installationCompanyId(trx: Pick<Trx, 'from'>): Promise<str
   return rows[0] ? String(rows[0].id) : null;
 }
 
-/** A Kit callback's transaction when it supplies one, otherwise the default connection. */
-type Reader = Pick<Trx, 'from'>;
-
 /** Admission is read through the supplied transaction so a callback never opens a second one. */
 export async function isAdmitted(userId: string, trx?: Trx) {
   const admission = await app.container.make(AccountAdmission);
   return admission.isAdmitted(userId, trx);
 }
 
-async function companyRole(userId: string, trx: Reader): Promise<Role | null> {
-  const accountId = await installationCompanyId(trx);
+/** A Kit callback's transaction when it supplies one; reads otherwise use the default connection. */
+async function companyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
+  const accountId = await installationCompanyId(trx ?? db);
   return accountId ? activeCompanyRole(userId, accountId, trx) : null;
 }
 
 async function mayManageInvitations(userId: string, trx: Trx | undefined) {
-  const role = await companyRole(userId, trx ?? db);
-  return Boolean(role && can(role, 'manageInvites') && (await isAdmitted(userId, trx)));
+  const role = await companyRole(userId, trx);
+  return Boolean(role && access.can(role, 'invitations:manage') && (await isAdmitted(userId, trx)));
 }
 
 /** Invitation authority holds only for this installation's company scope. */
@@ -86,9 +83,9 @@ export const authorize: AuthorizationCallbacks = {
 /** Owners and Admins decide admission, never for someone their role cannot administer. */
 export const admissionAuthorize: AdmissionAuthorizeCallbacks = {
   decide: async (actor, subject, context) => {
-    const trx = context?.trx ?? db;
+    const trx = context?.trx;
     const actorRole = await companyRole(String(actor.id), trx);
-    if (!actorRole || !can(actorRole, 'manageInvites')) return false;
+    if (!actorRole || !access.can(actorRole, 'invitations:manage')) return false;
     const subjectRole = await companyRole(String(subject.id), trx);
     return !subjectRole || canAdministerIdentity(actorRole, subjectRole);
   },
@@ -141,10 +138,10 @@ export async function onCredentialsChangedTransaction(
   context: CredentialChangeContext,
   trx: Trx
 ) {
-  const memberships = await trx.from('memberships').where('user_id', String(user.id));
+  const memberships = await access.memberships.listForUser(String(user.id), trx);
   for (const membership of memberships) {
     await writeAudit(trx, {
-      accountId: String(membership.account_id),
+      accountId: String(membership.scopeId),
       actorId: String(user.id),
       action: 'identity.credentials_changed',
       entity: 'user',

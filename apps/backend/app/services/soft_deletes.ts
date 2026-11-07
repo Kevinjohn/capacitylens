@@ -1,5 +1,5 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { isAtLeast } from '@capacitylens/shared/domain/access';
+import access from '#config/access_control';
 import { activeCompanyRole } from '#services/auth/authorization';
 import Activity from '#models/activity';
 import Client from '#models/client';
@@ -33,10 +33,11 @@ export class SoftDeletePolicyError extends Error {
 async function assertLifecycleAuthority(
   trx: TransactionClientContract,
   actorId: string,
-  accountId: string
+  accountId: string,
+  key: 'catalogue:deleteArchived' | 'catalogue:restoreDeleted'
 ) {
   const role = await activeCompanyRole(actorId, accountId, trx);
-  if (!role || !isAtLeast(role, 'admin')) {
+  if (!role || !access.can(role, key)) {
     throw new SoftDeletePolicyError('forbidden', 'Forbidden.', 403);
   }
 }
@@ -66,7 +67,7 @@ export async function softDeleteArchivedEntity(
   table: LifecycleTable,
   id: string
 ) {
-  await assertLifecycleAuthority(trx, actorId, accountId);
+  await assertLifecycleAuthority(trx, actorId, accountId, 'catalogue:deleteArchived');
   const row = await findRow(trx, accountId, table, id, 'all');
   if (!row) throw new SoftDeletePolicyError('not_found', 'The record was not found.', 404);
   if (table === 'clients' && (row as InstanceType<typeof Client>).builtin === true) {
@@ -96,7 +97,7 @@ export async function restoreArchivedEntity(
   table: LifecycleTable,
   id: string
 ) {
-  await assertLifecycleAuthority(trx, actorId, accountId);
+  await assertLifecycleAuthority(trx, actorId, accountId, 'catalogue:restoreDeleted');
   const row = await findRow(trx, accountId, table, id, 'deleted');
   if (!row) throw new SoftDeletePolicyError('not_found', 'The record was not found.', 404);
   if (table === 'clients' && (row as InstanceType<typeof Client>).builtin === true) {
