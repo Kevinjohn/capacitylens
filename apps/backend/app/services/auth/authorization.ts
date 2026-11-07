@@ -5,7 +5,6 @@ import { isAccountRole, type Role } from '@capacitylens/shared/account/types';
 import type { Action } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
 import { actorIn } from '#services/auth/current_actor';
-import { canAdministerIdentityAcrossWorkspaces } from '#services/auth/identity_policy';
 import { forbiddenAdmission } from '#services/admission/errors';
 
 /** A transaction, or none where a Kit callback supplies none; raw reads then use the default connection. */
@@ -75,9 +74,7 @@ export async function assertMayAdministerTarget(
     memberRoles(actorUserId, trx, true),
     memberRoles(targetUserId, trx, false),
   ]);
-  if (
-    !canAdministerIdentityAcrossWorkspaces(actorRoles, targetRoles, actorUserId === targetUserId)
-  ) {
+  if (!access.canAdministerIdentity(actorRoles, targetRoles, actorUserId === targetUserId)) {
     throw new IdentityAuthorityError('You cannot administer this identity.');
   }
 }

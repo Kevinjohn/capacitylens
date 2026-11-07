@@ -46,7 +46,7 @@ async function hasConfirmedEmail(trx: TransactionClientContract, userId: string,
 /** Changes an active non-Owner role in one transaction. */
 export async function changeMemberRole(
   trx: TransactionClientContract,
-  input: { accountId: string; actorId: string; actorRole: Role; userId: string; role: Role }
+  input: { accountId: string; actorId: string; userId: string; role: Role }
 ) {
   const member = await targetMember(trx, input.accountId, input.userId);
   if (member.status !== 'active') throw forbidden();
@@ -167,17 +167,9 @@ export async function changeMemberStatus(
 /** Removes one company membership without deleting a principal shared by another company. */
 export async function removeMember(
   trx: TransactionClientContract,
-  input: { accountId: string; actorId: string; actorRole: Role; userId: string }
+  input: { accountId: string; actorId: string; userId: string }
 ) {
   const member = await targetMember(trx, input.accountId, input.userId);
-  // Removal locks the person out until an administrator acts, so nobody may remove themselves.
-  if (
-    input.userId === input.actorId ||
-    !access.canManage({ actorRole: input.actorRole, targetRole: member.role, isSelf: false })
-      .allowed
-  ) {
-    throw forbidden();
-  }
   await trx
     .from('account_member_resources')
     .where({ account_id: input.accountId, user_id: input.userId })
@@ -206,6 +198,8 @@ export async function removeMember(
       created_at: new Date().toISOString(),
     });
   }
+  // The package refuses self-removal and any target the actor cannot manage; the transaction then
+  // rolls back the restriction above. Removal locks the person out until an administrator acts.
   await access.memberships.remove({
     actor: { id: input.actorId },
     scopeId: input.accountId,

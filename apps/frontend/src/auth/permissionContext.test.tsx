@@ -5,7 +5,6 @@ import { PermissionContext, useCan, useCanEdit } from './permissionContext';
 import type { Action } from './permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { actionPermission } from '@capacitylens/shared/account/permissions';
-import { demoCan } from '@/lib/demoAccess';
 import { useStore } from '@/store/useStore';
 import { authorityFixture, authorityFor } from '@/test/authorityFixture';
 
@@ -101,13 +100,12 @@ describe('useCan in server mode', () => {
 });
 
 describe('useCan in demo mode', () => {
-  it('allows each action exactly when demoCan does, with or without a provider', () => {
+  it('allows every action as the demo Owner, without a provider', () => {
     vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     for (const action of ACTIONS) {
       const { result } = renderHook(() => useCan(action));
-      expect(result.current, action).toBe(demoCan(action));
+      expect(result.current, action).toBe(true);
     }
-    expect(ACTIONS.every((action) => demoCan(action))).toBe(true);
   });
 });
 

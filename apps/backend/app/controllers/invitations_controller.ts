@@ -82,12 +82,7 @@ export default class InvitationsController {
     const actorId = await this.manager(ctx, body.accountId);
     if (!env.get('CAPACITYLENS_MAIL_HOST')) return mailUnavailable(ctx);
     try {
-      const invitation = await accountKit.invitations.send({
-        actorId,
-        email,
-        role: body.role,
-        scope: String(body.accountId),
-      });
+      const invitation = await accountKit.invitations.send({ actorId, email, role: body.role });
       return ctx.response.created({ ...projection(invitation), emailed: true });
     } catch (error) {
       if (!isCommittedFailure(error)) throw error;
@@ -102,12 +97,7 @@ export default class InvitationsController {
     const invites = [];
     let cursor: string | undefined;
     do {
-      const page = await accountKit.invitations.list({
-        actorId,
-        limit: 100,
-        cursor,
-        scope: ctx.params.accountId,
-      });
+      const page = await accountKit.invitations.list({ actorId, limit: 100, cursor });
       invites.push(...page.items.map(projection));
       cursor = page.nextCursor ?? undefined;
     } while (cursor);
