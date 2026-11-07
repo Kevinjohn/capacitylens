@@ -34,6 +34,46 @@ test.group('identity policy', () => {
     );
   });
 
+  test('an unknown target role fails closed', ({ assert }) => {
+    assert.isFalse(canAdministerIdentity('owner', 'superuser' as Role));
+  });
+
+  test('self with no membership is refused', ({ assert }) => {
+    assert.isFalse(canAdministerIdentityAcrossWorkspaces(roles([]), roles([]), true));
+  });
+
+  test('standing in every target workspace allows', ({ assert }) => {
+    assert.isTrue(
+      canAdministerIdentityAcrossWorkspaces(
+        roles([
+          ['wayne', 'admin'],
+          ['stark', 'owner'],
+        ]),
+        roles([
+          ['wayne', 'editor'],
+          ['stark', 'admin'],
+        ]),
+        false
+      )
+    );
+  });
+
+  test('too little standing in one shared workspace refuses', ({ assert }) => {
+    assert.isFalse(
+      canAdministerIdentityAcrossWorkspaces(
+        roles([
+          ['wayne', 'admin'],
+          ['stark', 'editor'],
+        ]),
+        roles([
+          ['wayne', 'editor'],
+          ['stark', 'editor'],
+        ]),
+        false
+      )
+    );
+  });
+
   test('a target workspace the actor does not share refuses', ({ assert }) => {
     assert.isFalse(
       canAdministerIdentityAcrossWorkspaces(

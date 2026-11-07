@@ -23,11 +23,6 @@
       "types": "./src/account/permissions.ts",
       "default": "./dist/account/permissions.js"
     },
-    "./account/policy": {
-      "development": "./src/account/policy.ts",
-      "types": "./src/account/policy.ts",
-      "default": "./dist/account/policy.js"
-    },
     "./account/types": {
       "development": "./src/account/types.ts",
       "types": "./src/account/types.ts",
