@@ -45,6 +45,7 @@ export default defineConfig({
     () => import('@adonisjs/bouncer/commands'),
     accountKitCommands,
     () => import('@kevinjohn/adonisjs-account-kit/admission/commands'),
+    () => import('@kevinjohn/adonisjs-access-control/commands'),
   ],
 
   /*
@@ -75,6 +76,7 @@ export default defineConfig({
     () => import('@adonisjs/limiter/limiter_provider'),
     () => import('@kevinjohn/adonisjs-account-kit/account_kit_provider'),
     () => import('@kevinjohn/adonisjs-account-kit/admission/provider'),
+    () => import('@kevinjohn/adonisjs-access-control/access_control_provider'),
     () => import('@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider'),
     () => import('#providers/configuration_provider'),
     () => import('#providers/backup_provider'),
