@@ -1,5 +1,5 @@
 import type { Role } from './types.js';
-import { ACCOUNT_ROLES, isAccountRole } from './types.js';
+import { isAccountRole } from './types.js';
 import type { Action } from '../domain/access.js';
 
 /** Roles lowest first; the Access Control package requires the owner role last. */
@@ -94,6 +94,3 @@ export function parseMemberActions(value: unknown): MemberActions | null {
   if (!actionFlags.every((flag) => typeof v[flag] === 'boolean')) return null;
   return Object.fromEntries(actionFlags.map((flag) => [flag, v[flag]])) as unknown as MemberActions;
 }
-
-/** `accessRoles` is the ascending spelling of ACCOUNT_ROLES; tests pin the equivalence. */
-export const ACCESS_ROLE_SET: ReadonlySet<Role> = new Set(ACCOUNT_ROLES);
