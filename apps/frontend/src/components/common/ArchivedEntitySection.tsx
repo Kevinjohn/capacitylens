@@ -186,7 +186,7 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
     accountId: string | null;
     row: LifecycleRow;
   } | null>(null);
-  const mayAnonymise = useCan('anonymise');
+  const mayAnonymise = useCan('resources:anonymise');
   const setNotice = useStore((state) => state.setNotice);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { busy, run, locked } = useExclusiveAction();
@@ -248,8 +248,8 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
 
 /** Keeps the full inactive browser privileged while Editors receive recovery identities only. */
 export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
-  const mayAnonymise = useCan('anonymise');
-  const mayWrite = useCan('write');
+  const mayAnonymise = useCan('resources:anonymise');
+  const mayWrite = useCan('planning:write');
   if (mayAnonymise) return <PrivilegedArchivedEntitySection entity={entity} />;
   if (mayWrite) return <ArchiveRecoverySection entity={entity} />;
   return null;

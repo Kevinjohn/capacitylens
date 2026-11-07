@@ -24,7 +24,6 @@ import {
   renderSection,
   requireCallback,
   requireValue,
-  saveRoleVia,
 } from './MembersSection.testSupport';
 import type { RawMember } from './MembersSection.testSupport';
 
@@ -326,34 +325,30 @@ function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
     expect(screen.queryByRole('button', { name: /transfer ownership/i })).not.toBeInTheDocument();
   });
 
-  it.each([
-    ['member-disable', 'disabled', /cannot open this company or rejoin by invitation/i],
-    ['member-archive', 'archived', /filed away and cannot open this company/i],
-  ])('confirms %s before PATCHing the new status', async (testId, status, consequence) => {
+  it('confirms Suspend before PATCHing the new status', async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi(lifecycleMembers);
     vi.stubGlobal('fetch', fetchMock);
     renderSection();
     const edRow = await waitForMemberRow(/ed@x\.io/);
 
-    await chooseMemberAction(user, edRow, testId);
+    await chooseMemberAction(user, edRow, 'member-suspend');
     const dialog = screen.getByRole('alertdialog');
-    expect(within(dialog).getByText(consequence)).toBeInTheDocument();
+    expect(within(dialog).getByText(/cannot open this company until/i)).toBeInTheDocument();
 
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining('/status'),
       expect.anything(),
     );
 
-    await user.click(
-      within(dialog).getByRole('button', {
-        name: new RegExp(status === 'disabled' ? 'Disable' : 'Archive'),
-      }),
-    );
+    await user.click(within(dialog).getByRole('button', { name: /Suspend/ }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status }) }),
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'suspended' }),
+        }),
       ),
     );
     await waitFor(() =>
@@ -363,11 +358,11 @@ function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
 }
 
 function registerLifecycleVisibilityTests(): void {
-  it('badges restricted access and offers Enable Access separately', async () => {
+  it('badges a suspended member and offers Restore but no role edit', async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi([
       { userId: 'me', role: 'owner', isSelf: true },
-      { userId: 'ed', role: 'editor', accessDisabled: true },
+      { userId: 'ed', role: 'editor', status: 'suspended' },
     ]);
     vi.stubGlobal('fetch', fetchMock);
     renderSection();
@@ -375,44 +370,23 @@ function registerLifecycleVisibilityTests(): void {
     const edRow = await waitForMemberRow(/ed@x\.io/);
     // A non-active member must stay reachable and legible, or the state is unreversible.
     expect(within(edRow).getByTestId('member-status')).toHaveTextContent(
-      m.settings_member_status_disabled(),
+      m.settings_member_status_suspended(),
     );
+    expect(within(edRow).queryByTestId('member-edit')).not.toBeInTheDocument();
 
     await openMemberMenu(user, edRow);
-    expect(screen.queryByTestId('member-disable')).not.toBeInTheDocument();
-    expect(screen.getByTestId('member-archive')).toBeInTheDocument();
-    await user.click(screen.getByTestId('member-enable'));
+    expect(screen.queryByTestId('member-suspend')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('member-restore'));
     await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: /enable access/i }),
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: /restore/i }),
     );
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/enable-access`,
-        expect.objectContaining({ method: 'POST' }),
+        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'active' }) }),
       ),
     );
-  });
-
-  it('hides the role pencil on a non-active row while keeping removal', async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal(
-      'fetch',
-      mockApi([
-        { userId: 'me', role: 'owner', isSelf: true },
-        { userId: 'ed', role: 'editor', accessDisabled: true },
-      ]),
-    );
-    renderSection();
-    await openInactiveGroup(user);
-    const edRow = await waitForMemberRow(/ed@x\.io/);
-
-    // Inactive memberships cannot receive a role edit; reinstatement is a separate explicit transition.
-    expect(within(edRow).queryByTestId('member-edit')).not.toBeInTheDocument();
-
-    // Disabling membership must preserve removal so administrators can still revoke access.
-    await openMemberMenu(user, edRow);
-    expect(screen.getByTestId('member-remove')).toBeInTheDocument();
   });
 }
 
@@ -423,8 +397,8 @@ function registerLifecycleDisclosureTests(): void {
       'fetch',
       mockApi([
         { userId: 'me', role: 'owner', isSelf: true },
-        { userId: 'ed', role: 'editor', accessDisabled: true },
-        { userId: 'vic', role: 'viewer', status: 'archived' },
+        { userId: 'ed', role: 'editor', status: 'suspended' },
+        { userId: 'vic', role: 'viewer', status: 'suspended' },
       ]),
     );
     renderSection();
@@ -456,8 +430,8 @@ function registerLifecycleDisclosureTests(): void {
       .getAllByTestId('member-status')
       .map((badge) => badge.textContent);
     expect(badges).toEqual([
-      m.settings_member_status_disabled(),
-      m.settings_member_status_archived(),
+      m.settings_member_status_suspended(),
+      m.settings_member_status_suspended(),
     ]);
 
     await user.click(toggle);
@@ -491,8 +465,8 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
     renderSection();
     const selfRow = await waitForMemberRow(/me@x\.io/);
 
-    // Disabling, archiving or removing yourself would lock you out; the active Owner is additionally
-    // protected by the single-owner invariant.
+    // The server reports neither row as manageable: suspending yourself would lock you out, and the
+    // Owner is protected by the single-owner invariant.
     expect(within(selfRow).queryByTestId('member-menu')).not.toBeInTheDocument();
 
     const ownerRow = await waitForMemberRow(/owner@x\.io/);
@@ -510,9 +484,9 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
     renderSection();
     const edRow = await waitForMemberRow(/ed@x\.io/);
 
-    await chooseMemberAction(user, edRow, 'member-disable');
+    await chooseMemberAction(user, edRow, 'member-suspend');
     await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: /disable/i }),
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i }),
     );
 
     expect(await screen.findByText('Forbidden.')).toBeInTheDocument();
@@ -612,64 +586,7 @@ function registerLifecycleTrackingTests(): void {
   });
 }
 
-function registerLifecycleReconciliationTests(): void {
-  it('reconciles an unknown self-demotion even after member reads become forbidden', async () => {
-    const user = userEvent.setup();
-    let mutationDispatched = false;
-    const refreshAuth = vi.fn(async () => {});
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const u = String(url);
-      if (u.endsWith('/members/me') && init?.method === 'PATCH') {
-        mutationDispatched = true;
-        throw new TypeError('connection closed after dispatch');
-      }
-      if (u.endsWith('/api/accounts')) {
-        return jsonResponse([
-          { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'editor' },
-        ]);
-      }
-      if (u.endsWith('/members') && (!init || init.method === undefined || init.method === 'GET')) {
-        if (mutationDispatched) {
-          return jsonResponse({ error: 'Forbidden.' }, 403);
-        }
-        return jsonResponse({
-          members: [
-            rawMember({ userId: 'owner', role: 'owner' }),
-            rawMember({ userId: 'me', role: 'admin', isSelf: true }),
-            rawMember({ userId: 'ed', role: 'editor' }),
-          ],
-        });
-      }
-      if (u.endsWith('/invites')) {
-        return mutationDispatched
-          ? jsonResponse({ error: 'Forbidden.' }, 403)
-          : jsonResponse({ invites: [] });
-      }
-      throw new Error(`Unexpected request: ${u}`);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const revisionBefore = useStore.getState().membershipRevision;
-    let sawPlanningRead = false;
-    const unsubscribe = useStore.subscribe((state) => {
-      if (state.planning.status === 'loading') sawPlanningRead = true;
-    });
-    renderSection({ refreshAuth });
-    await screen.findByTestId('members-section');
-
-    const self = await waitForMemberRow(/me@x\.io/);
-    await saveRoleVia(user, self, 'Editor');
-
-    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
-    expect(refreshAuth).toHaveBeenCalledTimes(1);
-    unsubscribe();
-    expect(sawPlanningRead).toBe(true);
-    expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
-    expect(useStore.getState().notice?.message).toMatch(
-      /Your access was refreshed; verify the result/i,
-    );
-    expect(useStore.getState().notice?.message).not.toMatch(/Reload the page/i);
-  });
-}
+function registerLifecycleReconciliationTests(): void {}
 
 function registerLifecycleConcurrencyTests(): void {
   it('permits only one member mutation while an action is in flight', async () => {
@@ -691,9 +608,9 @@ function registerLifecycleConcurrencyTests(): void {
     const editorRow = await waitForMemberRow(/ed@x\.io/);
 
     const user = userEvent.setup();
-    await chooseMemberAction(user, editorRow, 'member-disable');
+    await chooseMemberAction(user, editorRow, 'member-suspend');
     await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: /disable/i }),
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i }),
     );
 
     await waitFor(() => expect(within(editorRow).getByTestId('member-menu')).toBeDisabled());

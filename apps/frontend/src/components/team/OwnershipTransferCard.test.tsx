@@ -28,19 +28,17 @@ function member({
   role,
   name,
   status = 'active',
-  accessDisabled = false,
 }: {
   userId: string;
   role: TeamMember['role'];
   name: string;
   status?: TeamMember['status'];
-  accessDisabled?: boolean;
 }): TeamMember {
   return {
     userId,
     role,
     status,
-    accessDisabled,
+    manage: false,
     createdAt: '2026-09-01T00:00:00.000Z',
     name,
     email: `${userId}@wayne.test`,
@@ -51,17 +49,11 @@ function member({
 
 const OWNER = member({ userId: 'bruce', role: 'owner', name: 'Bruce Wayne' });
 const ADMIN = member({ userId: 'selina', role: 'admin', name: 'Selina Kyle' });
-const RESTRICTED_ADMIN = member({
-  userId: 'lucius',
-  role: 'admin',
-  name: 'Lucius Fox',
-  accessDisabled: true,
-});
 const INACTIVE_ADMIN = member({
   userId: 'alfred',
   role: 'admin',
   name: 'Alfred Pennyworth',
-  status: 'disabled',
+  status: 'suspended',
 });
 
 function renderAs({
@@ -112,7 +104,7 @@ beforeEach(async () => {
   client.listMembers.mockResolvedValue({
     kind: 'ok',
     status: 200,
-    value: { members: [OWNER, ADMIN, RESTRICTED_ADMIN, INACTIVE_ADMIN] },
+    value: { members: [OWNER, ADMIN, INACTIVE_ADMIN] },
   });
   client.transferOwnership.mockResolvedValue({
     kind: 'ok',
@@ -149,13 +141,12 @@ describe('OwnershipTransferCard', () => {
     expect(refreshAuth).toHaveBeenCalledOnce();
   });
 
-  it('excludes active Admins whose company access is restricted', async () => {
+  it('excludes suspended Admins', async () => {
     renderAs();
     await openOwnershipDialog();
     fireEvent.click(screen.getByRole('combobox', { name: m.ownership_transfer_nominee_label() }));
 
     expect(await screen.findByRole('option', { name: ADMIN.name ?? '' })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: RESTRICTED_ADMIN.name ?? '' })).toBeNull();
     expect(screen.queryByRole('option', { name: INACTIVE_ADMIN.name ?? '' })).toBeNull();
   });
 

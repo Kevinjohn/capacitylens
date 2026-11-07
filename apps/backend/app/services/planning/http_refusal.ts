@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import { buildKitRefusal } from '#services/account_kit/refusal';
+import { buildAccessRefusal } from '#services/access_control/refusal';
 import { BatchRequestError } from '#services/planning/errors';
 import { StalePlanningRevisionError } from '#services/planning_revision';
 import { RestorationConfirmationError } from '#services/planning/restoration';
@@ -71,6 +72,8 @@ function refusal(error: unknown): {
   }
   const kitRefusal = buildKitRefusal(error);
   if (kitRefusal && kitRefusal.status < 500) return kitRefusal;
+  const accessRefusal = buildAccessRefusal(error);
+  if (accessRefusal) return accessRefusal;
   // Identity resolution failures invalidate the projection; action refusals use PlanningOperationError.
   if (error instanceof IdentityAuthorityError) {
     return {

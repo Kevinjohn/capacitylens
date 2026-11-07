@@ -53,10 +53,7 @@ function useOwnerDirectory({
     () =>
       members.filter(
         (member) =>
-          member.role === 'admin' &&
-          member.status === 'active' &&
-          !member.accessDisabled &&
-          member.userId !== principalId,
+          member.role === 'admin' && member.status === 'active' && member.userId !== principalId,
       ),
     [members, principalId],
   );

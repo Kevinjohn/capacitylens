@@ -51,8 +51,7 @@ async function createMember(client: ApiClient, role: Role) {
   const userId = String((signup.body() as { user: { id: string } }).user.id);
   const timestamp = new Date().toISOString();
   await db.table('memberships').insert({
-    id: randomUUID(),
-    account_id: accountId,
+    scope_id: accountId,
     user_id: userId,
     role,
     status: 'active',
@@ -63,7 +62,7 @@ async function createMember(client: ApiClient, role: Role) {
 }
 
 async function setRole(userId: string, role: Role) {
-  await db.from('memberships').where({ account_id: accountId, user_id: userId }).update({ role });
+  await db.from('memberships').where({ scope_id: accountId, user_id: userId }).update({ role });
 }
 
 async function stateFor(client: ApiClient, cookie: string, companyId = accountId) {
@@ -161,8 +160,7 @@ test.group('native authorization and role projections', (group) => {
     assert.isFalse((nonMemberProjection.body() as { canCreateAccount: boolean }).canCreateAccount);
 
     await db.table('memberships').insert({
-      id: randomUUID(),
-      account_id: accountId,
+      scope_id: accountId,
       user_id: userId,
       role: 'editor',
       status: 'active',

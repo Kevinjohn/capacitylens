@@ -341,6 +341,8 @@ test.group('retained planning cleanup', (suite) => {
     const retained = await deleteAllocation(client, editor.cookie);
     const ownerActive = await createActiveAllocation(client, editor.cookie);
 
+    await db.from('memberships').where('user_id', owner.userId).delete();
+
     await db.from('users').where('id', owner.userId).delete();
 
     assert.isNull(

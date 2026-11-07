@@ -21,7 +21,7 @@ export function useInactiveAccountData(): {
   reload: () => void;
 } {
   const server = isServerConfigured();
-  const mayViewInactive = useCan('anonymise');
+  const mayViewInactive = useCan('resources:anonymise');
   const role = useRole();
   const { user } = useAuth();
   const planning = useStore((state) => state.planning);

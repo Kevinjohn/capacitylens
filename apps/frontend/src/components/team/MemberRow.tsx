@@ -1,11 +1,6 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { m } from '@/i18n';
-import {
-  can,
-  canChangeMemberStatus,
-  canEditAnyMemberRole,
-  canRemoveMember,
-} from '@capacitylens/shared/domain/access';
+import { can } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamMember } from '@/account/teamAccessClient';
 import { resolveRoleLabel } from '@/lib/accessCopy';
@@ -18,44 +13,16 @@ import type { MemberConfirmationAction } from './memberConfirmationCopy';
 import { MemberResourceDialog, MemberResourceLink } from './MemberResourceLink';
 import { MemberActionsDialog } from './MemberActionsDialog';
 
-// Share affordance policy across active and inactive rows so grouping cannot change the actions offered. The server independently authorizes each operation.
-
+// The server decides `manage` with the Access Control package and authorizes each operation again.
 function buildMemberAffordances(
   myRole: Role | undefined,
   member: TeamMember,
-): {
-  mayMasquerade: boolean;
-  mayTouch: boolean;
-  mayRemove: boolean;
-  mayChangeStatus: boolean;
-  hasMenu: boolean;
-} {
-  // Role editing requires an active, unrestricted membership on both client and server.
-  const mayTouch =
-    member.status === 'active' &&
-    !member.accessDisabled &&
-    member.membershipPresent !== false &&
-    !!myRole &&
-    canEditAnyMemberRole(myRole, member.role);
-  // Inactive memberships can be removed without reinstatement. Removal locks the person out until an
-  // administrator enables access, so the server refuses it for yourself.
-  const mayRemove =
-    member.membershipPresent !== false &&
-    !member.isSelf &&
-    !!myRole &&
-    canRemoveMember(myRole, member.role);
-  const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, member.role, member.isSelf);
+): { mayMasquerade: boolean; mayTouch: boolean; hasMenu: boolean } {
+  const active = member.status === 'active';
   return {
-    mayMasquerade:
-      member.status === 'active' &&
-      !member.accessDisabled &&
-      !member.isSelf &&
-      !!myRole &&
-      can(myRole, 'masquerade'),
-    mayTouch,
-    mayRemove,
-    mayChangeStatus,
-    hasMenu: mayChangeStatus || mayRemove,
+    mayMasquerade: active && !member.isSelf && !!myRole && can(myRole, 'viewAs:use'),
+    mayTouch: active && member.manage,
+    hasMenu: member.manage,
   };
 }
 
@@ -64,19 +31,17 @@ function MemberMenuItem({
   label,
   ariaLabel,
   testId,
-  danger = false,
   onSelect,
 }: {
   label: string;
   ariaLabel: string;
   testId: string;
-  danger?: boolean;
   onSelect: () => void;
 }) {
   return (
     <Button
       type="button"
-      variant={danger ? 'danger-soft' : 'outline'}
+      variant="outline"
       size="default"
       aria-label={ariaLabel}
       data-testid={testId}
@@ -99,11 +64,7 @@ function MemberIdentity({ member }: { member: TeamMember }) {
   let name = member.userId;
   if (trimmedName) name = trimmedName;
 
-  const statusLabels = [
-    ...(member.membershipPresent === false ? [m.settings_member_status_removed()] : []),
-    ...(member.status === 'archived' ? [m.settings_member_status_archived()] : []),
-    ...(member.accessDisabled ? [m.settings_member_status_disabled()] : []),
-  ];
+  const statusLabels = member.status === 'suspended' ? [m.settings_member_status_suspended()] : [];
 
   return (
     <td className="py-2 px-4">
@@ -180,86 +141,29 @@ function MemberPrimaryActions({
   );
 }
 
-function MemberStatusMenuItems({
-  member,
-  memberLabel,
-  chooseMemberAction,
-}: {
-  member: TeamMember;
-  memberLabel: string;
-  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
-}) {
-  if (member.membershipPresent === false) {
-    if (!member.accessDisabled) return null;
-  }
-  const restricted = member.accessDisabled;
-  return (
-    <>
-      {restricted ? (
-        <MemberMenuItem
-          testId="member-enable"
-          label={m.settings_member_enable()}
-          ariaLabel={m.settings_member_enable_aria({ member: memberLabel })}
-          onSelect={() => chooseMemberAction('enable', member)}
-        />
-      ) : (
-        <MemberMenuItem
-          testId="member-disable"
-          label={m.settings_member_disable()}
-          ariaLabel={m.settings_member_disable_aria({ member: memberLabel })}
-          onSelect={() => chooseMemberAction('disable', member)}
-        />
-      )}
-      {member.membershipPresent !== false &&
-        (member.status === 'active' ? (
-          <MemberMenuItem
-            testId="member-archive"
-            label={m.settings_member_archive()}
-            ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
-            onSelect={() => chooseMemberAction('archive', member)}
-          />
-        ) : (
-          <MemberMenuItem
-            testId="member-restore"
-            label={m.settings_member_restore()}
-            ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
-            onSelect={() => chooseMemberAction('restore', member)}
-          />
-        ))}
-    </>
-  );
-}
-
 function MemberSettingsMenuItems({
   member,
   memberLabel,
-  affordances,
   chooseMemberAction,
 }: {
   member: TeamMember;
   memberLabel: string;
-  affordances: ReturnType<typeof buildMemberAffordances>;
   chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
 }) {
-  return (
-    <>
-      {affordances.mayChangeStatus && (
-        <MemberStatusMenuItems
-          member={member}
-          memberLabel={memberLabel}
-          chooseMemberAction={chooseMemberAction}
-        />
-      )}
-      {affordances.mayRemove && (
-        <MemberMenuItem
-          testId="member-remove"
-          label={m.settings_member_remove()}
-          ariaLabel={m.settings_member_remove_aria({ member: memberLabel })}
-          danger
-          onSelect={() => chooseMemberAction('remove', member)}
-        />
-      )}
-    </>
+  return member.status === 'active' ? (
+    <MemberMenuItem
+      testId="member-suspend"
+      label={m.settings_member_suspend()}
+      ariaLabel={m.settings_member_suspend_aria({ member: memberLabel })}
+      onSelect={() => chooseMemberAction('suspend', member)}
+    />
+  ) : (
+    <MemberMenuItem
+      testId="member-restore"
+      label={m.settings_member_restore()}
+      ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
+      onSelect={() => chooseMemberAction('restore', member)}
+    />
   );
 }
 
@@ -353,12 +257,13 @@ export function MemberRow({
                 }}
               />
             )}
-            <MemberSettingsMenuItems
-              member={member}
-              memberLabel={memberLabel}
-              affordances={affordances}
-              chooseMemberAction={chooseMemberAction}
-            />
+            {member.manage && (
+              <MemberSettingsMenuItems
+                member={member}
+                memberLabel={memberLabel}
+                chooseMemberAction={chooseMemberAction}
+              />
+            )}
           </MemberActionsDialog>
         }
       />

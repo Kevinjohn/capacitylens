@@ -136,7 +136,7 @@ test.group('soft delete adoption', (group) => {
     const { userId } = await resetAuthenticatedData(client, 'single');
     const state = await readState('a-studio', true);
     const clientRow = state.clients.find((row) => row.builtin !== true)!;
-    await db.from('memberships').where({ user_id: userId, account_id: 'a-studio' }).update({
+    await db.from('memberships').where({ user_id: userId, scope_id: 'a-studio' }).update({
       role: 'viewer',
     });
 
@@ -148,7 +148,7 @@ test.group('soft delete adoption', (group) => {
       (error: unknown) =>
         error instanceof SoftDeletePolicyError && error.code === 'forbidden' && error.status === 403
     );
-    await db.from('memberships').where({ user_id: userId, account_id: 'a-studio' }).update({
+    await db.from('memberships').where({ user_id: userId, scope_id: 'a-studio' }).update({
       role: 'owner',
     });
     await assert.rejects(

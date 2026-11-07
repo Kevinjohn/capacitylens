@@ -136,15 +136,15 @@ test('a sole-owned company permits recovery even when another company has joint 
     for (const id of ['bruce', 'tony'])
       database
         .prepare(
-          'INSERT INTO memberships (id,account_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
+          'INSERT INTO memberships (scope_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?)'
         )
-        .run(`joint-${id}`, 'a-loft', id, 'owner', 'active', now, now);
+        .run('a-loft', id, 'owner', 'active', now, now);
     database.close();
     const recovered = f.command(args);
     assert.equal(recovered.status, 0, recovered.output);
     assert.deepEqual(JSON.parse(recovered.output.trim()).accountIds, ['a-studio']);
     const inspect = f.inspect();
-    inspect.prepare("DELETE FROM memberships WHERE account_id='a-studio'").run();
+    inspect.prepare("DELETE FROM memberships WHERE scope_id='a-studio'").run();
     inspect.close();
     const refused = f.command(args);
     assert.notEqual(refused.status, 0);
@@ -170,9 +170,9 @@ test('a failure writing the second company audit rolls back every audit and prin
       .run('a-loft', 'Stark Industries', '#6366f1', now, now);
     database
       .prepare(
-        'INSERT INTO memberships (id,account_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
+        'INSERT INTO memberships (scope_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?)'
       )
-      .run('second-owner', 'a-loft', 'bruce', 'owner', 'active', now, now);
+      .run('a-loft', 'bruce', 'owner', 'active', now, now);
     database.exec(
       "CREATE TRIGGER fail_second_audit BEFORE INSERT ON audit_entries WHEN NEW.account_id='a-studio' BEGIN SELECT RAISE(ABORT, 'second audit failed'); END"
     );

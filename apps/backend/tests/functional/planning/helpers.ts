@@ -39,8 +39,7 @@ export async function signIn(
   const cookie = await signInAgain(client, email);
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    id: randomUUID(),
-    account_id: accountId,
+    scope_id: accountId,
     user_id: userId,
     role,
     status: 'active',

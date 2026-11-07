@@ -3,24 +3,24 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { ReactNode } from 'react';
 import { PermissionContext, useCan, useCanEdit } from './permissionContext';
 import { can } from '@capacitylens/shared/domain/access';
-import type { Action, Role } from '@capacitylens/shared/domain/access';
+import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import { useStore } from '@/store/useStore';
 
 // Resolved roles use the shared `can` matrix; an absent role permits actions only outside masquerade.
 
-// Keep the matrix sweep explicit and reject entries that are not valid actions.
+// Keep the sweep explicit and reject entries that are not valid permission keys.
 const ACTIONS = [
-  'read',
-  'write',
-  'manageInternalClient',
-  'manageMembers',
-  'manageInvites',
-  'manageMemberSignInTracking',
-  'anonymise',
-  'transferOwnership',
-  'actOnOwnershipTransfer',
-  'masquerade',
-] as const satisfies readonly Action[];
+  'planning:read',
+  'planning:write',
+  'members:list',
+  'members:manage',
+  'members:signInTracking',
+  'invitations:manage',
+  'viewAs:use',
+  'resources:anonymise',
+  'catalogue:manage',
+  'ownership:transfer',
+] as const satisfies readonly PermissionKey[];
 
 const ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer'];
 
@@ -58,7 +58,7 @@ describe('useCan', () => {
   });
 
   it('still denies a resolved viewer the write tier', () => {
-    const { result } = renderHook(() => useCan('write'), { wrapper: withRole('viewer') });
+    const { result } = renderHook(() => useCan('planning:write'), { wrapper: withRole('viewer') });
     expect(result.current).toBe(false);
   });
 
@@ -72,17 +72,20 @@ describe('useCan', () => {
     );
     for (const action of ACTIONS) {
       const { result } = renderHook(() => useCan(action), { wrapper: withRole('owner') });
-      expect(result.current, action).toBe(action === 'read');
+      expect(result.current, action).toBe(action === 'planning:read');
     }
   });
 });
 
 describe('useCanEdit', () => {
-  it("is exactly useCan('write') for every role, including null", () => {
+  it("is exactly useCan('planning:write') for every role, including null", () => {
     for (const role of [...ROLES, null]) {
-      const { result } = renderHook(() => ({ edit: useCanEdit(), write: useCan('write') }), {
-        wrapper: withRole(role),
-      });
+      const { result } = renderHook(
+        () => ({ edit: useCanEdit(), write: useCan('planning:write') }),
+        {
+          wrapper: withRole(role),
+        },
+      );
       expect(result.current.edit, `${role}`).toBe(result.current.write);
     }
   });

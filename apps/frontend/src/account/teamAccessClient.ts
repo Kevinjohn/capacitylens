@@ -85,20 +85,6 @@ export const teamAccessClient = {
     );
   },
 
-  async enableMemberAccess(
-    workspaceId: string,
-    principalId: string,
-  ): Promise<TeamAccessResult<true>> {
-    return readCommandResult(
-      await accountClient.enableMemberAccess(workspaceId, principalId),
-      noContent,
-    );
-  },
-
-  async removeMember(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
-    return readCommandResult(await accountClient.removeMember(workspaceId, principalId), noContent);
-  },
-
   async setMemberResourceLink(input: {
     workspaceId: string;
     principalId: string;

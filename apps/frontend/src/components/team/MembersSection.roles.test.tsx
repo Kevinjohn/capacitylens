@@ -110,7 +110,7 @@ function registerAdminInviteTests(members: RawMember[]): void {
 }
 
 function registerAdminMemberControlTests(members: RawMember[]): void {
-  it("shows no role control + no Remove on an OWNER row (admin can't touch an owner)", async () => {
+  it("shows no role control or member actions on an OWNER row (admin can't touch an owner)", async () => {
     vi.stubGlobal('fetch', mockApi(members));
     renderSection();
     await screen.findByTestId('members-section');
@@ -123,7 +123,7 @@ function registerAdminMemberControlTests(members: RawMember[]): void {
 
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
     expect(within(editorRow).getByTestId('member-edit')).toBeInTheDocument();
-    await chooseMemberAction(userEvent.setup(), editorRow, 'member-remove');
+    await chooseMemberAction(userEvent.setup(), editorRow, 'member-suspend');
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
   });
 
@@ -151,28 +151,28 @@ function registerAdminMemberControlTests(members: RawMember[]): void {
 }
 
 function registerAdminConfirmationTests(members: RawMember[]): void {
-  it('names the member and waits for confirmation before sending removal', async () => {
+  it('names the member and waits for confirmation before suspending', async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi(members);
     vi.stubGlobal('fetch', fetchMock);
     renderSection();
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
-    await chooseMemberAction(user, editorRow, 'member-remove');
+    await chooseMemberAction(user, editorRow, 'member-suspend');
 
     const dialog = screen.getByRole('alertdialog');
     expect(
-      within(dialog).getByText(/theeditor@x\.io will immediately lose access/),
+      within(dialog).getByText(/theeditor@x\.io cannot open this company/),
     ).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(
-      expect.stringContaining('/members/theeditor'),
-      expect.objectContaining({ method: 'DELETE' }),
+      expect.stringContaining('/members/theeditor/status'),
+      expect.anything(),
     );
-    await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Suspend' }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor`,
-        expect.objectContaining({ method: 'DELETE' }),
+        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor/status`,
+        expect.objectContaining({ method: 'PATCH' }),
       ),
     );
   });
@@ -243,26 +243,6 @@ function registerAdminProjectionTests(members: RawMember[]): void {
       expect(screen.getByTestId('members-section')).toHaveAttribute('aria-busy', 'false'),
     );
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
-  });
-
-  it('invalidates membership projections when an Admin changes their own role', async () => {
-    const user = userEvent.setup();
-    const refreshAuth = vi.fn(async () => {});
-    vi.stubGlobal('fetch', mockApi(members));
-    const revisionBefore = useStore.getState().membershipRevision;
-    let sawPlanningRead = false;
-    const unsubscribe = useStore.subscribe((state) => {
-      if (state.planning.status === 'loading') sawPlanningRead = true;
-    });
-    renderSection({ refreshAuth });
-
-    const selfRow = await waitForMemberRow(/me@x\.io/);
-    await saveRoleVia(user, selfRow, 'Editor');
-
-    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
-    expect(refreshAuth).toHaveBeenCalledTimes(1);
-    unsubscribe();
-    expect(sawPlanningRead).toBe(true);
   });
 }
 
@@ -341,10 +321,10 @@ describe('MembersSection — owner affordances', () => {
     expect(dialog.querySelector('form > div.p-4')).toBeInTheDocument();
     expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass('border-t');
     expect(within(dialog).getByRole('button', { name: 'Close' })).toBeInTheDocument();
-    const disable = within(dialog).getByTestId('member-disable');
-    expect(disable).toHaveAttribute('data-slot', 'button');
-    expect(disable).toHaveAttribute('data-variant', 'outline');
-    expect(disable).toHaveClass('w-full', 'justify-start');
+    const suspend = within(dialog).getByTestId('member-suspend');
+    expect(suspend).toHaveAttribute('data-slot', 'button');
+    expect(suspend).toHaveAttribute('data-variant', 'outline');
+    expect(suspend).toHaveClass('w-full', 'justify-start');
     expect(dialog.querySelector('[data-slot="dropdown-menu-content"]')).not.toBeInTheDocument();
   });
 

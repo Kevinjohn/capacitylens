@@ -86,16 +86,9 @@ function createConfirmationActions(
       case 'masquerade':
         if (activeAccountId) void startMasquerade(activeAccountId, pending.member.userId);
         return;
-      case 'remove':
-        void actions.removeMember(pending.member);
-        return;
-      case 'disable':
-      case 'archive':
+      case 'suspend':
       case 'restore':
         void actions.changeStatus(pending.member, STATUS_FOR_ACTION[pending.kind]);
-        return;
-      case 'enable':
-        void actions.enableAccess(pending.member);
         return;
     }
   };

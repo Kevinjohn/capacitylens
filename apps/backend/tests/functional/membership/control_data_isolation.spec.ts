@@ -16,6 +16,7 @@ test.group('membership control-data isolation', (group) => {
     await db.from('account_invitations').where('email', 'diana.prince@wayne.example').delete();
     await db.from('account_member_resources').where('id', 'link-control-isolation').delete();
     await db.from('memberships').where('id', 'm-control-isolation').delete();
+    await db.from('memberships').where('user_id', 'u-control-isolation').delete();
     await db.from('users').where('id', 'u-control-isolation').delete();
     const resource = seed().resources.find((row) => row.id === 'r-tyler')!;
     await db.table('users').insert({
@@ -26,8 +27,7 @@ test.group('membership control-data isolation', (group) => {
       updated_at: stamp,
     });
     await db.table('memberships').insert({
-      id: 'm-control-isolation',
-      account_id: 'a-studio',
+      scope_id: 'a-studio',
       user_id: 'u-control-isolation',
       role: 'viewer',
       status: 'active',

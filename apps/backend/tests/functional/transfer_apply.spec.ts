@@ -229,20 +229,11 @@ test.group('beta transfer apply', (group) => {
       created_at: now,
       updated_at: now,
     });
-    await db.table('account_access_restrictions').insert({
-      id: 'restriction-transfer',
-      account_id: accountId,
-      principal_id: 'restricted-principal',
-      verified_email: null,
-      role: 'viewer',
-      created_at: now,
-    });
     const foreignBefore = await readState('a-loft', true);
     const preservedTables = [
       'memberships',
       'account_invitations',
       'account_admissions',
-      'account_access_restrictions',
       'planning_mutations',
     ] as const;
     const before = await Promise.all(preservedTables.map((table) => db.from(table).select('*')));
@@ -482,7 +473,7 @@ test.group('beta transfer apply', (group) => {
     const roleProof = await proof(client, cookie, { baseRevision, document: full });
     await db
       .from('memberships')
-      .where({ account_id: accountId, user_id: userId })
+      .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'admin' });
     const roleDenied = await apply(client, cookie, full, baseRevision, roleProof);
     roleDenied.assertStatus(403);
@@ -491,7 +482,7 @@ test.group('beta transfer apply', (group) => {
 
     await db
       .from('memberships')
-      .where({ account_id: accountId, user_id: userId })
+      .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'owner' });
     const sessionProof = await proof(client, cookie, { baseRevision, document: full });
     await db.from('account_sessions').where('user_id', userId).delete();

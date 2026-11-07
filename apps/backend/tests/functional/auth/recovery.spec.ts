@@ -39,8 +39,7 @@ async function company() {
   const editorId = await createIdentity(editor, { name: 'Clark Kent' });
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    id: 'member-clark',
-    account_id: accountId,
+    scope_id: accountId,
     user_id: editorId,
     role: 'editor',
     status: 'active',

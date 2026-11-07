@@ -176,42 +176,6 @@ export const accountClient = {
     });
   },
 
-  enableMemberAccess(
-    workspaceId: string,
-    principalId: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand({
-      operationKey: `member-enable-access:${workspaceId}:${principalId}`,
-      explicit: command,
-      request: (resolved) =>
-        apiFetch(
-          apiRouteUrl('api.members.enable-access', {
-            params: { accountId: workspaceId, userId: principalId },
-          }),
-          buildJsonCommandRequestInit('POST', {}, resolved),
-        ),
-    });
-  },
-
-  removeMember(
-    workspaceId: string,
-    principalId: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand({
-      operationKey: `member-remove:${workspaceId}:${principalId}`,
-      explicit: command,
-      request: (resolved) =>
-        apiFetch(
-          apiRouteUrl('api.members.remove', {
-            params: { accountId: workspaceId, userId: principalId },
-          }),
-          buildCommandRequestInit({ method: 'DELETE', credentials: 'include' }, resolved),
-        ),
-    });
-  },
-
   transferOwnership({
     workspaceId,
     targetPrincipalId,

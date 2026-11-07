@@ -6,8 +6,8 @@ export interface TeamMember {
   userId: string;
   role: Role;
   status: MembershipStatus;
-  accessDisabled?: boolean;
-  membershipPresent?: boolean;
+  /** Whether the reader may change this member's role or status, as the server decides. */
+  manage: boolean;
   createdAt: string;
   name: string | null;
   email: string | null;

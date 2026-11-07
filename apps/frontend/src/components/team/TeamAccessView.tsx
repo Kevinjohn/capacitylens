@@ -46,12 +46,12 @@ interface ResolveAccessWarningInput {
 
 function listCapabilities(role: Role): Capability[] {
   return [
-    { label: m.access_cap_view_schedule(), allowed: can(role, 'read') },
-    { label: m.access_cap_edit_schedule(), allowed: can(role, 'write') },
-    { label: m.access_cap_manage_team(), allowed: can(role, 'manageMembers') },
+    { label: m.access_cap_view_schedule(), allowed: can(role, 'planning:read') },
+    { label: m.access_cap_edit_schedule(), allowed: can(role, 'planning:write') },
+    { label: m.access_cap_manage_team(), allowed: can(role, 'members:manage') },
     { label: m.access_cap_timeoff_notes(), allowed: canSeeTimeOffNote(role) },
     { label: m.access_cap_private_names(), allowed: canSeePrivateNames(role) },
-    { label: m.access_cap_transfer_owner(), allowed: can(role, 'transferOwnership') },
+    { label: m.access_cap_transfer_owner(), allowed: can(role, 'ownership:transfer') },
   ];
 }
 
@@ -176,7 +176,7 @@ export function TeamAccessView() {
   const authenticated = accessExperience === 'authenticated';
   const resolvedRole = authenticated && permissionStatus === 'resolved' ? role : null;
   const effectiveRole: Role | null = resolvedRole;
-  const mayManage = resolvedRole !== null && can(resolvedRole, 'manageMembers');
+  const mayManage = resolvedRole !== null && can(resolvedRole, 'members:manage');
   const accessCopyInput = {
     experience: accessExperience,
     permissionStatus,
