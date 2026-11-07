@@ -11,7 +11,6 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import type { AdmissionAuthorizeCallbacks } from '@kevinjohn/adonisjs-account-kit/admission';
 import { isAccountRole, type Role } from '@capacitylens/shared/account/types';
 import { activeCompanyRole, assertCompanyAccessOpen } from '#services/auth/authorization';
-import { canAdministerIdentity } from '#services/auth/identity_policy';
 import { advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 import { AdmissionError } from '#services/admission/errors';
@@ -56,28 +55,16 @@ async function mayManageInvitations(userId: string, trx: Trx | undefined) {
   return Boolean(role && access.can(role, 'invitations:manage') && (await isAdmitted(userId, trx)));
 }
 
-/** Invitation authority holds only for this installation's company scope. */
-async function scopedManager(
-  userId: string,
-  scope: string | null | undefined,
-  trx: Trx | undefined
-) {
-  const companyId = await installationCompanyId(trx ?? db);
-  if (!companyId || scope !== companyId) return false;
-  return mayManageInvitations(userId, trx);
-}
-
 /**
  * Invitation authority is re-read inside the Kit's insert transaction (`context.trx`), so a
  * demotion committed between the pre-check and the insert refuses the send.
  */
 export const authorize: AuthorizationCallbacks = {
   invite: async (actor, role, context) =>
-    isInvitableRole(role) && scopedManager(String(actor.id), context?.scope, context?.trx),
-  manageInvitation: async (actor, invitation, context) =>
-    scopedManager(String(actor.id), invitation.scope, context?.trx),
-  listInvitations: async (actor, context) =>
-    scopedManager(String(actor.id), context?.scope, context?.trx),
+    isInvitableRole(role) && mayManageInvitations(String(actor.id), context?.trx),
+  manageInvitation: async (actor, _invitation, context) =>
+    mayManageInvitations(String(actor.id), context?.trx),
+  listInvitations: async (actor, context) => mayManageInvitations(String(actor.id), context?.trx),
 };
 
 /** Owners and Admins decide admission, never for someone their role cannot administer. */
@@ -87,7 +74,8 @@ export const admissionAuthorize: AdmissionAuthorizeCallbacks = {
     const actorRole = await companyRole(String(actor.id), trx);
     if (!actorRole || !access.can(actorRole, 'invitations:manage')) return false;
     const subjectRole = await companyRole(String(subject.id), trx);
-    return !subjectRole || canAdministerIdentity(actorRole, subjectRole);
+    const isSelf = String(actor.id) === String(subject.id);
+    return !subjectRole || access.canManage({ actorRole, targetRole: subjectRole, isSelf }).allowed;
   },
   // The Kit checks the decider's own admission; listing, which discloses addresses, needs the same.
   list: async (actor, context) => mayManageInvitations(String(actor.id), context?.trx),
@@ -100,15 +88,10 @@ export const admissionAuthorize: AdmissionAuthorizeCallbacks = {
  */
 export async function onInvitationAccepted(user: AccountUser, invitation: Invitation, trx: Trx) {
   const accountId = await installationCompanyId(trx);
-  // Operator bootstrap before the first company.
   if (!accountId) return;
-  if (invitation.scope !== accountId) {
-    throw new AdmissionError(
-      'This invitation is not for this company.',
-      403,
-      'INVITATION_SCOPE_MISMATCH'
-    );
-  }
+  // One installation holds one company, so every invitation joins it whatever its scope. One
+  // acceptance applies every pending invitation for the address, in ascending scope order, so the
+  // default-scope invitation sets the role and later ones change nothing.
   if (await access.memberships.find(accountId, String(user.id), trx)) return;
   if (!isInvitableRole(invitation.role) || !isAccountRole(invitation.role)) {
     throw new Error('Invitation role is unavailable.');

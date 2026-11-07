@@ -66,30 +66,16 @@ function memberActions(
   entry: Omit<MemberDirectoryEntry, 'actions'>
 ): MemberActions {
   const isSelf = entry.userId === actorId;
-  const manage =
-    entry.membershipPresent &&
-    access.canManage({ actorRole, targetRole: entry.role, isSelf }).allowed;
-  const assignable = access
-    .assignableRoles(actorRole)
-    .some(
-      (next) =>
-        next !== entry.role &&
-        access.canAssign({ actorRole, targetRole: entry.role, nextRole: next, isSelf }).allowed
-    );
+  // Anyone who may manage a target may also assign it another role.
+  const mayManage = access.canManage({ actorRole, targetRole: entry.role, isSelf }).allowed;
+  const manage = entry.membershipPresent && mayManage;
+  const usable = entry.membershipPresent && entry.status === 'active' && !entry.accessDisabled;
   return {
-    changeRole: manage && assignable && entry.status === 'active' && !entry.accessDisabled,
+    changeRole: manage && usable,
     changeStatus: manage,
     remove: manage,
-    enableAccess:
-      entry.accessDisabled &&
-      !isSelf &&
-      access.canManage({ actorRole, targetRole: entry.role, isSelf }).allowed,
-    viewAs:
-      !isSelf &&
-      entry.membershipPresent &&
-      entry.status === 'active' &&
-      !entry.accessDisabled &&
-      access.can(actorRole, 'viewAs:use'),
+    enableAccess: entry.accessDisabled && mayManage,
+    viewAs: !isSelf && usable && access.can(actorRole, 'viewAs:use'),
   };
 }
 
