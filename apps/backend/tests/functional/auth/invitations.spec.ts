@@ -17,9 +17,11 @@ import {
 } from '../../helpers/authenticated_data_fixture.js';
 import { rememberSessionCookie } from '../../helpers/identities.js';
 import {
+  bootstrapInvitation,
   captureMail,
   clearIdentities,
   createIdentity,
+  linkToken,
   signIn,
   expectStatus,
 } from '../../helpers/identities.js';
@@ -141,33 +143,54 @@ test.group('company invitations', (group) => {
     await expectStatus(client.get(`/api/invites/${token}/preview`).send(), 404);
   });
 
-  test('one acceptance applies every pending invitation for the address into one membership', async ({
+  test('an invitation stored for another company refuses the whole acceptance', async ({
     client,
     assert,
     cleanup,
   }) => {
     const mail = captureMail(cleanup);
-    const ownerId = await company();
+    await company();
     const { cookie } = await signIn(client, owner);
     const sent = await invite(client, cookie, invitee);
     sent.assertStatus(201);
-    const token = mail.tokenFor(invitee);
-    // Operators can scope invitations (`account-kit:invite --scope`); the product keeps one
-    // membership with the default-scope role, whichever link is opened.
-    await accountKit.invitations.send({
-      actorId: ownerId,
+    // Product sends are scoped to the company; only an operator can store another scope.
+    await accountKit.operator.invite({
       email: invitee,
       role: 'viewer',
       scope: 'alpha',
+      deliver: 'print',
     });
-    const accepted = await accept(client, mail.tokenFor(invitee));
+    const refused = await accept(client, mail.tokenFor(invitee));
+    refused.assertStatus(403);
+    assert.equal((refused.body() as { code?: string }).code, 'INVITATION_SCOPE_MISMATCH');
+    assert.lengthOf(await db.from('users').where('email', invitee), 0);
+    assert.lengthOf(await db.from('company_memberships').where('scope_id', accountId), 1);
+    assert.lengthOf(await db.from('account_invitations').where('email', invitee), 2);
+  });
+
+  test('an unscoped invitation is refused after setup', async ({ client, assert }) => {
+    await company();
+    const { url } = await accountKit.operator.invite({
+      email: invitee,
+      role: 'viewer',
+      deliver: 'print',
+    });
+    const refused = await accept(client, linkToken(url!));
+    refused.assertStatus(403);
+    assert.equal((refused.body() as { code?: string }).code, 'INVITATION_SCOPE_MISMATCH');
+    assert.lengthOf(await db.from('users').where('email', invitee), 0);
+    assert.lengthOf(await db.from('company_memberships').where('scope_id', accountId), 1);
+  });
+
+  test('the bootstrap invitation is still accepted before the first company', async ({
+    client,
+    assert,
+  }) => {
+    const accepted = await accept(client, await bootstrapInvitation(invitee));
     accepted.assertStatus(201);
-    const userId = (accepted.body() as { user: { id: string } }).user.id;
-    const memberships = await db.from('company_memberships').where('user_id', userId);
-    assert.lengthOf(memberships, 1);
-    assert.include(memberships[0], { scope_id: accountId, role: 'editor', status: 'active' });
-    assert.isEmpty(await db.from('account_invitations').where('email', invitee));
-    await expectStatus(accept(client, token), 400);
+    assert.lengthOf(await db.from('users').where('email', invitee), 1);
+    assert.lengthOf(await db.from('accounts'), 0);
+    assert.lengthOf(await db.from('company_memberships'), 0);
   });
 
   test('only Owners and Admins invite, never as Owner, and never without mail', async ({

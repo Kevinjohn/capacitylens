@@ -122,6 +122,7 @@ test.group('company member administration', (group) => {
       .json({ role: 'viewer' })
       .send();
     refused.assertStatus(403);
+    assert.equal((refused.body() as { code: string }).code, 'FORBIDDEN');
   });
 
   test('invalid member inputs and unknown fields are rejected without side effects', async ({

@@ -426,7 +426,7 @@ test.group('company member access and tracking', (group) => {
     archived.assertStatus(200);
     const enabledArchive = await enable();
     enabledArchive.assertStatus(200);
-    assert.equal(await membershipStatus(), 'archived');
+    assert.equal(await membershipStatus(), 'suspended');
     assert.isNull(await restriction());
     const stillBlocked = await signed(
       client.get('/api/state?accountId=a-studio'),
@@ -437,10 +437,10 @@ test.group('company member access and tracking', (group) => {
     const disabledArchive = await status('disabled');
     disabledArchive.assertStatus(200);
     assert.equal((disabledArchive.body() as { status: string }).status, 'archived');
-    assert.equal(await membershipStatus(), 'archived');
+    assert.equal(await membershipStatus(), 'suspended');
     const enabledArchiveAgain = await enable();
     enabledArchiveAgain.assertStatus(200);
-    assert.equal(await membershipStatus(), 'archived');
+    assert.equal(await membershipStatus(), 'suspended');
     const disabledForRemoval = await status('disabled');
     disabledForRemoval.assertStatus(200);
     const removed = await signed(client.delete(base), ownerCookie).send();
