@@ -4,6 +4,7 @@
  */
 
 /// <reference path="../../adonisrc.ts" />
+/// <reference path="../../config/access_control.ts" />
 /// <reference path="../../config/account_kit.ts" />
 /// <reference path="../../config/admission.ts" />
 /// <reference path="../../config/auth.ts" />

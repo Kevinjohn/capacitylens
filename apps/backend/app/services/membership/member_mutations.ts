@@ -1,15 +1,12 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import type { Membership } from '@kevinjohn/adonisjs-access-control/types';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
-import {
-  canChangeMemberStatus,
-  canEditAnyMemberRole,
-  canManageMemberRole,
-  canRemoveMember,
-} from '@capacitylens/shared/account/policy';
 import { newId } from '@capacitylens/shared/lib/id';
+import access from '#config/access_control';
 import { writeAudit } from '#services/audit';
 import { resetMemberSignIn } from '#services/membership/sign_in_tracking';
 import { advancePlanningRevision } from '#services/planning_revision';
+import { lifecycleOf, packageStatus, storedRole } from '#services/membership/package_projection';
 
 export class MembershipError extends Error {
   constructor(
@@ -24,13 +21,15 @@ export class MembershipError extends Error {
 const missing = () => new MembershipError('Not a member of this workspace.', 404, 'NOT_FOUND');
 const forbidden = () => new MembershipError('Forbidden.', 403, 'FORBIDDEN');
 
-async function targetMember(trx: TransactionClientContract, accountId: string, userId: string) {
-  const row = await trx
-    .from('memberships')
-    .where({ account_id: accountId, user_id: userId })
-    .first();
-  if (!row) throw missing();
-  return row;
+async function targetMember(
+  trx: TransactionClientContract,
+  accountId: string,
+  userId: string
+): Promise<Membership> {
+  const member = await access.memberships.find(accountId, userId, trx);
+  if (!member) throw missing();
+  storedRole(member);
+  return member;
 }
 
 /** Whether the Account Kit has confirmed the identity's current address. */
@@ -47,12 +46,10 @@ async function hasConfirmedEmail(trx: TransactionClientContract, userId: string,
 /** Changes an active non-Owner role in one transaction. */
 export async function changeMemberRole(
   trx: TransactionClientContract,
-  input: { accountId: string; actorId: string; actorRole: Role; userId: string; role: Role }
+  input: { accountId: string; actorId: string; userId: string; role: Role }
 ) {
   const member = await targetMember(trx, input.accountId, input.userId);
-  if (member.status !== 'active' || !canEditAnyMemberRole(input.actorRole, member.role as Role)) {
-    throw forbidden();
-  }
+  if (member.status !== 'active') throw forbidden();
   if (input.role === 'owner') {
     throw new MembershipError(
       'Transfer ownership to assign the Owner role.',
@@ -60,27 +57,29 @@ export async function changeMemberRole(
       'OWNER_TRANSFER_REQUIRED'
     );
   }
-  if (!canManageMemberRole(input.actorRole, member.role as Role, input.role)) throw forbidden();
-  if (member.role !== input.role) {
-    await trx
-      .from('memberships')
-      .where({ account_id: input.accountId, user_id: input.userId })
-      .update({ role: input.role, updated_at: new Date().toISOString() });
-    // Enable Access restores the restriction's role, so it follows every change.
-    await trx
-      .from('account_access_restrictions')
-      .where({ account_id: input.accountId, principal_id: input.userId })
-      .update({ role: input.role });
-    await advancePlanningRevision(trx, input.accountId);
-    await writeAudit(trx, {
-      accountId: input.accountId,
-      actorId: input.actorId,
-      action: 'member.role_changed',
-      entity: 'membership',
-      entityId: input.userId,
-      fields: ['role'],
-    });
-  }
+  // The package refuses self-management, Owner targets and rank violations before its no-op.
+  await access.memberships.changeRole({
+    actor: { id: input.actorId },
+    scopeId: input.accountId,
+    userId: input.userId,
+    role: input.role,
+    trx,
+  });
+  if (member.role === input.role) return { userId: input.userId, role: input.role };
+  // Enable Access restores the restriction's role, so it follows every change.
+  await trx
+    .from('account_access_restrictions')
+    .where({ account_id: input.accountId, principal_id: input.userId })
+    .update({ role: input.role });
+  await advancePlanningRevision(trx, input.accountId);
+  await writeAudit(trx, {
+    accountId: input.accountId,
+    actorId: input.actorId,
+    action: 'member.role_changed',
+    entity: 'membership',
+    entityId: input.userId,
+    fields: ['role'],
+  });
   return { userId: input.userId, role: input.role };
 }
 
@@ -97,7 +96,11 @@ export async function changeMemberStatus(
 ) {
   const member = await targetMember(trx, input.accountId, input.userId);
   if (
-    !canChangeMemberStatus(input.actorRole, member.role as Role, input.userId === input.actorId)
+    !access.canManage({
+      actorRole: input.actorRole,
+      targetRole: member.role,
+      isSelf: input.userId === input.actorId,
+    }).allowed
   ) {
     throw forbidden();
   }
@@ -115,7 +118,8 @@ export async function changeMemberStatus(
       ? currentEmail
       : null;
   const capturesEmail = Boolean(restriction && !restriction.verified_email && provenEmail);
-  const changed = disabling ? !restriction || capturesEmail : member.status !== input.status;
+  const current = lifecycleOf(member);
+  const changed = disabling ? !restriction || capturesEmail : current !== input.status;
   if (disabling && !restriction) {
     await trx.table('account_access_restrictions').insert({
       id: newId(),
@@ -133,11 +137,14 @@ export async function changeMemberStatus(
       .update({ verified_email: provenEmail });
   }
   if (changed) {
-    if (!disabling) {
-      await trx
-        .from('memberships')
-        .where({ account_id: input.accountId, user_id: input.userId })
-        .update({ status: input.status, updated_at: new Date().toISOString() });
+    if (input.status !== 'disabled') {
+      await access.memberships.setStatus({
+        actor: { id: input.actorId },
+        scopeId: input.accountId,
+        userId: input.userId,
+        status: packageStatus(input.status),
+        trx,
+      });
     }
     await resetMemberSignIn(input.accountId, input.userId, trx);
     await advancePlanningRevision(trx, input.accountId);
@@ -152,7 +159,7 @@ export async function changeMemberStatus(
   }
   return {
     userId: input.userId,
-    status: disabling ? member.status : input.status,
+    status: disabling ? current : input.status,
     accessDisabled: disabling || Boolean(restriction),
   };
 }
@@ -160,13 +167,9 @@ export async function changeMemberStatus(
 /** Removes one company membership without deleting a principal shared by another company. */
 export async function removeMember(
   trx: TransactionClientContract,
-  input: { accountId: string; actorId: string; actorRole: Role; userId: string }
+  input: { accountId: string; actorId: string; userId: string }
 ) {
   const member = await targetMember(trx, input.accountId, input.userId);
-  // Removal locks the person out until an administrator acts, so nobody may remove themselves.
-  if (input.userId === input.actorId || !canRemoveMember(input.actorRole, member.role as Role)) {
-    throw forbidden();
-  }
   await trx
     .from('account_member_resources')
     .where({ account_id: input.accountId, user_id: input.userId })
@@ -195,10 +198,14 @@ export async function removeMember(
       created_at: new Date().toISOString(),
     });
   }
-  await trx
-    .from('memberships')
-    .where({ account_id: input.accountId, user_id: input.userId })
-    .delete();
+  // The package refuses self-removal and any target the actor cannot manage; the transaction then
+  // rolls back the restriction above. Removal locks the person out until an administrator acts.
+  await access.memberships.remove({
+    actor: { id: input.actorId },
+    scopeId: input.accountId,
+    userId: input.userId,
+    trx,
+  });
   await advancePlanningRevision(trx, input.accountId);
   await writeAudit(trx, {
     accountId: input.accountId,
@@ -222,11 +229,11 @@ export async function enableMemberAccess(
     .first();
   if (!restriction) throw new MembershipError('Access restriction not found.', 404, 'NOT_FOUND');
   if (
-    !canChangeMemberStatus(
-      input.actorRole,
-      restriction.role as Role,
-      input.actorId === input.userId
-    )
+    !access.canManage({
+      actorRole: input.actorRole,
+      targetRole: restriction.role,
+      isSelf: input.actorId === input.userId,
+    }).allowed
   ) {
     throw forbidden();
   }
@@ -235,20 +242,15 @@ export async function enableMemberAccess(
     .where({ account_id: input.accountId, principal_id: input.userId })
     .delete();
   // A removed person returns with the role they held when removed, not their original invitation's.
-  const membership = await trx
-    .from('memberships')
-    .where({ account_id: input.accountId, user_id: input.userId })
-    .first();
+  // An existing membership keeps its lifecycle; enabling access never un-archives.
+  const membership = await access.memberships.find(input.accountId, input.userId, trx);
   if (!membership) {
-    const now = new Date().toISOString();
-    await trx.table('memberships').insert({
-      id: newId(),
-      account_id: input.accountId,
-      user_id: input.userId,
+    await access.memberships.add({
+      actor: { id: input.actorId },
+      scopeId: input.accountId,
+      userId: input.userId,
       role: restriction.role,
-      status: 'active',
-      created_at: now,
-      updated_at: now,
+      trx,
     });
   }
   await resetMemberSignIn(input.accountId, input.userId, trx);

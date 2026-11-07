@@ -60,7 +60,7 @@ export const baselineTables = [
   'account_sessions',
   'rate_limits',
   'audit_entries',
-  'memberships',
+  'company_memberships',
   'account_member_resources',
   'ownership_transfers',
   'masquerade_modes',

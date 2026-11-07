@@ -22,7 +22,7 @@ test.group('Backup diagnostics', (group) => {
   }) => {
     const anonymous = await client.get('/api/diagnostics');
     assert.equal(anonymous.status(), 401);
-    await db.from('memberships').update({ role: 'editor' });
+    await db.from('company_memberships').update({ role: 'editor' });
     const editor = await owner.get('/api/diagnostics');
     assert.equal(editor.status(), 403);
     assert.notProperty(editor.body(), 'server');

@@ -76,8 +76,9 @@ export async function signIn(client: ApiClient, email: string, password = fixtur
   return { cookie, cookieHeader, userId };
 }
 
-/** Removes every identity; sign-ins, tokens and memberships cascade with their users. */
+/** Removes every identity: package memberships first (they restrict user deletion); sign-ins and tokens cascade. */
 export async function clearIdentities() {
+  await db.from('company_memberships').delete();
   await db.from('account_admissions').delete();
   await db.from('account_invitations').delete();
   await db.from('adonis_sessions').delete();

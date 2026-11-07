@@ -84,7 +84,7 @@ test.group('beta transfer apply', (group) => {
     const original = structuredClone(full);
     const { cookie, userId } = await resetAuthenticatedData(client, false);
     await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', accountId);
-    const memberships = await db.from('memberships').select('*');
+    const memberships = await db.from('company_memberships').select('*');
     const identities = await db.from('users').select('*');
     const admissions = await db.from('account_admissions').select('*');
     const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
@@ -112,7 +112,7 @@ test.group('beta transfer apply', (group) => {
       for (const row of expected[key]) row.accountId = accountId;
     }
     assert.deepEqual(await readState(accountId, true), expected);
-    assert.deepEqual(await db.from('memberships').select('*'), memberships);
+    assert.deepEqual(await db.from('company_memberships').select('*'), memberships);
     assert.deepEqual(await db.from('users').select('*'), identities);
     assert.deepEqual(await db.from('account_admissions').select('*'), admissions);
     assert.deepEqual(full, original);
@@ -239,7 +239,7 @@ test.group('beta transfer apply', (group) => {
     });
     const foreignBefore = await readState('a-loft', true);
     const preservedTables = [
-      'memberships',
+      'company_memberships',
       'account_invitations',
       'account_admissions',
       'account_access_restrictions',
@@ -481,8 +481,8 @@ test.group('beta transfer apply', (group) => {
 
     const roleProof = await proof(client, cookie, { baseRevision, document: full });
     await db
-      .from('memberships')
-      .where({ account_id: accountId, user_id: userId })
+      .from('company_memberships')
+      .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'admin' });
     const roleDenied = await apply(client, cookie, full, baseRevision, roleProof);
     roleDenied.assertStatus(403);
@@ -490,8 +490,8 @@ test.group('beta transfer apply', (group) => {
     assert.isNull(roleProofRow?.consumed_at);
 
     await db
-      .from('memberships')
-      .where({ account_id: accountId, user_id: userId })
+      .from('company_memberships')
+      .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'owner' });
     const sessionProof = await proof(client, cookie, { baseRevision, document: full });
     await db.from('account_sessions').where('user_id', userId).delete();

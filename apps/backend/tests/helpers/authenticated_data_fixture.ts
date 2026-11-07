@@ -7,7 +7,9 @@ import { resetState } from '#services/state_repository';
 import { encodeRow } from '#services/state_repository';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
+import { sqlTimestamp } from '@kevinjohn/adonisjs-account-kit/transaction';
 import { createIdentity, sessionCookieHeader, signIn } from './identities.js';
+import { insertMembership, membership } from './memberships.js';
 
 const ownerEmail = 'bruce.wayne@wayne.example';
 
@@ -18,17 +20,7 @@ export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 
     await createIdentity(ownerEmail, { name: 'Bruce Wayne' });
   const { cookie, cookieHeader, userId } = await signIn(client, ownerEmail);
   const accounts = await db.from('accounts').select('id');
-  const now = new Date().toISOString();
-  for (const account of accounts)
-    await db.table('memberships').insert({
-      id: randomUUID(),
-      account_id: account.id,
-      user_id: userId,
-      role: 'owner',
-      status: 'active',
-      created_at: now,
-      updated_at: now,
-    });
+  for (const account of accounts) await insertMembership(account.id, userId, 'owner');
   return { cookie, cookieHeader, userId };
 }
 
@@ -72,21 +64,8 @@ export async function resetAuthenticatedClient(client: ApiClient, seed: boolean 
 
 /** Gives a fixture principal explicit standing in a company inserted directly by a test. */
 export async function grantDataOwner(userId: string, accountId: string) {
-  const existing = await db
-    .from('memberships')
-    .where({ user_id: userId, account_id: accountId })
-    .first();
-  if (existing) return;
-  const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    id: randomUUID(),
-    account_id: accountId,
-    user_id: userId,
-    role: 'owner',
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
+  if (await membership(accountId, userId)) return;
+  await insertMembership(accountId, userId, 'owner');
 }
 
 /** Inserts one isolated company for an existing native test principal without clearing other rows. */
@@ -127,14 +106,14 @@ export async function createFixtureCompanyForOwner(
       .insert(
         encodeRow('clients', buildInternalClient(id, now) as unknown as Record<string, unknown>)
       );
-    await trx.table('memberships').insert({
-      id: randomUUID(),
-      account_id: id,
+    const membershipTime = sqlTimestamp(trx);
+    await trx.table('company_memberships').insert({
+      scope_id: id,
       user_id: userId,
       role: 'owner',
       status: 'active',
-      created_at: now,
-      updated_at: now,
+      created_at: membershipTime,
+      updated_at: membershipTime,
     });
     await trx.table('company_planning_revisions').insert({ account_id: id, revision: 1 });
   });

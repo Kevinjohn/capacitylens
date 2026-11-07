@@ -374,6 +374,25 @@ export class CommandResultSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
+export class CompanyMembershipSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'role', 'scopeId', 'status', 'updatedAt', 'userId'] as const
+  $columns = CompanyMembershipSchema.$columns
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare role: import('@capacitylens/shared/account/types').Role
+  @column()
+  declare scopeId: string
+  @column()
+  declare status: 'active' | 'suspended'
+  @column()
+  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare userId: string
+}
+
 export class CompanyPlanningRevisionSchema extends BaseModel {
   static $columns = ['accountId', 'revision'] as const
   $columns = CompanyPlanningRevisionSchema.$columns
@@ -565,25 +584,6 @@ export class MasqueradeModeSchema extends BaseModel {
   declare targetStampHash: string | null
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
-export class MembershipSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'id', 'role', 'status', 'updatedAt', 'userId'] as const
-  $columns = MembershipSchema.$columns
-  @column()
-  declare accountId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare role: import('@capacitylens/shared/account/types').Role
-  @column()
-  declare status: import('@capacitylens/shared/account/types').MembershipStatus
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare userId: string
 }
 
 export class OwnershipTransferSchema extends BaseModel {

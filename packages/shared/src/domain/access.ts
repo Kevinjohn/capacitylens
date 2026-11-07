@@ -136,6 +136,10 @@ export function canSeeTimeOffNote(role: Role): boolean {
   return role === 'owner' || role === 'admin';
 }
 
+export function canReadInactiveExport(role: Role): boolean {
+  return role === 'owner' || role === 'admin';
+}
+
 /**
  * Field-level visibility rule for private client/project real names and their stored code-name
  * settings. This is intentionally stricter than time-off notes: the account owner is the sole role

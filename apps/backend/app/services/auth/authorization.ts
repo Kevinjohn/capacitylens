@@ -1,37 +1,40 @@
+import db from '@adonisjs/lucid/services/db';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { canAdministerIdentityAcrossWorkspaces } from '@capacitylens/shared/account/policy';
-import type { Role } from '@capacitylens/shared/account/types';
-import { can, type Action } from '@capacitylens/shared/domain/access';
+import { actionPermission } from '@capacitylens/shared/account/permissions';
+import { isAccountRole, type Role } from '@capacitylens/shared/account/types';
+import type { Action } from '@capacitylens/shared/domain/access';
+import access from '#config/access_control';
 import { actorIn } from '#services/auth/current_actor';
 import { forbiddenAdmission } from '#services/admission/errors';
 
-/** A transaction, or the default connection where a Kit callback supplies none. */
-type Reader = Pick<TransactionClientContract, 'from'>;
+/** A transaction, or none where a Kit callback supplies none; raw reads then use the default connection. */
+type Reader = TransactionClientContract | undefined;
 
 export class IdentityAuthorityError extends Error {
   code = 'IDENTITY_AUTHORITY_DENIED';
   status = 403;
 }
 
-const roles = new Set<Role>(['viewer', 'editor', 'admin', 'owner']);
+/** A stored role outside the product vocabulary is corruption: a server fault, never a 403. */
+export class MembershipStorageError extends Error {
+  code = 'MEMBERSHIP_STORAGE_CORRUPT';
+}
 
 function role(value: unknown): Role {
-  if (typeof value !== 'string' || !roles.has(value as Role)) {
-    throw new IdentityAuthorityError('Invalid membership role.');
-  }
-  return value as Role;
+  if (!isAccountRole(value)) throw new MembershipStorageError('Stored membership role is invalid.');
+  return value;
 }
 
 /** Restricts a principal directly or by its confirmed address, which outlives a re-created identity. */
 export async function restrictedCompanyIds(userId: string, trx: Reader) {
-  const proof = await trx
+  const proof = await (trx ?? db)
     .from('users')
     .where('id', userId)
     .whereNotNull('email_verified_at')
     .whereNull('unverified_email')
     .select('email')
     .first();
-  const rows = await trx
+  const rows = await (trx ?? db)
     .from('account_access_restrictions')
     .where((query) => {
       // These clauses configure the enclosing awaited query.
@@ -51,17 +54,13 @@ export async function assertCompanyAccessOpen(userId: string, accountId: string,
 }
 
 async function memberRoles(userId: string, trx: Reader, activeOnly: boolean) {
-  const query = trx
-    .from('memberships as membership')
-    .innerJoin('accounts as account', 'account.id', 'membership.account_id')
-    .where('membership.user_id', userId);
-  if (activeOnly) void query.where('membership.status', 'active');
-  const rows = await query.select('membership.account_id', 'membership.role');
+  const list = await access.memberships.listForUser(userId, trx);
   const restricted = activeOnly ? await restrictedCompanyIds(userId, trx) : new Set<string>();
   return new Map(
-    rows
-      .filter((row) => !restricted.has(String(row.account_id)))
-      .map((row) => [String(row.account_id), role(row.role)])
+    list
+      .filter((m) => (activeOnly ? m.status === 'active' : true))
+      .filter((m) => !restricted.has(String(m.scopeId)))
+      .map((m) => [String(m.scopeId), role(m.role)])
   );
 }
 
@@ -75,9 +74,7 @@ export async function assertMayAdministerTarget(
     memberRoles(actorUserId, trx, true),
     memberRoles(targetUserId, trx, false),
   ]);
-  if (
-    !canAdministerIdentityAcrossWorkspaces(actorRoles, targetRoles, actorUserId === targetUserId)
-  ) {
+  if (!access.canAdministerIdentity(actorRoles, targetRoles, actorUserId === targetUserId)) {
     throw new IdentityAuthorityError('You cannot administer this identity.');
   }
 }
@@ -88,15 +85,11 @@ export async function activeCompanyRole(
   accountId: string,
   trx: Reader
 ): Promise<Role | null> {
-  const row = await trx
-    .from('memberships')
-    .where({ user_id: actorUserId, account_id: accountId, status: 'active' })
-    .select('role')
-    .first();
-  if (!row) return null;
+  const m = await access.memberships.find(accountId, actorUserId, trx);
+  if (!m || m.status !== 'active') return null;
   const restricted = await restrictedCompanyIds(actorUserId, trx);
   if (restricted.has(accountId)) return null;
-  return role(row.role);
+  return role(m.role);
 }
 
 /** Authorizes one company action from live membership inside the actor's verified transaction. */
@@ -107,6 +100,8 @@ export async function assertCompanyAction(
 ): Promise<{ actorId: string; role: Role }> {
   const actor = actorIn(trx);
   const memberRole = await activeCompanyRole(actor.userId, accountId, trx);
-  if (!memberRole || !can(memberRole, action)) throw new IdentityAuthorityError('Forbidden.');
+  if (!memberRole || !access.can(memberRole, actionPermission[action])) {
+    throw new IdentityAuthorityError('Forbidden.');
+  }
   return { actorId: actor.userId, role: memberRole };
 }

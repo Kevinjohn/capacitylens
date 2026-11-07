@@ -82,7 +82,7 @@ export default class MembersController {
     const accountId = readRouteParam(ctx.params.accountId);
     const directory = await withActor(ctx, async (_actor, trx) => {
       const actor = await assertCompanyAction(accountId, 'manageMembers', trx);
-      return readMemberDirectory(trx, accountId, actor.actorId);
+      return readMemberDirectory(trx, accountId, actor);
     });
     return ctx.response.ok(directory);
   }
@@ -133,7 +133,6 @@ export default class MembersController {
           changeMemberRole(trx, {
             accountId,
             actorId: actor.actorId,
-            actorRole: actor.role,
             userId,
             role,
           }),
@@ -212,7 +211,6 @@ export default class MembersController {
           removeMember(trx, {
             accountId,
             actorId: actor.actorId,
-            actorRole: actor.role,
             userId,
           }),
       });

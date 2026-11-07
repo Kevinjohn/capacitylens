@@ -10,6 +10,7 @@ import { IdentityAuthorityError } from '#services/auth/authorization';
 import { ActionProofError } from '#services/auth/action_proof';
 import { AdmissionError } from '#services/admission/errors';
 import { buildKitRefusal } from '#services/account_kit/refusal';
+import { buildAccessRefusal } from '#services/access_control/refusal';
 import { FirstCompanyPendingError } from '#models/user';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import {
@@ -129,6 +130,11 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       }
       return ctx.response.status(kitRefusal.status).send(kitRefusal.body);
     }
+    const accessRefusal = buildAccessRefusal(error);
+    if (accessRefusal) {
+      ctx.response.header('Cache-Control', 'no-store');
+      return ctx.response.status(accessRefusal.status).send(accessRefusal.body);
+    }
     if (error instanceof AdmissionError) {
       return ctx.response.status(error.status).send({
         error: error.message,
@@ -222,6 +228,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     ) {
       return;
     }
+    // Mapped Access Control refusals are expected 4xx; unmapped package codes stay reportable.
+    if (buildAccessRefusal(error)) return;
     // Account Kit refusals are expected outcomes; its server faults are still reported.
     const kitRefusal = buildKitRefusal(error);
     if (kitRefusal && kitRefusal.status < 500) return;

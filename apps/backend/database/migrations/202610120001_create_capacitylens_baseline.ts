@@ -252,18 +252,27 @@ export default class extends BaseSchema {
       table.timestamp('updated_at').notNullable();
       table.index(['account_id']);
     });
-    this.schema.createTable('memberships', (table) => {
-      metadata(table);
+    this.schema.createTable('company_memberships', (table) => {
+      table.increments('id');
       table
-        .string('account_id')
+        .string('scope_id', 254)
         .notNullable()
         .references('id')
         .inTable('accounts')
-        .onDelete('CASCADE');
-      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
-      table.string('role').notNullable();
-      table.string('status').notNullable();
-      table.unique(['account_id', 'user_id']);
+        .onDelete('RESTRICT');
+      table
+        .string('user_id', 254)
+        .notNullable()
+        .references('id')
+        .inTable('users')
+        .onDelete('RESTRICT');
+      table.string('role', 32).notNullable();
+      table.string('status', 16).notNullable().defaultTo('active');
+      table.timestamp('created_at', { useTz: true }).notNullable();
+      table.timestamp('updated_at', { useTz: true }).notNullable();
+      table.unique(['scope_id', 'user_id'], { indexName: 'company_memberships_scope_user_unique' });
+      table.index(['user_id'], 'company_memberships_user_index');
+      table.index(['scope_id', 'created_at', 'id'], 'company_memberships_scope_page_index');
     });
     this.schema.createTable('account_member_resources', (table) => {
       metadata(table);

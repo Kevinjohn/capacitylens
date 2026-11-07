@@ -168,21 +168,34 @@ test.group('admission and membership completion', (group) => {
     await company(api);
     const userId = await createIdentity(person, { password });
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: accountId,
+    await db.table('company_memberships').insert({
+      scope_id: accountId,
       user_id: userId,
       role: 'editor',
-      status: 'disabled',
+      status: 'active',
       created_at: now,
       updated_at: now,
+    });
+    await db.table('account_access_restrictions').insert({
+      id: 'restrict-clark',
+      account_id: accountId,
+      principal_id: userId,
+      verified_email: null,
+      role: 'editor',
+      created_at: now,
     });
     const { cookie } = await signIn(api, person, password);
     const refused = await as(cookie).post(api, '/api/admission/complete');
     refused.assertStatus(409);
     assert.equal(refused.body().code, 'MEMBERSHIP_DISABLED');
-    const membership = await db.from('memberships').where('user_id', userId).first();
-    assert.equal(membership?.status, 'disabled');
+    const membership = await db.from('company_memberships').where('user_id', userId).first();
+    assert.equal(membership?.status, 'active');
+    assert.lengthOf(
+      await db
+        .from('account_access_restrictions')
+        .where({ account_id: accountId, principal_id: userId }),
+      1
+    );
   });
 
   test('an Admin whose admission was revoked can no longer list or decide admission', async ({
@@ -192,9 +205,8 @@ test.group('admission and membership completion', (group) => {
     const userId = await invitedIdentity('viewer');
     const adminId = await createIdentity('diana.prince@wayne.example', { password });
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-diana',
-      account_id: accountId,
+    await db.table('company_memberships').insert({
+      scope_id: accountId,
       user_id: adminId,
       role: 'admin',
       status: 'active',
@@ -213,9 +225,8 @@ test.group('admission and membership completion', (group) => {
     const userId = await invitedIdentity('viewer');
     const editorId = await createIdentity('barry.allen@wayne.example', { password });
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-barry',
-      account_id: accountId,
+    await db.table('company_memberships').insert({
+      scope_id: accountId,
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -275,11 +286,11 @@ test.group('address confirmation', (group) => {
 
     await expectStatus(as(cookie).post(api, '/api/admission/complete'), 403);
     await expectStatus(planning(api, cookie), 403);
-    assert.lengthOf(await db.from('memberships').where('user_id', userId), 0);
+    assert.lengthOf(await db.from('company_memberships').where('user_id', userId), 0);
 
     const enabled = await asOwner('post', '/enable-access').send();
     enabled.assertStatus(200);
-    const membership = await db.from('memberships').where('user_id', userId).first();
+    const membership = await db.from('company_memberships').where('user_id', userId).first();
     assert.equal(membership?.role, 'viewer');
     assert.equal(membership?.status, 'active');
     await expectStatus(planning(api, cookie), 200);

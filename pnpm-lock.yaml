@@ -140,6 +140,9 @@ importers:
       '@capacitylens/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@kevinjohn/adonisjs-access-control':
+        specifier: file:../../vendor/kevinjohn-adonisjs-access-control/kevinjohn-adonisjs-access-control-0.1.2.tgz
+        version: file:vendor/kevinjohn-adonisjs-access-control/kevinjohn-adonisjs-access-control-0.1.2.tgz(@adonisjs/auth@10.1.0(f1ec7faa977c7308d7efd0b7d9eb9056))(@adonisjs/bouncer@4.0.1(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1)))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@adonisjs/lucid@22.4.2(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(@kevinjohn/adonisjs-account-kit@file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz(5ba545988bc81ac25f20b54e12a936ac))(luxon@3.7.2)(typescript@5.9.3)
       '@kevinjohn/adonisjs-account-kit':
         specifier: file:../../vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz
         version: file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz(5ba545988bc81ac25f20b54e12a936ac)
@@ -1693,6 +1696,22 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@kevinjohn/adonisjs-access-control@file:vendor/kevinjohn-adonisjs-access-control/kevinjohn-adonisjs-access-control-0.1.2.tgz':
+    resolution: {integrity: sha512-GMoH/177Uj5rOjI4jw3PHCPUoMXtPglxcgDjkWZt7irKX23fv5JnF5DhIOXijlzie0pKEy9WgBGmbyErDtqtUQ==, tarball: file:vendor/kevinjohn-adonisjs-access-control/kevinjohn-adonisjs-access-control-0.1.2.tgz}
+    version: 0.1.2
+    engines: {node: '>=24.0.0'}
+    peerDependencies:
+      '@adonisjs/auth': ^10.0.0
+      '@adonisjs/bouncer': ^4.0.0
+      '@adonisjs/core': ^7.0.0
+      '@adonisjs/lucid': ^22.4.2
+      '@kevinjohn/adonisjs-account-kit': 0.3.1
+      luxon: ^3.4.4
+      typescript: ^5.9.3 || ^6.0.3
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   '@kevinjohn/adonisjs-account-kit@file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz':
     resolution: {integrity: sha512-w15GnARUQ+nzVpcg3++sLKn9yIqLhgUC+oOVbStwLWSGmDR6PsGnSplzs8nZhd228g95UX8DfL8IsAXPSJgh0A==, tarball: file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz}
@@ -7712,6 +7731,7 @@ snapshots:
       '@adonisjs/shield': 9.0.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/session@8.3.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))
       '@adonisjs/static': 2.0.1(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))
       '@capacitylens/shared': file:packages/shared
+      '@kevinjohn/adonisjs-access-control': file:vendor/kevinjohn-adonisjs-access-control/kevinjohn-adonisjs-access-control-0.1.2.tgz(60429eb84084da3ecc790716a35c8700)
       '@kevinjohn/adonisjs-account-kit': file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/limiter@3.0.1(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(@adonisjs/mail@10.4.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@types/node@24.19.2)(luxon@3.7.2))(@adonisjs/session@8.3.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))(@vinejs/vine@4.4.0)(luxon@3.7.2)(typescript@5.9.3)
       '@kevinjohn/adonisjs-lucid-soft-delete': file:vendor/lucid-soft-deletes/kevinjohn-adonisjs-lucid-soft-delete-0.1.4.tgz(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(luxon@3.7.2)(typescript@5.9.3)
       '@kevinjohn/adonisjs-masquerade': file:vendor/kevinjohn-adonisjs-masquerade/kevinjohn-adonisjs-masquerade-0.2.1.tgz(5c9ffb2674a77114f5e3e059e35ed6cd)
@@ -8227,6 +8247,28 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@kevinjohn/adonisjs-access-control@file:vendor/kevinjohn-adonisjs-access-control/kevinjohn-adonisjs-access-control-0.1.2.tgz(60429eb84084da3ecc790716a35c8700)':
+    dependencies:
+      '@adonisjs/auth': 10.1.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(@adonisjs/session@8.3.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))
+      '@adonisjs/bouncer': 4.0.1(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))
+      '@adonisjs/core': 7.6.0(@vinejs/vine@4.4.0)
+      '@adonisjs/lucid': 22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)
+      '@kevinjohn/adonisjs-account-kit': file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/limiter@3.0.1(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(@adonisjs/mail@10.4.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@types/node@24.19.2)(luxon@3.7.2))(@adonisjs/session@8.3.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))(@vinejs/vine@4.4.0)(luxon@3.7.2)(typescript@5.9.3)
+      luxon: 3.7.2
+    optionalDependencies:
+      typescript: 5.9.3
+
+  '@kevinjohn/adonisjs-access-control@file:vendor/kevinjohn-adonisjs-access-control/kevinjohn-adonisjs-access-control-0.1.2.tgz(@adonisjs/auth@10.1.0(f1ec7faa977c7308d7efd0b7d9eb9056))(@adonisjs/bouncer@4.0.1(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1)))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@adonisjs/lucid@22.4.2(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(@kevinjohn/adonisjs-account-kit@file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz(5ba545988bc81ac25f20b54e12a936ac))(luxon@3.7.2)(typescript@5.9.3)':
+    dependencies:
+      '@adonisjs/auth': 10.1.0(f1ec7faa977c7308d7efd0b7d9eb9056)
+      '@adonisjs/bouncer': 4.0.1(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))
+      '@adonisjs/core': 7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1)
+      '@adonisjs/lucid': 22.4.2(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)
+      '@kevinjohn/adonisjs-account-kit': file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz(5ba545988bc81ac25f20b54e12a936ac)
+      luxon: 3.7.2
+    optionalDependencies:
+      typescript: 5.9.3
 
   '@kevinjohn/adonisjs-account-kit@file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz(5ba545988bc81ac25f20b54e12a936ac)':
     dependencies:

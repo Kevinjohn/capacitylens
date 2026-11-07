@@ -17,9 +17,11 @@ import {
 } from '../../helpers/authenticated_data_fixture.js';
 import { rememberSessionCookie } from '../../helpers/identities.js';
 import {
+  bootstrapInvitation,
   captureMail,
   clearIdentities,
   createIdentity,
+  linkToken,
   signIn,
   expectStatus,
 } from '../../helpers/identities.js';
@@ -39,9 +41,8 @@ async function company() {
 async function member(email: string, role: 'admin' | 'editor' | 'viewer') {
   const userId = await createIdentity(email);
   const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    id: crypto.randomUUID(),
-    account_id: accountId,
+  await db.table('company_memberships').insert({
+    scope_id: accountId,
     user_id: userId,
     role,
     status: 'active',
@@ -111,8 +112,8 @@ test.group('company invitations', (group) => {
     const accepted = await accept(client, token);
     accepted.assertStatus(201);
     const userId = (accepted.body() as { user: { id: string } }).user.id;
-    assert.deepInclude(await db.from('memberships').where('user_id', userId).first(), {
-      account_id: accountId,
+    assert.deepInclude(await db.from('company_memberships').where('user_id', userId).first(), {
+      scope_id: accountId,
       role: 'editor',
       status: 'active',
     });
@@ -164,11 +165,39 @@ test.group('company invitations', (group) => {
     const accepted = await accept(client, mail.tokenFor(invitee));
     accepted.assertStatus(201);
     const userId = (accepted.body() as { user: { id: string } }).user.id;
-    const memberships = await db.from('memberships').where('user_id', userId);
+    const memberships = await db.from('company_memberships').where('user_id', userId);
     assert.lengthOf(memberships, 1);
-    assert.include(memberships[0], { account_id: accountId, role: 'editor', status: 'active' });
+    assert.include(memberships[0], { scope_id: accountId, role: 'editor', status: 'active' });
     assert.isEmpty(await db.from('account_invitations').where('email', invitee));
     await expectStatus(accept(client, token), 400);
+  });
+
+  test('an operator invitation issued after setup joins the company', async ({
+    client,
+    assert,
+  }) => {
+    await company();
+    const { url } = await accountKit.operator.invite({
+      email: invitee,
+      role: 'viewer',
+      deliver: 'print',
+    });
+    const accepted = await accept(client, linkToken(url!));
+    accepted.assertStatus(201);
+    const userId = (accepted.body() as { user: { id: string } }).user.id;
+    const membership = await db.from('company_memberships').where('user_id', userId).first();
+    assert.include(membership, { scope_id: accountId, role: 'viewer', status: 'active' });
+  });
+
+  test('the bootstrap invitation is still accepted before the first company', async ({
+    client,
+    assert,
+  }) => {
+    const accepted = await accept(client, await bootstrapInvitation(invitee));
+    accepted.assertStatus(201);
+    assert.lengthOf(await db.from('users').where('email', invitee), 1);
+    assert.lengthOf(await db.from('accounts'), 0);
+    assert.lengthOf(await db.from('company_memberships'), 0);
   });
 
   test('only Owners and Admins invite, never as Owner, and never without mail', async ({
@@ -316,7 +345,7 @@ test.group('company invitations', (group) => {
     const results = await Promise.all([accept(client, token), accept(client, token)]);
     assert.deepEqual(results.map((result) => result.status()).sort(), [201, 400]);
     assert.lengthOf(await db.from('users').where('email', invitee), 1);
-    assert.lengthOf(await db.from('memberships').where('account_id', accountId), 2);
+    assert.lengthOf(await db.from('company_memberships').where('scope_id', accountId), 2);
   });
 
   test('a sender demoted after manager approval cannot insert or email an invitation', async ({
@@ -345,7 +374,7 @@ test.group('company invitations', (group) => {
     const pending = invite(client, cookie, invitee);
     try {
       await barrier.entered();
-      await db.from('memberships').where('user_id', adminId).update({ role: 'viewer' });
+      await db.from('company_memberships').where('user_id', adminId).update({ role: 'viewer' });
       barrier.release();
       const refused = await pending;
       refused.assertStatus(403);
@@ -382,6 +411,6 @@ test.group('company invitations', (group) => {
     const refused = await accept(client, mail.tokenFor(invitee));
     refused.assertStatus(403);
     assert.lengthOf(await db.from('users').where('email', invitee), 0);
-    assert.lengthOf(await db.from('memberships').where('account_id', accountId), 1);
+    assert.lengthOf(await db.from('company_memberships').where('scope_id', accountId), 1);
   });
 });

@@ -50,9 +50,8 @@ async function createMember(client: ApiClient, role: Role) {
   if (!cookie) throw new Error('Sign-up did not return a native session cookie');
   const userId = String((signup.body() as { user: { id: string } }).user.id);
   const timestamp = new Date().toISOString();
-  await db.table('memberships').insert({
-    id: randomUUID(),
-    account_id: accountId,
+  await db.table('company_memberships').insert({
+    scope_id: accountId,
     user_id: userId,
     role,
     status: 'active',
@@ -63,7 +62,10 @@ async function createMember(client: ApiClient, role: Role) {
 }
 
 async function setRole(userId: string, role: Role) {
-  await db.from('memberships').where({ account_id: accountId, user_id: userId }).update({ role });
+  await db
+    .from('company_memberships')
+    .where({ scope_id: accountId, user_id: userId })
+    .update({ role });
 }
 
 async function stateFor(client: ApiClient, cookie: string, companyId = accountId) {
@@ -133,7 +135,7 @@ test.group('native authorization and role projections', (group) => {
     await db.from('account_admissions').delete();
     await db.from('account_invitations').delete();
     await db.from('adonis_sessions').delete();
-    await db.from('memberships').delete();
+    await db.from('company_memberships').delete();
     await db.from('users').delete();
     await db.from('rate_limits').delete();
     await db.from('account_getting_started_dismissals').delete();
@@ -153,16 +155,15 @@ test.group('native authorization and role projections', (group) => {
     const openHealth = await client.get('/api/health').send();
     openHealth.assertStatus(200);
 
-    await db.from('memberships').where({ user_id: userId }).delete();
+    await db.from('company_memberships').where({ user_id: userId }).delete();
     const nonMember = await stateFor(client, cookie);
     nonMember.assertStatus(403);
     const nonMemberProjection = await currentUser(client, cookie);
     nonMemberProjection.assertStatus(200);
     assert.isFalse((nonMemberProjection.body() as { canCreateAccount: boolean }).canCreateAccount);
 
-    await db.table('memberships').insert({
-      id: randomUUID(),
-      account_id: accountId,
+    await db.table('company_memberships').insert({
+      scope_id: accountId,
       user_id: userId,
       role: 'editor',
       status: 'active',

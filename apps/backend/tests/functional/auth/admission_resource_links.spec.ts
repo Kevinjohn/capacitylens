@@ -53,10 +53,9 @@ test.group('direct member resource association', (group) => {
     const barbaraId = (barbara.body() as { user: { id: string } }).user.id;
     const now = new Date().toISOString();
     const orderedAt = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
-    await db.table('memberships').insert([
+    await db.table('company_memberships').insert([
       {
-        id: 'member-clark',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: clarkId,
         role: 'editor',
         status: 'active',
@@ -64,8 +63,7 @@ test.group('direct member resource association', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-diana',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: dianaId,
         role: 'editor',
         status: 'active',
@@ -73,8 +71,7 @@ test.group('direct member resource association', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-barbara',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: barbaraId,
         role: 'editor',
         status: 'active',
@@ -321,9 +318,8 @@ test.group('direct member resource association', (group) => {
       created_at: now,
       updated_at: now,
     });
-    await db.table('memberships').insert({
-      id: crypto.randomUUID(),
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: otherId,
       role: 'viewer',
       status: 'active',
@@ -344,13 +340,13 @@ test.group('direct member resource association', (group) => {
     const ownerCleared = await clear(ownerId, second.body().revision);
     ownerCleared.assertStatus(204);
     await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: ownerId })
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', user_id: ownerId })
       .update({ role: 'admin' });
     for (const unavailable of ['inactive', 'restricted']) {
       await db
-        .from('memberships')
-        .where({ account_id: 'a-studio', user_id: otherId })
+        .from('company_memberships')
+        .where({ scope_id: 'a-studio', user_id: otherId })
         .update({ status: 'active' });
       await db
         .from('account_access_restrictions')
@@ -361,9 +357,9 @@ test.group('direct member resource association', (group) => {
       const expected = link.body().revision;
       if (unavailable === 'inactive')
         await db
-          .from('memberships')
-          .where({ account_id: 'a-studio', user_id: otherId })
-          .update({ status: 'inactive' });
+          .from('company_memberships')
+          .where({ scope_id: 'a-studio', user_id: otherId })
+          .update({ status: 'suspended' });
       else
         await db.table('account_access_restrictions').insert({
           id: crypto.randomUUID(),

@@ -209,8 +209,8 @@ test.group('company anonymisation', (group) => {
     const { cookie, userId } = await resetAuthenticatedData(client, true);
     const target = await db.from('resources').where('account_id', accountId).first();
     await db
-      .from('memberships')
-      .where({ account_id: accountId, user_id: userId })
+      .from('company_memberships')
+      .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'editor' });
     const refused = await asDataOwner(
       client.post(`/api/accounts/${accountId}/resources/${target.id}/anonymise`),
@@ -264,8 +264,8 @@ test.group('company anonymisation', (group) => {
       .update({ note: 'Sensitive time off note' });
     const selectedDelete = await deleteAllocation(client, cookie, resource.id);
     const membershipBefore = await db
-      .from('memberships')
-      .where('account_id', accountId)
+      .from('company_memberships')
+      .where('scope_id', accountId)
       .select('*');
     const memberLinksBefore = await db
       .from('account_member_resources')
@@ -369,7 +369,7 @@ test.group('company anonymisation', (group) => {
       0
     );
     assert.deepEqual(await db.from('accounts').where('id', accountId).first(), accountBefore);
-    const memberships = await db.from('memberships').where('account_id', accountId);
+    const memberships = await db.from('company_memberships').where('scope_id', accountId);
     assert.isAbove(memberships.length, 0);
     assert.deepEqual(memberships, membershipBefore);
     assert.equal(memberships.find((membership) => membership.user_id === userId)?.role, 'owner');
@@ -503,8 +503,8 @@ test.group('company anonymisation', (group) => {
     const proofId = await proof(client, cookie);
     const resource = await db.from('resources').where('account_id', accountId).first();
     await db
-      .from('memberships')
-      .where({ account_id: accountId, user_id: userId })
+      .from('company_memberships')
+      .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'editor' });
     const denied = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
       .json({ proofId })
@@ -614,9 +614,8 @@ test.group('company anonymisation', (group) => {
     assert.isString(otherActorCookie);
     const otherActorId = String((otherActorSignup.body() as { user: { id: string } }).user.id);
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-diana-anonymise',
-      account_id: accountId,
+    await db.table('company_memberships').insert({
+      scope_id: accountId,
       user_id: otherActorId,
       role: 'owner',
       status: 'active',
