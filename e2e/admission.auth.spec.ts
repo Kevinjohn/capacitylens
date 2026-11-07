@@ -22,9 +22,9 @@ test('an invited person accepts, waits for approval, and enters with the invited
 }) => {
   test.setTimeout(60_000);
   const owner = await signUpUser(OWNER);
-  const accountId = await bootstrapOrg(request, owner.cookie, `Admission Studio ${STAMP}`);
+  await bootstrapOrg(request, owner.cookie, `Admission Studio ${STAMP}`);
 
-  await page.goto(printFixtureInvitation(PERSON, 'editor', accountId));
+  await page.goto(printFixtureInvitation(PERSON, 'editor'));
   await expect(page.getByTestId('invite-role')).toHaveText('Editor');
   await page.getByTestId('invite-name').fill('Barry Allen');
   await page.getByTestId('invite-password').fill(PASSWORD);
