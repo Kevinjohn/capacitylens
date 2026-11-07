@@ -16,7 +16,6 @@ export interface MemberMutationDependencies extends Pick<
   MemberActionDependencies,
   'withMemberAction' | 'isActiveAccount' | 'fail' | 'setNotice'
 > {
-  refreshCallerAccess: ReturnType<typeof createMemberAccessReconciliation>['refreshCallerAccess'];
   reconcileUnknownMutation: ReturnType<
     typeof createMemberAccessReconciliation
   >['reconcileUnknownMutation'];
@@ -67,9 +66,7 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
         if (!dependencies.isActiveAccount(accountId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {
-            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_role_change(), {
-              callerAccessMayHaveChanged: member.isSelf,
-            });
+            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_role_change());
             return;
           }
           dependencies.fail(
@@ -82,16 +79,14 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
           return;
         }
         dependencies.setNotice(m.settings_members_role_updated());
-        if (member.isSelf) await dependencies.refreshCallerAccess();
         dependencies.refreshDirectory();
       } catch (cause) {
-        // A role-change request may have committed; reconcile caller access too when the edited member is self.
+        // A role-change request may have committed; reload the directory before another attempt.
         await dependencies.reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_role_change(),
             error: resolveErrorMessage(cause),
           }),
-          { callerAccessMayHaveChanged: member.isSelf },
         );
       }
     });

@@ -100,7 +100,6 @@ interface MemberDirectoryStateInput {
   enabled: boolean;
   fail: ReturnType<typeof useFieldError>['fail'];
   setNotice: StoreState['setNotice'];
-  setActiveAccount: StoreState['setActiveAccount'];
 }
 
 function useMemberDirectoryState(input: MemberDirectoryStateInput) {
@@ -129,11 +128,6 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     mounted.current &&
     useStore.getState().activeAccountId === accountId &&
     getMasqueradeContextToken() === actionContext;
-  const closeActiveAccount = (): void => {
-    if (useStore.getState().activeAccountId !== input.activeAccountId) return;
-    input.setActiveAccount(null);
-    useStore.setState({ previousAccountId: null });
-  };
   const withMemberAction = async (
     key: string,
     body: (accountId: string) => Promise<void>,
@@ -155,7 +149,6 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     members,
     resourceCandidates,
     renderedAt,
-    closeActiveAccount,
     actionDependencies: {
       requestAccountId,
       isActiveAccount,
@@ -168,8 +161,6 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
 
 interface MemberMutationStateInput {
   activeAccountId: string | null;
-  refreshAuth: ReturnType<typeof useAuth>['refreshAuth'];
-  invalidateMemberships: StoreState['invalidateMemberships'];
   clear: ReturnType<typeof useFieldError>['clear'];
   viewState: ReturnType<typeof useMemberViewState>;
   createInviteActions: ReturnType<typeof useMemberInvites>['createActions'];
@@ -179,10 +170,6 @@ interface MemberMutationStateInput {
 function useMemberMutationState(input: MemberMutationStateInput) {
   const refreshDirectory = input.directoryState.reload;
   const reconciliation = createMemberAccessReconciliation({
-    activeAccountId: input.activeAccountId,
-    invalidateMemberships: input.invalidateMemberships,
-    refreshAuth: input.refreshAuth,
-    closeActiveAccount: input.directoryState.closeActiveAccount,
     ...input.directoryState.actionDependencies,
     replaceAuthorizedDirectory: input.directoryState.replaceAuthorizedDirectory,
   });
@@ -221,15 +208,13 @@ function selectPublicViewState(viewState: ReturnType<typeof useMemberViewState>)
 function useMemberStoreActions() {
   return {
     setNotice: useStore((state) => state.setNotice),
-    setActiveAccount: useStore((state) => state.setActiveAccount),
-    invalidateMemberships: useStore((state) => state.invalidateMemberships),
   };
 }
 
 /** Coordinates member reads, invitations, and access mutations for the active account. */
 export function useMembersOrchestration(activeAccountId: string | null) {
-  const { authMode, refreshAuth } = useAuth();
-  const { setNotice, setActiveAccount, invalidateMemberships } = useMemberStoreActions();
+  const { authMode } = useAuth();
+  const { setNotice } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
   const memberInvites = useMemberInvites();
@@ -240,7 +225,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     enabled,
     fail,
     setNotice,
-    setActiveAccount,
   });
   useEffect(() => {
     const unauthorized =
@@ -261,8 +245,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   );
   const mutationState = useMemberMutationState({
     activeAccountId,
-    invalidateMemberships,
-    refreshAuth,
     clear,
     viewState,
     createInviteActions,
