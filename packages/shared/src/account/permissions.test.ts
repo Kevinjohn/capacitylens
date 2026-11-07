@@ -1,16 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { can, isAtLeast } from '../domain/access.js';
 import type { Action } from '../domain/access.js';
 import {
   PERMISSION_KEYS,
-  accessPermissions,
   accessRoles,
   actionPermission,
   parseCompanyAccess,
   parseMemberActions,
 } from './permissions.js';
 import { ACCOUNT_ROLES } from './types.js';
-import type { Role } from './types.js';
 
 // Hard-coded so a new Action must be added here deliberately; `satisfies` rejects unknown names.
 const ACTIONS = [
@@ -25,13 +22,6 @@ const ACTIONS = [
   'transferOwnership',
   'actOnOwnershipTransfer',
 ] as const satisfies readonly Action[];
-
-const thresholds = accessPermissions as Record<string, Record<string, Role>>;
-
-function thresholdFor(action: Action): Role | undefined {
-  const [resource, permission] = actionPermission[action].split(':') as [string, string];
-  return thresholds[resource]?.[permission];
-}
 
 describe('access role order', () => {
   it('has the same members as ACCOUNT_ROLES and ends with owner', () => {
@@ -55,16 +45,6 @@ describe('actionPermission', () => {
     expect(Object.keys(actionPermission).sort()).toEqual([...ACTIONS].sort());
     for (const action of ACTIONS) {
       expect(PERMISSION_KEYS).toContain(actionPermission[action]);
-    }
-  });
-
-  it('keeps every mapped threshold in parity with the product access matrix', () => {
-    for (const role of ACCOUNT_ROLES) {
-      for (const action of ACTIONS) {
-        const threshold = thresholdFor(action);
-        expect(threshold, `${action} threshold`).toBeDefined();
-        expect(isAtLeast(role, threshold as Role), `${role} ${action}`).toBe(can(role, action));
-      }
     }
   });
 });

@@ -220,6 +220,23 @@ test.group('admission and membership completion', (group) => {
     await expectStatus(as(cookie).post(api, `/api/admission/${userId}/approve`), 403);
   });
 
+  test('an Admin cannot decide admission for the Owner', async ({ client: api }) => {
+    await company(api);
+    const ownerId = await db.from('users').where('email', owner).select('id').firstOrFail();
+    const adminId = await createIdentity('diana.prince@wayne.example', { password });
+    const now = new Date().toISOString();
+    await db.table('company_memberships').insert({
+      scope_id: accountId,
+      user_id: adminId,
+      role: 'admin',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    });
+    const { cookie } = await signIn(api, 'diana.prince@wayne.example', password);
+    await expectStatus(as(cookie).post(api, `/api/admission/${ownerId.id}/revoke`), 403);
+  });
+
   test('Editors and Viewers cannot list or decide admission', async ({ client: api }) => {
     await company(api);
     const userId = await invitedIdentity('viewer');

@@ -28,8 +28,9 @@ the page directly.
 
 Each company has exactly one Owner. Nobody becomes Owner through an invitation or a role change, only
 through [an ownership transfer](#hand-the-company-to-someone-else). An Admin can invite, remove,
-disable or change the role of any other member except the Owner. Nobody, not even the Owner, can
-disable or archive the Owner or themselves.
+disable or change the role of any other member except the Owner, including another Admin. Nobody
+can change their own role; ask another Admin or the Owner. Nobody, not even the Owner, can disable
+or archive the Owner or themselves.
 
 ![Members table showing roles, Resource links and row actions](../screenshots/flows/team_access_members.png)
 

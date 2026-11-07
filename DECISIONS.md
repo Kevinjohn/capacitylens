@@ -163,9 +163,9 @@ This is the short, present-tense record of decisions that constrain future work.
 ## Accounts, admission and security
 
 - Account Kit owns accounts: password sign-in, registration, address confirmation, password
-  change and reset, invitations, sessions and admission. CapacityLens owns company membership,
-  roles, the member↔resource link, Bouncer policies and every screen and word that renders a kit
-  outcome. Password sign-in is the only sign-in method; there are no identity providers.
+  change and reset, invitations, sessions and admission. CapacityLens owns company membership
+  policy, the role permissions it declares, the member↔resource link, Bouncer policies and every
+  screen and word that renders a kit outcome. Password sign-in is the only sign-in method; there are no identity providers.
 - Admission is cumulative and owned by the kit: an optional allowed email domain
   (`CAPACITYLENS_ALLOWED_EMAIL_DOMAINS`), invitation evidence and Owner or Admin approval, all from
   static configuration (restart to change). Accepting an emailed invitation records the evidence,
@@ -205,6 +205,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
   for a locked-out Owner is the kit's operator command, never an in-product action.
+- Company memberships are stored and ruled by `@kevinjohn/adonisjs-access-control`
+  (`company_memberships`, roles viewer < editor < admin < owner, active/suspended projected as
+  active/archived, restrictions separate). A member cannot change their own role.
 - Members and schedulable Resources are separate records linked explicitly. Adding a Resource never
   grants access; inviting a member never creates a person. Team & access is visible to every role;
   only Owner/Admin see invitation and access-management controls.
@@ -216,7 +219,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - Package admission captures the request identity before product transactions. The product
   transaction revalidates the same real actor/session and company/target access. Already-admitted
   operator requests may finish after start; already-admitted target requests remain read-only after
-  stop. Package operations never run inside the single-connection product transaction. Covered
+  stop. Masquerade operations open their own transactions and never run inside the
+  single-connection product transaction; Access Control membership operations run inside it with
+  the supplied transaction under the documented SQLite composition. Covered
   writes require the context captured for the action, including idle-mode writes; stale actions are
   refused and never automatically replayed.
 - Package events are authoritative for new view-as lifecycle audit. Historical product audit stays

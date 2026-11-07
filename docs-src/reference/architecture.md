@@ -39,7 +39,8 @@ apps/backend/
   app/middleware/         view-as read-only gate, trusted-local session gate, headers, logging
   app/exceptions/         global error-to-HTTP mapping
   start/                  routes, kernel middleware stacks, env schema, Node version gate
-  config/                 Account Kit, admission, masquerade, backup, session and mail config
+  config/                 Account Kit, Access Control, admission, masquerade, backup, session and
+                          mail config
   providers/              boot-time configuration checks and the backup scheduler lifecycle
   commands/               app:upgrade, app:reset, db:backup, company:initialize,
                           owner:reset-password
@@ -53,10 +54,11 @@ apps/frontend/src/
   lib/                    pure UI helpers
   api/planningContracts.ts  planning wire types derived from the generated route registry
 packages/shared/src/
-  domain/                 roles and access thresholds, lifecycle, tenancy, placement rules
+  domain/                 product actions, field visibility, lifecycle, tenancy, placement rules
   types/                  entity types
   lib/                    dates, working days, colours, ids, integrity checks
-  account/, api/, data/   account policy, HTTP error shapes, export format and seed data
+  account/, api/, data/   role permission declaration, HTTP error shapes, export format and seed
+                          data
 ```
 
 The rest of `apps/backend/app/services` includes single-purpose modules: `anonymise.ts`,
@@ -248,7 +250,7 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 | Sign-in, session, revocation | `/api/auth/*`; sign-in and reset screens | Account Kit; `app/services/auth/password_sign_in.ts`, `app/controllers/credential_controller.ts` | Kit `login`, `logout`, password change and reset transactions; tracking in `withActor` | Kit session, revision and registry check under the account lock on every request | `app/services/auth/user_projection.ts` | 401, 429, `SIGN_UP_CLOSED`, `CURRENT_PASSWORD_INCORRECT`, `INVALID_TOKEN` | `tests/functional/auth/password_sessions.spec.ts`, `tests/functional/auth/recovery.spec.ts` |
 | Admission | `/api/admission*`; limited screens | Kit `AccountAdmission`; `app/services/account_kit/policy.ts`, `app/services/membership/admission_membership.ts` | Kit admission transaction; completion in `withActor` | Live role holds `manageInvites`; admission rechecked in `withActor` on the next request | `decision` in `/api/auth/me` and `/api/admission` | `ADMISSION_REQUIRED`, `COMPANY_SETUP_REQUIRED`, `MEMBERSHIP_DISABLED` | `tests/functional/auth/admission.spec.ts` |
 | Invitations | `/api/invites*`; Team & access, invite screen | Kit invitations; `app/controllers/invitations_controller.ts` | Kit transactions; acceptance inserts the membership inside the Kit's; mail after commit | `assertCompanyAction` `manageInvites`, re-checked by Kit callbacks; Owner never invitable | Controller `projection`; `no-store` on token routes | `MAIL_UNAVAILABLE`, `INVALID_TOKEN`, `IDENTITY_AUTHORITY_DENIED`, 202 committed | `tests/functional/auth/invitations.spec.ts` |
-| Membership and roles | `…/members*`; Team & access | `app/services/membership/member_mutations.ts` | `withActor` with command receipt (`app/services/account_commands.ts`) | `assertCompanyAction` `manageMembers`; target-role rules | `readMemberDirectory` | `FORBIDDEN`, `OWNER_TRANSFER_REQUIRED`, `IDENTITY_AUTHORITY_DENIED` | `tests/functional/membership/member_administration.spec.ts`, `tests/functional/membership/member_access_tracking.spec.ts` |
+| Membership and roles | `…/members*`; Team & access | `app/services/membership/member_mutations.ts`; Access Control (`config/access_control.ts`) | `withActor` with command receipt (`app/services/account_commands.ts`); package membership writes use the same transaction | `assertCompanyAction` `manageMembers`; package management rules (no self-management, Owner protected) | `readMemberDirectory` | `FORBIDDEN`, `OWNER_TRANSFER_REQUIRED`, `IDENTITY_AUTHORITY_DENIED` | `tests/functional/membership/member_administration.spec.ts`, `tests/functional/membership/member_access_tracking.spec.ts` |
 | Member↔resource links | `…/members/:principalId/resource-link`; Team & access | `app/services/member_resources/links.ts` | `withActor` with command receipt | `manageMembers`; active unrestricted member; available person; occupancy | `{ resourceId, revision }` | `CONFLICT`, `FORBIDDEN`, `INVALID_INPUT` | `tests/functional/auth/admission_resource_links.spec.ts` |
 | First company | `POST /api/installation/company`; setup screen | `app/services/first_company_setup.ts`, `app/services/initial_company_defaults.ts` | `withActor` plus `account_transaction_lock`; all rows in one transaction | Admitted sole principal, no company or membership, checked under the lock | `companySetupRequired`; 201 `{ accountId }` | `COMPANY_SETUP_UNAVAILABLE`, `FIRST_COMPANY_PENDING`, `SIGN_UP_CLOSED` | `tests/functional/auth/first_company_setup.spec.ts` |
 | Ownership transfer | `POST …/ownership-transfer`; Team & access | `app/services/membership/ownership_transfer.ts` | One `withActor`: claim, proof, demotion, promotion, invariant, audit | Live single Owner, not viewing as; Admin target; single-use action proof | Receipt `{ fromUserId, toUserId }` | `TARGET_INELIGIBLE`, `ACTION_PROOF_REQUIRED`, `IDENTITY_AUTHORITY_DENIED` | `tests/functional/membership/ownership_transfer.spec.ts`, `tests/functional/privacy/action_proof_bindings.spec.ts` |
@@ -269,7 +271,9 @@ Backend test paths are relative to `apps/backend/`.
   changes), `tests/functional/auth/password_sessions.spec.ts` (revocation between admission and
   write), `tests/functional/auth/admission.spec.ts`, `tests/functional/auth/invitations.spec.ts`,
   `tests/functional/membership/ownership_transfer.spec.ts`,
-  `tests/functional/privacy/action_proof_bindings.spec.ts` (action-proof bindings).
+  `tests/functional/privacy/action_proof_bindings.spec.ts` (action-proof bindings),
+  `tests/unit/access_permissions.spec.ts` (role permissions match the declaration),
+  `tests/unit/identity_policy.spec.ts`.
 - **Tenant isolation.** `tests/functional/planning/tenant_bulk.spec.ts` (bulk intents change only
   the caller's company), `tests/functional/data_routes.spec.ts` (export stays in one company),
   `tests/functional/membership/control_data_isolation.spec.ts`, `tests/unit/tenant_scope.spec.ts`.
