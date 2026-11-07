@@ -196,8 +196,8 @@ test.group('identity-only archive recovery', (suite) => {
 
     for (const role of ['editor', 'admin', 'owner'] as const) {
       await db
-        .from('memberships')
-        .where({ user_id: actor.userId, account_id: accountId })
+        .from('company_memberships')
+        .where({ user_id: actor.userId, scope_id: accountId })
         .update({ role });
       const response = await session(client.get(archiveUrl), actor.cookie).send();
       assert.equal(response.status(), 200, response.text());
@@ -325,9 +325,12 @@ test.group('identity-only archive recovery', (suite) => {
     foreignRead.assertStatus(403);
     const inactiveRead = await session(client.get(archiveUrl), editor.cookie).send();
     inactiveRead.assertStatus(200);
-    await db.from('memberships').where({ user_id: editor.userId, account_id: accountId }).update({
-      status: 'archived',
-    });
+    await db
+      .from('company_memberships')
+      .where({ user_id: editor.userId, scope_id: accountId })
+      .update({
+        status: 'suspended',
+      });
     const removedRead = await session(client.get(archiveUrl), editor.cookie).send();
     removedRead.assertStatus(403);
 
@@ -606,9 +609,12 @@ test.group('identity-only archive recovery', (suite) => {
     foreignTarget.assertStatus(400);
     assert.equal((foreignTarget.body() as { code: string }).code, 'VALIDATION_ERROR');
 
-    await db.from('memberships').where({ user_id: editor.userId, account_id: accountId }).update({
-      role: 'viewer',
-    });
+    await db
+      .from('company_memberships')
+      .where({ user_id: editor.userId, scope_id: accountId })
+      .update({
+        role: 'viewer',
+      });
     // Membership changes after the read are checked when the write is actually submitted.
     const demotedWrite = await unarchive(client, editor.cookie, 'clients', clientId, 1);
     demotedWrite.assertStatus(403);

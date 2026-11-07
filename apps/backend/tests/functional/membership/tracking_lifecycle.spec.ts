@@ -60,10 +60,9 @@ test.group('member sign-in tracking lifecycle', (group) => {
         updated_at: now,
       },
     ]);
-    await db.table('memberships').insert([
+    await db.table('company_memberships').insert([
       {
-        id: 'owner-studio',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: await userId('bruce.wayne@wayne.example'),
         role: 'owner',
         status: 'active',
@@ -71,8 +70,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
         updated_at: now,
       },
       {
-        id: 'owner-loft',
-        account_id: 'a-loft',
+        scope_id: 'a-loft',
         user_id: await userId('bruce.wayne@wayne.example'),
         role: 'owner',
         status: 'active',
@@ -88,10 +86,9 @@ test.group('member sign-in tracking lifecycle', (group) => {
     });
     member.assertStatus(200);
     const memberId = await userId('clark.kent@wayne.example');
-    await db.table('memberships').insert([
+    await db.table('company_memberships').insert([
       {
-        id: 'member-clark-studio',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: memberId,
         role: 'viewer',
         status: 'active',
@@ -99,8 +96,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-clark-loft',
-        account_id: 'a-loft',
+        scope_id: 'a-loft',
         user_id: memberId,
         role: 'viewer',
         status: 'active',

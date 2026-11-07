@@ -60,9 +60,9 @@ export function seedOwner(database: DatabaseSync) {
     .run('bruce', 'bruce@wayne.example', now, 'Bruce Wayne', 'old-credential', now, now);
   database
     .prepare(
-      'INSERT INTO memberships (id,account_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
+      'INSERT INTO company_memberships (scope_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?)'
     )
-    .run('owner', 'a-studio', 'bruce', 'owner', 'active', now, now);
+    .run('a-studio', 'bruce', 'owner', 'active', now, now);
 }
 
 export async function withOperatorServer(

@@ -43,8 +43,8 @@ test.group('M2b data routes', (group) => {
       .update({ archived_at: new Date().toISOString() });
     for (const role of ['viewer', 'editor', 'admin', 'owner']) {
       await db
-        .from('memberships')
-        .where({ user_id: dataOwnerId, account_id: 'a-studio' })
+        .from('company_memberships')
+        .where({ user_id: dataOwnerId, scope_id: 'a-studio' })
         .update({ role });
       const explicit = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
       explicit.assertStatus(['viewer', 'editor'].includes(role) ? 403 : 200);
@@ -62,8 +62,8 @@ test.group('M2b data routes', (group) => {
     await grantDataOwner(dataOwnerId, account.id);
     for (const role of ['editor', 'admin']) {
       await db
-        .from('memberships')
-        .where({ user_id: dataOwnerId, account_id: account.id })
+        .from('company_memberships')
+        .where({ user_id: dataOwnerId, scope_id: account.id })
         .update({ role });
       const response = await trusted(client.post(`/api/accounts/${account.id}/example-data`))
         .json({})
@@ -144,9 +144,8 @@ test.group('M2b data routes', (group) => {
       created_at: stamp,
       updated_at: stamp,
     });
-    await db.table('memberships').insert({
-      id: 'm-export',
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: 'u-export',
       role: 'viewer',
       status: 'active',

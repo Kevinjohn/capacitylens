@@ -93,10 +93,10 @@ export default {
         },
       },
     },
-    memberships: {
+    company_memberships: {
       columns: {
         role: { tsType: "import('@capacitylens/shared/account/types').Role" },
-        status: { tsType: "import('@capacitylens/shared/account/types').MembershipStatus" },
+        status: { tsType: "'active' | 'suspended'" },
       },
     },
     ownership_transfers: {

@@ -38,9 +38,8 @@ async function fixture(client: ApiClient) {
   const adminCookie = admin.cookie('adonis-session')!.value;
   const adminId = await principalId('clark.kent@wayne.example');
   const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    id: 'member-clark',
-    account_id: 'a-studio',
+  await db.table('company_memberships').insert({
+    scope_id: 'a-studio',
     user_id: adminId,
     role: 'admin',
     status: 'active',
@@ -105,10 +104,9 @@ test.group('atomic ownership transfer', (group) => {
     await db
       .table('clients')
       .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }));
-    await db.table('memberships').insert([
+    await db.table('company_memberships').insert([
       {
-        id: 'owner-clark-loft',
-        account_id: 'a-loft',
+        scope_id: 'a-loft',
         user_id: ownerId,
         role: 'owner',
         status: 'active',
@@ -116,8 +114,7 @@ test.group('atomic ownership transfer', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-clark-loft',
-        account_id: 'a-loft',
+        scope_id: 'a-loft',
         user_id: adminId,
         role: 'admin',
         status: 'active',
@@ -150,8 +147,8 @@ test.group('atomic ownership transfer', (group) => {
     completed.assertStatus(200);
     assert.deepEqual(completed.body(), { fromUserId: ownerId, toUserId: adminId });
     const roles = await db
-      .from('memberships')
-      .where('account_id', 'a-studio')
+      .from('company_memberships')
+      .where('scope_id', 'a-studio')
       .select('user_id', 'role');
     assert.equal(roles.find((row) => row.user_id === ownerId)?.role, 'admin');
     assert.equal(roles.find((row) => row.user_id === adminId)?.role, 'owner');
@@ -226,14 +223,14 @@ test.group('atomic ownership transfer', (group) => {
       .send();
     unpaired.assertStatus(400);
     await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: adminId })
-      .update({ status: 'disabled' });
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', user_id: adminId })
+      .update({ status: 'suspended' });
     const inactive = await post(ownerCookie, 'a-studio', adminId);
     inactive.assertStatus(409);
     await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: adminId })
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', user_id: adminId })
       .update({ status: 'active' });
     await db.table('account_access_restrictions').insert({
       id: 'restrict-clark',
@@ -246,8 +243,8 @@ test.group('atomic ownership transfer', (group) => {
     const restricted = await post(ownerCookie, 'a-studio', adminId);
     restricted.assertStatus(409);
     const ownerAfterRefusal = await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: ownerId })
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', user_id: ownerId })
       .first();
     assert.equal(ownerAfterRefusal.role, 'owner');
     assert.lengthOf(
@@ -323,12 +320,12 @@ test.group('atomic ownership transfer', (group) => {
         .send();
     const assertions = async (suffix: string) => {
       const owner = await db
-        .from('memberships')
-        .where({ account_id: 'a-studio', user_id: ownerId })
+        .from('company_memberships')
+        .where({ scope_id: 'a-studio', user_id: ownerId })
         .first();
       const admin = await db
-        .from('memberships')
-        .where({ account_id: 'a-studio', user_id: adminId })
+        .from('company_memberships')
+        .where({ scope_id: 'a-studio', user_id: adminId })
         .first();
       assert.equal(owner.role, 'owner');
       assert.equal(admin.role, 'admin');
@@ -345,7 +342,7 @@ test.group('atomic ownership transfer', (group) => {
       assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 0);
     };
     await db.rawQuery(
-      `CREATE TRIGGER fail_owner_promotion BEFORE UPDATE OF role ON memberships WHEN OLD.user_id = '${adminId}' AND NEW.role = 'owner' BEGIN SELECT RAISE(ABORT, 'forced promotion failure'); END`
+      `CREATE TRIGGER fail_owner_promotion BEFORE UPDATE OF role ON company_memberships WHEN OLD.user_id = '${adminId}' AND NEW.role = 'owner' BEGIN SELECT RAISE(ABORT, 'forced promotion failure'); END`
     );
     try {
       const failed = await tryTransfer('promotion');
@@ -394,17 +391,17 @@ test.group('atomic ownership transfer', (group) => {
     assert.deepEqual(responses.map((response) => response.status()).sort(), [200, 403]);
     assert.lengthOf(
       await db
-        .from('memberships')
-        .where({ account_id: 'a-studio', role: 'owner', status: 'active' }),
+        .from('company_memberships')
+        .where({ scope_id: 'a-studio', role: 'owner', status: 'active' }),
       1
     );
     const formerOwner = await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: ownerId })
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', user_id: ownerId })
       .first();
     const newOwner = await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: adminId })
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', user_id: adminId })
       .first();
     assert.equal(formerOwner.role, 'admin');
     assert.equal(newOwner.role, 'owner');
@@ -422,8 +419,8 @@ test.group('atomic ownership transfer', (group) => {
     const { ownerId, adminId, ownerCookie } = await fixture(client);
     const proofId = await transferProof(client, ownerCookie, adminId);
     await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: adminId })
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', user_id: adminId })
       .update({ role: 'owner' });
     const rejected = await signed(
       client.post('/api/accounts/a-studio/ownership-transfer'),
@@ -436,7 +433,9 @@ test.group('atomic ownership transfer', (group) => {
       .json({ toUserId: adminId, proofId })
       .send();
     assert.isAtLeast(rejected.status(), 500);
-    const owners = await db.from('memberships').where({ account_id: 'a-studio', role: 'owner' });
+    const owners = await db
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', role: 'owner' });
     assert.deepEqual(new Set(owners.map((row) => row.user_id)), new Set([ownerId, adminId]));
     assert.isNull(
       await db

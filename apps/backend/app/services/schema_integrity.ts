@@ -74,6 +74,43 @@ async function assertAccountKitStorage() {
   }
 }
 
+/** Refuses a database whose company memberships do not use the Access Control package table. */
+async function assertAccessControlStorage() {
+  const columns = (await db.rawQuery('PRAGMA table_info(company_memberships)')) as Array<{
+    name: string;
+  }>;
+  if (
+    JSON.stringify(columns.map(({ name }) => name)) !==
+    JSON.stringify(['id', 'scope_id', 'user_id', 'role', 'status', 'created_at', 'updated_at'])
+  ) {
+    throw new Error(
+      'Database schema drift: company_memberships columns differ from the Access Control package schema'
+    );
+  }
+  const legacy = await db
+    .from('sqlite_master')
+    .where({ type: 'table', name: 'memberships' })
+    .first();
+  if (legacy) throw new Error('Database schema drift: legacy memberships table remains');
+  const indexes = (await db.rawQuery('PRAGMA index_list(company_memberships)')) as Array<{
+    name: string;
+    unique: number;
+    partial: number;
+  }>;
+  for (const index of indexes) {
+    if (index.unique !== 1 || index.partial !== 0) continue;
+    const indexed = (await db.rawQuery(`PRAGMA index_info(${index.name})`)) as Array<{
+      seqno: number;
+      name: string;
+    }>;
+    const names = indexed.sort((left, right) => left.seqno - right.seqno).map(({ name }) => name);
+    if (names.join(',') === 'scope_id,user_id') return;
+  }
+  throw new Error(
+    'Database schema drift: company_memberships scope and user uniqueness is missing'
+  );
+}
+
 async function assertBaselineMigrationRecord() {
   const rows = await db.from('adonis_schema').select('batch').where('name', baselineMigration);
   if (
@@ -171,6 +208,7 @@ async function assertLegacyMasqueradeRetired() {
 
 export async function assertSchemaIntegrity() {
   await assertAccountKitStorage();
+  await assertAccessControlStorage();
   await assertBaselineMigrationRecord();
   await assertLegacyMasqueradeRetired();
   await assertMasqueradeStorage('masquerade_modes', [

@@ -48,7 +48,7 @@ test('company initialization creates canonical defaults and refuses a second set
     assert.equal(account.week_starts_on, '1');
     assert.equal(account.working_days, '[1,2,3,4,5]');
     assert.equal(inspect.prepare('SELECT builtin FROM clients').get()!.builtin, 'true');
-    assert.deepInclude(inspect.prepare('SELECT * FROM memberships').get()!, {
+    assert.deepInclude(inspect.prepare('SELECT * FROM company_memberships').get()!, {
       user_id: 'bruce',
       role: 'owner',
       status: 'active',
@@ -62,7 +62,7 @@ test('company initialization creates canonical defaults and refuses a second set
     assert.notEqual(f.command(args).status, 0);
     const after = f.inspect();
     assert.deepEqual(after.prepare('SELECT * FROM accounts').all(), before);
-    assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
+    assert.equal(after.prepare('SELECT COUNT(*) AS n FROM company_memberships').get()!.n, 1);
     assert.equal(
       after.prepare('SELECT password FROM users').get()!.password,
       'existing-credential'
@@ -118,7 +118,7 @@ test('company initialization rolls back every row if its audit cannot be recorde
     for (const table of [
       'accounts',
       'clients',
-      'memberships',
+      'company_memberships',
       'company_planning_revisions',
       'audit_entries',
     ])
@@ -277,7 +277,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
     assert.notEqual(f.command(args).status, 0);
     const after = f.inspect();
     assert.equal(after.prepare('SELECT COUNT(*) AS n FROM accounts').get()!.n, 1);
-    assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
+    assert.equal(after.prepare('SELECT COUNT(*) AS n FROM company_memberships').get()!.n, 1);
     after.close();
   } finally {
     f.cleanup();
@@ -308,7 +308,7 @@ for (const drift of [
       for (const table of [
         'accounts',
         'clients',
-        'memberships',
+        'company_memberships',
         'audit_entries',
         'company_planning_revisions',
       ])

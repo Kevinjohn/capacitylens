@@ -55,9 +55,8 @@ test.group('company member access and tracking', (group) => {
     const editorCookie = editor.cookie('adonis-session')!.value;
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -139,9 +138,8 @@ test.group('company member access and tracking', (group) => {
       verified: false,
     });
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -192,8 +190,8 @@ test.group('company member access and tracking', (group) => {
     alias.assertStatus(403);
     assert.lengthOf(
       await db
-        .from('memberships')
-        .where('account_id', 'a-studio')
+        .from('company_memberships')
+        .where('scope_id', 'a-studio')
         .whereIn('user_id', [editorId, aliasId]),
       0
     );
@@ -221,11 +219,13 @@ test.group('company member access and tracking', (group) => {
     await db
       .table('clients')
       .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }));
-    const ownerMembership = await db.from('memberships').where({ account_id: 'a-studio' }).first();
+    const ownerMembership = await db
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio' })
+      .first();
     assert.isNotNull(ownerMembership);
-    await db.table('memberships').insert({
-      id: 'owner-loft',
-      account_id: 'a-loft',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-loft',
       user_id: ownerMembership.user_id,
       role: 'owner',
       status: 'active',
@@ -239,10 +239,9 @@ test.group('company member access and tracking', (group) => {
     });
     editor.assertStatus(200);
     const editorId = await userId('clark.kent@wayne.example');
-    await db.table('memberships').insert(
+    await db.table('company_memberships').insert(
       ['a-studio', 'a-loft'].map((accountId) => ({
-        id: `member-clark-${accountId}`,
-        account_id: accountId,
+        scope_id: accountId,
         user_id: editorId,
         role: 'editor',
         status: 'active',
@@ -306,9 +305,8 @@ test.group('company member access and tracking', (group) => {
     const adminCookie = admin.cookie('adonis-session')!.value;
     const adminId = await userId('diana.prince@wayne.example');
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-diana-studio',
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: adminId,
       role: 'admin',
       status: 'active',
@@ -365,9 +363,8 @@ test.group('company member access and tracking', (group) => {
     const editorCookie = editor.cookie('adonis-session')!.value;
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -381,7 +378,7 @@ test.group('company member access and tracking', (group) => {
         .send();
     const enable = () => signed(client.post(`${base}/enable-access`), ownerCookie).send();
     const membership = () =>
-      db.from('memberships').where({ account_id: 'a-studio', user_id: editorId }).first();
+      db.from('company_memberships').where({ scope_id: 'a-studio', user_id: editorId }).first();
     const membershipStatus = async () => {
       const member = await membership();
       return member?.status;
@@ -504,9 +501,8 @@ test.group('company member access and tracking', (group) => {
     editor.assertStatus(200);
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -530,8 +526,8 @@ test.group('company member access and tracking', (group) => {
       ).send();
       assert.isAtLeast(failed.status(), 500);
       const member = await db
-        .from('memberships')
-        .where({ account_id: 'a-studio', user_id: editorId })
+        .from('company_memberships')
+        .where({ scope_id: 'a-studio', user_id: editorId })
         .first();
       assert.equal(member.status, 'active');
       assert.isNotNull(

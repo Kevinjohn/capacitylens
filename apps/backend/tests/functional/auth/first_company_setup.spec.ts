@@ -18,7 +18,7 @@ const password = 'company-setup-password-2026';
 const companyTables = [
   'accounts',
   'clients',
-  'memberships',
+  'company_memberships',
   'company_planning_revisions',
   'audit_entries',
 ];
@@ -69,7 +69,7 @@ test.group('authenticated first company setup', (group) => {
     assert.isTrue(before.body().emailVerified);
     assert.isTrue(before.body().admission.admitted);
     assert.isTrue(before.body().companySetupRequired);
-    assert.lengthOf(await db.from('memberships'), 0, 'the bootstrap role grants nothing');
+    assert.lengthOf(await db.from('company_memberships'), 0, 'the bootstrap role grants nothing');
     const reused = await client
       .post(`/api/invites/${token}/signup`)
       .header('sec-fetch-site', 'same-origin')
@@ -80,8 +80,8 @@ test.group('authenticated first company setup', (group) => {
     setup.assertStatus(201);
     const accountId = setup.body().accountId;
     assert.equal((await db.from('accounts').first())!.name, 'Wayne Enterprises');
-    assert.deepInclude((await db.from('memberships').first())!, {
-      account_id: accountId,
+    assert.deepInclude((await db.from('company_memberships').first())!, {
+      scope_id: accountId,
       user_id: userId,
       role: 'owner',
       status: 'active',
@@ -291,7 +291,7 @@ test.group('authenticated first company setup', (group) => {
     const { cookie } = await acceptBootstrap(client);
     const setup = await setUp(client, cookie);
     setup.assertStatus(201);
-    await db.from('memberships').delete();
+    await db.from('company_memberships').delete();
     const refused = await setUp(client, cookie, 'Stark Industries');
     refused.assertStatus(409);
     await db.from('account_sessions').delete();

@@ -324,9 +324,8 @@ test.group('session-bound allocation restoration', (suite) => {
     const editor = await signIn(client, 'editor');
     const otherSession = await signInAgain(client, owner.email);
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: randomUUID(),
-      account_id: 'a-loft',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-loft',
       user_id: owner.userId,
       role: 'owner',
       status: 'active',
@@ -1224,15 +1223,15 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.equal(staleRevision.body().code, 'STALE_REVISION');
     assert.isUndefined(staleRevision.body().restorableItemCount);
     await db
-      .from('memberships')
-      .where({ account_id: accountId, user_id: userId })
+      .from('company_memberships')
+      .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'viewer' });
     const forbidden = await request(1);
     forbidden.assertStatus(403);
     assert.isUndefined(forbidden.body().restorableItemCount);
     await db
-      .from('memberships')
-      .where({ account_id: accountId, user_id: userId })
+      .from('company_memberships')
+      .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'owner' });
     const confirmed = await request(1);
     confirmed.assertStatus(200);

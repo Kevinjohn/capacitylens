@@ -23,7 +23,7 @@ interface CorruptionCase {
   label: string;
   invalidValue: string;
   guardMessage: string;
-  table: 'memberships' | 'account_access_restrictions';
+  table: 'company_memberships' | 'account_access_restrictions';
   column: 'role' | 'status';
   restrictionOnly: boolean;
   validValue: string;
@@ -34,7 +34,7 @@ const corruptions: CorruptionCase[] = [
     label: 'membership role',
     invalidValue: 'invalid-role-sentinel',
     guardMessage: 'Membership has an invalid role.',
-    table: 'memberships',
+    table: 'company_memberships',
     column: 'role',
     restrictionOnly: false,
     validValue: 'editor',
@@ -43,7 +43,7 @@ const corruptions: CorruptionCase[] = [
     label: 'membership status',
     invalidValue: 'invalid-status-sentinel',
     guardMessage: 'Membership has an invalid status.',
-    table: 'memberships',
+    table: 'company_memberships',
     column: 'status',
     restrictionOnly: false,
     validValue: 'active',
@@ -94,9 +94,8 @@ async function createFixture(client: Parameters<typeof signUpAndIn>[0]) {
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', accountId);
   const memberId = await createIdentity(memberEmail, { name: 'Clark Kent', password });
   await db.transaction(async (trx) => {
-    await trx.table('memberships').insert({
-      id: 'member-directory-storage-member',
-      account_id: accountId,
+    await trx.table('company_memberships').insert({
+      scope_id: accountId,
       user_id: memberId,
       role: 'editor',
       status: 'active',
@@ -186,7 +185,7 @@ async function writeCorruption(corruption: CorruptionCase, memberId: string, ass
   await db.transaction(async (trx) => {
     await trx
       .from(corruption.table)
-      .where({ account_id: accountId, user_id: memberId })
+      .where({ scope_id: accountId, user_id: memberId })
       .update({ [corruption.column]: corruption.invalidValue });
   });
 }
@@ -279,7 +278,7 @@ async function corruptRestrictionRoleOnDisk(assert: Assert, principalId: string,
 
 async function readProductState() {
   return {
-    memberships: await db.from('memberships').where('account_id', accountId).orderBy('id'),
+    memberships: await db.from('company_memberships').where('scope_id', accountId).orderBy('id'),
     restrictions: await db
       .from('account_access_restrictions')
       .where('account_id', accountId)
@@ -355,7 +354,7 @@ test.group('member directory malformed storage', (group) => {
         }
         await trx
           .from(corruption.table)
-          .where({ account_id: accountId, user_id: memberId })
+          .where({ scope_id: accountId, user_id: memberId })
           .update({ [corruption.column]: corruption.validValue });
       });
       const restored = await ownerGet({ client, path, ownerCookie, contextToken }).send();
@@ -383,9 +382,8 @@ test.group('member directory malformed storage', (group) => {
       name: 'Arthur Curry',
     });
     await db.transaction(async (trx) => {
-      await trx.table('memberships').insert({
-        id: 'member-directory-storage-foreign',
-        account_id: otherAccountId,
+      await trx.table('company_memberships').insert({
+        scope_id: otherAccountId,
         user_id: foreignMemberId,
         role: 'foreign-invalid-role-sentinel',
         status: 'foreign-invalid-status-sentinel',

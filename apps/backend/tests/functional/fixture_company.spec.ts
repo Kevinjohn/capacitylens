@@ -28,11 +28,11 @@ test.group('isolated company fixtures', (group) => {
     assert.equal(firstInternal.id, `internal:${firstId}`);
     assert.equal(firstInternal.builtin, 'true');
     const firstMembers = await db
-      .from('memberships')
-      .where({ account_id: firstId, user_id: owner.userId });
+      .from('company_memberships')
+      .where({ scope_id: firstId, user_id: owner.userId });
     const secondMembers = await db
-      .from('memberships')
-      .where({ account_id: secondId, user_id: owner.userId });
+      .from('company_memberships')
+      .where({ scope_id: secondId, user_id: owner.userId });
     assert.lengthOf(firstMembers, 1);
     assert.lengthOf(secondMembers, 1);
   });

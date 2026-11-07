@@ -25,9 +25,9 @@ test('packaged smoke seeds its fictional Viewer only in the disposable stopped d
         invitation_source TEXT, invitation_recorded_at TEXT, approval_status TEXT,
         approval_actor_id TEXT, approval_decided_at TEXT, created_at TEXT, updated_at TEXT
       );
-      CREATE TABLE memberships (
-        id TEXT PRIMARY KEY, account_id TEXT, user_id TEXT, role TEXT, status TEXT,
-        created_at TEXT, updated_at TEXT, UNIQUE (account_id, user_id)
+      CREATE TABLE company_memberships (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, scope_id TEXT, user_id TEXT, role TEXT, status TEXT,
+        created_at TEXT, updated_at TEXT, UNIQUE (scope_id, user_id)
       );
       CREATE TABLE masquerade_modes (
         authority_namespace TEXT, actor_id TEXT, state TEXT, started_at TEXT, expires_at TEXT
@@ -60,7 +60,7 @@ test('packaged smoke seeds its fictional Viewer only in the disposable stopped d
         true,
       );
       const membership = verification
-        .prepare("SELECT role, status FROM memberships WHERE user_id = 'viewer'")
+        .prepare("SELECT role, status FROM company_memberships WHERE user_id = 'viewer'")
         .get();
       assert.equal(membership.role, 'viewer');
       assert.equal(membership.status, 'active');

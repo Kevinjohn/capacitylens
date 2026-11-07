@@ -45,7 +45,7 @@ test('app reset archives all account and credential state and initializes a sepa
     for (const table of [
       'users',
       'accounts',
-      'memberships',
+      'company_memberships',
       'account_invitations',
       'account_admissions',
       'password_reset_tokens',
@@ -182,10 +182,9 @@ test('a failed snapshot reports only completed recovery artifacts and leaves the
     source.exec('PRAGMA foreign_keys=OFF');
     source
       .prepare(
-        'INSERT INTO memberships (id,account_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
+        'INSERT INTO company_memberships (scope_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?)'
       )
       .run(
-        'orphan',
         'a-studio',
         'missing-user',
         'viewer',

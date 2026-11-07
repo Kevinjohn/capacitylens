@@ -38,9 +38,8 @@ async function company() {
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', accountId);
   const editorId = await createIdentity(editor, { name: 'Clark Kent' });
   const now = new Date().toISOString();
-  await db.table('memberships').insert({
-    id: 'member-clark',
-    account_id: accountId,
+  await db.table('company_memberships').insert({
+    scope_id: accountId,
     user_id: editorId,
     role: 'editor',
     status: 'active',

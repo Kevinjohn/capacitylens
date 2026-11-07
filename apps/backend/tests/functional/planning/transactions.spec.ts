@@ -51,7 +51,7 @@ try {
   process.exit(3)
 }
 db.prepare('UPDATE accounts SET name = ? WHERE id = ?').run('Wayne Revised', accountId)
-db.prepare('UPDATE memberships SET role = ? WHERE user_id = ? AND account_id = ?').run('viewer', userId, accountId)
+db.prepare('UPDATE company_memberships SET role = ? WHERE user_id = ? AND scope_id = ?').run('viewer', userId, accountId)
 db.prepare('INSERT INTO company_planning_revisions(account_id, revision) VALUES (?, 1) ON CONFLICT(account_id) DO UPDATE SET revision = 1').run(accountId)
 db.exec('COMMIT')`,
           env.get('CAPACITYLENS_DB')!,
@@ -275,9 +275,9 @@ db.exec('COMMIT')`,
       assert.equal(before.status, 200);
       assert.equal(before.body.authority?.effectiveActorId, target.userId);
       await db
-        .from('memberships')
+        .from('company_memberships')
         .where({
-          account_id: accountId,
+          scope_id: accountId,
           user_id: invalidation === 'target membership' ? target.userId : owner.userId,
         })
         .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'archived' });
@@ -341,9 +341,9 @@ db.exec('COMMIT')`,
       try {
         await barrier.entered();
         await db
-          .from('memberships')
+          .from('company_memberships')
           .where({
-            account_id: accountId,
+            scope_id: accountId,
             user_id: invalidation === 'target membership' ? target.userId : owner.userId,
           })
           .update(

@@ -80,7 +80,7 @@ function openAuthE2EDatabase(): DatabaseSync {
     if (
       [
         'users',
-        'memberships',
+        'company_memberships',
         'adonis_sessions',
         'account_sessions',
         'account_admissions',
@@ -187,16 +187,9 @@ export function seedFixtureMember(
       .get(email.toLowerCase()) as { id: string } | undefined;
     if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
     db.prepare(
-      `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'active', ?, ?)`,
-    ).run(
-      crypto.randomUUID(),
-      accountId,
-      principal.id,
-      role,
-      new Date().toISOString(),
-      new Date().toISOString(),
-    );
+      `INSERT INTO company_memberships (scope_id, user_id, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, 'active', ?, ?)`,
+    ).run(accountId, principal.id, role, new Date().toISOString(), new Date().toISOString());
   } finally {
     db.close();
   }
@@ -270,9 +263,9 @@ function insertAuthE2ECompany(
      VALUES (?, ?, ?, ?, 'true', ?, ?)`,
   ).run(internal.id, accountId, internal.name, internal.color, now, now);
   db.prepare(
-    `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
-     VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
-  ).run(crypto.randomUUID(), accountId, ownerId, now, now);
+    `INSERT INTO company_memberships (scope_id, user_id, role, status, created_at, updated_at)
+     VALUES (?, ?, 'owner', 'active', ?, ?)`,
+  ).run(accountId, ownerId, now, now);
   db.prepare('INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)').run(
     accountId,
   );
@@ -300,12 +293,12 @@ function temporaryBaselineAccountIds(db: DatabaseSync): string[] {
     .prepare(
       `SELECT accounts.id
        FROM accounts
-       JOIN memberships ON memberships.account_id = accounts.id
-       JOIN users ON users.id = memberships.user_id
+       JOIN company_memberships ON company_memberships.scope_id = accounts.id
+       JOIN users ON users.id = company_memberships.user_id
        WHERE accounts.name = ?
          AND users.email = ?
-         AND memberships.role = 'owner'
-         AND memberships.status = 'active'
+         AND company_memberships.role = 'owner'
+         AND company_memberships.status = 'active'
          AND NOT EXISTS (
            SELECT 1 FROM auth_e2e_fixture_companies WHERE account_id = accounts.id
          )`,
@@ -352,9 +345,9 @@ export function readAuthE2EBaselineSnapshot(): {
       .prepare(
         `SELECT accounts.*
          FROM accounts
-         JOIN memberships ON memberships.account_id = accounts.id
-         JOIN users ON users.id = memberships.user_id
-         WHERE accounts.name = ? AND users.email = ? AND memberships.role = 'owner' AND memberships.status = 'active'`,
+         JOIN company_memberships ON company_memberships.scope_id = accounts.id
+         JOIN users ON users.id = company_memberships.user_id
+         WHERE accounts.name = ? AND users.email = ? AND company_memberships.role = 'owner' AND company_memberships.status = 'active'`,
       )
       .all(AUTH_E2E_BASELINE_COMPANY, AUTH_E2E_BASELINE_OWNER) as Array<Record<string, unknown>>;
     if (baselineRows.length > 1)
@@ -371,15 +364,15 @@ export function readAuthE2EBaselineSnapshot(): {
       .get(account.id) as { revision: number } | undefined;
     const owner = db
       .prepare(
-        `SELECT users.id, users.email, memberships.role, memberships.status
-         FROM memberships JOIN users ON users.id = memberships.user_id
-         WHERE memberships.account_id = ? AND users.email = 'baseline-owner@capacitylens.dev'`,
+        `SELECT users.id, users.email, company_memberships.role, company_memberships.status
+         FROM company_memberships JOIN users ON users.id = company_memberships.user_id
+         WHERE company_memberships.scope_id = ? AND users.email = 'baseline-owner@capacitylens.dev'`,
       )
       .get(account.id) as { id: string; email: string; role: string; status: string } | undefined;
     const administrator = db
       .prepare(
-        `SELECT users.id, users.email, COUNT(memberships.id) AS memberships
-         FROM users LEFT JOIN memberships ON memberships.user_id = users.id
+        `SELECT users.id, users.email, COUNT(company_memberships.id) AS memberships
+         FROM users LEFT JOIN company_memberships ON company_memberships.user_id = users.id
          WHERE users.email = 'admin@admin.admin'
          GROUP BY users.id, users.email`,
       )

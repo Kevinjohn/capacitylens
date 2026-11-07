@@ -57,9 +57,8 @@ test.group('company member administration', (group) => {
     editor.assertStatus(200);
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -149,9 +148,8 @@ test.group('company member administration', (group) => {
     editor.assertStatus(200);
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -214,8 +212,8 @@ test.group('company member administration', (group) => {
     }
 
     const member = await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: editorId })
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', user_id: editorId })
       .first();
     assert.include(member, { role: 'editor', status: 'active' });
     const revision = await db
@@ -267,10 +265,9 @@ test.group('company member administration', (group) => {
     const adminId = await userId('diana.prince@wayne.example');
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
-    await db.table('memberships').insert([
+    await db.table('company_memberships').insert([
       {
-        id: 'member-diana',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: adminId,
         role: 'admin',
         status: 'active',
@@ -278,8 +275,7 @@ test.group('company member administration', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-clark',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: editorId,
         role: 'editor',
         status: 'active',
@@ -311,8 +307,8 @@ test.group('company member administration', (group) => {
       .send();
     unauthorized.assertStatus(403);
     const unchangedMember = await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: editorId })
+      .from('company_memberships')
+      .where({ scope_id: 'a-studio', user_id: editorId })
       .first();
     assert.equal(unchangedMember.role, 'editor');
     assert.lengthOf(await db.from('audit_entries').where({ action: 'member.role_changed' }), 0);
@@ -341,9 +337,8 @@ test.group('company member administration', (group) => {
     admin.assertStatus(200);
     const adminId = await userId('diana.prince@wayne.example');
     const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-diana',
-      account_id: 'a-studio',
+    await db.table('company_memberships').insert({
+      scope_id: 'a-studio',
       user_id: adminId,
       role: 'admin',
       status: 'active',

@@ -76,7 +76,7 @@ export async function resetServer({ withSeed = true }: ResetServerOptions): Prom
       ).map(({ name }) => name),
     );
     if (
-      ['users', 'memberships', 'accounts', 'adonis_sessions', 'audit_entries'].some(
+      ['users', 'company_memberships', 'accounts', 'adonis_sessions', 'audit_entries'].some(
         (table) => !tables.has(table),
       )
     )
@@ -104,10 +104,10 @@ export async function resetServer({ withSeed = true }: ResetServerOptions): Prom
         if (!admin) throw new Error('The disposable administrator is unavailable.');
         const now = new Date().toISOString();
         db.prepare(
-          `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
-           VALUES (?, ?, ?, 'owner', 'active', ?, ?)
-           ON CONFLICT(account_id, user_id) DO UPDATE SET role = 'owner', status = 'active', updated_at = excluded.updated_at`,
-        ).run(crypto.randomUUID(), 'a-studio', admin.id, now, now);
+          `INSERT INTO company_memberships (scope_id, user_id, role, status, created_at, updated_at)
+           VALUES (?, ?, 'owner', 'active', ?, ?)
+           ON CONFLICT(scope_id, user_id) DO UPDATE SET role = 'owner', status = 'active', updated_at = excluded.updated_at`,
+        ).run('a-studio', admin.id, now, now);
       }
       db.exec('COMMIT');
     } catch (error) {
