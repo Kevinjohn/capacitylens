@@ -16,9 +16,9 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // This spec exercises owner and admin member management against the password-mode auth server. Owner A
 // creates the first company and seeds admin B plus editor C in the disposable database. As B, it changes C's
-// role, creates and revokes an invite, and verifies that owners cannot be assigned, changed, removed,
-// or read across accounts through ordinary member endpoints. Owner A then disables and restores C from
-// the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
+// role, creates and revokes an invite, and verifies that owners cannot be assigned or changed, that
+// nobody changes their own membership, and that members cannot be read across accounts. Owner A then
+// suspends and restores C from the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
 const STAMP = Date.now();
 const OWNER = `m-owner-${STAMP}@capacitylens.dev`;
 const ADMIN = `m-admin-${STAMP}@capacitylens.dev`;

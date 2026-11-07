@@ -30,8 +30,8 @@ Use the edit icon to change a member's role and the link icon to change their sc
 
 ![Team & access: Member actions dialog](../screenshots/flows/admin_member_actions.jpg)
 
-**More actions** holds the access controls. [Stop access](/admin/invite-teammates#stop-access)
-explains each.
+**More actions** holds **Suspend**, or **Restore membership** for a suspended member.
+[Stop access](/admin/invite-teammates#stop-access) explains both.
 
 ## Change working patterns
 

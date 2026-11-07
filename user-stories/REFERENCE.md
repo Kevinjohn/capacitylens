@@ -960,8 +960,8 @@ management section
 (heading `Members`, `data-testid="members-section"`). Editor/Viewer see their own access explanation
 but no company directory, invitations or management controls; the server's 403 remains the backstop.
 Owner/Admin can read the member directory and outstanding invites — and carry out
-ordinary member administration (inviting, revoking an invitation, changing a role or access state,
-removing a member, deciding admission and viewing as a member) — without a password prompt.
+ordinary member administration (inviting, revoking an invitation, changing a role, suspending or
+restoring a member, deciding admission and viewing as a member) — without a password prompt.
 Transferring ownership, importing data and anonymising all people require the caller's password
 for that exact action. Cancelling leaves the directory visible and does not apply the requested
 change.
