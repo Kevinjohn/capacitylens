@@ -1,6 +1,9 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { Membership } from '@kevinjohn/adonisjs-access-control/types';
 import { isAccountRole, type Role } from '@capacitylens/shared/account/types';
+import access from '#config/access_control';
+
+type Trx = TransactionClientContract;
 
 export type MembershipLifecycle = 'active' | 'archived';
 
@@ -31,4 +34,40 @@ export async function activeOwnerIds(
     .orderBy('id', 'asc')
     .select('user_id');
   return rows.map((row) => String(row.user_id));
+}
+
+/** Every membership of a scope, paging the package listing to exhaustion. The actor needs members:list. */
+export async function scopeMemberships(
+  trx: Trx | undefined,
+  actorId: string,
+  accountId: string
+): Promise<Membership[]> {
+  const items: Membership[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await access.memberships.listForScope({
+      actor: { id: actorId },
+      scopeId: accountId,
+      cursor,
+      limit: 100,
+      trx,
+    });
+    items.push(...page.items);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
+  return items;
+}
+
+/** Active, non-restricted memberships of a user, keyed by company id. */
+export async function activeMembershipsByCompany(
+  userId: string,
+  trx: Trx | undefined,
+  restricted: ReadonlySet<string>
+): Promise<Map<string, Membership>> {
+  const map = new Map<string, Membership>();
+  for (const m of await access.memberships.listForUser(userId, trx)) {
+    const id = String(m.scopeId);
+    if (m.status === 'active' && !restricted.has(id)) map.set(id, m);
+  }
+  return map;
 }

@@ -1,7 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
+import access from '#config/access_control';
 import { restrictedCompanyIds } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
+import { activeMembershipsByCompany } from '#services/membership/package_projection';
 
 export default class CompaniesController {
   async index(ctx: HttpContext) {
@@ -14,13 +16,21 @@ export default class CompaniesController {
     }
     const summaries = await withActor(ctx, async (actor, trx) => {
       const restricted = await restrictedCompanyIds(actor.userId, trx);
-      const rows = await trx
-        .from('memberships as member')
-        .innerJoin('accounts as account', 'account.id', 'member.account_id')
-        .where({ 'member.user_id': actor.userId, 'member.status': 'active' })
-        .select('account.id', 'account.name', 'member.role');
-      return rows
-        .filter((row) => !restricted.has(String(row.id)))
+      const byCompany = await activeMembershipsByCompany(actor.userId, trx, restricted);
+      const accounts = await trx
+        .from('accounts')
+        .whereIn('id', [...byCompany.keys()])
+        .select('id', 'name');
+      return accounts
+        .map((account) => {
+          const membership = byCompany.get(String(account.id));
+          return {
+            id: account.id,
+            name: account.name,
+            role: membership?.role,
+            access: access.clientPayload(membership),
+          };
+        })
         .sort((left, right) => String(left.name).localeCompare(String(right.name)));
     });
     return ctx.response.ok(summaries);

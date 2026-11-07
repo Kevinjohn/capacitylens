@@ -12,6 +12,13 @@ const validMember: MemberDirectoryEntry = {
   signInConfirmed: null,
   isSelf: false,
   resourceLink: null,
+  actions: {
+    changeRole: false,
+    changeStatus: false,
+    remove: false,
+    enableAccess: false,
+    viewAs: false,
+  },
 };
 
 const invalidRole: MemberDirectoryEntry = {

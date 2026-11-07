@@ -13,7 +13,7 @@ import { actorIn } from '#services/auth/current_actor';
 import { capturedMasqueradeContext } from '#services/auth/masquerade_request';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
-import { can } from '@capacitylens/shared/domain/access';
+import access from '#config/access_control';
 import type { Role } from '@capacitylens/shared/account/types';
 
 export { PackageMasqueradeError as MasqueradeError };
@@ -71,9 +71,9 @@ export async function currentMasquerade(ctx: HttpContext) {
   let accountId: string | null = null;
   let effectiveRole: Role | null = null;
   if (requestedAccountId) {
-    const actorRole = await activeCompanyRole(actor.id, requestedAccountId, db);
-    const targetRole = await activeCompanyRole(view.targetId, requestedAccountId, db);
-    if (actorRole && can(actorRole, 'masquerade') && targetRole) {
+    const actorRole = await activeCompanyRole(actor.id, requestedAccountId, undefined);
+    const targetRole = await activeCompanyRole(view.targetId, requestedAccountId, undefined);
+    if (actorRole && access.can(actorRole, 'viewAs:use') && targetRole) {
       accountId = requestedAccountId;
       effectiveRole = targetRole;
     }
@@ -82,16 +82,15 @@ export async function currentMasquerade(ctx: HttpContext) {
   // mode where it holds so that tab can adopt the current context and offer End; company reads
   // are still authorized per request by effectiveReadPrincipal.
   if (!accountId) {
-    const memberships = await db
-      .from('memberships')
-      .where({ user_id: actor.id, status: 'active' })
-      .orderBy('account_id', 'asc')
-      .select('account_id');
-    for (const row of memberships) {
-      const candidate = String(row.account_id);
-      const actorRole = await activeCompanyRole(actor.id, candidate, db);
-      const targetRole = await activeCompanyRole(view.targetId, candidate, db);
-      if (actorRole && can(actorRole, 'masquerade') && targetRole) {
+    const listed = await access.memberships.listForUser(actor.id);
+    const memberships = listed
+      .filter((m) => m.status === 'active')
+      .map((m) => String(m.scopeId))
+      .sort();
+    for (const candidate of memberships) {
+      const actorRole = await activeCompanyRole(actor.id, candidate, undefined);
+      const targetRole = await activeCompanyRole(view.targetId, candidate, undefined);
+      if (actorRole && access.can(actorRole, 'viewAs:use') && targetRole) {
         accountId = candidate;
         effectiveRole = targetRole;
         break;
@@ -152,7 +151,7 @@ export async function effectiveReadPrincipal(
   if (context.isMasquerading && accountId) {
     const actorRole = await activeCompanyRole(actor.userId, accountId, trx);
     const targetRole = await activeCompanyRole(context.effectiveId, accountId, trx);
-    if (!actorRole || !can(actorRole, 'masquerade') || !targetRole) {
+    if (!actorRole || !access.can(actorRole, 'viewAs:use') || !targetRole) {
       throw new IdentityAuthorityError('Masquerade company authority changed.');
     }
   }

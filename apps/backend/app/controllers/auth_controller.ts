@@ -22,6 +22,7 @@ import { errors as vineErrors } from '@vinejs/vine';
 import { signInValidator, signUpValidator } from '#validators/auth_requests';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
+import access from '#config/access_control';
 
 function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
   if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
@@ -46,6 +47,7 @@ export default class AuthController {
         ctx,
         async (actor, trx) => {
           const admission = await admissionDecision(actor.userId, trx);
+          const memberships = await access.memberships.listForUser(actor.userId, trx);
           const admitted = actor.emailVerified && admission.admitted;
           return {
             authMode: 'password-only',
@@ -58,7 +60,7 @@ export default class AuthController {
             membershipRequired:
               admitted &&
               Boolean(await trx.from('accounts').select('id').first()) &&
-              !(await trx.from('memberships').where('user_id', actor.userId).first()),
+              memberships.length === 0,
           };
         },
         { limited: true }

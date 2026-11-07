@@ -1,4 +1,5 @@
 import { test } from '@japa/runner';
+import { PERMISSION_KEYS } from '@capacitylens/shared/account/permissions';
 import { operatorFixture, withOperatorServer } from './operator_command_support.js';
 
 const args = [
@@ -229,7 +230,17 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
       assert.equal(me.status, 200);
       const companies = await fetch(`${origin}/api/accounts`, { headers: { cookie } });
       assert.deepEqual(await companies.json(), [
-        { id: accountId, name: 'Wayne Enterprises', role: 'owner' },
+        {
+          id: accountId,
+          name: 'Wayne Enterprises',
+          role: 'owner',
+          access: {
+            scopeId: accountId,
+            role: 'owner',
+            permissions: [...PERMISSION_KEYS],
+            assignableRoles: ['viewer', 'editor', 'admin'],
+          },
+        },
       ]);
       const state = await fetch(`${origin}/api/state?accountId=${encodeURIComponent(accountId)}`, {
         headers: { cookie },

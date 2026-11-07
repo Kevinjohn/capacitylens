@@ -2,6 +2,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { conflictingAdmission, forbiddenAdmission } from '#services/admission/errors';
 import { affectedRows } from '#services/admission/affected_rows';
 import { advancePlanningRevision } from '#services/planning_revision';
+import access from '#config/access_control';
 
 type Trx = TransactionClientContract;
 
@@ -13,10 +14,7 @@ async function currentLink(trx: Trx, accountId: string, userId: string) {
 }
 
 async function assertEligibleMember(trx: Trx, accountId: string, userId: string) {
-  const member = await trx
-    .from('memberships')
-    .where({ account_id: accountId, user_id: userId })
-    .first();
+  const member = await access.memberships.find(accountId, userId, trx);
   if (member?.status !== 'active') {
     conflictingAdmission('Only an active company member can be linked.');
   }
@@ -97,10 +95,7 @@ export async function clearMemberResourceLink(
   input: { accountId: string; userId: string; expectedRevision: string }
 ) {
   const { accountId, userId, expectedRevision } = input;
-  const member = await trx
-    .from('memberships')
-    .where({ account_id: accountId, user_id: userId })
-    .first();
+  const member = await access.memberships.find(accountId, userId, trx);
   if (!member) conflictingAdmission('The company member no longer exists.');
   const changed = await trx
     .from('account_member_resources')

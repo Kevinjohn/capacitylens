@@ -11,6 +11,6 @@ export async function requiresFirstCompanySetup(
     users.length === 1 &&
     String(users[0]?.id) === userId &&
     !(await connection.from('accounts').select('id').first()) &&
-    !(await connection.from('memberships').select('id').first())
+    !(await connection.from('company_memberships').select('id').first())
   );
 }

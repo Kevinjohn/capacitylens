@@ -280,7 +280,7 @@ db.exec('COMMIT')`,
           scope_id: accountId,
           user_id: invalidation === 'target membership' ? target.userId : owner.userId,
         })
-        .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'archived' });
+        .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'suspended' });
       const lost = await capturedPlanningRead();
       assert.equal(lost.status, 409);
       assert.equal(lost.body.code, 'MASQUERADE_CONTEXT_CHANGED');
@@ -347,7 +347,7 @@ db.exec('COMMIT')`,
             user_id: invalidation === 'target membership' ? target.userId : owner.userId,
           })
           .update(
-            invalidation === 'actor permission' ? { role: 'editor' } : { status: 'archived' }
+            invalidation === 'actor permission' ? { role: 'editor' } : { status: 'suspended' }
           );
         barrier.release();
         const refused = await pending;

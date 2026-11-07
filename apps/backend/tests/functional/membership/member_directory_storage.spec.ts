@@ -322,7 +322,10 @@ test.group('member directory malformed storage', (group) => {
       await writeCorruption(corruption, memberId, assert);
       const beforeRead = await readProductState();
       await assert.rejects(
-        () => db.transaction((trx) => readMemberDirectory(trx, accountId, ownerId)),
+        () =>
+          db.transaction((trx) =>
+            readMemberDirectory(trx, accountId, { actorId: ownerId, role: 'owner' })
+          ),
         Error,
         new RegExp('^' + corruption.guardMessage.replace('.', '\\.') + '$'),
         `${corruption.label} must reach its own service guard`
