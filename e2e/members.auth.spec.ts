@@ -5,7 +5,6 @@ import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
-  signUpUser as signUp,
   signUpUserWithId,
   seedFixtureMember,
   masqueradeContextHeaders,
@@ -27,7 +26,7 @@ const EDITOR = `m-editor-${STAMP}@capacitylens.dev`;
 async function setupMembersApi(request: APIRequestContext) {
   const [owner, admin, editor] = await Promise.all([
     signUpUserWithId(OWNER),
-    signUp(ADMIN),
+    signUpUserWithId(ADMIN),
     signUpUserWithId(EDITOR),
   ]);
   const accountId = await bootstrapOrg(request, owner.cookie, `Members Studio ${STAMP}`);
@@ -50,6 +49,13 @@ async function setupMembersApi(request: APIRequestContext) {
     },
   );
   expect(touchOwner.status()).toBe(403);
+  // Nobody changes their own role; the browser offers no control for it, so only the server refusal is visible.
+  const selfRole = await request.patch(`${API}/api/accounts/${accountId}/members/${admin.userId}`, {
+    headers: await masqueradeContextHeaders(request, admin.cookie),
+    data: { role: 'editor' },
+  });
+  expect(selfRole.status()).toBe(403);
+  expect((await selfRole.json()).code).toBe('FORBIDDEN');
   // Only the current Owner can confirm the atomic handover, covered by ownership-transfer.auth.spec.
   const adminTransfer = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
     headers: await masqueradeContextHeaders(request, admin.cookie),
@@ -111,6 +117,7 @@ async function manageAdminMembers(
   await expect(page.getByText(EDITOR)).toBeVisible();
   await expect(page.locator('[data-testid="invite-role"] option[value="owner"]')).toHaveCount(0);
   await expect(page.getByTestId('member-make-owner')).toHaveCount(0);
+  await expect(rows.filter({ hasText: ADMIN }).getByTestId('member-edit')).toHaveCount(0);
   const editorRow = rows.filter({ hasText: EDITOR });
   await editorRow.getByTestId('member-edit').click();
   await selectShadOption(

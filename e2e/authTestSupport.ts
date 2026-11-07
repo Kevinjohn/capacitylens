@@ -603,12 +603,23 @@ export async function signUpUserWithId(
 /**
  * Issues an operator invitation against the auth E2E server's database and returns its acceptance
  * link, which the operator command prints instead of emailing. Keep the settings aligned with the
- * auth flavour in `apps/backend/scripts/e2e-server.mjs`.
+ * auth flavour in `apps/backend/scripts/e2e-server.mjs`. After the first company exists, pass its id
+ * as `scope`: acceptance refuses an invitation for any other scope.
  * @throws When the command fails or prints no link.
  */
-export function printFixtureInvitation(email: string, role: 'admin' | 'editor' | 'viewer'): string {
+export function printFixtureInvitation(
+  email: string,
+  role: 'admin' | 'editor' | 'viewer',
+  scope?: string,
+): string {
   return printOperatorLink(
-    ['account-kit:invite', email, `--role=${role}`, '--print'],
+    [
+      'account-kit:invite',
+      email,
+      `--role=${role}`,
+      ...(scope === undefined ? [] : [`--scope=${scope}`]),
+      '--print',
+    ],
     'invitation',
   );
 }
