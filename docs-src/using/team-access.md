@@ -14,8 +14,9 @@ Check your role in this company and what it lets you do.
 Open **Team & access** near the bottom of the left menu. **Your access** shows your role. Select
 **See full capabilities** to check what you can do.
 
-If you need different access, ask your agency's Owner or Admin.
-[Roles and permissions](/getting-started/roles-and-permissions) compares every role.
+If you need different access, ask your agency's Owner or Admin. Nobody can change their own role,
+including Owners and Admins. [Roles and permissions](/getting-started/roles-and-permissions)
+compares every role.
 
-Owners and Admins also invite and manage teammates here:
+Owners and Admins also invite and manage teammates here, and an Admin can manage another Admin:
 [Invite teammates](/admin/invite-teammates).

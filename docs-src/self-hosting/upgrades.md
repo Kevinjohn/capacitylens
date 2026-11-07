@@ -54,7 +54,10 @@ not convert alpha exports or migrate authentication. Redacted and malformed docu
 
 A database created before the move to password-only sign-in, or before a later change to the
 baseline schema such as the invitation `scope` column, cannot be upgraded in place: `app:upgrade`
-and startup refuse it with a `Database schema drift` message. Start a fresh database instead:
+and startup refuse it with a `Database schema drift` message. This includes a database that still
+holds memberships in the earlier `memberships` table. Company memberships now live in the
+`company_memberships` table of the fresh baseline, and existing memberships are not adopted. Start
+a fresh database instead:
 
 1. Stop the service and keep the old database file where it is.
 2. Point `CAPACITYLENS_DB` at a new, unused path.

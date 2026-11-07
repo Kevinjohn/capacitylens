@@ -5,8 +5,10 @@
 ## Outcome
 
 Account Kit owns identities, password credentials, sessions, emailed links (address confirmation,
-password reset, email change and invitations) and admission. CapacityLens owns companies,
-memberships, roles and every scheduling table. The integration uses the Kit's configuration in
+password reset, email change and invitations) and admission. Access Control
+(`@kevinjohn/adonisjs-access-control`) stores company memberships and applies the generic role and
+membership rules. CapacityLens owns companies, its membership policy, the role permissions it
+declares and every scheduling table. The integration uses the Kit's configuration in
 `apps/backend/config/account_kit.ts` and `apps/backend/config/admission.ts`, and the callbacks in
 `apps/backend/app/services/account_kit/`, as well as ordinary calls to the Kit's public API from
 application controllers and services.
@@ -35,6 +37,25 @@ Password policy bounds, link lifetimes (invitations last seven days), throttling
 expiry (fourteen days), ending every session on a credential change, and mail delivery. Every
 emailed flow needs `CAPACITYLENS_MAIL_HOST`; without it, sending an invitation refuses with
 `MAIL_UNAVAILABLE`. Production action links require an HTTPS public origin.
+
+## Access Control
+
+- **What the package decides.** Membership storage in `company_memberships`, the role order viewer
+  < editor < admin < owner, which role holds each permission key, which roles an actor may assign,
+  and the management rules: nobody manages their own membership (so a member cannot change their own
+  role), nobody manages the Owner or assigns Owner through ordinary management, and an Admin may
+  manage another Admin. The Owner role moves only by ownership transfer.
+- **What CapacityLens keeps.** The permission declaration in
+  `packages/shared/src/account/permissions.ts`, the configuration in
+  `apps/backend/config/access_control.ts`, access restrictions, audit, planning revisions, command
+  receipts, the view-as checks and identity-administration rules. Product status "archived" is the
+  package's suspended membership; a disabled access is a separate restriction.
+- **Transaction composition.** Every membership operation runs inside the product's
+  single-connection transaction, with that transaction passed to the package. The package never
+  opens a second transaction or connection, so authorization, membership write, audit and revision
+  commit or roll back together. This composition is documented and tested for SQLite only.
+- **One Kit module instance.** The application and Access Control resolve the same Account Kit
+  module, so they share one transaction nesting guard.
 
 ## First identity
 

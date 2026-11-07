@@ -93,7 +93,8 @@ the non-blocking product orientation if it is open.
    actions** dialog. The invoking triggers remain mounted and the Actions column keeps its width while
    either dialog is open. Closing by its footer action, Escape, or backdrop restores focus to that row
    trigger; a confirmation opened from Member actions receives focus instead of returning focus behind it.
-   All row controls are disabled while any member mutation is in flight.
+   All row controls are disabled while any member mutation is in flight. B's own row never offers
+   the role pencil: nobody changes their own role.
 4. B clicks **C**'s pencil, chooses Viewer in the dialog's role select
    (`data-testid="member-role-select"`), reads the plain-language summary of what Viewer can and
    cannot do, and clicks **Save role** (`data-testid="member-role-save"`).
@@ -154,7 +155,7 @@ the non-blocking product orientation if it is open.
   Close, Escape, and backdrop dismissal restore focus to the trigger; confirmations receive focus
   while they are open. Existing lifecycle actions, confirmations, permissions, and mutation behavior
   remain unchanged.
-- Disable, archive and restore are offered only where `canChangeMemberStatus` allows them — never
+- Disable, archive and restore are offered only where the row's server-derived `actions` allow them — never
   against the Owner and never against yourself — and the server refuses both cases with **403**
   independently of what the UI renders. A non-active membership authorizes nothing: the member's own
   reads against the company return **403** until they are restored, while the administrative
@@ -168,8 +169,11 @@ the non-blocking product orientation if it is open.
 - Re-applying the status a member already holds succeeds (**200**) and changes nothing.
 - Invite and ordinary role choices show their plain-language consequences before the mutation is
   submitted; ordinary role changes require explicit confirmation.
-- An Admin manages members but NOT owner-only operations (the acceptance headline, enforced per the
-  `can` matrix + the pure guards `canManageMemberRole`/`canRemoveMember`):
+- Nobody changes their own role. The own row has no role pencil, and the server refuses a self role
+  change, even to the same role, with **403** `FORBIDDEN`. An Admin can change, disable or remove
+  another Admin.
+- An Admin manages members but NOT owner-only operations (the acceptance headline, enforced by the
+  Access Control management rules the server applies):
   - the **Owner** option is absent for everyone (role select and invite-role picker);
   - the **Owner row** shows no ordinary role control or Remove action for anyone;
   - no row carries a transfer-ownership control for anyone (`data-testid="member-make-owner"` is
