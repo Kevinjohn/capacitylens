@@ -134,6 +134,11 @@ export async function readMemberDirectory(
     const principal = principalById.get(userId);
     // The lookup producer seeds every requested member ID before applying any links.
     const memberResourceFields = resourceFields.get(userId) as MemberResourceFields;
+    // The package type trusts storage; a corrupt stored value is still possible.
+    const storedStatus: string = m.status;
+    if (storedStatus !== 'active' && storedStatus !== 'suspended') {
+      throw new Error('Membership has an invalid status.');
+    }
     const entry = {
       userId,
       role: storedRole(m),
