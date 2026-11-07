@@ -76,7 +76,7 @@
     "@adonisjs/static": "2.0.1",
     "@capacitylens/shared": "workspace:*",
     "@kevinjohn/adonisjs-account-kit": "file:../../vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz",
-    "@kevinjohn/adonisjs-masquerade": "file:../../vendor/kevinjohn-adonisjs-masquerade/kevinjohn-adonisjs-masquerade-0.2.0.tgz",
+    "@kevinjohn/adonisjs-masquerade": "file:../../vendor/kevinjohn-adonisjs-masquerade/kevinjohn-adonisjs-masquerade-0.2.1.tgz",
     "@kevinjohn/adonisjs-lucid-soft-delete": "file:../../vendor/lucid-soft-deletes/kevinjohn-adonisjs-lucid-soft-delete-0.1.4.tgz",
     "@tuyau/core": "1.3.0",
     "@vinejs/vine": "4.4.0",
