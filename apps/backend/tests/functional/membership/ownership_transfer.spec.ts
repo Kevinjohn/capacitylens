@@ -417,7 +417,8 @@ test.group('atomic ownership transfer', (group) => {
       })
       .json({ toUserId: adminId, proofId })
       .send();
-    assert.isAtLeast(rejected.status(), 500);
+    // The target is no longer an Admin, so the transfer refuses before any effect.
+    rejected.assertStatus(409);
     const owners = await db.from('memberships').where({ scope_id: 'a-studio', role: 'owner' });
     assert.deepEqual(new Set(owners.map((row) => row.user_id)), new Set([ownerId, adminId]));
     assert.isNull(

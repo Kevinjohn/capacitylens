@@ -165,7 +165,7 @@ test.group('company invitations', (group) => {
     const userId = (accepted.body() as { user: { id: string } }).user.id;
     const memberships = await db.from('memberships').where('user_id', userId);
     assert.lengthOf(memberships, 1);
-    assert.include(memberships[0], { account_id: accountId, role: 'editor', status: 'active' });
+    assert.include(memberships[0], { scope_id: accountId, role: 'editor', status: 'active' });
     assert.isEmpty(await db.from('account_invitations').where('email', invitee));
     await expectStatus(accept(client, token), 400);
   });
