@@ -1,12 +1,10 @@
 import { activeOnly, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { Bouncer } from '@adonisjs/bouncer';
-import DataPolicy from '#policies/data_policy';
-import { activeCompanyRole } from '#services/auth/authorization';
+import { activeMembership, memberBouncer, storedRole } from '#services/auth/authorization';
 import { effectiveReadPrincipal } from '#services/auth/masquerade';
 import type { BatchCapabilities } from '#services/planning/data_policy';
-import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
+import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
@@ -54,16 +52,17 @@ async function currentAuthority(
   accountId: string
 ) {
   const principal = await effectiveReadPrincipal(ctx, trx, accountId);
-  const role = await activeCompanyRole(principal.effectiveId, accountId, trx);
-  if (!role || (principal.accountId !== null && principal.accountId !== accountId)) {
+  const membership = await activeMembership(principal.effectiveId, accountId, trx);
+  if (!membership || (principal.accountId !== null && principal.accountId !== accountId)) {
     throw new PlanningOperationError(
       403,
       'ACCOUNT_MEMBERSHIP_LOST',
       'Company membership is unavailable.'
     );
   }
-  const bouncer = new Bouncer({ id: principal.actorId });
-  if (!(await bouncer.with(DataPolicy).allows('read', { accountId, hasMembership: true }))) {
+  // Bouncer abilities are bound to the effective member, whose membership this is.
+  const bouncer = memberBouncer(principal.effectiveId, membership);
+  if (!(await bouncer.allows('planning:read'))) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
   const account = await trx.from('accounts').where('id', accountId).select('id').first();
@@ -75,19 +74,20 @@ async function currentAuthority(
     );
   }
   const masquerading = principal.isMasquerading;
+  const role = storedRole(membership);
   const authority: PlanningAuthority = {
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,
     role,
-    canWrite: !masquerading && can(role, 'write'),
+    canWrite: !masquerading && (await bouncer.allows('planning:write')),
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   };
   const capabilities: BatchCapabilities = {
     ...authority,
-    canAnonymise: !masquerading && can(role, 'anonymise'),
+    canAnonymise: !masquerading && (await bouncer.allows('resources:anonymise')),
   };
-  return { authority, capabilities, bouncer };
+  return { authority, capabilities };
 }
 
 /** Resolves current product authority, revision and rows from the same database snapshot. */
@@ -187,8 +187,8 @@ export function mutatePlanning(
   input: PlanningMutationInput
 ): Promise<PlanningMutationSuccess> {
   return withActor(ctx, async (actor, trx) => {
-    const { authority, capabilities, bouncer } = await currentAuthority(ctx, trx, accountId);
-    if (!(await bouncer.with(DataPolicy).allows('write', { accountId, capabilities }))) {
+    const { authority, capabilities } = await currentAuthority(ctx, trx, accountId);
+    if (!authority.canWrite) {
       throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
     }
     const previous = await trx

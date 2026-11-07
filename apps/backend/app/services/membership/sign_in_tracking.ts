@@ -1,6 +1,6 @@
 import { newId } from '@capacitylens/shared/lib/id';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { restrictedCompanyIds } from '#services/auth/authorization';
+import { activeCompanyIds, activeMembership } from '#services/auth/authorization';
 
 const TRACKING_KEY = 'member-sign-in-tracking';
 const observedKey = (userId: string) => `member-sign-in:${userId}`;
@@ -58,13 +58,8 @@ export async function setMemberSignInTracking(
 
 /** Records a proven sign-in only for active memberships in enabled windows. */
 export async function recordMemberSignIn(userId: string, trx: TransactionClientContract) {
-  const accounts = await trx
-    .from('memberships')
-    .where({ user_id: userId, status: 'active' })
-    .select('account_id');
   const now = new Date().toISOString();
-  for (const row of accounts) {
-    const accountId = String(row.account_id);
+  for (const accountId of await activeCompanyIds(userId, trx)) {
     await confirmMemberSignIn(accountId, userId, trx, now);
   }
 }
@@ -81,13 +76,7 @@ export async function confirmMemberSignIn(
     .where({ account_id: accountId, key: TRACKING_KEY })
     .first();
   if (!setting || !enabled(setting.value)) return;
-  const activeMember = await trx
-    .from('memberships')
-    .where({ account_id: accountId, user_id: userId, status: 'active' })
-    .first();
-  if (!activeMember) return;
-  const restricted = await restrictedCompanyIds(userId, trx);
-  if (restricted.has(accountId)) return;
+  if (!(await activeMembership(userId, accountId, trx))) return;
   await trx
     .table('company_settings')
     .insert({

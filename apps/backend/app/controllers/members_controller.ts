@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import type { Role } from '@capacitylens/shared/account/types';
 import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/types';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
@@ -14,9 +13,7 @@ import {
 import {
   changeMemberRole,
   changeMemberStatus,
-  enableMemberAccess,
   MembershipError,
-  removeMember,
 } from '#services/membership/member_mutations';
 import {
   confirmMemberSignIn,
@@ -50,14 +47,14 @@ interface SemanticMutationInput<T> {
   accountId: string;
   operation: string;
   payload: unknown;
-  work: (trx: TransactionClientContract, actor: { actorId: string; role: Role }) => Promise<T>;
+  work: (trx: TransactionClientContract, actor: { actorId: string }) => Promise<T>;
 }
 
 async function semanticMutation<T>(ctx: HttpContext, input: SemanticMutationInput<T>) {
   const { accountId, operation, payload, work } = input;
   const command = readAccountCommand(ctx);
   return withActor(ctx, async (_actor, trx) => {
-    const actor = await assertCompanyAction(accountId, 'manageMembers', trx);
+    const actor = await assertCompanyAction(accountId, 'members:manage', trx);
     const claim = await claimAccountCommand(trx, {
       accountId,
       actorId: actor.actorId,
@@ -81,8 +78,8 @@ export default class MembersController {
   async index(ctx: HttpContext) {
     const accountId = readRouteParam(ctx.params.accountId);
     const directory = await withActor(ctx, async (_actor, trx) => {
-      const actor = await assertCompanyAction(accountId, 'manageMembers', trx);
-      return readMemberDirectory(trx, accountId, actor.actorId);
+      const actor = await assertCompanyAction(accountId, 'members:manage', trx);
+      return readMemberDirectory(trx, accountId, actor);
     });
     return ctx.response.ok(directory);
   }
@@ -95,7 +92,7 @@ export default class MembersController {
     const enabled = body.enabled;
     const accountId = readRouteParam(ctx.params.accountId);
     await withActor(ctx, async (_actor, trx) => {
-      const actor = await assertCompanyAction(accountId, 'manageMemberSignInTracking', trx);
+      const actor = await assertCompanyAction(accountId, 'members:signInTracking', trx);
       const current = await readMemberSignInTracking(accountId, trx);
       await setMemberSignInTracking(accountId, enabled, trx);
       if (!current.enabled && enabled) await confirmMemberSignIn(accountId, actor.actorId, trx);
@@ -133,7 +130,6 @@ export default class MembersController {
           changeMemberRole(trx, {
             accountId,
             actorId: actor.actorId,
-            actorRole: actor.role,
             userId,
             role,
           }),
@@ -165,58 +161,11 @@ export default class MembersController {
           changeMemberStatus(trx, {
             accountId,
             actorId: actor.actorId,
-            actorRole: actor.role,
             userId,
             status,
           }),
       });
       return ctx.response.ok(result);
-    } catch (error) {
-      // Domain and receipt refusals retain their status; unexpected failures escape the mapper.
-      return replyMemberError(ctx, error);
-    }
-  }
-
-  async enableAccess(ctx: HttpContext) {
-    const accountId = readRouteParam(ctx.params.accountId);
-    const userId = readRouteParam(ctx.params.userId);
-    try {
-      const result = await semanticMutation(ctx, {
-        accountId,
-        operation: 'enable-member-access',
-        payload: { userId },
-        work: (trx, actor) =>
-          enableMemberAccess(trx, {
-            accountId,
-            actorId: actor.actorId,
-            actorRole: actor.role,
-            userId,
-          }),
-      });
-      return ctx.response.ok(result);
-    } catch (error) {
-      // Domain and receipt refusals retain their status; unexpected failures escape the mapper.
-      return replyMemberError(ctx, error);
-    }
-  }
-
-  async remove(ctx: HttpContext) {
-    const accountId = readRouteParam(ctx.params.accountId);
-    const userId = readRouteParam(ctx.params.userId);
-    try {
-      await semanticMutation(ctx, {
-        accountId,
-        operation: 'remove-member',
-        payload: { userId },
-        work: (trx, actor) =>
-          removeMember(trx, {
-            accountId,
-            actorId: actor.actorId,
-            actorRole: actor.role,
-            userId,
-          }),
-      });
-      return ctx.response.noContent();
     } catch (error) {
       // Domain and receipt refusals retain their status; unexpected failures escape the mapper.
       return replyMemberError(ctx, error);

@@ -3,6 +3,7 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { encodeRow } from '#services/state_repository';
+import access from '#config/access_control';
 
 /** Writes the complete first company inside the caller's transaction. */
 export async function createInitialCompany(
@@ -44,15 +45,7 @@ export async function createInitialCompany(
         buildInternalClient(accountId, now) as unknown as Record<string, unknown>
       )
     );
-  await trx.table('memberships').insert({
-    id: crypto.randomUUID(),
-    account_id: accountId,
-    user_id: input.ownerId,
-    role: 'owner',
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
+  await access.memberships.createFirstMember({ scopeId: accountId, userId: input.ownerId, trx });
   await trx.table('company_planning_revisions').insert({ account_id: accountId, revision: 1 });
   await trx.table('audit_entries').insert({
     id: crypto.randomUUID(),

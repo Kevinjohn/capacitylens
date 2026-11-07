@@ -6,23 +6,6 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
-export class AccountAccessRestrictionSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'id', 'principalId', 'role', 'verifiedEmail'] as const
-  $columns = AccountAccessRestrictionSchema.$columns
-  @column()
-  declare accountId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare principalId: string
-  @column()
-  declare role: import('@capacitylens/shared/account/types').Role
-  @column()
-  declare verifiedEmail: string | null
-}
-
 export class AccountAdmissionSchema extends BaseModel {
   static $columns = ['approvalActorId', 'approvalDecidedAt', 'approvalStatus', 'bootstrapEmail', 'createdAt', 'id', 'invitationId', 'invitationRecordedAt', 'invitationSource', 'invitedEmail', 'invitedRole', 'requestedAt', 'updatedAt', 'userId'] as const
   $columns = AccountAdmissionSchema.$columns
@@ -568,18 +551,18 @@ export class MasqueradeModeSchema extends BaseModel {
 }
 
 export class MembershipSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'id', 'role', 'status', 'updatedAt', 'userId'] as const
+  static $columns = ['createdAt', 'id', 'role', 'scopeId', 'status', 'updatedAt', 'userId'] as const
   $columns = MembershipSchema.$columns
-  @column()
-  declare accountId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column({ isPrimary: true })
-  declare id: string
+  declare id: number
   @column()
-  declare role: import('@capacitylens/shared/account/types').Role
+  declare role: string
   @column()
-  declare status: import('@capacitylens/shared/account/types').MembershipStatus
+  declare scopeId: string
+  @column()
+  declare status: string
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column()

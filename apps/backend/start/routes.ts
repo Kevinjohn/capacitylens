@@ -8,7 +8,7 @@ import router from '@adonisjs/core/services/router';
 import logger from '@adonisjs/core/services/logger';
 import { checkDatabase, readState, resetState } from '#services/state_repository';
 import { withActor } from '#services/auth/current_actor';
-import { activeCompanyRole } from '#services/auth/authorization';
+import { activeCompanyIds, activeCompanyRole } from '#services/auth/authorization';
 import { fileURLToPath } from 'node:url';
 import { healthChecks } from '#start/health';
 import { registerAuthRoutes } from '#start/auth_routes';
@@ -54,12 +54,8 @@ router
     const { response } = ctx;
     // Release level and backup timing are administration facts: Owners and Admins only.
     const administers = await withActor(ctx, async (actor, trx) => {
-      const memberships = await trx
-        .from('memberships')
-        .where({ user_id: actor.userId, status: 'active' })
-        .select('account_id');
-      for (const membership of memberships) {
-        const role = await activeCompanyRole(actor.userId, String(membership.account_id), trx);
+      for (const accountId of await activeCompanyIds(actor.userId, trx)) {
+        const role = await activeCompanyRole(actor.userId, accountId, trx);
         if (role === 'owner' || role === 'admin') return true;
       }
       return false;

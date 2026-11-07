@@ -2,7 +2,6 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { currentMasquerade, endMasquerade, startMasquerade } from '#services/auth/masquerade';
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
-import db from '@adonisjs/lucid/services/db';
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { signedInSession } from '#services/auth/current_actor';
 
@@ -69,7 +68,7 @@ export default class MasqueradeController {
         if (typeof accountId === 'string' && accountId) {
           const mode = await currentMasquerade(ctx);
           if (mode.active) return ctx.response.ok(mode);
-          if (!(await activeCompanyRole(signIn.userId, accountId, db))) {
+          if (!(await activeCompanyRole(signIn.userId, accountId, undefined))) {
             throw new IdentityAuthorityError('Company membership is unavailable.');
           }
           return ctx.response.ok({ ...mode, accountId });

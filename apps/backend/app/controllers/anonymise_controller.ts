@@ -6,7 +6,7 @@ import {
   ActionProofError,
   consumeActionProof,
 } from '#services/auth/action_proof';
-import { dataContextForActor } from '#services/planning/data_policy';
+import { activeMembership, memberBouncer } from '#services/auth/authorization';
 
 export default class AnonymiseController {
   async resource(ctx: HttpContext) {
@@ -22,10 +22,11 @@ export default class AnonymiseController {
     const { accountId, id } = ctx.params;
     const applied = await withActor(ctx, async (actor, trx) => {
       if (actor.masqueradeContext?.isMasquerading) return 'forbidden';
-      const context = await dataContextForActor(ctx, trx);
-      const capabilities = context.capabilitiesFor(accountId);
-      if (!(await context.authorize(accountId, 'anonymise', capabilities))) return 'forbidden';
-      return anonymiseResources(trx, accountId, context.actorId, id);
+      const membership = await activeMembership(actor.userId, accountId, trx);
+      if (!(await memberBouncer(actor.userId, membership).allows('resources:anonymise'))) {
+        return 'forbidden';
+      }
+      return anonymiseResources(trx, accountId, actor.userId, id);
     });
     if (applied === 'forbidden') return ctx.response.forbidden({ error: 'Forbidden.' });
     if (!applied) return ctx.response.notFound({ error: 'Not found.' });

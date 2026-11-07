@@ -110,8 +110,6 @@ export interface ApiDefinition {
       tracking: typeof routes['api.members.tracking']
       role: typeof routes['api.members.role']
       status: typeof routes['api.members.status']
-      enableAccess: typeof routes['api.members.enable-access']
-      remove: typeof routes['api.members.remove']
     }
     invites: {
       create: typeof routes['api.invites.create']

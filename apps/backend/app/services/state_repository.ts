@@ -4,6 +4,8 @@ import { seed } from '@capacitylens/shared/data/seed';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { withTransaction } from '#services/with_transaction';
+import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
+import access from '#config/access_control';
 import Account from '#models/account';
 import Activity from '#models/activity';
 import Allocation from '#models/allocation';
@@ -175,8 +177,13 @@ export function readState(accountId?: string, includeInactive = accountId === un
 }
 
 export async function resetState(seedRequested: boolean | 'single') {
-  await withTransaction(async (trx) => {
+  // The Kit runner holds the writer lock the package's membership removal relies on.
+  await transaction(db, async (trx) => {
     await trx.from('audit_entries').delete();
+    // Memberships restrict company deletion, so the package removes them first.
+    for (const account of await trx.from('accounts').select('id')) {
+      await access.memberships.removeAllForScope({ scopeId: String(account.id), trx });
+    }
     for (const table of Object.values(tables).reverse()) await trx.from(table).delete();
     if (!seedRequested) return;
     const seeded = seed();

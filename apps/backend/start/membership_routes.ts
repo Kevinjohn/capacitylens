@@ -16,13 +16,4 @@ export function registerMembershipRoutes() {
   router
     .patch('/api/accounts/:accountId/members/:userId/status', [MembersController, 'changeStatus'])
     .as('api.members.status');
-  router
-    .post('/api/accounts/:accountId/members/:userId/enable-access', [
-      MembersController,
-      'enableAccess',
-    ])
-    .as('api.members.enable-access');
-  router
-    .delete('/api/accounts/:accountId/members/:userId', [MembersController, 'remove'])
-    .as('api.members.remove');
 }

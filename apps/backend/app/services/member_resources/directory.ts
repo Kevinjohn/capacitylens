@@ -79,7 +79,7 @@ export async function readMemberAvatars(trx: TransactionClientContract, accountI
     })
     .innerJoin('memberships as member', function () {
       this.on('member.user_id', '=', 'link.user_id').andOn(
-        'member.account_id',
+        'member.scope_id',
         '=',
         'link.account_id'
       );

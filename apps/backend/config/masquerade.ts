@@ -6,8 +6,8 @@ import { accountKitAuthority } from '@kevinjohn/adonisjs-masquerade/account-kit'
 import { LucidControlStore } from '@kevinjohn/adonisjs-masquerade/stores/lucid';
 import { accountInput } from '#services/auth/current_actor';
 import { sessionUsers } from '#config/auth';
-import { activeCompanyRole } from '#services/auth/authorization';
-import { can } from '@capacitylens/shared/domain/access';
+import { activeCompanyIds, activeCompanyRole } from '#services/auth/authorization';
+import access from '#config/access_control';
 import type User from '#models/user';
 
 type MasqueradeUser = User;
@@ -37,40 +37,32 @@ export default defineConfig<MasqueradeUser, HttpContext>({
     async canMasquerade({ actor, target, request }) {
       const accountId = requestedAccountId(request);
       if (accountId) {
-        const actorRole = await activeCompanyRole(actor.id, accountId, db);
-        const targetRole = await activeCompanyRole(target.id, accountId, db);
+        const actorRole = await activeCompanyRole(actor.id, accountId, undefined);
+        const targetRole = await activeCompanyRole(target.id, accountId, undefined);
         return Boolean(
-          actorRole && can(actorRole, 'masquerade') && targetRole && actor.id !== target.id
+          actorRole && access.can(actorRole, 'viewAs:use') && targetRole && actor.id !== target.id
         );
       }
-      const roles = await db
-        .from('memberships')
-        .where({ user_id: actor.id, status: 'active' })
-        .select('account_id');
-      for (const row of roles) {
-        const memberAccountId = String(row.account_id);
-        const role = await activeCompanyRole(actor.id, memberAccountId, db);
-        const targetRole = await activeCompanyRole(target.id, memberAccountId, db);
-        if (role && can(role, 'masquerade') && targetRole) return actor.id !== target.id;
+      const roles = await activeCompanyIds(actor.id, undefined);
+      for (const memberAccountId of roles) {
+        const role = await activeCompanyRole(actor.id, memberAccountId, undefined);
+        const targetRole = await activeCompanyRole(target.id, memberAccountId, undefined);
+        if (role && access.can(role, 'viewAs:use') && targetRole) return actor.id !== target.id;
       }
       return false;
     },
     async canUseRequest({ actor, target, request }) {
       const accountId = requestedAccountId(request);
       if (accountId) {
-        const actorRole = await activeCompanyRole(actor.id, accountId, db);
-        const targetRole = await activeCompanyRole(target.id, accountId, db);
-        return Boolean(actorRole && can(actorRole, 'masquerade') && targetRole);
+        const actorRole = await activeCompanyRole(actor.id, accountId, undefined);
+        const targetRole = await activeCompanyRole(target.id, accountId, undefined);
+        return Boolean(actorRole && access.can(actorRole, 'viewAs:use') && targetRole);
       }
-      const memberships = await db
-        .from('memberships')
-        .where({ user_id: actor.id, status: 'active' })
-        .select('account_id');
-      for (const row of memberships) {
-        const memberAccountId = String(row.account_id);
-        const actorRole = await activeCompanyRole(actor.id, memberAccountId, db);
-        const targetRole = await activeCompanyRole(target.id, memberAccountId, db);
-        if (actorRole && can(actorRole, 'masquerade') && targetRole) return true;
+      const memberships = await activeCompanyIds(actor.id, undefined);
+      for (const memberAccountId of memberships) {
+        const actorRole = await activeCompanyRole(actor.id, memberAccountId, undefined);
+        const targetRole = await activeCompanyRole(target.id, memberAccountId, undefined);
+        if (actorRole && access.can(actorRole, 'viewAs:use') && targetRole) return true;
       }
       return false;
     },

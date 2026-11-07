@@ -9,7 +9,7 @@ export default class GettingStartedController {
   async show(ctx: HttpContext) {
     const { params, response } = ctx;
     return withActor(ctx, async (_actor, trx) => {
-      await assertCompanyAction(params.accountId, 'read', trx);
+      await assertCompanyAction(params.accountId, 'planning:read', trx);
       if (!(await trx.from('accounts').where('id', params.accountId).first())) {
         return response.notFound({ error: 'Company not found.' });
       }
@@ -30,7 +30,7 @@ export default class GettingStartedController {
     }
     const now = new Date().toISOString();
     const exists = await withActor(ctx, async (_actor, trx) => {
-      await assertCompanyAction(params.accountId, 'write', trx);
+      await assertCompanyAction(params.accountId, 'planning:write', trx);
       if (!(await trx.from('accounts').where('id', params.accountId).first())) return false;
       await trx
         .table('account_getting_started_dismissals')

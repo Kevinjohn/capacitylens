@@ -416,18 +416,6 @@ const routes = {
     tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"members"],[1,"userId"],[0,"status"]],
     types: placeholder as Registry['api.members.status']['types'],
   },
-  'api.members.enable-access': {
-    methods: ["POST"],
-    pattern: '/api/accounts/:accountId/members/:userId/enable-access',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"members"],[1,"userId"],[0,"enable-access"]],
-    types: placeholder as Registry['api.members.enable-access']['types'],
-  },
-  'api.members.remove': {
-    methods: ["DELETE"],
-    pattern: '/api/accounts/:accountId/members/:userId',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"members"],[1,"userId"]],
-    types: placeholder as Registry['api.members.remove']['types'],
-  },
   'api.invites.create': {
     methods: ["POST"],
     pattern: '/api/invites',
