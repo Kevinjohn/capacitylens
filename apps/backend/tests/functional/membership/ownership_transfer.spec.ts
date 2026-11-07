@@ -10,6 +10,7 @@ import {
   createFixtureCompanyForOwner,
 } from '../../helpers/authenticated_data_fixture.js';
 import { signUpAndIn } from '../../helpers/identities.js';
+import { membership } from '../../helpers/memberships.js';
 
 const password = 'batman-secret-2026';
 
@@ -50,6 +51,13 @@ async function fixture(client: ApiClient) {
 }
 
 const signed = asDataOwner;
+
+async function activeOwnerIds() {
+  const owners = await db
+    .from('company_memberships')
+    .where({ scope_id: 'a-studio', role: 'owner', status: 'active' });
+  return owners.map((row) => row.user_id);
+}
 
 async function transferProof(client: ApiClient, cookie: string, toUserId: string) {
   const result = await signed(client.post('/api/auth/action-proof/password'), cookie)
@@ -143,16 +151,13 @@ test.group('atomic ownership transfer', (group) => {
         .headers(command)
         .json({ toUserId, proofId })
         .send();
+    assert.deepEqual(await activeOwnerIds(), [ownerId]);
     const completed = await transfer(adminId);
     completed.assertStatus(200);
     assert.deepEqual(completed.body(), { fromUserId: ownerId, toUserId: adminId });
-    const roles = await db
-      .from('company_memberships')
-      .where('scope_id', 'a-studio')
-      .select('user_id', 'role');
-    assert.equal(roles.find((row) => row.user_id === ownerId)?.role, 'admin');
-    assert.equal(roles.find((row) => row.user_id === adminId)?.role, 'owner');
-    assert.equal(roles.filter((row) => row.role === 'owner').length, 1);
+    assert.include(await membership('a-studio', ownerId), { role: 'admin', status: 'active' });
+    assert.include(await membership('a-studio', adminId), { role: 'owner', status: 'active' });
+    assert.deepEqual(await activeOwnerIds(), [adminId]);
     assert.lengthOf(
       await db.from('password_reset_tokens').whereIn('tokenable_id', [ownerId, adminId]),
       2,
@@ -319,16 +324,9 @@ test.group('atomic ownership transfer', (group) => {
         .json({ toUserId: adminId, proofId })
         .send();
     const assertions = async (suffix: string) => {
-      const owner = await db
-        .from('company_memberships')
-        .where({ scope_id: 'a-studio', user_id: ownerId })
-        .first();
-      const admin = await db
-        .from('company_memberships')
-        .where({ scope_id: 'a-studio', user_id: adminId })
-        .first();
-      assert.equal(owner.role, 'owner');
-      assert.equal(admin.role, 'admin');
+      assert.include(await membership('a-studio', ownerId), { role: 'owner', status: 'active' });
+      assert.include(await membership('a-studio', adminId), { role: 'admin', status: 'active' });
+      assert.deepEqual(await activeOwnerIds(), [ownerId]);
       assert.lengthOf(
         await db.from('password_reset_tokens').whereIn('tokenable_id', [ownerId, adminId]),
         2
@@ -389,22 +387,9 @@ test.group('atomic ownership transfer', (group) => {
         .send();
     const responses = await Promise.all([request('first'), request('second')]);
     assert.deepEqual(responses.map((response) => response.status()).sort(), [200, 403]);
-    assert.lengthOf(
-      await db
-        .from('company_memberships')
-        .where({ scope_id: 'a-studio', role: 'owner', status: 'active' }),
-      1
-    );
-    const formerOwner = await db
-      .from('company_memberships')
-      .where({ scope_id: 'a-studio', user_id: ownerId })
-      .first();
-    const newOwner = await db
-      .from('company_memberships')
-      .where({ scope_id: 'a-studio', user_id: adminId })
-      .first();
-    assert.equal(formerOwner.role, 'admin');
-    assert.equal(newOwner.role, 'owner');
+    assert.deepEqual(await activeOwnerIds(), [adminId]);
+    assert.include(await membership('a-studio', ownerId), { role: 'admin', status: 'active' });
+    assert.include(await membership('a-studio', adminId), { role: 'owner', status: 'active' });
     assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 1);
     assert.lengthOf(
       await db.from('command_results').where('operation', 'like', 'semantic:transfer-ownership:%'),
