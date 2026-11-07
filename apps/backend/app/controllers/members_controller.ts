@@ -133,7 +133,6 @@ export default class MembersController {
           changeMemberRole(trx, {
             accountId,
             actorId: actor.actorId,
-            actorRole: actor.role,
             userId,
             role,
           }),
@@ -212,7 +211,6 @@ export default class MembersController {
           removeMember(trx, {
             accountId,
             actorId: actor.actorId,
-            actorRole: actor.role,
             userId,
           }),
       });

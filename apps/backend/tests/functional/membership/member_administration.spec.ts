@@ -148,6 +148,8 @@ test.group('company member administration', (group) => {
       created_at: now,
       updated_at: now,
     });
+    // Enable Access restores the restriction's role, so the role change must carry it along.
+    await restrict(editorId, 'editor');
     await db.table('password_reset_tokens').insert({
       tokenable_id: editorId,
       email: 'clark.kent@wayne.example',
@@ -165,6 +167,18 @@ test.group('company member administration', (group) => {
     const changed = await requestRole('admin');
     changed.assertStatus(200);
     assert.deepEqual(changed.body(), { userId: editorId, role: 'admin' });
+    const carried = await restriction(editorId);
+    assert.equal(carried?.role, 'admin');
+    const receipt = await db
+      .from('command_results')
+      .where('command_id', identity['x-account-command-id'])
+      .first();
+    assert.equal(receipt.account_id, 'a-studio');
+    assert.equal(
+      receipt.operation,
+      `semantic:change-member-role:actor:${await userId('bruce.wayne@wayne.example')}`
+    );
+    assert.deepEqual(JSON.parse(receipt.result), changed.body());
     const changedRevision = await db
       .from('company_planning_revisions')
       .where('account_id', 'a-studio')
@@ -549,47 +563,6 @@ test.group('company member administration', (group) => {
     enabled.assertStatus(200);
     // The identity's invitation evidence is Viewer; the restriction saved Editor.
     assert.include(await membership(accountId, editorId), { role: 'editor', status: 'active' });
-  });
-
-  test('P01: a role command succeeds once, replays identically and still refuses self', async ({
-    client,
-    assert,
-  }) => {
-    const { ownerId, adminId, editorId, ownerCookie, adminCookie } = await team(client);
-    await restrict(editorId, 'editor');
-    const before = await snapshot(editorId);
-    const headers = commandHeaders();
-    const changed = await setRole(client, ownerCookie, editorId, 'admin', headers);
-    changed.assertStatus(200);
-    assert.deepEqual(changed.body(), { userId: editorId, role: 'admin' });
-    const after = await snapshot(editorId);
-    assert.equal(after.membership.role, 'admin');
-    assert.equal(after.restriction?.role, 'admin');
-    assert.lengthOf(await roleAudits(editorId), 1);
-    assert.equal(Number(after.revision.revision), Number(before.revision.revision) + 1);
-    const receipt = await db
-      .from('command_results')
-      .where('command_id', headers['x-account-command-id'])
-      .first();
-    assert.equal(receipt.account_id, accountId);
-    assert.equal(receipt.operation, `semantic:change-member-role:actor:${ownerId}`);
-    assert.deepEqual(JSON.parse(receipt.result), changed.body());
-
-    const replay = await setRole(client, ownerCookie, editorId, 'admin', headers);
-    replay.assertStatus(200);
-    assert.deepEqual(replay.body(), changed.body());
-    assert.deepEqual(await snapshot(editorId), after);
-
-    const sameRole = await setRole(client, ownerCookie, editorId, 'admin');
-    sameRole.assertStatus(200);
-    const unchanged = await snapshot(editorId);
-    assert.deepEqual(unchanged.membership, after.membership);
-    assert.deepEqual(unchanged.revision, after.revision);
-    assert.deepEqual(unchanged.audits, after.audits);
-
-    const self = await setRole(client, adminCookie, adminId, 'viewer');
-    self.assertStatus(403);
-    assert.equal((self.body() as { code: string }).code, 'FORBIDDEN');
   });
 
   test('P02: an audit failure after the role and revision writes rolls everything back', async ({

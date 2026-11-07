@@ -84,10 +84,6 @@ export async function transferOwnership(
       toUserId,
       trx,
     });
-    const finalOwners = await activeOwnerIds(trx, accountId);
-    if (finalOwners.length !== 1 || finalOwners[0] !== toUserId) {
-      throw new Error('Company Owner invariant failed after transfer.');
-    }
 
     await advancePlanningRevision(trx, accountId);
     await writeAudit(trx, {

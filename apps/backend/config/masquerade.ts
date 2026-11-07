@@ -8,6 +8,7 @@ import { accountInput } from '#services/auth/current_actor';
 import { sessionUsers } from '#config/auth';
 import { activeCompanyRole } from '#services/auth/authorization';
 import access from '#config/access_control';
+import { activeMembershipIds } from '#services/membership/package_projection';
 import type User from '#models/user';
 
 type MasqueradeUser = User;
@@ -24,15 +25,6 @@ export const nativeAdapter = accountKitAuthority<MasqueradeUser>({
     current: accountInput,
   },
 });
-
-/** The actor's active company ids, in ascending order. */
-async function activeMembershipIds(userId: string): Promise<string[]> {
-  const memberships = await access.memberships.listForUser(userId);
-  return memberships
-    .filter((m) => m.status === 'active')
-    .map((m) => String(m.scopeId))
-    .sort();
-}
 
 function requestedAccountId(request?: HttpContext): string | null {
   if (!request) return null;

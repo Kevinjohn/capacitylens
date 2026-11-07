@@ -71,3 +71,12 @@ export async function activeMembershipsByCompany(
   }
   return map;
 }
+
+/** A user's active company ids in ascending order, read on the default connection. */
+export async function activeMembershipIds(userId: string): Promise<string[]> {
+  const memberships = await access.memberships.listForUser(userId);
+  return memberships
+    .filter((m) => m.status === 'active')
+    .map((m) => String(m.scopeId))
+    .sort();
+}
