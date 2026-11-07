@@ -88,9 +88,9 @@ not include identities, sessions or memberships. There is no CSV or spreadsheet 
 ## My Admin is leaving. What do I do?
 
 Invite the new Admin first. Then, in **Team & access**, open the departing Admin's **More actions**
-and select **Disable Access**: they can no longer open the company, and their record stays. Their
+and select **Suspend**: they can no longer open the company, and their record stays. Their
 row on the schedule and their bookings are not affected.
-[Stop access](/admin/invite-teammates#stop-access) explains the other options.
+[Stop access](/admin/invite-teammates#stop-access) explains how to bring them back.
 
 ## What if I leave?
 

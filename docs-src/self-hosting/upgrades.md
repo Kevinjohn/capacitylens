@@ -53,7 +53,8 @@ not convert alpha exports or migrate authentication. Redacted and malformed docu
 ## Databases the upgrade refuses
 
 A database created before the move to password-only sign-in, or before a later change to the
-baseline schema such as the invitation `scope` column, cannot be upgraded in place: `app:upgrade`
+baseline schema such as the invitation `scope` column or the Access Control memberships table,
+cannot be upgraded in place: `app:upgrade`
 and startup refuse it with a `Database schema drift` message. Start a fresh database instead:
 
 1. Stop the service and keep the old database file where it is.

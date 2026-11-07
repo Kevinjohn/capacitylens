@@ -64,6 +64,5 @@ delivery. Without it, CapacityLens says so instead of sending.
 
 ## When someone leaves
 
-In **Team & access**, remove their membership or select **Disable Access**. They lose company access
-on their next request. Neither can rejoin until an Owner or Admin selects **Enable Access** under
-**No longer active**; a removed person returns with the role they held when removed.
+In **Team & access**, select **Suspend**. They lose company access on their next request and cannot
+rejoin until an Owner or Admin selects **Restore membership** under **No longer active**.

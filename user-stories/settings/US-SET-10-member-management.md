@@ -5,8 +5,8 @@
 ## Goal
 
 Let an Owner or Admin manage who can access their company from Team & access: see the member list, invite
-people (an emailed link addressed to one email), change a member's role, Disable or Enable
-Access, archive or remove a membership, and list/revoke outstanding invites. An Admin manages members but
+people (an emailed link addressed to one email), change a member's role, suspend or restore a
+membership, and list/revoke outstanding invites. An Admin manages members but
 cannot do owner-only operations. Sign-in tracking remains a server capability, but its controls and
 status column are unavailable in this UI. Ownership transfer is not part of this story: it has no per-row control
 (since #175) and has its own single-confirmation flow and section — see
@@ -25,13 +25,10 @@ On an auth-enabled, server-backed deploy, access to a company is a real membersh
 so the people who run a company need a place to grant, adjust, and revoke that access without touching
 the database. Team & access is visible to every role so a Viewer/Editor can understand their own
 limits; management controls remain Owner/Admin-only. Ownership moves only through its own explicit confirmation
-(US-SET-18), and the database prevents a second active Owner. Disable Access is an explicit company
-restriction that survives membership removal. It follows identity recreation at the same proven
-address only when both identities have durable mailbox proof; a legacy verified flag or addressed
-invitation alone does not supply that proof. Only an
-administrator can Enable Access. Archive retains an inactive membership; remove ends it and records
-the same restriction, so the person cannot rejoin on their own. Enable Access restores a removed
-person with the role they held when removed; it does not reactivate an archived membership.
+(US-SET-18), and the Access Control package keeps a single Owner. Suspend keeps the membership and
+its role but refuses every company request; the person cannot rejoin on their own, and only an
+Owner or Admin restores them. A person who deletes their account and registers again needs a fresh
+invitation and an Owner or Admin's approval.
 Invitations use a single-use emailed link. The bearer is delivered by email and stored only as a
 one-way hash; the app never displays or returns the link. Listing and revoking invitations cannot
 leak a live, role-bearing bearer.
@@ -40,7 +37,7 @@ An Owner or Admin can also associate one active member with one active person Re
 shows the resource name or **None** and offers a separate link icon that opens a centered Resource-link
 dialog with the selector ready. A selection saves immediately, and a linked member has a
 **Remove link to resource** action. The association does not grant access or create
-schedule data. Archived or disabled members and Resources retain an existing association for
+schedule data. Suspended members and archived Resources retain an existing association for
 status and removal, but cannot be new or changed targets. When the active linked member has a
 validated avatar URL, the schedule uses it only if the person has no explicit avatar URL; inactive
 endpoints show no derived picture. Unlinking returns the person to their explicit avatar, or initials
@@ -79,11 +76,10 @@ the non-blocking product orientation if it is open.
    **Role**, **Email**, **Link to Resource**, and **Actions**, one row per member
    (`data-testid="member-row"`); B's own row is marked **(you)**. Active and inactive tables use
    the same columns. Rows are ordered by role priority **Owner**, **Admin**, **Editor**, **Viewer**,
-   then display name and stable member ID; restricted and archived memberships, plus removed
-   restrictions, are grouped below it
+   then display name and stable member ID; suspended memberships are grouped below it
    behind a collapsed **No longer active (_count_)** disclosure
    (`data-testid="members-inactive-toggle"`) that reveals a second table
-   (`data-testid="members-inactive-table"`) whose rows carry an **Access disabled**/**Archived**/**Removed** badge.
+   (`data-testid="members-inactive-table"`) whose rows carry a **Suspended** badge.
    Email cells contain the complete address in the DOM and in a native `title`, while CSS truncates
    the visual text to the available column width.
 3. Each manageable row ends in distinct controls, each naming their member for screen readers: an eye for
@@ -97,14 +93,11 @@ the non-blocking product orientation if it is open.
 4. B clicks **C**'s pencil, chooses Viewer in the dialog's role select
    (`data-testid="member-role-select"`), reads the plain-language summary of what Viewer can and
    cannot do, and clicks **Save role** (`data-testid="member-role-save"`).
-5. B opens **C**'s member-actions dialog. It holds **Disable
-   Access** (`data-testid="member-disable"`), **Archive user** (`data-testid="member-archive"`) and
-   **Remove** — each behind an explicit confirmation naming C. Once access is disabled, C's row moves into
-   the **No longer active** group and offers **Enable Access** (`data-testid="member-enable"`). Every
-   request C makes to this company is refused immediately. If B removes C, the restriction stays
-   visible and can still be enabled. Enable recreates the membership with its retained role. Archiving
-   remains distinct: it requires **Restore membership** before access returns. Removal records an
-   access restriction and requires **Enable Access** to restore the removed member.
+5. B opens **C**'s member-actions dialog. It holds **Suspend** (`data-testid="member-suspend"`)
+   behind an explicit confirmation naming C. Once suspended, C's row moves into the **No longer
+   active** group and offers **Restore membership** (`data-testid="member-restore"`). Every request
+   C makes to this company is refused on its next request. Restoring brings C back with the same
+   role.
 6. B selects the primary **Invite someone** button (`data-testid="invite-open"`) above the member
    table to open a centered dialog, then picks a role (`data-testid="invite-role"`), fills the
    required **Email** (`data-testid="invite-preauth"`), checks the selected role's visible
@@ -118,7 +111,8 @@ the non-blocking product orientation if it is open.
 8. B never sees an **Owner** option (neither in a role select nor the invite-role picker), no
    **Transfer ownership** button on any row — since #175 no row offers one to anyone — and owner A's
    row shows B neither a pencil nor a more-actions button (an Admin can't touch an owner). Signed in as A, that same
-   row offers no disable, archive or remove action: nobody can disable an Owner, or themselves.
+   row offers no suspend action: nobody can suspend the Owner or themselves, or change their own
+   role.
 9. **Ownership transfer** is not reachable from the member table at all. Its own **Company ownership**
    section below opens the single-confirmation transfer modal —
    see [US-SET-18](US-SET-18-ownership-transfer.md).
@@ -140,10 +134,10 @@ the non-blocking product orientation if it is open.
   visual text; missing or malformed legacy values do not throw.
 - Team & access never renders the sign-in-tracking switch or **Signed in** column, regardless of the
   stored setting. The server routes, storage, and audit behavior remain intact for possible later use.
-- The main table lists only active members. Disabled and archived memberships appear under a
+- The main table lists only active members. Suspended memberships appear under a
   **No longer active (_count_)** disclosure that is **collapsed by default**, reports its state
-  through `aria-expanded`, badges each row **Disabled** or **Archived**, and is absent entirely when
-  no membership is in either state.
+  through `aria-expanded`, badges each row **Suspended**, and is absent entirely when no membership
+  is suspended.
 - The capability tick list is collapsed by default and toggles from a single control that reports its
   state through `aria-expanded`.
 - The Resource Link dialog opens with its selector ready and saves a changed selection immediately.
@@ -154,24 +148,23 @@ the non-blocking product orientation if it is open.
   Close, Escape, and backdrop dismissal restore focus to the trigger; confirmations receive focus
   while they are open. Existing lifecycle actions, confirmations, permissions, and mutation behavior
   remain unchanged.
-- Disable, archive and restore are offered only where `canChangeMemberStatus` allows them — never
-  against the Owner and never against yourself — and the server refuses both cases with **403**
+- Suspend, restore and the role pencil are offered only where the row's server-computed `manage`
+  flag allows them — never against the Owner and never against yourself — and the server refuses
+  both cases with **403**
   independently of what the UI renders. A non-active membership authorizes nothing: the member's own
   reads against the company return **403** until they are restored, while the administrative
   directory keeps listing them so the change is visible and reversible.
-- A disabled membership cannot be reversed by its holder. Redeeming an invite while access is
-  disabled is **403** and leaves the invite unused; only an Owner/Admin can enable access.
-  An archived member without a Disable Access restriction may rejoin through an addressed,
-  valid invitation, receiving the invitation role.
-- **Remove** works on a non-active row without first restoring its access. The role **pencil** is the one exception — it is offered on active rows
-  only, so a role change can never quietly reinstate a disabled member.
+- A suspended membership cannot be reversed by its holder; joining the company again is refused
+  until an Owner or Admin restores it.
+- The role **pencil** is offered on active rows only, so a role change can never quietly reinstate
+  a suspended member.
 - Re-applying the status a member already holds succeeds (**200**) and changes nothing.
 - Invite and ordinary role choices show their plain-language consequences before the mutation is
   submitted; ordinary role changes require explicit confirmation.
-- An Admin manages members but NOT owner-only operations (the acceptance headline, enforced per the
-  `can` matrix + the pure guards `canManageMemberRole`/`canRemoveMember`):
+- An Admin manages members but NOT owner-only operations (the acceptance headline, enforced by the
+  Access Control package on the server):
   - the **Owner** option is absent for everyone (role select and invite-role picker);
-  - the **Owner row** shows no ordinary role control or Remove action for anyone;
+  - the **Owner row** shows no ordinary role control or Suspend action for anyone;
   - no row carries a transfer-ownership control for anyone (`data-testid="member-make-owner"` is
     absent everywhere); ownership moves only through the confirmation flow in US-SET-18, which re-reads both
     membership projections afterwards so the former Owner's role badge and affordances reflect the
@@ -188,14 +181,14 @@ the non-blocking product orientation if it is open.
 - Invitation links are never shown in the app or returned by the API, and are stored only as
   digests.
 - The server is the backstop regardless of the UI: any generic Owner assignment or Owner invite is
-  **400**; touching or removing the Owner outside an ownership transfer is **403**;
+  **400**; touching or suspending the Owner outside an ownership transfer, or changing your own
+  role or status, is **403**;
   revoking another account's invite is a no-op; and reading another
   account's members is **403** (no cross-tenant member leak).
 - API routes: `GET /api/accounts/:accountId/members` (returns
-  `{members, signInTrackingEnabled}`; each member carries `status` and nullable
-  `signInConfirmed`), `PUT …/member-sign-in-tracking {enabled}` (Owner only),
+  `{members, signInTrackingEnabled}`; each member carries `status` (`active` or `suspended`),
+  `manage` and nullable `signInConfirmed`), `PUT …/member-sign-in-tracking {enabled}` (Owner only),
   `PATCH …/members/:userId {role}`, `PATCH …/members/:userId/status {status}`,
-  `DELETE …/members/:userId`,
   `GET /api/accounts/:accountId/invites`, `DELETE …/invites/:id`. The in-memory demo makes no
   invitation requests.
 

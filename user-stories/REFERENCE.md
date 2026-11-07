@@ -21,12 +21,8 @@ All member linking and invitations are managed in **Team & access**. Owners and 
 member's actions there to link, change, or remove an eligible person Resource; the Resources page
 does not provide a separate team-link workflow.
 
-**Disable Access** is a company restriction separate from archiving or removing membership. It
-denies current requests and later invitations. It also follows a recreated identity at the same
-address once that address is confirmed.
-**Enable Access** clears the restriction and brings a removed person back with the role they held
-when removed; an archived person still needs **Restore membership**. Removed restrictions remain visible to administrators in
-the inactive member directory. Owner and self protections apply to both actions.
+**Suspend** keeps a membership and its role but refuses every company request until an Owner or
+Admin selects **Restore membership**. Nobody can suspend the Owner or themselves.
 
 > CapacityLens is server-backed by default (an empty env means the same-origin SQLite API). A
 > production installation contains one company, returned by the server; conflicting company data
@@ -889,8 +885,8 @@ screen (`access-<gate>`), titled for its next step, with **Sign out**:
   says so instead: a missing invitation asks them to have the administrator record one, and an
   address outside the allowed domains asks them to use their work address.
 - `access-membership` — **Join the company**, with **Join company** (`access-join-company`) for an
-  approved identity that has no membership yet. A removed person is refused until an Owner or Admin
-  selects Enable Access.
+  approved identity that has no membership yet. A suspended member is refused until an Owner or
+  Admin restores them.
 
 The `/verify-email/:token` page offers **Try again** (`verify-unavailable`) when the link cannot be
 checked, rather than calling it invalid. If the confirmation answer is lost it shows
@@ -932,7 +928,7 @@ The person enters **Name** (`invite-name`) and **Password** (`invite-password`) 
 **Accept invitation** (`invite-submit`), which calls `POST /api/invites/:token/signup`. Acceptance
 creates the identity, confirms the address and creates the membership in one transaction; company
 data then waits for an Owner or Admin approval. An address that already has an account is told so.
-An accept is refused (403) while **Disable Access** applies to that address. An invalid, used or
+An invalid, used or
 expired link shows `invite-error`: **This invitation is invalid or has expired. Ask the person who
 invited you for a new link.** In the in-memory demo build (`VITE_CAPACITYLENS_DEMO=1`) the page
 shows **Invite links work only when CapacityLens is connected to a server.** and makes no request.
@@ -1021,15 +1017,10 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="member-role-select"`) offering only Admin, Editor and Viewer, the chosen role's
   plain-language consequences (`data-testid="member-role-summary"`), and **Save role**
   (`data-testid="member-role-save"`) — and a gear
-  (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Disable Access** (`data-testid="member-disable"`),
-  **Archive user** (`data-testid="member-archive"`) and **Remove**
-  (`data-testid="member-remove"`), with **Enable Access** (`data-testid="member-enable"`)
-  replacing Disable Access while restricted, and **Restore membership**
-  (`data-testid="member-restore"`) offered for archived rows. The pencil is offered on active,
-  unrestricted rows only. The gear, including **Remove**, stays available on inactive rows so
-  a membership can be ended without first handing its access back. Every control has a member-scoped
-  accessible name — **Edit _member_**, **More actions for _member_**, **Remove _member_**,
-  **Disable Access for _member_** — so non-linear
+  (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Suspend** (`data-testid="member-suspend"`)
+  for an active row, or **Restore membership** (`data-testid="member-restore"`) for a suspended
+  one. The pencil is offered on active rows only. Every control has a member-scoped
+  accessible name — **Edit _member_**, **More actions for _member_**, **Suspend _member_** — so non-linear
   assistive-technology navigation cannot detach an action from its target. Each menu action opens a
   confirmation naming the affected member before sending its destructive or security-sensitive
   request. While any member action is in flight, the management section is marked busy, politely

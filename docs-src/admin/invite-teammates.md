@@ -81,7 +81,7 @@ row:
 - The **link icon** opens **Link to Resource**. Choosing a person saves immediately and does not
   change their access. **Remove link to resource** unlinks them immediately.
   [Link a person to a member](/using/resources#link-a-person-to-a-member)
-- **More actions** offers the rest: **Disable Access**, **Archive user** or **Remove**.
+- **More actions** offers **Suspend**, or **Restore membership** for a suspended member.
 
 You cannot reset another member's password or end their sessions from CapacityLens. A member who
 is locked out selects **Forgot password?** on the sign-in page; the installer can help otherwise.
@@ -90,25 +90,18 @@ is locked out selects **Forgot password?** on the sign-in page; the installer ca
 
 ## Stop access
 
-All three are in **More actions**. None affects the person's other company memberships.
-
-- Use **Disable Access** when they must not get back in. It works at once, including on an
-  existing session or a later invitation, and stays in force even after removal until an Owner or
-  Admin selects **Enable Access** (also offered under **No longer active**).
-- Use **Archive user** when they leave but you want to keep their membership on record. It stops
-  their access; **Restore membership** reactivates it but doesn't clear Disable Access.
-- Use **Remove** when they no longer belong to the company. It ends that membership and keeps them
-  out: they move to **No longer active**, and **Enable Access** brings them back with the role they
-  held when removed. You cannot remove yourself.
+Select **Suspend** in **More actions**. It works on their next request, including on an existing
+session, and keeps their role and history. They move to **No longer active** and cannot rejoin on
+their own; **Restore membership** brings them back with the same role. You cannot suspend yourself
+or the Owner.
 
 Invitations go only to addresses without an account, so a person who has signed in before comes
-back through **Restore membership** or **Enable Access**, never a new invitation. After **Enable
-Access**, an active member keeps their role and an archived person still needs restoring.
+back through **Restore membership**, never a new invitation.
 
 <span id="if-they-come-back-with-a-new-sign-in"></span>
 
-A disabled or removed person cannot rejoin until an Owner or Admin selects **Enable Access** under
-**No longer active**.
+If they delete their account and register again, the new account needs a fresh invitation and an
+Owner or Admin's approval.
 
 A new installation allows one company. Ask your installer if you need more;
 [Configuration](/self-hosting/configuration) has the setting.
