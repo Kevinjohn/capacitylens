@@ -86,7 +86,8 @@ export async function resetServer({ withSeed = true }: ResetServerOptions): Prom
     db.exec('BEGIN IMMEDIATE');
     try {
       // Only the guarded test database is cleared; insert-only seeding then restores a fresh fixture.
-      db.exec('DELETE FROM audit_entries; DELETE FROM accounts');
+      // Package memberships restrict company deletion, so they go first.
+      db.exec('DELETE FROM audit_entries; DELETE FROM memberships; DELETE FROM accounts');
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');
@@ -95,8 +96,10 @@ export async function resetServer({ withSeed = true }: ResetServerOptions): Prom
     seedDisposableDatabase();
     db.exec('BEGIN IMMEDIATE');
     try {
-      if (withSeed) db.prepare('DELETE FROM accounts WHERE id <> ?').run('a-studio');
-      else db.exec('DELETE FROM accounts');
+      if (withSeed) {
+        db.prepare('DELETE FROM memberships WHERE scope_id <> ?').run('a-studio');
+        db.prepare('DELETE FROM accounts WHERE id <> ?').run('a-studio');
+      } else db.exec('DELETE FROM memberships; DELETE FROM accounts');
       if (withSeed) {
         const admin = db
           .prepare('SELECT id FROM users WHERE email = ?')
