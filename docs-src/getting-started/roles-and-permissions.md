@@ -55,7 +55,7 @@ schedule. Freelancers and contractors can be scheduled without ever getting a si
 
 ## Hand the company to someone else
 
-Only the Owner can transfer ownership. Choose an active, unrestricted Admin and confirm **Transfer
+Only the Owner can transfer ownership. Choose an active Admin and confirm **Transfer
 ownership**. The selected Admin becomes Owner and you become Admin immediately; they do not need to
 agree separately. See [Transfer ownership](/owner/responsibilities#transfer-ownership).
 

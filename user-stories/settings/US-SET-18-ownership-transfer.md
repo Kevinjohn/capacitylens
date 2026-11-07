@@ -19,13 +19,13 @@ Owner becomes Admin. The selected Admin does not separately authenticate or cons
 ## How (end-to-end)
 
 **Precondition:** Server mode with authentication on. Bruce Wayne is the current Owner and Selina
-Kyle is an active, unrestricted Admin in the same company.
+Kyle is an active Admin in the same company.
 
 1. Bruce opens **Team & access → Company ownership**. The Owner-only card
    (`data-testid="ownership-transfer-card"`) has a **Manage ownership** button
    (`data-testid="ownership-transfer-open"`) that opens the existing modal.
 2. Bruce selects Selina in **Next Owner** (`data-testid="ownership-transfer-nominee"`). The list
-   contains active, unrestricted Admins of this company.
+   contains active Admins of this company.
 3. Bruce selects **Transfer ownership**. The confirmation says Selina will become Owner and Bruce
    will become Admin. Bruce confirms this exact action with his password;
    a recent sign-in does not replace this step. On confirmation, both roles change immediately in one
@@ -38,7 +38,7 @@ Kyle is an active, unrestricted Admin in the same company.
 ## Acceptance criteria
 
 - Only the current Owner can start a new transfer, and the selected person must be a different,
-  active, unrestricted Admin in the same company.
+  active Admin in the same company.
 - The one confirmation clearly states that the selected Admin becomes Owner and the caller becomes
   Admin. Both role changes commit atomically, with exactly one active Owner before and after.
 - There is no nominee consent, pending request or expiry. The Owner's confirmation authorizes this

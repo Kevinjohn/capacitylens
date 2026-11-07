@@ -982,10 +982,10 @@ presented before the member directory, matching the action-first pattern of the 
   available row action is grouped at the right in the same outlined-button treatment as the
   Resources list.
   The role has its own column. The caller's own row is marked **(you)** and a
-  non-active member's row carries an **Access disabled**, **Archived**, or **Removed** badge
+  suspended member's row carries a **Suspended** badge
   (`data-testid="member-status"`). Members are ordered by role priority **Owner**, **Admin**,
   **Editor**, **Viewer**, then display name and stable member ID. The table itself lists only
-  **active, unrestricted** members; restricted, archived, and removed-with-restriction entries are grouped below it behind a
+  **active** members; suspended members are grouped below it behind a
   collapsed **No longer active (_count_)** disclosure (`data-testid="members-inactive-toggle"`,
   reporting its state through `aria-expanded`) which reveals a second table with the same columns
   (`data-testid="members-inactive-table"`). The disclosure is absent when no membership is in that
@@ -1025,8 +1025,8 @@ presented before the member directory, matching the action-first pattern of the 
   confirmation naming the affected member before sending its destructive or security-sensitive
   request. While any member action is in flight, the management section is marked busy, politely
   announces **Updating team access…**, and every row's pencil and gear are disabled, so a second
-  mutation cannot be raised. Disable, archive and remove are offered only where the target is neither the Owner nor
-  yourself, and the server refuses removing yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
+  mutation cannot be raised. Suspend and restore are offered only where the server's `manage` flag
+  allows them, never against the Owner or yourself; a suspended membership keeps its role and history but authorizes nothing, and
   the member stays listed under **No longer active** so the change is visible and reversible. No row
   carries an ownership-transfer control for anyone. There is no administrative password reset or
   session revocation.
@@ -1061,29 +1061,28 @@ The Owner row carries no pencil or gear for anyone: each company has exactly
 one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
 removed nor disabled.
 Ownership transfer has no control in the member table: the Owner-only **Company ownership** card
-opens **Manage ownership** in a modal. The Owner chooses an active, unrestricted Admin in **Next
+opens **Manage ownership** in a modal. The Owner chooses an active Admin in **Next
 Owner** and confirms **Transfer ownership** once. The confirmation explains that the selected Admin
 becomes Owner and the caller becomes Admin. The change takes effect immediately and atomically; the
 nominee does not separately consent, and there is no pending request or expiry. No generic role-change
 or invite endpoint can assign Owner. The server keeps exactly one active Owner and refuses transfer
 from anyone who is not the current Owner or to someone who is not an eligible Admin.
 
-The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; returns
+The API routes: `GET /api/accounts/:accountId/members` (gated members:manage; returns
 `{members, signInTrackingEnabled}` and each member carries `status` plus nullable
 `signInConfirmed`; disabling sign-in tracking stops and clears observations but does not hide the
 member directory),
 `PUT /api/accounts/:accountId/member-sign-in-tracking {enabled}` (Owner only; desired-state and
 idempotent; disabling erases every observation),
 `PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role or attempted Owner assignment,
-404 non-member, 403 by the role rules),
-`PATCH /api/accounts/:accountId/members/:userId/status {status}` (`active` | `disabled` | `archived`;
+404 non-member, 403 against the Owner, against yourself, or by the role rules),
+`PATCH /api/accounts/:accountId/members/:userId/status {status}` (`active` | `suspended`;
 200 `{userId, status}`, idempotent — re-applying the status a member already holds succeeds and
 changes nothing; 400 unknown status, 404 non-member, 403 against the Owner,
 against yourself, or by the role
 rules — a non-active membership authorizes nothing, so the member's own reads 403 until restored
 while the administrative directory keeps listing them),
-`DELETE /api/accounts/:accountId/members/:userId` (204; 403 for the Owner or yourself),
-`GET /api/accounts/:accountId/invites` (gated manageInvites; returns invitation metadata and never
+`GET /api/accounts/:accountId/invites` (gated invitations:manage; returns invitation metadata and never
 returns a token),
 `POST /api/accounts/:accountId/invites/:id/resend` (200; emails a new link and stops the old one),
 `DELETE /api/accounts/:accountId/invites/:id` (204, cross-tenant-safe), and
@@ -1097,8 +1096,7 @@ spec `e2e/members.auth.spec.ts`.
 
 **Company ownership (Team & access; server mode, auth on).** The Owner-only
 `ownership-transfer-card` sits below member management. **Manage ownership**
-(`ownership-transfer-open`) opens its modal. **Next Owner** (`ownership-transfer-nominee`) lists active,
-unrestricted Admins. The Owner selects one and confirms **Transfer ownership**; the confirmation says
+(`ownership-transfer-open`) opens its modal. **Next Owner** (`ownership-transfer-nominee`) lists active Admins. The Owner selects one and confirms **Transfer ownership**; the confirmation says
 the selected Admin becomes Owner and the caller becomes Admin. Submit uses
 `ownership-transfer-complete`. It immediately swaps the roles in one transaction; the nominee does
 not authenticate or consent, and no pending request, deadline, or nominee control is shown. The card

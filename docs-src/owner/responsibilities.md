@@ -18,7 +18,7 @@ approving new people. The installer handles installation, email delivery, backup
 ## Transfer ownership
 
 Only the current Owner can transfer ownership. In **Team & access → Company ownership**, select
-**Manage ownership**, then choose an active, unrestricted Admin from **Next Owner**. Select
+**Manage ownership**, then choose an active Admin from **Next Owner**. Select
 **Transfer ownership** and review the confirmation: the selected Admin becomes Owner and you become
 Admin. Confirm this particular transfer with your password. A recent sign-in alone is not enough.
 
