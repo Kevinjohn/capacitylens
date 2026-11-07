@@ -44,16 +44,18 @@ emailed flow needs `CAPACITYLENS_MAIL_HOST`; without it, sending an invitation r
   < editor < admin < owner, which role holds each permission key, which roles an actor may assign,
   and the management rules: nobody manages their own membership (so a member cannot change their own
   role), nobody manages the Owner or assigns Owner through ordinary management, and an Admin may
-  manage another Admin. The Owner role moves only by ownership transfer.
+  manage another Admin. The Owner role moves only by ownership transfer. Administering another
+  person's identity needs management standing in every company that person belongs to.
 - **What CapacityLens keeps.** The permission declaration in
   `packages/shared/src/account/permissions.ts`, the configuration in
   `apps/backend/config/access_control.ts`, access restrictions, audit, planning revisions, command
-  receipts, the view-as checks and identity-administration rules. Product status "archived" is the
+  receipts and the view-as checks. Product status "archived" is the
   package's suspended membership; a disabled access is a separate restriction.
-- **Transaction composition.** Every membership operation runs inside the product's
+- **Transaction composition.** Every membership write runs inside the product's
   single-connection transaction, with that transaction passed to the package. The package never
   opens a second transaction or connection, so authorization, membership write, audit and revision
-  commit or roll back together. This composition is documented and tested for SQLite only.
+  commit or roll back together. The view-as session checks only read memberships, on the default
+  connection. This composition is documented and tested for SQLite only.
 - **One Kit module instance.** The application and Access Control resolve the same Account Kit
   module, so they share one transaction nesting guard.
 
