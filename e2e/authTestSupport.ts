@@ -217,6 +217,7 @@ function ensureAuthE2EFixtureCompanyTable(db: DatabaseSync): void {
 function removeAuthE2EAccount(db: DatabaseSync, accountId: string): void {
   db.prepare('DELETE FROM audit_entries WHERE account_id = ?').run(accountId);
   db.prepare('DELETE FROM account_member_resources WHERE account_id = ?').run(accountId);
+  db.prepare('DELETE FROM company_memberships WHERE scope_id = ?').run(accountId);
   db.prepare('DELETE FROM accounts WHERE id = ?').run(accountId);
 }
 

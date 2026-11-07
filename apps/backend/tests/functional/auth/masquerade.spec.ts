@@ -751,6 +751,7 @@ test.group('native read-only masquerade', (group) => {
 
     const restarted = await startView(client, cookie, targetId);
     restarted.assertStatus(200);
+    await db.from('company_memberships').where('user_id', targetId).delete();
     await db.from('users').where('id', targetId).delete();
     const status = await asSession(client.get('/api/masquerade'), cookie).send();
     status.assertStatus(200);
