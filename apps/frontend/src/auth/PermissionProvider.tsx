@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { isServerConfigured } from '@/data/apiConfig';
 import { useStore } from '@/store/useStore';
 import type { StoreState } from '@/store/useStore';
 import { useAuth } from './authContext';
 import { PermissionContext } from './permissionContext';
-import type { AuthorityKey, PermissionContextValue } from './permissionContext';
+import type { PermissionContextValue } from './permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { CompanyAccess } from '@capacitylens/shared/account/permissions';
 import { refreshAccountSummaries } from './useAccountSummaries';
@@ -144,13 +144,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   // Tag resolved authority with principal, account, membership revision and masquerade generation so
   // any change immediately discards the previous snapshot until the new lookup succeeds.
   const [fetched, setFetched] = useState<FetchedPermission | null>(null);
-  const principalRef = useRef(principalId);
 
   const enabled = authMode !== 'off' && isServerConfigured();
-
-  useEffect(() => {
-    principalRef.current = principalId;
-  }, [principalId]);
 
   useEffect(() => {
     if (masquerade.kind !== 'inactive') {
@@ -179,7 +174,6 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       masqueradeGeneration,
       isCurrent: () =>
         !cancelled &&
-        principalRef.current === principalId &&
         readMasqueradeGeneration(useStore.getState().masquerade) === masqueradeGeneration,
       setFetched,
       setActiveAuthority,
@@ -210,31 +204,17 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       ? masquerade.state.effectiveRole
       : null;
 
-  const value = useMemo((): PermissionContextValue => {
-    const authorityKey: AuthorityKey = {
-      principalId,
-      accountId: activeAccountId,
-      membershipRevision,
-      masqueradeGeneration,
-    };
-    const resolved = resolvePermissionValue({
-      enabled,
-      activeAccountId,
-      fetched: currentFetched,
-      masqueradeActive,
-      masqueradeRole,
-    });
-    return { ...resolved, authorityKey };
-  }, [
-    enabled,
-    principalId,
-    activeAccountId,
-    membershipRevision,
-    masqueradeGeneration,
-    currentFetched,
-    masqueradeActive,
-    masqueradeRole,
-  ]);
+  const value = useMemo(
+    (): PermissionContextValue =>
+      resolvePermissionValue({
+        enabled,
+        activeAccountId,
+        fetched: currentFetched,
+        masqueradeActive,
+        masqueradeRole,
+      }),
+    [enabled, activeAccountId, currentFetched, masqueradeActive, masqueradeRole],
+  );
 
   return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>;
 }

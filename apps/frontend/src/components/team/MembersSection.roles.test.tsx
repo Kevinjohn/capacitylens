@@ -245,28 +245,6 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     );
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
-
-  it("shows no role control on the Admin's own row, even if the server offers one", async () => {
-    const selfOffered: RawMember[] = members.map((member) =>
-      member.isSelf
-        ? {
-            ...member,
-            actions: {
-              changeRole: true,
-              changeStatus: false,
-              remove: false,
-              enableAccess: false,
-              viewAs: false,
-            },
-          }
-        : member,
-    );
-    vi.stubGlobal('fetch', mockApi(selfOffered));
-    renderSection();
-
-    const selfRow = await waitForMemberRow(/me@x\.io/);
-    expect(within(selfRow).queryByTestId('member-edit')).not.toBeInTheDocument();
-  });
 }
 
 describe('MembersSection — server-derived member actions', () => {

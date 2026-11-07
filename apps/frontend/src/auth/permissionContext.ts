@@ -3,22 +3,13 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import { actionPermission } from '@capacitylens/shared/account/permissions';
 import type { CompanyAccess } from '@capacitylens/shared/account/permissions';
 import { isServerConfigured } from '@/data/apiConfig';
-import { demoCan } from '@/lib/demoAccess';
 import { useStore } from '@/store/useStore';
 
 /** A guarded product capability; every one maps to exactly one shared permission key. */
 export type Action = keyof typeof actionPermission;
 
-// Server mode trusts only the server-derived authority snapshot; demo mode evaluates Owner-level
-// capability from the shared declaration. Masquerading independently denies every action except read.
-
-/** Identity of the request that produced the published authority snapshot. */
-export interface AuthorityKey {
-  principalId: string | null;
-  accountId: string | null;
-  membershipRevision: number;
-  masqueradeGeneration: number;
-}
+// Server mode trusts only the server-derived authority snapshot; the in-memory demo acts as Owner,
+// which holds every permission. Masquerading independently denies every action except read.
 
 /** The resolved permission state for the active account. A null role means no membership applies. */
 export interface PermissionContextValue {
@@ -30,8 +21,6 @@ export interface PermissionContextValue {
   /** Server-derived authority for the active company. Null until a lookup resolves with valid
    * access. Held only in memory. */
   access?: CompanyAccess | null;
-  /** The principal, company, membership revision and masquerade generation the snapshot belongs to. */
-  authorityKey?: AuthorityKey;
 }
 
 /** Context for the active account role, permission-check status and authority snapshot. */
@@ -68,8 +57,8 @@ export function useCompanyAccess(): CompanyAccess | null {
  *
  * The single client affordance gate for every capability. In server mode it reads only the
  * resolved, server-derived permission list; a missing provider, a pending or unavailable lookup, or
- * a masquerade transition denies. Masquerading permits read only. Demo mode evaluates the shared
- * declaration at Owner level. The server remains authoritative for every request.
+ * a masquerade transition denies. Masquerading permits read only. Demo mode allows everything, as
+ * its Owner would. The server remains authoritative for every request.
  *
  * @param action - the capability the calling surface is gating.
  * @returns `true` when the affordance should be shown.
@@ -77,7 +66,7 @@ export function useCompanyAccess(): CompanyAccess | null {
 export function useCan(action: Action): boolean {
   const masquerade = useStore((s) => s.masquerade);
   const value = useContext(PermissionContext);
-  if (!isServerConfigured()) return demoCan(action);
+  if (!isServerConfigured()) return true;
   if (value.status !== 'resolved' || !value.access) return false;
   if (masquerade.kind === 'starting' || masquerade.kind === 'ending') return false;
   const allowed = value.access.permissions.includes(actionPermission[action]);

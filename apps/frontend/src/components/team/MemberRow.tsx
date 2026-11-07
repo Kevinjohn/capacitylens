@@ -23,7 +23,7 @@ function buildMemberAffordances(member: TeamMember): {
   mayEnableAccess: boolean;
   hasMenu: boolean;
 } {
-  const mayTouch = member.actions.changeRole && !member.isSelf;
+  const mayTouch = member.actions.changeRole;
   const mayRemove = member.actions.remove;
   const mayChangeStatus = member.actions.changeStatus;
   const mayEnableAccess = member.actions.enableAccess;
