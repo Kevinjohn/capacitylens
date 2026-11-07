@@ -64,8 +64,8 @@ async function setupMembersApi(request: APIRequestContext) {
     },
   );
   expect(selfSuspend.status()).toBe(403);
-  const selfRole = await request.patch(`${API}/api/accounts/${accountId}/members/${admin.userId}`, {
-    headers: await masqueradeContextHeaders(request, admin.cookie),
+  const selfRole = await request.patch(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
+    headers: await masqueradeContextHeaders(request, owner.cookie),
     data: { role: 'editor' },
   });
   expect(selfRole.status()).toBe(403);
