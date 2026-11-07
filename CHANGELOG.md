@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Publishing a release no longer runs **Publish documentation**, which the Pages environment refused for release tags; publish the site with a manual run from `main`.
 - Update Account Kit to 0.3.0 and the view-as package to 0.2.0 under their scoped package names (#1762). Invitations gain a `scope` column that CapacityLens leaves at its default, and new installations key view-as modes by their owner columns. A database created from the earlier baseline is refused at startup; start a fresh one as the upgrade guide describes.
+- Company memberships are stored and enforced by the Access Control package (#1787). The server checks every company request through its permissions, and nobody can change their own role or status. A database created from the earlier baseline is refused at startup; start a fresh one as the upgrade guide describes.
+- Team & access offers **Suspend** and **Restore membership** in place of Disable Access, Enable Access, Archive user and Remove (#1787). A suspended member keeps their role, cannot open the company and cannot rejoin until an Owner or Admin restores them.
 
 ## [0.74.0-alpha.1] - 2026-11-04
 
