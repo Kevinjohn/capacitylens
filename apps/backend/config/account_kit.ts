@@ -1,4 +1,5 @@
 import { publicOrigin } from '#config/public_origin';
+import access from '#config/access_control';
 import app from '@adonisjs/core/services/app';
 import env from '#start/env';
 import {
@@ -64,6 +65,8 @@ export default defineConfig({
   }),
   delivery: 'best-effort',
   onInvitationAccepted: withInvitationEvidence(onInvitationAccepted),
-  onAccountDeletingTransaction: withAdmissionCleanup(),
+  onAccountDeletingTransaction: withAdmissionCleanup(async (user, trx) => {
+    await access.memberships.prepareAccountDeletion({ userId: String(user.id), trx });
+  }),
   onCredentialsChangedTransaction,
 });

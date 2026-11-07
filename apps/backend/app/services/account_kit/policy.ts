@@ -16,6 +16,7 @@ import { activeCompanyRole, assertCompanyAccessOpen } from '#services/auth/autho
 import { advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 import { AdmissionError } from '#services/admission/errors';
+import access from '#config/access_control';
 
 /** Roles an invitation may carry; ownership moves only through company setup or transfer. */
 export const INVITABLE_ROLES = ['viewer', 'editor', 'admin'] as const;
@@ -58,16 +59,28 @@ async function mayManageInvitations(userId: string, trx: Trx | undefined) {
   return Boolean(role && can(role, 'manageInvites') && (await isAdmitted(userId, trx)));
 }
 
+/** Invitation authority holds only for this installation's company scope. */
+async function scopedManager(
+  userId: string,
+  scope: string | null | undefined,
+  trx: Trx | undefined
+) {
+  const companyId = await installationCompanyId(trx ?? db);
+  if (!companyId || scope !== companyId) return false;
+  return mayManageInvitations(userId, trx);
+}
+
 /**
  * Invitation authority is re-read inside the Kit's insert transaction (`context.trx`), so a
  * demotion committed between the pre-check and the insert refuses the send.
  */
 export const authorize: AuthorizationCallbacks = {
   invite: async (actor, role, context) =>
-    isInvitableRole(role) && mayManageInvitations(String(actor.id), context?.trx),
-  manageInvitation: async (actor, _invitation, context) =>
-    mayManageInvitations(String(actor.id), context?.trx),
-  listInvitations: async (actor, context) => mayManageInvitations(String(actor.id), context?.trx),
+    isInvitableRole(role) && scopedManager(String(actor.id), context?.scope, context?.trx),
+  manageInvitation: async (actor, invitation, context) =>
+    scopedManager(String(actor.id), invitation.scope, context?.trx),
+  listInvitations: async (actor, context) =>
+    scopedManager(String(actor.id), context?.scope, context?.trx),
 };
 
 /** Owners and Admins decide admission, never for someone their role cannot administer. */
@@ -90,28 +103,26 @@ export const admissionAuthorize: AdmissionAuthorizeCallbacks = {
  */
 export async function onInvitationAccepted(user: AccountUser, invitation: Invitation, trx: Trx) {
   const accountId = await installationCompanyId(trx);
+  // Operator bootstrap before the first company.
   if (!accountId) return;
-  // One acceptance applies every pending invitation for the address, in ascending scope order,
-  // so the default-scope invitation sets the role and later ones change nothing.
-  const existing = await trx
-    .from('memberships')
-    .where({ account_id: accountId, user_id: String(user.id) })
-    .select('id')
-    .first();
-  if (existing) return;
+  if (invitation.scope !== accountId) {
+    throw new AdmissionError(
+      'This invitation is not for this company.',
+      403,
+      'INVITATION_SCOPE_MISMATCH'
+    );
+  }
+  if (await access.memberships.find(accountId, String(user.id), trx)) return;
   if (!isInvitableRole(invitation.role) || !isAccountRole(invitation.role)) {
     throw new Error('Invitation role is unavailable.');
   }
   await assertCompanyAccessOpen(String(user.id), accountId, trx);
-  const now = new Date().toISOString();
-  await trx.table('memberships').insert({
-    id: crypto.randomUUID(),
-    account_id: accountId,
-    user_id: String(user.id),
+  await access.memberships.acceptInvitation({
+    scopeId: accountId,
+    userId: String(user.id),
     role: invitation.role,
-    status: 'active',
-    created_at: now,
-    updated_at: now,
+    invitationId: invitation.id,
+    trx,
   });
   await writeAudit(trx, {
     accountId,

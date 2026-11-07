@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
+import access from '#config/access_control';
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { consumeActionProof } from '#services/auth/action_proof';
@@ -8,9 +9,9 @@ import {
   completeAccountCommand,
   type AccountCommandIdentity,
 } from '#services/account_commands';
-import { affectedRows } from '#services/admission/affected_rows';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
+import { activeOwnerIds } from '#services/membership/package_projection';
 
 export class OwnershipTransferError extends Error {
   constructor(
@@ -59,14 +60,10 @@ export async function transferOwnership(
       throw new OwnershipTransferError('Choose another administrator.', 409, 'TARGET_INELIGIBLE');
     }
 
-    const memberships = await trx
-      .from('memberships')
-      .where('account_id', accountId)
-      .select('user_id', 'role', 'status');
-    const owners = memberships.filter((row) => row.status === 'active' && row.role === 'owner');
+    const owners = await activeOwnerIds(trx, accountId);
     if (owners.length !== 1) throw new Error('Company Owner invariant failed.');
-    if (owners[0].user_id !== actor.userId) throw new IdentityAuthorityError('Forbidden.');
-    const target = memberships.find((row) => row.user_id === toUserId);
+    if (owners[0] !== actor.userId) throw new IdentityAuthorityError('Forbidden.');
+    const target = await access.memberships.find(accountId, toUserId, trx);
     if (!target) throw new OwnershipTransferError('Member not found.', 404, 'NOT_FOUND');
     if (target.status !== 'active' || target.role !== 'admin') {
       throw new OwnershipTransferError(
@@ -81,22 +78,14 @@ export async function transferOwnership(
 
     await consumeActionProof(trx, actor, proofId, 'transfer-ownership', accountId, { toUserId });
 
-    const now = new Date().toISOString();
-    const demoted = await trx
-      .from('memberships')
-      .where({ account_id: accountId, user_id: actor.userId, role: 'owner', status: 'active' })
-      .update({ role: 'admin', updated_at: now });
-    if (affectedRows(demoted) !== 1) throw new Error('Owner changed during transfer.');
-    const promoted = await trx
-      .from('memberships')
-      .where({ account_id: accountId, user_id: toUserId, role: 'admin', status: 'active' })
-      .update({ role: 'owner', updated_at: now });
-    if (affectedRows(promoted) !== 1) throw new Error('Target changed during transfer.');
-    const finalOwners = await trx
-      .from('memberships')
-      .where({ account_id: accountId, role: 'owner', status: 'active' })
-      .select('user_id');
-    if (finalOwners.length !== 1 || finalOwners[0].user_id !== toUserId) {
+    await access.memberships.transferOwnership({
+      actor: { id: actor.userId },
+      scopeId: accountId,
+      toUserId,
+      trx,
+    });
+    const finalOwners = await activeOwnerIds(trx, accountId);
+    if (finalOwners.length !== 1 || finalOwners[0] !== toUserId) {
       throw new Error('Company Owner invariant failed after transfer.');
     }
 
