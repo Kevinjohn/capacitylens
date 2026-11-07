@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import { MemoryRouter } from 'react-router-dom';
 import type { ID, ISODate } from '@capacitylens/shared/types/entities';
 import { DEFAULT_ACCOUNT_ID, makeAccount, makeClosure, makeTimeOff } from '@/test/fixtures';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 import { useStore } from '@/store/useStore';
 import { SchedulerGrid } from './SchedulerGrid';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 vi.mock('./ResourceLane', () => ({
   ResourceLane: ({
@@ -44,6 +46,7 @@ beforeEach(() => {
   useStore.getState().setDrawMode('work');
   useStore.getState().clearFilters();
   useStore.setState((state) => ({ ui: { ...state.ui, collapsedGroups: [] } }));
+  useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
 });
 
 describe('SchedulerGrid draw gate', () => {

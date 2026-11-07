@@ -15,6 +15,7 @@ import {
   resetStoreWithAccount,
   WORKDAYS,
 } from '@/test/fixtures';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 const s = () => useStore.getState();
 
@@ -368,7 +369,7 @@ function registerStoreCrudEntity17(): void {
   it('resources: a viewer cannot change an account favourite', async () => {
     const resource = await requireCreated(s().addResource({ ...unflaggedDraft }));
 
-    s().setActiveRole('viewer');
+    s().setActiveAuthority(resolvedAuthority('viewer'));
     await s().updateResource(resource.id, { isFavourite: true });
 
     expect(requireValue(s().data.resources[0], 'resource')).toHaveProperty('isFavourite', null);
@@ -520,18 +521,18 @@ describe('store UI + history extras', () => {
     const afterUndo = s().data;
     const futureAfterUndo = s().planning.history.future;
 
-    s().setActiveRole('viewer');
+    s().setActiveAuthority(resolvedAuthority('viewer'));
     expect(await s().redoPlanning()).toBe(false);
     expect(s().data).toBe(afterUndo);
     expect(s().planning.history.future).toBe(futureAfterUndo);
     expect(s().notice).toMatchObject({ tone: 'error' });
 
-    s().setActiveRole('editor');
+    s().setActiveAuthority(resolvedAuthority('editor'));
     await s().redoPlanning();
     const afterRedo = s().data;
     const pastAfterRedo = s().planning.history.past;
     s().setNotice(null);
-    s().setActiveRole('viewer');
+    s().setActiveAuthority(resolvedAuthority('viewer'));
     expect(await s().undoPlanning()).toBe(false);
     expect(s().data).toBe(afterRedo);
     expect(s().planning.history.past).toBe(pastAfterRedo);
@@ -1170,7 +1171,7 @@ function registerColourSnap5(): void {
 
 function registerColourSnap6(): void {
   it('a REJECTED add (viewer no-op) does NOT snap the colour and does NOT persist — the rejection surfaces via notice, not a silent repair', async () => {
-    s().setActiveRole('viewer');
+    s().setActiveAuthority(resolvedAuthority('viewer'));
     const returned = await s().addClient({ name: 'Ferris', color: NON_PRESET });
     expect(s().data.clients).toHaveLength(0);
     expect(s().notice).toMatchObject({ tone: 'error' });
@@ -1182,7 +1183,7 @@ function registerColourSnap7(): void {
   it('a REJECTED update (viewer no-op) does not touch the stored colour', async () => {
     const client = await requireCreated(s().addClient({ name: 'Ferris', color: NON_PRESET }));
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
-    s().setActiveRole('viewer');
+    s().setActiveAuthority(resolvedAuthority('viewer'));
     await s().updateClient(client.id, { color: '#123456' });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
     expect(s().notice).toMatchObject({ tone: 'error' });

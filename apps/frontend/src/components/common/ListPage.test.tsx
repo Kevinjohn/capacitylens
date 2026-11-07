@@ -1,14 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { ListPage } from './ui';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setDirtyForm(false);
+  useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
 });
 
 describe('ListPage', () => {

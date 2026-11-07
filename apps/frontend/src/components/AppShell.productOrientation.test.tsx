@@ -10,6 +10,7 @@ import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
 import { buildProductOrientationKey } from '@/lib/productOrientation';
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
+import { authorityFixture } from '@/test/authorityFixture';
 
 const serverFlag = vi.hoisted(() => ({ on: false }));
 vi.mock('@/data/apiConfig', () => ({
@@ -241,7 +242,12 @@ describe('AppShell product orientation', () => {
           return Promise.resolve(
             new Response(
               JSON.stringify([
-                { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'viewer' },
+                {
+                  id: DEFAULT_ACCOUNT_ID,
+                  name: 'Wayne Enterprises',
+                  role: 'viewer',
+                  access: authorityFixture('viewer'),
+                },
               ]),
               {
                 status: 200,

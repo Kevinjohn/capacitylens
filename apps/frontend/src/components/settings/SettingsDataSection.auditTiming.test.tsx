@@ -11,6 +11,7 @@ import { useStore } from '@/store/useStore';
 import { makeResource, resetStoreWithAccount, requireValue } from '@/test/fixtures';
 import { m } from '@/i18n';
 import { SettingsDataSection } from './SettingsDataSection';
+import { authorityFixture } from '@/test/authorityFixture';
 
 const hold = vi.hoisted(() => ({
   promise: null as Promise<void> | null,
@@ -111,7 +112,9 @@ it.each(
               signOut: async () => {},
             }}
           >
-            <PermissionContext.Provider value={{ role: 'owner' }}>
+            <PermissionContext.Provider
+              value={{ role: 'owner', status: 'resolved', access: authorityFixture('owner') }}
+            >
               <ShellListener />
               <SettingsDataSection serverMode />
             </PermissionContext.Provider>

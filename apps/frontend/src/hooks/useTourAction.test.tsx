@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { useTourAction } from './useTourAction';
+import { authorityFor } from '@/test/authorityFixture';
 
 const tourMock = vi.hoisted(() => ({
   startTour:
@@ -54,7 +55,7 @@ function renderHarness({
 }) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <PermissionContext.Provider value={{ role, status }}>
+      <PermissionContext.Provider value={{ role, status, access: authorityFor(role) }}>
         <Harness />
       </PermissionContext.Provider>
     </MemoryRouter>,

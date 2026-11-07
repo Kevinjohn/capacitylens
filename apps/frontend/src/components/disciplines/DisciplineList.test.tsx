@@ -1,6 +1,7 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { DisciplineList } from './DisciplineList';
 import { useStore } from '@/store/useStore';

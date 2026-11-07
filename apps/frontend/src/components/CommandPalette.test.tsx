@@ -15,6 +15,7 @@ import {
 } from '@/test/fixtures';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { m } from '@/i18n';
+import { authorityFor } from '@/test/authorityFixture';
 
 function renderPalette(onClose = () => {}) {
   return render(
@@ -30,7 +31,7 @@ function renderPaletteWithPermission(
   status: 'pending' | 'resolved',
 ) {
   return render(
-    <PermissionContext.Provider value={{ role, status }}>
+    <PermissionContext.Provider value={{ role, status, access: authorityFor(role) }}>
       <MemoryRouter>
         <CommandPalette onClose={() => {}} />
       </MemoryRouter>

@@ -6,11 +6,13 @@ import { scopeData } from './selectors';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { makeAccount, WORKDAYS } from '@/test/fixtures';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 const s = () => useStore.getState();
 
 async function selectAccount(accountId: string): Promise<void> {
   s().setActiveAccount(accountId);
+  s().setActiveAuthority(resolvedAuthority('owner', accountId));
   await s().refreshPlanning();
 }
 
@@ -222,7 +224,10 @@ describe('scopeData', () => {
 });
 
 describe('account CRUD', () => {
-  beforeEach(() => s().replaceAll(emptyAppData()));
+  beforeEach(() => {
+    s().replaceAll(emptyAppData());
+    s().setActiveAuthority(resolvedAuthority('owner'));
+  });
 
   it('addAccount works with no active account (bootstraps the first tenant)', () => {
     expect(s().activeAccountId).toBeNull();
@@ -234,7 +239,7 @@ describe('account CRUD', () => {
   it('addAccount is a read-only no-op for a viewer', () => {
     const existing = present(s().addAccount({ name: 'Existing', color: '#2d75da' }));
     s().setActiveAccount(existing.id);
-    s().setActiveRole('viewer');
+    s().setActiveAuthority(resolvedAuthority('viewer'));
     const dataBefore = s().data;
     const summariesBefore = s().accountSummaries;
 
@@ -267,6 +272,7 @@ describe('setActiveAccount resets per-account view state', () => {
   beforeEach(async () => {
     s().replaceAll(twoAccountData());
     s().setActiveAccount('a1');
+    s().setActiveAuthority(resolvedAuthority('owner', 'a1'));
     await s().refreshPlanning();
   });
 
@@ -376,6 +382,7 @@ function registerScopedImportPart1(): void {
 function registerScopedImportPart3(): void {
   it('remaps foreign keys among imported entities to the new ids', () => {
     s().setActiveAccount('a2');
+    s().setActiveAuthority(resolvedAuthority('owner', 'a2'));
     s().importData({
       ...emptyAppData(),
       clients: [
@@ -468,6 +475,7 @@ describe('importData (account-scoped)', () => {
   beforeEach(async () => {
     s().replaceAll(twoAccountData());
     s().setActiveAccount('a1');
+    s().setActiveAuthority(resolvedAuthority('owner', 'a1'));
     await s().refreshPlanning();
   });
   registerScopedImportPart1();

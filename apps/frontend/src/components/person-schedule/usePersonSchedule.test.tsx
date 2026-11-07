@@ -16,6 +16,7 @@ import {
   makeTimeOff,
 } from '@/test/fixtures';
 import { usePersonSchedule } from './usePersonSchedule';
+import { authorityFor } from '@/test/authorityFixture';
 
 const calendarToday = vi.hoisted(() => ({ today: '2026-09-10', timeZone: '' }));
 
@@ -42,7 +43,9 @@ function wrapper({
           signOut: async () => {},
         }}
       >
-        <PermissionContext.Provider value={{ role, status }}>{children}</PermissionContext.Provider>
+        <PermissionContext.Provider value={{ role, status, access: authorityFor(role) }}>
+          {children}
+        </PermissionContext.Provider>
       </AuthContext.Provider>
     );
   };

@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { ClientList } from './ClientList';
 import { useStore } from '@/store/useStore';
@@ -10,6 +11,7 @@ import { resetStoreWithAccount, requireValue } from '@/test/fixtures';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { internalClientFor } from '@capacitylens/shared/data/internalClient';
 import { PermissionContext } from '@/auth/permissionContext';
+import { authorityFixture, authorityFor, resolvedAuthority } from '@/test/authorityFixture';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -126,7 +128,9 @@ describe('ClientList archive flow', () => {
     await useStore.getState().addClient({ name: 'Ferris', color: '#111' });
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+        <PermissionContext.Provider
+          value={{ role: 'editor', status: 'resolved', access: authorityFixture('editor') }}
+        >
           <ClientList />
         </PermissionContext.Provider>
       </QueryClientProvider>,
@@ -163,7 +167,9 @@ describe('ClientList archive flow', () => {
     await useStore.getState().refreshPlanning();
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+        <PermissionContext.Provider
+          value={{ role: 'editor', status: 'resolved', access: authorityFixture('editor') }}
+        >
           <ClientList />
         </PermissionContext.Provider>
       </QueryClientProvider>,
@@ -178,6 +184,8 @@ describe('ClientList archive flow', () => {
   });
 
   it('hides archived clients from a Viewer', async () => {
+    // Role gating applies to server mode; the demo acts as Owner.
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
     const role = 'viewer';
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
@@ -185,7 +193,7 @@ describe('ClientList archive flow', () => {
     useStore.getState().archiveEntity('clients', client.id);
 
     render(
-      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+      <PermissionContext.Provider value={{ role, status: 'resolved', access: authorityFor(role) }}>
         <ClientList />
       </PermissionContext.Provider>,
     );
@@ -215,9 +223,11 @@ describe('ClientList archive flow', () => {
 describe('ClientList withholds the Archive affordance for the built-in Internal client', () => {
   it('renders no row and no Archive control for the Internal client (only normal clients show)', async () => {
     useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
     const a = useStore.getState().addAccount({ name: 'Ferris Co', color: FALLBACK_PRESET_COLOR });
     if (!a) throw new Error('Expected account');
     useStore.getState().setActiveAccount(a.id);
+    useStore.getState().setActiveAuthority(resolvedAuthority('owner', a.id));
     await useStore.getState().refreshPlanning();
     const internal = requireValue(
       internalClientFor(useStore.getState().data.clients, a.id),

@@ -1,5 +1,6 @@
 import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types';
 import type { Role } from '@capacitylens/shared/domain/access';
+import type { MemberActions } from '@capacitylens/shared/account/permissions';
 
 /** A workspace member and the resource-link state shown in team access. */
 export interface TeamMember {
@@ -14,6 +15,8 @@ export interface TeamMember {
   /** Coarse, account-opted-in observation. Null means tracking is off; no timestamp is collected. */
   signInConfirmed: boolean | null;
   isSelf: boolean;
+  /** Server-derived row controls for the requesting member; the server authorizes each operation. */
+  actions: MemberActions;
   resourceLink?: {
     resourceId: string;
     revision: string;

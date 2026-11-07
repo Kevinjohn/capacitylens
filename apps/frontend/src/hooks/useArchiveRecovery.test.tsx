@@ -8,6 +8,7 @@ import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 import { useArchiveRecovery } from './useArchiveRecovery';
+import { authorityFor } from '@/test/authorityFixture';
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
@@ -46,7 +47,9 @@ function view(cache: QueryClient, role: Role = 'editor', principal: string | nul
           signOut: async () => {},
         }}
       >
-        <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+        <PermissionContext.Provider
+          value={{ role, status: 'resolved', access: authorityFor(role) }}
+        >
           <Probe />
         </PermissionContext.Provider>
       </AuthContext.Provider>

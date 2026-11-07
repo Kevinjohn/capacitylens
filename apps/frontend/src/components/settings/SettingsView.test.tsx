@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { SettingsView } from './SettingsView';
 import { AuthContext } from '@/auth/authContext';
@@ -7,6 +8,7 @@ import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { resolveDateStyle } from '@/store/selectors';
+import { authorityFixture } from '@/test/authorityFixture';
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 
@@ -65,7 +67,9 @@ describe('SettingsView — Overview access', () => {
   it('defaults to Owner and Admin and lets an administrator widen access', async () => {
     const user = userEvent.setup();
     render(
-      <PermissionContext.Provider value={{ role: 'admin', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'admin', status: 'resolved', access: authorityFixture('admin') }}
+      >
         <SettingsView />
       </PermissionContext.Provider>,
     );
@@ -83,7 +87,9 @@ describe('SettingsView — Overview access', () => {
 
   it('shows the policy read-only to editors', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'editor', status: 'resolved', access: authorityFixture('editor') }}
+      >
         <SettingsView />
       </PermissionContext.Provider>,
     );
@@ -119,7 +125,9 @@ describe('SettingsView — section help', () => {
 
   it('keeps help and the account summary available while company controls remain read-only for viewers', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <SettingsView />
       </PermissionContext.Provider>,
     );
@@ -324,7 +332,9 @@ describe('SettingsView — Import and export disclosure (issue #169)', () => {
   it('keeps import/export closed by default above company details', async () => {
     const user = userEvent.setup();
     render(
-      <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'owner', status: 'resolved', access: authorityFixture('owner') }}
+      >
         <SettingsView />
       </PermissionContext.Provider>,
     );
@@ -538,7 +548,9 @@ it('opens and focuses the Import section reached from onboarding', () => {
   try {
     window.history.replaceState(null, '', '/settings#getting-started-import');
     render(
-      <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'owner', status: 'resolved', access: authorityFixture('owner') }}
+      >
         <SettingsView />
       </PermissionContext.Provider>,
     );

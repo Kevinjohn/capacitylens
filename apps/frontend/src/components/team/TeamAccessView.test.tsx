@@ -8,7 +8,9 @@ import type { AuthContextValue } from '@/auth/authContext';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { AdmissionRequest } from '@/account/teamAccessClient';
 import { TeamAccessView } from './TeamAccessView';
+import { PermissionProvider } from '@/auth/PermissionProvider';
 import { useStore } from '@/store/useStore';
+import { authorityFixture, authorityFor } from '@/test/authorityFixture';
 
 const buildMode = vi.hoisted(() => ({ demo: false }));
 vi.mock('@/data/apiConfig', () => ({
@@ -48,7 +50,7 @@ function renderView({
   return render(
     <MemoryRouter>
       <AuthContext.Provider value={auth(authMode, userId)}>
-        <PermissionContext.Provider value={{ role, status }}>
+        <PermissionContext.Provider value={{ role, status, access: authorityFor(role) }}>
           <TeamAccessView />
         </PermissionContext.Provider>
       </AuthContext.Provider>
@@ -113,6 +115,73 @@ describe('TeamAccessView access presentation', () => {
     );
     expect(screen.getByText(/An Owner or Admin manages invitations/)).toBeInTheDocument();
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
+  });
+});
+
+function capabilityState(label: string): string | null | undefined {
+  return screen.getByText(label).closest('li')?.textContent;
+}
+
+describe('TeamAccessView capability card', () => {
+  it('builds the capability card from server permissions rather than the role name', () => {
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={auth('password-only')}>
+          <PermissionContext.Provider
+            value={{
+              role: 'owner',
+              status: 'resolved',
+              access: { ...authorityFixture('owner'), permissions: ['planning:read'] },
+            }}
+          >
+            <TeamAccessView />
+          </PermissionContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+    showCapabilities();
+
+    expect(capabilityState('View the schedule')).toMatch(/^Allowed:/);
+    expect(capabilityState('Edit scheduling data')).toMatch(/^Not allowed:/);
+    expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
+  });
+
+  it('advertises no writes while viewing as the Owner', () => {
+    useStore.setState({
+      activeAccountId: 'acct-test',
+      masquerade: {
+        kind: 'active',
+        generation: 3,
+        state: {
+          accountId: 'acct-test',
+          targetUserId: 'u-bruce',
+          targetName: 'Bruce Wayne',
+          effectiveRole: 'owner',
+          startedAt: '2026-09-01T10:00:00.000Z',
+          expiresAt: '2999-09-01T10:15:00.000Z',
+          token: 'context-proof',
+        },
+      },
+    });
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={auth('password-only')}>
+          <PermissionProvider>
+            <TeamAccessView />
+          </PermissionProvider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+    showCapabilities();
+
+    expect(capabilityState('View the schedule')).toMatch(/^Allowed:/);
+    for (const label of [
+      'Edit scheduling data',
+      'Manage members and invites',
+      'Transfer ownership',
+    ]) {
+      expect(capabilityState(label), label).toMatch(/^Not allowed:/);
+    }
   });
 });
 
@@ -212,7 +281,9 @@ describe('TeamAccessView member management', () => {
         view.rerender(
           <MemoryRouter>
             <AuthContext.Provider value={auth('password-only', 'next-principal')}>
-              <PermissionContext.Provider value={{ role: 'admin', status: 'resolved' }}>
+              <PermissionContext.Provider
+                value={{ role: 'admin', status: 'resolved', access: authorityFixture('admin') }}
+              >
                 <TeamAccessView />
               </PermissionContext.Provider>
             </AuthContext.Provider>

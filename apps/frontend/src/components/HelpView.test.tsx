@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { HelpView } from './HelpView';
+import { authorityFor } from '@/test/authorityFixture';
 
 const tourMock = vi.hoisted(() => ({
   startTour: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -15,7 +16,7 @@ beforeEach(() => tourMock.startTour.mockReset().mockResolvedValue(undefined));
 
 function renderHelp(role: Role) {
   return render(
-    <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+    <PermissionContext.Provider value={{ role, status: 'resolved', access: authorityFor(role) }}>
       <MemoryRouter initialEntries={['/help']}>
         <HelpView />
       </MemoryRouter>

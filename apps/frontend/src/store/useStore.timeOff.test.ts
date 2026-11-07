@@ -9,6 +9,7 @@ import {
   resetStoreWithAccount,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 const state = () => useStore.getState();
 
@@ -161,7 +162,7 @@ describe('atomic time-off creation: viewer guard', () => {
     const { draft } = await timeOffSetup();
     const pastBefore = state().planning.history.past;
     const futureBefore = state().planning.history.future;
-    state().setActiveRole('viewer');
+    state().setActiveAuthority(resolvedAuthority('viewer'));
     const returned = await state().addTimeOffs([
       draft(),
       draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),

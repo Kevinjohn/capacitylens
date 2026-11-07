@@ -9,6 +9,7 @@ import type { TeamMember } from '@/account/teamAccessClient';
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { OwnershipTransferCard } from './OwnershipTransferCard';
+import { authorityFor, memberActionsFixture } from '@/test/authorityFixture';
 
 const client = vi.hoisted(() => ({ listMembers: vi.fn(), transferOwnership: vi.fn() }));
 const reproject = vi.hoisted(() => vi.fn(async () => true));
@@ -46,6 +47,12 @@ function member({
     email: `${userId}@wayne.test`,
     signInConfirmed: null,
     isSelf: userId === 'bruce',
+    actions: memberActionsFixture('owner', {
+      role,
+      status,
+      accessDisabled,
+      isSelf: userId === 'bruce',
+    }),
   };
 }
 
@@ -86,7 +93,9 @@ function renderAs({
     ...render(
       <QueryClientProvider client={queryClient}>
         <AuthContext.Provider value={auth}>
-          <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+          <PermissionContext.Provider
+            value={{ role, status: 'resolved', access: authorityFor(role) }}
+          >
             <OwnershipTransferCard />
           </PermissionContext.Provider>
         </AuthContext.Provider>

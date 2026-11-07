@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { useAuth } from '@/auth/authContext';
-import { useCan, useRole } from '@/auth/permissionContext';
+import { useCan, usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { canReadInactiveExport } from '@capacitylens/shared/domain/access';
 import { isServerConfigured } from '@/data/apiConfig';
 import {
   fetchInactiveSlice,
@@ -23,6 +24,10 @@ export function useInactiveAccountData(): {
   const server = isServerConfigured();
   const mayViewInactive = useCan('anonymise');
   const role = useRole();
+  const permissionStatus = usePermissionStatus();
+  // The inactive read needs a resolved Owner or Admin role; a null or unresolved role does not fetch.
+  const mayReadInactive =
+    permissionStatus === 'resolved' && role !== null && canReadInactiveExport(role);
   const { user } = useAuth();
   const planning = useStore((state) => state.planning);
   const masquerade = useStore((state) => state.masquerade);
@@ -73,7 +78,7 @@ export function useInactiveAccountData(): {
   );
 
   useEffect(() => {
-    if (!server || !mayViewInactive || !activeAccountId) {
+    if (!server || !mayViewInactive || !mayReadInactive || !activeAccountId) {
       generation.current += 1;
       return;
     }
@@ -102,7 +107,15 @@ export function useInactiveAccountData(): {
         } else setNotice(m.settings_err_server({ error: resolveErrorMessage(error) }), 'error');
       });
     return () => controller.abort();
-  }, [activeAccountId, mayViewInactive, reloadKey, requestIdentity, server, setNotice]);
+  }, [
+    activeAccountId,
+    mayViewInactive,
+    mayReadInactive,
+    reloadKey,
+    requestIdentity,
+    server,
+    setNotice,
+  ]);
 
   if (!mayViewInactive) return { data: null, mayViewInactive, reload };
   if (!server) return { data: localData, mayViewInactive, reload };

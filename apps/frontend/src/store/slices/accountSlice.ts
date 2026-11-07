@@ -132,6 +132,7 @@ function createSetActiveAccountAction({
         activeRole: switching && state.activeRole !== null ? 'viewer' : state.activeRole,
         activeRoleStatus:
           switching && state.activeRole !== null ? 'pending' : state.activeRoleStatus,
+        activeAccess: switching ? null : state.activeAccess,
         previousAccountId: id === null ? state.activeAccountId : null,
         past: [],
         future: [],

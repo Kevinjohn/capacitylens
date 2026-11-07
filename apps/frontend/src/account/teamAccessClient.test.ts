@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { accountClient } from './accountClient';
 import { runCommand } from './commandRequest';
 import { resolveRejectionMessage, teamAccessClient } from './teamAccessClient';
+import { memberActionsFixture } from '@/test/authorityFixture';
 
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -64,6 +65,7 @@ describe('teamAccessClient directory validation', () => {
             name: 'Legacy',
             email: null,
             isSelf: false,
+            actions: memberActionsFixture('owner', { role: 'viewer' }),
           },
           {
             userId: 'future-user',
@@ -258,6 +260,7 @@ describe('teamAccessClient duplicate validation', () => {
       name: 'Ada',
       email: 'ada@example.test',
       isSelf: false,
+      actions: memberActionsFixture('owner', { role: 'viewer' }),
     };
     vi.spyOn(accountClient, 'listMembers').mockResolvedValue(
       json({

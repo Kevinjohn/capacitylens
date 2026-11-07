@@ -3,6 +3,7 @@ import {
   can,
   canSeeTimeOffNote,
   canSeePrivateNames,
+  canReadInactiveExport,
   isAtLeast,
   canEditAnyMemberRole,
   canManageMemberRole,
@@ -160,6 +161,17 @@ describe('canSeePrivateNames(role) — field-level rule (owner only)', () => {
     ['viewer', false],
   ] as const)('%s → %s', (role, expected) => {
     expect(canSeePrivateNames(role)).toBe(expected);
+  });
+});
+
+describe('canReadInactiveExport(role) — inactive export slice (owner/admin only)', () => {
+  it.each([
+    ['owner', true],
+    ['admin', true],
+    ['editor', false],
+    ['viewer', false],
+  ] as const)('%s → %s', (role, expected) => {
+    expect(canReadInactiveExport(role)).toBe(expected);
   });
 });
 

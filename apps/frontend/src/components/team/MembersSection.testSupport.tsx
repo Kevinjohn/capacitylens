@@ -1,10 +1,13 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type userEvent from '@testing-library/user-event';
 import { expect, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
+import { renderWithAuthority } from '@/test/renderWithAuthority';
+import type { MemberActions } from '@capacitylens/shared/account/permissions';
 import { DEFAULT_ACCOUNT_ID, jsonResponse } from '@/test/fixtures';
+import { authorityFixture, memberActionsFixture } from '@/test/authorityFixture';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { MembersSection } from './MembersSection';
@@ -29,11 +32,14 @@ export interface RawMember {
   email?: string | null;
   isSelf?: boolean;
   resourceLink?: { resourceId: string; revision: string; resourceName?: string | null } | null;
+  /** Server-derived row actions; derived from the actor and target roles unless supplied. */
+  actions?: MemberActions | null;
 }
 
-/** Builds a complete member fixture while leaving signInConfirmed absent unless requested; presence of that field determines whether sign-in tracking is reported enabled. */
+/** Builds a complete member fixture while leaving signInConfirmed absent unless requested; presence of that field determines whether sign-in tracking is reported enabled. Row actions follow the server derivation for `actorRole` unless supplied. */
 export function rawMember(
   overrides: Partial<RawMember> & { userId: string; role: RawMember['role'] },
+  actorRole: RawMember['role'] = 'owner',
 ): RawMember {
   return {
     status: 'active',
@@ -41,8 +47,18 @@ export function rawMember(
     name: null,
     email: `${overrides.userId}@x.io`,
     isSelf: false,
+    actions: memberActionsFixture(actorRole, overrides),
     ...overrides,
   };
+}
+
+/** Publishes the resolved authority of the members list's self row (Owner when absent). */
+export function publishSelfAuthority(members: readonly RawMember[]): RawMember['role'] {
+  const role = members.find((member) => member.isSelf)?.role ?? 'owner';
+  useStore
+    .getState()
+    .setActiveAuthority({ role, status: 'resolved', access: authorityFixture(role) });
+  return role;
 }
 
 type RouteHandler = (url: string, init: RequestInit | undefined) => Response | Promise<Response>;
@@ -52,13 +68,14 @@ export function mockApi(
   members: RawMember[] | { status: number } = [],
   overrides: Record<string, RouteHandler> = {},
 ) {
+  const actorRole = Array.isArray(members) ? publishSelfAuthority(members) : 'owner';
   const defaults: Record<string, RouteHandler> = {
     'GET /members': () =>
       'status' in members
         ? jsonResponse({}, members.status)
         : jsonResponse({
             signInTrackingEnabled: members.some((member) => member.signInConfirmed !== undefined),
-            members: members.map((member) => rawMember(member)),
+            members: members.map((member) => rawMember(member, actorRole)),
             resourceCandidates: useStore
               .getState()
               .data.resources.filter(
@@ -73,8 +90,9 @@ export function mockApi(
     'GET /invites': () => jsonResponse({ invites: [] }),
     'GET /api/accounts': () => {
       const self = Array.isArray(members) ? members.find((member) => member.isSelf) : undefined;
+      const role = self?.role ?? 'owner';
       return jsonResponse([
-        { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: self?.role ?? 'owner' },
+        { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role, access: authorityFixture(role) },
       ]);
     },
   };
@@ -119,6 +137,7 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
           name: null,
           email: `${member.userId}@x.io`,
           isSelf: false,
+          actions: memberActionsFixture('owner', member),
           ...member,
           signInConfirmed: trackingEnabled ? member.isSelf === true : null,
         })),
@@ -142,7 +161,7 @@ export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValu
 /** Renders the member section with the supplied authentication context. */
 export function renderSection(authOverrides: Partial<AuthContextValue> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  return renderWithAuthority(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authValue(authOverrides)}>
         <MembersSection />

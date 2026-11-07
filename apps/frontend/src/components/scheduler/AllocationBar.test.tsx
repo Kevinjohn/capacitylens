@@ -15,6 +15,7 @@ import {
 import { renderWithTooltip as render, GEOM, indexAtClientX } from './__tests__/schedulerTestKit';
 import { buildAllocationBarInset } from './layout';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
+import { authorityFixture, resolvedAuthority } from '@/test/authorityFixture';
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
@@ -22,6 +23,7 @@ beforeEach(() => {
   // Device-global prefs persist across tests via localStorage, reset to defaults.
   useStore.getState().setBarLabelPref({ key: 'showClient', value: true });
   useStore.getState().setBarLabelPref({ key: 'showProject', value: true });
+  useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
 });
 
 function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
@@ -62,6 +64,7 @@ describe('AllocationBar rendering', () => {
       .getState()
       .replaceAll({ ...emptyAppData(), accounts: [makeAccount({ dateStyle: 'day-month' })] });
     useStore.getState().setActiveAccount('acct-test');
+    useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
     await useStore.getState().refreshPlanning();
     const bar = makeBar(makeAllocation());
     render(
@@ -345,7 +348,9 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
     const allocation = makeAllocation({ task: 'Review a deliberately long task description' });
     setTaskFieldVisibility({ enabled: true });
     const { rerender } = render(
-      <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <AllocationBar
           bar={makeBar(allocation)}
           geom={GEOM}
@@ -360,7 +365,9 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
 
     setTaskFieldVisibility({ enabled: false });
     rerender(
-      <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <AllocationBar
           bar={makeBar(allocation)}
           geom={GEOM}

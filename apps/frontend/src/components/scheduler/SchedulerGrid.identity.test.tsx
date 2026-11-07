@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { PermissionContext } from '@/auth/permissionContext';
@@ -8,6 +9,7 @@ import { useStore } from '@/store/useStore';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 import { useResourceAvatars } from '@/account/useResourceAvatars';
 import { SchedulerGrid } from './SchedulerGrid';
+import { authorityFixture, resolvedAuthority } from '@/test/authorityFixture';
 
 vi.mock('@/account/useResourceAvatars', () => ({ useResourceAvatars: vi.fn() }));
 
@@ -15,6 +17,7 @@ beforeEach(() => {
   vi.mocked(useResourceAvatars).mockReturnValue(new Map());
   useStore.getState().replaceAll(schedulerDataset());
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+  useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
   useStore.getState().setOriginDate('2026-06-01');
   useStore.getState().setZoom(1);
   useStore.getState().setDrawMode('work');
@@ -72,7 +75,9 @@ describe('SchedulerGrid component identity and row variants', () => {
 
   it('keeps viewer rows readable without exposing create, draw or edit controls', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <SchedulerGrid />
       </PermissionContext.Provider>,
       { wrapper: MemoryRouter },

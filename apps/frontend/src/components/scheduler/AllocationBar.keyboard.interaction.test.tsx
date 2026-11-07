@@ -16,6 +16,7 @@ import {
   seedAllocation,
   settlePlanning,
 } from './__tests__/allocationBarInteractionTestKit';
+import { authorityFixture } from '@/test/authorityFixture';
 
 beforeEach(async () => resetStoreWithAccount());
 afterEach(() => vi.restoreAllMocks());
@@ -54,7 +55,9 @@ function registerViewerAndAnnotationPopoverTests() {
     useStore.getState().setBarLabelPref({ key: 'showClient', value: false });
     useStore.getState().setBarLabelPref({ key: 'showProject', value: false });
     render(
-      <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <AllocationBar
           bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
           geom={GEOM}

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import { MemoryRouter } from 'react-router-dom';
 import { SchedulerGrid } from './SchedulerGrid';
 import { useStore } from '@/store/useStore';
@@ -16,6 +17,7 @@ import { schedulerDataset } from './__tests__/schedulerTestKit';
 import { LAYOUT, laneLayout, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { resolveRowHeightForLanes } from '@/lib/lanePacking';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 const ACC = DEFAULT_ACCOUNT_ID;
 
@@ -72,6 +74,7 @@ beforeEach(async () => {
   useStore.getState().clearFilters();
   useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }));
   await useStore.getState().refreshPlanning();
+  useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
 });
 
 describe('SchedulerGrid', () => {

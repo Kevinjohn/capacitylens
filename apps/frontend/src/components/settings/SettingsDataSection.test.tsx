@@ -17,6 +17,7 @@ import {
   resetStoreWithAccount,
 } from '@/test/fixtures';
 import { SettingsDataSection } from './SettingsDataSection';
+import { authorityFor } from '@/test/authorityFixture';
 
 vi.mock('@/data/requestTimeout', () => ({ apiFetch: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
 vi.mock('@/lib/reloadPage', () => ({ reloadPage: vi.fn() }));
@@ -38,7 +39,7 @@ function renderSection({
     serverMode,
   } as unknown as Props;
   return render(
-    <PermissionContext.Provider value={{ role }}>
+    <PermissionContext.Provider value={{ role, status: 'resolved', access: authorityFor(role) }}>
       <SettingsDataSection {...props} />
     </PermissionContext.Provider>,
   );

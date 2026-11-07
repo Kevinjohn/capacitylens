@@ -8,6 +8,7 @@ import { useStore } from '@/store/useStore';
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
+import { authorityFixture } from '@/test/authorityFixture';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -122,7 +123,9 @@ describe('ProjectForm', () => {
     const project = { ...created, name: '"Aurora"', isPrivate: true };
     useStore.getState().replaceAll({ ...useStore.getState().data, projects: [project] });
     render(
-      <PermissionContext.Provider value={{ role: 'admin' }}>
+      <PermissionContext.Provider
+        value={{ role: 'admin', status: 'resolved', access: authorityFixture('admin') }}
+      >
         <ProjectForm project={project} onClose={vi.fn()} />
       </PermissionContext.Provider>,
     );

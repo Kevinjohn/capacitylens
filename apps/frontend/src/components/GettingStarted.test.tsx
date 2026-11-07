@@ -1,6 +1,7 @@
 import { requireCreated } from '@/test/requireCreated';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { GettingStarted } from './GettingStarted';
@@ -9,11 +10,16 @@ import { useStore } from '@/store/useStore';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 import indexCss from '@/index.css?raw';
+import { authorityFor } from '@/test/authorityFixture';
 
 const tourMock = vi.hoisted(() => ({ startTour: vi.fn<() => Promise<void>>() }));
 const apiMode = vi.hoisted(() => ({ demo: true }));
 vi.mock('@/lib/tour', () => ({ startTour: tourMock.startTour }));
-vi.mock('@/data/apiConfig', () => ({ API_BASE: '', isDemoMode: () => apiMode.demo }));
+vi.mock('@/data/apiConfig', () => ({
+  API_BASE: '',
+  isDemoMode: () => apiMode.demo,
+  isServerConfigured: () => !apiMode.demo,
+}));
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -29,7 +35,13 @@ afterEach(() => {
 function renderChecklist(role: Role | null, path = '/') {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <PermissionContext.Provider value={{ role, status: role ? 'resolved' : 'not-applicable' }}>
+      <PermissionContext.Provider
+        value={{
+          role,
+          status: role ? 'resolved' : 'not-applicable',
+          access: authorityFor(role),
+        }}
+      >
         <GettingStarted />
       </PermissionContext.Provider>
     </MemoryRouter>,

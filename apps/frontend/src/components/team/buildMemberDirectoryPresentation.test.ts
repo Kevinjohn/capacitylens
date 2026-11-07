@@ -21,20 +21,28 @@ function member({
 
 describe('member directory presentation', () => {
   it('orders active and inactive members by role, name, then stable id', () => {
-    const result = buildMemberDirectoryPresentation([
-      member({ userId: 'viewer', role: 'viewer', name: 'Bruce Wayne' }),
-      member({ userId: 'editor-z', role: 'editor', name: 'Clark Kent' }),
-      member({ userId: 'admin-b', role: 'admin', name: 'Alfred Pennyworth' }),
-      member({ userId: 'owner', role: 'owner', name: 'Lucius Fox' }),
-      member({ userId: 'admin-a', role: 'admin', name: 'Alfred Pennyworth' }),
-      member({
-        userId: 'inactive-viewer',
-        role: 'viewer',
-        name: 'Diana Prince',
-        status: 'disabled',
-      }),
-      member({ userId: 'inactive-owner', role: 'owner', name: 'Thomas Wayne', status: 'archived' }),
-    ]);
+    const result = buildMemberDirectoryPresentation(
+      [
+        member({ userId: 'viewer', role: 'viewer', name: 'Bruce Wayne' }),
+        member({ userId: 'editor-z', role: 'editor', name: 'Clark Kent' }),
+        member({ userId: 'admin-b', role: 'admin', name: 'Alfred Pennyworth' }),
+        member({ userId: 'owner', role: 'owner', name: 'Lucius Fox' }),
+        member({ userId: 'admin-a', role: 'admin', name: 'Alfred Pennyworth' }),
+        member({
+          userId: 'inactive-viewer',
+          role: 'viewer',
+          name: 'Diana Prince',
+          status: 'disabled',
+        }),
+        member({
+          userId: 'inactive-owner',
+          role: 'owner',
+          name: 'Thomas Wayne',
+          status: 'archived',
+        }),
+      ],
+      null,
+    );
 
     expect(result.activeMembers?.map(({ userId }) => userId)).toEqual([
       'owner',
