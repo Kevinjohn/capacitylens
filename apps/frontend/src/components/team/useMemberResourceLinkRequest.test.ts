@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamMember } from '@/account/teamAccessClient';
 import { useMemberResourceLinkRequest } from './useMemberResourceLinkRequest';
+import { memberActionsFixture } from '@/test/authorityFixture';
 
 const member: TeamMember = {
   userId: 'ed',
@@ -13,6 +14,7 @@ const member: TeamMember = {
   email: 'ed@x.io',
   signInConfirmed: null,
   isSelf: false,
+  actions: memberActionsFixture('owner', { role: 'editor' }),
   resourceLink: null,
 };
 

@@ -1,6 +1,7 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ResourceList } from './ResourceList';
@@ -14,6 +15,7 @@ import {
   setPlaceholdersEnabled,
 } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
+import { authorityFixture } from '@/test/authorityFixture';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -49,7 +51,9 @@ const freelancerDraft = (name: string) => ({
 describe('ResourceList display', () => {
   it('does not direct resource management to Team & access', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'owner', status: 'resolved', access: authorityFixture('owner') }}
+      >
         <MemoryRouter>
           <ResourceList />
         </MemoryRouter>
@@ -188,7 +192,9 @@ describe('ResourceList display', () => {
   it('hides direct section create actions from viewers', async () => {
     await useStore.getState().addResource(personDraft('Alice'));
     render(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <ResourceList />
       </PermissionContext.Provider>,
     );

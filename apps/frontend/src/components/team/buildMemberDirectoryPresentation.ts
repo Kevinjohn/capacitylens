@@ -1,12 +1,11 @@
-import { ACCOUNT_ROLES } from '@capacitylens/shared/account/types';
-import { can } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
+import type { CompanyAccess } from '@capacitylens/shared/account/permissions';
 import type { TeamMember as Member } from '@/account/teamAccessClient';
 import type { TeamInvitation } from '@/account/teamAccessClient';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 
-// Exclude Owner from ordinary role choices because ownership changes only through transfer. Resolve role labels at render so they follow the active locale.
-const ASSIGNABLE_ROLES: readonly Role[] = ACCOUNT_ROLES.filter((role) => role !== 'owner');
+// Role choices come from the server-derived assignable roles; Owner is never assignable because
+// ownership changes only through transfer. Resolve role labels at render so they follow the active locale.
 const ROLE_PRIORITY: Readonly<Record<Role, number>> = { owner: 0, admin: 1, editor: 2, viewer: 3 };
 const compareText = (left: string | null | undefined, right: string | null | undefined) =>
   (left ?? '').localeCompare(right ?? '', undefined, { sensitivity: 'base' });
@@ -32,11 +31,14 @@ export function sortInvitationsForPresentation(
   );
 }
 
-/** Derives role and invitation display state from the current member list. */
-export function buildMemberDirectoryPresentation(members: Member[] | null) {
+/** Derives role and invitation display state from the member list and the caller's authority. */
+export function buildMemberDirectoryPresentation(
+  members: Member[] | null,
+  access: CompanyAccess | null,
+) {
   const myRole = members?.find((member) => member.isSelf)?.role;
-  const mayManageInvites = myRole !== undefined && can(myRole, 'manageInvites');
-  const mayManageSignInTracking = myRole !== undefined && can(myRole, 'manageMemberSignInTracking');
+  const mayManageInvites = access?.permissions.includes('invitations:manage') ?? false;
+  const mayManageSignInTracking = access?.permissions.includes('members:signInTracking') ?? false;
   // Active and inactive members use the same role-first presentation order, independent of server join-date ordering. Inactive rows remain available through a disclosure.
   const grouped = { active: [] as Member[], inactive: [] as Member[] };
   for (const member of members ?? []) {
@@ -47,7 +49,10 @@ export function buildMemberDirectoryPresentation(members: Member[] | null) {
   const activeMembers = members ? grouped.active.sort(compareMembers) : null;
   const inactiveMembers = grouped.inactive.sort(compareMembers);
 
-  const roleOptions = ASSIGNABLE_ROLES.map((value) => ({ value, label: resolveRoleLabel(value) }));
+  const roleOptions = (access?.assignableRoles ?? []).map((value: Role) => ({
+    value,
+    label: resolveRoleLabel(value),
+  }));
 
   return {
     activeMembers,

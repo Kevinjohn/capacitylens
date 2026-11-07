@@ -9,6 +9,8 @@ import {
 } from './useAccountSummaries';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
+import { authorityFixture } from '@/test/authorityFixture';
+import type { Role } from '@capacitylens/shared/account/types';
 
 // Only a genuine empty array may clear the picker. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
 
@@ -25,6 +27,14 @@ const json = (status: number, body: unknown) =>
     status,
     headers: { 'content-type': 'application/json' },
   });
+
+/** A server summary row carrying the access payload the server derives for it. */
+const summary = (id: string, name: string, role: Role) => ({
+  id,
+  name,
+  role,
+  access: authorityFixture(role, id),
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -60,14 +70,12 @@ function createBasicResponseClassificationTests() {
 
   it('a valid array -> validated summaries (off-spec rows dropped, not the whole list) + a warn per drop', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const body = [{ id: 'a1', name: 'Studio A', role: 'editor' }, { bogus: true }];
+    const body = [summary('a1', 'Studio A', 'editor'), { bogus: true }];
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => json(200, body)),
     );
-    await expect(fetchAccountSummaries()).resolves.toEqual([
-      { id: 'a1', name: 'Studio A', role: 'editor' },
-    ]);
+    await expect(fetchAccountSummaries()).resolves.toEqual([summary('a1', 'Studio A', 'editor')]);
     // Partial corruption is handled-but-logged (DEFENSIVE-CODING §5): the dropped row leaves a breadcrumb.
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'));
     expect(useStore.getState().notice).toEqual({
@@ -158,6 +166,67 @@ function createMalformedResponseClassificationTests() {
   });
 }
 
+describe('fetchAccountSummaries — company access', () => {
+  const summaryWith = (access: unknown) => ({
+    id: 'a1',
+    name: 'Stark Industries',
+    role: 'editor',
+    ...(access === undefined ? {} : { access }),
+  });
+  const unavailable = {
+    id: 'a1',
+    name: 'Stark Industries',
+    role: 'editor',
+    roleStatus: 'unavailable',
+  };
+
+  it('marks a summary without access unavailable', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json(200, [summaryWith(undefined)])),
+    );
+
+    await expect(fetchAccountSummaries()).resolves.toEqual([unavailable]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('missing or invalid access'));
+  });
+
+  it('marks a summary whose access names another company unavailable', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const access = authorityFixture('editor', 'a2');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json(200, [summaryWith(access)])),
+    );
+
+    await expect(fetchAccountSummaries()).resolves.toEqual([unavailable]);
+  });
+
+  it('marks a summary carrying an unknown permission key unavailable', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const access = authorityFixture('editor', 'a1');
+    const tampered = { ...access, permissions: [...access.permissions, 'planning:delete'] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json(200, [summaryWith(tampered)])),
+    );
+
+    await expect(fetchAccountSummaries()).resolves.toEqual([unavailable]);
+  });
+
+  it('keeps validated access on the summary', async () => {
+    const access = authorityFixture('editor', 'a1');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json(200, [summaryWith(access)])),
+    );
+
+    await expect(fetchAccountSummaries()).resolves.toEqual([
+      { id: 'a1', name: 'Stark Industries', role: 'editor', access },
+    ]);
+  });
+});
+
 describe('fetchAccountSummaries — response classification', () => {
   createBasicResponseClassificationTests();
   createUnknownRoleResponseTest();
@@ -169,7 +238,7 @@ function createOrderedRefreshTests() {
     useStore.setState({ activeAccountId: 'a1' });
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => json(200, [{ id: 'a2', name: 'Other', role: 'viewer' }])),
+      vi.fn(async () => json(200, [summary('a2', 'Other', 'viewer')])),
     );
 
     await refreshAccountSummaries();
@@ -194,14 +263,12 @@ function createOrderedRefreshTests() {
 
     const earlierRefresh = refreshAccountSummaries();
     const laterRefresh = refreshAccountSummaries();
-    later.resolve(json(200, [{ id: 'new', name: 'Newest', role: 'owner' }]));
+    later.resolve(json(200, [summary('new', 'Newest', 'owner')]));
     await laterRefresh;
-    earlier.resolve(json(200, [{ id: 'old', name: 'Older', role: 'owner' }]));
+    earlier.resolve(json(200, [summary('old', 'Older', 'owner')]));
     await earlierRefresh;
 
-    expect(useStore.getState().accountSummaries).toEqual([
-      { id: 'new', name: 'Newest', role: 'owner' },
-    ]);
+    expect(useStore.getState().accountSummaries).toEqual([summary('new', 'Newest', 'owner')]);
   });
 
   it('does not let a superseded response clear the active company or publish a removal notice', async () => {
@@ -218,9 +285,9 @@ function createOrderedRefreshTests() {
 
     const earlierRefresh = refreshAccountSummaries();
     const laterRefresh = refreshAccountSummaries();
-    later.resolve(json(200, [{ id: 'new', name: 'Newest', role: 'owner' }]));
+    later.resolve(json(200, [summary('new', 'Newest', 'owner')]));
     await laterRefresh;
-    earlier.resolve(json(200, [{ id: 'old', name: 'Older', role: 'owner' }]));
+    earlier.resolve(json(200, [summary('old', 'Older', 'owner')]));
     await earlierRefresh;
 
     expect(useStore.getState().activeAccountId).toBe('new');
@@ -240,7 +307,7 @@ function createMutationRefreshTests() {
     useStore
       .getState()
       .setAccountSummaries({ list: [{ id: 'created', name: 'Just created', role: 'owner' }] });
-    response.resolve(json(200, [{ id: 'old', name: 'Before create', role: 'owner' }]));
+    response.resolve(json(200, [summary('old', 'Before create', 'owner')]));
     await refresh;
 
     expect(useStore.getState().accountSummaries).toEqual([
@@ -260,7 +327,7 @@ function createMutationRefreshTests() {
       .getState()
       .setAccountSummaries({ list: [{ id: 'created', name: 'Just created', role: 'owner' }] });
     useStore.setState({ activeAccountId: 'created' });
-    response.resolve(json(200, [{ id: 'old', name: 'Before create', role: 'owner' }]));
+    response.resolve(json(200, [summary('old', 'Before create', 'owner')]));
     await refresh;
 
     expect(useStore.getState().activeAccountId).toBe('created');
@@ -275,18 +342,13 @@ function createCompletenessRefreshTests() {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        json(200, [
-          { id: 'active', role: 'owner' },
-          { id: 'other', name: 'Other', role: 'viewer' },
-        ]),
+        json(200, [{ id: 'active', role: 'owner' }, summary('other', 'Other', 'viewer')]),
       ),
     );
 
     await refreshAccountSummaries();
 
-    expect(useStore.getState().accountSummaries).toEqual([
-      { id: 'other', name: 'Other', role: 'viewer' },
-    ]);
+    expect(useStore.getState().accountSummaries).toEqual([summary('other', 'Other', 'viewer')]);
     expect(useStore.getState().accountSummariesComplete).toBe(false);
     expect(useStore.getState().activeAccountId).toBe('active');
     expect(useStore.getState().notice).toEqual({
@@ -299,7 +361,7 @@ function createCompletenessRefreshTests() {
   it('marks a wholly valid directory as complete', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => json(200, [{ id: 'only', name: 'Only Co', role: 'owner' }])),
+      vi.fn(async () => json(200, [summary('only', 'Only Co', 'owner')])),
     );
 
     await refreshAccountSummaries();

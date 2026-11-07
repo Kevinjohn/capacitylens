@@ -8,6 +8,7 @@ import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { makeAccount, makeClient } from '@/test/fixtures';
 import { useInactiveAccountData } from './useInactiveAccountData';
+import { authorityFor } from '@/test/authorityFixture';
 
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
@@ -57,7 +58,7 @@ function view(role: 'owner' | 'admin' | 'editor', principalId = 'bruce') {
         signOut: async () => {},
       }}
     >
-      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+      <PermissionContext.Provider value={{ role, status: 'resolved', access: authorityFor(role) }}>
         <Probe />
       </PermissionContext.Provider>
     </AuthContext.Provider>

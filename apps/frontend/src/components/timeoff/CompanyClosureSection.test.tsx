@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { CompanyClosureSection } from './CompanyClosureSection';
+import { authorityFixture } from '@/test/authorityFixture';
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -123,7 +125,9 @@ describe('CompanyClosureSection', () => {
       endDate: '2026-08-05',
     });
     render(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <CompanyClosureSection />
       </PermissionContext.Provider>,
     );

@@ -4,12 +4,19 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PermissionProvider } from './PermissionProvider';
 import { AuthContext } from './authContext';
 import type { AuthContextValue } from './authContext';
-import { useCanEdit, usePermissionStatus, useRole } from './permissionContext';
-import { makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
+import { useCanEdit, useCompanyAccess, usePermissionStatus, useRole } from './permissionContext';
+import {
+  makeAccount,
+  makeAppData,
+  makeResourceDraft,
+  resetStoreWithAccount,
+} from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { useAccountSummaries } from './useAccountSummaries';
 import * as accountTransition from './accountTransition';
 import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
+import { isAccountRole } from '@capacitylens/shared/account/types';
+import { authorityFixture } from '@/test/authorityFixture';
 
 const permissionMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeStatus>>(async () => ({
@@ -33,7 +40,23 @@ function Probe() {
   const role = useRole();
   const status = usePermissionStatus();
   const editable = useCanEdit();
-  return <div>{`${status}:${role ?? 'none'}:${editable ? 'edit' : 'read'}`}</div>;
+  const access = useCompanyAccess();
+  return (
+    <>
+      <div>{`${status}:${role ?? 'none'}:${editable ? 'edit' : 'read'}`}</div>
+      <div data-testid="permissions">{access?.permissions.join(',') ?? 'none'}</div>
+    </>
+  );
+}
+
+function PrincipalTree({ userId }: { userId: string }) {
+  return (
+    <AuthContext.Provider value={{ ...auth, user: { id: userId } }}>
+      <PermissionProvider>
+        <Probe />
+      </PermissionProvider>
+    </AuthContext.Provider>
+  );
 }
 
 function renderProvider() {
@@ -78,9 +101,10 @@ function deferred<T>() {
 }
 
 function accountResponse(id: string, role: string) {
+  const access = isAccountRole(role) ? { access: authorityFixture(role, id) } : {};
   return new Response(
     JSON.stringify([
-      { id, name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries', role },
+      { id, name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries', role, ...access },
     ]),
     {
       status: 200,
@@ -168,21 +192,7 @@ describe('PermissionProvider authenticated lookup posture', () => {
 
 describe('PermissionProvider refresh behavior', () => {
   it('enables editing only after a concrete write-tier role resolves', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify([
-            {
-              id: useStore.getState().activeAccountId,
-              name: 'Wayne Enterprises',
-              role: 'editor',
-            },
-          ]),
-          { status: 200 },
-        ),
-      ),
-    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(accountResponse('acct-test', 'editor')));
     renderProvider();
 
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
@@ -200,19 +210,10 @@ describe('PermissionProvider membership invalidation', () => {
           resolveStatus = resolve;
         }),
     );
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify([
-            { id: useStore.getState().activeAccountId, name: 'Wayne Enterprises', role: 'owner' },
-          ]),
-          { status: 200 },
-        ),
-      );
+    const fetchMock = vi.fn().mockResolvedValue(accountResponse('acct-test', 'owner'));
     vi.stubGlobal('fetch', fetchMock);
     const adoptStatus = vi.spyOn(accountTransition, 'adoptMasqueradeStatus');
-    const setActiveRole = vi.spyOn(useStore.getState(), 'setActiveRole');
+    const setActiveAuthority = vi.spyOn(useStore.getState(), 'setActiveAuthority');
 
     renderProvider();
 
@@ -223,11 +224,12 @@ describe('PermissionProvider membership invalidation', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
 
-    const resolvedRoleCall = setActiveRole.mock.calls.findIndex(
-      ([role, status]) => role === 'owner' && status === 'resolved',
+    const resolvedRoleCall = setActiveAuthority.mock.calls.findIndex(
+      ([{ role, status, access }]) => role === 'owner' && status === 'resolved' && access !== null,
     );
     expect(resolvedRoleCall).toBeGreaterThanOrEqual(0);
-    const resolvedRoleInvocationOrder = setActiveRole.mock.invocationCallOrder[resolvedRoleCall];
+    const resolvedRoleInvocationOrder =
+      setActiveAuthority.mock.invocationCallOrder[resolvedRoleCall];
     if (resolvedRoleInvocationOrder === undefined) {
       throw new Error('resolved role call was not recorded');
     }
@@ -238,19 +240,7 @@ describe('PermissionProvider membership invalidation', () => {
 describe('PermissionProvider membership generation', () => {
   it('re-resolves the active role when a membership mutation invalidates its projections', async () => {
     let role = 'owner';
-    const fetchMock = vi.fn(
-      async () =>
-        new Response(
-          JSON.stringify([
-            {
-              id: useStore.getState().activeAccountId,
-              name: 'Wayne Enterprises',
-              role,
-            },
-          ]),
-          { status: 200 },
-        ),
-    );
+    const fetchMock = vi.fn(async () => accountResponse('acct-test', role));
     vi.stubGlobal('fetch', fetchMock);
     renderProvider();
 
@@ -261,24 +251,13 @@ describe('PermissionProvider membership generation', () => {
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('resolved:admin:edit')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe('admin');
+    expect(useStore.getState().activeAccess?.role).toBe('admin');
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('shares one account-directory read per membership generation with the shell hook', async () => {
     let role = 'owner';
-    const fetchMock = vi.fn(
-      async () =>
-        new Response(
-          JSON.stringify([
-            {
-              id: useStore.getState().activeAccountId,
-              name: 'Wayne Enterprises',
-              role,
-            },
-          ]),
-          { status: 200 },
-        ),
-    );
+    const fetchMock = vi.fn(async () => accountResponse('acct-test', role));
     vi.stubGlobal('fetch', fetchMock);
     renderSharedDirectoryProvider();
 
@@ -437,7 +416,7 @@ describe('PermissionProvider fail-closed responses', () => {
     renderProvider();
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
+    expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
     expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
 
@@ -460,7 +439,7 @@ describe('PermissionProvider fail-closed responses', () => {
         </PermissionProvider>
       </AuthContext.Provider>,
     );
-    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
+    expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
     expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
     expect(fetchMock).not.toHaveBeenCalled();
@@ -468,7 +447,9 @@ describe('PermissionProvider fail-closed responses', () => {
 
     vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const demoView = renderProvider();
-    expect(screen.getAllByText('not-applicable:none:edit')).toHaveLength(2);
+    // Demo mode evaluates Owner-level capability; the server-mode off view stays read-only.
+    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
+    expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
@@ -478,10 +459,97 @@ describe('PermissionProvider fail-closed responses', () => {
     vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
     act(() => useStore.getState().setActiveAccount(null));
     renderProvider();
-    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
+    expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
     expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe('PermissionProvider authority snapshot', () => {
+  it('clears capabilities before the fetch resolves when the principal changes on the same company', async () => {
+    const second = deferred<Response>();
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(accountResponse('acct-test', 'owner'))
+        .mockImplementationOnce(() => second.promise),
+    );
+    const view = render(<PrincipalTree userId="u-bruce" />);
+    expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
+
+    view.rerender(<PrincipalTree userId="u-selina" />);
+
+    expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
+    expect(screen.getByTestId('permissions')).toHaveTextContent('none');
+    expect(useStore.getState().activeAccess).toBeNull();
+    await act(async () => second.resolve(accountResponse('acct-test', 'viewer')));
+    expect(await screen.findByText('resolved:viewer:read')).toBeInTheDocument();
+  });
+
+  it("ignores a previous principal's delayed response after a principal switch", async () => {
+    const first = deferred<Response>();
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => first.promise)
+      .mockResolvedValueOnce(accountResponse('acct-test', 'viewer'));
+    vi.stubGlobal('fetch', fetchMock);
+    const view = render(<PrincipalTree userId="u-bruce" />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    view.rerender(<PrincipalTree userId="u-selina" />);
+    expect(await screen.findByText('resolved:viewer:read')).toBeInTheDocument();
+    await act(async () => first.resolve(accountResponse('acct-test', 'owner')));
+
+    expect(screen.getByText('resolved:viewer:read')).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe('viewer');
+    expect(useStore.getState().activeAccess?.permissions).not.toContain('planning:write');
+  });
+
+  it('projects read-only access when the masquerade generation changes, despite a late summary', async () => {
+    const summary = deferred<Response>();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => summary.promise),
+    );
+    renderProvider();
+    await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
+
+    act(() =>
+      useStore.setState({
+        masquerade: {
+          kind: 'active',
+          generation: 7,
+          state: {
+            accountId: 'acct-test',
+            targetUserId: 'u-diana',
+            targetName: 'Diana Prince',
+            effectiveRole: 'owner',
+            startedAt: '2026-09-01T10:00:00.000Z',
+            expiresAt: '2999-09-01T10:15:00.000Z',
+            token: 'context-proof',
+          },
+        },
+      }),
+    );
+    await act(async () => summary.resolve(accountResponse('acct-test', 'owner')));
+
+    expect(screen.getByText('resolved:owner:read')).toBeInTheDocument();
+    expect(screen.getByTestId('permissions')).toHaveTextContent(/^planning:read$/);
+    expect(useStore.getState().activeAccess?.permissions).toEqual(['planning:read']);
+  });
+
+  it('blocks store writes while the authority lookup is unavailable', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    renderProvider();
+    expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
+
+    await useStore.getState().addResource(makeResourceDraft({ name: 'Blocked' }));
+
+    expect(useStore.getState().data.resources).toHaveLength(0);
+    expect(useStore.getState().notice?.message).toMatch(/role could not be verified/i);
   });
 });

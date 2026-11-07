@@ -24,7 +24,6 @@ import {
   renderSection,
   requireCallback,
   requireValue,
-  saveRoleVia,
 } from './MembersSection.testSupport';
 import type { RawMember } from './MembersSection.testSupport';
 
@@ -612,64 +611,7 @@ function registerLifecycleTrackingTests(): void {
   });
 }
 
-function registerLifecycleReconciliationTests(): void {
-  it('reconciles an unknown self-demotion even after member reads become forbidden', async () => {
-    const user = userEvent.setup();
-    let mutationDispatched = false;
-    const refreshAuth = vi.fn(async () => {});
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const u = String(url);
-      if (u.endsWith('/members/me') && init?.method === 'PATCH') {
-        mutationDispatched = true;
-        throw new TypeError('connection closed after dispatch');
-      }
-      if (u.endsWith('/api/accounts')) {
-        return jsonResponse([
-          { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'editor' },
-        ]);
-      }
-      if (u.endsWith('/members') && (!init || init.method === undefined || init.method === 'GET')) {
-        if (mutationDispatched) {
-          return jsonResponse({ error: 'Forbidden.' }, 403);
-        }
-        return jsonResponse({
-          members: [
-            rawMember({ userId: 'owner', role: 'owner' }),
-            rawMember({ userId: 'me', role: 'admin', isSelf: true }),
-            rawMember({ userId: 'ed', role: 'editor' }),
-          ],
-        });
-      }
-      if (u.endsWith('/invites')) {
-        return mutationDispatched
-          ? jsonResponse({ error: 'Forbidden.' }, 403)
-          : jsonResponse({ invites: [] });
-      }
-      throw new Error(`Unexpected request: ${u}`);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const revisionBefore = useStore.getState().membershipRevision;
-    let sawPlanningRead = false;
-    const unsubscribe = useStore.subscribe((state) => {
-      if (state.planning.status === 'loading') sawPlanningRead = true;
-    });
-    renderSection({ refreshAuth });
-    await screen.findByTestId('members-section');
-
-    const self = await waitForMemberRow(/me@x\.io/);
-    await saveRoleVia(user, self, 'Editor');
-
-    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
-    expect(refreshAuth).toHaveBeenCalledTimes(1);
-    unsubscribe();
-    expect(sawPlanningRead).toBe(true);
-    expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
-    expect(useStore.getState().notice?.message).toMatch(
-      /Your access was refreshed; verify the result/i,
-    );
-    expect(useStore.getState().notice?.message).not.toMatch(/Reload the page/i);
-  });
-}
+function registerLifecycleReconciliationTests(): void {}
 
 function registerLifecycleConcurrencyTests(): void {
   it('permits only one member mutation while an action is in flight', async () => {

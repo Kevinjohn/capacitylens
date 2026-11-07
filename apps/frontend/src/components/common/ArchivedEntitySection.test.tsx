@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { screen, within, waitFor } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PermissionContext } from '@/auth/permissionContext';
@@ -11,6 +12,9 @@ import {
 } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { ArchivedEntitySection } from './ArchivedEntitySection';
+// The demo acts as Owner, so the Editor recovery surface is rendered directly.
+import { ArchiveRecoverySection } from './ArchiveRecoverySection';
+import { authorityFixture } from '@/test/authorityFixture';
 
 beforeEach(async () => {
   vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
@@ -32,7 +36,9 @@ describe('archived resource actions', () => {
   it('confirms and applies resource anonymisation in the volatile demo', async () => {
     const user = userEvent.setup();
     render(
-      <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'owner', status: 'resolved', access: authorityFixture('owner') }}
+      >
         <ArchivedEntitySection entity="resources" />
       </PermissionContext.Provider>,
     );
@@ -47,8 +53,10 @@ describe('archived resource actions', () => {
   it('lets an Editor recover an identity without inactive details or anonymisation', () => {
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
-          <ArchivedEntitySection entity="resources" />
+        <PermissionContext.Provider
+          value={{ role: 'editor', status: 'resolved', access: authorityFixture('editor') }}
+        >
+          <ArchiveRecoverySection entity="resources" />
         </PermissionContext.Provider>
       </QueryClientProvider>,
     );
@@ -61,8 +69,10 @@ describe('archived resource actions', () => {
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
-          <ArchivedEntitySection entity="resources" />
+        <PermissionContext.Provider
+          value={{ role: 'editor', status: 'resolved', access: authorityFixture('editor') }}
+        >
+          <ArchiveRecoverySection entity="resources" />
         </PermissionContext.Provider>
       </QueryClientProvider>,
     );

@@ -1,11 +1,12 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
+import { authorityFixture } from '@/test/authorityFixture';
 import {
   accessibleMemberNames,
   accessibleNameMembers,
@@ -245,26 +246,113 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 
-  it('invalidates membership projections when an Admin changes their own role', async () => {
-    const user = userEvent.setup();
-    const refreshAuth = vi.fn(async () => {});
-    vi.stubGlobal('fetch', mockApi(members));
-    const revisionBefore = useStore.getState().membershipRevision;
-    let sawPlanningRead = false;
-    const unsubscribe = useStore.subscribe((state) => {
-      if (state.planning.status === 'loading') sawPlanningRead = true;
-    });
-    renderSection({ refreshAuth });
+  it("shows no role control on the Admin's own row, even if the server offers one", async () => {
+    const selfOffered: RawMember[] = members.map((member) =>
+      member.isSelf
+        ? {
+            ...member,
+            actions: {
+              changeRole: true,
+              changeStatus: false,
+              remove: false,
+              enableAccess: false,
+              viewAs: false,
+            },
+          }
+        : member,
+    );
+    vi.stubGlobal('fetch', mockApi(selfOffered));
+    renderSection();
 
     const selfRow = await waitForMemberRow(/me@x\.io/);
-    await saveRoleVia(user, selfRow, 'Editor');
-
-    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
-    expect(refreshAuth).toHaveBeenCalledTimes(1);
-    unsubscribe();
-    expect(sawPlanningRead).toBe(true);
+    expect(within(selfRow).queryByTestId('member-edit')).not.toBeInTheDocument();
   });
 }
+
+describe('MembersSection — server-derived member actions', () => {
+  it("lets an Admin edit a peer Admin's role", async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockApi([
+        { userId: 'me', role: 'admin', isSelf: true },
+        { userId: 'thepeer', role: 'admin' },
+      ]),
+    );
+    renderSection();
+
+    const peerRow = await waitForMemberRow(/thepeer@x\.io/);
+    expect(within(peerRow).getByTestId('member-edit')).toBeInTheDocument();
+  });
+
+  it('offers exactly the assignable roles from the company access in the role picker', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockApi([
+        { userId: 'me', role: 'admin', isSelf: true },
+        { userId: 'theeditor', role: 'editor' },
+      ]),
+    );
+    const admin = authorityFixture('admin');
+    useStore.getState().setActiveAuthority({
+      role: 'admin',
+      status: 'resolved',
+      access: { ...admin, assignableRoles: ['viewer'] },
+    });
+    renderSection();
+
+    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
+    await user.click(within(editorRow).getByTestId('member-edit'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.keyDown(within(dialog).getByRole('combobox'), { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Viewer']);
+  });
+
+  it('drops a row without actions and offers only the controls the actions grant', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const none = {
+      changeRole: false,
+      changeStatus: false,
+      remove: false,
+      enableAccess: false,
+      viewAs: false,
+    };
+    vi.stubGlobal(
+      'fetch',
+      mockApi([
+        { userId: 'me', role: 'owner', isSelf: true },
+        { userId: 'thelegacy', role: 'editor', actions: null },
+        { userId: 'thelocked', role: 'editor', actions: none },
+      ]),
+    );
+    renderSection();
+
+    const lockedRow = await waitForMemberRow(/thelocked@x\.io/);
+    expect(screen.queryByText(/thelegacy@x\.io/)).not.toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith(
+      'teamAccessClient: dropped an unsupported member-directory row',
+    );
+    expect(within(lockedRow).queryByTestId('member-edit')).not.toBeInTheDocument();
+    expect(within(lockedRow).queryByTestId('member-masquerade')).not.toBeInTheDocument();
+    expect(within(lockedRow).queryByTestId('member-menu')).not.toBeInTheDocument();
+  });
+
+  it('closes a pending role edit when the company access is lost', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', mockApi(soleOwnerAndEditor));
+    renderSection();
+
+    const editorRow = await waitForMemberRow(/ed@x\.io/);
+    await user.click(within(editorRow).getByTestId('member-edit'));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+
+    act(() =>
+      useStore.getState().setActiveAuthority({ role: 'viewer', status: 'pending', access: null }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});
 
 describe('MembersSection — owner affordances', () => {
   it('gives every member-row control a unique member-scoped accessible name', async () => {

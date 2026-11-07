@@ -7,6 +7,7 @@ import { useStore } from '@/store/useStore';
 import { resolveColorName } from '@/lib/palette';
 import { resetStoreWithAccount } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
+import { authorityFixture } from '@/test/authorityFixture';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -200,7 +201,9 @@ it('hides owner-only privacy controls and locks the redacted name for a non-owne
   const client = { ...created, name: '"Nightwing"', isPrivate: true };
   useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
   render(
-    <PermissionContext.Provider value={{ role: 'editor' }}>
+    <PermissionContext.Provider
+      value={{ role: 'editor', status: 'resolved', access: authorityFixture('editor') }}
+    >
       <ClientForm client={client} onClose={vi.fn()} />
     </PermissionContext.Provider>,
   );

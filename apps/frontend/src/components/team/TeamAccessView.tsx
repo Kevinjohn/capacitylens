@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
+import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
+import type { CompanyAccess, PermissionKey } from '@capacitylens/shared/account/permissions';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { useAuth } from '@/auth/authContext';
-import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { useCompanyAccess, usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { resolveAccessLabel, resolveAccessSummary } from '@/lib/accessCopy';
 import { resolveAccessExperience } from '@/lib/resolveAccessExperience';
 import { MembersSection } from './MembersSection';
@@ -32,6 +33,7 @@ interface CurrentAccessCardProps {
   accessSummary: string;
   accessWarning: string | null;
   effectiveRole: Role | null;
+  access: CompanyAccess | null;
 }
 
 interface AccessManagementProps {
@@ -44,14 +46,17 @@ interface ResolveAccessWarningInput {
   accessExperience: ReturnType<typeof resolveAccessExperience>;
 }
 
-function listCapabilities(role: Role): Capability[] {
+// Server-derived permissions decide the capability card; during view-as the snapshot is read-only,
+// so even an Owner projection advertises no writes. Field visibility keeps the role predicates.
+function listCapabilities(access: CompanyAccess | null, role: Role): Capability[] {
+  const has = (key: PermissionKey) => access?.permissions.includes(key) ?? false;
   return [
-    { label: m.access_cap_view_schedule(), allowed: can(role, 'read') },
-    { label: m.access_cap_edit_schedule(), allowed: can(role, 'write') },
-    { label: m.access_cap_manage_team(), allowed: can(role, 'manageMembers') },
+    { label: m.access_cap_view_schedule(), allowed: has('planning:read') },
+    { label: m.access_cap_edit_schedule(), allowed: has('planning:write') },
+    { label: m.access_cap_manage_team(), allowed: has('members:manage') },
     { label: m.access_cap_timeoff_notes(), allowed: canSeeTimeOffNote(role) },
     { label: m.access_cap_private_names(), allowed: canSeePrivateNames(role) },
-    { label: m.access_cap_transfer_owner(), allowed: can(role, 'transferOwnership') },
+    { label: m.access_cap_transfer_owner(), allowed: has('ownership:transfer') },
   ];
 }
 
@@ -60,14 +65,14 @@ function resolveAccessWarning({ accessExperience }: ResolveAccessWarningInput) {
   return null;
 }
 
-function CapabilityList({ role }: { role: Role }) {
+function CapabilityList({ access, role }: { access: CompanyAccess | null; role: Role }) {
   return (
     <ul
       id="access-capabilities"
       className="mt-3 grid gap-2 sm:grid-cols-2"
       aria-label={m.access_capabilities_label()}
     >
-      {listCapabilities(role).map((capability) => (
+      {listCapabilities(access, role).map((capability) => (
         <li key={capability.label} className="flex items-center gap-2 text-sm text-ink">
           {capability.allowed ? (
             <Check className="text-brand" />
@@ -91,6 +96,7 @@ function CurrentAccessCard({
   accessSummary,
   accessWarning,
   effectiveRole,
+  access,
 }: CurrentAccessCardProps) {
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   let accessDetails = null;
@@ -114,7 +120,7 @@ function CurrentAccessCard({
           )}
           {capabilitiesOpen ? m.access_capabilities_hide() : m.access_capabilities_show()}
         </button>
-        {capabilitiesOpen && <CapabilityList role={effectiveRole} />}
+        {capabilitiesOpen && <CapabilityList access={access} role={effectiveRole} />}
       </>
     );
   } else if (accessWarning) {
@@ -170,13 +176,15 @@ export function TeamAccessView() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { user } = useAuth();
   const role = useRole();
+  const access = useCompanyAccess();
   const permissionStatus = usePermissionStatus();
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const accessExperience = resolveAccessExperience();
   const authenticated = accessExperience === 'authenticated';
   const resolvedRole = authenticated && permissionStatus === 'resolved' ? role : null;
   const effectiveRole: Role | null = resolvedRole;
-  const mayManage = resolvedRole !== null && can(resolvedRole, 'manageMembers');
+  const resolvedAccess = resolvedRole !== null ? access : null;
+  const mayManage = resolvedAccess?.permissions.includes('members:manage') ?? false;
   const accessCopyInput = {
     experience: accessExperience,
     permissionStatus,
@@ -199,6 +207,7 @@ export function TeamAccessView() {
         accessSummary={accessSummary}
         accessWarning={accessWarning}
         effectiveRole={effectiveRole}
+        access={resolvedAccess}
       />
 
       {/* Resolve permission before mounting: lower roles must not issue privileged directory reads

@@ -1,7 +1,8 @@
-import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import type { RenderOptions } from '@testing-library/react';
 import type userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
+import { renderWithAuthority } from '@/test/renderWithAuthority';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { buildColumnGeometry } from '@/components/scheduler/columnGeometry';
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
@@ -19,7 +20,7 @@ import {
 
 /** Provides the tooltip ancestor required by isolated bars; the full scheduler supplies its own shared provider. */
 export function renderWithTooltip(ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) {
-  return rtlRender(ui, { wrapper: TooltipProvider, ...options });
+  return renderWithAuthority(<>{ui}</>, { wrapper: TooltipProvider, ...options });
 }
 
 /** Uniform June geometry with 48-pixel day columns and weekend minimisation disabled. */

@@ -5,6 +5,7 @@ import { SettingsView } from './SettingsView';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
+import { authorityFixture } from '@/test/authorityFixture';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -83,7 +84,9 @@ describe('SettingsView — grouped information architecture', () => {
   it('keeps device controls usable for viewers within the device group', async () => {
     const user = userEvent.setup();
     render(
-      <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <SettingsView />
       </PermissionContext.Provider>,
     );
@@ -106,7 +109,9 @@ describe('SettingsView — grouped information architecture', () => {
     });
     try {
       render(
-        <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+        <PermissionContext.Provider
+          value={{ role: 'owner', status: 'resolved', access: authorityFixture('owner') }}
+        >
           <SettingsView />
         </PermissionContext.Provider>,
       );

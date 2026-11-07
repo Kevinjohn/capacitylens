@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { internalClientFor } from '@capacitylens/shared/data/internalClient';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 const s = () => useStore.getState();
 
@@ -35,6 +36,7 @@ async function rejectsBuiltinRename(): Promise<void> {
     'Expected the test account to be created.',
   );
   s().setActiveAccount(a.id);
+  s().setActiveAuthority(resolvedAuthority('owner', a.id));
   await s().refreshPlanning();
   const internal = expectPresent(
     internalClientFor(s().data.clients, a.id),
@@ -55,6 +57,7 @@ async function renamesNormalClient(): Promise<void> {
     'Expected the test account to be created.',
   );
   s().setActiveAccount(a.id);
+  s().setActiveAuthority(resolvedAuthority('owner', a.id));
   await s().refreshPlanning();
   const c = await requireCreated(s().addClient({ name: 'Globex', color: '#3b82f6' }));
   await s().updateClient(c.id, { name: 'Globex 2' });
@@ -71,6 +74,7 @@ async function stripsAddedBuiltinFlag(): Promise<void> {
     'Expected the test account to be created.',
   );
   s().setActiveAccount(a.id);
+  s().setActiveAuthority(resolvedAuthority('owner', a.id));
   await s().refreshPlanning();
   // A cast payload smuggling builtin:true must not mint a second Internal, the store strips it.
   const c = await requireCreated(
@@ -91,6 +95,7 @@ async function stripsPromotedBuiltinFlag(): Promise<void> {
     'Expected the test account to be created.',
   );
   s().setActiveAccount(a.id);
+  s().setActiveAuthority(resolvedAuthority('owner', a.id));
   await s().refreshPlanning();
   const c = await requireCreated(s().addClient({ name: 'Globex', color: '#3b82f6' }));
   await s().updateClient(c.id, { builtin: true } as never);
@@ -104,7 +109,10 @@ async function stripsPromotedBuiltinFlag(): Promise<void> {
 }
 
 describe('built-in Internal client in the store', () => {
-  beforeEach(() => s().replaceAll(emptyAppData()));
+  beforeEach(() => {
+    s().replaceAll(emptyAppData());
+    s().setActiveAuthority(resolvedAuthority('owner'));
+  });
 
   it(
     'addAccount creates exactly one builtin Internal client for the new account',

@@ -1,6 +1,7 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { act, render, screen, fireEvent, within } from '@testing-library/react';
+import { act, screen, fireEvent, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
@@ -8,6 +9,7 @@ import { makeResourceDraft } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { chooseOption } from './__tests__/schedulerTestKit';
 import { first, ACC, resetAllocationModalStore } from './__tests__/allocationModalTestKit';
+import { authorityFixture } from '@/test/authorityFixture';
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
@@ -224,7 +226,9 @@ describe('AllocationModal inline activity creation pref', () => {
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     const view = render(
-      <PermissionContext.Provider value={{ role: 'editor' }}>
+      <PermissionContext.Provider
+        value={{ role: 'editor', status: 'resolved', access: authorityFixture('editor') }}
+      >
         <AllocationModal
           kind="create"
           create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -235,7 +239,9 @@ describe('AllocationModal inline activity creation pref', () => {
     await user.type(screen.getByLabelText('New activity name'), 'Unsaved viewer activity');
 
     view.rerender(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <AllocationModal
           kind="create"
           create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}

@@ -1,11 +1,5 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { m } from '@/i18n';
-import {
-  can,
-  canChangeMemberStatus,
-  canEditAnyMemberRole,
-  canRemoveMember,
-} from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamMember } from '@/account/teamAccessClient';
 import { resolveRoleLabel } from '@/lib/accessCopy';
@@ -18,44 +12,28 @@ import type { MemberConfirmationAction } from './memberConfirmationCopy';
 import { MemberResourceDialog, MemberResourceLink } from './MemberResourceLink';
 import { MemberActionsDialog } from './MemberActionsDialog';
 
-// Share affordance policy across active and inactive rows so grouping cannot change the actions offered. The server independently authorizes each operation.
+// Row controls come from server-derived actions so grouping cannot change what is offered. The
+// server independently authorizes each operation.
 
-function buildMemberAffordances(
-  myRole: Role | undefined,
-  member: TeamMember,
-): {
+function buildMemberAffordances(member: TeamMember): {
   mayMasquerade: boolean;
   mayTouch: boolean;
   mayRemove: boolean;
   mayChangeStatus: boolean;
+  mayEnableAccess: boolean;
   hasMenu: boolean;
 } {
-  // Role editing requires an active, unrestricted membership on both client and server.
-  const mayTouch =
-    member.status === 'active' &&
-    !member.accessDisabled &&
-    member.membershipPresent !== false &&
-    !!myRole &&
-    canEditAnyMemberRole(myRole, member.role);
-  // Inactive memberships can be removed without reinstatement. Removal locks the person out until an
-  // administrator enables access, so the server refuses it for yourself.
-  const mayRemove =
-    member.membershipPresent !== false &&
-    !member.isSelf &&
-    !!myRole &&
-    canRemoveMember(myRole, member.role);
-  const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, member.role, member.isSelf);
+  const mayTouch = member.actions.changeRole && !member.isSelf;
+  const mayRemove = member.actions.remove;
+  const mayChangeStatus = member.actions.changeStatus;
+  const mayEnableAccess = member.actions.enableAccess;
   return {
-    mayMasquerade:
-      member.status === 'active' &&
-      !member.accessDisabled &&
-      !member.isSelf &&
-      !!myRole &&
-      can(myRole, 'masquerade'),
+    mayMasquerade: member.actions.viewAs,
     mayTouch,
     mayRemove,
     mayChangeStatus,
-    hasMenu: mayChangeStatus || mayRemove,
+    mayEnableAccess,
+    hasMenu: mayChangeStatus || mayRemove || mayEnableAccess,
   };
 }
 
@@ -183,26 +161,29 @@ function MemberPrimaryActions({
 function MemberStatusMenuItems({
   member,
   memberLabel,
+  mayChangeStatus,
+  mayEnableAccess,
   chooseMemberAction,
 }: {
   member: TeamMember;
   memberLabel: string;
+  mayChangeStatus: boolean;
+  mayEnableAccess: boolean;
   chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
 }) {
-  if (member.membershipPresent === false) {
-    if (!member.accessDisabled) return null;
-  }
-  const restricted = member.accessDisabled;
+  const restricted = member.accessDisabled === true;
+  const present = member.membershipPresent !== false;
   return (
     <>
-      {restricted ? (
+      {restricted && mayEnableAccess && (
         <MemberMenuItem
           testId="member-enable"
           label={m.settings_member_enable()}
           ariaLabel={m.settings_member_enable_aria({ member: memberLabel })}
           onSelect={() => chooseMemberAction('enable', member)}
         />
-      ) : (
+      )}
+      {!restricted && present && mayChangeStatus && (
         <MemberMenuItem
           testId="member-disable"
           label={m.settings_member_disable()}
@@ -210,7 +191,8 @@ function MemberStatusMenuItems({
           onSelect={() => chooseMemberAction('disable', member)}
         />
       )}
-      {member.membershipPresent !== false &&
+      {present &&
+        mayChangeStatus &&
         (member.status === 'active' ? (
           <MemberMenuItem
             testId="member-archive"
@@ -243,13 +225,13 @@ function MemberSettingsMenuItems({
 }) {
   return (
     <>
-      {affordances.mayChangeStatus && (
-        <MemberStatusMenuItems
-          member={member}
-          memberLabel={memberLabel}
-          chooseMemberAction={chooseMemberAction}
-        />
-      )}
+      <MemberStatusMenuItems
+        member={member}
+        memberLabel={memberLabel}
+        mayChangeStatus={affordances.mayChangeStatus}
+        mayEnableAccess={affordances.mayEnableAccess}
+        chooseMemberAction={chooseMemberAction}
+      />
       {affordances.mayRemove && (
         <MemberMenuItem
           testId="member-remove"
@@ -289,7 +271,7 @@ export function MemberRow({
   workspaceId: string | null;
   reload(): void;
 }) {
-  const affordances = buildMemberAffordances(myRole, member);
+  const affordances = buildMemberAffordances(member);
   const memberLabel = resolveMemberLabel(member);
   return (
     <tr

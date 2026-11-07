@@ -9,8 +9,8 @@ import {
   InactiveSliceHttpError,
   InactiveSliceShapeError,
 } from '@/data/fetchInactiveSlice';
-import { useRole } from '@/auth/permissionContext';
-import { can, canSeePrivateNames } from '@capacitylens/shared/domain/access';
+import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { canReadInactiveExport, canSeePrivateNames } from '@capacitylens/shared/domain/access';
 import { m } from '@/i18n';
 
 /** Downloads the active company's export, reporting a failed or incomplete export as an error. */
@@ -19,6 +19,7 @@ export function useExportAction() {
   const setNotice = useStore((state) => state.setNotice);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const role = useRole();
+  const permissionStatus = usePermissionStatus();
   const serverMode = isServerConfigured();
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
@@ -31,7 +32,8 @@ export function useExportAction() {
       let exported = data;
       if (serverMode) {
         if (!activeAccountId) throw new Error('Choose a company before exporting.');
-        if (role === null || can(role, 'anonymise')) {
+        // Only a resolved Owner or Admin role reads the inactive slice; anything else exports active rows.
+        if (permissionStatus === 'resolved' && role !== null && canReadInactiveExport(role)) {
           exported = await fetchInactiveSlice(activeAccountId);
         }
       }

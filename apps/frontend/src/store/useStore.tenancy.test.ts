@@ -1,9 +1,10 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, onTestFinished, vi } from 'vitest';
 import { useStore } from './useStore';
 import { makeAccount, makeAppData, WORKDAYS } from '@/test/fixtures';
 import type { AppData } from '@capacitylens/shared/types/entities';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 // The store is the strict per-account write boundary: an update/delete must own
 // the target row, and every foreign key on an add/update must point inside the
@@ -84,7 +85,7 @@ function twoAccountData(): AppData {
 beforeEach(async () => {
   s().replaceAll(twoAccountData());
   s().setActiveAccount(A);
-  s().setActiveRole(null);
+  s().setActiveAuthority(resolvedAuthority('owner', A));
   await s().refreshPlanning();
   expect(s().activeAccountId).toBe(A);
 });
@@ -155,7 +156,7 @@ describe('active-account replacement invariant', () => {
 
 describe('active-account permission publication', () => {
   it('atomically fail-closes a switched tenant before an imperative write can use the prior role', async () => {
-    s().setActiveRole('editor');
+    s().setActiveAuthority(resolvedAuthority('editor'));
     const rolesPublishedForB: Array<string | null> = [];
     const unsubscribe = useStore.subscribe((state) => {
       if (state.activeAccountId === B) rolesPublishedForB.push(state.activeRole);
@@ -173,7 +174,12 @@ describe('active-account permission publication', () => {
     expect(s().notice).toMatchObject({ tone: 'error' });
   });
 
-  it('keeps the auth-off null role editable across the same account switch', async () => {
+  it('keeps the demo null role editable across the same account switch', async () => {
+    // Server mode requires resolved authority; the null-role rule now applies only to the demo.
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
     s().setActiveRole(null);
     s().setActiveAccount(B);
     await s().refreshPlanning();
@@ -193,7 +199,7 @@ function registerAccountOwnershipTests(): void {
     );
     expect(s().data.accounts.find((account) => account.id === B)?.name).toBe('Company B');
 
-    s().setActiveRole('viewer');
+    s().setActiveAuthority(resolvedAuthority('viewer'));
     const dataBefore = s().data;
     await expect(s().updateAccount(B, { name: 'Viewer hijack' })).resolves.toBeUndefined();
     expect(s().data).toBe(dataBefore);

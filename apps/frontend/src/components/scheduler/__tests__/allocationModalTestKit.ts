@@ -13,6 +13,7 @@ import {
   makeResourceDraft,
 } from '@/test/fixtures';
 import { chooseOption } from './schedulerTestKit';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 /** Fails the test when a required value is absent. */
 export function required<T>(value: T | undefined | null, message: string): T {
@@ -68,6 +69,7 @@ export async function resetAllocationModalStore(): Promise<void> {
   restoreStoreAllocationActions();
   useStore.getState().replaceAll(base());
   useStore.getState().setActiveAccount(ACC);
+  useStore.getState().setActiveAuthority(resolvedAuthority('owner', ACC));
   await useStore.getState().refreshPlanning();
   // Enable placeholders for assignment fixtures because the picker hides them by default. A current hidden assignee remains selectable while editing.
   await useStore.getState().updateAccount(ACC, { placeholdersEnabled: true });

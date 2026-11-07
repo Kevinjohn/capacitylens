@@ -8,6 +8,7 @@ import type { WeeksZoom } from '@/lib/schedulerConfig';
 import type { BarLabelPreferences, UtilizationPreferences } from '@/lib/displayPrefs';
 import type { ThemePreference } from '@/lib/theme';
 import type { Role } from '@capacitylens/shared/domain/access';
+import type { CompanyAccess } from '@capacitylens/shared/account/permissions';
 import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
 import type { Account, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
 import type { PlanningControllerMetadata } from '@/data/planning/planningCacheController';
@@ -42,6 +43,8 @@ export interface AccountSummary {
   name: string;
   role: Role;
   roleStatus?: 'resolved' | 'unavailable';
+  /** Server-derived authority, present only when it validated against this row's id and role. */
+  access?: CompanyAccess;
 }
 
 /** Outcome of an import: how many records landed vs. were dropped as invalid
@@ -181,6 +184,9 @@ export interface StoreState extends StoreEntityActions {
   /** Why a fail-closed Viewer projection is active. Keeps mutation notices factual while role
    * resolution is pending/unavailable; transient and never persisted. */
   activeRoleStatus: 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
+  /** Server-derived authority for the active company, or null while it is absent, pending or
+   * unavailable. Transient: never persisted, exported or included in undo history. */
+  activeAccess: CompanyAccess | null;
   /** Monotonic invalidation token for server-owned membership state. Member mutations bump it so
    * the current directory-request owner re-reads the caller's effective role/list without an
    * account switch or page reload. Transient: never persisted or included in undo history. */
@@ -237,13 +243,21 @@ export interface StoreState extends StoreEntityActions {
   setSidebarOpen: (open: boolean) => void;
   /** Toggle the minimise-weekends preference: persist and update state. */
   setMinimiseWeekends: (value: boolean) => void;
-  /** Publishes the current role or fail-closed Viewer projection and its resolution status.
-   * Transient and excluded from persistence and undo history.
+  /** Demo and test adapter: publishes a role and status without server authority, so it also
+   * clears `activeAccess`. Transient and excluded from persistence and undo history.
    */
   setActiveRole: (
     role: Role | null,
     status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable',
   ) => void;
+  /** Publishes the active role, its resolution status and the server-derived authority together.
+   * Transient and excluded from persistence and undo history.
+   */
+  setActiveAuthority: (input: {
+    role: Role | null;
+    status: 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
+    access: CompanyAccess | null;
+  }) => void;
   /** Invalidate all client projections derived from account membership. */
   invalidateMemberships: () => void;
   /** Replace the view-as-member runtime state. */

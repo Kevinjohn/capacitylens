@@ -14,6 +14,7 @@ import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount } from '@/test/fixtures';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
+import { authorityFixture } from '@/test/authorityFixture';
 
 const serverFlag = { on: false };
 const refreshOverride = vi.hoisted(() => ({ result: { kind: 'reloaded' } as { kind: string } }));
@@ -59,7 +60,13 @@ function renderTools(server = false) {
         signOut: async () => {},
       }}
     >
-      <PermissionContext.Provider value={{ role: server ? 'owner' : null, status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{
+          role: server ? 'owner' : null,
+          status: 'resolved',
+          access: server ? authorityFixture('owner') : null,
+        }}
+      >
         <ImportExport />
       </PermissionContext.Provider>
     </AuthContext.Provider>,
@@ -576,7 +583,9 @@ describe('beta import and export', () => {
   it('hides server import from non-owners while keeping export', () => {
     serverFlag.on = true;
     render(
-      <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+      <PermissionContext.Provider
+        value={{ role: 'editor', status: 'resolved', access: authorityFixture('editor') }}
+      >
         <ImportExport />
       </PermissionContext.Provider>,
     );

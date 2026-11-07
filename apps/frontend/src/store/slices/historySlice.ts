@@ -87,6 +87,7 @@ function replaceAllState(state: StoreState, data: StoreState['data']): Partial<S
       previousAccountId: null,
       activeRole: null,
       activeRoleStatus: 'not-applicable',
+      activeAccess: null,
       notice: {
         message: m.notice_company_not_found(),
         tone: 'error' as const,

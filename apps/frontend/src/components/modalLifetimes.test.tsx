@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, within, waitFor } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type { AppData } from '@capacitylens/shared/types/entities';
@@ -23,6 +24,7 @@ import { ResourceList } from '@/components/resources/ResourceList';
 import { TimeOffList } from '@/components/timeoff/TimeOffList';
 import { CompanyClosureSection } from '@/components/timeoff/CompanyClosureSection';
 import { SchedulerGrid } from '@/components/scheduler/SchedulerGrid';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 const hold = vi.hoisted(() => ({
   release: null as Promise<void> | null,
@@ -107,6 +109,7 @@ beforeEach(async () => {
   useStore.getState().clearFilters();
   useStore.getState().goToDate('2026-06-01');
   await useStore.getState().refreshPlanning();
+  useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
 });
 afterEach(() => {
   vi.useRealTimers();

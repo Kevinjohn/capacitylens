@@ -17,6 +17,7 @@ import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { createPlanningCacheState } from '@/data/planning/planningCacheController';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
+import { authorityFixture } from './authorityFixture';
 
 // Shared fixtures establish an active account so scoped store mutations have a valid tenant.
 
@@ -208,9 +209,13 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promi
   useStore.getState().setNotice(null);
   // Clear transient announcements and membership state so singleton fixtures remain order-independent.
   useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
-  // Likewise reset the transient access role so a prior viewer-guard test can't leave the
-  // singleton store in 'viewer' and silently no-op the next spec's mutations. Default = editable.
-  useStore.getState().setActiveRole(null);
+  // Likewise reset the transient authority so a prior viewer-guard test can't leave the singleton
+  // store read-only and silently no-op the next spec's mutations. Default = resolved Owner authority.
+  useStore.getState().setActiveAuthority({
+    role: 'owner',
+    status: 'resolved',
+    access: authorityFixture('owner', accountId),
+  });
   return useStore.getState().refreshPlanning();
 }
 

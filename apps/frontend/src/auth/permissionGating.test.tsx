@@ -18,18 +18,25 @@ import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount, makeResourceDraft, requireValue } from '@/test/fixtures';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { authorityFor, resolvedAuthority } from '@/test/authorityFixture';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import type { Role } from '@capacitylens/shared/domain/access';
 
 // Verify UI affordances and the store's local guard; server authorization remains authoritative.
 function withRole(role: Role | null, ui: ReactNode) {
-  return render(<PermissionContext.Provider value={{ role }}>{ui}</PermissionContext.Provider>);
+  return render(
+    <PermissionContext.Provider
+      value={{ role, status: role ? 'resolved' : 'not-applicable', access: authorityFor(role) }}
+    >
+      {ui}
+    </PermissionContext.Provider>,
+  );
 }
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
   useStore.getState().clearFilters();
-  useStore.getState().setActiveRole(null);
+  useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
   useStore.getState().setNotice(null);
 });
 
@@ -46,14 +53,14 @@ describe('useCanEdit gates the ListPage create affordance', () => {
     expect(screen.getByRole('button', { name: 'Add client' })).toBeInTheDocument();
   });
 
-  it('role null keeps the "Add" button outside masquerade', () => {
+  it('role null hides the "Add" button in server mode', () => {
     withRole(null, <ListPage title="Clients" addLabel="Add client" onAdd={onAdd} />);
-    expect(screen.getByRole('button', { name: 'Add client' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add client' })).not.toBeInTheDocument();
   });
 
-  it('REGRESSION GUARD: NO provider at all keeps the "Add" button (default-editable)', () => {
+  it('NO provider at all hides the "Add" button in server mode (fail closed)', () => {
     render(<ListPage title="Clients" addLabel="Add client" onAdd={onAdd} />);
-    expect(screen.getByRole('button', { name: 'Add client' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add client' })).not.toBeInTheDocument();
   });
 });
 
@@ -119,12 +126,12 @@ describe('useCanEdit gates the AllocationBar resize grips', () => {
     expect(screen.getByTestId('allocation-bar')).toHaveAttribute('role', 'button');
   });
 
-  it('role null / no provider keeps the grips outside masquerade', () => {
+  it('no provider removes the grips in server mode (fail closed)', () => {
     render(
       <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
     );
-    expect(screen.getByTestId('resize-start')).toBeInTheDocument();
-    expect(screen.getByTestId('resize-end')).toBeInTheDocument();
+    expect(screen.queryByTestId('resize-start')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('resize-end')).not.toBeInTheDocument();
   });
 });
 
@@ -132,20 +139,20 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
   beforeEach(() => resetStoreWithAccount());
 
   it('add*/update*/delete* NO-OP for a viewer and surface a read-only notice', async () => {
-    useStore.getState().setActiveRole('viewer');
+    useStore.getState().setActiveAuthority(resolvedAuthority('viewer'));
 
     const result = await useStore.getState().addResource(makeResourceDraft());
     expect(result).toEqual({ kind: 'blocked' });
     expect(useStore.getState().data.resources).toHaveLength(0);
     expect(useStore.getState().notice?.message).toMatch(/read-only/i);
 
-    useStore.getState().setActiveRole(null);
+    useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
     const seeded = await requireCreated(
       useStore.getState().addResource(makeResourceDraft({ name: 'Seeded' })),
     );
     expect(useStore.getState().data.resources).toHaveLength(1);
 
-    useStore.getState().setActiveRole('viewer');
+    useStore.getState().setActiveAuthority(resolvedAuthority('viewer'));
     await useStore.getState().updateResource(seeded.id, { name: 'Renamed' });
     expect(useStore.getState().data.resources[0]?.name).toBe('Seeded');
 
@@ -160,10 +167,10 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
     expect(useStore.getState().data.resources).toHaveLength(1);
   });
 
-  it.each([null, 'editor', 'owner', 'admin'] as const)(
+  it.each(['editor', 'owner', 'admin'] as const)(
     'role %s permits the mutation outside masquerade',
     async (role) => {
-      useStore.getState().setActiveRole(role);
+      useStore.getState().setActiveAuthority(resolvedAuthority(role));
       const r = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
       expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(true);
     },
@@ -175,7 +182,7 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
   ] as const)(
     'attributes a %s fail-closed mutation to role resolution, not Viewer membership',
     async (status, message) => {
-      useStore.getState().setActiveRole('viewer', status);
+      useStore.getState().setActiveAuthority({ role: 'viewer', status, access: null });
 
       await useStore.getState().addResource(makeResourceDraft());
 
@@ -185,10 +192,43 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
     },
   );
 
+  it('requires resolved planning:write authority in server mode', async () => {
+    // A role published without server authority (the demo/test adapter) is not enough.
+    useStore.getState().setActiveRole('editor');
+    await useStore.getState().addResource(makeResourceDraft({ name: 'Role only' }));
+    expect(useStore.getState().data.resources).toHaveLength(0);
+
+    // Resolved authority that lacks planning:write is refused.
+    useStore.getState().setActiveAuthority({
+      role: 'editor',
+      status: 'resolved',
+      access: { ...resolvedAuthority('editor').access, permissions: ['planning:read'] },
+    });
+    await useStore.getState().addResource(makeResourceDraft({ name: 'Read only' }));
+    expect(useStore.getState().data.resources).toHaveLength(0);
+
+    useStore.getState().setActiveAuthority(resolvedAuthority('editor'));
+    await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: 'Granted' })));
+    expect(useStore.getState().data.resources.map((resource) => resource.name)).toEqual([
+      'Granted',
+    ]);
+  });
+
+  it('keeps the demo role rule when the server is not configured', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
+    try {
+      useStore.getState().setActiveRole('editor');
+      await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: 'Demo' })));
+      expect(useStore.getState().data.resources).toHaveLength(1);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('importData no-ops for a viewer (zero-effect summary, slice untouched)', async () => {
-    useStore.getState().setActiveRole(null);
+    useStore.getState().setActiveAuthority(resolvedAuthority('owner'));
     await useStore.getState().addResource(makeResourceDraft({ name: 'Existing' }));
-    useStore.getState().setActiveRole('viewer');
+    useStore.getState().setActiveAuthority(resolvedAuthority('viewer'));
     const summary = useStore.getState().importData({ ...emptyAppData(), resources: [] });
     expect(summary).toEqual({ imported: 0, skipped: 0 });
     expect(useStore.getState().data.resources).toHaveLength(1);

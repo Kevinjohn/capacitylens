@@ -1,6 +1,7 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { act, render, screen, within, fireEvent, waitFor } from '@testing-library/react';
+import { act, screen, within, fireEvent, waitFor } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { TimeOffList } from './TimeOffList';
 import { TimeOffForm } from './TimeOffForm';
@@ -13,6 +14,7 @@ import {
   setPlaceholdersEnabled,
 } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
+import { authorityFixture, authorityFor } from '@/test/authorityFixture';
 
 const resourceDraft = {
   kind: 'person' as const,
@@ -371,7 +373,9 @@ it('keeps edit and delete controls hidden for viewers', async () => {
   });
 
   render(
-    <PermissionContext.Provider value={{ role: 'viewer' }}>
+    <PermissionContext.Provider
+      value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+    >
       <TimeOffList />
     </PermissionContext.Provider>,
   );
@@ -456,7 +460,7 @@ it('rejects a stale edit instead of overwriting a concurrent change', async () =
 
 it.each([null, 'owner', 'admin'] as const)('shows Note for role %s', (role) => {
   render(
-    <PermissionContext.Provider value={{ role }}>
+    <PermissionContext.Provider value={{ role, status: 'resolved', access: authorityFor(role) }}>
       <TimeOffForm onClose={() => {}} />
     </PermissionContext.Provider>,
   );
@@ -477,7 +481,7 @@ it.each(['editor', 'viewer'] as const)('hides and omits Note for role %s', async
   );
   const update = vi.spyOn(useStore.getState(), 'updateTimeOff').mockImplementation(async () => {});
   render(
-    <PermissionContext.Provider value={{ role }}>
+    <PermissionContext.Provider value={{ role, status: 'resolved', access: authorityFor(role) }}>
       <TimeOffForm timeOff={entry} onClose={() => {}} />
     </PermissionContext.Provider>,
   );

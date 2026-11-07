@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { screen, within, fireEvent } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import { resetStoreWithAccount, makeResource } from '@/test/fixtures';
 import { ExternalResourceSection } from './ExternalResourceSection';
 

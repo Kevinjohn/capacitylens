@@ -1,6 +1,7 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { renderWithAuthority as render } from '@/test/renderWithAuthority';
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
@@ -10,6 +11,7 @@ import { buildEmptyFilters, useStore } from '@/store/useStore';
 import { DEFAULT_ACCOUNT_ID, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
 import { chooseOption } from './__tests__/schedulerTestKit';
 import { m } from '@/i18n';
+import { authorityFixture } from '@/test/authorityFixture';
 
 function showFilters() {
   fireEvent.click(screen.getByRole('button', { name: 'Show filters' }));
@@ -153,7 +155,9 @@ describe('SchedulerToolbar filter panel', () => {
 
   it('keeps the filter toggle in the right-hand action area for viewers', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider
+        value={{ role: 'viewer', status: 'resolved', access: authorityFixture('viewer') }}
+      >
         <SchedulerToolbar />
       </PermissionContext.Provider>,
     );

@@ -4,6 +4,8 @@ import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessClient';
 import { useAuth } from '@/auth/authContext';
+import { useCompanyAccess } from '@/auth/permissionContext';
+import type { CompanyAccess } from '@capacitylens/shared/account/permissions';
 import { isServerConfigured } from '@/data/apiConfig';
 import { useDeadlineClock } from '@/hooks/useDeadlineClock';
 import { useFieldError } from '@/hooks/useFieldError';
@@ -56,6 +58,26 @@ function useMemberViewState() {
     inactiveOpen,
     setInactiveOpen,
   };
+}
+
+// Close a pending role edit as soon as the refreshed directory or authority no longer offers it.
+function useCloseLostRoleEdit(
+  state: ReturnType<typeof useMemberViewState>,
+  members: readonly Member[] | null,
+  access: CompanyAccess | null,
+) {
+  const { roleEdit, setRoleEdit } = state;
+  useEffect(() => {
+    if (!roleEdit) return;
+    if (!access) {
+      setRoleEdit(null);
+      return;
+    }
+    // A directory that is still loading keeps the draft; a loaded one must still offer the change.
+    if (members === null) return;
+    const current = members.find((member) => member.userId === roleEdit.member.userId);
+    if (!current?.actions.changeRole || current.isSelf) setRoleEdit(null);
+  }, [roleEdit, setRoleEdit, members, access]);
 }
 
 function useActionStatusFocus(busyAction: string | null) {
@@ -236,6 +258,7 @@ function useMemberStoreActions() {
 /** Coordinates member reads, invitations, and access mutations for the active account. */
 export function useMembersOrchestration(activeAccountId: string | null) {
   const { authMode, refreshAuth } = useAuth();
+  const access = useCompanyAccess();
   const { setNotice, setActiveAccount, invalidateMemberships } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
@@ -256,6 +279,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
         directoryState.directory.content.kind === 'unavailable');
     if (unauthorized) resetInviteDraft();
   }, [directoryState.directory, resetInviteDraft]);
+  useCloseLostRoleEdit(viewState, directoryState.members, access);
   // Candidate eligibility comes from the server; local Resources state affects only presentation order. Never intersect the candidate set with a potentially stale local roster.
   const resourceListModel = useResourceListModel();
   const resourceOrder = new Map(
@@ -288,7 +312,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     reload: directoryState.reload,
     members: directoryState.members,
     resourceCandidates,
-    ...buildMemberDirectoryPresentation(directoryState.members),
+    ...buildMemberDirectoryPresentation(directoryState.members, access),
     changeSignInTracking: mutationState.actions.changeSignInTracking,
     busyAction: directoryState.busyAction,
     ...inviteState,

@@ -1,5 +1,6 @@
 // Decodes untrusted team and access responses into the typed shapes the client returns.
 import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/types';
+import { parseMemberActions } from '@capacitylens/shared/account/permissions';
 import type { AdmissionStatus } from './accountClient';
 import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
 import { isNullableString, isTimestamp } from './accessResult';
@@ -47,6 +48,8 @@ function parseMember(row: unknown): TeamMember | null {
   if (!isNullableString(row.name) || !isNullableString(row.email)) return null;
   const resourceLink = parseMemberResourceLink(row.resourceLink);
   if (resourceLink === undefined) return null;
+  const actions = parseMemberActions(row.actions);
+  if (actions === null) return null;
   return {
     userId: row.userId,
     role: row.role,
@@ -56,6 +59,7 @@ function parseMember(row: unknown): TeamMember | null {
     email: row.email,
     signInConfirmed: typeof row.signInConfirmed === 'boolean' ? row.signInConfirmed : null,
     isSelf: row.isSelf,
+    actions,
     accessDisabled: row.accessDisabled === true,
     membershipPresent: row.membershipPresent !== false,
     resourceLink,

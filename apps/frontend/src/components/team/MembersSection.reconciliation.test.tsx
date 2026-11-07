@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { act, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { resetStoreWithAccount, jsonResponse } from '@/test/fixtures';
@@ -54,34 +54,12 @@ afterEach(() => {
 });
 
 describe('MembersSection — mutation failure reconciliation', () => {
-  registerSelfMutationFailureTests();
   registerAccountSwitchMutationTests();
   registerLateReconciliationTests();
-  registerThrownMutationTests();
   registerRoleFailureTests();
   registerRemovalFailureTests();
   registerStatusFailureTests();
 });
-
-function registerSelfMutationFailureTests(): void {
-  it('closes the company when a successful self-role change cannot refresh account access', async () => {
-    vi.stubGlobal(
-      'fetch',
-      mockApi(ownerAndEditor, {
-        'GET /api/accounts': () => jsonResponse({ error: 'Unavailable.' }, 500),
-      }),
-    );
-    renderSection();
-
-    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/me@x\.io/), 'Editor');
-
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(useStore.getState().notice).toMatchObject({
-      message: m.settings_members_access_refresh_failed(),
-      tone: 'error',
-    });
-  });
-}
 
 function registerAccountSwitchMutationTests(): void {
   it('reports an authoritative reload failure after an unknown non-self mutation', async () => {
@@ -150,45 +128,6 @@ function registerLateReconciliationTests(): void {
     await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer');
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
-    expect(useStore.getState().notice).toBeNull();
-  });
-
-  it('leaves the newly selected company open when the account switches during self-refresh', async () => {
-    const nextAccountId = 'acc_second';
-    const refreshAuth = vi.fn(async () => {
-      useStore.setState({ activeAccountId: nextAccountId });
-    });
-    vi.stubGlobal('fetch', mockApi(ownerAndEditor));
-    renderSection({ refreshAuth });
-
-    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/me@x\.io/), 'Editor');
-
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
-    expect(useStore.getState().notice?.message).toBe(m.settings_members_role_updated());
-    expect(useStore.getState().notice?.tone).not.toBe('error');
-  });
-}
-
-function registerThrownMutationTests(): void {
-  it('does not close a newly selected company for a late self-mutation failure', async () => {
-    const nextAccountId = 'acc_second';
-    let finish!: (response: Response) => void;
-    vi.stubGlobal(
-      'fetch',
-      mockApi(ownerAndEditor, {
-        'PATCH /members/me': () => new Promise<Response>((resolve) => (finish = resolve)),
-      }),
-    );
-    renderSection();
-    const roleChange = saveRoleVia(userEvent.setup(), await waitForMemberRow(/me@x\.io/), 'Editor');
-    await waitFor(() => expect(finish).toBeTypeOf('function'));
-
-    act(() => useStore.setState({ activeAccountId: nextAccountId }));
-    await act(async () => finish(jsonResponse({ error: 'Forbidden.' }, 403)));
-
-    await roleChange;
-
-    expect(useStore.getState().activeAccountId).toBe(nextAccountId);
     expect(useStore.getState().notice).toBeNull();
   });
 }

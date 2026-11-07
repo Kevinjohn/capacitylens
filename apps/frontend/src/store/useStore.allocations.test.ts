@@ -10,6 +10,7 @@ import {
 } from '@/test/fixtures';
 import { useStore } from './useStore';
 import type { Draft } from './useStore';
+import { resolvedAuthority } from '@/test/authorityFixture';
 
 const state = () => useStore.getState();
 const typedHistory = () => state().planning.history;
@@ -93,6 +94,7 @@ function registerAtomicAllocationPart3(): void {
     expect(secondAccount).not.toBeNull();
     if (!secondAccount) throw new Error('Expected second account');
     state().setActiveAccount(secondAccount.id);
+    state().setActiveAuthority(resolvedAuthority('owner', secondAccount.id));
     await state().refreshPlanning();
     const otherResource = await requireCreated(
       state().addResource(makeResourceDraft({ name: 'Other person' })),
@@ -101,6 +103,7 @@ function registerAtomicAllocationPart3(): void {
       state().addActivity({ name: 'Other work', kind: 'repeatable' }),
     );
     state().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    state().setActiveAuthority(resolvedAuthority('owner'));
     await state().refreshPlanning();
     const historyBeforeCrossAccountRejection = typedHistory().past.length;
     await expect(
@@ -193,7 +196,7 @@ function registerAtomicAllocationPart4(): void {
   it('applies the Viewer guard to the whole batch', async () => {
     const { draft } = await allocationSetup();
     const historyBefore = typedHistory().past.length;
-    state().setActiveRole('viewer');
+    state().setActiveAuthority(resolvedAuthority('viewer'));
     const returned = await state().addAllocations([
       draft(),
       draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),

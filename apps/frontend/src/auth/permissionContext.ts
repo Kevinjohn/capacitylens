@@ -1,11 +1,24 @@
 import { createContext, useContext } from 'react';
-import { can } from '@capacitylens/shared/domain/access';
-import type { Action, Role } from '@capacitylens/shared/domain/access';
+import type { Role } from '@capacitylens/shared/domain/access';
+import { actionPermission } from '@capacitylens/shared/account/permissions';
+import type { CompanyAccess } from '@capacitylens/shared/account/permissions';
+import { isServerConfigured } from '@/data/apiConfig';
+import { demoCan } from '@/lib/demoAccess';
 import { useStore } from '@/store/useStore';
 
-// A null role means no membership role applies in off mode, demo mode, or providerless contexts.
-// Authenticated server lookups project unresolved memberships to Viewer; masquerading independently
-// denies every action except read.
+/** A guarded product capability; every one maps to exactly one shared permission key. */
+export type Action = keyof typeof actionPermission;
+
+// Server mode trusts only the server-derived authority snapshot; demo mode evaluates Owner-level
+// capability from the shared declaration. Masquerading independently denies every action except read.
+
+/** Identity of the request that produced the published authority snapshot. */
+export interface AuthorityKey {
+  principalId: string | null;
+  accountId: string | null;
+  membershipRevision: number;
+  masqueradeGeneration: number;
+}
 
 /** The resolved permission state for the active account. A null role means no membership applies. */
 export interface PermissionContextValue {
@@ -14,12 +27,18 @@ export interface PermissionContextValue {
    * authenticated lookup `role` remains Viewer for affordance safety, while explanatory UI can say
    * that access is being checked or is unavailable instead of claiming Viewer is authoritative. */
   status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
+  /** Server-derived authority for the active company. Null until a lookup resolves with valid
+   * access. Held only in memory. */
+  access?: CompanyAccess | null;
+  /** The principal, company, membership revision and masquerade generation the snapshot belongs to. */
+  authorityKey?: AuthorityKey;
 }
 
-/** Context for the active account role and permission-check status. */
+/** Context for the active account role, permission-check status and authority snapshot. */
 export const PermissionContext = createContext<PermissionContextValue>({
   role: null,
   status: 'not-applicable',
+  access: null,
 });
 
 /**
@@ -39,33 +58,37 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue['statu
   return value.status ?? (value.role === null ? 'not-applicable' : 'resolved');
 }
 
+/** The server-derived authority snapshot for the active company, or null when none is resolved. */
+export function useCompanyAccess(): CompanyAccess | null {
+  return useContext(PermissionContext).access ?? null;
+}
+
 /**
  * May the current user perform `action` in the active account?
  *
- * The single client affordance gate for every capability, not just editing: a surface asks
- * for the one {@link Action} it is gating (`'write'`, `'anonymise'`, `'manageMembers'`, …) instead of
- * re-deriving a role test inline. It is single-sourced from the pure {@link can} matrix, the same
- * authority the server's route guard uses, so client and server can't drift.
- *
- * A null role permits the action when no membership applies, except that masquerading denies every
- * action other than read. Authenticated server lookups project unresolved memberships to Viewer.
- * Otherwise the pure `can` matrix decides the action; the server route guard remains authoritative.
+ * The single client affordance gate for every capability. In server mode it reads only the
+ * resolved, server-derived permission list; a missing provider, a pending or unavailable lookup, or
+ * a masquerade transition denies. Masquerading permits read only. Demo mode evaluates the shared
+ * declaration at Owner level. The server remains authoritative for every request.
  *
  * @param action - the capability the calling surface is gating.
  * @returns `true` when the affordance should be shown.
  */
 export function useCan(action: Action): boolean {
-  const masqueradeKind = useStore((state) => state.masquerade.kind);
-  const role = useRole();
-  if (action !== 'read' && masqueradeKind !== 'inactive') return false;
-  return role === null ? true : can(role, action);
+  const masquerade = useStore((s) => s.masquerade);
+  const value = useContext(PermissionContext);
+  if (!isServerConfigured()) return demoCan(action);
+  if (value.status !== 'resolved' || !value.access) return false;
+  if (masquerade.kind === 'starting' || masquerade.kind === 'ending') return false;
+  const allowed = value.access.permissions.includes(actionPermission[action]);
+  return allowed && (masquerade.kind === 'inactive' || action === 'read');
 }
 
 /**
  * Gate scheduling, planning, and configuration edit affordances for the active account.
  * It follows `useCan('write')`.
  *
- * @returns `true` when the effective role permits editing and masquerading is inactive.
+ * @returns `true` when the authority snapshot permits editing and masquerading is inactive.
  */
 export function useCanEdit(): boolean {
   return useCan('write');

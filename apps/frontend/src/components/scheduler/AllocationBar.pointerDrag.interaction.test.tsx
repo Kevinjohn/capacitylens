@@ -17,6 +17,7 @@ import {
   seedAllocation,
   settlePlanning,
 } from './__tests__/allocationBarInteractionTestKit';
+import { authorityFor, resolvedAuthority } from '@/test/authorityFixture';
 
 beforeEach(async () => resetStoreWithAccount());
 
@@ -73,7 +74,7 @@ function registerBasicPointerTests() {
   it('does not report a successful move when permission drops to Viewer mid-drag', async () => {
     const a = await seedAllocation();
     const barUi = (role: 'editor' | 'viewer') => (
-      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+      <PermissionContext.Provider value={{ role, status: 'resolved', access: authorityFor(role) }}>
         <AllocationBar
           bar={barFor(a)}
           geom={GEOM}
@@ -87,7 +88,7 @@ function registerBasicPointerTests() {
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
     document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
-    act(() => useStore.getState().setActiveRole('viewer'));
+    act(() => useStore.getState().setActiveAuthority(resolvedAuthority('viewer')));
     rerender(barUi('viewer'));
     document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
     await settlePlanning();

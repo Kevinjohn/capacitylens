@@ -8,6 +8,7 @@ import { isBuiltinClient } from '@capacitylens/shared/data/internalClient';
 import { NEUTRAL_COLOR, snapToPresetColor } from '@capacitylens/shared/lib/color';
 import type { AppData, ID, ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
 import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
+import { isServerConfigured } from '@/data/apiConfig';
 import type { StoreState } from './types';
 
 interface SnapColorInput {
@@ -42,15 +43,21 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     return id;
   };
 
-  // Refuse writes during masquerade or for viewers so local state cannot diverge from the server.
-  // Return a notice instead of throwing because callers use this guard for interactive mutations.
+  // Refuse writes during masquerade or without write authority so local state cannot diverge from
+  // the server. Server mode requires resolved server-derived planning:write authority; the demo keeps
+  // its local role rule. Return a notice instead of throwing because callers use this guard for
+  // interactive mutations.
   const blockedByViewer = (): boolean => {
     const state = get();
     if (state.masquerade.kind !== 'inactive') {
       state.setNotice(m.notice_masquerade_read_only(), 'error');
       return true;
     }
-    if (state.activeRole !== 'viewer') return false;
+    const writable = isServerConfigured()
+      ? state.activeRoleStatus === 'resolved' &&
+        state.activeAccess?.permissions.includes('planning:write') === true
+      : state.activeRole !== 'viewer';
+    if (writable) return false;
     let message = m.notice_viewer_read_only();
     if (state.activeRoleStatus === 'pending') message = m.access_checking_summary();
     if (state.activeRoleStatus === 'unavailable') message = m.access_unavailable_summary();

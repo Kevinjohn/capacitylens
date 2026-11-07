@@ -4,6 +4,7 @@ import { isServerConfigured } from '@/data/apiConfig';
 import { useStore } from '@/store/useStore';
 import type { AccountSummary } from '@/store/useStore';
 import { isAccountRole } from '@capacitylens/shared/account/types';
+import { parseCompanyAccess } from '@capacitylens/shared/account/permissions';
 import { accountClient } from '@/account/accountClient';
 import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
 import { m } from '@/i18n';
@@ -12,11 +13,11 @@ import { api, scopeQueryKey } from '@/api/queryClient';
 
 // The picker needs the server directory before a tenant is selected because the loaded tenant slice cannot enumerate other companies. Demo mode derives its directory from local accounts.
 
-// Validate directory entries before publication. Unknown roles remain selectable but
-// fail closed without claiming an authoritative Viewer membership.
+// Validate directory entries before publication. Unknown roles or missing/invalid authority remain
+// selectable but fail closed without claiming an authoritative membership.
 function parseAccountSummary(entry: unknown): AccountSummary | null {
   if (typeof entry !== 'object' || entry === null) return null;
-  const summaryRecord = entry as { id?: unknown; name?: unknown; role?: unknown };
+  const summaryRecord = entry as { id?: unknown; name?: unknown; role?: unknown; access?: unknown };
   if (typeof summaryRecord.id !== 'string' || summaryRecord.id.length === 0) return null;
   if (typeof summaryRecord.name !== 'string') return null;
   if (!isAccountRole(summaryRecord.role)) {
@@ -30,7 +31,17 @@ function parseAccountSummary(entry: unknown): AccountSummary | null {
       roleStatus: 'unavailable',
     };
   }
-  return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role };
+  const id = summaryRecord.id;
+  const name = summaryRecord.name;
+  const role = summaryRecord.role;
+  const access = parseCompanyAccess(summaryRecord.access, { scopeId: id, role });
+  if (access === null) {
+    console.warn(
+      'fetchAccountSummaries: /api/accounts returned missing or invalid access; marking it unavailable',
+    );
+    return { id, name, role, roleStatus: 'unavailable' };
+  }
+  return { id, name, role, access };
 }
 
 type AccountSummaryParseOutcome =

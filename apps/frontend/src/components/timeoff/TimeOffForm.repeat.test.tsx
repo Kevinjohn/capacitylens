@@ -6,6 +6,7 @@ import { PermissionContext } from '@/auth/permissionContext';
 import { resetStoreWithAccount, WORKDAYS } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { TimeOffForm } from './TimeOffForm';
+import { authorityFixture } from '@/test/authorityFixture';
 
 const resourceDraft = {
   kind: 'person' as const,
@@ -255,7 +256,9 @@ function registerTimeOffRepeatPrivacy(): void {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
     render(
-      <PermissionContext.Provider value={{ role: 'editor' }}>
+      <PermissionContext.Provider
+        value={{ role: 'editor', status: 'resolved', access: authorityFixture('editor') }}
+      >
         <TimeOffForm
           defaults={{ resourceId: resource.id, startDate: '2026-01-30', endDate: '2026-01-30' }}
           onClose={() => {}}
