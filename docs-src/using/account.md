@@ -46,8 +46,8 @@ Admin.
 Account doesn't list your other sessions. Changing your password signs out every browser and
 device.
 
-To leave a company, ask its Owner or Admin to remove your membership. You can rejoin only if an
-Owner or Admin restores access or invites you again, depending on how they removed you.
+To leave a company, ask its Owner or Admin to suspend your membership. Only an Owner or Admin can
+restore it, with the same role.
 
 ## If you can't sign in
 
