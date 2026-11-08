@@ -57,6 +57,7 @@ test.group('M1 database contract', (group) => {
         'database/migrations/202610270001_replace_legacy_masquerades_with_package',
         'database/migrations/202610270002_convert_planning_delete_snapshots',
         'database/migrations/202611080001_replace_command_results_with_idempotency_receipts',
+        'database/migrations/202611080002_replace_action_proofs_with_package',
       ]
     );
     const rows = await db.from('sqlite_master').select('name').where('type', 'table');

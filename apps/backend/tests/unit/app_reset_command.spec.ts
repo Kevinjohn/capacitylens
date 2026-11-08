@@ -70,6 +70,7 @@ test('app reset archives all account and credential state and initializes a sepa
       {
         name: 'database/migrations/202611080001_replace_command_results_with_idempotency_receipts',
       },
+      { name: 'database/migrations/202611080002_replace_action_proofs_with_package' },
     ]);
     fresh.close();
   } finally {

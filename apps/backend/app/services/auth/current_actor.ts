@@ -13,6 +13,7 @@ import { users } from '#services/account_kit/users';
 import { capturedMasqueradeContext } from '#services/auth/masquerade_request';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
+import type { KitContext } from '@kevinjohn/adonisjs-action-proofs';
 
 const revisionKey = 'accountKitRevision';
 const handleKey = 'accountKitSession';
@@ -88,6 +89,14 @@ export async function admissionDecision(userId: string | number, trx: Trx) {
 }
 
 const actors = new WeakMap<Trx, CurrentActor>();
+const kitContexts = new WeakMap<Trx, KitContext>();
+
+/** Requires the confirmed address and admission shared by product and proof transactions. */
+export async function requireConfirmedAdmission(account: KitContext['account'], trx: Trx) {
+  if (!account.active) throw new UnverifiedEmailError();
+  const decision = await admissionDecision(account.id, trx);
+  if (!decision.admitted) throw new AdmissionRequiredError(decision);
+}
 
 /**
  * Runs `run` in the Account Kit's transaction after it has verified the session, its credential
@@ -102,12 +111,11 @@ export async function withActor<T>(
   options: { limited?: boolean } = {}
 ): Promise<T> {
   const input = await accountInput(ctx);
-  return accountKit.authentication.withCurrent(input, async ({ account, signInId, trx }) => {
+  return accountKit.authentication.withCurrent(input, async (context) => {
+    const { account, signInId, trx } = context;
     if (signInId === undefined) throw new InvalidSessionError();
     if (!options.limited) {
-      if (!account.active) throw new UnverifiedEmailError();
-      const decision = await admissionDecision(account.id, trx);
-      if (!decision.admitted) throw new AdmissionRequiredError(decision);
+      await requireConfirmedAdmission(account, trx);
     }
     const row = await trx
       .from('users')
@@ -127,10 +135,12 @@ export async function withActor<T>(
       throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
     }
     actors.set(trx, actor);
+    kitContexts.set(trx, context);
     try {
       return await run(actor, trx);
     } finally {
       actors.delete(trx);
+      kitContexts.delete(trx);
     }
   });
 }
@@ -140,6 +150,13 @@ export function actorIn(trx: Trx): CurrentActor {
   const actor = actors.get(trx);
   if (!actor) throw new Error('This operation must run inside withActor.');
   return actor;
+}
+
+/** The Kit context verified by `withActor`; valid only during its callback. */
+export function kitContextIn(trx: Trx): KitContext {
+  const context = kitContexts.get(trx);
+  if (!context) throw new Error('This operation must run inside withActor.');
+  return context;
 }
 
 /**

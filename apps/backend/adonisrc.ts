@@ -82,6 +82,7 @@ export default defineConfig({
     () => import('#providers/configuration_provider'),
     () => import('@kevinjohn/adonisjs-sqlite-backup/sqlite_backup_provider'),
     () => import('#providers/backup_provider'),
+    () => import('@kevinjohn/adonisjs-action-proofs/action_proofs_provider'),
   ],
 
   /*

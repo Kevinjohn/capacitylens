@@ -162,26 +162,28 @@ export class AccountSchema extends BaseModel {
 }
 
 export class ActionProofSchema extends BaseModel {
-  static $columns = ['accountId', 'action', 'consumedAt', 'expiresAt', 'id', 'intentHash', 'sessionId', 'userId', 'verifiedAt'] as const
+  static $columns = ['action', 'consumedAt', 'credentialRevision', 'id', 'intentHash', 'issuedAt', 'scope', 'signInId', 'userId', 'verifiedAt'] as const
   $columns = ActionProofSchema.$columns
-  @column()
-  declare accountId: string
   @column()
   declare action: string
   @column()
-  declare consumedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  declare consumedAt: bigint | number | null
   @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  declare credentialRevision: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare intentHash: string
   @column()
-  declare sessionId: number
+  declare issuedAt: bigint | number
+  @column()
+  declare scope: string
+  @column()
+  declare signInId: number
   @column()
   declare userId: string
   @column()
-  declare verifiedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  declare verifiedAt: bigint | number
 }
 
 export class ActivitySchema extends BaseModel {

@@ -194,9 +194,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - Ownership transfer, whole-company import and company-wide people anonymisation require proof for
   each action, and no time-based fresh-session window replaces it. Each proof is
   single-use, bound to the real principal, Kit session, company and exact operation, verifies the
-  current password and is spent in the same transaction as the change. Retain this bounded proof
-  system for the first release. Prefer replacing it with a supported shared Account Kit primitive
-  once equivalent action/session/principal/company binding and transactional consumption exist.
+  current password and is spent in the same transaction as the change. The pinned Action Proofs package owns issuance, credential/session/request binding, expiry and
+  transactional consumption; product code owns live company authority and the response contract.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
 - Production requires an HTTPS public URL; plain HTTP is accepted only for loopback development.
@@ -240,6 +239,20 @@ This is the short, present-tense record of decisions that constrain future work.
 - CapacityLens ships no analytics. Mail delivers addressed invitations, address confirmations and
   password resets only.
 - Errors on data paths are surfaced, not swallowed.
+
+### Action-proof package adoption (8 November 2026)
+
+This supersedes the retention decision in the historical capability audit below. CapacityLens uses
+`@kevinjohn/adonisjs-action-proofs` 0.1.1 with exactly Account Kit 0.3.1. Its five-minute proofs bind
+the user, sign-in, live credential revision, company, action and exact intent. Host pre-flight and
+transactional policy retain confirmed-email, admission, live Owner and no-masquerade requirements.
+The app's database limiter reserves attempts per account before hashing: five failures per minute,
+then a 20-minute block. A successful confirmation resets only that account's budget.
+
+Consumption shares the product transaction, including ownership transfer's idempotency execution
+boundary. The forward-only migration replaces outstanding legacy proofs without copying and adds
+`scope -> accounts.id ON DELETE CASCADE`. Credential writes remain Account Kit-owned. Global pruning
+runs after successful issuance outside every transaction and cannot fail the issuance response.
 
 ### Action-proof capability audit (26 October 2026)
 

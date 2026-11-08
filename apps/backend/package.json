@@ -64,6 +64,7 @@
     "youch": "^4.1.1"
   },
   "dependencies": {
+    "@kevinjohn/adonisjs-action-proofs": "file:../../vendor/kevinjohn-adonisjs-action-proofs/kevinjohn-adonisjs-action-proofs-0.1.1.tgz",
     "@adonisjs/auth": "10.1.0",
     "@adonisjs/bouncer": "4.0.1",
     "@adonisjs/core": "7.6.0",

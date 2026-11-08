@@ -1,15 +1,13 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { parseBetaExport } from '@capacitylens/shared/data/betaTransfer';
-import hash from '@adonisjs/core/services/hash';
-import { consumeFailedSignInBudget, resetFailedSignInBudget } from '#services/auth/request_limit';
+import actionProofs from '@kevinjohn/adonisjs-action-proofs/services/main';
 import {
   ACTION_PROOF_KINDS,
   actionProofActor,
-  ActionProofError,
-  createActionProof,
   type ActionProofKind,
 } from '#services/auth/action_proof';
-import { withActor } from '#services/auth/current_actor';
+import { accountInput, withActor } from '#services/auth/current_actor';
+import { classifyLogError, reportPrivateFailure } from '#services/logging_safety';
 
 type ProofRequest = {
   action: ActionProofKind;
@@ -63,27 +61,22 @@ export default class ActionProofsController {
   async password(ctx: HttpContext) {
     const body = requestBody(ctx.request.body());
     if (!body) return ctx.response.badRequest({ error: 'Invalid action confirmation.' });
-    if (!(await consumeFailedSignInBudget(ctx))) {
-      return ctx.response.tooManyRequests({ error: 'Rate limit exceeded.' });
-    }
-    // Hash verification is slow and must stay outside the Kit transaction, which may be retried.
-    const first = await withActor(ctx, async (actor, trx) => {
-      await actionProofActor(body.accountId, trx);
-      const row = await trx.from('users').where('id', actor.userId).select('password').first();
-      return { sessionId: actor.sessionId, password: (row?.password as string | null) ?? null };
+    await withActor(ctx, async (_actor, trx) => actionProofActor(body.accountId, trx));
+    const { proofId } = await actionProofs.provePassword(await accountInput(ctx), {
+      action: body.action,
+      scope: body.accountId,
+      intent: body.intent,
+      password: body.password,
     });
-    if (!first.password || !(await hash.verify(first.password, body.password))) {
-      return ctx.response.forbidden({ error: 'Incorrect password.', code: 'ACTION_PROOF_DENIED' });
+    try {
+      await actionProofs.prune();
+    } catch (error) {
+      reportPrivateFailure(
+        ctx,
+        { event: 'action_proof.prune', errorType: classifyLogError(error) },
+        'Action proof pruning failed'
+      );
     }
-    const proofId = await withActor(ctx, async (actor, trx) => {
-      const current = await actionProofActor(body.accountId, trx);
-      const row = await trx.from('users').where('id', actor.userId).select('password').first();
-      if (current.sessionId !== first.sessionId || row?.password !== first.password) {
-        throw new ActionProofError();
-      }
-      return createActionProof(trx, current, body.action, body.accountId, body.intent);
-    });
-    await resetFailedSignInBudget(ctx);
     return ctx.response.ok({ proofId });
   }
 }

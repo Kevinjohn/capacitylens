@@ -1,8 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
-import { withActor } from '#services/auth/current_actor';
-import { consumeActionProof } from '#services/auth/action_proof';
+import { withActor, kitContextIn } from '#services/auth/current_actor';
+import actionProofs from '@kevinjohn/adonisjs-action-proofs/services/main';
 import { runAccountCommand, type AccountCommandIdentity } from '#services/account_commands';
 import access from '#config/access_control';
 import { writeAudit } from '#services/audit';
@@ -72,8 +72,11 @@ export async function transferOwnership(
           .count('* as count')
           .first();
         if (Number(owners?.count) !== 1) throw new Error('Company Owner invariant failed.');
-        await consumeActionProof(trx, actor, authorization, 'transfer-ownership', accountId, {
-          toUserId,
+        await actionProofs.consume(kitContextIn(trx), {
+          proofId: authorization,
+          action: 'transfer-ownership',
+          scope: accountId,
+          intent: { toUserId },
         });
       },
       work: async () => {

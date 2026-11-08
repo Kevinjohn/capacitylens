@@ -4,12 +4,9 @@ import {
   BetaTransferError,
   type BetaExportDocument,
 } from '@capacitylens/shared/data/betaTransfer';
-import { withActor } from '#services/auth/current_actor';
-import {
-  actionProofActor,
-  ActionProofError,
-  consumeActionProof,
-} from '#services/auth/action_proof';
+import { withActor, kitContextIn } from '#services/auth/current_actor';
+import { actionProofActor } from '#services/auth/action_proof';
+import actionProofs from '@kevinjohn/adonisjs-action-proofs/services/main';
 import { BatchRequestError } from '#services/planning/errors';
 import {
   applyBetaAccountTransfer,
@@ -48,9 +45,6 @@ function input(value: unknown, apply: boolean) {
 }
 
 function failure(ctx: HttpContext, error: unknown) {
-  if (error instanceof ActionProofError) {
-    return ctx.response.status(error.status).send({ error: error.message, code: error.code });
-  }
   if (error instanceof BatchRequestError) {
     return ctx.response.status(error.status).send({
       error: error.message,
@@ -83,17 +77,12 @@ export default class TransferController {
     try {
       const result = await withActor(ctx, async (_actor, trx) => {
         const actor = await actionProofActor(body.accountId as string, trx);
-        await consumeActionProof(
-          trx,
-          actor,
-          body.proofId as string,
-          'import',
-          body.accountId as string,
-          {
-            baseRevision: body.baseRevision,
-            document: body.document,
-          }
-        );
+        await actionProofs.consume(kitContextIn(trx), {
+          proofId: body.proofId as string,
+          action: 'import',
+          scope: body.accountId as string,
+          intent: { baseRevision: body.baseRevision, document: body.document },
+        });
         return applyBetaAccountTransfer(
           trx,
           body.accountId as string,

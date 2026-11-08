@@ -1,11 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { withActor } from '#services/auth/current_actor';
+import { withActor, kitContextIn } from '#services/auth/current_actor';
 import { anonymiseResources } from '#services/anonymise';
-import {
-  actionProofActor,
-  ActionProofError,
-  consumeActionProof,
-} from '#services/auth/action_proof';
+import { actionProofActor } from '#services/auth/action_proof';
+import actionProofs from '@kevinjohn/adonisjs-action-proofs/services/main';
 import { getActiveMembership, createMemberBouncer } from '#services/auth/authorization';
 
 export default class AnonymiseController {
@@ -45,25 +42,16 @@ export default class AnonymiseController {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
     }
     const { accountId } = ctx.params;
-    try {
-      await withActor(ctx, async (_actor, trx) => {
-        const actor = await actionProofActor(accountId, trx);
-        await consumeActionProof(
-          trx,
-          actor,
-          (body as { proofId: string }).proofId,
-          'anonymise',
-          accountId,
-          {}
-        );
-        await anonymiseResources(trx, accountId, actor.userId);
+    await withActor(ctx, async (_actor, trx) => {
+      const actor = await actionProofActor(accountId, trx);
+      await actionProofs.consume(kitContextIn(trx), {
+        proofId: (body as { proofId: string }).proofId,
+        action: 'anonymise',
+        scope: accountId,
+        intent: {},
       });
-      return ctx.response.noContent();
-    } catch (error) {
-      if (error instanceof ActionProofError) {
-        return ctx.response.status(error.status).send({ error: error.message, code: error.code });
-      }
-      throw error;
-    }
+      await anonymiseResources(trx, accountId, actor.userId);
+    });
+    return ctx.response.noContent();
   }
 }
