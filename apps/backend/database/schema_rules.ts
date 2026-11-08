@@ -93,12 +93,6 @@ export default {
         },
       },
     },
-    memberships: {
-      columns: {
-        role: { tsType: "import('@capacitylens/shared/account/types').Role" },
-        status: { tsType: "import('@capacitylens/shared/account/types').MembershipStatus" },
-      },
-    },
     ownership_transfers: {
       columns: {
         status: {
@@ -119,11 +113,6 @@ export default {
     company_settings: {
       columns: {
         value: { tsType: 'unknown' },
-      },
-    },
-    account_access_restrictions: {
-      columns: {
-        role: { tsType: "import('@capacitylens/shared/account/types').Role" },
       },
     },
   },

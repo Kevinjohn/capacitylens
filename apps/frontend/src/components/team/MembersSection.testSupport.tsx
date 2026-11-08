@@ -21,8 +21,7 @@ export interface RawMember {
   userId: string;
   role: 'owner' | 'admin' | 'editor' | 'viewer';
   status?: string;
-  accessDisabled?: boolean;
-  membershipPresent?: boolean;
+  manage?: boolean;
   createdAt?: string;
   signInConfirmed?: boolean | null;
   name?: string | null;
@@ -31,7 +30,7 @@ export interface RawMember {
   resourceLink?: { resourceId: string; revision: string; resourceName?: string | null } | null;
 }
 
-/** Builds a complete member fixture while leaving signInConfirmed absent unless requested; presence of that field determines whether sign-in tracking is reported enabled. */
+/** Builds a complete member fixture while leaving signInConfirmed absent unless requested; presence of that field determines whether sign-in tracking is reported enabled. `manage` defaults to the server's answer for an Owner or Admin reader: anyone but themselves and the Owner. */
 export function rawMember(
   overrides: Partial<RawMember> & { userId: string; role: RawMember['role'] },
 ): RawMember {
@@ -41,6 +40,7 @@ export function rawMember(
     name: null,
     email: `${overrides.userId}@x.io`,
     isSelf: false,
+    manage: overrides.isSelf !== true && overrides.role !== 'owner',
     ...overrides,
   };
 }
@@ -119,6 +119,7 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
           name: null,
           email: `${member.userId}@x.io`,
           isSelf: false,
+          manage: member.isSelf !== true && member.role !== 'owner',
           ...member,
           signInConfirmed: trackingEnabled ? member.isSelf === true : null,
         })),
@@ -172,7 +173,7 @@ export async function openMemberMenu(user: User, row: HTMLElement): Promise<void
   await screen.findByText(m.settings_member_settings_heading());
 }
 
-/** Disabled and archived rows live behind a collapsed disclosure, open it before reaching
+/** Suspended rows live behind a collapsed disclosure, open it before reaching
  * for one. Returns once the second table is on screen. */
 export async function openInactiveGroup(user: User): Promise<HTMLElement> {
   await user.click(await screen.findByTestId('members-inactive-toggle'));
@@ -278,9 +279,7 @@ export async function expectAccessibleMemberControls({
     `the ${name} row in the members table`,
   );
   await openMemberMenu(user, row);
-  for (const action of [`Disable Access for ${member}`, `Archive ${member}`, `Remove ${member}`]) {
-    expect(screen.getByRole('button', { name: action })).toBeInTheDocument();
-  }
+  expect(screen.getByRole('button', { name: `Suspend ${member}` })).toBeInTheDocument();
   await user.keyboard('{Escape}');
 }
 

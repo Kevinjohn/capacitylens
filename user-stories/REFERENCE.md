@@ -21,12 +21,8 @@ All member linking and invitations are managed in **Team & access**. Owners and 
 member's actions there to link, change, or remove an eligible person Resource; the Resources page
 does not provide a separate team-link workflow.
 
-**Disable Access** is a company restriction separate from archiving or removing membership. It
-denies current requests and later invitations. It also follows a recreated identity at the same
-address once that address is confirmed.
-**Enable Access** clears the restriction and brings a removed person back with the role they held
-when removed; an archived person still needs **Restore membership**. Removed restrictions remain visible to administrators in
-the inactive member directory. Owner and self protections apply to both actions.
+**Suspend** keeps a membership and its role but refuses every company request until an Owner or
+Admin selects **Restore membership**. Nobody can suspend the Owner or themselves.
 
 > CapacityLens is server-backed by default (an empty env means the same-origin SQLite API). A
 > production installation contains one company, returned by the server; conflicting company data
@@ -889,8 +885,8 @@ screen (`access-<gate>`), titled for its next step, with **Sign out**:
   says so instead: a missing invitation asks them to have the administrator record one, and an
   address outside the allowed domains asks them to use their work address.
 - `access-membership` — **Join the company**, with **Join company** (`access-join-company`) for an
-  approved identity that has no membership yet. A removed person is refused until an Owner or Admin
-  selects Enable Access.
+  approved identity that has no membership yet. A suspended member is refused until an Owner or
+  Admin restores them.
 
 The `/verify-email/:token` page offers **Try again** (`verify-unavailable`) when the link cannot be
 checked, rather than calling it invalid. If the confirmation answer is lost it shows
@@ -932,7 +928,7 @@ The person enters **Name** (`invite-name`) and **Password** (`invite-password`) 
 **Accept invitation** (`invite-submit`), which calls `POST /api/invites/:token/signup`. Acceptance
 creates the identity, confirms the address and creates the membership in one transaction; company
 data then waits for an Owner or Admin approval. An address that already has an account is told so.
-An accept is refused (403) while **Disable Access** applies to that address. An invalid, used or
+An invalid, used or
 expired link shows `invite-error`: **This invitation is invalid or has expired. Ask the person who
 invited you for a new link.** In the in-memory demo build (`VITE_CAPACITYLENS_DEMO=1`) the page
 shows **Invite links work only when CapacityLens is connected to a server.** and makes no request.
@@ -964,8 +960,8 @@ management section
 (heading `Members`, `data-testid="members-section"`). Editor/Viewer see their own access explanation
 but no company directory, invitations or management controls; the server's 403 remains the backstop.
 Owner/Admin can read the member directory and outstanding invites — and carry out
-ordinary member administration (inviting, revoking an invitation, changing a role or access state,
-removing a member, deciding admission and viewing as a member) — without a password prompt.
+ordinary member administration (inviting, revoking an invitation, changing a role, suspending or
+restoring a member, deciding admission and viewing as a member) — without a password prompt.
 Transferring ownership, importing data and anonymising all people require the caller's password
 for that exact action. Cancelling leaves the directory visible and does not apply the requested
 change.
@@ -986,10 +982,10 @@ presented before the member directory, matching the action-first pattern of the 
   available row action is grouped at the right in the same outlined-button treatment as the
   Resources list.
   The role has its own column. The caller's own row is marked **(you)** and a
-  non-active member's row carries an **Access disabled**, **Archived**, or **Removed** badge
+  suspended member's row carries a **Suspended** badge
   (`data-testid="member-status"`). Members are ordered by role priority **Owner**, **Admin**,
   **Editor**, **Viewer**, then display name and stable member ID. The table itself lists only
-  **active, unrestricted** members; restricted, archived, and removed-with-restriction entries are grouped below it behind a
+  **active** members; suspended members are grouped below it behind a
   collapsed **No longer active (_count_)** disclosure (`data-testid="members-inactive-toggle"`,
   reporting its state through `aria-expanded`) which reveals a second table with the same columns
   (`data-testid="members-inactive-table"`). The disclosure is absent when no membership is in that
@@ -1003,7 +999,7 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="masquerade-banner"`) with its 15-minute deadline and **End now**. The view applies
   across the operator’s signed-in sessions, reconciled on focus, visibility and requests. Switching
   company ends the projection for all sessions first; signing out ends only that session. Ending restores the real member's projection before writes resume and returns to `/`.
-  Disabled, archived and self rows never offer the eye button; the in-memory demo never exposes it.
+  Suspended and self rows never offer the eye button; the in-memory demo never exposes it.
   The server enforces the read-only boundary even if a stale client attempts a write.
   Each manageable active row also has a pencil for role editing, a link icon
   (`data-testid="member-resource-menu"`) that opens a centered Resource-link dialog with the selector
@@ -1021,21 +1017,16 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="member-role-select"`) offering only Admin, Editor and Viewer, the chosen role's
   plain-language consequences (`data-testid="member-role-summary"`), and **Save role**
   (`data-testid="member-role-save"`) — and a gear
-  (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Disable Access** (`data-testid="member-disable"`),
-  **Archive user** (`data-testid="member-archive"`) and **Remove**
-  (`data-testid="member-remove"`), with **Enable Access** (`data-testid="member-enable"`)
-  replacing Disable Access while restricted, and **Restore membership**
-  (`data-testid="member-restore"`) offered for archived rows. The pencil is offered on active,
-  unrestricted rows only. The gear, including **Remove**, stays available on inactive rows so
-  a membership can be ended without first handing its access back. Every control has a member-scoped
-  accessible name — **Edit _member_**, **More actions for _member_**, **Remove _member_**,
-  **Disable Access for _member_** — so non-linear
+  (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Suspend** (`data-testid="member-suspend"`)
+  for an active row, or **Restore membership** (`data-testid="member-restore"`) for a suspended
+  one. The pencil is offered on active rows only. Every control has a member-scoped
+  accessible name — **Edit _member_**, **More actions for _member_**, **Suspend _member_** — so non-linear
   assistive-technology navigation cannot detach an action from its target. Each menu action opens a
   confirmation naming the affected member before sending its destructive or security-sensitive
   request. While any member action is in flight, the management section is marked busy, politely
   announces **Updating team access…**, and every row's pencil and gear are disabled, so a second
-  mutation cannot be raised. Disable, archive and remove are offered only where the target is neither the Owner nor
-  yourself, and the server refuses removing yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
+  mutation cannot be raised. Suspend and restore are offered only where the server's `manage` flag
+  allows them, never against the Owner or yourself; a suspended membership keeps its role and history but authorizes nothing, and
   the member stays listed under **No longer active** so the change is visible and reversible. No row
   carries an ownership-transfer control for anyone. There is no administrative password reset or
   session revocation.
@@ -1050,7 +1041,7 @@ presented before the member directory, matching the action-first pattern of the 
   and the notice says to use **Resend**. Without email delivery the server refuses with
   `MAIL_UNAVAILABLE` and the dialog says invitations need email delivery. The link is never shown in
   the app. If any membership or invite mutation loses its response after dispatch, the section
-  reloads memberships, invites and authentication before enabling a retry. **Email** is required.
+  reloads memberships and invites before enabling a retry. **Email** is required.
 - **Waiting for approval** (`data-testid="admission-requests"`; Owner/Admin) lists each person who
   asked for access (`data-testid="admission-request"`) with their email and invited role, and
   **Approve** (`data-testid="admission-approve"`) and **Decline** (`data-testid="admission-reject"`).
@@ -1067,32 +1058,31 @@ presented before the member directory, matching the action-first pattern of the 
   carries the secret token. An invitation lasts seven days.
 
 The Owner row carries no pencil or gear for anyone: each company has exactly
-one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
-removed nor disabled.
+one Owner, ownership is changed only by explicit transfer, and nobody can change the Owner's role
+or suspend them.
 Ownership transfer has no control in the member table: the Owner-only **Company ownership** card
-opens **Manage ownership** in a modal. The Owner chooses an active, unrestricted Admin in **Next
+opens **Manage ownership** in a modal. The Owner chooses an active Admin in **Next
 Owner** and confirms **Transfer ownership** once. The confirmation explains that the selected Admin
 becomes Owner and the caller becomes Admin. The change takes effect immediately and atomically; the
 nominee does not separately consent, and there is no pending request or expiry. No generic role-change
 or invite endpoint can assign Owner. The server keeps exactly one active Owner and refuses transfer
 from anyone who is not the current Owner or to someone who is not an eligible Admin.
 
-The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; returns
+The API routes: `GET /api/accounts/:accountId/members` (gated members:manage; returns
 `{members, signInTrackingEnabled}` and each member carries `status` plus nullable
 `signInConfirmed`; disabling sign-in tracking stops and clears observations but does not hide the
 member directory),
 `PUT /api/accounts/:accountId/member-sign-in-tracking {enabled}` (Owner only; desired-state and
 idempotent; disabling erases every observation),
 `PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role or attempted Owner assignment,
-404 non-member, 403 by the role rules),
-`PATCH /api/accounts/:accountId/members/:userId/status {status}` (`active` | `disabled` | `archived`;
+404 non-member, 403 against the Owner, against yourself, or by the role rules),
+`PATCH /api/accounts/:accountId/members/:userId/status {status}` (`active` | `suspended`;
 200 `{userId, status}`, idempotent — re-applying the status a member already holds succeeds and
 changes nothing; 400 unknown status, 404 non-member, 403 against the Owner,
 against yourself, or by the role
 rules — a non-active membership authorizes nothing, so the member's own reads 403 until restored
 while the administrative directory keeps listing them),
-`DELETE /api/accounts/:accountId/members/:userId` (204; 403 for the Owner or yourself),
-`GET /api/accounts/:accountId/invites` (gated manageInvites; returns invitation metadata and never
+`GET /api/accounts/:accountId/invites` (gated invitations:manage; returns invitation metadata and never
 returns a token),
 `POST /api/accounts/:accountId/invites/:id/resend` (200; emails a new link and stops the old one),
 `DELETE /api/accounts/:accountId/invites/:id` (204, cross-tenant-safe), and
@@ -1106,8 +1096,7 @@ spec `e2e/members.auth.spec.ts`.
 
 **Company ownership (Team & access; server mode, auth on).** The Owner-only
 `ownership-transfer-card` sits below member management. **Manage ownership**
-(`ownership-transfer-open`) opens its modal. **Next Owner** (`ownership-transfer-nominee`) lists active,
-unrestricted Admins. The Owner selects one and confirms **Transfer ownership**; the confirmation says
+(`ownership-transfer-open`) opens its modal. **Next Owner** (`ownership-transfer-nominee`) lists active Admins. The Owner selects one and confirms **Transfer ownership**; the confirmation says
 the selected Admin becomes Owner and the caller becomes Admin. Submit uses
 `ownership-transfer-complete`. It immediately swaps the roles in one transaction; the nominee does
 not authenticate or consent, and no pending request, deadline, or nominee control is shown. The card

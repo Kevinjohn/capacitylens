@@ -115,12 +115,11 @@ test.group('action proof bindings', (group) => {
     const successor = await createIdentity(successorEmail, { name: 'Clark Kent' });
     await db
       .from('memberships')
-      .where({ account_id: accountId, user_id: userId })
+      .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'admin' });
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      id: `member-successor-${Date.now()}`,
-      account_id: accountId,
+      scope_id: accountId,
       user_id: successor,
       role: 'owner',
       status: 'active',

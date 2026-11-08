@@ -18,7 +18,7 @@ import { SettingsSection } from './SettingsSection';
 export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean }) {
   const accountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
-  const allowed = useCan('anonymise');
+  const allowed = useCan('resources:anonymise');
   const role = useRole();
   const [confirming, setConfirming] = useState(false);
   const [proving, setProving] = useState(false);

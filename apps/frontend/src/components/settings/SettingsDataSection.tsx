@@ -120,7 +120,7 @@ function ExampleDataSection() {
 
 /** Exposes export, import, and local data controls allowed by the current mode. */
 export function SettingsDataSection({ serverMode }: { serverMode: boolean }) {
-  const canAddExampleData = useCan('manageMembers');
+  const canAddExampleData = useCan('members:manage');
   const companyIsEmpty = useCompanyIsEmpty();
   return (
     <>

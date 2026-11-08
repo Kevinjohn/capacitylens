@@ -28,14 +28,14 @@ appears under **Waiting for approval**. Once it appears, approve them.
 ## Does an Admin invitation transfer ownership?
 
 No. An invitation gives someone the role in the invitation, but cannot transfer ownership. Only the
-current Owner can choose an active, unrestricted Admin in **Manage ownership** and confirm the
+current Owner can choose an active Admin in **Manage ownership** and confirm the
 transfer. You become Admin and the selected Admin becomes Owner immediately, without a separate
 consent step. There is only ever one Owner; give other managers the Admin role.
 [Transfer ownership](/owner/responsibilities#transfer-ownership)
 
 ## Why is there no Admin to choose as Next Owner?
 
-Only an active, unrestricted Admin can be selected. Invite them as Admin first, then return once
+Only an active Admin can be selected. Invite them as Admin first, then return once
 they accept.
 
 ## What happens after I confirm the transfer?
@@ -88,9 +88,9 @@ not include identities, sessions or memberships. There is no CSV or spreadsheet 
 ## My Admin is leaving. What do I do?
 
 Invite the new Admin first. Then, in **Team & access**, open the departing Admin's **More actions**
-and select **Disable Access**: they can no longer open the company, and their record stays. Their
+and select **Suspend**: they can no longer open the company, and their record stays. Their
 row on the schedule and their bookings are not affected.
-[Stop access](/admin/invite-teammates#stop-access) explains the other options.
+[Stop access](/admin/invite-teammates#stop-access) explains how to bring them back.
 
 ## What if I leave?
 

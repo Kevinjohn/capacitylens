@@ -101,10 +101,10 @@ export function seedSmokeViewer(path, { accountId, actorUserId, targetUserId, ta
       .run(targetUserId, targetEmail, now, actorUserId, now, now, now);
     database
       .prepare(
-        `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
-         VALUES (?, ?, ?, 'viewer', 'active', ?, ?)`,
+        `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
+         VALUES (?, ?, 'viewer', 'active', ?, ?)`,
       )
-      .run(randomUUID(), accountId, targetUserId, now, now);
+      .run(accountId, targetUserId, now, now);
   } finally {
     database.close();
   }

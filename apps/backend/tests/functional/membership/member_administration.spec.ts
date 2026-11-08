@@ -25,6 +25,7 @@ test.group('company member administration', (group) => {
     await db.from('account_admissions').delete();
     await db.from('account_invitations').delete();
     await db.from('adonis_sessions').delete();
+    await db.from('memberships').delete();
     await db.from('users').delete();
   });
 
@@ -58,8 +59,7 @@ test.group('company member administration', (group) => {
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
+      scope_id: 'a-studio',
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -150,8 +150,7 @@ test.group('company member administration', (group) => {
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
+      scope_id: 'a-studio',
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -184,7 +183,7 @@ test.group('company member administration', (group) => {
         name: 'unknown status field',
         send: () =>
           signed(client.patch(`${memberPath}/status`), ownerCookie)
-            .json({ status: 'disabled', extra: true })
+            .json({ status: 'suspended', extra: true })
             .send(),
         error: 'Invalid member status.',
       },
@@ -215,7 +214,7 @@ test.group('company member administration', (group) => {
 
     const member = await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: editorId })
+      .where({ scope_id: 'a-studio', user_id: editorId })
       .first();
     assert.include(member, { role: 'editor', status: 'active' });
     const revision = await db
@@ -236,7 +235,7 @@ test.group('company member administration', (group) => {
     );
   });
 
-  test('an authorized Admin receives input refusal for direct Owner assignment, but cannot edit the Owner', async ({
+  test('an authorized Admin receives input refusal for direct Owner assignment, but cannot edit the Owner or themselves', async ({
     client,
     assert,
   }) => {
@@ -269,8 +268,7 @@ test.group('company member administration', (group) => {
     const now = new Date().toISOString();
     await db.table('memberships').insert([
       {
-        id: 'member-diana',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: adminId,
         role: 'admin',
         status: 'active',
@@ -278,8 +276,7 @@ test.group('company member administration', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-clark',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: editorId,
         role: 'editor',
         status: 'active',
@@ -303,6 +300,19 @@ test.group('company member administration', (group) => {
       .json({ role: 'editor' })
       .send();
     ownerDemotion.assertStatus(403);
+    // The package refuses self-management, so an Admin cannot change their own role.
+    const selfDemotion = await signed(
+      client.patch(`/api/accounts/a-studio/members/${adminId}`),
+      adminCookie
+    )
+      .json({ role: 'editor' })
+      .send();
+    selfDemotion.assertStatus(403);
+    const unchangedAdmin = await db
+      .from('memberships')
+      .where({ scope_id: 'a-studio', user_id: adminId })
+      .first();
+    assert.equal(unchangedAdmin.role, 'admin');
     const unauthorized = await signed(
       client.patch(`/api/accounts/a-studio/members/${editorId}`),
       editor.cookie('adonis-session')!.value
@@ -312,7 +322,7 @@ test.group('company member administration', (group) => {
     unauthorized.assertStatus(403);
     const unchangedMember = await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: editorId })
+      .where({ scope_id: 'a-studio', user_id: editorId })
       .first();
     assert.equal(unchangedMember.role, 'editor');
     assert.lengthOf(await db.from('audit_entries').where({ action: 'member.role_changed' }), 0);
@@ -342,8 +352,7 @@ test.group('company member administration', (group) => {
     const adminId = await userId('diana.prince@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      id: 'member-diana',
-      account_id: 'a-studio',
+      scope_id: 'a-studio',
       user_id: adminId,
       role: 'admin',
       status: 'active',

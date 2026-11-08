@@ -72,8 +72,6 @@ export type ScannedRoutes = {
     'api.members.tracking': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.members.role': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.members.status': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
-    'api.members.enable-access': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
-    'api.members.remove': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.invites.create': { paramsTuple?: []; params?: {} }
     'api.invites.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.invites.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
@@ -180,7 +178,6 @@ export type ScannedRoutes = {
     'api.auth.verification.send': { paramsTuple?: []; params?: {} }
     'api.auth.verification.inspect': { paramsTuple?: []; params?: {} }
     'api.auth.verification.complete': { paramsTuple?: []; params?: {} }
-    'api.members.enable-access': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.invites.create': { paramsTuple?: []; params?: {} }
     'api.invites.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.invites.sign-up': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
@@ -212,7 +209,6 @@ export type ScannedRoutes = {
     'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
   }
   DELETE: {
-    'api.members.remove': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.invites.revoke': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
     'api.masquerade.end': { paramsTuple?: []; params?: {} }

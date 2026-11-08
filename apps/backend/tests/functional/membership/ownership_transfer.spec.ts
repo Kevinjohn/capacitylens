@@ -9,7 +9,7 @@ import {
   asDataOwner,
   createFixtureCompanyForOwner,
 } from '../../helpers/authenticated_data_fixture.js';
-import { signUpAndIn } from '../../helpers/identities.js';
+import { createIdentity, signUpAndIn } from '../../helpers/identities.js';
 
 const password = 'batman-secret-2026';
 
@@ -39,8 +39,7 @@ async function fixture(client: ApiClient) {
   const adminId = await principalId('clark.kent@wayne.example');
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    id: 'member-clark',
-    account_id: 'a-studio',
+    scope_id: 'a-studio',
     user_id: adminId,
     role: 'admin',
     status: 'active',
@@ -68,6 +67,7 @@ test.group('atomic ownership transfer', (group) => {
     await db.from('account_admissions').delete();
     await db.from('account_invitations').delete();
     await db.from('adonis_sessions').delete();
+    await db.from('memberships').delete();
     await db.from('users').delete();
   });
 
@@ -107,8 +107,7 @@ test.group('atomic ownership transfer', (group) => {
       .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }));
     await db.table('memberships').insert([
       {
-        id: 'owner-clark-loft',
-        account_id: 'a-loft',
+        scope_id: 'a-loft',
         user_id: ownerId,
         role: 'owner',
         status: 'active',
@@ -116,8 +115,7 @@ test.group('atomic ownership transfer', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-clark-loft',
-        account_id: 'a-loft',
+        scope_id: 'a-loft',
         user_id: adminId,
         role: 'admin',
         status: 'active',
@@ -151,7 +149,7 @@ test.group('atomic ownership transfer', (group) => {
     assert.deepEqual(completed.body(), { fromUserId: ownerId, toUserId: adminId });
     const roles = await db
       .from('memberships')
-      .where('account_id', 'a-studio')
+      .where('scope_id', 'a-studio')
       .select('user_id', 'role');
     assert.equal(roles.find((row) => row.user_id === ownerId)?.role, 'admin');
     assert.equal(roles.find((row) => row.user_id === adminId)?.role, 'owner');
@@ -227,27 +225,13 @@ test.group('atomic ownership transfer', (group) => {
     unpaired.assertStatus(400);
     await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: adminId })
-      .update({ status: 'disabled' });
+      .where({ scope_id: 'a-studio', user_id: adminId })
+      .update({ status: 'suspended' });
     const inactive = await post(ownerCookie, 'a-studio', adminId);
     inactive.assertStatus(409);
-    await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: adminId })
-      .update({ status: 'active' });
-    await db.table('account_access_restrictions').insert({
-      id: 'restrict-clark',
-      account_id: 'a-studio',
-      principal_id: adminId,
-      verified_email: null,
-      role: 'admin',
-      created_at: new Date().toISOString(),
-    });
-    const restricted = await post(ownerCookie, 'a-studio', adminId);
-    restricted.assertStatus(409);
     const ownerAfterRefusal = await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: ownerId })
+      .where({ scope_id: 'a-studio', user_id: ownerId })
       .first();
     assert.equal(ownerAfterRefusal.role, 'owner');
     assert.lengthOf(
@@ -324,11 +308,11 @@ test.group('atomic ownership transfer', (group) => {
     const assertions = async (suffix: string) => {
       const owner = await db
         .from('memberships')
-        .where({ account_id: 'a-studio', user_id: ownerId })
+        .where({ scope_id: 'a-studio', user_id: ownerId })
         .first();
       const admin = await db
         .from('memberships')
-        .where({ account_id: 'a-studio', user_id: adminId })
+        .where({ scope_id: 'a-studio', user_id: adminId })
         .first();
       assert.equal(owner.role, 'owner');
       assert.equal(admin.role, 'admin');
@@ -393,18 +377,16 @@ test.group('atomic ownership transfer', (group) => {
     const responses = await Promise.all([request('first'), request('second')]);
     assert.deepEqual(responses.map((response) => response.status()).sort(), [200, 403]);
     assert.lengthOf(
-      await db
-        .from('memberships')
-        .where({ account_id: 'a-studio', role: 'owner', status: 'active' }),
+      await db.from('memberships').where({ scope_id: 'a-studio', role: 'owner', status: 'active' }),
       1
     );
     const formerOwner = await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: ownerId })
+      .where({ scope_id: 'a-studio', user_id: ownerId })
       .first();
     const newOwner = await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: adminId })
+      .where({ scope_id: 'a-studio', user_id: adminId })
       .first();
     assert.equal(formerOwner.role, 'admin');
     assert.equal(newOwner.role, 'owner');
@@ -419,12 +401,20 @@ test.group('atomic ownership transfer', (group) => {
     client,
     assert,
   }) => {
-    const { ownerId, adminId, ownerCookie } = await fixture(client);
+    const { ownerId, adminId, ownerCookie, now } = await fixture(client);
     const proofId = await transferProof(client, ownerCookie, adminId);
-    await db
-      .from('memberships')
-      .where({ account_id: 'a-studio', user_id: adminId })
-      .update({ role: 'owner' });
+    // A second stored Owner who is neither the actor nor the nominee.
+    const extraOwnerId = await createIdentity('diana.prince@wayne.example', {
+      name: 'Diana Prince',
+    });
+    await db.table('memberships').insert({
+      scope_id: 'a-studio',
+      user_id: extraOwnerId,
+      role: 'owner',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    });
     const rejected = await signed(
       client.post('/api/accounts/a-studio/ownership-transfer'),
       ownerCookie
@@ -436,8 +426,13 @@ test.group('atomic ownership transfer', (group) => {
       .json({ toUserId: adminId, proofId })
       .send();
     assert.isAtLeast(rejected.status(), 500);
-    const owners = await db.from('memberships').where({ account_id: 'a-studio', role: 'owner' });
-    assert.deepEqual(new Set(owners.map((row) => row.user_id)), new Set([ownerId, adminId]));
+    const owners = await db.from('memberships').where({ scope_id: 'a-studio', role: 'owner' });
+    assert.deepEqual(new Set(owners.map((row) => row.user_id)), new Set([ownerId, extraOwnerId]));
+    const nominee = await db
+      .from('memberships')
+      .where({ scope_id: 'a-studio', user_id: adminId })
+      .first();
+    assert.equal(nominee.role, 'admin');
     assert.isNull(
       await db
         .from('command_results')

@@ -37,20 +37,10 @@ export function isAccountRole(value: unknown): value is Role {
   return typeof value === 'string' && (ACCOUNT_ROLES as readonly string[]).includes(value);
 }
 /**
- * The lifecycle state of one membership.
- *
- * - `'active'`: an ordinary member: may enter the account under their role.
- * - `'disabled'`: suspended by an administrator. The membership and its role are retained, but the
- * principal may not enter the account. Reversible.
- * - `'archived'`: retired by an administrator. Same denial of entry as `'disabled'`; the separate
- * state exists so a long-departed member can be filtered out of day-to-day
- * administration without destroying the audit trail a removal would.
- *
- * Only `'active'` confers authority. Every authorization read narrows on `status = 'active'`, so a
- * non-active membership is indistinguishable from absence to the access matrix; the widened union
- * is a listing/administration concern, never a permission one. Administrative reads may include inactive memberships for the member directory and identity-security operations; inactive rows never confer request authority.
+ * The lifecycle state of one membership, as the Access Control package stores it. Only `'active'`
+ * confers authority; a `'suspended'` membership keeps its role and blocks entry until restored.
  */
-export const MEMBERSHIP_STATUSES = Object.freeze(['active', 'disabled', 'archived'] as const);
+export const MEMBERSHIP_STATUSES = Object.freeze(['active', 'suspended'] as const);
 /** A membership lifecycle state; see {@link MEMBERSHIP_STATUSES}. */
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 /** Narrow an untrusted value to a known {@link MembershipStatus}. Pure. */

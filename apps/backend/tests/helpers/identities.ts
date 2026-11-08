@@ -81,6 +81,7 @@ export async function clearIdentities() {
   await db.from('account_admissions').delete();
   await db.from('account_invitations').delete();
   await db.from('adonis_sessions').delete();
+  await db.from('memberships').delete();
   await db.from('users').delete();
 }
 

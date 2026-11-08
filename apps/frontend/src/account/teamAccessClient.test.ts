@@ -64,6 +64,17 @@ describe('teamAccessClient directory validation', () => {
             name: 'Legacy',
             email: null,
             isSelf: false,
+            manage: false,
+          },
+          {
+            // A row without the server's management decision never grants controls.
+            userId: 'undecided-user',
+            role: 'viewer',
+            status: 'active',
+            createdAt: '2026-07-27T10:00:00.000Z',
+            name: 'Undecided',
+            email: null,
+            isSelf: false,
           },
           {
             userId: 'future-user',
@@ -93,9 +104,9 @@ describe('teamAccessClient directory validation', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('unsupported member-directory row'));
   });
 
-  it.each(['accessDisabled', 'membershipPresent'] as const)(
-    'rejects a present non-boolean member %s flag',
-    async (field) => {
+  it.each(['false', null] as const)(
+    'rejects a member whose manage flag is %j instead of a boolean',
+    async (manage) => {
       vi.spyOn(console, 'warn').mockImplementation(() => {});
       const member = {
         userId: 'member-1',
@@ -105,7 +116,7 @@ describe('teamAccessClient directory validation', () => {
         name: 'Bruce Wayne',
         email: null,
         isSelf: false,
-        [field]: 'false',
+        manage,
       };
       vi.spyOn(accountClient, 'listMembers').mockResolvedValue(json({ members: [member] }));
 

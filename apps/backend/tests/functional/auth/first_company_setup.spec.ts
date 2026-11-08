@@ -81,7 +81,7 @@ test.group('authenticated first company setup', (group) => {
     const accountId = setup.body().accountId;
     assert.equal((await db.from('accounts').first())!.name, 'Wayne Enterprises');
     assert.deepInclude((await db.from('memberships').first())!, {
-      account_id: accountId,
+      scope_id: accountId,
       user_id: userId,
       role: 'owner',
       status: 'active',
@@ -274,6 +274,7 @@ test.group('authenticated first company setup', (group) => {
     const unconfirmed = await signIn(client, email, password);
     const limited = await setUp(client, unconfirmed.cookie);
     limited.assertStatus(403);
+    await db.from('memberships').delete();
     await db.from('users').delete();
     await db.from('account_admissions').delete();
     await createIdentity(email, { password, admitted: false });

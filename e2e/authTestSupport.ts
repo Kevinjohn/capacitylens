@@ -187,16 +187,9 @@ export function seedFixtureMember(
       .get(email.toLowerCase()) as { id: string } | undefined;
     if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
     db.prepare(
-      `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'active', ?, ?)`,
-    ).run(
-      crypto.randomUUID(),
-      accountId,
-      principal.id,
-      role,
-      new Date().toISOString(),
-      new Date().toISOString(),
-    );
+      `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, 'active', ?, ?)`,
+    ).run(accountId, principal.id, role, new Date().toISOString(), new Date().toISOString());
   } finally {
     db.close();
   }
@@ -224,6 +217,7 @@ function ensureAuthE2EFixtureCompanyTable(db: DatabaseSync): void {
 function removeAuthE2EAccount(db: DatabaseSync, accountId: string): void {
   db.prepare('DELETE FROM audit_entries WHERE account_id = ?').run(accountId);
   db.prepare('DELETE FROM account_member_resources WHERE account_id = ?').run(accountId);
+  db.prepare('DELETE FROM memberships WHERE scope_id = ?').run(accountId);
   db.prepare('DELETE FROM accounts WHERE id = ?').run(accountId);
 }
 
@@ -270,9 +264,9 @@ function insertAuthE2ECompany(
      VALUES (?, ?, ?, ?, 'true', ?, ?)`,
   ).run(internal.id, accountId, internal.name, internal.color, now, now);
   db.prepare(
-    `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
-     VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
-  ).run(crypto.randomUUID(), accountId, ownerId, now, now);
+    `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
+     VALUES (?, ?, 'owner', 'active', ?, ?)`,
+  ).run(accountId, ownerId, now, now);
   db.prepare('INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)').run(
     accountId,
   );
@@ -300,7 +294,7 @@ function temporaryBaselineAccountIds(db: DatabaseSync): string[] {
     .prepare(
       `SELECT accounts.id
        FROM accounts
-       JOIN memberships ON memberships.account_id = accounts.id
+       JOIN memberships ON memberships.scope_id = accounts.id
        JOIN users ON users.id = memberships.user_id
        WHERE accounts.name = ?
          AND users.email = ?
@@ -352,7 +346,7 @@ export function readAuthE2EBaselineSnapshot(): {
       .prepare(
         `SELECT accounts.*
          FROM accounts
-         JOIN memberships ON memberships.account_id = accounts.id
+         JOIN memberships ON memberships.scope_id = accounts.id
          JOIN users ON users.id = memberships.user_id
          WHERE accounts.name = ? AND users.email = ? AND memberships.role = 'owner' AND memberships.status = 'active'`,
       )
@@ -373,7 +367,7 @@ export function readAuthE2EBaselineSnapshot(): {
       .prepare(
         `SELECT users.id, users.email, memberships.role, memberships.status
          FROM memberships JOIN users ON users.id = memberships.user_id
-         WHERE memberships.account_id = ? AND users.email = 'baseline-owner@capacitylens.dev'`,
+         WHERE memberships.scope_id = ? AND users.email = 'baseline-owner@capacitylens.dev'`,
       )
       .get(account.id) as { id: string; email: string; role: string; status: string } | undefined;
     const administrator = db

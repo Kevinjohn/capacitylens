@@ -40,7 +40,7 @@ export function useArchiveRecovery() {
   const { user } = useAuth();
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const mayWrite = useCan('write');
+  const mayWrite = useCan('planning:write');
   const accountId = useStore((state) => state.activeAccountId);
   const planning = useStore((state) => state.planning);
   const masquerade = useStore((state) => state.masquerade);

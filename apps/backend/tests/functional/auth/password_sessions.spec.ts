@@ -145,7 +145,7 @@ test.group('password sign-in and sessions', (group) => {
       .from('account_admissions')
       .where('user_id', userId)
       .update({ approval_status: 'approved' });
-    await db.from('memberships').where('user_id', userId).update({ status: 'disabled' });
+    await db.from('memberships').where('user_id', userId).update({ status: 'suspended' });
     await expectStatus(planning(client, unconfirmed.cookie), 403);
     assert.lengthOf(await dismissals(), 0);
   });

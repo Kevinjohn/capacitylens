@@ -31,7 +31,7 @@ export function useExportAction() {
       let exported = data;
       if (serverMode) {
         if (!activeAccountId) throw new Error('Choose a company before exporting.');
-        if (role === null || can(role, 'anonymise')) {
+        if (role === null || can(role, 'resources:anonymise')) {
           exported = await fetchInactiveSlice(activeAccountId);
         }
       }

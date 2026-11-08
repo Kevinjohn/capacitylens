@@ -39,7 +39,7 @@ export default class MemberResourcesController {
       const command = readAccountCommand(ctx);
       const { accountId, principalId } = ctx.params;
       const result = await withActor(ctx, async (_actor, trx) => {
-        const { actorId } = await assertCompanyAction(accountId, 'manageMembers', trx);
+        const { actorId } = await assertCompanyAction(accountId, 'members:manage', trx);
         const claim = await claimAccountCommand(trx, {
           actorId,
           accountId,
@@ -82,7 +82,7 @@ export default class MemberResourcesController {
       const command = readAccountCommand(ctx);
       const { accountId, principalId } = ctx.params;
       await withActor(ctx, async (_actor, trx) => {
-        const { actorId } = await assertCompanyAction(accountId, 'manageMembers', trx);
+        const { actorId } = await assertCompanyAction(accountId, 'members:manage', trx);
         const claim = await claimAccountCommand(trx, {
           actorId,
           accountId,
@@ -117,7 +117,7 @@ export default class MemberResourcesController {
     try {
       const { accountId } = ctx.params;
       return await withActor(ctx, async (_actor, trx) => {
-        await assertCompanyAction(accountId, 'read', trx);
+        await assertCompanyAction(accountId, 'planning:read', trx);
         return ctx.response.ok(await readMemberAvatars(trx, accountId));
       });
     } catch (error) {

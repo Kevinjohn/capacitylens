@@ -40,14 +40,13 @@ before submitting another change.
 ## Sign out
 
 Select **Sign out** when you finish, especially on a shared device. It ends this browser's
-session only; your membership and scheduling records stay. To leave a company, ask its Owner or
-Admin.
+session only; your membership and scheduling records stay.
 
 Account doesn't list your other sessions. Changing your password signs out every browser and
 device.
 
-To leave a company, ask its Owner or Admin to remove your membership. You can rejoin only if an
-Owner or Admin restores access or invites you again, depending on how they removed you.
+To leave a company, ask its Owner or Admin to suspend your membership. Only an Owner or Admin can
+restore it, with the same role.
 
 ## If you can't sign in
 

@@ -182,10 +182,9 @@ test('a failed snapshot reports only completed recovery artifacts and leaves the
     source.exec('PRAGMA foreign_keys=OFF');
     source
       .prepare(
-        'INSERT INTO memberships (id,account_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
+        'INSERT INTO memberships (scope_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?)'
       )
       .run(
-        'orphan',
         'a-studio',
         'missing-user',
         'viewer',

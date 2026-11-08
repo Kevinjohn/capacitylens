@@ -1,9 +1,10 @@
+import db from '@adonisjs/lucid/services/db';
+import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
 import { parseUserName } from '@capacitylens/shared/lib/strings';
 import { createInitialCompany } from '#services/initial_company_defaults';
 import { isAdmitted } from '#services/account_kit/policy';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
-import { withTransaction } from '#services/with_transaction';
 import { operatorDatabasePath, withOperatorDatabase } from './operator_database.js';
 
 /** Establish the first company role for an existing native identity without changing admission. */
@@ -20,7 +21,8 @@ export async function initializeCompany(input: {
   }
   return withOperatorDatabase(async () => {
     await assertSchemaIntegrity();
-    return withTransaction(async (trx) => {
+    // The Kit runner holds the writer lock its package writes rely on.
+    return transaction(db, async (trx) => {
       if ((await trx.from('accounts').first()) || (await trx.from('memberships').first())) {
         throw new Error('Refusing company initialization: installation already has company access');
       }

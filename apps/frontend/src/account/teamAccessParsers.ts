@@ -11,9 +11,6 @@ import type {
   AdmissionRequest,
 } from './teamAccessTypes';
 
-const isOptionalBoolean = (value: unknown): value is boolean | undefined =>
-  value === undefined || typeof value === 'boolean';
-
 const isOptionalNullableBoolean = (value: unknown): value is boolean | null | undefined =>
   value === undefined || value === null || typeof value === 'boolean';
 
@@ -31,12 +28,11 @@ function hasValidMemberIdentity(
 
 function hasValidMemberAccess(
   row: Record<string, unknown>,
-): row is Record<string, unknown> & Pick<TeamMember, 'isSelf'> {
+): row is Record<string, unknown> & Pick<TeamMember, 'isSelf' | 'manage'> {
   return (
     typeof row.isSelf === 'boolean' &&
-    isOptionalNullableBoolean(row.signInConfirmed) &&
-    isOptionalBoolean(row.accessDisabled) &&
-    isOptionalBoolean(row.membershipPresent)
+    typeof row.manage === 'boolean' &&
+    isOptionalNullableBoolean(row.signInConfirmed)
   );
 }
 
@@ -56,8 +52,7 @@ function parseMember(row: unknown): TeamMember | null {
     email: row.email,
     signInConfirmed: typeof row.signInConfirmed === 'boolean' ? row.signInConfirmed : null,
     isSelf: row.isSelf,
-    accessDisabled: row.accessDisabled === true,
-    membershipPresent: row.membershipPresent !== false,
+    manage: row.manage,
     resourceLink,
   };
 }

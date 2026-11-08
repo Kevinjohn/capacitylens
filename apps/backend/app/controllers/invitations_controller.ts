@@ -66,7 +66,7 @@ export default class InvitationsController {
   private async manager(ctx: HttpContext, accountId: unknown) {
     if (typeof accountId !== 'string' || !accountId) invalidAdmission();
     return withActor(ctx, async (_actor, trx) => {
-      const { actorId } = await assertCompanyAction(accountId, 'manageInvites', trx);
+      const { actorId } = await assertCompanyAction(accountId, 'invitations:manage', trx);
       if ((await installationCompanyId(trx)) !== accountId) missingAdmission('Company not found.');
       return actorId;
     });

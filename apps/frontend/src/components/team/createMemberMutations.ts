@@ -16,7 +16,6 @@ export interface MemberMutationDependencies extends Pick<
   MemberActionDependencies,
   'withMemberAction' | 'isActiveAccount' | 'fail' | 'setNotice'
 > {
-  refreshCallerAccess: ReturnType<typeof createMemberAccessReconciliation>['refreshCallerAccess'];
   reconcileUnknownMutation: ReturnType<
     typeof createMemberAccessReconciliation
   >['reconcileUnknownMutation'];
@@ -67,9 +66,7 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
         if (!dependencies.isActiveAccount(accountId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {
-            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_role_change(), {
-              callerAccessMayHaveChanged: member.isSelf,
-            });
+            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_role_change());
             return;
           }
           dependencies.fail(
@@ -82,61 +79,23 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
           return;
         }
         dependencies.setNotice(m.settings_members_role_updated());
-        if (member.isSelf) await dependencies.refreshCallerAccess();
         dependencies.refreshDirectory();
       } catch (cause) {
-        // A role-change request may have committed; reconcile caller access too when the edited member is self.
+        // A role-change request may have committed; reload the directory before another attempt.
         await dependencies.reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_role_change(),
             error: resolveErrorMessage(cause),
           }),
-          { callerAccessMayHaveChanged: member.isSelf },
         );
       }
     });
   };
 }
 
-function createRemoveMemberMutation(dependencies: MemberMutationDependencies) {
-  return (member: Member) =>
-    dependencies.withMemberAction(`remove:${member.userId}`, async (accountId) => {
-      try {
-        const result = await teamAccessClient.removeMember(accountId, member.userId);
-        if (!dependencies.isActiveAccount(accountId)) return;
-        if (result.kind !== 'ok') {
-          if (result.kind === 'unknown') {
-            await dependencies.reconcileUnknownMutation(
-              m.settings_members_unknown_member_removal(),
-            );
-            return;
-          }
-          dependencies.fail(
-            null,
-            resolveRejectionMessage(
-              result,
-              m.settings_members_err_remove({ status: result.status }),
-            ),
-          );
-          return;
-        }
-        dependencies.setNotice(m.settings_members_removed());
-        dependencies.refreshDirectory();
-      } catch (cause) {
-        // An uncertain member removal may change caller access; reconcile before another administrative attempt.
-        await dependencies.reconcileUnknownMutation(
-          m.settings_members_error_detail({
-            message: m.settings_members_unknown_member_removal(),
-            error: resolveErrorMessage(cause),
-          }),
-        );
-      }
-    });
-}
-
 function createStatusMutation(dependencies: MemberMutationDependencies) {
   return async (member: Member, nextStatus: MembershipStatus) => {
-    if (nextStatus === member.status && nextStatus !== 'disabled') return;
+    if (nextStatus === member.status) return;
     await dependencies.withMemberAction(`status:${member.userId}`, async (accountId) => {
       try {
         const result = await teamAccessClient.changeMemberStatus(
@@ -174,47 +133,11 @@ function createStatusMutation(dependencies: MemberMutationDependencies) {
   };
 }
 
-function createEnableAccessMutation(dependencies: MemberMutationDependencies) {
-  return (member: Member) =>
-    dependencies.withMemberAction(`enable:${member.userId}`, async (accountId) => {
-      try {
-        const result = await teamAccessClient.enableMemberAccess(accountId, member.userId);
-        if (!dependencies.isActiveAccount(accountId)) return;
-        if (result.kind !== 'ok') {
-          if (result.kind === 'unknown') {
-            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_status_change());
-            return;
-          }
-          dependencies.fail(
-            null,
-            resolveRejectionMessage(
-              result,
-              m.settings_members_err_change_status({ status: result.status }),
-            ),
-          );
-          return;
-        }
-        dependencies.setNotice(m.settings_members_access_enabled());
-        dependencies.refreshDirectory();
-      } catch (cause) {
-        // An uncertain membership-status change requires authoritative reconciliation before another action.
-        await dependencies.reconcileUnknownMutation(
-          m.settings_members_error_detail({
-            message: m.settings_members_unknown_status_change(),
-            error: resolveErrorMessage(cause),
-          }),
-        );
-      }
-    });
-}
-
 /** Builds role, invitation, and lifecycle actions for team members. */
 export function createMemberMutations(dependencies: MemberMutationDependencies) {
   return {
     changeSignInTracking: createSignInTrackingMutation(dependencies),
     changeRole: createRoleMutation(dependencies),
-    removeMember: createRemoveMemberMutation(dependencies),
     changeStatus: createStatusMutation(dependencies),
-    enableAccess: createEnableAccessMutation(dependencies),
   };
 }

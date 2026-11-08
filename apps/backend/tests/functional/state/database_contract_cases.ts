@@ -73,7 +73,6 @@ export const baselineTables = [
   'deleted_rows',
   'action_proofs',
   'account_getting_started_dismissals',
-  'account_access_restrictions',
   'adonis_sessions',
   'password_reset_tokens',
   'account_transaction_lock',

@@ -22,19 +22,19 @@ the page directly.
 | See time-off notes                                    |     —      |     —      |    Yes     |    Yes     |
 | See private client/project real names                 |     —      |     —      |     —      |    Yes     |
 | List members and manage invites                       |     —      |     —      |    Yes     |    Yes     |
-| Disable or Enable Access; archive or restore a member |     —      |     —      |    Yes     |    Yes     |
+| Suspend or restore a member                           |     —      |     —      |    Yes     |    Yes     |
 | Export the schedule                                   | Code names | Code names | Code names | Real names |
 | Import or anonymise the company; transfer ownership   |     —      |     —      |     —      |    Yes     |
 
 Each company has exactly one Owner. Nobody becomes Owner through an invitation or a role change, only
-through [an ownership transfer](#hand-the-company-to-someone-else). An Admin can invite, remove,
-disable or change the role of any other member except the Owner. Nobody, not even the Owner, can
-disable or archive the Owner or themselves.
+through [an ownership transfer](#hand-the-company-to-someone-else). An Admin can invite, suspend
+or change the role of any other member except the Owner. Nobody, not even the Owner, can suspend or
+change the role of the Owner or themselves.
 
 ![Members table showing roles, Resource links and row actions](../screenshots/flows/team_access_members.png)
 
-**Team & access** lists members by role, Owner first. Disabled, archived and removed people move to
-the collapsed **No longer active** table beneath.
+**Team & access** lists members by role, Owner first. Suspended members move to the collapsed
+**No longer active** table beneath.
 [Change a member's role or schedule row](/admin/invite-teammates#managing-someone-who-already-joined)
 covers each action. If a company has no Owner at all, follow
 [A company has no Owner](/self-hosting/incidents#a-company-has-no-owner).
@@ -55,7 +55,7 @@ schedule. Freelancers and contractors can be scheduled without ever getting a si
 
 ## Hand the company to someone else
 
-Only the Owner can transfer ownership. Choose an active, unrestricted Admin and confirm **Transfer
+Only the Owner can transfer ownership. Choose an active Admin and confirm **Transfer
 ownership**. The selected Admin becomes Owner and you become Admin immediately; they do not need to
 agree separately. See [Transfer ownership](/owner/responsibilities#transfer-ownership).
 

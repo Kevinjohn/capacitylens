@@ -35,14 +35,12 @@ export function sortInvitationsForPresentation(
 /** Derives role and invitation display state from the current member list. */
 export function buildMemberDirectoryPresentation(members: Member[] | null) {
   const myRole = members?.find((member) => member.isSelf)?.role;
-  const mayManageInvites = myRole !== undefined && can(myRole, 'manageInvites');
-  const mayManageSignInTracking = myRole !== undefined && can(myRole, 'manageMemberSignInTracking');
+  const mayManageInvites = myRole !== undefined && can(myRole, 'invitations:manage');
+  const mayManageSignInTracking = myRole !== undefined && can(myRole, 'members:signInTracking');
   // Active and inactive members use the same role-first presentation order, independent of server join-date ordering. Inactive rows remain available through a disclosure.
   const grouped = { active: [] as Member[], inactive: [] as Member[] };
   for (const member of members ?? []) {
-    grouped[member.status === 'active' && !member.accessDisabled ? 'active' : 'inactive'].push(
-      member,
-    );
+    grouped[member.status === 'active' ? 'active' : 'inactive'].push(member);
   }
   const activeMembers = members ? grouped.active.sort(compareMembers) : null;
   const inactiveMembers = grouped.inactive.sort(compareMembers);

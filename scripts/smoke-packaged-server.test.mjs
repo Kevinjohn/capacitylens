@@ -26,8 +26,8 @@ test('packaged smoke seeds its fictional Viewer only in the disposable stopped d
         approval_actor_id TEXT, approval_decided_at TEXT, created_at TEXT, updated_at TEXT
       );
       CREATE TABLE memberships (
-        id TEXT PRIMARY KEY, account_id TEXT, user_id TEXT, role TEXT, status TEXT,
-        created_at TEXT, updated_at TEXT, UNIQUE (account_id, user_id)
+        id INTEGER PRIMARY KEY AUTOINCREMENT, scope_id TEXT, user_id TEXT, role TEXT, status TEXT,
+        created_at TEXT, updated_at TEXT, UNIQUE (scope_id, user_id)
       );
       CREATE TABLE masquerade_modes (
         authority_namespace TEXT, actor_id TEXT, state TEXT, started_at TEXT, expires_at TEXT

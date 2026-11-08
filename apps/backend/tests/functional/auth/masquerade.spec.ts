@@ -74,8 +74,7 @@ async function fixture(client: any, targetRole: 'viewer' | 'editor' = 'viewer') 
     updated_at: now,
   });
   await db.table('memberships').insert({
-    id: crypto.randomUUID(),
-    account_id: 'a-studio',
+    scope_id: 'a-studio',
     user_id: targetId,
     role: targetRole,
     status: 'active',
@@ -92,6 +91,7 @@ test.group('native read-only masquerade', (group) => {
     await db.from('account_admissions').delete();
     await db.from('account_invitations').delete();
     await db.from('adonis_sessions').delete();
+    await db.from('memberships').delete();
     await db.from('users').delete();
   });
 
@@ -610,13 +610,13 @@ test.group('native read-only masquerade', (group) => {
     self.assertStatus(400);
     await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: targetId })
-      .update({ status: 'disabled' });
+      .where({ scope_id: 'a-studio', user_id: targetId })
+      .update({ status: 'suspended' });
     const inactive = await startView(client, cookie, targetId);
     inactive.assertStatus(403);
     await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: targetId })
+      .where({ scope_id: 'a-studio', user_id: targetId })
       .update({ status: 'active' });
     const now = new Date().toISOString();
     await db.table('accounts').insert({
@@ -628,23 +628,23 @@ test.group('native read-only masquerade', (group) => {
     });
     await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: targetId })
-      .update({ account_id: 'a-loft' });
+      .where({ scope_id: 'a-studio', user_id: targetId })
+      .update({ scope_id: 'a-loft' });
     const foreign = await startView(client, cookie, targetId);
     foreign.assertStatus(403);
     await db
       .from('memberships')
-      .where({ account_id: 'a-loft', user_id: targetId })
-      .update({ account_id: 'a-studio' });
+      .where({ scope_id: 'a-loft', user_id: targetId })
+      .update({ scope_id: 'a-studio' });
     await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: ownerId })
+      .where({ scope_id: 'a-studio', user_id: ownerId })
       .update({ role: 'viewer' });
     const nonAdmin = await startView(client, cookie, targetId);
     nonAdmin.assertStatus(403);
     await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: ownerId })
+      .where({ scope_id: 'a-studio', user_id: ownerId })
       .update({ role: 'owner' });
     await db.from('account_sessions').where('user_id', ownerId).delete();
     const revoked = await asSession(
@@ -665,7 +665,7 @@ test.group('native read-only masquerade', (group) => {
     started.assertStatus(200);
     await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: ownerId })
+      .where({ scope_id: 'a-studio', user_id: ownerId })
       .update({ role: 'viewer' });
     const read = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
     read.assertStatus(409);
@@ -752,6 +752,7 @@ test.group('native read-only masquerade', (group) => {
 
     const restarted = await startView(client, cookie, targetId);
     restarted.assertStatus(200);
+    await db.from('memberships').where('user_id', targetId).delete();
     await db.from('users').where('id', targetId).delete();
     const status = await asSession(client.get('/api/masquerade'), cookie).send();
     status.assertStatus(200);
@@ -776,8 +777,7 @@ test.group('native read-only masquerade', (group) => {
       updated_at: now,
     });
     await db.table('memberships').insert({
-      id: crypto.randomUUID(),
-      account_id: 'a-studio',
+      scope_id: 'a-studio',
       user_id: secondTargetId,
       role: 'viewer',
       status: 'active',

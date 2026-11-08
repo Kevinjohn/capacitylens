@@ -252,18 +252,28 @@ export default class extends BaseSchema {
       table.timestamp('updated_at').notNullable();
       table.index(['account_id']);
     });
+    // Access Control package storage (its published migration shape), keyed by the string ids.
     this.schema.createTable('memberships', (table) => {
-      metadata(table);
+      table.increments('id');
       table
-        .string('account_id')
+        .string('scope_id', 254)
         .notNullable()
         .references('id')
         .inTable('accounts')
-        .onDelete('CASCADE');
-      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
-      table.string('role').notNullable();
-      table.string('status').notNullable();
-      table.unique(['account_id', 'user_id']);
+        .onDelete('RESTRICT');
+      table
+        .string('user_id', 254)
+        .notNullable()
+        .references('id')
+        .inTable('users')
+        .onDelete('RESTRICT');
+      table.string('role', 32).notNullable();
+      table.string('status', 16).notNullable().defaultTo('active');
+      table.timestamp('created_at', { useTz: true }).notNullable();
+      table.timestamp('updated_at', { useTz: true }).notNullable();
+      table.unique(['scope_id', 'user_id']);
+      table.index(['user_id']);
+      table.index(['scope_id', 'created_at', 'id']);
     });
     this.schema.createTable('account_member_resources', (table) => {
       metadata(table);
@@ -397,21 +407,6 @@ export default class extends BaseSchema {
         .onDelete('CASCADE');
       table.timestamp('created_at').notNullable();
       table.timestamp('updated_at').notNullable();
-    });
-    this.schema.createTable('account_access_restrictions', (table) => {
-      table.string('id').primary();
-      table
-        .string('account_id')
-        .notNullable()
-        .references('id')
-        .inTable('accounts')
-        .onDelete('CASCADE');
-      table.string('principal_id').notNullable();
-      table.string('verified_email').nullable();
-      table.string('role').notNullable().checkIn(['owner', 'admin', 'editor', 'viewer']);
-      table.timestamp('created_at').notNullable();
-      table.unique(['account_id', 'principal_id']);
-      table.index(['account_id', 'verified_email']);
     });
     this.schema.createTable('adonis_sessions', (table) => {
       table.string('id').primary();

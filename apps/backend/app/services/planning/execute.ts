@@ -128,7 +128,7 @@ export async function executePlanningIntent(
   identity: RestorationIdentity
 ): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null };
-  if (!capabilities.canWrite || capabilities.role === 'viewer') {
+  if (!capabilities.canWrite) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
   }
   if (!data.accounts.some((row) => row.id === accountId)) {

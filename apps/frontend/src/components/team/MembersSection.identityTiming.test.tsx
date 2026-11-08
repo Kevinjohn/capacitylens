@@ -169,7 +169,7 @@ it.each(
   if (intent === 'role') fireEvent.click(within(row).getByTestId('member-edit'));
   else {
     fireEvent.click(within(row).getByTestId('member-menu'));
-    fireEvent.click(await screen.findByTestId('member-remove'));
+    fireEvent.click(await screen.findByTestId('member-suspend'));
   }
   const dialogRole = intent === 'role' ? 'dialog' : 'alertdialog';
   expect(await screen.findByRole(dialogRole)).toHaveTextContent('Clark Kent');

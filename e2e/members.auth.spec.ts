@@ -16,9 +16,9 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // This spec exercises owner and admin member management against the password-mode auth server. Owner A
 // creates the first company and seeds admin B plus editor C in the disposable database. As B, it changes C's
-// role, creates and revokes an invite, and verifies that owners cannot be assigned, changed, removed,
-// or read across accounts through ordinary member endpoints. Owner A then disables and restores C from
-// the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
+// role, creates and revokes an invite, and verifies that owners cannot be assigned or changed, that
+// nobody changes their own membership, and that members cannot be read across accounts. Owner A then
+// suspends and restores C from the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
 const STAMP = Date.now();
 const OWNER = `m-owner-${STAMP}@capacitylens.dev`;
 const ADMIN = `m-admin-${STAMP}@capacitylens.dev`;
@@ -56,13 +56,19 @@ async function setupMembersApi(request: APIRequestContext) {
     data: { toUserId: editor.userId },
   });
   expect(adminTransfer.status()).toBe(403);
-  const selfRemove = await request.delete(
-    `${API}/api/accounts/${accountId}/members/${owner.userId}`,
+  const selfSuspend = await request.patch(
+    `${API}/api/accounts/${accountId}/members/${owner.userId}/status`,
     {
       headers: await masqueradeContextHeaders(request, owner.cookie),
+      data: { status: 'suspended' },
     },
   );
-  expect(selfRemove.status()).toBe(403);
+  expect(selfSuspend.status()).toBe(403);
+  const selfRole = await request.patch(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
+    headers: await masqueradeContextHeaders(request, owner.cookie),
+    data: { role: 'editor' },
+  });
+  expect(selfRole.status()).toBe(403);
   const crossTenant = await request.get(`${API}/api/accounts/some-other-account-${STAMP}/members`, {
     headers: { cookie: admin.cookie },
   });
@@ -175,8 +181,8 @@ async function manageOwnerMembers(
   await expect(ownerPage.getByTestId('current-access')).toContainText('Owner');
   const ownerTarget = ownerPage.getByTestId('member-row').filter({ hasText: EDITOR });
   await ownerTarget.getByTestId('member-menu').click();
-  await ownerPage.getByTestId('member-disable').click();
-  await ownerPage.getByRole('alertdialog').getByRole('button', { name: 'Disable Access' }).click();
+  await ownerPage.getByTestId('member-suspend').click();
+  await ownerPage.getByRole('alertdialog').getByRole('button', { name: 'Suspend' }).click();
   await expect(
     ownerPage.getByTestId('members-table').getByTestId('member-row').filter({ hasText: EDITOR }),
   ).toHaveCount(0);
@@ -187,28 +193,28 @@ async function manageOwnerMembers(
     .getByTestId('members-inactive-table')
     .getByTestId('member-row')
     .filter({ hasText: EDITOR });
-  await expect(inactiveTarget).toContainText('Access disabled');
+  await expect(inactiveTarget).toContainText('Suspended');
   await expect
     .poll(async () => {
       const res = await request.get(`${API}/api/accounts/${accountId}/members`, {
         headers: { cookie: owner.cookie },
       });
-      const members = (await res.json()).members as Array<{
-        userId: string;
-        accessDisabled: boolean;
-      }>;
-      return members.find((member) => member.userId === editor.userId)?.accessDisabled;
+      const members = (await res.json()).members as Array<{ userId: string; status: string }>;
+      return members.find((member) => member.userId === editor.userId)?.status;
     })
-    .toBe(true);
-  const disabledRead = await request.get(`${API}/api/state?accountId=${accountId}`, {
+    .toBe('suspended');
+  const suspendedRead = await request.get(`${API}/api/state?accountId=${accountId}`, {
     headers: { cookie: editor.cookie },
   });
-  expect(disabledRead.status()).toBe(403);
+  expect(suspendedRead.status()).toBe(403);
   await inactiveTarget.getByTestId('member-menu').click();
-  await expect(ownerPage.getByTestId('member-disable')).toHaveCount(0);
-  await ownerPage.getByTestId('member-enable').click();
-  await ownerPage.getByRole('alertdialog').getByRole('button', { name: 'Enable Access' }).click();
-  await expect(ownerTarget).not.toContainText('Access disabled');
+  await expect(ownerPage.getByTestId('member-suspend')).toHaveCount(0);
+  await ownerPage.getByTestId('member-restore').click();
+  await ownerPage
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Restore membership' })
+    .click();
+  await expect(ownerTarget).not.toContainText('Suspended');
   await expect(ownerPage.getByTestId('members-inactive-toggle')).toHaveCount(0);
   await assertOwnershipIsNotAMemberRowAction(
     ownerContext,

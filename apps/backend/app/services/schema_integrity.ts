@@ -152,11 +152,11 @@ async function assertProofStorage(table: string, expectedColumns: string[]) {
   }
 }
 
-async function assertMasqueradeStorage(table: string, expectedColumns: string[]) {
+async function assertPackageStorage(table: string, expectedColumns: string[], owner: string) {
   const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
   if (JSON.stringify(columns.map(({ name }) => name)) !== JSON.stringify(expectedColumns)) {
     throw new Error(
-      `Database schema drift: ${table} columns differ from the Masquerade package schema`
+      `Database schema drift: ${table} columns differ from the ${owner} package schema`
     );
   }
 }
@@ -173,40 +173,53 @@ export async function assertSchemaIntegrity() {
   await assertAccountKitStorage();
   await assertBaselineMigrationRecord();
   await assertLegacyMasqueradeRetired();
-  await assertMasqueradeStorage('masquerade_modes', [
-    'authority_namespace',
-    'actor_id',
-    'actor_incarnation',
-    'revision',
-    'revision_nonce',
-    'state',
-    'access',
-    'mode_id',
-    'last_transition_id',
-    'target_id',
-    'target_incarnation',
-    'actor_stamp_hash',
-    'target_stamp_hash',
-    'reason',
-    'started_at',
-    'expires_at',
-    'updated_at',
-  ]);
-  await assertMasqueradeStorage('masquerade_events', [
-    'id',
-    'mode_id',
-    'authority_namespace',
-    'actor_id',
-    'actor_incarnation',
-    'target_id',
-    'target_incarnation',
-    'at',
-    'kind',
-    'outcome_code',
-    'access',
-    'revision',
-    'reason',
-  ]);
+  await assertPackageStorage(
+    'memberships',
+    ['id', 'scope_id', 'user_id', 'role', 'status', 'created_at', 'updated_at'],
+    'Access Control'
+  );
+  await assertPackageStorage(
+    'masquerade_modes',
+    [
+      'authority_namespace',
+      'actor_id',
+      'actor_incarnation',
+      'revision',
+      'revision_nonce',
+      'state',
+      'access',
+      'mode_id',
+      'last_transition_id',
+      'target_id',
+      'target_incarnation',
+      'actor_stamp_hash',
+      'target_stamp_hash',
+      'reason',
+      'started_at',
+      'expires_at',
+      'updated_at',
+    ],
+    'Masquerade'
+  );
+  await assertPackageStorage(
+    'masquerade_events',
+    [
+      'id',
+      'mode_id',
+      'authority_namespace',
+      'actor_id',
+      'actor_incarnation',
+      'target_id',
+      'target_incarnation',
+      'at',
+      'kind',
+      'outcome_code',
+      'access',
+      'revision',
+      'reason',
+    ],
+    'Masquerade'
+  );
   await assertProofStorage('login_link_tokens', [
     'id',
     'tokenable_id',
@@ -267,9 +280,7 @@ export async function assertSchemaIntegrity() {
     'capacitylens_member_resource_kind_cleanup',
     "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE account_id = OLD.account_id AND resource_id = OLD.id; END"
   );
-  for (const table of ['account_getting_started_dismissals', 'account_access_restrictions']) {
-    await assertIndex(table, 'account_id');
-  }
+  await assertIndex('account_getting_started_dismissals', 'account_id');
   for (const table of ['allocations', 'time_off', 'closures', 'phases', 'disciplines']) {
     const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
     if (
@@ -365,10 +376,6 @@ export async function assertSchemaIntegrity() {
       ],
     ],
     ['account_getting_started_dismissals', ['id', 'account_id', 'created_at', 'updated_at']],
-    [
-      'account_access_restrictions',
-      ['id', 'account_id', 'principal_id', 'verified_email', 'role', 'created_at'],
-    ],
   ] as const) {
     const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
     if (JSON.stringify(actual.map((column) => column.name)) !== JSON.stringify(columns)) {

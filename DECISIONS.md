@@ -166,6 +166,12 @@ This is the short, present-tense record of decisions that constrain future work.
   change and reset, invitations, sessions and admission. CapacityLens owns company membership,
   roles, the member↔resource link, Bouncer policies and every screen and word that renders a kit
   outcome. Password sign-in is the only sign-in method; there are no identity providers.
+- Company memberships are stored and ruled by `@kevinjohn/adonisjs-access-control`: its
+  `memberships` table, the roles viewer < editor < admin < owner, and the permission keys declared
+  once in `packages/shared/src/domain/access.ts`. The server authorizes through the package's
+  Bouncer abilities with the membership read in the request transaction; the browser reads the same
+  declaration only to show or hide controls. A membership is active or suspended. Nobody manages
+  their own membership, and an Admin cannot manage the Owner.
 - Admission is cumulative and owned by the kit: an optional allowed email domain
   (`CAPACITYLENS_ALLOWED_EMAIL_DOMAINS`), invitation evidence and Owner or Admin approval, all from
   static configuration (restart to change). Accepting an emailed invitation records the evidence,
@@ -173,8 +179,8 @@ This is the short, present-tense record of decisions that constrain future work.
   reaches only the limited screens, which show the step that applies. Approval, rejection and
   revocation are enforced on the next request; nothing is pushed to the browser. An admitted person
   without a membership (operator-granted evidence or an approved registration) joins explicitly,
-  with the invited role or Viewer, never Owner. Removal records an access restriction, so only an
-  Owner or Admin can bring a removed person back.
+  with the invited role or Viewer, never Owner. A suspended member cannot rejoin this way; only an
+  Owner or Admin restores them. A new identity always needs fresh invitation evidence and approval.
 - Invitations are emailed only; the acceptance link is never shown in the product. One configured
   lifetime (seven days) applies to every invitation. Accepting creates a new identity and refuses an
   already-registered address; identities are never merged by email. When an existing limited

@@ -892,32 +892,6 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeStatus']>>>
     }
   }
-  'api.members.enable-access': {
-    methods: ["POST"]
-    pattern: '/api/accounts/:accountId/members/:userId/enable-access'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; userId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['enableAccess']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['enableAccess']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['enableAccess']>>>
-    }
-  }
-  'api.members.remove': {
-    methods: ["DELETE"]
-    pattern: '/api/accounts/:accountId/members/:userId'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; userId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['remove']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['remove']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['remove']>>>
-    }
-  }
   'api.invites.create': {
     methods: ["POST"]
     pattern: '/api/invites'

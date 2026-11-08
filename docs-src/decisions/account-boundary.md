@@ -5,8 +5,11 @@
 ## Outcome
 
 Account Kit owns identities, password credentials, sessions, emailed links (address confirmation,
-password reset, email change and invitations) and admission. CapacityLens owns companies,
-memberships, roles and every scheduling table. The integration uses the Kit's configuration in
+password reset, email change and invitations) and admission. Access Control
+(`@kevinjohn/adonisjs-access-control`) owns company memberships, the role ranking, the
+membership-management rules and the Bouncer abilities for each permission key. CapacityLens owns
+companies, the permission declaration in `packages/shared/src/domain/access.ts` and every scheduling
+table. The integration uses the Kit's configuration in
 `apps/backend/config/account_kit.ts` and `apps/backend/config/admission.ts`, and the callbacks in
 `apps/backend/app/services/account_kit/`, as well as ordinary calls to the Kit's public API from
 application controllers and services.
@@ -20,9 +23,8 @@ account service or database.
   invitations. The role is re-read inside the Kit's insert transaction, so a demotion committed
   while an invitation waits for the write lock refuses the send. Invitations never carry Owner.
 - **Acceptance.** `onInvitationAccepted` creates the invited membership, writes the audit entry and
-  advances the planning revision in the Kit's acceptance transaction. An address the company removed
-  cannot rejoin. Before the first company exists the accepted identity is the Owner-to-be, and
-  company setup grants Owner.
+  advances the planning revision in the Kit's acceptance transaction. Before the first company
+  exists the accepted identity is the Owner-to-be, and company setup grants Owner.
 - **Admission decisions.** Owners and Admins approve, reject or revoke, never for someone their
   role cannot administer. Approval is required in addition to invitation evidence; the optional
   domain allow-list is `CAPACITYLENS_ALLOWED_EMAIL_DOMAINS`.
@@ -45,7 +47,7 @@ the company and becomes its Owner.
 ## Member-to-resource links
 
 The `account_member_resources` control table links one member to one scheduled person for avatar
-presentation. It has no foreign keys into scheduling data: member removal unlinks the association.
+presentation. It has no foreign keys into scheduling data; a suspended member keeps their link.
 Ordinary product writes keep resource kind immutable; the database cleanup trigger also removes a
 link if a stored person resource changes to another kind. The scheduling graph uses database
 triggers to reject cross-company references; control links are instead validated transactionally.

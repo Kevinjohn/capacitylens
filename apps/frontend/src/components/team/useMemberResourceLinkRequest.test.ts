@@ -13,6 +13,7 @@ const member: TeamMember = {
   email: 'ed@x.io',
   signInConfirmed: null,
   isSelf: false,
+  manage: true,
   resourceLink: null,
 };
 

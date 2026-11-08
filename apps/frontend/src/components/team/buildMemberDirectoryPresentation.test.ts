@@ -31,9 +31,14 @@ describe('member directory presentation', () => {
         userId: 'inactive-viewer',
         role: 'viewer',
         name: 'Diana Prince',
-        status: 'disabled',
+        status: 'suspended',
       }),
-      member({ userId: 'inactive-owner', role: 'owner', name: 'Thomas Wayne', status: 'archived' }),
+      member({
+        userId: 'inactive-owner',
+        role: 'owner',
+        name: 'Thomas Wayne',
+        status: 'suspended',
+      }),
     ]);
 
     expect(result.activeMembers?.map(({ userId }) => userId)).toEqual([

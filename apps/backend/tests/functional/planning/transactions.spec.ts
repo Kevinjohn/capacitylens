@@ -51,7 +51,7 @@ try {
   process.exit(3)
 }
 db.prepare('UPDATE accounts SET name = ? WHERE id = ?').run('Wayne Revised', accountId)
-db.prepare('UPDATE memberships SET role = ? WHERE user_id = ? AND account_id = ?').run('viewer', userId, accountId)
+db.prepare('UPDATE memberships SET role = ? WHERE user_id = ? AND scope_id = ?').run('viewer', userId, accountId)
 db.prepare('INSERT INTO company_planning_revisions(account_id, revision) VALUES (?, 1) ON CONFLICT(account_id) DO UPDATE SET revision = 1').run(accountId)
 db.exec('COMMIT')`,
           env.get('CAPACITYLENS_DB')!,
@@ -277,10 +277,10 @@ db.exec('COMMIT')`,
       await db
         .from('memberships')
         .where({
-          account_id: accountId,
+          scope_id: accountId,
           user_id: invalidation === 'target membership' ? target.userId : owner.userId,
         })
-        .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'archived' });
+        .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'suspended' });
       const lost = await capturedPlanningRead();
       assert.equal(lost.status, 409);
       assert.equal(lost.body.code, 'MASQUERADE_CONTEXT_CHANGED');
@@ -343,11 +343,11 @@ db.exec('COMMIT')`,
         await db
           .from('memberships')
           .where({
-            account_id: accountId,
+            scope_id: accountId,
             user_id: invalidation === 'target membership' ? target.userId : owner.userId,
           })
           .update(
-            invalidation === 'actor permission' ? { role: 'editor' } : { status: 'archived' }
+            invalidation === 'actor permission' ? { role: 'editor' } : { status: 'suspended' }
           );
         barrier.release();
         const refused = await pending;

@@ -18,11 +18,6 @@
       "types": "./src/account/ownershipTransfer.ts",
       "default": "./dist/account/ownershipTransfer.js"
     },
-    "./account/policy": {
-      "development": "./src/account/policy.ts",
-      "types": "./src/account/policy.ts",
-      "default": "./dist/account/policy.js"
-    },
     "./account/types": {
       "development": "./src/account/types.ts",
       "types": "./src/account/types.ts",

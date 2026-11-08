@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
-import { restrictedCompanyIds } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 
 export default class CompaniesController {
@@ -13,15 +12,12 @@ export default class CompaniesController {
       });
     }
     const summaries = await withActor(ctx, async (actor, trx) => {
-      const restricted = await restrictedCompanyIds(actor.userId, trx);
       const rows = await trx
         .from('memberships as member')
-        .innerJoin('accounts as account', 'account.id', 'member.account_id')
+        .innerJoin('accounts as account', 'account.id', 'member.scope_id')
         .where({ 'member.user_id': actor.userId, 'member.status': 'active' })
         .select('account.id', 'account.name', 'member.role');
-      return rows
-        .filter((row) => !restricted.has(String(row.id)))
-        .sort((left, right) => String(left.name).localeCompare(String(right.name)));
+      return rows.sort((left, right) => String(left.name).localeCompare(String(right.name)));
     });
     return ctx.response.ok(summaries);
   }

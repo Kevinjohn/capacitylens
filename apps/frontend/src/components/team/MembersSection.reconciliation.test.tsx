@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { act, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { resetStoreWithAccount, jsonResponse } from '@/test/fixtures';
@@ -17,13 +17,6 @@ import {
 } from './MembersSection.testSupport';
 
 interface RoleFailureCaseInput {
-  status: number;
-  body: { error: string };
-  expected: RegExp;
-  reconciles: boolean;
-}
-
-interface MemberRemovalFailureCaseInput {
   status: number;
   body: { error: string };
   expected: RegExp;
@@ -54,34 +47,11 @@ afterEach(() => {
 });
 
 describe('MembersSection — mutation failure reconciliation', () => {
-  registerSelfMutationFailureTests();
   registerAccountSwitchMutationTests();
   registerLateReconciliationTests();
-  registerThrownMutationTests();
   registerRoleFailureTests();
-  registerRemovalFailureTests();
   registerStatusFailureTests();
 });
-
-function registerSelfMutationFailureTests(): void {
-  it('closes the company when a successful self-role change cannot refresh account access', async () => {
-    vi.stubGlobal(
-      'fetch',
-      mockApi(ownerAndEditor, {
-        'GET /api/accounts': () => jsonResponse({ error: 'Unavailable.' }, 500),
-      }),
-    );
-    renderSection();
-
-    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/me@x\.io/), 'Editor');
-
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(useStore.getState().notice).toMatchObject({
-      message: m.settings_members_access_refresh_failed(),
-      tone: 'error',
-    });
-  });
-}
 
 function registerAccountSwitchMutationTests(): void {
   it('reports an authoritative reload failure after an unknown non-self mutation', async () => {
@@ -152,45 +122,6 @@ function registerLateReconciliationTests(): void {
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
     expect(useStore.getState().notice).toBeNull();
   });
-
-  it('leaves the newly selected company open when the account switches during self-refresh', async () => {
-    const nextAccountId = 'acc_second';
-    const refreshAuth = vi.fn(async () => {
-      useStore.setState({ activeAccountId: nextAccountId });
-    });
-    vi.stubGlobal('fetch', mockApi(ownerAndEditor));
-    renderSection({ refreshAuth });
-
-    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/me@x\.io/), 'Editor');
-
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
-    expect(useStore.getState().notice?.message).toBe(m.settings_members_role_updated());
-    expect(useStore.getState().notice?.tone).not.toBe('error');
-  });
-}
-
-function registerThrownMutationTests(): void {
-  it('does not close a newly selected company for a late self-mutation failure', async () => {
-    const nextAccountId = 'acc_second';
-    let finish!: (response: Response) => void;
-    vi.stubGlobal(
-      'fetch',
-      mockApi(ownerAndEditor, {
-        'PATCH /members/me': () => new Promise<Response>((resolve) => (finish = resolve)),
-      }),
-    );
-    renderSection();
-    const roleChange = saveRoleVia(userEvent.setup(), await waitForMemberRow(/me@x\.io/), 'Editor');
-    await waitFor(() => expect(finish).toBeTypeOf('function'));
-
-    act(() => useStore.setState({ activeAccountId: nextAccountId }));
-    await act(async () => finish(jsonResponse({ error: 'Forbidden.' }, 403)));
-
-    await roleChange;
-
-    expect(useStore.getState().activeAccountId).toBe(nextAccountId);
-    expect(useStore.getState().notice).toBeNull();
-  });
 }
 
 function registerRoleFailureTests(): void {
@@ -228,46 +159,6 @@ function registerRoleFailureTests(): void {
   );
 }
 
-function registerRemovalFailureTests(): void {
-  it.each([
-    { status: 503, body: { error: 'Uncertain.' }, expected: /unknown outcome/i, reconciles: true },
-    {
-      status: 403,
-      body: { error: 'Last owner cannot be removed.' },
-      expected: /Last owner cannot be removed\./,
-      reconciles: false,
-    },
-  ])(
-    'handles a $status member-removal response without removing the row',
-    async ({ status, body, expected, reconciles }: MemberRemovalFailureCaseInput) => {
-      let memberReads = 0;
-      vi.stubGlobal(
-        'fetch',
-        mockApi(ownerAndEditor, {
-          'GET /members': () => {
-            memberReads += 1;
-            return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
-          },
-          'DELETE /members/ed': () => jsonResponse(body, status),
-        }),
-      );
-      renderSection();
-
-      await confirmMemberAction({
-        user: userEvent.setup(),
-        row: await waitForMemberRow(/ed@x\.io/),
-        testId: 'member-remove',
-        confirmationName: 'Remove',
-      });
-
-      if (reconciles) await expectNotice(expected);
-      else expect(await screen.findByRole('alert')).toHaveTextContent(expected);
-      expect(screen.getByText(/ed@x\.io/)).toBeInTheDocument();
-      expect(memberReads).toBe(reconciles ? 2 : 1);
-    },
-  );
-}
-
 function registerStatusFailureTests(): void {
   it('reconciles a 503 status change without claiming success', async () => {
     vi.stubGlobal(
@@ -281,8 +172,8 @@ function registerStatusFailureTests(): void {
     await confirmMemberAction({
       user: userEvent.setup(),
       row: await waitForMemberRow(/ed@x\.io/),
-      testId: 'member-disable',
-      confirmationName: /disable/i,
+      testId: 'member-suspend',
+      confirmationName: /suspend/i,
     });
 
     await expectNotice(/unknown outcome.*reloaded/i);
@@ -301,8 +192,8 @@ function registerStatusFailureTests(): void {
     await confirmMemberAction({
       user: userEvent.setup(),
       row: await waitForMemberRow(/ed@x\.io/),
-      testId: 'member-disable',
-      confirmationName: /disable/i,
+      testId: 'member-suspend',
+      confirmationName: /suspend/i,
     });
 
     await expectNotice(/unknown outcome.*status connection lost.*reloaded/i);

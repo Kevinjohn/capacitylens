@@ -21,8 +21,7 @@ export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 
   const now = new Date().toISOString();
   for (const account of accounts)
     await db.table('memberships').insert({
-      id: randomUUID(),
-      account_id: account.id,
+      scope_id: account.id,
       user_id: userId,
       role: 'owner',
       status: 'active',
@@ -74,13 +73,12 @@ export async function resetAuthenticatedClient(client: ApiClient, seed: boolean 
 export async function grantDataOwner(userId: string, accountId: string) {
   const existing = await db
     .from('memberships')
-    .where({ user_id: userId, account_id: accountId })
+    .where({ user_id: userId, scope_id: accountId })
     .first();
   if (existing) return;
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    id: randomUUID(),
-    account_id: accountId,
+    scope_id: accountId,
     user_id: userId,
     role: 'owner',
     status: 'active',
@@ -128,8 +126,7 @@ export async function createFixtureCompanyForOwner(
         encodeRow('clients', buildInternalClient(id, now) as unknown as Record<string, unknown>)
       );
     await trx.table('memberships').insert({
-      id: randomUUID(),
-      account_id: id,
+      scope_id: id,
       user_id: userId,
       role: 'owner',
       status: 'active',

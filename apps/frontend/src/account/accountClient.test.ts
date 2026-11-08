@@ -156,7 +156,6 @@ function registerMutationRouteTests(): void {
       role: 'editor',
       command: command,
     });
-    await accountClient.removeMember('workspace / one', 'person / one', command);
     await accountClient.transferOwnership({
       workspaceId: 'workspace / one',
       targetPrincipalId: 'person / one',

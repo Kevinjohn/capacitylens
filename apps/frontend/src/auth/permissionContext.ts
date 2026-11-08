@@ -1,11 +1,11 @@
 import { createContext, useContext } from 'react';
 import { can } from '@capacitylens/shared/domain/access';
-import type { Action, Role } from '@capacitylens/shared/domain/access';
+import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import { useStore } from '@/store/useStore';
 
 // A null role means no membership role applies in off mode, demo mode, or providerless contexts.
 // Authenticated server lookups project unresolved memberships to Viewer; masquerading independently
-// denies every action except read.
+// denies every permission key except `planning:read`.
 
 /** The resolved permission state for the active account. A null role means no membership applies. */
 export interface PermissionContextValue {
@@ -40,33 +40,29 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue['statu
 }
 
 /**
- * May the current user perform `action` in the active account?
+ * Reports whether the current user may use `key` in the active account. It shows or hides a control
+ * only; the server enforces the same permission declaration on every request.
  *
- * The single client affordance gate for every capability, not just editing: a surface asks
- * for the one {@link Action} it is gating (`'write'`, `'anonymise'`, `'manageMembers'`, …) instead of
- * re-deriving a role test inline. It is single-sourced from the pure {@link can} matrix, the same
- * authority the server's route guard uses, so client and server can't drift.
+ * A null role permits the key when no membership applies, except that masquerading denies every
+ * key other than `planning:read`. Authenticated server lookups project unresolved memberships to
+ * Viewer.
  *
- * A null role permits the action when no membership applies, except that masquerading denies every
- * action other than read. Authenticated server lookups project unresolved memberships to Viewer.
- * Otherwise the pure `can` matrix decides the action; the server route guard remains authoritative.
- *
- * @param action - the capability the calling surface is gating.
+ * @param key - the permission the calling surface is gating.
  * @returns `true` when the affordance should be shown.
  */
-export function useCan(action: Action): boolean {
+export function useCan(key: PermissionKey): boolean {
   const masqueradeKind = useStore((state) => state.masquerade.kind);
   const role = useRole();
-  if (action !== 'read' && masqueradeKind !== 'inactive') return false;
-  return role === null ? true : can(role, action);
+  if (key !== 'planning:read' && masqueradeKind !== 'inactive') return false;
+  return role === null ? true : can(role, key);
 }
 
 /**
  * Gate scheduling, planning, and configuration edit affordances for the active account.
- * It follows `useCan('write')`.
+ * It follows `useCan('planning:write')`.
  *
  * @returns `true` when the effective role permits editing and masquerading is inactive.
  */
 export function useCanEdit(): boolean {
-  return useCan('write');
+  return useCan('planning:write');
 }

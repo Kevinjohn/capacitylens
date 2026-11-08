@@ -27,7 +27,6 @@ test.group('M2b data routes', (group) => {
   group.each.setup(async () => {
     await db.from('account_member_resources').delete();
     await db.from('audit_entries').delete();
-    await db.from('account_access_restrictions').delete();
     await db.from('account_getting_started_dismissals').delete();
   });
 
@@ -44,7 +43,7 @@ test.group('M2b data routes', (group) => {
     for (const role of ['viewer', 'editor', 'admin', 'owner']) {
       await db
         .from('memberships')
-        .where({ user_id: dataOwnerId, account_id: 'a-studio' })
+        .where({ user_id: dataOwnerId, scope_id: 'a-studio' })
         .update({ role });
       const explicit = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
       explicit.assertStatus(['viewer', 'editor'].includes(role) ? 403 : 200);
@@ -63,7 +62,7 @@ test.group('M2b data routes', (group) => {
     for (const role of ['editor', 'admin']) {
       await db
         .from('memberships')
-        .where({ user_id: dataOwnerId, account_id: account.id })
+        .where({ user_id: dataOwnerId, scope_id: account.id })
         .update({ role });
       const response = await trusted(client.post(`/api/accounts/${account.id}/example-data`))
         .json({})
@@ -145,8 +144,7 @@ test.group('M2b data routes', (group) => {
       updated_at: stamp,
     });
     await db.table('memberships').insert({
-      id: 'm-export',
-      account_id: 'a-studio',
+      scope_id: 'a-studio',
       user_id: 'u-export',
       role: 'viewer',
       status: 'active',
@@ -168,14 +166,6 @@ test.group('M2b data routes', (group) => {
       last_seen_at: stamp,
       expires_at: stamp,
     });
-    await db.table('account_access_restrictions').insert({
-      id: 'restriction-export',
-      account_id: 'a-studio',
-      principal_id: 'u-export',
-      verified_email: 'restricted.secret@wayne.com',
-      role: 'viewer',
-      created_at: stamp,
-    });
     const result = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
     result.assertStatus(200);
     assert.isAbove((result.body() as ReturnType<typeof seed>).resources.length, 0);
@@ -186,7 +176,6 @@ test.group('M2b data routes', (group) => {
       'secret.invited@wayne.com',
       'secret-session-handle-hash',
       'u-export',
-      'restricted.secret@wayne.com',
     ])
       assert.notInclude(serialized, secret);
   });

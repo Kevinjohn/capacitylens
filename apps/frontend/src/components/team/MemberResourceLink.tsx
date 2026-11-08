@@ -28,7 +28,7 @@ function isLinkedPersonInactive({ link, listed }: IsLinkedPersonInactiveOptions)
 }
 
 function isMemberLinkEditable(member: TeamMember): boolean {
-  return member.status === 'active' && !member.accessDisabled && member.membershipPresent !== false;
+  return member.status === 'active';
 }
 
 function buildMemberResourceView(
@@ -183,7 +183,7 @@ export function MemberResourceDialog({
     if (wasOpen.current && !open) requestAnimationFrame(() => triggerRef.current?.focus());
     wasOpen.current = open;
   }, [open]);
-  if (member.membershipPresent === false || (myRole !== 'owner' && myRole !== 'admin')) return null;
+  if (myRole !== 'owner' && myRole !== 'admin') return null;
   const memberLabel = member.name ?? member.email ?? member.userId;
   return (
     <>

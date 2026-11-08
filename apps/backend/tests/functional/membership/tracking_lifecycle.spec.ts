@@ -29,6 +29,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     await db.from('account_admissions').delete();
     await db.from('account_invitations').delete();
     await db.from('adonis_sessions').delete();
+    await db.from('memberships').delete();
     await db.from('users').delete();
   });
 
@@ -62,8 +63,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     ]);
     await db.table('memberships').insert([
       {
-        id: 'owner-studio',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: await userId('bruce.wayne@wayne.example'),
         role: 'owner',
         status: 'active',
@@ -71,8 +71,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
         updated_at: now,
       },
       {
-        id: 'owner-loft',
-        account_id: 'a-loft',
+        scope_id: 'a-loft',
         user_id: await userId('bruce.wayne@wayne.example'),
         role: 'owner',
         status: 'active',
@@ -90,8 +89,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     const memberId = await userId('clark.kent@wayne.example');
     await db.table('memberships').insert([
       {
-        id: 'member-clark-studio',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: memberId,
         role: 'viewer',
         status: 'active',
@@ -99,8 +97,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-clark-loft',
-        account_id: 'a-loft',
+        scope_id: 'a-loft',
         user_id: memberId,
         role: 'viewer',
         status: 'active',

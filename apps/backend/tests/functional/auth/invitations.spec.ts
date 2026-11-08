@@ -40,8 +40,7 @@ async function member(email: string, role: 'admin' | 'editor' | 'viewer') {
   const userId = await createIdentity(email);
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    id: crypto.randomUUID(),
-    account_id: accountId,
+    scope_id: accountId,
     user_id: userId,
     role,
     status: 'active',
@@ -112,7 +111,7 @@ test.group('company invitations', (group) => {
     accepted.assertStatus(201);
     const userId = (accepted.body() as { user: { id: string } }).user.id;
     assert.deepInclude(await db.from('memberships').where('user_id', userId).first(), {
-      account_id: accountId,
+      scope_id: accountId,
       role: 'editor',
       status: 'active',
     });
@@ -166,7 +165,7 @@ test.group('company invitations', (group) => {
     const userId = (accepted.body() as { user: { id: string } }).user.id;
     const memberships = await db.from('memberships').where('user_id', userId);
     assert.lengthOf(memberships, 1);
-    assert.include(memberships[0], { account_id: accountId, role: 'editor', status: 'active' });
+    assert.include(memberships[0], { scope_id: accountId, role: 'editor', status: 'active' });
     assert.isEmpty(await db.from('account_invitations').where('email', invitee));
     await expectStatus(accept(client, token), 400);
   });
@@ -316,7 +315,7 @@ test.group('company invitations', (group) => {
     const results = await Promise.all([accept(client, token), accept(client, token)]);
     assert.deepEqual(results.map((result) => result.status()).sort(), [201, 400]);
     assert.lengthOf(await db.from('users').where('email', invitee), 1);
-    assert.lengthOf(await db.from('memberships').where('account_id', accountId), 2);
+    assert.lengthOf(await db.from('memberships').where('scope_id', accountId), 2);
   });
 
   test('a sender demoted after manager approval cannot insert or email an invitation', async ({
@@ -359,29 +358,5 @@ test.group('company invitations', (group) => {
       mailService.send = send;
       await pending;
     }
-  });
-
-  test('an address the company removed cannot rejoin through an invitation', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    const mail = captureMail(cleanup);
-    await company();
-    const now = new Date().toISOString();
-    await db.table('account_access_restrictions').insert({
-      id: crypto.randomUUID(),
-      account_id: accountId,
-      principal_id: crypto.randomUUID(),
-      verified_email: invitee,
-      role: 'editor',
-      created_at: now,
-    });
-    const { cookie } = await signIn(client, owner);
-    await invite(client, cookie, invitee);
-    const refused = await accept(client, mail.tokenFor(invitee));
-    refused.assertStatus(403);
-    assert.lengthOf(await db.from('users').where('email', invitee), 0);
-    assert.lengthOf(await db.from('memberships').where('account_id', accountId), 1);
   });
 });

@@ -18,6 +18,7 @@ test.group('direct member resource association', (group) => {
     await db.from('account_admissions').delete();
     await db.from('account_invitations').delete();
     await db.from('adonis_sessions').delete();
+    await db.from('memberships').delete();
     await db.from('users').delete();
   });
 
@@ -55,8 +56,7 @@ test.group('direct member resource association', (group) => {
     const orderedAt = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
     await db.table('memberships').insert([
       {
-        id: 'member-clark',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: clarkId,
         role: 'editor',
         status: 'active',
@@ -64,8 +64,7 @@ test.group('direct member resource association', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-diana',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: dianaId,
         role: 'editor',
         status: 'active',
@@ -73,8 +72,7 @@ test.group('direct member resource association', (group) => {
         updated_at: now,
       },
       {
-        id: 'member-barbara',
-        account_id: 'a-studio',
+        scope_id: 'a-studio',
         user_id: barbaraId,
         role: 'editor',
         status: 'active',
@@ -322,8 +320,7 @@ test.group('direct member resource association', (group) => {
       updated_at: now,
     });
     await db.table('memberships').insert({
-      id: crypto.randomUUID(),
-      account_id: 'a-studio',
+      scope_id: 'a-studio',
       user_id: otherId,
       role: 'viewer',
       status: 'active',
@@ -345,39 +342,24 @@ test.group('direct member resource association', (group) => {
     ownerCleared.assertStatus(204);
     await db
       .from('memberships')
-      .where({ account_id: 'a-studio', user_id: ownerId })
+      .where({ scope_id: 'a-studio', user_id: ownerId })
       .update({ role: 'admin' });
-    for (const unavailable of ['inactive', 'restricted']) {
-      await db
-        .from('memberships')
-        .where({ account_id: 'a-studio', user_id: otherId })
-        .update({ status: 'active' });
-      await db
-        .from('account_access_restrictions')
-        .where({ account_id: 'a-studio', principal_id: otherId })
-        .delete();
-      const link = await put(otherId, 'r-barry', null);
-      link.assertStatus(200);
-      const expected = link.body().revision;
-      if (unavailable === 'inactive')
-        await db
-          .from('memberships')
-          .where({ account_id: 'a-studio', user_id: otherId })
-          .update({ status: 'inactive' });
-      else
-        await db.table('account_access_restrictions').insert({
-          id: crypto.randomUUID(),
-          account_id: 'a-studio',
-          principal_id: otherId,
-          role: 'viewer',
-          created_at: now,
-        });
-      const refusedSet = await put(otherId, 'r-barry', expected);
-      refusedSet.assertStatus(unavailable === 'inactive' ? 409 : 403);
-      const clearedUnavailable = await clear(otherId, expected);
-      clearedUnavailable.assertStatus(204);
-      const clearedMissing = await clear(otherId, expected);
-      clearedMissing.assertStatus(409);
-    }
+    await db
+      .from('memberships')
+      .where({ scope_id: 'a-studio', user_id: otherId })
+      .update({ status: 'active' });
+    const link = await put(otherId, 'r-barry', null);
+    link.assertStatus(200);
+    const expected = link.body().revision;
+    await db
+      .from('memberships')
+      .where({ scope_id: 'a-studio', user_id: otherId })
+      .update({ status: 'suspended' });
+    const refusedSet = await put(otherId, 'r-barry', expected);
+    refusedSet.assertStatus(409);
+    const clearedUnavailable = await clear(otherId, expected);
+    clearedUnavailable.assertStatus(204);
+    const clearedMissing = await clear(otherId, expected);
+    clearedMissing.assertStatus(409);
   });
 });

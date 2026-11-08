@@ -8,7 +8,7 @@ import {
   asDataOwner,
   createFixtureCompanyForOwner,
 } from '../../helpers/authenticated_data_fixture.js';
-import { createIdentity, signIn, signUpAndIn } from '../../helpers/identities.js';
+import { signUpAndIn } from '../../helpers/identities.js';
 
 const password = 'batman-secret-2026';
 
@@ -27,10 +27,11 @@ test.group('company member access and tracking', (group) => {
     await db.from('account_admissions').delete();
     await db.from('account_invitations').delete();
     await db.from('adonis_sessions').delete();
+    await db.from('memberships').delete();
     await db.from('users').delete();
   });
 
-  test('tracking and explicit restriction survive restore until access is enabled', async ({
+  test('suspension blocks the company until restored and clears the sign-in confirmation', async ({
     client,
     assert,
   }) => {
@@ -56,8 +57,7 @@ test.group('company member access and tracking', (group) => {
     const editorId = await userId('clark.kent@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
+      scope_id: 'a-studio',
       user_id: editorId,
       role: 'editor',
       status: 'active',
@@ -91,22 +91,17 @@ test.group('company member access and tracking', (group) => {
         .signInConfirmed
     );
     const statusPath = `/api/accounts/a-studio/members/${editorId}/status`;
-    const disabled = await signed(client.patch(statusPath), ownerCookie)
-      .json({ status: 'disabled' })
+    const planningPath = '/api/accounts/a-studio/planning';
+    const suspended = await signed(client.patch(statusPath), ownerCookie)
+      .json({ status: 'suspended' })
       .send();
-    disabled.assertStatus(200);
+    suspended.assertStatus(200);
+    const blocked = await signed(client.get(planningPath), editorCookie).send();
+    blocked.assertStatus(403);
     const restored = await signed(client.patch(statusPath), ownerCookie)
       .json({ status: 'active' })
       .send();
     restored.assertStatus(200);
-    const planningPath = '/api/accounts/a-studio/planning';
-    const blocked = await signed(client.get(planningPath), editorCookie).send();
-    blocked.assertStatus(403);
-    const access = await signed(
-      client.post(`/api/accounts/a-studio/members/${editorId}/enable-access`),
-      ownerCookie
-    ).send();
-    access.assertStatus(200);
     const allowed = await signed(client.get(planningPath), editorCookie).send();
     allowed.assertStatus(200);
     const after = await signed(client.get(directoryPath), ownerCookie).send();
@@ -117,89 +112,7 @@ test.group('company member access and tracking', (group) => {
     );
   });
 
-  test('Disable binds the confirmed address and refuses readmission by either identity', async ({
-    client,
-    assert,
-  }) => {
-    const owner = await signUpAndIn(client, {
-      email: 'bruce.wayne@wayne.example',
-      password,
-      name: 'Bruce Wayne',
-    });
-    owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
-    await createFixtureCompanyForOwner(
-      await userId('bruce.wayne@wayne.example'),
-      'Wayne Enterprises',
-      'a-studio'
-    );
-    const editorId = await createIdentity('clark.kent@wayne.example', {
-      name: 'Clark Kent',
-      password,
-      verified: false,
-    });
-    const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
-      user_id: editorId,
-      role: 'editor',
-      status: 'active',
-      created_at: now,
-      updated_at: now,
-    });
-    const disable = () =>
-      signed(client.patch(`/api/accounts/a-studio/members/${editorId}/status`), ownerCookie)
-        .json({ status: 'disabled' })
-        .send();
-    const restriction = () =>
-      db
-        .from('account_access_restrictions')
-        .where({ account_id: 'a-studio', principal_id: editorId })
-        .first();
-    const first = await disable();
-    first.assertStatus(200);
-    const unboundRestriction = await restriction();
-    assert.isNull(unboundRestriction?.verified_email);
-    await db
-      .from('users')
-      .where('id', editorId)
-      .update({ email_verified_at: now, unverified_email: null });
-    const confirmed = await disable();
-    confirmed.assertStatus(200);
-    const boundRestriction = await restriction();
-    assert.equal(boundRestriction?.verified_email, 'clark.kent@wayne.example');
-    const removed = await signed(
-      client.delete(`/api/accounts/a-studio/members/${editorId}`),
-      ownerCookie
-    ).send();
-    removed.assertStatus(204);
-    const complete = async (email: string) => {
-      const { cookie } = await signIn(client, email, password);
-      return signed(client.post('/api/admission/complete'), cookie)
-        .header('sec-fetch-site', 'same-origin')
-        .send();
-    };
-    const sameIdentity = await complete('clark.kent@wayne.example');
-    sameIdentity.assertStatus(403);
-    await db.from('users').where('id', editorId).update({ email: 'kal-el@wayne.example' });
-    await db.from('account_admissions').where('user_id', editorId).delete();
-    const aliasId = await createIdentity('clark.kent@wayne.example', {
-      name: 'Clark Kent',
-      password,
-    });
-    const alias = await complete('clark.kent@wayne.example');
-    alias.assertStatus(403);
-    assert.lengthOf(
-      await db
-        .from('memberships')
-        .where('account_id', 'a-studio')
-        .whereIn('user_id', [editorId, aliasId]),
-      0
-    );
-  });
-
-  test('global sign-in does not confirm tracking in a restricted company', async ({
+  test('global sign-in does not confirm tracking in a company that suspended the member', async ({
     client,
     assert,
   }) => {
@@ -221,11 +134,10 @@ test.group('company member access and tracking', (group) => {
     await db
       .table('clients')
       .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }));
-    const ownerMembership = await db.from('memberships').where({ account_id: 'a-studio' }).first();
+    const ownerMembership = await db.from('memberships').where({ scope_id: 'a-studio' }).first();
     assert.isNotNull(ownerMembership);
     await db.table('memberships').insert({
-      id: 'owner-loft',
-      account_id: 'a-loft',
+      scope_id: 'a-loft',
       user_id: ownerMembership.user_id,
       role: 'owner',
       status: 'active',
@@ -241,8 +153,7 @@ test.group('company member access and tracking', (group) => {
     const editorId = await userId('clark.kent@wayne.example');
     await db.table('memberships').insert(
       ['a-studio', 'a-loft'].map((accountId) => ({
-        id: `member-clark-${accountId}`,
-        account_id: accountId,
+        scope_id: accountId,
         user_id: editorId,
         role: 'editor',
         status: 'active',
@@ -259,13 +170,13 @@ test.group('company member access and tracking', (group) => {
         .send();
       enabled.assertStatus(200);
     }
-    const disabled = await signed(
+    const suspended = await signed(
       client.patch(`/api/accounts/a-studio/members/${editorId}/status`),
       ownerCookie
     )
-      .json({ status: 'disabled' })
+      .json({ status: 'suspended' })
       .send();
-    disabled.assertStatus(200);
+    suspended.assertStatus(200);
     const signedIn = await client
       .post('/api/auth/sign-in')
       .json({ email: 'clark.kent@wayne.example', password })
@@ -307,8 +218,7 @@ test.group('company member access and tracking', (group) => {
     const adminId = await userId('diana.prince@wayne.example');
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      id: 'member-diana-studio',
-      account_id: 'a-studio',
+      scope_id: 'a-studio',
       user_id: adminId,
       role: 'admin',
       status: 'active',
@@ -323,13 +233,13 @@ test.group('company member access and tracking', (group) => {
       .send();
     refusedWhileActive.assertStatus(404);
     assert.isNull(await db.from('accounts').where('id', 'a-loft').first());
-    const disabled = await signed(
+    const suspended = await signed(
       client.patch(`/api/accounts/a-studio/members/${adminId}/status`),
       ownerCookie
     )
-      .json({ status: 'disabled' })
+      .json({ status: 'suspended' })
       .send();
-    disabled.assertStatus(200);
+    suspended.assertStatus(200);
     const unavailable = await signed(client.get('/api/auth/me'), adminCookie).send();
     unavailable.assertStatus(200);
     assert.isFalse(unavailable.body().canCreateAccount);
@@ -338,216 +248,5 @@ test.group('company member access and tracking', (group) => {
       .send();
     refused.assertStatus(404);
     assert.isNull(await db.from('accounts').where('id', 'a-loft').first());
-  });
-
-  test('Disable and Enable Access preserve active, archived and removed membership lifecycle', async ({
-    client,
-    assert,
-  }) => {
-    const owner = await signUpAndIn(client, {
-      email: 'bruce.wayne@wayne.example',
-      password,
-      name: 'Bruce Wayne',
-    });
-    owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
-    await createFixtureCompanyForOwner(
-      await userId('bruce.wayne@wayne.example'),
-      'Wayne Enterprises',
-      'a-studio'
-    );
-    const editor = await signUpAndIn(client, {
-      email: 'clark.kent@wayne.example',
-      password,
-      name: 'Clark Kent',
-    });
-    editor.assertStatus(200);
-    const editorCookie = editor.cookie('adonis-session')!.value;
-    const editorId = await userId('clark.kent@wayne.example');
-    const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
-      user_id: editorId,
-      role: 'editor',
-      status: 'active',
-      created_at: now,
-      updated_at: now,
-    });
-    const base = `/api/accounts/a-studio/members/${editorId}`;
-    const status = (value: string) =>
-      signed(client.patch(`${base}/status`), ownerCookie)
-        .json({ status: value })
-        .send();
-    const enable = () => signed(client.post(`${base}/enable-access`), ownerCookie).send();
-    const membership = () =>
-      db.from('memberships').where({ account_id: 'a-studio', user_id: editorId }).first();
-    const membershipStatus = async () => {
-      const member = await membership();
-      return member?.status;
-    };
-    const restriction = () =>
-      db
-        .from('account_access_restrictions')
-        .where({ account_id: 'a-studio', principal_id: editorId })
-        .first();
-
-    const disabled = await status('disabled');
-    disabled.assertStatus(200);
-    assert.equal((disabled.body() as { status: string }).status, 'active');
-    assert.equal(await membershipStatus(), 'active');
-    assert.isNotNull(await restriction());
-    await db.table('password_reset_tokens').insert({
-      tokenable_id: editorId,
-      email: 'clark.kent@wayne.example',
-      hash: 'd'.repeat(64),
-      expires_at: new Date(Date.now() + 3_600_000).toISOString(),
-      created_at: now,
-    });
-    const repeatedDisable = await status('disabled');
-    repeatedDisable.assertStatus(200);
-    assert.equal((repeatedDisable.body() as { status: string }).status, 'active');
-    assert.isNotNull(
-      await db.from('password_reset_tokens').where('tokenable_id', editorId).first()
-    );
-    const disableAudits = await db
-      .from('audit_entries')
-      .where({ action: 'member.access_disabled', entity_id: editorId });
-    assert.lengthOf(disableAudits, 1);
-    const blocked = await signed(client.get('/api/state?accountId=a-studio'), editorCookie).send();
-    blocked.assertStatus(403);
-    const enabled = await enable();
-    enabled.assertStatus(200);
-    assert.equal(await membershipStatus(), 'active');
-    assert.isNull(await restriction());
-    const allowed = await signed(client.get('/api/state?accountId=a-studio'), editorCookie).send();
-    allowed.assertStatus(200);
-
-    const disabledAgain = await status('disabled');
-    disabledAgain.assertStatus(200);
-    const archived = await status('archived');
-    archived.assertStatus(200);
-    const enabledArchive = await enable();
-    enabledArchive.assertStatus(200);
-    assert.equal(await membershipStatus(), 'archived');
-    assert.isNull(await restriction());
-    const stillBlocked = await signed(
-      client.get('/api/state?accountId=a-studio'),
-      editorCookie
-    ).send();
-    stillBlocked.assertStatus(403);
-
-    const disabledArchive = await status('disabled');
-    disabledArchive.assertStatus(200);
-    assert.equal((disabledArchive.body() as { status: string }).status, 'archived');
-    assert.equal(await membershipStatus(), 'archived');
-    const enabledArchiveAgain = await enable();
-    enabledArchiveAgain.assertStatus(200);
-    assert.equal(await membershipStatus(), 'archived');
-    const disabledForRemoval = await status('disabled');
-    disabledForRemoval.assertStatus(200);
-    const removed = await signed(client.delete(base), ownerCookie).send();
-    removed.assertStatus(204);
-    assert.isNull(await membership());
-    assert.isNotNull(await restriction());
-    const removedDirectory = await signed(
-      client.get('/api/accounts/a-studio/members'),
-      ownerCookie
-    ).send();
-    removedDirectory.assertStatus(200);
-    const remembered = removedDirectory
-      .body()
-      .members.find((member: { userId: string }) => member.userId === editorId);
-    assert.isDefined(remembered);
-    assert.isFalse(remembered.membershipPresent);
-    assert.isTrue(remembered.accessDisabled);
-    assert.equal(remembered.status, 'disabled');
-    const enabledRemoved = await enable();
-    enabledRemoved.assertStatus(200);
-    // Enabling a removed person restores them with the role they held when removed.
-    assert.include(await membership(), { role: 'editor', status: 'active' });
-    assert.isNull(await restriction());
-    const enabledDirectory = await signed(
-      client.get('/api/accounts/a-studio/members'),
-      ownerCookie
-    ).send();
-    enabledDirectory.assertStatus(200);
-    assert.include(
-      enabledDirectory
-        .body()
-        .members.find((member: { userId: string }) => member.userId === editorId),
-      { membershipPresent: true, accessDisabled: false }
-    );
-  });
-
-  test('failed Enable Access audit leaves an active membership restricted', async ({
-    client,
-    assert,
-  }) => {
-    const owner = await signUpAndIn(client, {
-      email: 'bruce.wayne@wayne.example',
-      password,
-      name: 'Bruce Wayne',
-    });
-    owner.assertStatus(200);
-    const ownerCookie = owner.cookie('adonis-session')!.value;
-    await createFixtureCompanyForOwner(
-      await userId('bruce.wayne@wayne.example'),
-      'Wayne Enterprises',
-      'a-studio'
-    );
-    const editor = await signUpAndIn(client, {
-      email: 'clark.kent@wayne.example',
-      password,
-      name: 'Clark Kent',
-    });
-    editor.assertStatus(200);
-    const editorId = await userId('clark.kent@wayne.example');
-    const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      id: 'member-clark',
-      account_id: 'a-studio',
-      user_id: editorId,
-      role: 'editor',
-      status: 'active',
-      created_at: now,
-      updated_at: now,
-    });
-    const disabled = await signed(
-      client.patch(`/api/accounts/a-studio/members/${editorId}/status`),
-      ownerCookie
-    )
-      .json({ status: 'disabled' })
-      .send();
-    disabled.assertStatus(200);
-    await db.rawQuery(
-      `CREATE TRIGGER fail_member_enable BEFORE INSERT ON audit_entries WHEN NEW.action = 'member.access_enabled' BEGIN SELECT RAISE(ABORT, 'forced enable audit failure'); END`
-    );
-    try {
-      const failed = await signed(
-        client.post(`/api/accounts/a-studio/members/${editorId}/enable-access`),
-        ownerCookie
-      ).send();
-      assert.isAtLeast(failed.status(), 500);
-      const member = await db
-        .from('memberships')
-        .where({ account_id: 'a-studio', user_id: editorId })
-        .first();
-      assert.equal(member.status, 'active');
-      assert.isNotNull(
-        await db
-          .from('account_access_restrictions')
-          .where({ account_id: 'a-studio', principal_id: editorId })
-          .first()
-      );
-      assert.isNull(
-        await db
-          .from('audit_entries')
-          .where({ action: 'member.access_enabled', entity_id: editorId })
-          .first()
-      );
-    } finally {
-      await db.rawQuery('DROP TRIGGER IF EXISTS fail_member_enable');
-    }
   });
 });
