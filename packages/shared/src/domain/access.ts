@@ -29,10 +29,10 @@ export type PermissionKey = {
   [R in keyof Permissions]: `${R}:${keyof Permissions[R] & string}`;
 }[keyof Permissions];
 
-/** Whether `role` reaches the lowest role declared for `key`. Unknown roles return false. */
+/** Reports whether `role` reaches the lowest role declared for `key`. Unknown roles and keys return false. */
 export function can(role: Role, key: PermissionKey): boolean {
   const [resource, action] = key.split(':') as [keyof Permissions, string];
-  const lowest = (accessPermissions[resource] as Record<string, Role>)[action];
+  const lowest = (accessPermissions[resource] as Record<string, Role> | undefined)?.[action];
   return lowest !== undefined && accessRoles.indexOf(role) >= accessRoles.indexOf(lowest);
 }
 

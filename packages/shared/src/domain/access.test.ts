@@ -38,8 +38,11 @@ describe('can(role, key) — the permission declaration', () => {
     }
   });
 
-  it('denies an unknown key for every role', () => {
-    for (const role of ROLES) expect(can(role, 'planning:delete' as PermissionKey)).toBe(false);
+  it('denies an unknown action or resource for every role', () => {
+    for (const role of ROLES) {
+      expect(can(role, 'planning:delete' as PermissionKey)).toBe(false);
+      expect(can(role, 'unknown:read' as PermissionKey)).toBe(false);
+    }
   });
 });
 
