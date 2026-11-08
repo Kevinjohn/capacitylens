@@ -6,6 +6,7 @@ import {
   InvalidTokenError,
   ThrottledError,
 } from '@kevinjohn/adonisjs-account-kit/errors';
+import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import env from '#start/env';
@@ -132,6 +133,43 @@ export default class CredentialController {
           error: 'Current password is incorrect.',
           code: 'CURRENT_PASSWORD_INCORRECT',
         });
+      }
+      if (!isCommittedFailure(error)) throw error;
+      outcome = 'committed';
+    }
+    await sessionGuard(ctx).terminate();
+    if (outcome === 'committed') return ctx.response.serviceUnavailable(committed);
+    return ctx.response.ok({ ok: true, signedOut: true });
+  }
+
+  /**
+   * Deletes the signed-in identity with its memberships and member links, then ends this sign-in.
+   * An Owner transfers ownership first.
+   */
+  async deleteAccount(ctx: HttpContext) {
+    const body: unknown = ctx.request.body();
+    if (!fields(body, ['currentPassword']) || typeof body.currentPassword !== 'string') {
+      return ctx.response.badRequest({ error: 'Invalid credential request.' });
+    }
+    const account = await currentAccount(ctx);
+    let outcome: 'deleted' | 'committed' = 'deleted';
+    try {
+      await accountKit.accountData.delete({
+        actorId: account.id,
+        currentPassword: body.currentPassword,
+      });
+    } catch (error) {
+      if (error instanceof IdentityNotConfirmedError) {
+        return ctx.response.forbidden({
+          error: 'Current password is incorrect.',
+          code: 'CURRENT_PASSWORD_INCORRECT',
+        });
+      }
+      if (
+        error instanceof AccessControlError &&
+        error.code === 'E_ACCESS_CONTROL_OWNER_PROTECTED'
+      ) {
+        return ctx.response.conflict({ error: 'Transfer ownership first.', code: 'LAST_OWNER' });
       }
       if (!isCommittedFailure(error)) throw error;
       outcome = 'committed';

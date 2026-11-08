@@ -16,6 +16,7 @@ import {
 } from '@capacitylens/shared/domain/password';
 import {
   authorize,
+  onAccountDeleting,
   onCredentialsChangedTransaction,
   onInvitationAccepted,
 } from '#services/account_kit/policy';
@@ -31,6 +32,7 @@ export default defineConfig({
     'registration',
     'invitations',
     'sessionManagement',
+    'accountDeletion',
   ],
   // Ordinary registration exists only behind the application's own sign-up route, after setup.
   registration: {
@@ -64,6 +66,6 @@ export default defineConfig({
   }),
   delivery: 'best-effort',
   onInvitationAccepted: withInvitationEvidence(onInvitationAccepted),
-  onAccountDeletingTransaction: withAdmissionCleanup(),
+  onAccountDeletingTransaction: withAdmissionCleanup(onAccountDeleting),
   onCredentialsChangedTransaction,
 });

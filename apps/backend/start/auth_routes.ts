@@ -26,6 +26,9 @@ export function registerAuthRoutes() {
     .post('/api/auth/change-password', [CredentialController, 'changePassword'])
     .as('api.auth.change-password');
   router
+    .post('/api/auth/delete-account', [CredentialController, 'deleteAccount'])
+    .as('api.auth.delete-account');
+  router
     .post('/api/auth/verification/send', [VerificationController, 'send'])
     .as('api.auth.verification.send');
   router
