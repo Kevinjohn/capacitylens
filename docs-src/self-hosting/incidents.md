@@ -21,7 +21,7 @@ diagnostic details publicly.
 Keep the service available only if its database remains safe to write. Check free space and
 permissions for `CAPACITYLENS_BACKUP_DIR`. Do not delete the only known-good snapshot to clear
 space. Copy a verified snapshot off-host, resolve the capacity issue, then run
-`node ace.js db:backup` from `backend/`. Confirm it exits successfully, names a completed snapshot,
+`node ace.js db:backup create` from `backend/`. Confirm it exits successfully, names a READY bundle,
 and that the snapshot can be restored; `/health/ready` does not track backup success. For
 restoration, follow
 [Backups and restore](/self-hosting/backups-and-restore).

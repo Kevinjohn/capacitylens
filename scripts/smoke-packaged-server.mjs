@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { copyFile, cp, mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { constants } from 'node:fs';
+import { cp, mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -128,13 +127,37 @@ export function expireSmokeViewer(path, actorUserId) {
   }
 }
 
-async function snapshotFiles(directory) {
+async function backupBundles(directory) {
   try {
-    return (await readdir(directory)).filter((name) => name.endsWith('.db')).sort();
+    const entries = await readdir(directory, { withFileTypes: true });
+    const ready = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !/^bak-utc-\d{8}-\d{6}-\d{3}$/.test(entry.name)) continue;
+      try {
+        await stat(join(directory, entry.name, 'READY'));
+        ready.push(entry.name);
+      } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+    }
+    return ready.sort();
   } catch (error) {
     if (error?.code === 'ENOENT') return [];
     throw error;
   }
+}
+
+function verifyBackup(backend, environment, directory, name) {
+  const result = runAce(backend, environment, [
+    'db:backup',
+    'verify',
+    '--directory',
+    directory,
+    '--bundle',
+    name,
+  ]);
+  assert.equal(result.status, 0, result.output);
+  assert.match(result.output, new RegExp(`Bundle ${name} verified`));
 }
 
 /** Write one scheduled allocation through authenticated typed planning routes. */
@@ -271,13 +294,20 @@ export async function runPackagedSmoke({
       'app:upgrade',
     ]);
     assert.equal(upgrade.status, 0, upgrade.output);
-    const upgradeSnapshot = upgrade.output.match(/Pre-upgrade backup written (.+\.db)/)?.[1];
+    const upgradeBundle = upgrade.output.match(/Pre-upgrade backup written (.+)/)?.[1]?.trim();
+    const upgradeSnapshot = upgradeBundle && join(upgradeBundle, 'db.sqlite');
     assert.ok(upgradeSnapshot, `Upgrade did not name its snapshot: ${upgrade.output}`);
-    assert.match(upgradeSnapshot, /capacitylens-pre-migration-utc-/);
+    assert.match(upgradeSnapshot, /pre-migration\/bak-utc-/);
+    verifyBackup(
+      backend,
+      environment,
+      join(upgradeDir, 'pre-migration'),
+      upgradeBundle.split('/').at(-1),
+    );
     assert.equal(inspectDatabase(upgradeSnapshot).length, MIGRATION_COUNT);
     assert.equal(inspectDatabase(databasePath).length, MIGRATION_COUNT);
 
-    const beforeStartup = await snapshotFiles(backupDir);
+    const beforeStartup = await backupBundles(backupDir);
     child = startServer(backend, environment, (chunk) => {
       log += chunk;
     });
@@ -286,10 +316,11 @@ export async function runPackagedSmoke({
       'the daily scheduled startup snapshot',
       STARTUP_TIMEOUT_MS,
       async () => {
-        const files = await snapshotFiles(backupDir);
+        const files = await backupBundles(backupDir);
         const created = files.find((name) => !beforeStartup.includes(name));
         if (!created) return null;
-        inspectDatabase(join(backupDir, created));
+        verifyBackup(backend, environment, backupDir, created);
+        inspectDatabase(join(backupDir, created, 'db.sqlite'));
         return created;
       },
       child,
@@ -587,14 +618,17 @@ export async function runPackagedSmoke({
     if (acceptBrowser)
       await acceptBrowser({ baseUrl, credentials, workDir, resourceName: resource.name });
 
-    const beforeExplicit = await snapshotFiles(backupDir);
-    const explicit = runAce(backend, environment, ['db:backup']);
+    const beforeExplicit = await backupBundles(backupDir);
+    const explicit = runAce(backend, environment, ['db:backup', 'create']);
     assert.equal(explicit.status, 0, explicit.output);
-    const explicitPath = explicit.output.match(/Backup written (\S+\.db)/)?.[1];
+    const explicitBundle = explicit.output.match(/Backup (bak-utc-[\d-]+) written to (.+)/);
+    const explicitName = explicitBundle?.[1];
+    const explicitPath = explicitBundle && join(explicitBundle[2].trim(), 'db.sqlite');
     assert.ok(explicitPath, `Backup command did not name its snapshot: ${explicit.output}`);
-    const afterExplicit = await snapshotFiles(backupDir);
-    assert.ok(!beforeExplicit.includes(explicitPath.split('/').at(-1)));
-    assert.ok(afterExplicit.includes(explicitPath.split('/').at(-1)));
+    const afterExplicit = await backupBundles(backupDir);
+    assert.ok(!beforeExplicit.includes(explicitName));
+    assert.ok(afterExplicit.includes(explicitName));
+    verifyBackup(backend, environment, backupDir, explicitName);
     assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, MIGRATION_COUNT);
     assertAllocationInDatabase(explicitPath, accountId, allocation);
 
@@ -618,7 +652,18 @@ export async function runPackagedSmoke({
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
 
     const restoredPath = join(workDir, 'restored.db');
-    await copyFile(explicitPath, restoredPath, constants.COPYFILE_EXCL);
+    const prepared = runAce(backend, { ...environment, CAPACITYLENS_BACKUP_DIR: '' }, [
+      'db:backup',
+      'restore-prepare',
+      '--directory',
+      backupDir,
+      '--bundle',
+      explicitName,
+      '--target',
+      restoredPath,
+    ]);
+    assert.equal(prepared.status, 0, prepared.output);
+    assert.match(prepared.output, /Staged bak-utc-/);
     const restoredEnvironment = { ...environment, CAPACITYLENS_DB: restoredPath };
     const restoreUpgrade = runAce(backend, restoredEnvironment, ['app:upgrade']);
     assert.equal(restoreUpgrade.status, 0, restoreUpgrade.output);

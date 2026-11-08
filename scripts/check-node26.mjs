@@ -99,7 +99,8 @@ function main() {
       'test',
       '--files=tests/unit/app_reset_command.spec.ts',
       '--files=tests/unit/owner_reset_command.spec.ts',
-      '--files=tests/unit/backup.spec.ts',
+      '--files=tests/unit/backup_provider.spec.ts',
+      '--files=tests/unit/backup_config.spec.ts',
     ]);
     runDetachedPackageProbe({ deployDir });
     passed = true;

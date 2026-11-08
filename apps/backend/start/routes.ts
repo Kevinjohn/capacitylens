@@ -1,9 +1,7 @@
 import '#start/planning_routes';
 import env from '#start/env';
 import db from '@adonisjs/lucid/services/db';
-import { statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { listSnapshots, type FileIdentity } from '#services/backup/retention';
+import { listBundles } from '@kevinjohn/adonisjs-sqlite-backup';
 import router from '@adonisjs/core/services/router';
 import logger from '@adonisjs/core/services/logger';
 import { checkDatabase, readState, resetState } from '#services/state_repository';
@@ -78,23 +76,8 @@ router
       const backupDir = env.get('CAPACITYLENS_BACKUP_DIR');
       if (backupDir) {
         try {
-          const connectionConfig = db.getRawConnection(db.primaryConnectionName)?.config;
-          const databasePath =
-            connectionConfig?.client === 'better-sqlite3'
-              ? (connectionConfig.connection.filename as string)
-              : null;
-          let databaseIdentity: FileIdentity | null = null;
-          if (databasePath && databasePath !== ':memory:') {
-            const file = statSync(databasePath, { bigint: true });
-            databaseIdentity = { path: resolve(databasePath), device: file.dev, inode: file.ino };
-          }
-          const newestMtime = listSnapshots(backupDir, databaseIdentity)
-            .map((file) => statSync(join(backupDir, file)).mtimeMs)
-            .reduce<number | null>(
-              (newest, mtime) => (newest === null ? mtime : Math.max(newest, mtime)),
-              null
-            );
-          newestSnapshotAt = newestMtime === null ? null : new Date(newestMtime).toISOString();
+          const times = listBundles(backupDir).map((bundle) => Date.parse(bundle.createdAt));
+          newestSnapshotAt = times.length ? new Date(Math.max(...times)).toISOString() : null;
         } catch {
           logger.warn('Diagnostics could not inspect completed snapshots');
         }

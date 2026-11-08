@@ -835,7 +835,7 @@ timestamp captured by the client when the server response arrives or its failure
 server values are a point-in-time snapshot, not a live monitor, and copying does not request them
 again. The fixed allowlist is: app version, a validated build revision when present, deployment
 mode and export schema; separately labelled server connectivity, database status, last applied
-migration and newest snapshot file modification time; and the browser's viewport, time zone and
+migration and newest READY bundle manifest creation time; and the browser's viewport, time zone and
 language. The user-agent field is always **Unknown** because caller-controlled text is omitted.
 A browser value outside its expected shape reads **Unknown**.
 The page is present in demo mode too, with server values unavailable. A missing or unavailable

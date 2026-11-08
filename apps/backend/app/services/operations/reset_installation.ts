@@ -4,7 +4,8 @@ import { spawnSync } from 'node:child_process';
 import app from '@adonisjs/core/services/app';
 import { operatorDatabasePath, withOperatorDatabase } from './operator_database.js';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
-import { durableSnapshotPublisher, writeOneShotSnapshot } from '#services/backup/snapshot';
+import { createBundle } from '@kevinjohn/adonisjs-sqlite-backup';
+import { syncPath } from './durability.js';
 
 function destinationEntryExists(path: string) {
   try {
@@ -59,14 +60,9 @@ export async function resetInstallation(input: {
       progress.destinationReserved = true;
       const archive = mkdtempSync(`${sourcePath}.reset-archive-`);
       progress.archivePath = join(archive, 'original.db');
-      progress.snapshotPath = join(archive, 'snapshot.db');
       stage = 'verified snapshot';
-      await writeOneShotSnapshot({
-        database: connection,
-        dir: archive,
-        file: progress.snapshotPath,
-        overwrite: false,
-      });
+      const bundle = await createBundle({ source: { database: connection }, directory: archive });
+      progress.snapshotPath = join(bundle.path, 'db.sqlite');
       stage = 'source checkpoint';
       progress.snapshotVerified = true;
       const checkpoint = connection.pragma('wal_checkpoint(TRUNCATE)') as Array<{ busy: number }>;
@@ -84,16 +80,16 @@ export async function resetInstallation(input: {
         if (existsSync(sidecar)) {
           const retained = join(archive, `retained_source${suffix}`);
           renameSync(sidecar, retained);
-          durableSnapshotPublisher.syncFile(retained);
+          syncPath(retained);
         }
       }
       // The verified checkpoint and DELETE mode make the main archive complete on both supported hosts.
       stage = 'source archive';
       renameSync(sourcePath, progress.archivePath);
       progress.archived = true;
-      durableSnapshotPublisher.syncFile(progress.archivePath);
-      durableSnapshotPublisher.syncDirectory(archive);
-      durableSnapshotPublisher.syncDirectory(dirname(sourcePath));
+      syncPath(progress.archivePath);
+      syncPath(archive);
+      syncPath(dirname(sourcePath));
     });
     stage = 'new database upgrade';
     const migrated = spawnSync(process.execPath, ['ace.js', 'app:upgrade'], {

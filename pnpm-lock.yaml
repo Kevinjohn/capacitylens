@@ -152,6 +152,9 @@ importers:
       '@kevinjohn/adonisjs-masquerade':
         specifier: file:../../vendor/kevinjohn-adonisjs-masquerade/kevinjohn-adonisjs-masquerade-0.2.1.tgz
         version: file:vendor/kevinjohn-adonisjs-masquerade/kevinjohn-adonisjs-masquerade-0.2.1.tgz(6333d7034245b38e3c40d425f2ba1238)
+      '@kevinjohn/adonisjs-sqlite-backup':
+        specifier: file:../../vendor/kevinjohn-adonisjs-sqlite-backup/kevinjohn-adonisjs-sqlite-backup-0.1.0.tgz
+        version: file:vendor/kevinjohn-adonisjs-sqlite-backup/kevinjohn-adonisjs-sqlite-backup-0.1.0.tgz(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@adonisjs/lucid@22.4.2(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(better-sqlite3@13.0.3)
       '@tuyau/core':
         specifier: 1.3.0
         version: 1.3.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))
@@ -1781,6 +1784,16 @@ packages:
         optional: true
       typescript:
         optional: true
+
+  '@kevinjohn/adonisjs-sqlite-backup@file:vendor/kevinjohn-adonisjs-sqlite-backup/kevinjohn-adonisjs-sqlite-backup-0.1.0.tgz':
+    resolution: {integrity: sha512-R9mmjFC5hk+kPyuIO5jj1in94wzJWKzXbRA7Cln/15VFjCqVdXD1VFqs96cjKXRoNlH5ZvE+NkyRW6bdKCGFpg==, tarball: file:vendor/kevinjohn-adonisjs-sqlite-backup/kevinjohn-adonisjs-sqlite-backup-0.1.0.tgz}
+    version: 0.1.0
+    engines: {node: '>=24.0.0'}
+    os: ['!win32']
+    peerDependencies:
+      '@adonisjs/core': ^7.0.0
+      '@adonisjs/lucid': ^22.0.0
+      better-sqlite3: ^13.0.0
 
   '@keyv/bigmap@1.3.1':
     resolution: {integrity: sha512-WbzE9sdmQtKy8vrNPa9BRnwZh5UF4s1KTmSK0KUVLo3eff5BlQNNWDnFOouNpKfPKDnms9xynJjsMYjMaT/aFQ==}
@@ -7735,6 +7748,7 @@ snapshots:
       '@kevinjohn/adonisjs-account-kit': file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/limiter@3.0.1(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(@adonisjs/mail@10.4.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@types/node@24.19.2)(luxon@3.7.2))(@adonisjs/session@8.3.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))(@vinejs/vine@4.4.0)(luxon@3.7.2)(typescript@5.9.3)
       '@kevinjohn/adonisjs-lucid-soft-delete': file:vendor/lucid-soft-deletes/kevinjohn-adonisjs-lucid-soft-delete-0.1.4.tgz(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(luxon@3.7.2)(typescript@5.9.3)
       '@kevinjohn/adonisjs-masquerade': file:vendor/kevinjohn-adonisjs-masquerade/kevinjohn-adonisjs-masquerade-0.2.1.tgz(5c9ffb2674a77114f5e3e059e35ed6cd)
+      '@kevinjohn/adonisjs-sqlite-backup': file:vendor/kevinjohn-adonisjs-sqlite-backup/kevinjohn-adonisjs-sqlite-backup-0.1.0.tgz(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(better-sqlite3@13.0.3)
       '@tuyau/core': 1.3.0(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))
       '@vinejs/vine': 4.4.0
       better-sqlite3: 13.0.3
@@ -8334,6 +8348,18 @@ snapshots:
       '@japa/api-client': 3.2.1(@japa/assert@4.2.0(@japa/runner@5.4.0))(@japa/runner@5.4.0)
       '@kevinjohn/adonisjs-account-kit': file:vendor/kevinjohn-adonisjs-account-kit/kevinjohn-adonisjs-account-kit-0.3.1.tgz(5ba545988bc81ac25f20b54e12a936ac)
       typescript: 5.9.3
+
+  '@kevinjohn/adonisjs-sqlite-backup@file:vendor/kevinjohn-adonisjs-sqlite-backup/kevinjohn-adonisjs-sqlite-backup-0.1.0.tgz(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@adonisjs/lucid@22.4.2(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(better-sqlite3@13.0.3)':
+    dependencies:
+      '@adonisjs/core': 7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1)
+      '@adonisjs/lucid': 22.4.2(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)
+      better-sqlite3: 13.0.3
+
+  '@kevinjohn/adonisjs-sqlite-backup@file:vendor/kevinjohn-adonisjs-sqlite-backup/kevinjohn-adonisjs-sqlite-backup-0.1.0.tgz(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(better-sqlite3@13.0.3)':
+    dependencies:
+      '@adonisjs/core': 7.6.0(@vinejs/vine@4.4.0)
+      '@adonisjs/lucid': 22.4.2(@adonisjs/core@7.6.0(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)
+      better-sqlite3: 13.0.3
 
   '@keyv/bigmap@1.3.1(keyv@5.6.0)':
     dependencies:

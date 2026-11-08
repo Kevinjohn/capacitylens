@@ -41,6 +41,7 @@ export default defineConfig({
   commands: [
     () => import('@adonisjs/core/commands'),
     () => import('@adonisjs/lucid/commands'),
+    () => import('@kevinjohn/adonisjs-sqlite-backup/commands'),
     () => import('@adonisjs/session/commands'),
     () => import('@adonisjs/bouncer/commands'),
     accountKitCommands,
@@ -79,6 +80,7 @@ export default defineConfig({
     () => import('@kevinjohn/adonisjs-access-control/access_control_provider'),
     () => import('@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider'),
     () => import('#providers/configuration_provider'),
+    () => import('@kevinjohn/adonisjs-sqlite-backup/sqlite_backup_provider'),
     () => import('#providers/backup_provider'),
   ],
 
