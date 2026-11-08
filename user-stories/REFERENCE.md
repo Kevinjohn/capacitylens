@@ -999,7 +999,7 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="masquerade-banner"`) with its 15-minute deadline and **End now**. The view applies
   across the operator’s signed-in sessions, reconciled on focus, visibility and requests. Switching
   company ends the projection for all sessions first; signing out ends only that session. Ending restores the real member's projection before writes resume and returns to `/`.
-  Disabled, archived and self rows never offer the eye button; the in-memory demo never exposes it.
+  Suspended and self rows never offer the eye button; the in-memory demo never exposes it.
   The server enforces the read-only boundary even if a stale client attempts a write.
   Each manageable active row also has a pencil for role editing, a link icon
   (`data-testid="member-resource-menu"`) that opens a centered Resource-link dialog with the selector
@@ -1041,7 +1041,7 @@ presented before the member directory, matching the action-first pattern of the 
   and the notice says to use **Resend**. Without email delivery the server refuses with
   `MAIL_UNAVAILABLE` and the dialog says invitations need email delivery. The link is never shown in
   the app. If any membership or invite mutation loses its response after dispatch, the section
-  reloads memberships, invites and authentication before enabling a retry. **Email** is required.
+  reloads memberships and invites before enabling a retry. **Email** is required.
 - **Waiting for approval** (`data-testid="admission-requests"`; Owner/Admin) lists each person who
   asked for access (`data-testid="admission-request"`) with their email and invited role, and
   **Approve** (`data-testid="admission-approve"`) and **Decline** (`data-testid="admission-reject"`).
@@ -1058,8 +1058,8 @@ presented before the member directory, matching the action-first pattern of the 
   carries the secret token. An invitation lasts seven days.
 
 The Owner row carries no pencil or gear for anyone: each company has exactly
-one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
-removed nor disabled.
+one Owner, ownership is changed only by explicit transfer, and nobody can change the Owner's role
+or suspend them.
 Ownership transfer has no control in the member table: the Owner-only **Company ownership** card
 opens **Manage ownership** in a modal. The Owner chooses an active Admin in **Next
 Owner** and confirms **Transfer ownership** once. The confirmation explains that the selected Admin

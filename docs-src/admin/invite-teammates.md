@@ -74,8 +74,8 @@ Invitations not yet accepted are listed under **Outstanding invites**, above you
 
 ![Members table with role, email, Resource link and row actions](../screenshots/flows/team_access_members.png)
 
-Send new members [See your work](/using/). Members are listed by role, Owner first. On each
-row:
+Send new members [See your work](/using/). Members are listed by role, Owner first. Each row offers
+the actions you may take on that member; nobody can change the Owner or their own membership:
 
 - The edit icon changes their role. The dialog explains the consequences before you **Save role**.
 - The **link icon** opens **Link to Resource**. Choosing a person saves immediately and does not
@@ -100,8 +100,7 @@ back through **Restore membership**, never a new invitation.
 
 <span id="if-they-come-back-with-a-new-sign-in"></span>
 
-If they delete their account and register again, the new account needs a fresh invitation and an
-Owner or Admin's approval.
+A new account for the same person needs a fresh invitation and an Owner or Admin's approval.
 
 A new installation allows one company. Ask your installer if you need more;
 [Configuration](/self-hosting/configuration) has the setting.

@@ -27,8 +27,8 @@ the database. Team & access is visible to every role so a Viewer/Editor can unde
 limits; management controls remain Owner/Admin-only. Ownership moves only through its own explicit confirmation
 (US-SET-18), and the Access Control package keeps a single Owner. Suspend keeps the membership and
 its role but refuses every company request; the person cannot rejoin on their own, and only an
-Owner or Admin restores them. A person who deletes their account and registers again needs a fresh
-invitation and an Owner or Admin's approval.
+Owner or Admin restores them. Any new account needs fresh invitation evidence and an Owner or
+Admin's approval.
 Invitations use a single-use emailed link. The bearer is delivered by email and stored only as a
 one-way hash; the app never displays or returns the link. Listing and revoking invitations cannot
 leak a live, role-bearing bearer.
@@ -146,8 +146,7 @@ the non-blocking product orientation if it is open.
   focus returns to that trigger when the dialog is dismissed.
 - The Member actions dialog keeps its row trigger mounted and the action-cell layout stable. Footer
   Close, Escape, and backdrop dismissal restore focus to the trigger; confirmations receive focus
-  while they are open. Existing lifecycle actions, confirmations, permissions, and mutation behavior
-  remain unchanged.
+  while they are open.
 - Suspend, restore and the role pencil are offered only where the row's server-computed `manage`
   flag allows them — never against the Owner and never against yourself — and the server refuses
   both cases with **403**
