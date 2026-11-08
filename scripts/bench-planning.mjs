@@ -84,7 +84,7 @@ async function createCompany(backend, environment, baseUrl) {
     ACE_TIMEOUT_MS,
   );
   assert.equal(bootstrap.status, 0, bootstrap.output.replace(/https?:\/\/\S+/g, '<redacted link>'));
-  const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1];
+  const { url: setupLink } = JSON.parse(bootstrap.stdout);
   assert.ok(setupLink, 'The bootstrap command printed no setup link.');
   const inviteToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
   const signup = await fetch(`${baseUrl}/api/invites/${inviteToken}/signup`, {

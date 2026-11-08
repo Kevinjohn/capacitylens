@@ -317,7 +317,7 @@ export async function runPackagedSmoke({
       0,
       bootstrap.output.replace(/https?:\/\/\S+/g, '<redacted link>'),
     );
-    const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1];
+    const { url: setupLink } = JSON.parse(bootstrap.stdout);
     assert.ok(setupLink, 'The packaged bootstrap command printed no setup link.');
     const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
     const signup = await fetch(`${baseUrl}/api/invites/${setupToken}/signup`, {

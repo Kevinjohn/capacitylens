@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { useStore } from '@/store/useStore';
@@ -53,6 +53,10 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
   };
 });
 const accountId = DEFAULT_ACCOUNT_ID;
+beforeAll(async () => {
+  // Resolve the real lazy editor before testing the lifetime of an opening's pending Save.
+  await import('@/components/scheduler/AllocationModal');
+});
 beforeEach(async () => {
   hold.release = null;
   hold.entered = null;

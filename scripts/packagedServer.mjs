@@ -59,7 +59,7 @@ export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port
   });
 }
 
-/** Run one `node ace` command in a built backend and return its exit status and output. */
+/** Return the exit status, separate streams and combined diagnostics from a built backend command. */
 export function runAce(backend, environment, args, timeout = 30_000) {
   const result = spawnSync(process.execPath, ['ace.js', ...args], {
     cwd: backend,
@@ -68,7 +68,12 @@ export function runAce(backend, environment, args, timeout = 30_000) {
     timeout,
   });
   if (result.error) throw result.error;
-  return { status: result.status, output: `${result.stdout}\n${result.stderr}` };
+  return {
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    output: `${result.stdout}\n${result.stderr}`,
+  };
 }
 
 export async function waitFor(description, timeoutMs, check, child) {
