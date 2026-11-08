@@ -2,7 +2,9 @@ import type { HttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import type { AccessControlErrorCode } from '@kevinjohn/adonisjs-access-control/types';
 
-// Partial: unlisted codes (UNKNOWN_ROLE, INVALID_CONFIG, OWNER_DISABLED, SCOPE_NOT_EMPTY) are server faults.
+// Partial: unlisted codes (UNKNOWN_ROLE, INVALID_CONFIG, OWNER_DISABLED, SCOPE_NOT_EMPTY, INVALID_INPUT)
+// are server faults. Product callers validate roles, statuses and targets before calling the
+// package, so INVALID_INPUT only reports a programming fault such as a call without its transaction.
 const refusals: Partial<
   Record<AccessControlErrorCode, { status: number; code: string; error: string }>
 > = {
@@ -31,11 +33,6 @@ const refusals: Partial<
     status: 409,
     code: 'CONFLICT',
     error: 'The company changed. Try again.',
-  },
-  E_ACCESS_CONTROL_INVALID_INPUT: {
-    status: 400,
-    code: 'VALIDATION_ERROR',
-    error: 'Invalid member input.',
   },
 };
 

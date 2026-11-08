@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- A membership call the Access Control package refuses as invalid input is now a reported server fault instead of an unlogged 400, since every product request is validated before it reaches the package (#1789). Permission lookups in the shared declaration ignore inherited object keys.
+
 ## [0.75.0-alpha.1] - 2026-11-08
 
 ### Changed

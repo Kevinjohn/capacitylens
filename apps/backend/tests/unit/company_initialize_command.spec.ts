@@ -97,6 +97,37 @@ test('company initialization refuses missing intent, missing principal and concu
   }
 });
 
+test('company initialization runs through the Account Kit transaction runner', ({
+  assert,
+  test: t,
+}) => {
+  t.timeout(90000);
+  const f = operatorFixture();
+  try {
+    assert.equal(f.command(['app:upgrade']).status, 0);
+    const database = f.inspect();
+    seedPrincipal(database);
+    // Only the Kit runner touches the singleton lock row, so its absence is the one difference
+    // between the refused run and the successful one. The command redacts the runner's message.
+    database.prepare('DELETE FROM account_transaction_lock').run();
+    database.close();
+    const refused = f.command(args);
+    assert.notEqual(refused.status, 0, refused.output);
+    const after = f.inspect();
+    for (const table of ['accounts', 'memberships', 'audit_entries'])
+      assert.equal(after.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0);
+    after.prepare('INSERT INTO account_transaction_lock (id, version) VALUES (1, 0)').run();
+    after.close();
+    const initialized = f.command(args);
+    assert.equal(initialized.status, 0, initialized.output);
+    const created = f.inspect();
+    assert.equal(created.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
+    created.close();
+  } finally {
+    f.cleanup();
+  }
+});
+
 test('company initialization rolls back every row if its audit cannot be recorded', ({
   assert,
   test: t,

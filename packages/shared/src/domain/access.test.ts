@@ -44,6 +44,21 @@ describe('can(role, key) — the permission declaration', () => {
       expect(can(role, 'unknown:read' as PermissionKey)).toBe(false);
     }
   });
+
+  it('denies keys that only resolve through the object prototype', () => {
+    for (const role of ROLES) {
+      for (const key of [
+        '__proto__:toString',
+        'constructor:name',
+        'planning:constructor',
+        'planning:__proto__',
+        'planning',
+        ':read',
+      ]) {
+        expect(can(role, key as PermissionKey)).toBe(false);
+      }
+    }
+  });
 });
 
 describe('canSeeTimeOffNote(role) — field-level rule (owner/admin only)', () => {
