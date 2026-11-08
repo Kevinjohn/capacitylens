@@ -474,3 +474,24 @@ it('shows a wrong deletion password against the field and sends nothing else', a
   expect(current).toHaveAttribute('aria-invalid', 'true');
   expect(deleteAccount).toHaveBeenCalledOnce();
 });
+
+it('returns to sign-in after a committed deletion whose follow-up failed', async () => {
+  const assign = vi.fn();
+  vi.stubGlobal('location', { ...window.location, assign });
+  deleteAccount.mockResolvedValue({
+    data: null,
+    error: {
+      code: 'ACCOUNT_DELETION_COMMITTED',
+      message: 'Your account was deleted, but a follow-up step failed.',
+      status: 503,
+    },
+  });
+  renderSecurity({ deleteOpen: true });
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: 'current-password' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }));
+  await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  vi.unstubAllGlobals();
+});

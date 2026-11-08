@@ -48,6 +48,12 @@ const committed = {
   committed: true,
 } satisfies ProductHttpErrorBody;
 
+const deletionCommitted = {
+  error: 'Your account was deleted, but a follow-up step failed. You are signed out.',
+  code: 'ACCOUNT_DELETION_COMMITTED',
+  committed: true,
+} satisfies ProductHttpErrorBody;
+
 export default class CredentialController {
   async requestReset(ctx: HttpContext) {
     if (!env.get('CAPACITYLENS_MAIL_HOST')) {
@@ -175,7 +181,7 @@ export default class CredentialController {
       outcome = 'committed';
     }
     await sessionGuard(ctx).terminate();
-    if (outcome === 'committed') return ctx.response.serviceUnavailable(committed);
+    if (outcome === 'committed') return ctx.response.serviceUnavailable(deletionCommitted);
     return ctx.response.ok({ ok: true, signedOut: true });
   }
 }

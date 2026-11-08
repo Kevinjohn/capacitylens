@@ -54,8 +54,11 @@ restore it, with the same role.
 2. Enter your **Current password** and select **Delete account**.
 
 Your sign-in, sessions and company memberships are removed and this browser returns to the sign-in
-page. Your name stays on past schedules and audit entries; an Owner or Admin can anonymise the
-person record afterwards. Deletion cannot be undone.
+page. Invitations you sent stay valid. Your name stays on past schedules and audit entries; an Owner
+or Admin can anonymise the person record afterwards. Deletion cannot be undone.
+
+If the message says **Your account was deleted, but a follow-up step failed**, the account is
+already gone and you are signed out.
 
 An Owner cannot delete their account while they own a company: transfer ownership first in
 **Team & access**, then delete.

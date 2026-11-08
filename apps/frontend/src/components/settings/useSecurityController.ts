@@ -131,7 +131,8 @@ function useAccountDeletion({ fail, clear, setMessage, setBusy }: PasswordChange
     setBusy(true);
     try {
       const result = await authClient.deleteAccount({ currentPassword });
-      if (result.error) {
+      // A committed deletion whose follow-up failed still removed the account and ended the sign-in.
+      if (result.error && result.error.code !== 'ACCOUNT_DELETION_COMMITTED') {
         if (requestGeneration !== generation.current) return;
         if (result.error.code === 'LAST_OWNER') {
           fail(null, m.settings_security_err_delete_owner());

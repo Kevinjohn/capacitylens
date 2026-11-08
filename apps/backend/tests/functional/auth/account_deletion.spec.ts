@@ -42,6 +42,16 @@ async function editorMember() {
     created_at: now,
     updated_at: now,
   });
+  await db.table('account_invitations').insert({
+    email: 'barbara.gordon@wayne.example',
+    scope: '',
+    role: 'viewer',
+    inviter_id: userId,
+    token_hash: 'a'.repeat(64),
+    expires_at: '2999-01-01T00:00:00.000Z',
+    created_at: now,
+    updated_at: now,
+  });
   await db.table('account_member_resources').insert({
     id: 'link-dick-person',
     account_id: accountId,
@@ -102,6 +112,10 @@ test.group('account deletion', (group) => {
     assert.lengthOf(audit, 1);
     // The company and its Owner are untouched.
     assert.lengthOf(await db.from('memberships').where('scope_id', accountId), 1);
+    // Invitations the person sent stay acceptable without naming them.
+    const invitations = await db.from('account_invitations').select('inviter_id');
+    assert.lengthOf(invitations, 1);
+    assert.isNull(invitations[0].inviter_id);
   });
 
   test('an Owner is refused until ownership is transferred', async ({ client, assert }) => {

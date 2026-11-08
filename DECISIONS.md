@@ -131,7 +131,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - A person deletes their own account from **Account** with their current password. Account Kit
   removes the identity, sessions and tokens; in the same transaction CapacityLens removes every
   membership through the Access Control package and the member/person link. An Owner must transfer
-  ownership first. The person resource and audit rows keep the former user id as history.
+  ownership first. Invitations the person sent stay acceptable with their inviter cleared. The person
+  resource and audit rows keep the former user id as history.
 - Editor and up may change company-wide planning and display configuration (company name,
   scheduling mode, disciplines, colour mode, feature visibility, time zone, week start). Identity,
   membership, privacy, lifecycle, import and erasure keep their Owner/Admin gates.

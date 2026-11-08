@@ -9,7 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
-- A person can delete their own account from **Account** after re-entering their password (#1791). Their sign-in, sessions, company memberships and member/person link are removed in one transaction; an Owner must transfer ownership first. Audit entries keep the former user id.
+- A person can delete their own account from **Account** after re-entering their password (#1791). Their sign-in, sessions, company memberships and member/person link are removed in one transaction; an Owner must transfer ownership first. Invitations they sent stay valid, and audit entries keep the former user id.
 
 ### Fixed
 
