@@ -9,8 +9,20 @@ vi.mock('@/lib/fakeAuth', async (importOriginal) => {
   return { ...original, useDemoAuthActive: () => demoMode.active };
 });
 vi.mock('@/components/settings/SecuritySection', () => ({
-  SecuritySection: ({ passwordOpen }: { passwordOpen: boolean }) => (
-    <section>{passwordOpen ? 'Password dialog open' : 'Personal security'}</section>
+  SecuritySection: ({
+    passwordOpen,
+    deleteOpen,
+  }: {
+    passwordOpen: boolean;
+    deleteOpen: boolean;
+  }) => (
+    <section>
+      {passwordOpen
+        ? 'Password dialog open'
+        : deleteOpen
+          ? 'Delete dialog open'
+          : 'Personal security'}
+    </section>
   ),
 }));
 
@@ -75,6 +87,15 @@ describe('AccountView', () => {
     expect(screen.getByText('Password dialog open')).toBeInTheDocument();
   });
 
+  it('opens the account deletion dialog from the identity row', () => {
+    renderAccount('password-only');
+    const actions = screen.getByTestId('account-identity-row').querySelectorAll('td')[3];
+    const remove = screen.getByRole('button', { name: 'Delete account' });
+    expect(actions).toContainElement(remove);
+    fireEvent.click(remove);
+    expect(screen.getByText('Delete dialog open')).toBeInTheDocument();
+  });
+
   it('signs out immediately', () => {
     signOut.mockClear();
     renderAccount('password-only');
@@ -100,6 +121,7 @@ describe('AccountView', () => {
     renderAccount('off');
     expect(screen.queryByText('Sign-in is off')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Change password' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete account' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
   });
 

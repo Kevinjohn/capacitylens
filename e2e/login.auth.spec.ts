@@ -100,7 +100,21 @@ function registerSigningRevealsAppSigningOutTest() {
     await expect(page.getByText(email, { exact: true })).toBeVisible();
     await expect(page.getByRole('columnheader')).toHaveText(['Avatar', 'Name', 'Email', 'Actions']);
     const actions = page.getByTestId('account-identity-row').locator('td').nth(3);
-    await expect(actions.getByRole('button')).toHaveText(['Change password', 'Sign out']);
+    await expect(actions.getByRole('button')).toHaveText([
+      'Change password',
+      'Delete account',
+      'Sign out',
+    ]);
+    await actions.getByRole('button', { name: 'Delete account' }).click();
+    const deleteDialog = page.getByRole('dialog', { name: 'Delete account' });
+    await expect(deleteDialog.getByLabel('Current password')).toBeFocused();
+    await expect(deleteDialog.locator('[data-slot="dialog-footer"] button')).toHaveText([
+      'Cancel',
+      'Delete account',
+    ]);
+    await expect(deleteDialog.getByRole('button', { name: 'Delete account' })).toBeDisabled();
+    await deleteDialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(deleteDialog).toHaveCount(0);
     await actions.getByRole('button', { name: 'Change password' }).click();
     const passwordDialog = page.getByRole('dialog', { name: 'Change password' });
     await expect(passwordDialog.locator('[data-product-layout="label-control"]')).toHaveCount(3);

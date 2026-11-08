@@ -1,13 +1,13 @@
 ---
 title: Account
-description: Check your signed-in identity, change your password and recover access.
+description: Check your signed-in identity, change your password, delete your account and recover access.
 prev: false
 next: false
 ---
 
 # Account
 
-Check who you're signed in as and change your password. Every member can
+Check who you're signed in as, change your password or delete your account. Every member can
 use it, including a Viewer.
 
 ![Account showing James Gordon’s identity, email, Change password and Sign out](../screenshots/flows/account_identity_current.jpg)
@@ -47,6 +47,18 @@ device.
 
 To leave a company, ask its Owner or Admin to suspend your membership. Only an Owner or Admin can
 restore it, with the same role.
+
+## Delete your account
+
+1. Select **Delete account**.
+2. Enter your **Current password** and select **Delete account**.
+
+Your sign-in, sessions and company memberships are removed and this browser returns to the sign-in
+page. Your name stays on past schedules and audit entries; an Owner or Admin can anonymise the
+person record afterwards. Deletion cannot be undone.
+
+An Owner cannot delete their account while they own a company: transfer ownership first in
+**Team & access**, then delete.
 
 ## If you can't sign in
 

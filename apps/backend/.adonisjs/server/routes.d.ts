@@ -65,6 +65,7 @@ export type ScannedRoutes = {
     'api.auth.inspect-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }
     'api.auth.change-password': { paramsTuple?: []; params?: {} }
+    'api.auth.delete-account': { paramsTuple?: []; params?: {} }
     'api.auth.verification.send': { paramsTuple?: []; params?: {} }
     'api.auth.verification.inspect': { paramsTuple?: []; params?: {} }
     'api.auth.verification.complete': { paramsTuple?: []; params?: {} }
@@ -175,6 +176,7 @@ export type ScannedRoutes = {
     'api.auth.inspect-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }
     'api.auth.change-password': { paramsTuple?: []; params?: {} }
+    'api.auth.delete-account': { paramsTuple?: []; params?: {} }
     'api.auth.verification.send': { paramsTuple?: []; params?: {} }
     'api.auth.verification.inspect': { paramsTuple?: []; params?: {} }
     'api.auth.verification.complete': { paramsTuple?: []; params?: {} }

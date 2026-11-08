@@ -103,6 +103,8 @@ export const authClient = {
     post('api.auth.reset-password', input),
   /** Ends every sign-in, this one included, once the password changes. */
   changePassword: (input: PasswordChangeInput) => post('api.auth.change-password', input),
+  /** Deletes the signed-in identity after re-entering its password; the server ends the sign-in. */
+  deleteAccount: (input: { currentPassword: string }) => post('api.auth.delete-account', input),
   sendEmailVerification: () => post('api.auth.verification.send', {}),
   inspectEmailVerification: (token: string) => post('api.auth.verification.inspect', { token }),
   /** Confirms the address and sets the password the person chose. */
