@@ -31,7 +31,6 @@ apps/backend/
     membership/           member directory, role and status changes, ownership transfer
     member_resources/     member-to-resource links and avatars
     operations/           stopped-server operator work: reset, owner recovery, initialisation
-    backup/               online snapshots, names, retention and the daily scheduler
     health/               database readiness check
   app/models/             Lucid models; every scoped row carries its company id
   app/transformers/       role-based projection of company state
@@ -40,7 +39,7 @@ apps/backend/
   start/                  routes, kernel middleware stacks, env schema, Node version gate
   config/                 Account Kit, admission, masquerade, backup, session and mail config
   providers/              boot-time configuration checks and the backup scheduler lifecycle
-  commands/               app:upgrade, app:reset, db:backup, company:initialize,
+  commands/               app:upgrade, app:reset, company:initialize,
                           owner:reset-password
   database/               migrations, schema rules and seeders
   tests/                  Japa: functional (HTTP and SQLite) and unit suites
@@ -256,7 +255,7 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 | Transfer preview and apply | `POST /api/transfer/{preview,apply}`; import screen | `app/services/beta_account_transfer.ts` | Parse outside; preview read-only `withActor`; apply spends proof, replaces rows, audits in one `withActor` | Live Owner, not viewing as; action proof bound to company, session and document | `{ imported, changed, revision }` | `ACTION_PROOF_REQUIRED`, `IMPORT_SNAPSHOT_STALE`, `IMPORT_ID_COLLISION` | `tests/functional/transfer_apply.spec.ts`, `tests/functional/privacy/action_proof_bindings.spec.ts` |
 | Anonymise resource | `POST …/resources/:id/anonymise` | `app/services/anonymise.ts` | `withActor`: scrub, restoration purge, audit, revision | Not viewing as; `resources:anonymise` ability (Owner or Admin) | 204 | 403, 404 | `tests/functional/anonymise.spec.ts`, `tests/functional/auth/native_authorization.spec.ts` |
 | Anonymise company | `POST …/anonymise` | `app/services/anonymise.ts` | `withActor`: proof spend then scrub, audit, revision | Live Owner and a single-use action proof | 204 | `ACTION_PROOF_REQUIRED` | `tests/functional/anonymise.spec.ts`, `tests/functional/privacy/action_proof_bindings.spec.ts` |
-| Backup, restore, upgrade | `db:backup`, daily scheduler, `app:upgrade`; restore is the manual procedure in [Backups and restore](../self-hosting/backups-and-restore.md) | `app/services/backup/`, `commands/app_upgrade.ts` | Backup: online copy from a separate read-only handle; upgrade: Lucid transaction per migration; restore: file copy, then `app:upgrade` | Operator shell access; backup directory and on-disk SQLite checks; stopping the service is a documented step | Snapshot files; `newestSnapshotAt` in diagnostics | Non-zero exit with `Backup failed:` or `Upgrade failed:` | `tests/unit/backup.spec.ts`, `tests/unit/backup_provider.spec.ts`, `tests/unit/upgrade_command.spec.ts` |
+| Backup, restore, upgrade | `db:backup create/list/verify/prune/restore-prepare`, daily scheduler, `app:upgrade`; [Backups and restore](../self-hosting/backups-and-restore.md) | `@kevinjohn/adonisjs-sqlite-backup`, `providers/backup_provider.ts`, `commands/app_upgrade.ts` | Package one-step online copy and verification; reset borrows the exclusive operator handle; upgrade uses Lucid per-migration transactions; restore stages a verified copy before upgrade | Operator shell access; private local root outside the live database; stop the service for recovery | READY bundles; maximum manifest creation time as `newestSnapshotAt` | Non-zero `db:backup`/upgrade exit, scheduled errors logged | `tests/unit/backup_provider.spec.ts`, `tests/unit/backup_config.spec.ts`, `tests/unit/upgrade_command.spec.ts`, `tests/unit/app_reset_command.spec.ts` |
 | Diagnostics | `GET /api/diagnostics`, `/health/ready`; diagnostics screen | `start/routes.ts`, `app/services/health/database_readiness_check.ts` | Diagnostics: read-only `withActor`; readiness: no transaction, `select 1` and schema check | Owner or Admin in some company; readiness is public and returns no paths | Server facts without paths | 401, 403, 503 | `tests/functional/backup_diagnostics.spec.ts` |
 
 ## Which tests establish which guarantee
@@ -287,7 +286,7 @@ Backend test paths are relative to `apps/backend/`.
   `tests/functional/planning/operations.spec.ts` (confidential values preserved for Editors),
   `tests/functional/auth/masquerade.spec.ts` (target role for reads, real actor for audit).
 - **Recovery.** `tests/functional/planning/restoration.spec.ts`,
-  `tests/functional/planning/retained_restoration.spec.ts`, `tests/unit/backup.spec.ts`,
+  `tests/functional/planning/retained_restoration.spec.ts`, `tests/unit/backup_provider.spec.ts`,
   `tests/unit/upgrade_command.spec.ts`, `tests/unit/app_reset_command.spec.ts`,
   `tests/unit/owner_reset_command.spec.ts`, `tests/unit/company_initialize_command.spec.ts`.
 - **Browser coordinator.** The frontend files listed under

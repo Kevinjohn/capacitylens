@@ -1,4 +1,6 @@
 import { test } from '@japa/runner';
+import { listBundles, verifyBundle } from '@kevinjohn/adonisjs-sqlite-backup';
+import { dirname } from 'node:path';
 import { cpSync, existsSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -34,6 +36,9 @@ test('app reset archives all account and credential state and initializes a sepa
       databasePath: string;
     };
     assert.equal(result.databasePath, destination);
+    const snapshot = listBundles(dirname(result.archivePath))[0]!;
+    assert.equal(verifyBundle(dirname(result.archivePath), snapshot.name).path, snapshot.path);
+    assert.equal(result.snapshotPath, join(snapshot.path, 'db.sqlite'));
     assert.isFalse(existsSync(f.databasePath));
     for (const path of [result.archivePath, result.snapshotPath]) {
       const archived = new DatabaseSync(path, { readOnly: true });
@@ -157,7 +162,10 @@ test('a replacement upgrade failure preserves the verified recovery files and na
     assert.include(result.output, 'new database upgrade');
     assert.include(result.output, destination);
     const archive = readdirSync(f.root).find((name) => name.includes('.reset-archive-'))!;
-    for (const file of ['original.db', 'snapshot.db']) {
+    const archiveDirectory = join(f.root, archive);
+    const bundle = listBundles(archiveDirectory)[0]!;
+    verifyBundle(archiveDirectory, bundle.name);
+    for (const file of ['original.db', join(bundle.name, 'db.sqlite')]) {
       const saved = new DatabaseSync(join(f.root, archive, file), { readOnly: true });
       assert.equal(tableCount(saved, 'users'), 1);
       saved.close();

@@ -3,14 +3,12 @@ import { BaseCommand } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
 import db from '@adonisjs/lucid/services/db';
 import type { BackupConfig } from '#config/backup';
-import { openNativeDatabase } from '#services/backup/native';
-import { buildSnapshotName } from '#services/backup/names';
-import { ensurePrivateBackupDirectory, writeOneShotSnapshot } from '#services/backup/snapshot';
+import { createBundle, prepareDirectory } from '@kevinjohn/adonisjs-sqlite-backup';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 
 /** Keep mandatory snapshots private without changing the database parent's permissions. */
 export function preMigrationBackupDirectory(dbPath: string, configuredDir?: string) {
-  return configuredDir ?? `${resolve(dbPath)}.backups`;
+  return configuredDir ? join(configuredDir, 'pre-migration') : `${resolve(dbPath)}.backups`;
 }
 
 /** Run pending migrations after a verified online snapshot of an existing SQLite database. */
@@ -31,22 +29,12 @@ export default class AppUpgrade extends BaseCommand {
         .where({ type: 'table' })
         .select('name')
         .first();
-      const config = this.app.config.get<BackupConfig | null>('backup.settings');
+      const config = this.app.config.get<BackupConfig>('backup');
       if (dbPath !== ':memory:' && existing) {
-        const dir = preMigrationBackupDirectory(dbPath, config?.dir);
-        ensurePrivateBackupDirectory(dir);
-        const database = openNativeDatabase(dbPath, { fileMustExist: true, readonly: true });
-        try {
-          // The pre-migration prefix keeps upgrade snapshots out of scheduled retention.
-          const file = join(
-            dir,
-            buildSnapshotName(new Date()).replace('capacitylens-', 'capacitylens-pre-migration-')
-          );
-          await writeOneShotSnapshot({ database, dir, file, label: 'pre-upgrade snapshot' });
-          this.logger.success(`Pre-upgrade backup written ${file}`);
-        } finally {
-          database.close();
-        }
+        const directory = preMigrationBackupDirectory(dbPath, config.directory);
+        prepareDirectory(directory);
+        const bundle = await createBundle({ livePath: dbPath, directory });
+        this.logger.success(`Pre-upgrade backup written ${bundle.path}`);
       }
       const migrate = await this.kernel.exec('migration:run', ['--force', '--no-schema-generate']);
       if (migrate.exitCode !== 0) {

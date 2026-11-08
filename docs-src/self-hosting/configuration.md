@@ -58,14 +58,14 @@ invitation is refused.
 ## Backups
 
 `CAPACITYLENS_BACKUP_DIR` enables an online SQLite snapshot at web-service startup and every 24
-hours while it runs. The directory must be private and writable by the service user. Leave it
+hours while it runs. Use a private local directory that does not contain the live database, writable only by the service user. Network filesystems and `file:` database URIs are unsupported. Leave it
 unset only when you have an explicitly managed backup process. The old
 `CAPACITYLENS_BACKUP_INTERVAL_MIN` setting is no longer used.
 
-`CAPACITYLENS_BACKUP_KEEP` retains the newest completed managed snapshots, defaulting to 48.
-Positive fractional values are floored to whole snapshots; invalid or nonpositive values use 48
+`CAPACITYLENS_BACKUP_KEEP` retains the newest READY bundles, defaulting to 48.
+Positive fractional values are floored to whole bundles; invalid or nonpositive values use 48
 with a startup warning, and values above 10,000 clamp to 10,000 with a warning. Pre-upgrade
-snapshots and unrelated files are excluded from scheduled/manual retention. Check backup logs and
+bundles in the separate `pre-migration/` directory and reset archives are excluded from scheduled retention. Manual create uses `db:backup create`; run `db:backup prune` explicitly for manual retention. Check backup logs and
 completed files separately from database readiness; see [Backups and restore](/self-hosting/backups-and-restore).
 
 A proxy on a separate machine or in a separate container is not supported: every client behind it
