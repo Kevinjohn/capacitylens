@@ -1,5 +1,6 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
+import access from '#config/access_control';
 
 /** Keeps retained or archived resources identifiable in the member directory. */
 export interface MemberResourceLinkProjection {
@@ -77,7 +78,7 @@ export async function readMemberAvatars(trx: TransactionClientContract, accountI
         'link.account_id'
       );
     })
-    .innerJoin('memberships as member', function () {
+    .innerJoin(`${access.config.membershipsTable} as member`, function () {
       this.on('member.user_id', '=', 'link.user_id').andOn(
         'member.scope_id',
         '=',

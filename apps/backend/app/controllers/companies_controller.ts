@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
+import access from '#config/access_control';
 import { withActor } from '#services/auth/current_actor';
 
 export default class CompaniesController {
@@ -13,7 +14,7 @@ export default class CompaniesController {
     }
     const summaries = await withActor(ctx, async (actor, trx) => {
       const rows = await trx
-        .from('memberships as member')
+        .from(`${access.config.membershipsTable} as member`)
         .innerJoin('accounts as account', 'account.id', 'member.scope_id')
         .where({ 'member.user_id': actor.userId, 'member.status': 'active' })
         .select('account.id', 'account.name', 'member.role');

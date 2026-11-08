@@ -4,6 +4,7 @@ import { parseUserName } from '@capacitylens/shared/lib/strings';
 import { createInitialCompany } from '#services/initial_company_defaults';
 import { isAdmitted } from '#services/account_kit/policy';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
+import access from '#config/access_control';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { operatorDatabasePath, withOperatorDatabase } from './operator_database.js';
 
@@ -23,7 +24,10 @@ export async function initializeCompany(input: {
     await assertSchemaIntegrity();
     // The Kit runner holds the writer lock its package writes rely on.
     return transaction(db, async (trx) => {
-      if ((await trx.from('accounts').first()) || (await trx.from('memberships').first())) {
+      if (
+        (await trx.from('accounts').first()) ||
+        (await trx.from(access.config.membershipsTable).first())
+      ) {
         throw new Error('Refusing company initialization: installation already has company access');
       }
       const principal = await trx
