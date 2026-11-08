@@ -1,4 +1,6 @@
+import app from '@adonisjs/core/services/app';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { installationCompanyId, isInvitableRole } from '#services/account_kit/policy';
 import { AdmissionError } from '#services/admission/errors';
 import { writeAudit } from '#services/audit';
@@ -28,12 +30,10 @@ export async function completeMembership(userId: string, trx: TransactionClientC
     );
   }
   // The Account Kit's admission record keeps the invited role as evidence.
-  const evidence = await trx
-    .from('account_admissions')
-    .where('user_id', userId)
-    .select('invited_role')
-    .first();
-  const role = isInvitableRole(evidence?.invited_role) ? evidence.invited_role : 'viewer';
+  const admission = await app.container.make(AccountAdmission);
+  const evidence = await admission.record(userId, trx);
+  const invited = evidence?.invitation?.role;
+  const role = isInvitableRole(invited) ? invited : 'viewer';
   await access.memberships.grant({ scopeId: accountId, userId, role, trx });
   await writeAudit(trx, {
     accountId,

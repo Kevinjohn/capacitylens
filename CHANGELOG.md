@@ -11,6 +11,10 @@ new features and **patch** versions carry fixes.
 
 - A person can delete their own account from **Account** after re-entering their password (#1791). Their sign-in, sessions, company memberships and member/person link are removed in one transaction; an Owner must transfer ownership first. Invitations they sent stay valid, and audit entries keep the former user id.
 
+### Changed
+
+- Update Account Kit to 0.3.3 and Access Control to 0.1.6 (#1800). Admission completion reads the invited role through Account Kit's admission record instead of its table; behaviour is unchanged.
+
 ### Fixed
 
 - A membership call the Access Control package refuses as invalid input is now a reported server fault instead of an unlogged 400, since every product request is validated before it reaches the package (#1789). A company or member identifier longer than the package accepts matches no route and answers 404. Permission lookups in the shared declaration ignore inherited object keys.
