@@ -47,15 +47,11 @@ afterEach(() => {
 });
 
 describe('MembersSection — mutation failure reconciliation', () => {
-  registerSelfMutationFailureTests();
   registerAccountSwitchMutationTests();
   registerLateReconciliationTests();
-  registerThrownMutationTests();
   registerRoleFailureTests();
   registerStatusFailureTests();
 });
-
-function registerSelfMutationFailureTests(): void {}
 
 function registerAccountSwitchMutationTests(): void {
   it('reports an authoritative reload failure after an unknown non-self mutation', async () => {
@@ -127,8 +123,6 @@ function registerLateReconciliationTests(): void {
     expect(useStore.getState().notice).toBeNull();
   });
 }
-
-function registerThrownMutationTests(): void {}
 
 function registerRoleFailureTests(): void {
   it.each([

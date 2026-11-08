@@ -61,7 +61,6 @@ describe('MembersSection — member lifecycle', () => {
   registerLifecycleDisclosureTests();
   registerLifecyclePermissionTests(lifecycleMembers);
   registerLifecycleTrackingTests();
-  registerLifecycleReconciliationTests();
   registerLifecycleConcurrencyTests();
   registerMemberResourceLinkTests();
 });
@@ -585,8 +584,6 @@ function registerLifecycleTrackingTests(): void {
     expect(screen.getByTestId('members-section')).not.toHaveAttribute('data-slot', 'card');
   });
 }
-
-function registerLifecycleReconciliationTests(): void {}
 
 function registerLifecycleConcurrencyTests(): void {
   it('permits only one member mutation while an action is in flight', async () => {

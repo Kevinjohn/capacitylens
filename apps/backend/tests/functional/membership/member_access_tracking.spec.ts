@@ -170,13 +170,13 @@ test.group('company member access and tracking', (group) => {
         .send();
       enabled.assertStatus(200);
     }
-    const disabled = await signed(
+    const suspended = await signed(
       client.patch(`/api/accounts/a-studio/members/${editorId}/status`),
       ownerCookie
     )
       .json({ status: 'suspended' })
       .send();
-    disabled.assertStatus(200);
+    suspended.assertStatus(200);
     const signedIn = await client
       .post('/api/auth/sign-in')
       .json({ email: 'clark.kent@wayne.example', password })
@@ -233,13 +233,13 @@ test.group('company member access and tracking', (group) => {
       .send();
     refusedWhileActive.assertStatus(404);
     assert.isNull(await db.from('accounts').where('id', 'a-loft').first());
-    const disabled = await signed(
+    const suspended = await signed(
       client.patch(`/api/accounts/a-studio/members/${adminId}/status`),
       ownerCookie
     )
       .json({ status: 'suspended' })
       .send();
-    disabled.assertStatus(200);
+    suspended.assertStatus(200);
     const unavailable = await signed(client.get('/api/auth/me'), adminCookie).send();
     unavailable.assertStatus(200);
     assert.isFalse(unavailable.body().canCreateAccount);

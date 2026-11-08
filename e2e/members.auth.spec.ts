@@ -203,10 +203,10 @@ async function manageOwnerMembers(
       return members.find((member) => member.userId === editor.userId)?.status;
     })
     .toBe('suspended');
-  const disabledRead = await request.get(`${API}/api/state?accountId=${accountId}`, {
+  const suspendedRead = await request.get(`${API}/api/state?accountId=${accountId}`, {
     headers: { cookie: editor.cookie },
   });
-  expect(disabledRead.status()).toBe(403);
+  expect(suspendedRead.status()).toBe(403);
   await inactiveTarget.getByTestId('member-menu').click();
   await expect(ownerPage.getByTestId('member-suspend')).toHaveCount(0);
   await ownerPage.getByTestId('member-restore').click();

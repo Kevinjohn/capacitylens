@@ -15,7 +15,6 @@ test.group('membership control-data isolation', (group) => {
     const stamp = '2026-10-15T00:00:00.000Z';
     await db.from('account_invitations').where('email', 'diana.prince@wayne.example').delete();
     await db.from('account_member_resources').where('id', 'link-control-isolation').delete();
-    await db.from('memberships').where('id', 'm-control-isolation').delete();
     await db.from('memberships').where('user_id', 'u-control-isolation').delete();
     await db.from('users').where('id', 'u-control-isolation').delete();
     const resource = seed().resources.find((row) => row.id === 'r-tyler')!;
