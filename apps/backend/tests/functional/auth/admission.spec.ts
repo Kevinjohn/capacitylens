@@ -179,7 +179,7 @@ test.group('admission and membership completion', (group) => {
     const { cookie } = await signIn(api, person, password);
     const refused = await as(cookie).post(api, '/api/admission/complete');
     refused.assertStatus(409);
-    assert.equal(refused.body().code, 'MEMBERSHIP_DISABLED');
+    assert.equal(refused.body().code, 'MEMBERSHIP_SUSPENDED');
     const membership = await db.from('memberships').where('user_id', userId).first();
     assert.equal(membership?.status, 'suspended');
   });

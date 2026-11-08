@@ -5,7 +5,7 @@ import { useStore } from '@/store/useStore';
 
 // A null role means no membership role applies in off mode, demo mode, or providerless contexts.
 // Authenticated server lookups project unresolved memberships to Viewer; masquerading independently
-// denies every action except read.
+// denies every permission key except `planning:read`.
 
 /** The resolved permission state for the active account. A null role means no membership applies. */
 export interface PermissionContextValue {

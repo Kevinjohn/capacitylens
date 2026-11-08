@@ -22,9 +22,9 @@ export async function completeMembership(userId: string, trx: TransactionClientC
   }
   if (existing) {
     throw new AdmissionError(
-      'Your access to this company is disabled. Ask an Owner or Admin.',
+      'Your membership in this company is suspended. Ask an Owner or Admin to restore it.',
       409,
-      'MEMBERSHIP_DISABLED'
+      'MEMBERSHIP_SUSPENDED'
     );
   }
   // The Account Kit's admission record keeps the invited role as evidence.
