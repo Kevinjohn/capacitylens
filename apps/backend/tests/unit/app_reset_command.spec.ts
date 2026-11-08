@@ -59,7 +59,7 @@ test('app reset archives all account and credential state and initializes a sepa
       'account_sessions',
       'company_planning_revisions',
       'planning_mutations',
-      'action_proofs',
+      'password_confirmations',
     ])
       assert.equal(tableCount(fresh, table), 0, table);
     assert.deepEqual(fresh.prepare('SELECT name FROM adonis_schema ORDER BY id').all(), [
@@ -69,6 +69,9 @@ test('app reset archives all account and credential state and initializes a sepa
       { name: 'database/migrations/202610270002_convert_planning_delete_snapshots' },
       {
         name: 'database/migrations/202611090001_replace_command_results_with_request_receipts',
+      },
+      {
+        name: 'database/migrations/202611090002_replace_action_proofs_with_password_confirmations',
       },
     ]);
     fresh.close();

@@ -161,29 +161,6 @@ export class AccountSchema extends BaseModel {
   declare workingDays: import('@capacitylens/shared/types/entities').Weekday[] | null
 }
 
-export class ActionProofSchema extends BaseModel {
-  static $columns = ['accountId', 'action', 'consumedAt', 'expiresAt', 'id', 'intentHash', 'sessionId', 'userId', 'verifiedAt'] as const
-  $columns = ActionProofSchema.$columns
-  @column()
-  declare accountId: string
-  @column()
-  declare action: string
-  @column()
-  declare consumedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare intentHash: string
-  @column()
-  declare sessionId: number
-  @column()
-  declare userId: string
-  @column()
-  declare verifiedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
-}
-
 export class ActivitySchema extends BaseModel {
   static $columns = ['accountId', 'archivedAt', 'createdAt', 'deletedAt', 'id', 'kind', 'name', 'phaseId', 'projectId', 'updatedAt'] as const
   $columns = ActivitySchema.$columns
@@ -565,6 +542,31 @@ export class OwnershipTransferSchema extends BaseModel {
   declare toUserId: string
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+}
+
+export class PasswordConfirmationSchema extends BaseModel {
+  static $columns = ['action', 'consumedAt', 'credentialRevision', 'id', 'intentHash', 'issuedAt', 'scope', 'signInId', 'userId', 'verifiedAt'] as const
+  $columns = PasswordConfirmationSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare consumedAt: bigint | number | null
+  @column()
+  declare credentialRevision: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare intentHash: string
+  @column()
+  declare issuedAt: bigint | number
+  @column()
+  declare scope: string
+  @column()
+  declare signInId: number
+  @column()
+  declare userId: string
+  @column()
+  declare verifiedAt: bigint | number
 }
 
 export class PasswordResetTokenSchema extends BaseModel {

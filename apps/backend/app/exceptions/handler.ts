@@ -14,6 +14,14 @@ import { buildAccessRefusal } from '#services/access_control/refusal';
 import { FirstCompanyPendingError } from '#models/user';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import {
+  PasswordConfirmationRequiredException,
+  PasswordConfirmationStaleException,
+  PasswordConfirmationForbiddenException,
+  PasswordConfirmationDeniedException,
+  PasswordConfirmationThrottledException,
+  InvalidPasswordConfirmationRequestException,
+} from '@kevinjohn/adonisjs-confirm-action-with-password';
+import {
   classifyLogError,
   reportPrivateFailure,
   safeRequestMethod,
@@ -21,6 +29,28 @@ import {
 } from '#services/logging_safety';
 
 type ParserFailure = 'unsupported-encoding' | 'invalid-json' | 'invalid-json-shape';
+
+function proofRefusal(error: unknown) {
+  if (
+    error instanceof PasswordConfirmationRequiredException ||
+    error instanceof PasswordConfirmationStaleException ||
+    error instanceof PasswordConfirmationForbiddenException
+  ) {
+    return {
+      status: 403,
+      body: { error: 'Confirm this action again.', code: 'ACTION_PROOF_REQUIRED' },
+    };
+  }
+  if (error instanceof PasswordConfirmationDeniedException) {
+    return { status: 403, body: { error: 'Incorrect password.', code: 'ACTION_PROOF_DENIED' } };
+  }
+  if (error instanceof PasswordConfirmationThrottledException) {
+    return { status: 429, body: { error: 'Rate limit exceeded.' } };
+  }
+  if (error instanceof InvalidPasswordConfirmationRequestException) {
+    return { status: 400, body: { error: 'Invalid action confirmation.' } };
+  }
+}
 
 function classifyParserFailure(error: unknown): ParserFailure | undefined {
   if (
@@ -145,6 +175,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     if (error instanceof ActionProofError || error instanceof FirstCompanyPendingError) {
       return ctx.response.status(error.status).send({ error: error.message, code: error.code });
     }
+    const proof = proofRefusal(error);
+    if (proof) return ctx.response.status(proof.status).send(proof.body);
     if (error instanceof IdentityAuthorityError) {
       return ctx.response.forbidden({ error: error.message, code: error.code });
     }
@@ -220,6 +252,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * @note You should not attempt to send a response from this method.
    */
   async report(error: unknown, ctx: HttpContext) {
+    if (proofRefusal(error)) return;
     if (
       error instanceof IdentityAuthorityError ||
       error instanceof AdmissionError ||

@@ -17,7 +17,7 @@ substitute for deployment-specific data classification, key inventory or log-ret
 | Password creation, change and reset | 15–128 Unicode code points | Account Kit with application auth routes | Password length validation; no common-password or breached-password screening |
 | Sign-in credentials | Email and password in bounded JSON | Account Kit with application auth routes | Generic invalid-credential response and authentication throttling |
 | Registration, invitation, address-confirmation and reset links | Bounded JSON/path/header values; invitation 7 days, other emailed links 1 hour | Account Kit plus application routes and admission policy | One-time links are stored as SHA-256 digests; address confirmation and admission are checked before product access |
-| Action-proof request | Password plus bounded action/intent payload | Application route and `action_proof.ts` | Owner authority is checked in the current Kit transaction; the five-minute proof binds user, session, company, action and intent and is consumed with the mutation |
+| Action-proof request | Password plus bounded action/intent payload | `@kevinjohn/adonisjs-confirm-action-with-password` and host `config/password_confirmations.ts` | Owner authority is checked in the current Kit transaction; the five-minute proof binds user, session, credential revision, company, action and intent and is consumed with the mutation |
 | Operator commands | Shell arguments and current SQLite state | Registered Account Kit/operator commands (excluding `account-kit:reset-link`) | Bootstrap issues the first invitation; `owner:reset-password` requires a stopped server and eligible sole Owner and writes an audit row before displaying its link |
 | CORS, origin and forwarding headers | HTTP headers | Root middleware and configured proxy trust | Exact origin policy, unsafe cross-site rejection and configured trusted-proxy handling |
 | Environment and numeric settings | Process environment | Startup parsers and configuration provider | Bounded integers, explicit boolean grammar and production guards |
@@ -65,7 +65,7 @@ retaining its URL path.
 
 Runtime `node:crypto` importers are accounted for here: `apps/backend/app/models/user.ts` creates
 UUID identifiers; `account_commands.ts` creates command UUIDs; `@kevinjohn/adonisjs-duplicate-request-guard` owns payload hashes and receipts;
-`auth/action_proof.ts` creates proof UUIDs and intent hashes; `auth/request_limit.ts` hashes client
+`@kevinjohn/adonisjs-confirm-action-with-password` creates confirmation UUIDs and intent hashes; `auth/request_limit.ts` hashes client
 IP keys; `beta_account_transfer.ts` hashes import snapshots; and
 `planning/restoration.ts` creates restoration-group UUIDs. The browser uses Web Crypto
 for UUIDs and a command digest. Build scripts use SHA-256 for file integrity; packaged-server smoke
@@ -86,7 +86,7 @@ policy and backup-encryption controls.
 | API request/incomplete connection | 30 seconds for request reception and socket inactivity | These are HTTP receive/inactivity timeouts, not handler or database execution deadlines; clients and proxies should bound retries and upstream waits |
 | SQLite | One synchronous connection per process and database file | Pool acquisition waits up to five seconds; SQLite lock waits up to one second before surfacing failure; these are separate limits, not an aggregate operation deadline; do not spawn another writer |
 | Production API requests | 300 per minute per IP by default; operator may configure another bounded value | Production startup rejects invalid or zero values; unset configuration uses the 300/minute default; retain edge controls for deployment protection |
-| Failed action-proof password checks | 3 per 10 seconds per IP | Action-proof controller consumes and resets this budget; sign-in has separate Account Kit throttles |
+| Failed action-proof password checks | 5 failures per minute per account, then a 20-minute block | The confirm-action-with-password package reserves each attempt before hashing through the app database limiter; success resets only that account; sign-in has separate Account Kit throttles |
 | Account Kit sign-in throttle | 10 requests/minute per client; 5/minute per identity with a 20-minute block | Defaults in the vendored Account Kit; application configuration changes only test throttling |
 | Import preparation | Atomic database operation; framework request-size limit | Invalid imports fail without replacing stored data |
 | Batch mutation | Framework parser limits | One SQLite transaction; authorization/validation per operation; a stale conflict rolls the batch back |

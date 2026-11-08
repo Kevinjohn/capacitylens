@@ -283,10 +283,10 @@ test.group('native read-only masquerade', (group) => {
       assert.isDefined(
         await db.from('account_getting_started_dismissals').where('account_id', 'a-studio').first()
       );
-      assert.isDefined(
+      assert.exists(
         await db
-          .from('action_proofs')
-          .where({ user_id: ownerId, account_id: 'a-studio', action: 'anonymise' })
+          .from('password_confirmations')
+          .where({ user_id: ownerId, scope: 'a-studio', action: 'anonymise' })
           .first()
       );
       const status = await asSession(client.get('/api/masquerade'), cookie).send();
