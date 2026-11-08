@@ -254,6 +254,12 @@ boundary. The forward-only migration replaces outstanding legacy proofs without 
 `scope -> accounts.id ON DELETE CASCADE`. Credential writes remain Account Kit-owned. Global pruning
 runs after successful issuance outside every transaction and cannot fail the issuance response.
 
+### Account Kit compatibility update (8 November 2026)
+
+The current package set is Account Kit 0.3.2, Access Control 0.1.5, Masquerade 0.2.5 and
+Action Proofs 0.1.2. This supersedes the exact versions in the adoption note above. The proof
+window, bindings, host authorization, per-account budget and transaction boundaries are unchanged.
+
 ### Action-proof capability audit (26 October 2026)
 
 Retain the product proof for ownership transfer, import and company-wide people anonymisation. The installed
