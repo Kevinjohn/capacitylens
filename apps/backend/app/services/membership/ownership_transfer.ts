@@ -72,7 +72,7 @@ export async function transferOwnership(
 
     // The package checks only the actor and nominee, so a second stored Owner would survive it.
     const owners = await trx
-      .from('memberships')
+      .from(access.config.membershipsTable)
       .where({ scope_id: accountId, role: 'owner', status: 'active' })
       .count('* as count')
       .first();

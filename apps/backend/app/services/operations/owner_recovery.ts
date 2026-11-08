@@ -1,6 +1,7 @@
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
+import access from '#config/access_control';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { withTransaction } from '#services/with_transaction';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
@@ -10,13 +11,13 @@ const ineligible = 'Recovery requires a sole active Owner with a local password'
 
 async function soleOwnerAccounts(userId: string, trx: Pick<Trx, 'from'>) {
   const memberships = await trx
-    .from('memberships')
+    .from(access.config.membershipsTable)
     .where({ user_id: userId, role: 'owner', status: 'active' })
     .select('scope_id');
   const accounts: string[] = [];
   for (const membership of memberships) {
     const owners = await trx
-      .from('memberships')
+      .from(access.config.membershipsTable)
       .where({ scope_id: membership.scope_id, role: 'owner', status: 'active' })
       .count('* as n')
       .first();

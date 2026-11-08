@@ -426,6 +426,10 @@ export async function runPackagedSmoke({
       targetUserId: viewerIdentity.user.id,
       targetEmail: viewerCredentials.email,
     });
+    // The package doctor checks the stored memberships, including one Owner per company, against
+    // the initialised Owner and the seeded Viewer row: 0 clean, 1 a check failed, 2 could not run.
+    const doctor = runAce(backend, environment, ['access-control:doctor']);
+    assert.equal(doctor.status, 0, `access-control:doctor failed\n${doctor.output}`);
     child = startServer(backend, environment, (chunk) => {
       log += chunk;
     });

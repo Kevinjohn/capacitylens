@@ -8,6 +8,7 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import env from '#start/env';
+import access from '#config/access_control';
 import { FirstCompanyPendingError } from '#models/user';
 import { requiresFirstCompanySetup } from '#services/first_company_setup';
 import { signInWithPassword } from '#services/auth/password_sign_in';
@@ -58,7 +59,10 @@ export default class AuthController {
             membershipRequired:
               admitted &&
               Boolean(await trx.from('accounts').select('id').first()) &&
-              !(await trx.from('memberships').where('user_id', actor.userId).first()),
+              !(await trx
+                .from(access.config.membershipsTable)
+                .where('user_id', actor.userId)
+                .first()),
           };
         },
         { limited: true }

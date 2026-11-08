@@ -59,7 +59,7 @@ export async function readMemberDirectory(
 ): Promise<MemberDirectory> {
   const { actorId } = actor;
   const membershipQuery: DatabaseQueryBuilderContract<MembershipDirectoryRow> = trx
-    .from('memberships as member')
+    .from(`${access.config.membershipsTable} as member`)
     .leftJoin('users as principal', 'principal.id', 'member.user_id')
     .where('member.scope_id', accountId)
     .select(

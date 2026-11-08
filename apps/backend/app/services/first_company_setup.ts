@@ -1,5 +1,6 @@
 import db from '@adonisjs/lucid/services/db';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import access from '#config/access_control';
 
 /** Only the sole native principal can claim an entirely uninitialized installation. */
 export async function requiresFirstCompanySetup(
@@ -11,6 +12,6 @@ export async function requiresFirstCompanySetup(
     users.length === 1 &&
     String(users[0]?.id) === userId &&
     !(await connection.from('accounts').select('id').first()) &&
-    !(await connection.from('memberships').select('id').first())
+    !(await connection.from(access.config.membershipsTable).select('id').first())
   );
 }
