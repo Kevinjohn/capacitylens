@@ -13,7 +13,7 @@ import { actorIn } from '#services/auth/current_actor';
 import { capturedMasqueradeContext } from '#services/auth/masquerade_request';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import {
-  activeCompanyIds,
+  listActiveCompanyIds,
   activeCompanyRole,
   IdentityAuthorityError,
 } from '#services/auth/authorization';
@@ -86,7 +86,7 @@ export async function currentMasquerade(ctx: HttpContext) {
   // mode where it holds so that tab can adopt the current context and offer End; company reads
   // are still authorized per request by effectiveReadPrincipal.
   if (!accountId) {
-    const memberships = await activeCompanyIds(actor.id, undefined);
+    const memberships = await listActiveCompanyIds(actor.id, undefined);
     for (const candidate of memberships) {
       const actorRole = await activeCompanyRole(actor.id, candidate, undefined);
       const targetRole = await activeCompanyRole(view.targetId, candidate, undefined);

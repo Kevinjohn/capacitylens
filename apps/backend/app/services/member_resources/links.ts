@@ -1,7 +1,7 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { conflictingAdmission } from '#services/admission/errors';
 import access from '#config/access_control';
-import { activeMembership } from '#services/auth/authorization';
+import { getActiveMembership } from '#services/auth/authorization';
 import { affectedRows } from '#services/admission/affected_rows';
 import { advancePlanningRevision } from '#services/planning_revision';
 
@@ -15,7 +15,7 @@ async function currentLink(trx: Trx, accountId: string, userId: string) {
 }
 
 async function assertEligibleMember(trx: Trx, accountId: string, userId: string) {
-  if (!(await activeMembership(userId, accountId, trx))) {
+  if (!(await getActiveMembership(userId, accountId, trx))) {
     conflictingAdmission('Only an active company member can be linked.');
   }
 }

@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import {
-  activeCompanyIds,
+  listActiveCompanyIds,
   activeCompanyRole,
   IdentityAuthorityError,
 } from '#services/auth/authorization';
@@ -23,7 +23,7 @@ export default class ExportsController {
       }
       const companyIds = accountId
         ? [accountId]
-        : await activeCompanyIds(principal.effectiveId, trx);
+        : await listActiveCompanyIds(principal.effectiveId, trx);
       const combined = emptyAppData();
       for (const id of companyIds) {
         if (principal.accountId && principal.accountId !== id) continue;

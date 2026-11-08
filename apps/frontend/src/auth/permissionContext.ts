@@ -40,8 +40,8 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue['statu
 }
 
 /**
- * May the current user use `key` in the active account? Shows or hides a control only; the server
- * enforces the same permission declaration on every request.
+ * Reports whether the current user may use `key` in the active account. It shows or hides a control
+ * only; the server enforces the same permission declaration on every request.
  *
  * A null role permits the key when no membership applies, except that masquerading denies every
  * key other than `planning:read`. Authenticated server lookups project unresolved memberships to

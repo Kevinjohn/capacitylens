@@ -2,7 +2,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
 import { writeAudit } from '#services/audit';
-import { storedRole } from '#services/auth/authorization';
+import { requireStoredRole } from '#services/auth/authorization';
 import { resetMemberSignIn } from '#services/membership/sign_in_tracking';
 import { advancePlanningRevision } from '#services/planning_revision';
 
@@ -18,8 +18,8 @@ export class MembershipError extends Error {
 
 async function targetMember(trx: TransactionClientContract, accountId: string, userId: string) {
   const member = await access.memberships.find(accountId, userId, trx);
-  if (!member) throw new MembershipError('Not a member of this workspace.', 404, 'NOT_FOUND');
-  storedRole(member);
+  if (!member) throw new MembershipError('Not a member of this company.', 404, 'NOT_FOUND');
+  requireStoredRole(member);
   return member;
 }
 

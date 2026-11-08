@@ -6,7 +6,7 @@ import { accountKitAuthority } from '@kevinjohn/adonisjs-masquerade/account-kit'
 import { LucidControlStore } from '@kevinjohn/adonisjs-masquerade/stores/lucid';
 import { accountInput } from '#services/auth/current_actor';
 import { sessionUsers } from '#config/auth';
-import { activeCompanyIds, activeCompanyRole } from '#services/auth/authorization';
+import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
 import access from '#config/access_control';
 import type User from '#models/user';
 
@@ -43,7 +43,7 @@ export default defineConfig<MasqueradeUser, HttpContext>({
           actorRole && access.can(actorRole, 'viewAs:use') && targetRole && actor.id !== target.id
         );
       }
-      const roles = await activeCompanyIds(actor.id, undefined);
+      const roles = await listActiveCompanyIds(actor.id, undefined);
       for (const memberAccountId of roles) {
         const role = await activeCompanyRole(actor.id, memberAccountId, undefined);
         const targetRole = await activeCompanyRole(target.id, memberAccountId, undefined);
@@ -58,7 +58,7 @@ export default defineConfig<MasqueradeUser, HttpContext>({
         const targetRole = await activeCompanyRole(target.id, accountId, undefined);
         return Boolean(actorRole && access.can(actorRole, 'viewAs:use') && targetRole);
       }
-      const memberships = await activeCompanyIds(actor.id, undefined);
+      const memberships = await listActiveCompanyIds(actor.id, undefined);
       for (const memberAccountId of memberships) {
         const actorRole = await activeCompanyRole(actor.id, memberAccountId, undefined);
         const targetRole = await activeCompanyRole(target.id, memberAccountId, undefined);

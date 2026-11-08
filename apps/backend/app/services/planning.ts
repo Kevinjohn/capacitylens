@@ -1,7 +1,11 @@
 import { activeOnly, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { activeMembership, memberBouncer, storedRole } from '#services/auth/authorization';
+import {
+  getActiveMembership,
+  createMemberBouncer,
+  requireStoredRole,
+} from '#services/auth/authorization';
 import { effectiveReadPrincipal } from '#services/auth/masquerade';
 import type { BatchCapabilities } from '#services/planning/data_policy';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
@@ -52,7 +56,7 @@ async function currentAuthority(
   accountId: string
 ) {
   const principal = await effectiveReadPrincipal(ctx, trx, accountId);
-  const membership = await activeMembership(principal.effectiveId, accountId, trx);
+  const membership = await getActiveMembership(principal.effectiveId, accountId, trx);
   if (!membership || (principal.accountId !== null && principal.accountId !== accountId)) {
     throw new PlanningOperationError(
       403,
@@ -61,7 +65,7 @@ async function currentAuthority(
     );
   }
   // Bouncer abilities are bound to the effective member, whose membership this is.
-  const bouncer = memberBouncer(principal.effectiveId, membership);
+  const bouncer = createMemberBouncer(principal.effectiveId, membership);
   if (!(await bouncer.allows('planning:read'))) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
@@ -74,7 +78,7 @@ async function currentAuthority(
     );
   }
   const masquerading = principal.isMasquerading;
-  const role = storedRole(membership);
+  const role = requireStoredRole(membership);
   const authority: PlanningAuthority = {
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,

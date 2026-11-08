@@ -6,7 +6,7 @@ import {
   ActionProofError,
   consumeActionProof,
 } from '#services/auth/action_proof';
-import { activeMembership, memberBouncer } from '#services/auth/authorization';
+import { getActiveMembership, createMemberBouncer } from '#services/auth/authorization';
 
 export default class AnonymiseController {
   async resource(ctx: HttpContext) {
@@ -22,8 +22,8 @@ export default class AnonymiseController {
     const { accountId, id } = ctx.params;
     const applied = await withActor(ctx, async (actor, trx) => {
       if (actor.masqueradeContext?.isMasquerading) return 'forbidden';
-      const membership = await activeMembership(actor.userId, accountId, trx);
-      if (!(await memberBouncer(actor.userId, membership).allows('resources:anonymise'))) {
+      const membership = await getActiveMembership(actor.userId, accountId, trx);
+      if (!(await createMemberBouncer(actor.userId, membership).allows('resources:anonymise'))) {
         return 'forbidden';
       }
       return anonymiseResources(trx, accountId, actor.userId, id);

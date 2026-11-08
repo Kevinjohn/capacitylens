@@ -44,7 +44,7 @@ export async function isAdmitted(userId: string, trx?: Trx) {
   return admission.isAdmitted(userId, trx);
 }
 
-/** A Kit callback's transaction when it supplies one; reads otherwise use the default connection. */
+// Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
 async function companyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
   const accountId = await installationCompanyId(trx ?? db);
   return accountId ? activeCompanyRole(userId, accountId, trx) : null;

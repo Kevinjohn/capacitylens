@@ -13,14 +13,14 @@ const refusals: Partial<
   E_ACCESS_CONTROL_NOT_A_MEMBER: {
     status: 404,
     code: 'NOT_FOUND',
-    error: 'Not a member of this workspace.',
+    error: 'Not a member of this company.',
   },
   E_ACCESS_CONTROL_USER_NOT_FOUND: { status: 404, code: 'NOT_FOUND', error: 'Not found.' },
   E_ACCESS_CONTROL_SCOPE_NOT_FOUND: { status: 404, code: 'NOT_FOUND', error: 'Company not found.' },
   E_ACCESS_CONTROL_ALREADY_MEMBER: {
     status: 409,
     code: 'CONFLICT',
-    error: 'Already a member of this workspace.',
+    error: 'Already a member of this company.',
   },
   E_ACCESS_CONTROL_LAST_OWNER: {
     status: 409,
@@ -39,7 +39,7 @@ const refusals: Partial<
   },
 };
 
-/** The product refusal for a recognised package error; undefined for anything else (server fault). */
+/** Maps a recognised package error to its product refusal; returns undefined for anything else, which is a server fault. */
 export function buildAccessRefusal(
   error: unknown
 ): { status: number; body: HttpErrorBody } | undefined {

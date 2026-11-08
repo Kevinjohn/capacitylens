@@ -1,5 +1,5 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { activeMembership, memberBouncer } from '#services/auth/authorization';
+import { getActiveMembership, createMemberBouncer } from '#services/auth/authorization';
 import Activity from '#models/activity';
 import Client from '#models/client';
 import Project from '#models/project';
@@ -34,8 +34,8 @@ async function assertLifecycleAuthority(
   actorId: string,
   accountId: string
 ) {
-  const membership = await activeMembership(actorId, accountId, trx);
-  if (!(await memberBouncer(actorId, membership).allows('catalogue:manage'))) {
+  const membership = await getActiveMembership(actorId, accountId, trx);
+  if (!(await createMemberBouncer(actorId, membership).allows('catalogue:manage'))) {
     throw new SoftDeletePolicyError('forbidden', 'Forbidden.', 403);
   }
 }
