@@ -2,6 +2,7 @@ import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password';
 import { useAuth } from '@/auth/authContext';
 import { m } from '@/i18n';
 import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { Button } from '@/components/ui/button';
 import { FieldError } from '@/components/ui/field';
 import { useSecurityController } from './useSecurityController';
 
@@ -97,13 +98,72 @@ function PasswordDialog({
   );
 }
 
-/** Presents the signed-in identity's password change dialog. */
+function DeleteAccountDialog({
+  open,
+  onOpenChange,
+  controller,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  controller: Controller;
+}) {
+  const close = () => onOpenChange(false);
+  const { deletion, fieldError } = controller;
+  return (
+    open && (
+      <Modal
+        title={m.settings_security_delete_account()}
+        description={m.settings_security_delete_account_description()}
+        onClose={close}
+        onSubmit={() => void deletion.submit()}
+        guardDirty={false}
+        footer={
+          <>
+            <Button size="sm" type="button" variant="outline" onClick={close}>
+              {m.form_cancel()}
+            </Button>
+            <Button
+              size="sm"
+              type="submit"
+              variant="destructive"
+              disabled={controller.busy || !deletion.currentPassword}
+            >
+              {m.settings_security_delete_account()}
+            </Button>
+          </>
+        }
+      >
+        <TextField
+          label={m.settings_security_current_password()}
+          type="password"
+          maxLength={null}
+          autoComplete="current-password"
+          autoFocus
+          required
+          layout="label-control"
+          value={deletion.currentPassword}
+          onChange={deletion.setCurrentPassword}
+          invalid={fieldError.errorField === 'current'}
+          describedById={fieldError.errorId}
+        />
+        <FieldError id={fieldError.errorId}>{fieldError.error}</FieldError>
+        <RequiredLegend />
+      </Modal>
+    )
+  );
+}
+
+/** Presents the signed-in identity's password change and account deletion dialogs. */
 export function SecuritySection({
   passwordOpen = false,
   onPasswordOpenChange = () => {},
+  deleteOpen = false,
+  onDeleteOpenChange = () => {},
 }: {
   passwordOpen?: boolean;
   onPasswordOpenChange?: (open: boolean) => void;
+  deleteOpen?: boolean;
+  onDeleteOpenChange?: (open: boolean) => void;
 }) {
   const auth = useAuth();
   const controller = useSecurityController();
@@ -112,7 +172,22 @@ export function SecuritySection({
     if (!open) controller.password.reset();
     onPasswordOpenChange(open);
   };
+  const changeDeleteOpen = (open: boolean) => {
+    if (!open) controller.deletion.reset();
+    onDeleteOpenChange(open);
+  };
   return showPassword ? (
-    <PasswordDialog open={passwordOpen} onOpenChange={changePasswordOpen} controller={controller} />
+    <>
+      <PasswordDialog
+        open={passwordOpen}
+        onOpenChange={changePasswordOpen}
+        controller={controller}
+      />
+      <DeleteAccountDialog
+        open={deleteOpen}
+        onOpenChange={changeDeleteOpen}
+        controller={controller}
+      />
+    </>
   ) : null;
 }

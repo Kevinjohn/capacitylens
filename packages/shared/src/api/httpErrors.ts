@@ -27,6 +27,7 @@ export const PRODUCT_ERROR_CODES = [
   'EMAIL_REGISTERED',
   'VERIFICATION_COMMITTED',
   'CREDENTIAL_UPDATE_COMMITTED',
+  'ACCOUNT_DELETION_COMMITTED',
 ] as const;
 
 /** Known product codes are deliberately separate from arbitrary dependency response codes. */
@@ -52,6 +53,7 @@ export type ProductHttpErrorBody =
         | 'RESTORATION_CONFIRMATION_STALE'
         | 'VERIFICATION_COMMITTED'
         | 'CREDENTIAL_UPDATE_COMMITTED'
+        | 'ACCOUNT_DELETION_COMMITTED'
       >;
     }
   | { error: string; code: 'ADMISSION_REQUIRED'; decision: object }
@@ -62,7 +64,7 @@ export type ProductHttpErrorBody =
     }
   | {
       error: string;
-      code: 'VERIFICATION_COMMITTED' | 'CREDENTIAL_UPDATE_COMMITTED';
+      code: 'VERIFICATION_COMMITTED' | 'CREDENTIAL_UPDATE_COMMITTED' | 'ACCOUNT_DELETION_COMMITTED';
       committed: true;
     };
 

@@ -46,6 +46,7 @@ export function AccountView() {
   const demo = useDemoAuthActive();
   const { name, email, imageUrl } = resolveIdentity({ auth: auth, demo: demo });
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <ListPage title={m.account_title()} wide>
@@ -101,6 +102,16 @@ export function AccountView() {
                         <Button
                           type="button"
                           size="sm"
+                          variant="outline"
+                          onClick={() => setDeleteOpen(true)}
+                        >
+                          {m.settings_security_delete_account()}
+                        </Button>
+                      )}
+                      {auth.authMode !== 'off' && (
+                        <Button
+                          type="button"
+                          size="sm"
                           variant="danger-soft"
                           onClick={() => void auth.signOut()}
                         >
@@ -116,7 +127,12 @@ export function AccountView() {
           </div>
         </SettingsSection>
         {auth.authMode !== 'off' && (
-          <SecuritySection passwordOpen={passwordOpen} onPasswordOpenChange={setPasswordOpen} />
+          <SecuritySection
+            passwordOpen={passwordOpen}
+            onPasswordOpenChange={setPasswordOpen}
+            deleteOpen={deleteOpen}
+            onDeleteOpenChange={setDeleteOpen}
+          />
         )}
       </div>
     </ListPage>

@@ -128,3 +128,29 @@ export async function onCredentialsChangedTransaction(
     });
   }
 }
+
+/**
+ * Runs inside the Kit's account deletion transaction, before the identity rows go. Every
+ * membership leaves through the package, which refuses while the person still owns a company,
+ * and the member/person link goes with it; the person resource and audit rows stay.
+ */
+export async function onAccountDeleting(user: AccountUser, trx: Trx) {
+  const userId = String(user.id);
+  for (const membership of await access.memberships.listForUser(userId, trx)) {
+    const accountId = String(membership.scopeId);
+    await access.memberships.leave({ scopeId: accountId, userId, trx });
+    await trx
+      .from('account_member_resources')
+      .where({ account_id: accountId, user_id: userId })
+      .delete();
+    await writeAudit(trx, {
+      accountId,
+      actorId: userId,
+      action: 'identity.deleted',
+      entity: 'user',
+      entityId: userId,
+      fields: [],
+    });
+    await advancePlanningRevision(trx, accountId);
+  }
+}

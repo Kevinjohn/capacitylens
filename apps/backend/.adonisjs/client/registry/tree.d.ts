@@ -99,6 +99,7 @@ export interface ApiDefinition {
       inspectReset: typeof routes['api.auth.inspect-reset']
       resetPassword: typeof routes['api.auth.reset-password']
       changePassword: typeof routes['api.auth.change-password']
+      deleteAccount: typeof routes['api.auth.delete-account']
       verification: {
         send: typeof routes['api.auth.verification.send']
         inspect: typeof routes['api.auth.verification.inspect']

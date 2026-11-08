@@ -374,6 +374,12 @@ const routes = {
     tokens: [[0,"api"],[0,"auth"],[0,"change-password"]],
     types: placeholder as Registry['api.auth.change-password']['types'],
   },
+  'api.auth.delete-account': {
+    methods: ["POST"],
+    pattern: '/api/auth/delete-account',
+    tokens: [[0,"api"],[0,"auth"],[0,"delete-account"]],
+    types: placeholder as Registry['api.auth.delete-account']['types'],
+  },
   'api.auth.verification.send': {
     methods: ["POST"],
     pattern: '/api/auth/verification/send',

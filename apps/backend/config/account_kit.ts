@@ -16,6 +16,7 @@ import {
 } from '@capacitylens/shared/domain/password';
 import {
   authorize,
+  onAccountDeleting,
   onCredentialsChangedTransaction,
   onInvitationAccepted,
 } from '#services/account_kit/policy';
@@ -31,6 +32,7 @@ export default defineConfig({
     'registration',
     'invitations',
     'sessionManagement',
+    'accountDeletion',
   ],
   // Ordinary registration exists only behind the application's own sign-up route, after setup.
   registration: {
@@ -38,6 +40,8 @@ export default defineConfig({
     mapFields: (data) => ({ name: registrationDisplayName(data) }),
   },
   authentication: { strategy: 'session', guard: 'web' },
+  // Invitations a deleted person sent stay acceptable; the Kit clears their inviter instead.
+  accountDeletion: { invitations: 'keep' },
   sessionManagement: { idleExpiry: SESSION_IDLE_EXPIRY },
   // One lifetime for every invitation; the documentation names it.
   expiresIn: { invitation: '7d' },
@@ -64,6 +68,6 @@ export default defineConfig({
   }),
   delivery: 'best-effort',
   onInvitationAccepted: withInvitationEvidence(onInvitationAccepted),
-  onAccountDeletingTransaction: withAdmissionCleanup(),
+  onAccountDeletingTransaction: withAdmissionCleanup(onAccountDeleting),
   onCredentialsChangedTransaction,
 });

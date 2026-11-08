@@ -8,6 +8,7 @@ import { m } from '@/i18n';
 import { SecuritySection } from './SecuritySection';
 
 const changePassword = vi.fn();
+const deleteAccount = vi.fn();
 const readIdentityProvider = vi.fn();
 const googleProvider = {
   id: 'google',
@@ -22,7 +23,10 @@ const providerStatus = (connected: boolean) => ({
   verified: connected,
 });
 vi.mock('@/auth/authClient', () => ({
-  authClient: { changePassword: (...args: unknown[]) => changePassword(...args) },
+  authClient: {
+    changePassword: (...args: unknown[]) => changePassword(...args),
+    deleteAccount: (...args: unknown[]) => deleteAccount(...args),
+  },
 }));
 vi.mock('@/account/accountClient', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/account/accountClient')>();
@@ -37,6 +41,7 @@ vi.mock('@/account/accountClient', async (importOriginal) => {
 
 beforeEach(() => {
   changePassword.mockReset();
+  deleteAccount.mockReset();
   readIdentityProvider
     .mockReset()
     .mockImplementation(() =>
@@ -52,12 +57,20 @@ const passwordAuth: AuthContextValue = {
   signOut: async () => {},
 };
 
-type RenderSecurityOptions = { overrides?: Partial<AuthContextValue>; passwordOpen?: boolean };
-function renderSecurity({ overrides = {}, passwordOpen = false }: RenderSecurityOptions = {}) {
+type RenderSecurityOptions = {
+  overrides?: Partial<AuthContextValue>;
+  passwordOpen?: boolean;
+  deleteOpen?: boolean;
+};
+function renderSecurity({
+  overrides = {},
+  passwordOpen = false,
+  deleteOpen = false,
+}: RenderSecurityOptions = {}) {
   const auth: AuthContextValue = { ...passwordAuth, ...overrides };
   return render(
     <AuthContext.Provider value={auth}>
-      <SecuritySection passwordOpen={passwordOpen} />
+      <SecuritySection passwordOpen={passwordOpen} deleteOpen={deleteOpen} />
     </AuthContext.Provider>,
   );
 }
@@ -402,3 +415,83 @@ it.each(['Escape', 'backdrop'] as const)(
     vi.unstubAllGlobals();
   },
 );
+
+it('deletes the account through its dialog and returns to sign-in', async () => {
+  const assign = vi.fn();
+  vi.stubGlobal('location', { ...window.location, assign });
+  deleteAccount.mockResolvedValue({ data: { ok: true, signedOut: true }, error: null });
+  renderSecurity({ deleteOpen: true });
+  expect(screen.getByRole('dialog')).toHaveTextContent(
+    m.settings_security_delete_account_description(),
+  );
+  const submit = screen.getByRole('button', { name: m.settings_security_delete_account() });
+  expect(submit).toBeDisabled();
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: 'current-password' },
+  });
+  fireEvent.click(submit);
+  await waitFor(() =>
+    expect(deleteAccount).toHaveBeenCalledWith({ currentPassword: 'current-password' }),
+  );
+  await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
+  expect(changePassword).not.toHaveBeenCalled();
+  vi.unstubAllGlobals();
+});
+
+it('keeps an Owner signed in and explains the ownership transfer', async () => {
+  const assign = vi.fn();
+  vi.stubGlobal('location', { ...window.location, assign });
+  deleteAccount.mockResolvedValue({
+    data: null,
+    error: { code: 'LAST_OWNER', message: 'Transfer ownership first.', status: 409 },
+  });
+  renderSecurity({ deleteOpen: true });
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: 'current-password' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    m.settings_security_err_delete_owner(),
+  );
+  expect(assign).not.toHaveBeenCalled();
+  vi.unstubAllGlobals();
+});
+
+it('shows a wrong deletion password against the field and sends nothing else', async () => {
+  deleteAccount.mockResolvedValue({
+    data: null,
+    error: {
+      code: 'CURRENT_PASSWORD_INCORRECT',
+      message: 'Current password is incorrect.',
+      status: 403,
+    },
+  });
+  renderSecurity({ deleteOpen: true });
+  const current = screen.getByLabelText(m.settings_security_current_password());
+  fireEvent.change(current, { target: { value: 'wrong-password' } });
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Current password is incorrect.');
+  expect(current).toHaveAttribute('aria-invalid', 'true');
+  expect(deleteAccount).toHaveBeenCalledOnce();
+});
+
+it('returns to sign-in after a committed deletion whose follow-up failed', async () => {
+  const assign = vi.fn();
+  vi.stubGlobal('location', { ...window.location, assign });
+  deleteAccount.mockResolvedValue({
+    data: null,
+    error: {
+      code: 'ACCOUNT_DELETION_COMMITTED',
+      message: 'Your account was deleted, but a follow-up step failed.',
+      status: 503,
+    },
+  });
+  renderSecurity({ deleteOpen: true });
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: 'current-password' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }));
+  await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  vi.unstubAllGlobals();
+});

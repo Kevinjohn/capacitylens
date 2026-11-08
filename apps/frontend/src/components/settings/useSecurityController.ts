@@ -109,7 +109,54 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
   };
 }
 
-/** Coordinates password and session controls with their busy and error states. */
+function useAccountDeletion({ fail, clear, setMessage, setBusy }: PasswordChangeInput) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const generation = useRef(0);
+
+  const reset = () => {
+    generation.current += 1;
+    setCurrentPassword('');
+    clear();
+    setMessage(null);
+  };
+
+  const submit = async () => {
+    clear();
+    setMessage(null);
+    if (currentPassword.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
+      fail('current', m.login_password_input_too_long());
+      return;
+    }
+    const requestGeneration = ++generation.current;
+    setBusy(true);
+    try {
+      const result = await authClient.deleteAccount({ currentPassword });
+      // A committed deletion whose follow-up failed still removed the account and ended the sign-in.
+      if (result.error && result.error.code !== 'ACCOUNT_DELETION_COMMITTED') {
+        if (requestGeneration !== generation.current) return;
+        if (result.error.code === 'LAST_OWNER') {
+          fail(null, m.settings_security_err_delete_owner());
+        } else {
+          fail('current', result.error.message);
+        }
+        return;
+      }
+      // The identity is gone and the server ended this sign-in; reload to reach the sign-in wall.
+      window.location.assign('/');
+    } catch (cause) {
+      console.error('SecuritySection: account deletion failed', cause);
+      if (requestGeneration === generation.current) {
+        fail('current', m.settings_security_err_delete_outcome_unknown());
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return { currentPassword, setCurrentPassword, reset, submit };
+}
+
+/** Coordinates password, deletion and session controls with their busy and error states. */
 export function useSecurityController() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -121,5 +168,12 @@ export function useSecurityController() {
     setBusy,
   });
 
-  return { busy, setBusy, message, fieldError, password };
+  const deletion = useAccountDeletion({
+    fail: fieldError.fail,
+    clear: fieldError.clear,
+    setMessage,
+    setBusy,
+  });
+
+  return { busy, setBusy, message, fieldError, password, deletion };
 }

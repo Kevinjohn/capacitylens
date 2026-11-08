@@ -801,6 +801,19 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['changePassword']>>>
     }
   }
+  'api.auth.delete-account': {
+    methods: ["POST"]
+    pattern: '/api/auth/delete-account'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['deleteAccount']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['deleteAccount']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['deleteAccount']>>>
+    }
+  }
   'api.auth.verification.send': {
     methods: ["POST"]
     pattern: '/api/auth/verification/send'
