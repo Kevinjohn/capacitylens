@@ -7,10 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.75.0-alpha.1] - 2026-11-08
+
 ### Changed
 
 - Publishing a release no longer runs **Publish documentation**, which the Pages environment refused for release tags; publish the site with a manual run from `main`.
-- Update Account Kit to 0.3.0 and the view-as package to 0.2.0 under their scoped package names (#1762). Invitations gain a `scope` column that CapacityLens leaves at its default, and new installations key view-as modes by their owner columns. A database created from the earlier baseline is refused at startup; start a fresh one as the upgrade guide describes.
+- Update Account Kit to 0.3.1 and the view-as package to 0.2.1 under their scoped package names, and move soft deletes to `@kevinjohn/adonisjs-lucid-soft-delete` 0.1.4 (#1762, #1764, #1766, #1767). Invitations gain a `scope` column that CapacityLens leaves at its default, and new installations key view-as modes by their owner columns. A database created from the earlier baseline is refused at startup; start a fresh one as the upgrade guide describes.
 - Company memberships are stored and enforced by the Access Control package (#1787). The server checks every company request through its permissions, and nobody can change their own role or status. A database created from the earlier baseline is refused at startup; start a fresh one as the upgrade guide describes.
 - Team & access offers **Suspend** and **Restore membership** in place of Disable Access, Enable Access, Archive user and Remove (#1787). A suspended member keeps their role, cannot open the company and cannot rejoin until an Owner or Admin restores them.
 
@@ -1784,7 +1786,8 @@ Alpha 2 milestone into one supported prerelease.
 
 Releases before 0.41.0-alpha.3 are in [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.74.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.75.0-alpha.1...HEAD
+[0.75.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.74.0-alpha.1...v0.75.0-alpha.1
 [0.74.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.73.0-alpha.1...v0.74.0-alpha.1
 [0.73.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.72.0-alpha.1...v0.73.0-alpha.1
 [0.72.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.71.0-alpha.1...v0.72.0-alpha.1
