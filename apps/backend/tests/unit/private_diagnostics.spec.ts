@@ -1,5 +1,6 @@
 import app from '@adonisjs/core/services/app';
 import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
+import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import { IdentityAuthorityError } from '#services/auth/authorization';
 import { ActionProofError } from '#services/auth/action_proof';
 import { test } from '@japa/runner';
@@ -38,6 +39,7 @@ function diagnosticContext() {
       header: () => undefined,
       badRequest: () => send(400),
       forbidden: () => send(403),
+      internalServerError: () => send(500),
       serviceUnavailable: () => send(503),
       status(value: number) {
         return { send: () => send(value) };
@@ -63,6 +65,28 @@ test('expected authentication and authorization refusals do not report server er
     assert.equal(captured.status(), status);
     assert.deepEqual(captured.records, []);
   }
+});
+
+test('an Access Control refusal answers without a report; its invalid-input fault is a reported 500', async ({
+  assert,
+}) => {
+  const handler = new HttpExceptionHandler();
+  const refused = diagnosticContext();
+  const refusal = new AccessControlError('E_ACCESS_CONTROL_FORBIDDEN');
+  await handler.handle(refusal, refused.context);
+  await handler.report(refusal, refused.context);
+  assert.equal(refused.status(), 403);
+  assert.deepEqual(refused.records, []);
+
+  const faulted = diagnosticContext();
+  const fault = new AccessControlError('E_ACCESS_CONTROL_INVALID_INPUT', {
+    message: 'access-control: acceptInvitation requires a transaction',
+  });
+  await handler.handle(fault, faulted.context);
+  await handler.report(fault, faulted.context);
+  assert.equal(faulted.status(), 500);
+  assert.lengthOf(faulted.records, 1);
+  assert.notInclude(JSON.stringify(faulted.records), 'requires a transaction');
 });
 
 for (const environment of ['development', 'test', 'production'] as const) {

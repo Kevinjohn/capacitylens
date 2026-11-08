@@ -23,6 +23,10 @@ import { registerAnonymiseRoutes } from '#start/anonymise_routes';
 import { registerExampleDataRoutes } from '#start/example_data_routes';
 import { registerGettingStartedRoutes } from '#start/getting_started_routes';
 
+// The Access Control package accepts string keys of 1 to 254 characters. A longer company, member
+// or principal identifier matches no route and answers 404 instead of reaching the package.
+for (const param of ['accountId', 'userId', 'principalId']) router.where(param, /^.{1,254}$/);
+
 registerCompanyRoutes();
 registerTransferRoutes();
 registerExportRoutes();

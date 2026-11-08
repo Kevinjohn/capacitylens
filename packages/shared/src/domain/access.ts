@@ -31,8 +31,12 @@ export type PermissionKey = {
 
 /** Reports whether `role` reaches the lowest role declared for `key`. Unknown roles and keys return false. */
 export function can(role: Role, key: PermissionKey): boolean {
-  const [resource, action] = key.split(':') as [keyof Permissions, string];
-  const lowest = (accessPermissions[resource] as Record<string, Role> | undefined)?.[action];
+  const [resource = '', action = ''] = key.split(':');
+  // Own-property checks keep inherited keys such as `__proto__` or `constructor` out of the lookup.
+  if (!Object.hasOwn(accessPermissions, resource)) return false;
+  const actions: Record<string, Role | undefined> =
+    accessPermissions[resource as keyof Permissions];
+  const lowest = Object.hasOwn(actions, action) ? actions[action] : undefined;
   return lowest !== undefined && accessRoles.indexOf(role) >= accessRoles.indexOf(lowest);
 }
 
