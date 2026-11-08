@@ -105,11 +105,6 @@ export default {
         details: { tsType: 'unknown' },
       },
     },
-    command_results: {
-      columns: {
-        result: { tsType: 'unknown' },
-      },
-    },
     company_settings: {
       columns: {
         value: { tsType: 'unknown' },

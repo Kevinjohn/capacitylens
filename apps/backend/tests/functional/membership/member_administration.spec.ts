@@ -97,7 +97,10 @@ test.group('company member administration', (group) => {
     assert.deepEqual(replay.body(), changed.body());
     const mismatch = await requestRole('viewer');
     mismatch.assertStatus(409);
-    assert.equal((mismatch.body() as { code: string }).code, 'IDEMPOTENCY_CONFLICT');
+    assert.deepEqual(mismatch.body(), {
+      error: 'Command identity already used.',
+      code: 'IDEMPOTENCY_CONFLICT',
+    });
     const audits = await db
       .from('audit_entries')
       .where({ account_id: 'a-studio', action: 'member.role_changed', entity_id: editorId });
@@ -123,6 +126,96 @@ test.group('company member administration', (group) => {
       .json({ role: 'viewer' })
       .send();
     refused.assertStatus(403);
+  });
+
+  test('one actor can reuse command identities across operations and replay each result', async ({
+    client,
+    assert,
+  }) => {
+    const owner = await signUpAndIn(client, {
+      email: 'bruce.wayne@wayne.example',
+      password,
+      name: 'Bruce Wayne',
+    });
+    owner.assertStatus(200);
+    const ownerCookie = owner.cookie('adonis-session')!.value;
+    const ownerId = await userId('bruce.wayne@wayne.example');
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
+    const editor = await signUpAndIn(client, {
+      email: 'clark.kent@wayne.example',
+      password,
+      name: 'Clark Kent',
+    });
+    editor.assertStatus(200);
+    const editorId = await userId('clark.kent@wayne.example');
+    const now = new Date().toISOString();
+    await db.table('memberships').insert({
+      scope_id: 'a-studio',
+      user_id: editorId,
+      role: 'editor',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    });
+    const path = `/api/accounts/a-studio/members/${editorId}`;
+    const identity = {
+      'x-account-command-id': 'member-shared-command-0001',
+      'idempotency-key': 'member-shared-key-0001',
+    };
+    const role = () =>
+      signed(client.patch(path), ownerCookie).headers(identity).json({ role: 'admin' }).send();
+    const status = () =>
+      signed(client.patch(`${path}/status`), ownerCookie)
+        .headers(identity)
+        .json({ status: 'suspended' })
+        .send();
+    const changedRole = await role();
+    changedRole.assertStatus(200);
+    assert.deepEqual(changedRole.body(), { userId: editorId, role: 'admin' });
+    const changedStatus = await status();
+    changedStatus.assertStatus(200);
+    assert.deepEqual(changedStatus.body(), {
+      userId: editorId,
+      status: 'suspended',
+    });
+    const member = await db
+      .from('memberships')
+      .where({ scope_id: 'a-studio', user_id: editorId })
+      .first();
+    assert.include(member, { role: 'admin', status: 'suspended' });
+    // Replays retain the original results even after the underlying state changes.
+    await db
+      .from('memberships')
+      .where({ scope_id: 'a-studio', user_id: editorId })
+      .update({ role: 'viewer', status: 'active' });
+    const replayRole = await role();
+    replayRole.assertStatus(200);
+    assert.deepEqual(replayRole.body(), changedRole.body());
+    const replayStatus = await status();
+    replayStatus.assertStatus(200);
+    assert.deepEqual(replayStatus.body(), changedStatus.body());
+    const replayedMember = await db
+      .from('memberships')
+      .where({ scope_id: 'a-studio', user_id: editorId })
+      .first();
+    assert.include(replayedMember, { role: 'viewer', status: 'active' });
+    assert.lengthOf(
+      await db
+        .from('audit_entries')
+        .where({ account_id: 'a-studio' })
+        .whereIn('action', ['member.role_changed', 'member.status_changed']),
+      2
+    );
+    const receipts = await db
+      .from('idempotency_receipts')
+      .where({ scope_id: 'a-studio', command_id: identity['x-account-command-id'] });
+    assert.sameMembers(
+      receipts.map((row) => row.operation),
+      [
+        JSON.stringify(['change-member-role', ownerId]),
+        JSON.stringify(['change-member-status', ownerId]),
+      ]
+    );
   });
 
   test('invalid member inputs and unknown fields are rejected without side effects', async ({
@@ -205,7 +298,10 @@ test.group('company member administration', (group) => {
       },
     ];
 
-    const receipts = await db.from('command_results').where('account_id', 'a-studio').orderBy('id');
+    const receipts = await db
+      .from('idempotency_receipts')
+      .where('scope_id', 'a-studio')
+      .orderBy('id');
     for (const request of requests) {
       const response = await request.send();
       response.assertStatus(400);
@@ -230,7 +326,7 @@ test.group('company member administration', (group) => {
     );
     assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-studio'), 0);
     assert.deepEqual(
-      await db.from('command_results').where('account_id', 'a-studio').orderBy('id'),
+      await db.from('idempotency_receipts').where('scope_id', 'a-studio').orderBy('id'),
       receipts
     );
   });

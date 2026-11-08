@@ -55,7 +55,7 @@ retaining its URL path.
 | Action-proof intent | SHA-256 over canonical action, company and intent; UUID proof id | No raw import document is stored in the proof | Five-minute, single-use, session- and company-bound proof; mutation and consume share a transaction |
 | API rate-limit key | SHA-256 of request client IP | Address-derived limiter key | Used as the limiter key; application configuration controls the API request limit |
 | View-as-member context | Package-owned revision and random nonce | Identity-wide context checked on covered mutations, including idle-mode writes | Idle control rows remain to reject stale contexts; active modes expire after 15 minutes |
-| Account-command payload | SHA-256 over canonical operation, company and payload; random command/idempotency UUIDs | Payload hash and operation context | Replay/identity handles only; raw credentials are not stored as command results |
+| Account-command payload | Package-owned SHA-256 over plain-JSON company and payload; command/idempotency UUIDs scoped per operation and actor | Payload hash and operation context | Replay/identity handles only; raw credentials are not stored as command results |
 | Import impact fingerprint | SHA-256 of canonical full export rows | Current company data fingerprint | Compares previewed content with current rows; stale-preview rejection separately compares the planning revision and requires a new preview |
 | Record identifiers | CSPRNG UUIDs | Identifier, not a secret | Used for users, restoration groups and account command/proof records |
 | Encryption configuration | Adonis AES-256-GCM encryptor declaration | `APP_KEY` | The application configures the key, but this inventory does not establish which stored application data uses the encryptor; the session cookie flags are configured separately |
@@ -64,7 +64,7 @@ retaining its URL path.
 | Public TLS | TLS proxy and Node trust store | Public certificate and chain | Operator-managed certificate lifecycle |
 
 Runtime `node:crypto` importers are accounted for here: `apps/backend/app/models/user.ts` creates
-UUID identifiers; `account_commands.ts` creates command UUIDs and payload hashes;
+UUID identifiers; `account_commands.ts` creates command UUIDs; `@kevinjohn/adonisjs-idempotency` owns payload hashes and receipts;
 `auth/action_proof.ts` creates proof UUIDs and intent hashes; `auth/request_limit.ts` hashes client
 IP keys; `beta_account_transfer.ts` hashes import snapshots; and
 `planning/restoration.ts` creates restoration-group UUIDs. The browser uses Web Crypto

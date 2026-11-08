@@ -56,6 +56,7 @@ test.group('M1 database contract', (group) => {
         'database/migrations/202610270001_planning_soft_delete_ownership',
         'database/migrations/202610270001_replace_legacy_masquerades_with_package',
         'database/migrations/202610270002_convert_planning_delete_snapshots',
+        'database/migrations/202611080001_replace_command_results_with_idempotency_receipts',
       ]
     );
     const rows = await db.from('sqlite_master').select('name').where('type', 'table');
@@ -63,6 +64,32 @@ test.group('M1 database contract', (group) => {
       rows.map((row) => row.name as string),
       [...baselineTables]
     );
+  });
+
+  test('physical account deletion cascades only its idempotency receipts', async ({ assert }) => {
+    const receipts = [accountIds.dc, accountIds.marvel].map((scopeId) => ({
+      id: `receipt-${scopeId}`,
+      scope_id: scopeId,
+      command_id: `command-${scopeId}`,
+      operation: JSON.stringify(['change-member-role', 'bruce-wayne']),
+      idempotency_key: `key-${scopeId}`,
+      payload_hash: 'a'.repeat(64),
+      state: 'completed',
+      result: '{"ok":true}',
+      created_at: stamp,
+      updated_at: stamp,
+    }));
+    await db.table('idempotency_receipts').insert(receipts);
+    assert.lengthOf(
+      await db.from('idempotency_receipts').whereIn(
+        'id',
+        receipts.map((row) => row.id)
+      ),
+      2
+    );
+    await db.from('accounts').where('id', accountIds.dc).delete();
+    assert.isNull(await db.from('idempotency_receipts').where('id', receipts[0]!.id).first());
+    assert.isNotNull(await db.from('idempotency_receipts').where('id', receipts[1]!.id).first());
   });
 
   test('readiness refuses drifted login-link proof storage', async ({ assert }) => {

@@ -135,7 +135,7 @@ async function readProductState() {
       .where('account_id', accountId)
       .orderBy('account_id'),
     audit: await db.from('audit_entries').where('account_id', accountId).orderBy('id'),
-    receipts: await db.from('command_results').where('account_id', accountId).orderBy('id'),
+    receipts: await db.from('idempotency_receipts').where('scope_id', accountId).orderBy('id'),
   };
 }
 

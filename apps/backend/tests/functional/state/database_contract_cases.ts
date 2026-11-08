@@ -65,7 +65,7 @@ export const baselineTables = [
   'ownership_transfers',
   'masquerade_modes',
   'masquerade_events',
-  'command_results',
+  'idempotency_receipts',
   'company_settings',
   'company_planning_revisions',
   'planning_mutations',

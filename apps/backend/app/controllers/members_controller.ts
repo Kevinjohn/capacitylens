@@ -6,8 +6,7 @@ import { withActor } from '#services/auth/current_actor';
 import { writeAudit } from '#services/audit';
 import {
   AccountCommandError,
-  claimAccountCommand,
-  completeAccountCommand,
+  runAccountCommand,
   readAccountCommand,
 } from '#services/account_commands';
 import {
@@ -53,23 +52,19 @@ interface SemanticMutationInput<T> {
 async function semanticMutation<T>(ctx: HttpContext, input: SemanticMutationInput<T>) {
   const { accountId, operation, payload, work } = input;
   const command = readAccountCommand(ctx);
-  return withActor(ctx, async (_actor, trx) => {
-    const actor = await assertCompanyAction(accountId, 'members:manage', trx);
-    const claim = await claimAccountCommand(trx, {
-      accountId,
-      actorId: actor.actorId,
-      operation,
+  return withActor(ctx, async (currentActor, trx) => {
+    let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
+    return runAccountCommand(trx, {
+      name: operation,
+      authorizeAccess: async () => {
+        actor = await assertCompanyAction(accountId, 'members:manage', trx);
+      },
+      work: () => work(trx, actor),
+      actorId: currentActor.userId,
+      scopeId: accountId,
       payload,
       command,
-      kind: 'semantic',
     });
-    if (claim.replayed) {
-      // The claim binds company, actor, operation and payload to this operation's stored result.
-      return claim.result as T;
-    }
-    const result = await work(trx, actor);
-    await completeAccountCommand(trx, command.commandId, result);
-    return result;
   });
 }
 

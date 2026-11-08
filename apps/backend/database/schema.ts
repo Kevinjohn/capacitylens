@@ -334,29 +334,6 @@ export class ClosureSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
-export class CommandResultSchema extends BaseModel {
-  static $columns = ['accountId', 'commandId', 'createdAt', 'id', 'idempotencyKey', 'operation', 'payloadHash', 'result', 'updatedAt'] as const
-  $columns = CommandResultSchema.$columns
-  @column()
-  declare accountId: string | null
-  @column()
-  declare commandId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare idempotencyKey: string | null
-  @column()
-  declare operation: string | null
-  @column()
-  declare payloadHash: string
-  @column()
-  declare result: unknown
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
 export class CompanyPlanningRevisionSchema extends BaseModel {
   static $columns = ['accountId', 'revision'] as const
   $columns = CompanyPlanningRevisionSchema.$columns
@@ -459,6 +436,31 @@ export class EmailVerificationTokenSchema extends BaseModel {
   declare purpose: string
   @column()
   declare tokenableId: string
+}
+
+export class IdempotencyReceiptSchema extends BaseModel {
+  static $columns = ['commandId', 'createdAt', 'id', 'idempotencyKey', 'operation', 'payloadHash', 'result', 'scopeId', 'state', 'updatedAt'] as const
+  $columns = IdempotencyReceiptSchema.$columns
+  @column()
+  declare commandId: string
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare idempotencyKey: string
+  @column()
+  declare operation: string
+  @column()
+  declare payloadHash: string
+  @column()
+  declare result: string | null
+  @column()
+  declare scopeId: string
+  @column()
+  declare state: string
+  @column()
+  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
 export class LoginLinkTokenSchema extends BaseModel {
