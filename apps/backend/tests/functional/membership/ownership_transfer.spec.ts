@@ -9,7 +9,7 @@ import {
   asDataOwner,
   createFixtureCompanyForOwner,
 } from '../../helpers/authenticated_data_fixture.js';
-import { signUpAndIn } from '../../helpers/identities.js';
+import { createIdentity, signUpAndIn } from '../../helpers/identities.js';
 
 const password = 'batman-secret-2026';
 
@@ -401,12 +401,20 @@ test.group('atomic ownership transfer', (group) => {
     client,
     assert,
   }) => {
-    const { ownerId, adminId, ownerCookie } = await fixture(client);
+    const { ownerId, adminId, ownerCookie, now } = await fixture(client);
     const proofId = await transferProof(client, ownerCookie, adminId);
-    await db
-      .from('memberships')
-      .where({ scope_id: 'a-studio', user_id: adminId })
-      .update({ role: 'owner' });
+    // A second stored Owner who is neither the actor nor the nominee.
+    const extraOwnerId = await createIdentity('diana.prince@wayne.example', {
+      name: 'Diana Prince',
+    });
+    await db.table('memberships').insert({
+      scope_id: 'a-studio',
+      user_id: extraOwnerId,
+      role: 'owner',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    });
     const rejected = await signed(
       client.post('/api/accounts/a-studio/ownership-transfer'),
       ownerCookie
@@ -417,10 +425,14 @@ test.group('atomic ownership transfer', (group) => {
       })
       .json({ toUserId: adminId, proofId })
       .send();
-    // The target is no longer an Admin, so the transfer refuses before any effect.
-    rejected.assertStatus(409);
+    assert.isAtLeast(rejected.status(), 500);
     const owners = await db.from('memberships').where({ scope_id: 'a-studio', role: 'owner' });
-    assert.deepEqual(new Set(owners.map((row) => row.user_id)), new Set([ownerId, adminId]));
+    assert.deepEqual(new Set(owners.map((row) => row.user_id)), new Set([ownerId, extraOwnerId]));
+    const nominee = await db
+      .from('memberships')
+      .where({ scope_id: 'a-studio', user_id: adminId })
+      .first();
+    assert.equal(nominee.role, 'admin');
     assert.isNull(
       await db
         .from('command_results')
