@@ -19,12 +19,16 @@ See [Configuration](/self-hosting/configuration) for retention settings.
 Check the service logs for backup failures and confirm that recent completed snapshots exist.
 Readiness checks the database; it does not track backup success.
 
-To write a verified snapshot on demand, stop neither the application nor its users; the backup
-command uses SQLite's online backup API. Run it from the archive's `backend/` directory with the
-service environment loaded:
+To write a verified snapshot on demand, leave the application running; the backup command uses
+SQLite's online backup API. Run it as the service user with the same private environment as the
+service:
 
 ```bash
-node ace.js db:backup
+sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+  -p WorkingDirectory=/opt/capacitylens/current/backend \
+  -p EnvironmentFile=/etc/capacitylens.env \
+  -p Environment=NODE_ENV=production \
+  /usr/bin/env node ace.js db:backup
 ```
 
 This command requires `CAPACITYLENS_BACKUP_DIR`. The resulting database snapshot is written to the
@@ -49,8 +53,17 @@ Restore into a new path so the current database remains available for investigat
 1. Stop the service and keep it stopped through the restore and validation.
 2. Copy the selected verified snapshot to a new file in the persistent data directory. Do not
    copy a live SQLite database file while it is being written.
-3. Point `CAPACITYLENS_DB` at the restored copy and run `node ace.js app:upgrade` from
-   `backend/`. The command runs pending migrations and checks schema integrity.
+3. Point `CAPACITYLENS_DB` at the restored copy in `/etc/capacitylens.env`, then run the upgrade
+   as the service user with the service environment. The command runs pending migrations and
+   checks schema integrity:
+
+   ```bash
+   sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+     -p WorkingDirectory=/opt/capacitylens/current/backend \
+     -p EnvironmentFile=/etc/capacitylens.env \
+     -p Environment=NODE_ENV=production \
+     /usr/bin/env node ace.js app:upgrade
+   ```
 4. Start the service, check `/health/ready`, and verify the expected company and data before
    allowing normal use.
 5. Keep the original database, snapshot and prior environment settings until the restore is
@@ -62,10 +75,14 @@ startup checks. Do not edit the migration journal or database files by hand.
 ## Recover a sole Owner's local password
 
 Use this when the sole active Owner cannot reset their own password. Stop the service and run the
-command from `backend/` with the same private environment used by the service:
+command as the service user with the same private environment used by the service:
 
 ```bash
-node ace.js owner:reset-password owner@example.com --confirm-server-stopped
+sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+  -p WorkingDirectory=/opt/capacitylens/current/backend \
+  -p EnvironmentFile=/etc/capacitylens.env \
+  -p Environment=NODE_ENV=production \
+  /usr/bin/env node ace.js owner:reset-password owner@example.com --confirm-server-stopped
 ```
 
 The command emits a single-use reset link after recording the recovery action. Deliver the link
@@ -73,9 +90,9 @@ privately; do not put it in a ticket, shell history shared with others, or servi
 
 ## Replace an installation
 
-`node ace.js app:reset <new-database-path> --confirm-server-stopped --disposable` is a separate, destructive
-operator action. It is unavailable in production and requires an explicit disposable confirmation
-outside production. It requires the server to be stopped, preserves a verified snapshot and archived
-copy of the original installation, then initializes a new database path. Update `CAPACITYLENS_DB`
-only after the command succeeds. If it fails, preserve the named recovery files and partial
-destination; do not retry over them.
+`node ace.js app:reset <new-database-path> --confirm-server-stopped --disposable` is a separate,
+destructive operator action. It is unavailable in production and requires an explicit disposable
+confirmation outside production. It requires the server to be stopped, preserves a verified snapshot
+and archived copy of the original installation, then initializes a new database path. Update
+`CAPACITYLENS_DB` only after the command succeeds. If it fails, preserve the named recovery files and
+partial destination; do not retry over them.

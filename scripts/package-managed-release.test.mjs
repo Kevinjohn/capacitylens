@@ -515,15 +515,25 @@ test('all shipped nginx configs suppress browser bearer routes', async () => {
     'packaging/release/capacitylens.nginx.conf',
   ]) {
     const conf = await readFile(join(repositoryRoot, path), 'utf8');
-    const locations = [...conf.matchAll(/location\s+~\s+([^\s{]+)\s*\{([^}]+)\}/g)];
-    for (const route of [
-      '/invite/opaque-bearer',
-      '/reset-password/opaque-bearer',
-      '/verify-email/opaque-bearer',
-    ]) {
-      const location = locations.find((match) => new RegExp(match[1]).test(route));
+    const locations = [...conf.matchAll(/location\s+(~\*?)\s+([^\s{]+)\s*\{([^}]+)\}/g)].map(
+      ([, operator, expression, body]) => ({
+        matcher: new RegExp(expression, operator === '~*' ? 'i' : ''),
+        body,
+      }),
+    );
+    const bearerRoutes = [
+      ['/invite/opaque-bearer', '/InViTe/opaque-bearer/'],
+      ['/reset-password/opaque-bearer', '/ReSeT-PaSsWoRd/opaque-bearer/'],
+      ['/verify-email/opaque-bearer', '/VeRiFy-EmAiL/opaque-bearer/'],
+    ];
+    for (const route of bearerRoutes.flat()) {
+      const location = locations.find(({ matcher }) => matcher.test(route));
       assert.ok(location, `${path}: ${route}`);
-      assert.match(location[2], /access_log off;/);
+      assert.match(location.body, /access_log off;/);
+    }
+    for (const route of ['/projects/ordinary-path', '/invite', '/invitees/ordinary-path']) {
+      const location = locations.find(({ matcher }) => matcher.test(route));
+      assert.equal(location, undefined, `${path}: ordinary route ${route} must not match`);
     }
   }
 });
