@@ -54,7 +54,7 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
     const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
       headers: { cookie: owner.cookie },
     });
-    expect(response.status()).toBe(200);
+    expect(response.status()).toBe(201);
     return (await response.json()) as {
       clients: Array<{ name: string }>;
       accounts: Array<{ id: string; dateStyle: string | null }>;
