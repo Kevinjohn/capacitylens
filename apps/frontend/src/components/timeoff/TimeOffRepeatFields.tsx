@@ -19,6 +19,7 @@ interface TimeOffRepeatFieldsProps {
   projection: RepeatProjection | null;
   errorField: string | null;
   errorId: string;
+  disabled: boolean;
   onRepeatChange: (value: string) => void;
   onRepeatUntilChange: (value: string) => void;
 }
@@ -89,6 +90,7 @@ export function TimeOffRepeatFields(props: TimeOffRepeatFieldsProps) {
         describedById={props.errorId}
         testId="timeoff-repeat"
         layout="label-control"
+        disabled={props.disabled}
       />
       {props.repeat !== 'none' && (
         <>
@@ -103,6 +105,7 @@ export function TimeOffRepeatFields(props: TimeOffRepeatFieldsProps) {
             {...(props.repeatUntilMaximum ? { max: props.repeatUntilMaximum } : {})}
             testId="timeoff-repeat-until"
             layout="label-control"
+            disabled={props.disabled}
           />
           <p className="text-xs text-muted-foreground">{m.form_timeoff_repeat_cutoff_hint()}</p>
         </>

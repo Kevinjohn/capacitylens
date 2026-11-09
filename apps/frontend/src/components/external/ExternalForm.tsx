@@ -1,5 +1,5 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useFieldError } from '@/hooks/useFieldError';
 import { resolveErrorMessage } from '@/lib/errorMessage';
@@ -62,9 +62,12 @@ export function ExternalForm({
   const update = useStore((state) => state.updateResource);
   const [name, setName] = useState(resource?.name ?? '');
   const [role, setRole] = useState(resource?.role ?? '');
+  const [pending, setPending] = useState(false);
+  const inFlight = useRef(false);
   const { error, errorField, errorId, fail } = useFieldError();
 
   const submit = async () => {
+    if (inFlight.current) return;
     const cleanName = parseText(name, fail, {
       field: 'name',
       required: true,
@@ -81,6 +84,8 @@ export function ExternalForm({
       ...externalCapacityDefaults(),
       color: NEUTRAL_COLOR,
     };
+    inFlight.current = true;
+    setPending(true);
     try {
       if (resource) {
         if (isStaleEdit(useStore.getState().data.resources, resource.id, resource.updatedAt)) {
@@ -96,6 +101,9 @@ export function ExternalForm({
     } catch (e) {
       // Surface store rejection inside the external-resource form so invalid writes cannot fail silently.
       fail(null, resolveErrorMessage(e));
+    } finally {
+      inFlight.current = false;
+      setPending(false);
     }
   };
 
@@ -106,17 +114,19 @@ export function ExternalForm({
       onSubmit={() => {
         void submit();
       }}
-      footer={<FormActions onCancel={onClose} />}
+      footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
-      <ExternalFormFields
-        name={name}
-        onNameChange={setName}
-        role={role}
-        onRoleChange={setRole}
-        error={error}
-        errorField={errorField}
-        errorId={errorId}
-      />
+      <fieldset disabled={pending} className="min-w-0">
+        <ExternalFormFields
+          name={name}
+          onNameChange={setName}
+          role={role}
+          onRoleChange={setRole}
+          error={error}
+          errorField={errorField}
+          errorId={errorId}
+        />
+      </fieldset>
     </Modal>
   );
 }

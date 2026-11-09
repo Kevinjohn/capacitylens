@@ -1,4 +1,4 @@
-import { Fragment, useId } from 'react';
+import { Fragment, useId, useState } from 'react';
 import { Field } from '@/components/ui/field';
 import {
   Select,
@@ -57,7 +57,13 @@ function buildOptionGroups(options: Option[]): OptionGroup[] {
   }, []);
 }
 
-function SelectFieldOptions({ optionGroups }: { optionGroups: OptionGroup[] }) {
+function SelectFieldOptions({
+  optionGroups,
+  disabled,
+}: {
+  optionGroups: OptionGroup[];
+  disabled: boolean;
+}) {
   return optionGroups.map((group, index) => (
     <SelectGroup key={`${group.key ?? 'ungrouped'}-${index}`}>
       {group.label && <SelectLabel>{group.label}</SelectLabel>}
@@ -67,7 +73,7 @@ function SelectFieldOptions({ optionGroups }: { optionGroups: OptionGroup[] }) {
           <SelectItem
             value={encodeSelectValue(option.value)}
             data-value={option.value}
-            {...(option.disabled !== undefined ? { disabled: option.disabled } : {})}
+            disabled={disabled || option.disabled === true}
           >
             {option.label}
           </SelectItem>
@@ -114,35 +120,98 @@ export function SelectField({
         label={label}
         {...(required !== undefined ? { required } : {})}
       />
-      <Select
-        value={selectedOption || unresolvedValue ? encodeSelectValue(value) : ''}
-        {...(disabled !== undefined ? { disabled } : {})}
-        onValueChange={(next) => {
-          const resolved = decodeSelectValue(next);
-          if (resolved === value) return;
-          markDirty();
-          onChange(resolved);
-        }}
-      >
-        <SelectTrigger
-          id={id}
-          autoFocus={autoFocus}
-          data-autofocus={autoFocus ? '' : undefined}
-          className="w-full"
-          aria-required={trueOrUndefined({ value: required })}
-          aria-invalid={trueOrUndefined({ value: invalid })}
-          aria-describedby={invalid ? describedById : undefined}
-          aria-label={ariaLabel}
-          data-testid={testId}
-        >
-          <SelectValue placeholder={placeholder}>
-            {selectedOption?.label ?? placeholder ?? value}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectFieldOptions optionGroups={optionGroups} />
-        </SelectContent>
-      </Select>
+      <SelectFieldControl
+        key={disabled ? 'disabled' : 'enabled'}
+        id={id}
+        value={value}
+        selectedValue={selectedOption || unresolvedValue ? encodeSelectValue(value) : ''}
+        selectedLabel={selectedOption?.label ?? placeholder ?? value}
+        onChange={onChange}
+        markDirty={markDirty}
+        optionGroups={optionGroups}
+        placeholder={placeholder}
+        disabled={disabled === true}
+        invalid={invalid}
+        required={required}
+        describedById={describedById}
+        ariaLabel={ariaLabel}
+        testId={testId}
+        autoFocus={autoFocus}
+      />
     </Field>
+  );
+}
+
+type SelectFieldControlProps = {
+  id: string;
+  value: string;
+  selectedValue: string;
+  selectedLabel: string | undefined;
+  onChange: (value: string) => void;
+  markDirty: () => void;
+  optionGroups: OptionGroup[];
+  placeholder: string | undefined;
+  disabled: boolean;
+  invalid: boolean | undefined;
+  required: boolean | undefined;
+  describedById: string | undefined;
+  ariaLabel: string | undefined;
+  testId: string | undefined;
+  autoFocus: boolean | undefined;
+};
+
+function SelectFieldControl({
+  id,
+  value,
+  selectedValue,
+  selectedLabel,
+  onChange,
+  markDirty,
+  optionGroups,
+  placeholder,
+  disabled,
+  invalid,
+  required,
+  describedById,
+  ariaLabel,
+  testId,
+  autoFocus,
+}: SelectFieldControlProps) {
+  const [open, setOpen] = useState(false);
+  const effectiveOpen = open && !disabled;
+
+  return (
+    <Select
+      value={selectedValue}
+      {...(disabled ? { disabled: true } : {})}
+      open={effectiveOpen}
+      onOpenChange={(nextOpen) => {
+        if (!disabled) setOpen(nextOpen);
+      }}
+      onValueChange={(next) => {
+        if (disabled) return;
+        const resolved = decodeSelectValue(next);
+        if (resolved === value) return;
+        markDirty();
+        onChange(resolved);
+      }}
+    >
+      <SelectTrigger
+        id={id}
+        autoFocus={autoFocus}
+        data-autofocus={autoFocus ? '' : undefined}
+        className="w-full"
+        aria-required={trueOrUndefined({ value: required })}
+        aria-invalid={trueOrUndefined({ value: invalid })}
+        aria-describedby={invalid ? describedById : undefined}
+        aria-label={ariaLabel}
+        data-testid={testId}
+      >
+        <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectFieldOptions optionGroups={optionGroups} disabled={disabled} />
+      </SelectContent>
+    </Select>
   );
 }

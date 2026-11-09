@@ -48,6 +48,7 @@ interface TimeOffFieldsProps {
   errorField: string | null;
   errorId: string;
   repeatFields?: ReactNode;
+  pending: boolean;
 }
 
 interface TimeOffDraftOptions {
@@ -126,6 +127,7 @@ function buildTimeOffRepeatFields(options: {
   repeatState: ReturnType<typeof useTimeOffRepeat>;
   errorField: string | null;
   errorId: string;
+  disabled: boolean;
 }): ReactNode {
   if (options.timeOff) return undefined;
   const { repeat, repeatUntil, maximum, preview, changeRepeat, changeRepeatUntil } =
@@ -139,6 +141,7 @@ function buildTimeOffRepeatFields(options: {
       projection={preview}
       errorField={options.errorField}
       errorId={options.errorId}
+      disabled={options.disabled}
       onRepeatChange={changeRepeat}
       onRepeatUntilChange={changeRepeatUntil}
     />
@@ -166,6 +169,8 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
 
   const fields = useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote });
   const acceptedSubmission = useRef(false);
+  const inFlight = useRef(false);
+  const [pending, setPending] = useState(false);
   const repeatState = useTimeOffRepeat(fields);
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
@@ -182,23 +187,39 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
     repeatState,
     errorField,
     errorId,
+    disabled: pending,
   });
 
-  const submit = () =>
-    saveTimeOff({
-      timeOff,
-      resources,
-      ...fields,
-      canEditNote,
-      fail,
-      add,
-      addMany,
-      update,
-      repeat: repeatState.repeat,
-      repeatUntil: repeatState.repeatUntil,
-      acceptedSubmission,
-      onClose,
-    });
+  const submit = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    try {
+      let settled = false;
+      const saving = saveTimeOff({
+        timeOff,
+        resources,
+        ...fields,
+        canEditNote,
+        fail,
+        add,
+        addMany,
+        update,
+        repeat: repeatState.repeat,
+        repeatUntil: repeatState.repeatUntil,
+        acceptedSubmission,
+        onClose,
+      }).finally(() => {
+        settled = true;
+      });
+      queueMicrotask(() => {
+        if (!settled) setPending(true);
+      });
+      await saving;
+    } finally {
+      inFlight.current = false;
+      setPending(false);
+    }
+  };
 
   return (
     <Modal
@@ -208,16 +229,19 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
         submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
       }}
       onEdit={clear}
-      footer={<FormActions onCancel={onClose} />}
+      footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
-      <TimeOffFields
-        {...fields}
-        resourceOptions={resourceOptions}
-        canEditNote={canEditNote}
-        errorField={errorField}
-        errorId={errorId}
-        repeatFields={repeatFields}
-      />
+      <fieldset disabled={pending} className="min-w-0">
+        <TimeOffFields
+          {...fields}
+          resourceOptions={resourceOptions}
+          canEditNote={canEditNote}
+          errorField={errorField}
+          errorId={errorId}
+          repeatFields={repeatFields}
+          pending={pending}
+        />
+      </fieldset>
       <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
         {error}
       </FieldError>
@@ -242,6 +266,7 @@ function TimeOffFields({
   errorField,
   errorId,
   repeatFields,
+  pending,
 }: TimeOffFieldsProps) {
   return (
     <>
@@ -255,6 +280,7 @@ function TimeOffFields({
         invalid={errorField === 'resource'}
         describedById={errorId}
         layout="label-control"
+        disabled={pending}
       />
       <TimeOffDateFields
         startDate={startDate}
@@ -263,6 +289,7 @@ function TimeOffFields({
         setEndDate={setEndDate}
         invalid={errorField === 'dates'}
         errorId={errorId}
+        disabled={pending}
       />
       <SelectField
         label={m.form_timeoff_type_label()}
@@ -270,6 +297,7 @@ function TimeOffFields({
         onChange={(value) => setType(value as TimeOffType)}
         options={buildTimeOffTypeOptions()}
         layout="label-control"
+        disabled={pending}
       />
       {repeatFields}
       {canEditNote && (
@@ -280,6 +308,7 @@ function TimeOffFields({
           invalid={errorField === 'note'}
           describedById={errorId}
           layout="label-control"
+          disabled={pending}
         />
       )}
     </>
@@ -293,6 +322,7 @@ function TimeOffDateFields({
   setEndDate,
   invalid,
   errorId,
+  disabled,
 }: {
   startDate: ISODate | '';
   setStartDate: (value: ISODate) => void;
@@ -300,6 +330,7 @@ function TimeOffDateFields({
   setEndDate: (value: ISODate) => void;
   invalid: boolean;
   errorId: string;
+  disabled: boolean;
 }) {
   return (
     <div data-timeoff-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
@@ -310,6 +341,7 @@ function TimeOffDateFields({
         required
         invalid={invalid}
         describedById={errorId}
+        disabled={disabled}
       />
       <DateField
         label={m.form_timeoff_end_label()}
@@ -318,6 +350,7 @@ function TimeOffDateFields({
         required
         invalid={invalid}
         describedById={errorId}
+        disabled={disabled}
       />
     </div>
   );

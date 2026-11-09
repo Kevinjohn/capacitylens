@@ -1,6 +1,6 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useActiveScopedData, useScopedData } from '@/store/useScopedData';
 import { useFieldError } from '@/hooks/useFieldError';
@@ -51,6 +51,8 @@ export function ProjectForm({
   const [name, setName] = useState(project?.name ?? '');
   const [clientId, setClientId] = useState(project?.clientId ?? '');
   const [color, setColor] = useState(project?.color ?? DEFAULT_COLORS.project);
+  const [pending, setPending] = useState(false);
+  const inFlight = useRef(false);
   const { error, errorField, errorId, fail } = useFieldError();
   const privateNameFields = usePrivateNameFields(project, fail);
   const selectedClientIsInternal =
@@ -88,6 +90,7 @@ export function ProjectForm({
     add,
     update,
     onClose,
+    pendingState: { inFlight, setPending },
   });
 
   return (
@@ -97,23 +100,26 @@ export function ProjectForm({
       onSubmit={() => {
         void submit();
       }}
-      footer={<FormActions onCancel={onClose} />}
+      footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
-      <ProjectFormFields
-        name={name}
-        setName={setName}
-        protectedName={privateNameFields.protectedName}
-        errorField={errorField}
-        errorId={errorId}
-        privateNameFields={privateNameFields}
-        clientId={clientId}
-        setClientId={setClientId}
-        clientOptions={clientOptions}
-        showColourPicker={showColourPicker}
-        color={color}
-        setColor={setColor}
-        error={error}
-      />
+      <fieldset disabled={pending} className="min-w-0">
+        <ProjectFormFields
+          name={name}
+          setName={setName}
+          protectedName={privateNameFields.protectedName}
+          errorField={errorField}
+          errorId={errorId}
+          privateNameFields={privateNameFields}
+          clientId={clientId}
+          setClientId={setClientId}
+          clientOptions={clientOptions}
+          showColourPicker={showColourPicker}
+          color={color}
+          setColor={setColor}
+          error={error}
+          disabled={pending}
+        />
+      </fieldset>
     </Modal>
   );
 }
@@ -151,6 +157,7 @@ function useProjectSubmit({
   add,
   update,
   onClose,
+  pendingState,
 }: {
   project: Project | undefined;
   name: string;
@@ -161,8 +168,10 @@ function useProjectSubmit({
   add: ReturnType<typeof useStore.getState>['addProject'];
   update: ReturnType<typeof useStore.getState>['updateProject'];
   onClose: () => void;
+  pendingState: { inFlight: { current: boolean }; setPending: (pending: boolean) => void };
 }) {
   return async () => {
+    if (pendingState.inFlight.current) return;
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     const privacy = privateNameFields.parsePrivacyPatch();
@@ -175,6 +184,8 @@ function useProjectSubmit({
       return;
     }
     if (!validatePresetColor(color, fail)) return;
+    pendingState.inFlight.current = true;
+    pendingState.setPending(true);
     try {
       if (
         project &&
@@ -189,6 +200,9 @@ function useProjectSubmit({
       if (error instanceof PlanningSaveCancelledError) return;
       // Surface store rejection at the project form so invalid writes cannot escape the event boundary.
       fail(null, resolveErrorMessage(error));
+    } finally {
+      pendingState.inFlight.current = false;
+      pendingState.setPending(false);
     }
   };
 }
@@ -239,6 +253,7 @@ function ProjectFormFields({
   color,
   setColor,
   error,
+  disabled,
 }: {
   name: string;
   setName: (value: string) => void;
@@ -253,6 +268,7 @@ function ProjectFormFields({
   color: string;
   setColor: (value: string) => void;
   error: string | null;
+  disabled: boolean;
 }) {
   return (
     <>
@@ -263,6 +279,7 @@ function ProjectFormFields({
         errorField={errorField}
         errorId={errorId}
         privateNameFields={privateNameFields}
+        disabled={disabled}
       />
       <ProjectClientField
         clientId={clientId}
@@ -270,6 +287,7 @@ function ProjectFormFields({
         clientOptions={clientOptions}
         errorField={errorField}
         errorId={errorId}
+        disabled={disabled}
       />
       <ProjectFormDetails
         showColourPicker={showColourPicker}
@@ -278,6 +296,7 @@ function ProjectFormFields({
         errorField={errorField}
         errorId={errorId}
         error={error}
+        disabled={disabled}
       />
     </>
   );
@@ -289,12 +308,14 @@ function ProjectClientField({
   clientOptions,
   errorField,
   errorId,
+  disabled,
 }: {
   clientId: string;
   setClientId: (value: string) => void;
   clientOptions: Option[];
   errorField: string | null;
   errorId: string;
+  disabled: boolean;
 }) {
   return (
     <SelectField
@@ -307,6 +328,7 @@ function ProjectClientField({
       invalid={errorField === 'client'}
       describedById={errorId}
       layout="label-control"
+      disabled={disabled}
     />
   );
 }
@@ -318,6 +340,7 @@ function ProjectNameFields({
   errorField,
   errorId,
   privateNameFields,
+  disabled,
 }: {
   name: string;
   setName: (value: string) => void;
@@ -325,6 +348,7 @@ function ProjectNameFields({
   errorField: string | null;
   errorId: string;
   privateNameFields: ReturnType<typeof usePrivateNameFields>;
+  disabled: boolean;
 }) {
   return (
     <>
@@ -334,7 +358,7 @@ function ProjectNameFields({
         onChange={setName}
         autoFocus={!protectedName}
         required
-        disabled={protectedName}
+        disabled={disabled || protectedName}
         invalid={errorField === 'name'}
         describedById={errorId}
         layout="label-control"
@@ -344,6 +368,7 @@ function ProjectNameFields({
         errorField={errorField}
         errorId={errorId}
         layout="label-control"
+        disabled={disabled}
       />
     </>
   );
@@ -356,6 +381,7 @@ function ProjectFormDetails({
   errorField,
   errorId,
   error,
+  disabled,
 }: {
   showColourPicker: boolean;
   color: string;
@@ -363,6 +389,7 @@ function ProjectFormDetails({
   errorField: string | null;
   errorId: string;
   error: string | null;
+  disabled: boolean;
 }) {
   return (
     <>
@@ -374,6 +401,7 @@ function ProjectFormDetails({
           invalid={errorField === 'color'}
           describedById={errorId}
           layout="label-control"
+          disabled={disabled}
         />
       )}
       <FieldError id={errorId}>{error}</FieldError>
