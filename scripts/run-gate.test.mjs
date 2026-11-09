@@ -201,6 +201,17 @@ test("gateCommands('all') includes every retained policy, package and security c
   }
 });
 
+test('every gate runs the bundle check once, through the root build script', () => {
+  const build = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    .scripts.build;
+  assert.match(build, /&& pnpm run bundle:check$/);
+  for (const mode of ['app', 'backend', 'all']) {
+    const names = gateCommands(mode).map((args) => args.join(' '));
+    assert.equal(names.filter((name) => name === 'run build').length, 1, mode);
+    assert.ok(!names.includes('run bundle:check'), mode);
+  }
+});
+
 test('backend and combined gates build application assets once before runtime checks and backend tests', () => {
   for (const mode of ['backend', 'all']) {
     const commands = gateCommands(mode);
