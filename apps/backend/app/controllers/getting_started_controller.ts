@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import vine from '@vinejs/vine';
 import { withActor } from '#services/auth/current_actor';
-import { assertCompanyAction } from '#services/auth/authorization';
+import { assertCompanyAction, IdentityAuthorityError } from '#services/auth/authorization';
 
 const dismissal = vine.compile(vine.object({ dismissed: vine.literal(true) }));
 
@@ -30,7 +30,10 @@ export default class GettingStartedController {
     }
     const now = new Date().toISOString();
     const exists = await withActor(ctx, async (_actor, trx) => {
-      await assertCompanyAction(params.accountId, 'planning:write', trx);
+      const { role } = await assertCompanyAction(params.accountId, 'planning:write', trx);
+      if (role !== 'owner' && role !== 'admin') {
+        throw new IdentityAuthorityError('Forbidden.');
+      }
       if (!(await trx.from('accounts').where('id', params.accountId).first())) return false;
       await trx
         .table('account_getting_started_dismissals')
