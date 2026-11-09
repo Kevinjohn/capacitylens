@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import {
+  BetaTransferError,
   buildBetaExport,
+  parseBetaExport,
   prepareBetaImport,
   type BetaExportDocument,
 } from '@capacitylens/shared/data/betaTransfer';
@@ -11,6 +13,19 @@ import { TABLE_NAMES } from '#services/planning/entity_policy';
 import { BatchRequestError } from '#services/planning/errors';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
+
+/**
+ * Validates a document taken from a parsed request body, or returns null when it is not a valid
+ * export. Nesting too deep to serialise counts as invalid input; any other failure propagates.
+ */
+export function parseRequestDocument(value: unknown): BetaExportDocument | null {
+  try {
+    return parseBetaExport(JSON.stringify(value));
+  } catch (error) {
+    if (error instanceof BetaTransferError || error instanceof RangeError) return null;
+    throw error;
+  }
+}
 
 const INSERT_ORDER = [
   'clients',
