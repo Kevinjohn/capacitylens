@@ -13,6 +13,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Update the view-as package to Masquerade 0.2.7, the release that pins Account Kit 0.3.3; its only runtime change is an added middleware for host-owned account routes that CapacityLens does not mount.
 - Update Account Kit to 0.3.3 and Access Control to 0.1.6 (#1800). Admission completion reads the invited role through Account Kit's admission record instead of its table; behaviour is unchanged.
 
 ### Fixed
