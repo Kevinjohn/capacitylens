@@ -18,6 +18,12 @@ const privateClientName = 'SENTINEL_PRIVATE_CLIENT_NAME';
 const privateProjectName = 'SENTINEL_PRIVATE_PROJECT_NAME';
 const privateTimeOffNote = 'SENTINEL_PRIVATE_TIME_OFF_NOTE';
 const roles = ['viewer', 'editor', 'admin', 'owner'] as const;
+const planningUrl = `/api/accounts/${accountId}/planning`;
+const input = (baseRevision: number, intent: Record<string, unknown>) => ({
+  mutationId: randomUUID(),
+  baseRevision,
+  intent,
+});
 type Role = (typeof roles)[number];
 
 function trusted<T extends { header(name: string, value: string): T }>(request: T) {
@@ -216,8 +222,34 @@ test.group('native authorization and role projections', (group) => {
         `${role} account-creation projection`
       );
 
-      const write = await writeDismissal(client, cookie);
-      assert.equal(write.status(), role === 'viewer' ? 403 : 200, `${role} ordinary write`);
+      const currentPlanning = await withSession(trusted(client.get(planningUrl)), cookie).send();
+      currentPlanning.assertStatus(200);
+      const planning = currentPlanning.body() as { revision: number };
+      const settingsRequest = trusted(client.patch(`/api/accounts/${accountId}/settings`));
+      const setting = await withSession(settingsRequest, cookie)
+        .json(
+          input(planning.revision, {
+            operation: 'settings.update',
+            changes: { name: `Gotham planning ${role}` },
+          })
+        )
+        .send();
+      assert.equal(setting.status(), role === 'viewer' ? 403 : 200, `${role} ordinary write`);
+
+      const dismissal = await writeDismissal(client, cookie);
+      assert.equal(
+        dismissal.status(),
+        role === 'admin' || role === 'owner' ? 200 : 403,
+        `${role} checklist dismissal`
+      );
+      const dismissalCount = await db
+        .from('account_getting_started_dismissals')
+        .where('account_id', accountId)
+        .count('* as total');
+      assert.equal(dismissalCount[0]?.total, role === 'admin' || role === 'owner' ? 1 : 0);
+      if (role === 'admin' || role === 'owner') {
+        await db.from('account_getting_started_dismissals').delete();
+      }
 
       const target = role === 'owner' ? anonymiseCandidates[1]! : anonymiseCandidates[0]!;
       const anonymised = await anonymiseResource(client, cookie, target.id);

@@ -31,7 +31,7 @@ export function PasswordConfirmationDialog({
   const [error, setError] = useState<string | null>(null);
 
   const confirm = async () => {
-    if (busy) return;
+    if (busy || password.length === 0) return;
     setBusy(true);
     setError(null);
     try {
@@ -70,6 +70,7 @@ export function PasswordConfirmationDialog({
       title={m.reauth_title()}
       description={m.password_confirmation_body()}
       onClose={busy ? () => {} : onCancel}
+      onSubmit={() => void confirm()}
       guardDirty={false}
       footer={
         <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
@@ -94,12 +95,11 @@ export function PasswordConfirmationDialog({
           </p>
         )}
         <Button
-          type="button"
+          type="submit"
           disabled={busy || !password}
-          onClick={() => void confirm()}
           data-testid="password-confirmation-submit"
         >
-          {busy ? m.ownership_transfer_working() : m.common_continue()}
+          {busy ? m.reauth_confirming() : m.common_continue()}
         </Button>
       </div>
     </Modal>

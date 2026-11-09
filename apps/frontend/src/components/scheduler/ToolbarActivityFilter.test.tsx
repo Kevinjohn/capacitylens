@@ -62,4 +62,42 @@ describe('ToolbarActivityFilter', () => {
       'All projects — All',
     );
   });
+
+  it('keeps an archived activity selection readable and clearable', () => {
+    const onChange = renderFilter({ activityId: 'act-archived' });
+
+    expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
+      'Unavailable activity',
+    );
+    openActivityFilter();
+    expect(screen.getByRole('option', { name: 'Unavailable activity' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    fireEvent.click(screen.getByRole('option', { name: 'All activities' }));
+    expect(onChange).toHaveBeenCalledWith({ activityId: null, activityKind: null });
+  });
+
+  it('keeps an archived activity selection visible when no activities remain', () => {
+    renderFilter({ activityId: 'act-archived', internalActivities: [], repeatableActivities: [] });
+
+    expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
+      'Unavailable activity',
+    );
+    openActivityFilter();
+    expect(screen.getByRole('option', { name: 'All activities' })).toBeInTheDocument();
+  });
+
+  it('keeps a kind selection visible when its group becomes empty', () => {
+    renderFilter({ activityKind: 'internal', internalActivities: [] });
+
+    expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
+      'Unavailable activity',
+    );
+    openActivityFilter();
+    expect(screen.getByRole('option', { name: 'Unavailable activity' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  });
 });
