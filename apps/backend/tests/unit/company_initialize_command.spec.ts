@@ -40,7 +40,7 @@ test('company initialization creates canonical defaults and refuses a second set
     database.close();
     const result = f.command(args);
     assert.equal(result.status, 0, result.output);
-    const { accountId } = JSON.parse(result.output.trim());
+    const { accountId } = JSON.parse(result.stdout.trim());
     const inspect = f.inspect();
     const account = inspect.prepare('SELECT * FROM accounts').get()!;
     assert.equal(account.id, accountId);
@@ -232,7 +232,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
       '--role=viewer',
     ]);
     assert.equal(bootstrap.status, 0, bootstrap.output);
-    const { url } = JSON.parse(bootstrap.output.trim().split('\n')[0]!) as { url: string };
+    const { url } = JSON.parse(bootstrap.stdout.trim()) as { url: string };
     const token = new URL(url).pathname.split('/').at(-1)!;
     await withOperatorServer(f, async (origin) => {
       const accepted = await fetch(`${origin}/api/invites/${token}/signup`, {
@@ -244,7 +244,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
     });
     const initialized = f.command(args);
     assert.equal(initialized.status, 0, initialized.output);
-    const { accountId } = JSON.parse(initialized.output.trim());
+    const { accountId } = JSON.parse(initialized.stdout.trim());
     await withOperatorServer(f, async (origin) => {
       const signin = await fetch(`${origin}/api/auth/sign-in`, {
         method: 'POST',

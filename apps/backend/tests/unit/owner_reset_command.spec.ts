@@ -39,12 +39,12 @@ test('owner command prints an audited single-use link without changing the crede
       '--confirm-server-stopped',
     ]);
     assert.equal(first.status, 0, first.output);
-    const firstResult = JSON.parse(first.output.trim()) as { link: string; accountIds: string[] };
+    const firstResult = JSON.parse(first.stdout.trim()) as { link: string; accountIds: string[] };
     assert.deepEqual(firstResult.accountIds, ['a-studio']);
     assert.match(firstResult.link, /^http:\/\/localhost:8787\/reset-password\//);
     const second = f.command(args);
     assert.equal(second.status, 0, second.output);
-    const secondResult = JSON.parse(second.output.trim()) as { link: string };
+    const secondResult = JSON.parse(second.stdout.trim()) as { link: string };
     assert.notEqual(firstResult.link, secondResult.link);
     const inspect = f.inspect();
     const audits = inspect.prepare('SELECT * FROM audit_entries').all();
@@ -142,7 +142,7 @@ test('a sole-owned company permits recovery even when another company has joint 
     database.close();
     const recovered = f.command(args);
     assert.equal(recovered.status, 0, recovered.output);
-    assert.deepEqual(JSON.parse(recovered.output.trim()).accountIds, ['a-studio']);
+    assert.deepEqual(JSON.parse(recovered.stdout.trim()).accountIds, ['a-studio']);
     const inspect = f.inspect();
     inspect.prepare("DELETE FROM memberships WHERE scope_id='a-studio'").run();
     inspect.close();
@@ -212,7 +212,7 @@ test('the issued owner link redeems once through the normal HTTP flow and ends e
     database.close();
     const issued = f.command(args);
     assert.equal(issued.status, 0, issued.output);
-    const token = new URL(JSON.parse(issued.output.trim()).link).pathname.split('/').at(-1)!;
+    const token = new URL(JSON.parse(issued.stdout.trim()).link).pathname.split('/').at(-1)!;
     await withOperatorServer(f, async (origin) => {
       const reset = () =>
         fetch(`${origin}/api/auth/reset-password`, {

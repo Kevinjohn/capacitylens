@@ -28,7 +28,7 @@ test('app reset archives all account and credential state and initializes a sepa
     const destination = join(f.root, 'fresh.db');
     const reset = f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable']);
     assert.equal(reset.status, 0, reset.output);
-    const result = JSON.parse(reset.output.trim()) as {
+    const result = JSON.parse(reset.stdout.trim()) as {
       archivePath: string;
       snapshotPath: string;
       databasePath: string;

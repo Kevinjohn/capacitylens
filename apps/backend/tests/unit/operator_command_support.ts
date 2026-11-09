@@ -37,7 +37,12 @@ export function operatorFixture() {
         env: { ...environment, ...overrides },
       });
       if (child.error) throw child.error;
-      return { status: child.status, output: `${child.stdout}\n${child.stderr}` };
+      return {
+        status: child.status,
+        stdout: child.stdout,
+        stderr: child.stderr,
+        output: `${child.stdout}\n${child.stderr}`,
+      };
     },
     inspect() {
       return new DatabaseSync(databasePath);
