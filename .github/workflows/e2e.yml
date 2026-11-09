@@ -30,9 +30,15 @@ jobs:
           - label: Firefox
             browser: firefox
             command: pnpm run e2e:firefox
-          - label: WebKit
+          # Trial (#1808): two WebKit shards on separate runners; both together cover the suite.
+          - label: WebKit 1/2
             browser: webkit
-            command: pnpm run e2e:webkit
+            shard: 1-of-2
+            command: pnpm run e2e:webkit --shard=1/2
+          - label: WebKit 2/2
+            browser: webkit
+            shard: 2-of-2
+            command: pnpm run e2e:webkit --shard=2/2
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,7 +53,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
-          name: browser-e2e-${{ matrix.browser }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: browser-e2e-${{ matrix.browser }}${{ matrix.shard && format('-{0}', matrix.shard) || '' }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             playwright-report/
             test-results/
