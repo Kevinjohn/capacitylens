@@ -3,6 +3,8 @@
 //   pnpm run check:changed           changes since the merge-base with origin/main
 //   pnpm run check:changed <base>    changes since the merge-base with <base>
 //   pnpm run check:changed --static  the same, without dependency lookups or whole test suites
+//   node scripts/check-changed.mjs --e2e-specs [<base>]
+//                                    print the changed end-to-end spec files to run, one per line
 //
 // Uncommitted and untracked files count as changed. `pnpm run gate:all` and `pnpm run e2e` remain
 // the submission gate; this is the fast loop while implementing or reviewing a change.
@@ -50,6 +52,9 @@ const documentationPolicySpec = 'apps/backend/tests/functional/policy/documentat
 const documentationPolicyInput =
   /^(?:user-stories\/|docs-src\/|packaging\/|apps\/frontend\/messages\/|README\.md$|CHANGELOG(?:-ARCHIVE)?\.md$)/;
 // A filter that matches nothing reports success; these markers turn it into a failure.
+// Specs run on their own; any other end-to-end input can affect every spec.
+const e2eSpec = /^e2e\/.+\.spec\.ts$/;
+const e2eInput = /^(?:e2e\/|playwright\.config\.ts$|scripts\/playwright)/;
 const japaNoTests = /NO TESTS EXECUTED/;
 const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
 // Vitest and Japa summarise as "Tests  12 passed (12)"; node --test reports "tests 12".
@@ -295,6 +300,32 @@ export function planChecks(
   return steps;
 }
 
+/**
+ * Select the changed end-to-end spec files to run on their own.
+ *
+ * Only a change whose end-to-end inputs are all spec files selects anything: a fixture, helper or
+ * Playwright configuration change can affect every spec, and the full browser suite covers it.
+ */
+export function selectE2eSpecs(
+  paths,
+  exists = (path) => existsSync(new URL(path, pathToFileURL(root))),
+) {
+  const inputs = paths.filter((path) => e2eInput.test(path));
+  if (!inputs.length) return { specs: [], reason: 'no end-to-end changes' };
+  const support = inputs.filter((path) => !e2eSpec.test(path));
+  if (support.length)
+    return {
+      specs: [],
+      reason: `${support.length} end-to-end support file(s) changed; the full browser suite runs them`,
+    };
+  const specs = inputs.filter(exists);
+  return specs.length
+    ? { specs, reason: `${specs.length} changed spec file(s)` }
+    : { specs: [], reason: 'only deleted spec files' };
+}
+
+const commandLine = (step) => [step.command === 'node' ? 'node' : 'pnpm', ...step.args].join(' ');
+
 /** Report whether a test step's output shows that it executed no tests. */
 export function ranNoTests(step, output) {
   return step.noTests ? step.noTests.test(output) : false;
@@ -398,10 +429,20 @@ async function main() {
     assertSupportedNodeVersion();
     const args = process.argv.slice(2);
     const staticOnly = args.includes('--static');
-    const [base = defaultBase, ...extra] = args.filter((arg) => arg !== '--static');
-    if (extra.length || base.startsWith('-'))
-      throw new Error('Expected --static and at most one base ref.');
+    const e2eOnly = args.includes('--e2e-specs');
+    const [base = defaultBase, ...extra] = args.filter(
+      (arg) => arg !== '--static' && arg !== '--e2e-specs',
+    );
+    if (extra.length || base.startsWith('-') || (staticOnly && e2eOnly))
+      throw new Error('Expected --static or --e2e-specs, and at most one base ref.');
     const paths = changedPaths(base);
+    if (e2eOnly) {
+      // Standard output carries only the spec paths, so a workflow can pass them to Playwright.
+      const { specs, reason } = selectE2eSpecs(paths);
+      console.error(`check:changed --e2e-specs: ${reason} since ${base}`);
+      if (specs.length) console.log(specs.join('\n'));
+      return;
+    }
     if (!paths.length) {
       console.log(`No changes since ${base}.`);
       return;
@@ -414,11 +455,13 @@ async function main() {
         continue;
       }
       const result = await runStep(step);
+      // Name what each test step ran, so a log shows the selected files or suite.
+      const command = step.label.startsWith('test:') ? `\n      $ ${commandLine(step)}` : '';
       if (result.passed) {
-        console.log(`pass  ${step.label}${passDetail(step, result.output)}`);
+        console.log(`pass  ${step.label}${passDetail(step, result.output)}${command}`);
         continue;
       }
-      console.log(`fail  ${step.label}`);
+      console.log(`fail  ${step.label}${command}`);
       failed = true;
       console.log(result.output.trimEnd().split('\n').slice(-logTailLines).join('\n'));
       if (step.prepare) break;
