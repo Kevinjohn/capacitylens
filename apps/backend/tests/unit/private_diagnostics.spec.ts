@@ -4,6 +4,7 @@ import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import { IdentityAuthorityError } from '#services/auth/authorization';
 import { ActionProofError } from '#services/auth/action_proof';
 import { test } from '@japa/runner';
+import { PasswordConfirmationRequiredException } from '@kevinjohn/adonisjs-confirm-action-with-password';
 import type { HttpContext } from '@adonisjs/core/http';
 import HttpExceptionHandler from '#exceptions/handler';
 test('error reporting survives a failed diagnostic logger', async ({ assert }) => {
@@ -58,6 +59,7 @@ test('expected authentication and authorization refusals do not report server er
     [new UnverifiedEmailError(), 403],
     [new IdentityAuthorityError('PRIVATE_AUTHORITY'), 403],
     [new ActionProofError(), 403],
+    [new PasswordConfirmationRequiredException(), 403],
   ] as const) {
     const captured = diagnosticContext();
     await handler.handle(error, captured.context);

@@ -457,7 +457,7 @@ test.group('company anonymisation', (group) => {
       commitmentBefore
     );
     assert.lengthOf(
-      await db.from('action_proofs').where({ id: proofId }).whereNull('consumed_at'),
+      await db.from('password_confirmations').where({ id: proofId }).whereNull('consumed_at'),
       1
     );
     assert.equal(await withTransaction((trx) => getPlanningRevision(trx, accountId)), before);
@@ -524,7 +524,7 @@ test.group('company anonymisation', (group) => {
     const unchanged = await db.from('resources').where('id', resource.id).first();
     assert.equal(unchanged.name, resource.name);
     assert.lengthOf(
-      await db.from('action_proofs').where({ id: proofId }).whereNull('consumed_at'),
+      await db.from('password_confirmations').where({ id: proofId }).whereNull('consumed_at'),
       1
     );
   });

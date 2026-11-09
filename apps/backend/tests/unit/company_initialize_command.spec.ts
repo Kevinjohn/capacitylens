@@ -318,7 +318,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
 for (const drift of [
   'DROP TABLE deleted_rows',
   'DROP TABLE deleted_groups',
-  'DROP TABLE action_proofs',
+  'DROP TABLE password_confirmations',
   'ALTER TABLE planning_mutations RENAME COLUMN origin_session_id TO stale_origin_session_id',
 ]) {
   test(`company initialization refuses baseline drift: ${drift}`, ({ assert, test: t }) => {

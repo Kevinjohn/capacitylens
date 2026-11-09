@@ -359,7 +359,7 @@ test.group('beta transfer apply', (group) => {
     );
     const stale = await apply(client, cookie, full, baseRevision, staleProof);
     stale.assertStatus(409);
-    const staleProofRow = await db.from('action_proofs').where('id', staleProof).first();
+    const staleProofRow = await db.from('password_confirmations').where('id', staleProof).first();
     assert.isNull(staleProofRow?.consumed_at);
     const redacted = buildBetaExport(before, { accountId, completeness: 'redacted' });
     const redactedProof = await proof(client, cookie, {
@@ -443,7 +443,10 @@ test.group('beta transfer apply', (group) => {
         await db.from('audit_entries').where({ account_id: accountId, action: 'import' }),
         0
       );
-      const failedProofRow = await db.from('action_proofs').where('id', actionProof).first();
+      const failedProofRow = await db
+        .from('password_confirmations')
+        .where('id', actionProof)
+        .first();
       assert.isNull(failedProofRow?.consumed_at);
     } finally {
       await db.rawQuery('DROP TRIGGER IF EXISTS fail_transfer_audit');
@@ -468,7 +471,7 @@ test.group('beta transfer apply', (group) => {
       })
       .send();
     denied.assertStatus(403);
-    assert.lengthOf(await db.from('action_proofs'), 0);
+    assert.lengthOf(await db.from('password_confirmations'), 0);
 
     const roleProof = await proof(client, cookie, { baseRevision, document: full });
     await db
@@ -477,7 +480,7 @@ test.group('beta transfer apply', (group) => {
       .update({ role: 'admin' });
     const roleDenied = await apply(client, cookie, full, baseRevision, roleProof);
     roleDenied.assertStatus(403);
-    const roleProofRow = await db.from('action_proofs').where('id', roleProof).first();
+    const roleProofRow = await db.from('password_confirmations').where('id', roleProof).first();
     assert.isNull(roleProofRow?.consumed_at);
 
     await db
@@ -489,7 +492,7 @@ test.group('beta transfer apply', (group) => {
     const sessionDenied = await apply(client, cookie, full, baseRevision, sessionProof);
     sessionDenied.assertStatus(401);
     // A proof belongs to its sign-in and is removed with it.
-    assert.isNull(await db.from('action_proofs').where('id', sessionProof).first());
+    assert.isNull(await db.from('password_confirmations').where('id', sessionProof).first());
     assert.equal(await revision(), baseRevision);
   });
 
@@ -500,29 +503,46 @@ test.group('beta transfer apply', (group) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
     const full = await document();
     const baseRevision = await revision();
-    const priorCredential = await db.from('users').where('id', userId).select('password').first();
-    if (!priorCredential?.password) throw new Error('The owner fixture has no password hash.');
-    const replacement = await hash.make('replacement-password-2026');
+    const { default: kit } = await import('@kevinjohn/adonisjs-account-kit/services/main');
     const originalVerify = hash.verify;
-    let replaced = false;
+    const checking = Promise.withResolvers<void>();
+    const pending = Promise.withResolvers<void>();
+    let held = false;
+    let changed = false;
     hash.verify = async function (...args: Parameters<typeof hash.verify>) {
       const result = await originalVerify.apply(this, args);
-      if (!replaced) {
-        replaced = true;
-        await db.from('users').where('id', userId).update({ password: replacement });
+      if (!held) {
+        held = true;
+        checking.resolve();
+        await pending.promise;
       }
       return result;
     };
     try {
-      const response = await asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+      const request = asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
         .json({ action: 'import', accountId, intent: { baseRevision, document: full }, password })
         .send();
+      await checking.promise;
+      await kit.emailPasswordManagement.changePassword({
+        actorId: userId,
+        currentPassword: password,
+        newPassword: 'replacement-password-2026',
+      });
+      changed = true;
+      pending.resolve();
+      const response = await request;
       assert.include([401, 403], response.status());
-      assert.isTrue(replaced);
-      assert.lengthOf(await db.from('action_proofs').where('user_id', userId), 0);
+      assert.isTrue(held);
+      assert.lengthOf(await db.from('password_confirmations').where('user_id', userId), 0);
     } finally {
+      pending.resolve();
       hash.verify = originalVerify;
-      await db.from('users').where('id', userId).update({ password: priorCredential.password });
+      if (changed)
+        await kit.emailPasswordManagement.changePassword({
+          actorId: userId,
+          currentPassword: 'replacement-password-2026',
+          newPassword: password,
+        });
     }
   });
 
@@ -537,13 +557,13 @@ test.group('beta transfer apply', (group) => {
     const { cookie: secondCookie } = await signIn(client, 'bruce.wayne@wayne.example', password);
     const wrongSession = await apply(client, secondCookie, full, baseRevision, actionProof);
     wrongSession.assertStatus(403);
-    const unspent = await db.from('action_proofs').where('id', actionProof).first();
+    const unspent = await db.from('password_confirmations').where('id', actionProof).first();
     assert.isNull(unspent?.consumed_at);
     await db
-      .from('action_proofs')
+      .from('password_confirmations')
       .where('id', actionProof)
       .update({
-        expires_at: new Date(Date.now() - 1000).toISOString(),
+        verified_at: Date.now() - 5 * 60_000 - 1000,
       });
     const expired = await apply(client, cookie, full, baseRevision, actionProof);
     expired.assertStatus(403);

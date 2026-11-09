@@ -71,7 +71,7 @@ export const baselineTables = [
   'planning_mutations',
   'deleted_groups',
   'deleted_rows',
-  'action_proofs',
+  'password_confirmations',
   'account_getting_started_dismissals',
   'adonis_sessions',
   'password_reset_tokens',

@@ -71,6 +71,31 @@ test.group('atomic ownership transfer', (group) => {
     await db.from('users').delete();
   });
 
+  test('a wrong-action proof cannot authorize ownership transfer', async ({ client, assert }) => {
+    const { ownerId, adminId, ownerCookie } = await fixture(client);
+    const issued = await signed(client.post('/api/auth/action-proof/password'), ownerCookie)
+      .json({ action: 'anonymise', accountId: 'a-studio', intent: {}, password })
+      .send();
+    issued.assertStatus(200);
+    const response = await signed(
+      client.post('/api/accounts/a-studio/ownership-transfer'),
+      ownerCookie
+    )
+      .json({ toUserId: adminId, proofId: issued.body().proofId })
+      .send();
+    response.assertStatus(403);
+    assert.deepEqual(response.body(), {
+      error: 'Confirm this action again.',
+      code: 'ACTION_PROOF_REQUIRED',
+    });
+    const owner = await db
+      .from('memberships')
+      .where({ scope_id: 'a-studio', user_id: ownerId })
+      .firstOrFail();
+    assert.equal(owner.role, 'owner');
+    assert.lengthOf(await db.from('audit_entries').where('action', 'ownership.transferred'), 0);
+  });
+
   test('retired and unknown lifecycle actions return 404 before body validation', async ({
     client,
   }) => {
@@ -349,7 +374,7 @@ test.group('atomic ownership transfer', (group) => {
         await db.from('company_planning_revisions').where('account_id', 'a-studio').first(),
         revisionBefore
       );
-      const proof = await db.from('action_proofs').where('id', proofId).first();
+      const proof = await db.from('password_confirmations').where('id', proofId).first();
       assert.isNotNull(proof);
       assert.isNull(proof.consumed_at);
       assert.lengthOf(

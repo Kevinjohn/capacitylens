@@ -1,7 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { AccountCommandError, readAccountCommand } from '#services/account_commands';
 import { IdentityAuthorityError } from '#services/auth/authorization';
-import { ActionProofError } from '#services/auth/action_proof';
 import { OwnershipTransferError, transferOwnership } from '#services/membership/ownership_transfer';
 
 function validBody(value: unknown): value is { toUserId: string; proofId?: string } {
@@ -37,11 +36,7 @@ export default class OwnershipController {
       );
       return ctx.response.ok(receipt);
     } catch (error) {
-      if (
-        error instanceof AccountCommandError ||
-        error instanceof OwnershipTransferError ||
-        error instanceof ActionProofError
-      ) {
+      if (error instanceof AccountCommandError || error instanceof OwnershipTransferError) {
         return ctx.response.status(error.status).send({ error: error.message, code: error.code });
       }
       if (error instanceof IdentityAuthorityError) {

@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import type { HttpContext } from '@adonisjs/core/http';
-import limiter from '@adonisjs/limiter/services/main';
 import app from '@adonisjs/core/services/app';
 import env from '#start/env';
 
@@ -17,20 +16,4 @@ export function configuredApiLimit(): number {
 /** The client address follows the HTTP server's proxy trust in `config/app.ts`. */
 export function requestClientKey(ctx: HttpContext): string {
   return createHash('sha256').update(ctx.request.ip()).digest('hex');
-}
-
-export async function consumeFailedSignInBudget(ctx: HttpContext): Promise<boolean> {
-  const budget = limiter.use({ requests: 3, duration: '10 seconds' });
-  try {
-    await budget.consume(`sign-in:${requestClientKey(ctx)}`);
-    return true;
-  } catch (error) {
-    if ((error as { status?: number }).status === 429) return false;
-    throw error;
-  }
-}
-
-export async function resetFailedSignInBudget(ctx: HttpContext): Promise<void> {
-  const budget = limiter.use({ requests: 3, duration: '10 seconds' });
-  await budget.delete(`sign-in:${requestClientKey(ctx)}`);
 }
