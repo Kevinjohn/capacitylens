@@ -231,7 +231,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
       onEdit={clear}
       footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
-      <fieldset disabled={pending} className="min-w-0">
+      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <TimeOffFields
           {...fields}
           resourceOptions={resourceOptions}

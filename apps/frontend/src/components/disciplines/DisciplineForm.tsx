@@ -73,7 +73,7 @@ export function DisciplineForm({
       }}
       footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
-      <fieldset disabled={pending} className="min-w-0">
+      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <TextField
           label={m.form_discipline_name_label()}
           value={name}

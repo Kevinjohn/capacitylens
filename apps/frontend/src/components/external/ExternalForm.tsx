@@ -116,7 +116,7 @@ export function ExternalForm({
       }}
       footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
-      <fieldset disabled={pending} className="min-w-0">
+      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <ExternalFormFields
           name={name}
           onNameChange={setName}
