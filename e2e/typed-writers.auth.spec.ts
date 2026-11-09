@@ -25,6 +25,18 @@ function recordPlanningWrites(page: Page) {
   return writes;
 }
 
+function dateAfterDays(days: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(dateValue: string, days: number): string {
+  const date = new Date(`${dateValue}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 test('authenticated client creation and settings Undo/Redo persist as typed writes', async ({
   page,
   request,
@@ -173,9 +185,10 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   await page.getByRole('link', { name: 'Time off' }).click();
   await page.getByRole('button', { name: 'Add time off' }).click();
   const create = page.getByRole('dialog', { name: 'Add time off' });
+  const timeOffStart = dateAfterDays(14);
   await selectShadOption(create.getByLabel('Resource'), { label: 'Diana Prince' });
-  await create.getByLabel('Start').fill('2026-11-02');
-  await create.getByLabel('End').fill('2026-11-03');
+  await create.getByLabel('Start').fill(timeOffStart);
+  await create.getByLabel('End').fill(addDays(timeOffStart, 1));
   await create.getByRole('textbox', { name: 'Note' }).fill('Watchtower visit');
   await create.getByRole('button', { name: 'Save' }).click();
   const row = page
@@ -231,6 +244,8 @@ for (const repeat of [false, true]) {
     const owner = await signUpUser(`timeoff-owner-${suffix}@capacitylens.dev`);
     const editor = await signUpUser(`timeoff-editor-${suffix}@capacitylens.dev`);
     const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Time Off ${suffix}`);
+    const timeOffStart = dateAfterDays(14);
+    const repeatUntil = addDays(timeOffStart, 7);
     const resourceId = crypto.randomUUID();
     await createFixturePerson(request, owner.cookie, accountId, {
       id: resourceId,
@@ -251,11 +266,11 @@ for (const repeat of [false, true]) {
     const dialog = page.getByRole('dialog', { name: 'Add time off' });
     await expect(dialog.getByLabel('Note')).toHaveCount(0);
     await selectShadOption(dialog.getByLabel('Resource'), { label: 'Barbara Gordon' });
-    await dialog.getByLabel('Start').fill('2026-11-02');
-    await dialog.getByLabel('End').fill('2026-11-03');
+    await dialog.getByLabel('Start').fill(timeOffStart);
+    await dialog.getByLabel('End').fill(addDays(timeOffStart, 1));
     if (repeat) {
       await selectShadOption(dialog.getByTestId('timeoff-repeat'), { label: 'Weekly' });
-      await dialog.getByTestId('timeoff-repeat-until').fill('2026-11-09');
+      await dialog.getByTestId('timeoff-repeat-until').fill(repeatUntil);
       await expect(dialog.getByTestId('timeoff-repeat-preview')).toContainText('Creates 2 entries');
     }
     const path = `/api/accounts/${accountId}/time-off${repeat ? '/repeat' : ''}`;
