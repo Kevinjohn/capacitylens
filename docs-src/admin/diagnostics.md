@@ -25,12 +25,12 @@ is off, as in the demo, everyone can open it.
 The page shows exactly the text that is copied:
 
 - the app version, build revision, deployment mode and export schema;
-- server connectivity, database status, the latest schema migration and the newest managed
-  snapshot's file time, as observed when the page opened (**Snapshot observed**);
+- server connectivity, database status, the latest schema migration and the creation time
+  recorded in the newest backup bundle, as observed when the page opened (**Snapshot observed**);
 - the browser's viewport, time zone and language. The user-agent field is always **Unknown**.
 
 A value the page cannot read shows **Unknown** or **unavailable**. The newest snapshot time is
-**Unknown** when it cannot be read or no snapshot is found. This file time does not establish that
+**Unknown** when it cannot be read or no snapshot is found. This recorded time does not establish that
 a backup completed successfully, is intact or can be restored. The demo has no server, so its
 server values are always unavailable. If the build provides a revision or feedback address,
 **Build details** shows it and may include a **Send feedback** link.
