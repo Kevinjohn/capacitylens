@@ -296,8 +296,9 @@ pnpm run e2e:all
 ```
 
 These conditions are local-development guidance for choosing extra checks before opening a pull
-request. Pull requests run static analysis and CodeQL; documentation changes also run the docs
-build. The full application/backend gate, native packages and Chromium/Firefox/WebKit
+request. Pull requests run static analysis, CodeQL and `check:changed` against the target
+branch; when a pull request's end-to-end changes are spec files only, those specs also run
+through `pnpm run e2e`. Documentation changes also run the docs build. The full application/backend gate, native packages and Chromium/Firefox/WebKit
 E2E suites run on `main` pushes, schedules or manual dispatch. Check the workflow files
 for the current triggers and dispatch any required pre-merge evidence explicitly.
 

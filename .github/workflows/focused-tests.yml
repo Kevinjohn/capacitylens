@@ -1,0 +1,81 @@
+name: Focused tests
+
+# Pull requests run the tests their changes select; full Validation still runs on main.
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: focused-tests-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changed:
+    name: Changed tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The selector diffs against the merge base with the target branch.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Run checks and tests selected by the change
+        run: pnpm run check:changed "origin/$BASE_REF"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          NODE_ENV: test
+          CAPACITYLENS_SECRET: capacitylens-build-secret-0123456789abcdef
+          CAPACITYLENS_PUBLIC_URL: https://127.0.0.1
+          HOST: 127.0.0.1
+          PORT: '0'
+          LOG_LEVEL: error
+          APP_KEY: capacitylens-build-key-0123456789abcdef
+          APP_URL: http://127.0.0.1
+          SESSION_DRIVER: memory
+
+  e2e:
+    name: Changed end-to-end specs
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Select changed specs
+        id: select
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          specs="$(node scripts/check-changed.mjs --e2e-specs "origin/$BASE_REF" | tr '\n' ' ')"
+          echo "specs=${specs% }" >> "$GITHUB_OUTPUT"
+      # The default E2E command runs the Chromium, database and auth projects.
+      - if: steps.select.outputs.specs != ''
+        run: pnpm exec playwright install --with-deps chromium
+      # The native first-company journey serves the built SPA from the backend's public directory.
+      - name: Build and sync the production SPA
+        if: steps.select.outputs.specs != ''
+        run: pnpm --dir apps/frontend build && node scripts/sync-adonis-public.mjs
+      - name: Run changed specs
+        if: steps.select.outputs.specs != ''
+        env:
+          SPECS: ${{ steps.select.outputs.specs }}
+        run: |
+          echo "pnpm run e2e $SPECS"
+          # shellcheck disable=SC2086 # Each spec path is a separate argument.
+          pnpm run e2e $SPECS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: focused-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7

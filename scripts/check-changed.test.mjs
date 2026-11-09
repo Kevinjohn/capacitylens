@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { changedPaths, planChecks, ranNoTests, runStep, testCount } from './check-changed.mjs';
+import { fileURLToPath } from 'node:url';
+import {
+  changedPaths,
+  planChecks,
+  ranNoTests,
+  runStep,
+  selectE2eSpecs,
+  testCount,
+} from './check-changed.mjs';
 
 const everything = () => true;
 const noImporters = () => [];
@@ -406,4 +414,41 @@ test('deleted frontend implementation selects full tests without missing file ar
     assert.ok(step(steps, 'typecheck'));
     assert.ok(steps.every((entry) => !entry.args?.includes(deleted)));
   }
+});
+
+test('changed end-to-end specs are selected on their own, alongside application changes', () => {
+  assert.deepEqual(selectE2eSpecs(['e2e/typed-writers.auth.spec.ts'], everything).specs, [
+    'e2e/typed-writers.auth.spec.ts',
+  ]);
+  assert.deepEqual(
+    selectE2eSpecs(
+      ['apps/frontend/src/App.tsx', 'e2e/a.spec.ts', 'e2e/b.db.spec.ts', 'e2e/gone.spec.ts'],
+      (path) => path !== 'e2e/gone.spec.ts',
+    ).specs,
+    ['e2e/a.spec.ts', 'e2e/b.db.spec.ts'],
+  );
+});
+
+test('end-to-end support changes, deleted specs and no end-to-end change select no spec', () => {
+  for (const [paths, reason] of [
+    [['e2e/a.spec.ts', 'e2e/fixtures.ts'], /support file/],
+    [['playwright.config.ts'], /support file/],
+    [['scripts/playwrightRunMode.mjs'], /support file/],
+    [['e2e/gone.spec.ts'], /only deleted/],
+    [['apps/frontend/src/App.tsx'], /no end-to-end changes/],
+  ]) {
+    const selection = selectE2eSpecs(paths, (path) => path !== 'e2e/gone.spec.ts');
+    assert.deepEqual(selection.specs, [], paths.join());
+    assert.match(selection.reason, reason);
+  }
+});
+
+test('--e2e-specs cannot be combined with --static', () => {
+  const result = spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL('./check-changed.mjs', import.meta.url)), '--static', '--e2e-specs'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /Expected --static or --e2e-specs/);
 });
