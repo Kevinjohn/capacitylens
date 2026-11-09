@@ -9,7 +9,6 @@ import { buildGettingStartedSteps } from '@/lib/gettingStarted';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
 import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,11 +39,11 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
   return (
     <li className="flex items-center gap-2 text-sm">
       {done ? (
-        <Check className="mt-0.5 size-4 shrink-0 text-brand" />
+        <Check aria-hidden="true" className="size-4 shrink-0 text-brand" />
       ) : (
         <span
           aria-hidden="true"
-          className="mt-1 size-3.5 shrink-0 rounded-full border border-line"
+          className="size-4 shrink-0 rounded-full border-[1.5px] border-muted-foreground/50"
         />
       )}
       <div className="min-w-0">{labelContent}</div>
@@ -78,7 +77,6 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
   const open =
     openChoice?.path === pathname ? openChoice.open : shouldOpenChecklistByDefault(pathname, done);
   const setOpen = (value: boolean) => setOpenChoice({ path: pathname, open: value });
-  const showButton = useRef<HTMLButtonElement>(null);
   const { canShowTour, tourBusy, showTour } = useTourAction(setNotice);
   const { dismissed, loaded, loadFailed, retryLoad, confirmOpen, setConfirmOpen, saving, dismiss } =
     useCompanyDismissal(accountId, pathname, setNotice);
@@ -103,7 +101,7 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
           aria-valuemin={0}
           aria-valuemax={5}
           aria-valuenow={done}
-          className="h-2 min-w-20 flex-1 overflow-hidden rounded-full bg-muted sm:max-w-48"
+          className="h-2 min-w-20 flex-1 overflow-hidden rounded-full bg-line sm:max-w-48"
         >
           <div
             className="h-full rounded-full bg-brand transition-[width]"
@@ -116,13 +114,7 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
               {m.gs_retry()}
             </Button>
           )}
-          <Button
-            ref={showButton}
-            size="sm"
-            variant="outline"
-            aria-expanded={open}
-            onClick={() => setOpen(!open)}
-          >
+          <Button size="sm" variant="outline" aria-expanded={open} onClick={() => setOpen(!open)}>
             {open ? m.gs_hide_card() : m.gs_show_card()}
           </Button>
           {canDismiss && (
@@ -138,17 +130,11 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
         </div>
       </div>
       {open && (
-        <GettingStartedCard
+        <GettingStartedChecklist
           steps={steps}
           canShowTour={canShowTour}
           tourBusy={tourBusy}
           showTour={showTour}
-          canDismiss={canDismiss}
-          requestDismiss={requestDismiss}
-          hide={() => {
-            setOpen(false);
-            showButton.current?.focus();
-          }}
         />
       )}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -175,56 +161,35 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
   );
 }
 
-function GettingStartedCard({
+function GettingStartedChecklist({
   steps,
   canShowTour,
   tourBusy,
   showTour,
-  canDismiss,
-  requestDismiss,
-  hide,
 }: {
   steps: ReturnType<typeof buildGettingStartedSteps>;
   canShowTour: boolean;
   tourBusy: boolean;
   showTour: () => Promise<void>;
-  canDismiss: boolean;
-  requestDismiss: () => void;
-  hide: () => void;
 }) {
   return (
-    <Card
+    <section
       aria-label={m.gs_title()}
       data-testid="getting-started"
-      className="getting-started-popover gap-3 py-4"
+      className="flex flex-col items-start gap-3 px-4 pt-1 pb-4"
     >
-      <CardHeader className="px-4">
-        <CardTitle className="text-sm">{m.gs_title()}</CardTitle>
-        <CardDescription className="text-xs">{m.gs_subtitle()}</CardDescription>
-      </CardHeader>
-      <CardContent className="px-4">
-        <FirstUseMilestones steps={steps} />
-      </CardContent>
-      <CardFooter className="gap-2 px-4">
-        <Button
-          size="sm"
-          onClick={() => void showTour()}
-          data-testid="getting-started-tour"
-          disabled={!canShowTour || tourBusy}
-          aria-busy={tourBusy || undefined}
-        >
-          {m.gs_show_me_around()}
-        </Button>
-        <Button size="sm" variant="outline" onClick={hide}>
-          {m.gs_hide_card()}
-        </Button>
-        {canDismiss && (
-          <Button size="sm" variant="ghost" onClick={requestDismiss}>
-            {m.gs_dismiss()}
-          </Button>
-        )}
-      </CardFooter>
-    </Card>
+      <p className="text-sm text-muted-foreground">{m.gs_subtitle()}</p>
+      <FirstUseMilestones steps={steps} />
+      <Button
+        size="sm"
+        onClick={() => void showTour()}
+        data-testid="getting-started-tour"
+        disabled={!canShowTour || tourBusy}
+        aria-busy={tourBusy || undefined}
+      >
+        {m.gs_show_me_around()}
+      </Button>
+    </section>
   );
 }
 

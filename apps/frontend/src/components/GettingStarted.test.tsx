@@ -1,6 +1,6 @@
 import { requireCreated } from '@/test/requireCreated';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { GettingStarted } from './GettingStarted';
@@ -8,7 +8,6 @@ import { resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
-import indexCss from '@/index.css?raw';
 
 const tourMock = vi.hoisted(() => ({ startTour: vi.fn<() => Promise<void>>() }));
 const apiMode = vi.hoisted(() => ({ demo: true }));
@@ -37,6 +36,16 @@ function renderChecklist(role: Role | null, path = '/') {
 }
 
 describe('Getting started', () => {
+  it('renders the checklist inline in the drawer, with one set of drawer controls', async () => {
+    renderChecklist('owner');
+    const drawer = await screen.findByTestId('getting-started-progress');
+    const checklist = within(drawer).getByRole('region', { name: 'Getting started' });
+    expect(checklist).toHaveAttribute('data-testid', 'getting-started');
+    expect(checklist.closest('[data-slot="card"]')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Hide checklist' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(1);
+  });
+
   it('shows all five milestones immediately and a zero progress bar', async () => {
     renderChecklist('owner');
     expect(await screen.findByTestId('getting-started')).toBeVisible();
@@ -292,11 +301,5 @@ describe('Getting started', () => {
       finishRead(new Response(JSON.stringify({ dismissed: false }), { status: 200 })),
     );
     expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
-  });
-
-  it('keeps the card bounded and pointer interactive', () => {
-    expect(indexCss).toMatch(
-      /\.getting-started-popover\s*\{[^}]*overflow-y:\s*auto;[^}]*pointer-events:\s*auto;/,
-    );
   });
 });

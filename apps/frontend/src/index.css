@@ -497,16 +497,6 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scrol
   }
 }
 
-/* Keep the expanded guidance in the page flow so it cannot cover scheduler controls. The card
-   still scrolls within short viewports while the rest of the page remains interactive. */
-.getting-started-popover {
-  margin: 0.5rem 0.75rem 0.5rem auto;
-  width: min(28rem, calc(100% - 1.5rem));
-  max-height: min(24rem, calc(100dvh - 7rem));
-  overflow-y: auto;
-  pointer-events: auto;
-}
-
 /* Diagonal light-grey hatch for placeholder ("slot") resource rows on the schedule,
    marking them as not-yet-a-real-person. Only the lines are painted (transparent gaps),
    so it layers over whatever background-color the element already carries. */
