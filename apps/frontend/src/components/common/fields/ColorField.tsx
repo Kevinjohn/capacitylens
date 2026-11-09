@@ -22,6 +22,7 @@ type ColorFieldProps = {
   onChange: (value: string) => void;
   invalid?: boolean;
   describedById?: string;
+  disabled?: boolean;
   layout?: ProductFieldLayout;
 };
 
@@ -32,11 +33,13 @@ type SwatchGridProps = {
   markDirty: () => void;
   onChange: (value: string) => void;
   onClose: () => void;
+  disabled: boolean;
 };
 
 type ColorTriggerProps = Pick<ColorFieldProps, 'label' | 'value'> & {
   invalid: boolean | undefined;
   describedById: string | undefined;
+  disabled: boolean;
 };
 
 function resolveSwatchDelta(key: string): number | null {
@@ -47,11 +50,12 @@ function resolveSwatchDelta(key: string): number | null {
   return null;
 }
 
-function ColorTrigger({ label, value, invalid, describedById }: ColorTriggerProps) {
+function ColorTrigger({ label, value, invalid, describedById, disabled }: ColorTriggerProps) {
   return (
     <PopoverTrigger asChild>
       <Button
         type="button"
+        disabled={disabled}
         variant="outline"
         aria-label={m.swatch_trigger_label({ label, color: resolveColorName(value) })}
         aria-invalid={invalid ? true : undefined}
@@ -74,6 +78,7 @@ function SwatchGrid({
   markDirty,
   onChange,
   onClose,
+  disabled,
 }: SwatchGridProps) {
   return (
     <PopoverContent
@@ -94,6 +99,7 @@ function SwatchGrid({
           markDirty={markDirty}
           onChange={onChange}
           onClose={onClose}
+          disabled={disabled}
         />
       ))}
     </PopoverContent>
@@ -114,10 +120,12 @@ function SwatchButton({
   markDirty,
   onChange,
   onClose,
+  disabled,
 }: SwatchButtonProps) {
   const selected = hex.toLowerCase() === value.toLowerCase();
 
   function selectNextSwatch(event: KeyboardEvent<HTMLButtonElement>) {
+    if (disabled) return;
     const delta = resolveSwatchDelta(event.key);
     if (delta === null) return;
     event.preventDefault();
@@ -132,6 +140,7 @@ function SwatchButton({
   }
 
   function selectSwatch() {
+    if (disabled) return;
     if (!selected) markDirty();
     onChange(hex);
     onClose();
@@ -140,6 +149,7 @@ function SwatchButton({
   return (
     <button
       type="button"
+      disabled={disabled}
       role="radio"
       aria-label={resolveSwatchLabel(index)}
       data-form-dirty-managed
@@ -163,26 +173,68 @@ export function ColorField({
   onChange,
   invalid,
   describedById,
+  disabled = false,
   layout = 'stacked',
 }: ColorFieldProps) {
   const markDirty = useMarkFormDirty();
-  const [open, setOpen] = useState(false);
-  const selectedIndex = Math.max(0, resolveSwatchIndex(value));
-
   return (
     <Field data-invalid={invalid ? true : undefined} {...buildProductFieldLayoutProps(layout)}>
       <FieldLabel>{label}</FieldLabel>
-      <Popover open={open} onOpenChange={setOpen}>
-        <ColorTrigger label={label} value={value} invalid={invalid} describedById={describedById} />
-        <SwatchGrid
-          label={label}
-          value={value}
-          selectedIndex={selectedIndex}
-          markDirty={markDirty}
-          onChange={onChange}
-          onClose={() => setOpen(false)}
-        />
-      </Popover>
+      <ColorPopover
+        key={disabled ? 'disabled' : 'enabled'}
+        label={label}
+        value={value}
+        onChange={onChange}
+        invalid={invalid}
+        describedById={describedById}
+        disabled={disabled}
+        markDirty={markDirty}
+      />
     </Field>
+  );
+}
+
+function ColorPopover({
+  label,
+  value,
+  onChange,
+  invalid,
+  describedById,
+  disabled,
+  markDirty,
+}: Omit<ColorFieldProps, 'invalid' | 'describedById' | 'disabled'> & {
+  invalid: boolean | undefined;
+  describedById: string | undefined;
+  disabled: boolean;
+  markDirty: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const effectiveOpen = open && !disabled;
+  const selectedIndex = Math.max(0, resolveSwatchIndex(value));
+
+  return (
+    <Popover
+      open={effectiveOpen}
+      onOpenChange={(nextOpen) => {
+        if (!disabled) setOpen(nextOpen);
+      }}
+    >
+      <ColorTrigger
+        label={label}
+        value={value}
+        invalid={invalid}
+        describedById={describedById}
+        disabled={disabled}
+      />
+      <SwatchGrid
+        label={label}
+        value={value}
+        selectedIndex={selectedIndex}
+        markDirty={markDirty}
+        onChange={onChange}
+        onClose={() => setOpen(false)}
+        disabled={disabled}
+      />
+    </Popover>
   );
 }

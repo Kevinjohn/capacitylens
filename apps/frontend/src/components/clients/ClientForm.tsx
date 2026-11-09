@@ -1,6 +1,6 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useFieldError } from '@/hooks/useFieldError';
 import { resolveErrorMessage } from '@/lib/errorMessage';
@@ -23,6 +23,7 @@ function ClientFormFields({
   errorField,
   errorId,
   error,
+  pending,
 }: {
   name: string;
   onNameChange: (value: string) => void;
@@ -32,6 +33,7 @@ function ClientFormFields({
   errorField: string | null;
   errorId: string;
   error: string | null;
+  pending: boolean;
 }) {
   return (
     <>
@@ -41,7 +43,7 @@ function ClientFormFields({
         onChange={onNameChange}
         autoFocus={!privateNameFields.protectedName}
         required
-        disabled={privateNameFields.protectedName}
+        disabled={pending || privateNameFields.protectedName}
         invalid={errorField === 'name'}
         describedById={errorId}
         layout="label-control"
@@ -51,6 +53,7 @@ function ClientFormFields({
         errorField={errorField}
         errorId={errorId}
         layout="label-control"
+        disabled={pending}
       />
       <ColorField
         label={m.form_client_colour_label()}
@@ -59,6 +62,7 @@ function ClientFormFields({
         invalid={errorField === 'color'}
         describedById={errorId}
         layout="label-control"
+        disabled={pending}
       />
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
@@ -73,15 +77,20 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
   const updateClient = useStore((state) => state.updateClient);
   const [name, setName] = useState(client?.name ?? '');
   const [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client);
+  const [pending, setPending] = useState(false);
+  const inFlight = useRef(false);
   const { error, errorField, errorId, fail } = useFieldError();
   const privateNameFields = usePrivateNameFields(client, fail);
 
   const submit = async () => {
+    if (inFlight.current) return;
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     const privacy = privateNameFields.parsePrivacyPatch();
     if (!privacy) return;
     if (!validatePresetColor(color, fail)) return;
+    inFlight.current = true;
+    setPending(true);
     // Surface store integrity rejections as form errors so they remain visible instead of escaping the React event handler.
     try {
       if (client) {
@@ -104,6 +113,9 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
     } catch (e) {
       if (e instanceof PlanningSaveCancelledError) return;
       fail(null, resolveErrorMessage(e));
+    } finally {
+      inFlight.current = false;
+      setPending(false);
     }
   };
 
@@ -114,7 +126,7 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
       onSubmit={() => {
         void submit();
       }}
-      footer={<FormActions onCancel={onClose} />}
+      footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
       <ClientFormFields
         name={name}
@@ -125,6 +137,7 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
         errorField={errorField}
         errorId={errorId}
         error={error}
+        pending={pending}
       />
     </Modal>
   );

@@ -1,5 +1,5 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useFieldError } from '@/hooks/useFieldError';
@@ -28,13 +28,18 @@ export function DisciplineForm({
   const nextSortOrder = disciplines.reduce((max, item) => Math.max(max, item.sortOrder + 1), 0);
   const [name, setName] = useState(discipline?.name ?? '');
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline);
+  const [pending, setPending] = useState(false);
+  const inFlight = useRef(false);
   const sortOrder = discipline?.sortOrder ?? nextSortOrder;
   const { error, errorField, errorId, fail } = useFieldError();
 
   const submit = async () => {
+    if (inFlight.current) return;
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     if (!validatePresetColor(color, fail)) return;
+    inFlight.current = true;
+    setPending(true);
     // Surface a store-side rejection as a form error rather than an uncaught React error, see the
     // store CRUD contract.
     try {
@@ -53,6 +58,9 @@ export function DisciplineForm({
       onClose();
     } catch (e) {
       fail(null, resolveErrorMessage(e));
+    } finally {
+      inFlight.current = false;
+      setPending(false);
     }
   };
 
@@ -63,26 +71,29 @@ export function DisciplineForm({
       onSubmit={() => {
         void submit();
       }}
-      footer={<FormActions onCancel={onClose} />}
+      footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
-      <TextField
-        label={m.form_discipline_name_label()}
-        value={name}
-        onChange={setName}
-        autoFocus
-        required
-        invalid={errorField === 'name'}
-        describedById={errorId}
-        layout="label-control"
-      />
-      <ColorField
-        label={m.form_discipline_colour_label()}
-        value={color}
-        onChange={setColor}
-        invalid={errorField === 'color'}
-        describedById={errorId}
-        layout="label-control"
-      />
+      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
+        <TextField
+          label={m.form_discipline_name_label()}
+          value={name}
+          onChange={setName}
+          autoFocus
+          required
+          invalid={errorField === 'name'}
+          describedById={errorId}
+          layout="label-control"
+        />
+        <ColorField
+          label={m.form_discipline_colour_label()}
+          value={color}
+          onChange={setColor}
+          invalid={errorField === 'color'}
+          describedById={errorId}
+          layout="label-control"
+          disabled={pending}
+        />
+      </fieldset>
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </Modal>

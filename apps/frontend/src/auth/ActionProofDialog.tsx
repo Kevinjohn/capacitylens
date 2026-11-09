@@ -31,7 +31,7 @@ export function ActionProofDialog({
   const [error, setError] = useState<string | null>(null);
 
   const confirm = async () => {
-    if (busy) return;
+    if (busy || password.length === 0) return;
     setBusy(true);
     setError(null);
     try {
@@ -70,6 +70,7 @@ export function ActionProofDialog({
       title={m.reauth_title()}
       description={m.action_proof_password_body()}
       onClose={busy ? () => {} : onCancel}
+      onSubmit={() => void confirm()}
       guardDirty={false}
       footer={
         <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
@@ -93,13 +94,8 @@ export function ActionProofDialog({
             {error}
           </p>
         )}
-        <Button
-          type="button"
-          disabled={busy || !password}
-          onClick={() => void confirm()}
-          data-testid="action-proof-confirm"
-        >
-          {busy ? m.ownership_transfer_working() : m.common_continue()}
+        <Button type="submit" disabled={busy || !password} data-testid="action-proof-confirm">
+          {busy ? m.reauth_confirming() : m.common_continue()}
         </Button>
       </div>
     </Modal>

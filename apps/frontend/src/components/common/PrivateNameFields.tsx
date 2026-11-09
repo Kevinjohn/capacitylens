@@ -9,11 +9,13 @@ export function PrivateNameFields({
   errorField,
   errorId,
   layout = 'stacked',
+  disabled = false,
 }: {
   fields: PrivateNameFieldsState;
   errorField: string | null;
   errorId: string;
   layout?: ProductFieldLayout;
+  disabled?: boolean;
 }) {
   if (!fields.canManagePrivacy) {
     return fields.protectedName ? (
@@ -27,6 +29,7 @@ export function PrivateNameFields({
         label={m.form_private_toggle_label()}
         checked={fields.isPrivate}
         onChange={fields.setIsPrivate}
+        disabled={disabled}
         layout={layout}
       />
       {fields.isPrivate && (
@@ -34,6 +37,7 @@ export function PrivateNameFields({
           label={m.form_private_code_name_label()}
           value={fields.codeName}
           onChange={fields.setCodeName}
+          disabled={disabled}
           placeholder={m.form_private_code_name_placeholder()}
           description={m.form_private_code_name_hint()}
           required
