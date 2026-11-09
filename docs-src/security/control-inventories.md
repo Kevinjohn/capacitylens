@@ -57,7 +57,7 @@ retaining its URL path.
 | View-as-member context | Package-owned revision and random nonce | Identity-wide context checked on covered mutations, including idle-mode writes | Idle control rows remain to reject stale contexts; active modes expire after 15 minutes |
 | Account-command payload | Package-owned SHA-256 over plain-JSON company and payload; command/idempotency UUIDs scoped per operation and actor | Payload hash and operation context | Replay/identity handles only; raw credentials are not stored as command results |
 | Import impact fingerprint | SHA-256 of canonical full export rows | Current company data fingerprint | Compares previewed content with current rows; stale-preview rejection separately compares the planning revision and requires a new preview |
-| Record identifiers | CSPRNG UUIDs | Identifier, not a secret | Used for users, restoration groups and account command/proof records |
+| Record identifiers | CSPRNG UUIDs | Identifier, not a secret | Used for users, restoration groups and account command and password-confirmation records |
 | Encryption configuration | Adonis AES-256-GCM encryptor declaration | `APP_KEY` | The application configures the key, but this inventory does not establish which stored application data uses the encryptor; the session cookie flags are configured separately |
 | Account Kit limiter | HMAC-keyed limiter with `APP_KEY` | `APP_KEY` | Keeps rate-limit keys scoped to the application secret |
 | Internal service TLS | OpenSSL P-256/SHA-256, Node HTTPS and nginx verification | Per-install root-only CA key; API-only leaf key; public CA/leaf | automatic in Compose; optional for same-host bare metal; configured identities never fall back silently; coordinated renewal/recreation |
