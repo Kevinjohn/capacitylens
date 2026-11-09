@@ -1,8 +1,19 @@
+import { existsSync, realpathSync } from 'node:fs';
+import { isAbsolute, relative, sep } from 'node:path';
 import type { ApplicationService } from '@adonisjs/core/types';
 import type { CreateResult, SqliteBackup } from '@kevinjohn/adonisjs-sqlite-backup';
 import { formatBackupStartupFailure, type BackupConfig } from '#config/backup';
 
 const DAY_MS = 24 * 60 * 60_000;
+
+/** The package refuses this layout only when a backup runs; refuse it before startup changes anything. */
+function assertOutsideLiveDatabase(directory: string, livePath: string): void {
+  if (!existsSync(directory)) return;
+  const path = relative(realpathSync(directory), realpathSync(livePath));
+  if (path === '' || !(path === '..' || path.startsWith(`..${sep}`) || isAbsolute(path))) {
+    throw new Error('backup directory contains the live database');
+  }
+}
 
 /** Own the web schedule while the package owns copying, verification and retention. */
 export default class BackupProvider {
@@ -30,6 +41,7 @@ export default class BackupProvider {
     try {
       const backup = await this.application.container.make('sqlite.backup');
       backup.checkSource();
+      assertOutsideLiveDatabase(config.directory, backup.livePath());
       backup.prepareDirectory();
       this.backup = backup;
     } catch (error) {
