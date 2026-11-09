@@ -19,7 +19,7 @@ describe('ForgotPassword', () => {
       fireEvent.change(screen.getByLabelText(m.login_email()), { target: { value: email } });
       fireEvent.click(screen.getByRole('button', { name: m.login_send_reset_link() }));
 
-      expect(screen.getByRole('alert')).toHaveTextContent(m.login_failed());
+      expect(screen.getByRole('alert')).toHaveTextContent(m.identity_err_email());
       expect(fetch).not.toHaveBeenCalled();
     },
   );
@@ -40,5 +40,22 @@ describe('ForgotPassword', () => {
     const [, request] = fetch.mock.calls[0] as unknown as [RequestInfo | URL, RequestInit];
     expect(JSON.parse(String(request.body))).toEqual({ email: 'owner@example.com' });
     expect(await screen.findByRole('status')).toHaveTextContent(m.login_reset_confirmation());
+  });
+
+  it('shows recovery-specific feedback when the reset request is rejected', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(Response.json({ error: 'Private server detail.' }, { status: 503 }));
+    vi.stubGlobal('fetch', fetch);
+    render(<ForgotPassword />);
+
+    fireEvent.click(screen.getByRole('button', { name: m.login_forgot_password() }));
+    fireEvent.change(screen.getByLabelText(m.login_email()), {
+      target: { value: 'bruce@example.test' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: m.login_send_reset_link() }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(m.login_reset_request_failed());
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Private server detail.');
   });
 });

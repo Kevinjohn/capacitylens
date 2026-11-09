@@ -56,6 +56,11 @@ export function InviteMemberPanel(props: InviteMemberPanelProps) {
           <InviteForm {...props} />
         </Modal>
       )}
+      {!props.inviteDialogOpen && props.errorField === 'invite' && (
+        <FieldError id={props.errorId} role="alert">
+          {props.error}
+        </FieldError>
+      )}
       <OutstandingInvites {...props} />
     </section>
   );

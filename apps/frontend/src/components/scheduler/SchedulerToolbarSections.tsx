@@ -134,7 +134,9 @@ function EntityFilters(props: FiltersProps) {
         allLabel={m.scheduler_filter_all_projects}
         options={props.projectOptions}
       />
-      {(props.internalActivities.length > 0 || props.repeatableActivities.length > 0) && (
+      {(props.internalActivities.length > 0 ||
+        props.repeatableActivities.length > 0 ||
+        Boolean(props.filters.activityId ?? props.filters.activityKind)) && (
         <ToolbarActivityFilter
           activityId={props.filters.activityId ?? null}
           activityKind={props.filters.activityKind ?? null}

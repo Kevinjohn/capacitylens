@@ -306,6 +306,53 @@ function registerInviteValidationTests(): void {
 }
 
 function registerInviteCreationFailureTests(): void {
+  it('shows a terminal invite rejection after closing a pending request', async () => {
+    let resolveCreate: ((response: Response) => void) | undefined;
+    const fetchMock = mockApi(ownerAndEditor, {
+      'POST /api/invites': () =>
+        new Promise<Response>((resolve) => {
+          resolveCreate = resolve;
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await renderInviteSection();
+    fillAddressedInvite();
+    fireEvent.click(screen.getByTestId('invite-submit'));
+    await waitFor(() => expect(resolveCreate).toBeTypeOf('function'));
+
+    closeInviteDialog();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await act(async () => {
+      resolveCreate?.(jsonResponse({ error: 'Invite forbidden.' }, 403));
+    });
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Invite forbidden.');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const errorId = alert.id;
+    expect(errorId).not.toBe('');
+
+    fireEvent.click(screen.getByTestId('invite-open'));
+    expect(screen.getByTestId('invite-preauth')).toHaveAttribute('aria-describedby', errorId);
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(document.querySelectorAll(`[id="${errorId}"]`)).toHaveLength(1);
+  });
+
+  it('keeps a validation error visible after Cancel and associates it on reopen', async () => {
+    vi.stubGlobal('fetch', mockApi([{ userId: 'me', role: 'owner', isSelf: true }]));
+    await renderInviteSection();
+    fireEvent.click(screen.getByTestId('invite-submit'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(m.settings_invite_email_required());
+    closeInviteDialog();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(m.settings_invite_email_required());
+    const errorId = alert.id;
+    fireEvent.click(screen.getByTestId('invite-open'));
+    expect(screen.getByTestId('invite-preauth')).toHaveAttribute('aria-describedby', errorId);
+    expect(document.querySelectorAll(`[id="${errorId}"]`)).toHaveLength(1);
+  });
+
   it.each([
     {
       status: 503,

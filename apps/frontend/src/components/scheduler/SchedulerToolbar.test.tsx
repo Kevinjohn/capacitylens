@@ -726,6 +726,20 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
     expect(screen.queryByLabelText('Filter by activity')).not.toBeInTheDocument();
   });
 
+  it('shows and clears a selected archived activity when no activities remain', async () => {
+    const user = userEvent.setup();
+    useStore.getState().setFilters({ activityId: 'archived-activity' });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    const select = screen.getByRole('combobox', { name: 'Filter by activity' });
+    expect(select).toHaveTextContent('Unavailable activity');
+    await chooseOption(user, 'Filter by activity', 'All activities');
+
+    expect(useStore.getState().ui.filters.activityId).toBeNull();
+    expect(useStore.getState().ui.filters.activityKind).toBeNull();
+  });
+
   it('selecting a specific activity sets activityId and clears the client/project lens', async () => {
     const user = userEvent.setup();
     const { repeatable } = await seedLensActivities();
