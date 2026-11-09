@@ -26,7 +26,7 @@ for (const [error, status, expected] of [
   [
     new InvalidPasswordConfirmationRequestException('PRIVATE_INPUT'),
     400,
-    { error: 'Invalid action confirmation.' },
+    { error: 'Invalid password confirmation.' },
   ],
   [
     new InvalidPasswordConfirmationsConfigException('PRIVATE_CONFIG'),

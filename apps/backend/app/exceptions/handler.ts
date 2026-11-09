@@ -51,7 +51,7 @@ function confirmationRefusal(error: unknown) {
     return { status: 429, body: { error: 'Rate limit exceeded.' } };
   }
   if (error instanceof InvalidPasswordConfirmationRequestException) {
-    return { status: 400, body: { error: 'Invalid action confirmation.' } };
+    return { status: 400, body: { error: 'Invalid password confirmation.' } };
   }
 }
 

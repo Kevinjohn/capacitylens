@@ -59,7 +59,7 @@ export function PasswordConfirmationDialog({
       }
       onConfirmed(result.confirmationId);
     } catch (cause) {
-      console.error('Action confirmation failed', cause);
+      console.error('Password confirmation failed', cause);
       setError(m.login_network_error());
       setBusy(false);
     }
