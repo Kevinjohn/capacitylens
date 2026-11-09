@@ -106,7 +106,27 @@ describe('useResourceAvatars', () => {
     await waitFor(() => expect(accountClient.listResourceAvatars).toHaveBeenCalledTimes(1));
     view.rerender(<WrappedProbe image="https://images.example/two.png" />);
     await waitFor(() => expect(accountClient.listResourceAvatars).toHaveBeenCalledTimes(2));
-    act(() => useStore.setState((state) => ({ data: { ...state.data } })));
+    act(() =>
+      useStore.setState((state) => ({
+        data: { ...state.data, resources: [...state.data.resources] },
+      })),
+    );
     await waitFor(() => expect(accountClient.listResourceAvatars).toHaveBeenCalledTimes(3));
+  });
+
+  it('keeps avatars without refetching when a save changes only other tables', async () => {
+    vi.mocked(accountClient.listResourceAvatars).mockResolvedValueOnce(
+      response([{ resourceId: 'r1', imageUrl: 'https://images.example/a.png' }]),
+    );
+    const { result } = renderHook(() => useResourceAvatars('a1'));
+    await waitFor(() => expect(result.current.get('r1')).toBe('https://images.example/a.png'));
+    act(() =>
+      useStore.setState((state) => ({
+        data: { ...state.data, allocations: [...state.data.allocations] },
+      })),
+    );
+    await act(async () => {});
+    expect(result.current.get('r1')).toBe('https://images.example/a.png');
+    expect(accountClient.listResourceAvatars).toHaveBeenCalledTimes(1);
   });
 });
