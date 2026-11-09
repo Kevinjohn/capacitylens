@@ -40,7 +40,7 @@ function makeApplication(
 
 type BackupService = Pick<
   SqliteBackup,
-  'config' | 'checkSource' | 'prepareDirectory' | 'create' | 'prune'
+  'config' | 'livePath' | 'checkSource' | 'prepareDirectory' | 'create' | 'prune'
 >;
 const DAY_MS = 24 * 60 * 60_000;
 
@@ -74,6 +74,7 @@ const created: CreateResult = {
 function makeBackup(events: string[]): BackupService {
   return {
     config: defineConfig({ directory: '/test/backups' }),
+    livePath: () => '/test/live.db',
     checkSource: () => void events.push('source'),
     prepareDirectory: () => void events.push('directory'),
     create: async () => {
@@ -153,6 +154,25 @@ test('the provider schedules only enabled web applications', async (context) => 
     assert.deepEqual(provider.messages, []);
     await provider.shutdown();
   }
+});
+
+test('startup refuses a backup directory that contains the live database', async (context) => {
+  const { assert, cleanup } = context;
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-provider-'));
+  cleanup(() => rmSync(root, { recursive: true, force: true }));
+  const backup = makeRealBackup(root);
+  let createCalled = false;
+  backup.create = async () => {
+    createCalled = true;
+    throw new Error('unexpected create');
+  };
+  const provider = new LoggedProvider(makeApplication(backup, 'web', root));
+  await assert.rejects(
+    () => provider.ready(),
+    /CAPACITYLENS_BACKUP_DIR=.*could not be initialized: backup directory contains the live database/
+  );
+  assert.isFalse(createCalled);
+  await provider.shutdown();
 });
 
 for (const phase of ['source', 'directory'] as const) {
