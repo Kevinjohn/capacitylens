@@ -67,6 +67,9 @@ test('app reset archives all account and credential state and initializes a sepa
       { name: 'database/migrations/202610270001_planning_soft_delete_ownership' },
       { name: 'database/migrations/202610270001_replace_legacy_masquerades_with_package' },
       { name: 'database/migrations/202610270002_convert_planning_delete_snapshots' },
+      {
+        name: 'database/migrations/202611090001_replace_command_results_with_request_receipts',
+      },
     ]);
     fresh.close();
   } finally {

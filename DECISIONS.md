@@ -157,6 +157,14 @@ This is the short, present-tense record of decisions that constrain future work.
   no checksum ledger.
 - A native online SQLite backup runs at startup and every 24 hours; count-based retention keeps the
   configured number of verified READY bundles on local storage. The package owns copying, verification, retention and restore preparation; the web provider owns scheduling. Pre-migration bundles and reset archives stay outside scheduled retention. Failures are logged or returned by the operator command.
+- Account commands record receipts with `@kevinjohn/adonisjs-duplicate-request-guard`
+  (`request_receipts`) inside the caller's transaction. The wire contract keeps the standard
+  `Idempotency-Key` header, and CapacityLens's own names follow it (`idempotencyKey`,
+  `isAccountIdempotencyKey`, `IDEMPOTENCY_CONFLICT`); only values passed to the package use its
+  `requestKey` name (9 November 2026). Receipts are scoped to one actor's operation, so the same
+  command headers sent by another actor or for another operation run as a new command. The
+  migration does not carry `command_results` receipts over: a command retried across that upgrade
+  runs again.
 
 ## Browser data
 
