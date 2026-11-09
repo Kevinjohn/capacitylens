@@ -84,6 +84,32 @@ function registerColorFieldBasicTests(BLUE: string, RED: string) {
 
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
+
+  it('closes an open grid when disabled and stays closed when re-enabled', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(<ColorField label="Colour" value={BLUE} onChange={onChange} />);
+    const trigger = screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` });
+    await user.click(trigger);
+    expect(screen.getByRole('radio', { name: resolveColorName(RED) })).toBeInTheDocument();
+
+    rerender(<ColorField label="Colour" value={BLUE} onChange={onChange} disabled />);
+    const disabledTrigger = screen.getByRole('button', {
+      name: `Colour (${resolveColorName(BLUE)})`,
+    });
+    expect(disabledTrigger).toBeDisabled();
+    expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    fireEvent.keyDown(disabledTrigger, { key: 'ArrowDown' });
+    fireEvent.click(disabledTrigger);
+    expect(onChange).not.toHaveBeenCalled();
+
+    rerender(<ColorField label="Colour" value={BLUE} onChange={onChange} />);
+    expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
+    expect(screen.getByRole('radio', { name: resolveColorName(RED) })).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: resolveColorName(RED) }));
+    expect(onChange).toHaveBeenCalledWith(RED);
+  });
 }
 
 function registerColorFieldInteractionTests(BLUE: string, RED: string) {
