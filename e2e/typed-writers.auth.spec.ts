@@ -9,7 +9,7 @@ import {
   sendPlanningFixtureCommand,
   signUpUser,
 } from './authTestSupport';
-import { selectShadOption, waitForAppLanding } from './browserTestSupport';
+import { freezeBrowserDate, selectShadOption, waitForAppLanding } from './browserTestSupport';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -113,6 +113,9 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
     name: 'Diana Prince',
     role: 'Designer',
   });
+  // The Time off page lists entries from the current week onward; the fixed dates below stay
+  // visible only with the frozen browser date.
+  await freezeBrowserDate(page);
   await page.goto('/');
   await page.getByRole('heading', { name: 'Sign in' }).waitFor();
   await page.getByLabel('Email').fill(email);
@@ -239,6 +242,9 @@ for (const repeat of [false, true]) {
     });
     seedFixtureMember(accountId, editor.email, 'editor');
 
+    // The Time off page lists entries from the current week onward; the fixed dates below stay
+    // visible only with the frozen browser date.
+    await freezeBrowserDate(page);
     await page.goto('/');
     await page.getByRole('heading', { name: 'Sign in' }).waitFor();
     await page.getByLabel('Email').fill(editor.email);
