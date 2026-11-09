@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useOwnershipTransfer } from './useOwnershipTransfer';
 import type { OwnershipTransferController } from './useOwnershipTransfer';
-import { ActionProofDialog } from '@/auth/ActionProofDialog';
+import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 
 function TransferForm({
   controller,
@@ -114,11 +114,11 @@ function TransferContent({
 export function OwnershipTransferCard() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState('');
-  const [proofTarget, setProofTarget] = useState<string | null>(null);
+  const [confirmationTarget, setConfirmationTarget] = useState<string | null>(null);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { refreshAuth } = useAuth();
   const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
-  const requestTransfer = (target: string) => setProofTarget(target);
+  const requestTransfer = (target: string) => setConfirmationTarget(target);
   if (!controller.available) return null;
 
   return (
@@ -140,7 +140,7 @@ export function OwnershipTransferCard() {
       >
         {m.ownership_transfer_open()}
       </Button>
-      {open && !proofTarget && (
+      {open && !confirmationTarget && (
         <Modal
           title={m.ownership_transfer_heading()}
           description={m.ownership_transfer_intro()}
@@ -160,17 +160,17 @@ export function OwnershipTransferCard() {
           />
         </Modal>
       )}
-      {proofTarget && activeAccountId && (
-        <ActionProofDialog
+      {confirmationTarget && activeAccountId && (
+        <PasswordConfirmationDialog
           action="transfer-ownership"
           accountId={activeAccountId}
-          intent={{ toUserId: proofTarget }}
+          intent={{ toUserId: confirmationTarget }}
           onConfirmed={(id) => {
-            const target = proofTarget;
-            setProofTarget(null);
+            const target = confirmationTarget;
+            setConfirmationTarget(null);
             void controller.transfer(target, id);
           }}
-          onCancel={() => setProofTarget(null)}
+          onCancel={() => setConfirmationTarget(null)}
         />
       )}
     </section>

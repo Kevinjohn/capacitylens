@@ -51,11 +51,11 @@ async function deleteForRestoration(client: ApiClient, cookie: string, companyId
 }
 
 async function proof(client: ApiClient, cookie: string, intent: unknown, action = 'import') {
-  const result = await asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+  const result = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
     .json({ action, accountId, intent, password })
     .send();
   result.assertStatus(200);
-  return (result.body() as { proofId: string }).proofId;
+  return (result.body() as { confirmationId: string }).confirmationId;
 }
 
 async function apply(
@@ -63,10 +63,15 @@ async function apply(
   cookie: string,
   documentValue: BetaExportDocument,
   baseRevision: number,
-  proofId?: string
+  confirmationId?: string
 ) {
   return asDataOwner(client.post('/api/transfer/apply'), cookie)
-    .json({ accountId, document: documentValue, baseRevision, ...(proofId ? { proofId } : {}) })
+    .json({
+      accountId,
+      document: documentValue,
+      baseRevision,
+      ...(confirmationId ? { confirmationId } : {}),
+    })
     .send();
 }
 
@@ -92,8 +97,8 @@ test.group('beta transfer apply', (group) => {
       .send();
     preview.assertStatus(200);
     const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
-    const actionProof = await proof(client, cookie, { baseRevision, document: full });
-    const result = await apply(client, cookie, full, baseRevision, actionProof);
+    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const result = await apply(client, cookie, full, baseRevision, confirmationId);
     result.assertStatus(200);
     assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
     const expected = structuredClone(full.data);
@@ -137,8 +142,8 @@ test.group('beta transfer apply', (group) => {
       .send();
     preview.assertStatus(409);
     assert.deepInclude(preview.body(), { code: 'IMPORT_ID_COLLISION' });
-    const actionProof = await proof(client, cookie, { baseRevision, document: foreign });
-    const result = await apply(client, cookie, foreign, baseRevision, actionProof);
+    const confirmationId = await proof(client, cookie, { baseRevision, document: foreign });
+    const result = await apply(client, cookie, foreign, baseRevision, confirmationId);
     result.assertStatus(409);
     assert.deepInclude(result.body(), { code: 'IMPORT_ID_COLLISION' });
     assert.deepEqual(await readState(accountId, true), before);
@@ -146,7 +151,7 @@ test.group('beta transfer apply', (group) => {
     assert.equal(await revision(), baseRevision);
   });
 
-  test('requires exact action proof even immediately after owner sign-in', async ({
+  test('requires an exact password confirmation even immediately after owner sign-in', async ({
     client,
     assert,
   }) => {
@@ -192,8 +197,8 @@ test.group('beta transfer apply', (group) => {
     preview.assertStatus(200);
     assert.equal((preview.body() as { changed: boolean }).changed, true);
     const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
-    const actionProof = await proof(client, cookie, { baseRevision, document: full });
-    const result = await apply(client, cookie, full, baseRevision, actionProof);
+    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const result = await apply(client, cookie, full, baseRevision, confirmationId);
     result.assertStatus(200);
     assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
     const after = await readState(accountId, true);
@@ -238,8 +243,8 @@ test.group('beta transfer apply', (group) => {
     ] as const;
     const before = await Promise.all(preservedTables.map((table) => db.from(table).select('*')));
     const baseRevision = await revision();
-    const actionProof = await proof(client, cookie, { baseRevision, document: selected });
-    const result = await apply(client, cookie, selected, baseRevision, actionProof);
+    const confirmationId = await proof(client, cookie, { baseRevision, document: selected });
+    const result = await apply(client, cookie, selected, baseRevision, confirmationId);
     result.assertStatus(200);
     assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
     assert.isNull(
@@ -294,22 +299,22 @@ test.group('beta transfer apply', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const full = await document();
     const baseRevision = await revision();
-    const actionProof = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
     const other = structuredClone(full);
     other.data.accounts[0]!.name += ' changed';
-    const wrongDocument = await apply(client, cookie, other, baseRevision, actionProof);
+    const wrongDocument = await apply(client, cookie, other, baseRevision, confirmationId);
     wrongDocument.assertStatus(403);
-    const wrongRevision = await apply(client, cookie, full, baseRevision + 1, actionProof);
+    const wrongRevision = await apply(client, cookie, full, baseRevision + 1, confirmationId);
     wrongRevision.assertStatus(403);
     const wrongAction = await proof(client, cookie, {}, 'anonymise');
     const wrongProof = await apply(client, cookie, full, baseRevision, wrongAction);
     wrongProof.assertStatus(403);
     const wrongCompany = await asDataOwner(client.post('/api/transfer/apply'), cookie)
-      .json({ accountId: 'a-loft', document: full, baseRevision, proofId: actionProof })
+      .json({ accountId: 'a-loft', document: full, baseRevision, confirmationId: confirmationId })
       .send();
     wrongCompany.assertStatus(403);
     assert.deepEqual(await readState(accountId, true), full.data);
-    const valid = await apply(client, cookie, full, baseRevision, actionProof);
+    const valid = await apply(client, cookie, full, baseRevision, confirmationId);
     valid.assertStatus(200);
   });
 
@@ -336,8 +341,8 @@ test.group('beta transfer apply', (group) => {
       .send();
     preview.assertStatus(200);
     const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
-    const actionProof = await proof(client, cookie, { baseRevision, document: full });
-    const result = await apply(client, cookie, full, baseRevision, actionProof);
+    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const result = await apply(client, cookie, full, baseRevision, confirmationId);
     result.assertStatus(200);
     const after = await readState(accountId, true);
     assert.equal(after.disciplines.length, full.data.disciplines.length);
@@ -408,12 +413,12 @@ test.group('beta transfer apply', (group) => {
     const baseRevision = await revision();
     assert.isNotNull(retainedBefore.deleted_at);
     assert.equal(retainedBefore.deletion_group_id, deletion.groupId);
-    const actionProof = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
     await db.rawQuery(
       "CREATE TRIGGER fail_transfer_audit BEFORE INSERT ON audit_entries WHEN NEW.action = 'import' BEGIN SELECT RAISE(ABORT, 'forced transfer failure'); END"
     );
     try {
-      const failed = await apply(client, cookie, full, baseRevision, actionProof);
+      const failed = await apply(client, cookie, full, baseRevision, confirmationId);
       assert.isAtLeast(failed.status(), 500);
       assert.deepEqual(await readState(accountId, true), before);
       assert.deepEqual(
@@ -445,13 +450,13 @@ test.group('beta transfer apply', (group) => {
       );
       const failedProofRow = await db
         .from('password_confirmations')
-        .where('id', actionProof)
+        .where('id', confirmationId)
         .first();
       assert.isNull(failedProofRow?.consumed_at);
     } finally {
       await db.rawQuery('DROP TRIGGER IF EXISTS fail_transfer_audit');
     }
-    const retry = await apply(client, cookie, full, baseRevision, actionProof);
+    const retry = await apply(client, cookie, full, baseRevision, confirmationId);
     retry.assertStatus(200);
   });
 
@@ -462,7 +467,7 @@ test.group('beta transfer apply', (group) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
     const full = await document();
     const baseRevision = await revision();
-    const denied = await asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+    const denied = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
       .json({
         action: 'import',
         accountId,
@@ -519,7 +524,7 @@ test.group('beta transfer apply', (group) => {
       return result;
     };
     try {
-      const request = asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+      const request = asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
         .json({ action: 'import', accountId, intent: { baseRevision, document: full }, password })
         .send();
       await checking.promise;
@@ -553,19 +558,19 @@ test.group('beta transfer apply', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const full = await document();
     const baseRevision = await revision();
-    const actionProof = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
     const { cookie: secondCookie } = await signIn(client, 'bruce.wayne@wayne.example', password);
-    const wrongSession = await apply(client, secondCookie, full, baseRevision, actionProof);
+    const wrongSession = await apply(client, secondCookie, full, baseRevision, confirmationId);
     wrongSession.assertStatus(403);
-    const unspent = await db.from('password_confirmations').where('id', actionProof).first();
+    const unspent = await db.from('password_confirmations').where('id', confirmationId).first();
     assert.isNull(unspent?.consumed_at);
     await db
       .from('password_confirmations')
-      .where('id', actionProof)
+      .where('id', confirmationId)
       .update({
         verified_at: Date.now() - 5 * 60_000 - 1000,
       });
-    const expired = await apply(client, cookie, full, baseRevision, actionProof);
+    const expired = await apply(client, cookie, full, baseRevision, confirmationId);
     expired.assertStatus(403);
     assert.equal(await revision(), baseRevision);
   });
@@ -577,10 +582,10 @@ test.group('beta transfer apply', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const full = await document();
     const baseRevision = await revision();
-    const actionProof = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
     const responses = await Promise.all([
-      apply(client, cookie, full, baseRevision, actionProof),
-      apply(client, cookie, full, baseRevision, actionProof),
+      apply(client, cookie, full, baseRevision, confirmationId),
+      apply(client, cookie, full, baseRevision, confirmationId),
     ]);
     assert.deepEqual(responses.map((response) => response.status()).sort(), [200, 403]);
     assert.equal(await revision(), baseRevision);

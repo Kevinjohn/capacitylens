@@ -108,7 +108,7 @@ const completeImport = async (response: Response, context: ImportContext): Promi
 const runServerImport = async (
   document: BetaExportDocument,
   baseRevision: number,
-  proofId: string,
+  confirmationId: string,
   context: ImportContext,
 ): Promise<void> => {
   const { accountId, transaction, setNotice } = context;
@@ -130,7 +130,7 @@ const runServerImport = async (
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ accountId, document, baseRevision, proofId }),
+        body: JSON.stringify({ accountId, document, baseRevision, confirmationId }),
       },
       API_BULK_TIMEOUT_MS,
     );
@@ -169,7 +169,7 @@ export function useServerImport() {
   const confirm = async (
     document: BetaExportDocument,
     baseRevision: number,
-    proofId: string,
+    confirmationId: string,
   ): Promise<void> => {
     if (importInFlightRef.current) return;
     importInFlightRef.current = true;
@@ -182,7 +182,7 @@ export function useServerImport() {
     setRequiresReload(false);
     const transaction: ImportTransaction = { committed: false, requiresReload: false };
     try {
-      await runServerImport(document, baseRevision, proofId, {
+      await runServerImport(document, baseRevision, confirmationId, {
         accountId,
         planningContext: useStore.getState().planning.context,
         transaction,

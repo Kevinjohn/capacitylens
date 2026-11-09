@@ -46,7 +46,7 @@ Kyle is an active Admin in the same company.
   command without transferring ownership a second time.
 - The card is available only to the Owner. The server refuses unauthorized, stale-owner,
   masquerading, ineligible-target and malformed requests without changing either role.
-- `POST /api/accounts/:accountId/ownership-transfer` accepts `{toUserId, proofId}` and returns **200**
+- `POST /api/accounts/:accountId/ownership-transfer` accepts `{toUserId, confirmationId}` and returns **200**
   `{fromUserId, toUserId}` after commit. A repeated command with the same scope and payload returns
   the original result even after the caller becomes Admin; a new command requires the current Owner.
   Reusing command identity with a different scope or target returns **409**.

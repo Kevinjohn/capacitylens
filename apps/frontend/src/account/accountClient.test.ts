@@ -33,7 +33,7 @@ function transferOwner(
   return accountClient.transferOwnership({
     workspaceId: 'a-studio',
     targetPrincipalId: input.name,
-    proofId: input.color ?? 'proof-1',
+    confirmationId: input.color ?? 'proof-1',
     ...(explicit ? { command: explicit } : {}),
   });
 }
@@ -159,7 +159,7 @@ function registerMutationRouteTests(): void {
     await accountClient.transferOwnership({
       workspaceId: 'workspace / one',
       targetPrincipalId: 'person / one',
-      proofId: 'proof-1',
+      confirmationId: 'proof-1',
       command,
     });
     await accountClient.createInvitation(
@@ -175,7 +175,7 @@ function registerMutationRouteTests(): void {
     expect(createUrl).toBe('https://app.example/api/accounts/a-studio/ownership-transfer');
     expectCommand(createInit, 'POST');
     expect(new Headers(createInit.headers).get('content-type')).toBe('application/json');
-    expect(createInit.body).toBe(JSON.stringify({ toUserId: 'Studio', proofId: 'proof-1' }));
+    expect(createInit.body).toBe(JSON.stringify({ toUserId: 'Studio', confirmationId: 'proof-1' }));
 
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
@@ -192,7 +192,7 @@ function registerOwnershipTransferTests(): void {
     await accountClient.transferOwnership({
       workspaceId: 'workspace / one',
       targetPrincipalId: 'person / one',
-      proofId: 'proof-1',
+      confirmationId: 'proof-1',
       command,
     });
 
@@ -201,7 +201,7 @@ function registerOwnershipTransferTests(): void {
     expectCommand(init as RequestInit, 'POST');
     expect(JSON.parse(String(init?.body))).toEqual({
       toUserId: 'person / one',
-      proofId: 'proof-1',
+      confirmationId: 'proof-1',
     });
   });
 
@@ -215,7 +215,7 @@ function registerOwnershipTransferTests(): void {
     const input = {
       workspaceId: 'wayne-enterprises',
       targetPrincipalId: 'selina',
-      proofId: 'proof-1',
+      confirmationId: 'proof-1',
     };
 
     await accountClient.transferOwnership(input);

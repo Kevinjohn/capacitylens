@@ -14,7 +14,7 @@ async function revision() {
   return withTransaction((trx) => getPlanningRevision(trx, accountId));
 }
 
-test.group('action proof bindings', (group) => {
+test.group('password confirmation bindings', (group) => {
   group.setup(() => freshDatabase());
 
   test('a successor Owner cannot spend the previous Owner proof over HTTP', async ({
@@ -27,11 +27,11 @@ test.group('action proof bindings', (group) => {
     const document = buildBetaExport(before, { accountId, completeness: 'full' });
     document.data.accounts[0]!.name += ' by Lex';
     const issue = async (action: string, intent: unknown) => {
-      const response = await asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+      const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
         .json({ action, accountId, intent, password: fixturePassword })
         .send();
       response.assertStatus(200);
-      return (response.body() as { proofId: string }).proofId;
+      return (response.body() as { confirmationId: string }).confirmationId;
     };
     const anonymiseProof = await issue('anonymise', {});
     const importProof = await issue('import', { baseRevision, document });
@@ -58,20 +58,20 @@ test.group('action proof bindings', (group) => {
       client.post(`/api/accounts/${accountId}/anonymise`),
       successorCookie
     )
-      .json({ proofId: anonymiseProof })
+      .json({ confirmationId: anonymiseProof })
       .send();
     anonymise.assertStatus(403);
     assert.deepEqual(anonymise.body(), {
       error: 'Confirm this action again.',
-      code: 'ACTION_PROOF_REQUIRED',
+      code: 'PASSWORD_CONFIRMATION_REQUIRED',
     });
     const imported = await asDataOwner(client.post('/api/transfer/apply'), successorCookie)
-      .json({ accountId, document, baseRevision, proofId: importProof })
+      .json({ accountId, document, baseRevision, confirmationId: importProof })
       .send();
     imported.assertStatus(403);
     assert.deepEqual(imported.body(), {
       error: 'Confirm this action again.',
-      code: 'ACTION_PROOF_REQUIRED',
+      code: 'PASSWORD_CONFIRMATION_REQUIRED',
     });
 
     assert.deepEqual(await readState(accountId, true), before);
@@ -97,7 +97,7 @@ test.group('action proof bindings', (group) => {
     const before = await readState(accountId, true);
     const baseRevision = await revision();
     const document = buildBetaExport(before, { accountId, completeness: 'full' });
-    const response = await asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+    const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
       .json({
         action: 'import',
         accountId,
@@ -106,14 +106,14 @@ test.group('action proof bindings', (group) => {
       })
       .send();
     response.assertStatus(200);
-    const importProof = (response.body() as { proofId: string }).proofId;
+    const importProof = (response.body() as { confirmationId: string }).confirmationId;
     const anonymise = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
-      .json({ proofId: importProof })
+      .json({ confirmationId: importProof })
       .send();
     anonymise.assertStatus(403);
     assert.deepEqual(anonymise.body(), {
       error: 'Confirm this action again.',
-      code: 'ACTION_PROOF_REQUIRED',
+      code: 'PASSWORD_CONFIRMATION_REQUIRED',
     });
     assert.deepEqual(await readState(accountId, true), before);
     assert.equal(await revision(), baseRevision);

@@ -4,7 +4,6 @@
  */
 
 export const controllers = {
-  ActionProofs: () => import('#controllers/action_proofs_controller'),
   Admission: () => import('#controllers/admission_controller'),
   Anonymise: () => import('#controllers/anonymise_controller'),
   Auth: () => import('#controllers/auth_controller'),
@@ -19,6 +18,7 @@ export const controllers = {
   MemberResources: () => import('#controllers/member_resources_controller'),
   Members: () => import('#controllers/members_controller'),
   Ownership: () => import('#controllers/ownership_controller'),
+  PasswordConfirmations: () => import('#controllers/password_confirmations_controller'),
   Planning: () => import('#controllers/planning_controller'),
   Transfer: () => import('#controllers/transfer_controller'),
   Verification: () => import('#controllers/verification_controller'),

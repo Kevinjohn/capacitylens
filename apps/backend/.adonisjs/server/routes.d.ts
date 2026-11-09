@@ -60,7 +60,7 @@ export type ScannedRoutes = {
     'api.auth.sign-up': { paramsTuple?: []; params?: {} }
     'api.auth.sign-in': { paramsTuple?: []; params?: {} }
     'api.auth.sign-out': { paramsTuple?: []; params?: {} }
-    'api.auth.action-proof.password': { paramsTuple?: []; params?: {} }
+    'api.auth.password-confirmation': { paramsTuple?: []; params?: {} }
     'api.auth.request-reset': { paramsTuple?: []; params?: {} }
     'api.auth.inspect-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }
@@ -171,7 +171,7 @@ export type ScannedRoutes = {
     'api.auth.sign-up': { paramsTuple?: []; params?: {} }
     'api.auth.sign-in': { paramsTuple?: []; params?: {} }
     'api.auth.sign-out': { paramsTuple?: []; params?: {} }
-    'api.auth.action-proof.password': { paramsTuple?: []; params?: {} }
+    'api.auth.password-confirmation': { paramsTuple?: []; params?: {} }
     'api.auth.request-reset': { paramsTuple?: []; params?: {} }
     'api.auth.inspect-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }

@@ -72,7 +72,7 @@ test('an Owner previews, cancels, then confirms one password-bound company impor
     }),
   ).toBeVisible();
   await page.getByLabel('Password').fill(AUTH_PASSWORD);
-  await page.getByTestId('action-proof-confirm').click();
+  await page.getByTestId('password-confirmation-submit').click();
   await expect
     .poll(async () => (await companyState(request, owner.cookie, accountId)).accounts[0]?.name)
     .toBe(account.name);

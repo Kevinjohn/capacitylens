@@ -10,22 +10,22 @@ import { m } from '@/i18n';
 
 type Action = 'transfer-ownership' | 'import' | 'anonymise';
 
-interface ActionProofDialogProps {
+interface PasswordConfirmationDialogProps {
   action: Action;
   accountId: string;
   intent: object;
-  onConfirmed: (proofId: string) => void;
+  onConfirmed: (confirmationId: string) => void;
   onCancel: () => void;
 }
 
-/** Confirms one exact action; each dialog receives only its own proof handle. */
-export function ActionProofDialog({
+/** Confirms one exact action; each dialog receives only its own confirmation id. */
+export function PasswordConfirmationDialog({
   action,
   accountId,
   intent,
   onConfirmed,
   onCancel,
-}: ActionProofDialogProps) {
+}: PasswordConfirmationDialogProps) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function ActionProofDialog({
     setBusy(true);
     setError(null);
     try {
-      const url = apiRouteUrl('api.auth.action-proof.password', {});
+      const url = apiRouteUrl('api.auth.password-confirmation', {});
       const body = { action, accountId, intent, password };
       const response = await apiFetch(url, {
         method: 'POST',
@@ -52,12 +52,12 @@ export function ActionProofDialog({
       if (
         !result ||
         typeof result !== 'object' ||
-        !('proofId' in result) ||
-        typeof result.proofId !== 'string'
+        !('confirmationId' in result) ||
+        typeof result.confirmationId !== 'string'
       ) {
-        throw new Error('Action confirmation returned no proof.');
+        throw new Error('Password confirmation returned no confirmation id.');
       }
-      onConfirmed(result.proofId);
+      onConfirmed(result.confirmationId);
     } catch (cause) {
       console.error('Action confirmation failed', cause);
       setError(m.login_network_error());
@@ -68,7 +68,7 @@ export function ActionProofDialog({
   return (
     <Modal
       title={m.reauth_title()}
-      description={m.action_proof_password_body()}
+      description={m.password_confirmation_body()}
       onClose={busy ? () => {} : onCancel}
       guardDirty={false}
       footer={
@@ -79,9 +79,9 @@ export function ActionProofDialog({
     >
       <div className="flex flex-col gap-3">
         <Field>
-          <FieldLabel htmlFor="action-proof-password">{m.login_password()}</FieldLabel>
+          <FieldLabel htmlFor="password-confirmation-input">{m.login_password()}</FieldLabel>
           <Input
-            id="action-proof-password"
+            id="password-confirmation-input"
             type="password"
             autoComplete="current-password"
             value={password}
@@ -97,7 +97,7 @@ export function ActionProofDialog({
           type="button"
           disabled={busy || !password}
           onClick={() => void confirm()}
-          data-testid="action-proof-confirm"
+          data-testid="password-confirmation-submit"
         >
           {busy ? m.ownership_transfer_working() : m.common_continue()}
         </Button>

@@ -89,8 +89,8 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
       if (String(url).endsWith('/api/transfer/preview')) {
         return Response.json({ baseRevision: 7, imported: 5, changed: true });
       }
-      if (String(url).endsWith('/api/auth/action-proof/password')) {
-        return Response.json({ proofId: 'proof-7' });
+      if (String(url).endsWith('/api/auth/password-confirmation')) {
+        return Response.json({ confirmationId: 'proof-7' });
       }
       if (String(url).endsWith('/api/transfer/apply')) return applyResponse;
       throw new Error(`Unexpected request: ${url}`);
@@ -100,7 +100,7 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
   await previewFile(document());
   fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
-  fireEvent.click(screen.getByTestId('action-proof-confirm'));
+  fireEvent.click(screen.getByTestId('password-confirmation-submit'));
   await waitFor(() => expect(planningProbe.suspends).toBe(1));
 }
 
@@ -465,8 +465,8 @@ describe('beta import and export', () => {
         if (path.endsWith('/api/transfer/preview')) {
           return Response.json({ baseRevision: 7, imported: 5, changed: true });
         }
-        if (path.endsWith('/api/auth/action-proof/password')) {
-          return Response.json({ proofId: 'proof-7' });
+        if (path.endsWith('/api/auth/password-confirmation')) {
+          return Response.json({ confirmationId: 'proof-7' });
         }
         if (path.endsWith('/api/transfer/apply')) {
           return Response.json({ imported: 5, changed: true, revision: 8 });
@@ -479,11 +479,11 @@ describe('beta import and export', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
     expect(requests.map((request) => request.url)).toEqual(['/api/transfer/preview']);
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
-    fireEvent.click(screen.getByTestId('action-proof-confirm'));
+    fireEvent.click(screen.getByTestId('password-confirmation-submit'));
     await waitFor(() =>
       expect(requests.map((request) => request.url)).toEqual([
         '/api/transfer/preview',
-        '/api/auth/action-proof/password',
+        '/api/auth/password-confirmation',
         '/api/transfer/apply',
       ]),
     );
@@ -496,7 +496,7 @@ describe('beta import and export', () => {
       accountId,
       baseRevision: 7,
       document: incoming,
-      proofId: 'proof-7',
+      confirmationId: 'proof-7',
     });
   });
 
@@ -537,8 +537,8 @@ describe('beta import and export', () => {
         if (path.endsWith('/api/transfer/preview')) {
           return new Promise<Response>((resolve) => previews.push(resolve));
         }
-        if (path.endsWith('/api/auth/action-proof/password')) {
-          return Promise.resolve(Response.json({ proofId: 'proof-b' }));
+        if (path.endsWith('/api/auth/password-confirmation')) {
+          return Promise.resolve(Response.json({ confirmationId: 'proof-b' }));
         }
         if (path.endsWith('/api/transfer/apply')) {
           return Promise.resolve(Response.json({ imported: 5, changed: true, revision: 23 }));
@@ -561,16 +561,20 @@ describe('beta import and export', () => {
     await screen.findByRole('button', { name: 'Replace data' });
     fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
-    fireEvent.click(screen.getByTestId('action-proof-confirm'));
+    fireEvent.click(screen.getByTestId('password-confirmation-submit'));
     await waitFor(() =>
       expect(requests.some((request) => request.url.endsWith('/api/transfer/apply'))).toBe(true),
     );
     const proof = requests.find((request) =>
-      request.url.endsWith('/api/auth/action-proof/password'),
+      request.url.endsWith('/api/auth/password-confirmation'),
     );
     expect(proof?.body.intent).toEqual({ baseRevision: 22, document: second });
     const apply = requests.find((request) => request.url.endsWith('/api/transfer/apply'));
-    expect(apply?.body).toMatchObject({ baseRevision: 22, document: second, proofId: 'proof-b' });
+    expect(apply?.body).toMatchObject({
+      baseRevision: 22,
+      document: second,
+      confirmationId: 'proof-b',
+    });
   });
 
   it('hides server import from non-owners while keeping export', () => {

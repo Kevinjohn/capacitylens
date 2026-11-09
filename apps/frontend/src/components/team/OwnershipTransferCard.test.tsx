@@ -15,8 +15,12 @@ const reproject = vi.hoisted(() => vi.fn(async () => true));
 
 vi.mock('@/account/teamAccessClient', () => ({ teamAccessClient: client }));
 vi.mock('@/auth/reprojectAccess', () => ({ reprojectAccess: reproject }));
-vi.mock('@/auth/ActionProofDialog', () => ({
-  ActionProofDialog: ({ onConfirmed }: { onConfirmed: (proofId: string) => void }) => (
+vi.mock('@/auth/PasswordConfirmationDialog', () => ({
+  PasswordConfirmationDialog: ({
+    onConfirmed,
+  }: {
+    onConfirmed: (confirmationId: string) => void;
+  }) => (
     <button type="button" onClick={() => onConfirmed('proof-1')}>
       Confirm action
     </button>
@@ -134,7 +138,7 @@ describe('OwnershipTransferCard', () => {
       expect(client.transferOwnership).toHaveBeenCalledWith({
         workspaceId: DEFAULT_ACCOUNT_ID,
         targetPrincipalId: ADMIN.userId,
-        proofId: 'proof-1',
+        confirmationId: 'proof-1',
       });
     });
     await waitFor(() => expect(reproject).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID));
@@ -186,8 +190,20 @@ describe('OwnershipTransferCard', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }));
     await waitFor(() => expect(client.transferOwnership).toHaveBeenCalledTimes(2));
     expect(client.transferOwnership.mock.calls).toEqual([
-      [{ workspaceId: DEFAULT_ACCOUNT_ID, targetPrincipalId: ADMIN.userId, proofId: 'proof-1' }],
-      [{ workspaceId: DEFAULT_ACCOUNT_ID, targetPrincipalId: ADMIN.userId, proofId: 'proof-1' }],
+      [
+        {
+          workspaceId: DEFAULT_ACCOUNT_ID,
+          targetPrincipalId: ADMIN.userId,
+          confirmationId: 'proof-1',
+        },
+      ],
+      [
+        {
+          workspaceId: DEFAULT_ACCOUNT_ID,
+          targetPrincipalId: ADMIN.userId,
+          confirmationId: 'proof-1',
+        },
+      ],
     ]);
   });
 

@@ -12,7 +12,7 @@ import {
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
 import HttpExceptionHandler from '#exceptions/handler';
 
-const required = { error: 'Confirm this action again.', code: 'ACTION_PROOF_REQUIRED' };
+const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
 for (const [error, status, expected] of [
   [new PasswordConfirmationRequiredException(), 403, required],
   [new PasswordConfirmationStaleException(), 403, required],
@@ -20,7 +20,7 @@ for (const [error, status, expected] of [
   [
     new PasswordConfirmationDeniedException(),
     403,
-    { error: 'Incorrect password.', code: 'ACTION_PROOF_DENIED' },
+    { error: 'Incorrect password.', code: 'PASSWORD_CONFIRMATION_DENIED' },
   ],
   [new PasswordConfirmationThrottledException(1200), 429, { error: 'Rate limit exceeded.' }],
   [
@@ -43,7 +43,7 @@ for (const [error, status, expected] of [
     const reports: unknown[] = [];
     const ctx = {
       request: { method: () => 'POST' },
-      route: { pattern: '/api/auth/action-proof/password' },
+      route: { pattern: '/api/auth/password-confirmation' },
       logger: { error: (fields: unknown) => reports.push(fields) },
       response: {
         status(code: number) {
@@ -71,7 +71,7 @@ for (const [error, status, expected] of [
         event: 'http.request.error',
         errorType: 'unexpected',
         method: 'POST',
-        path: '/api/auth/action-proof/password',
+        path: '/api/auth/password-confirmation',
         status: 500,
       });
   });

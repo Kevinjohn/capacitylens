@@ -93,17 +93,17 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | V7.2 Token creation/verification | Backend stateful CSPRNG reference sessions; new token on authentication                                                             | V7.2.1, V7.2.2, V7.2.3, V7.2.4         | —       | —   | —   |
 | V7.3 Timeouts                    | Server-enforced 14-day sliding inactivity expiry; no absolute maximum lifetime | V7.3.1 | — | V7.3.2 | — |
 | V7.4 Termination                 | Logout, expiry, account deletion and password change/reset invalidate sessions; no administrator session-revocation control | V7.4.1, V7.4.2, V7.4.3, V7.4.4 | — | V7.4.5 | — |
-| V7.5 Reauthentication | Password confirmation protects sensitive operations; action proofs are single-use and bound to the user, session, company, action and intent | V7.5.1, V7.5.3 | — | V7.5.2 | — |
+| V7.5 Reauthentication | Password confirmation protects sensitive operations; password confirmations are single-use and bound to the user, session, company, action and intent | V7.5.1, V7.5.3 | — | V7.5.2 | — |
 | V7.6 Federation                  | CapacityLens has no identity-provider session federation; session creation follows explicit user sign-in | V7.6.2 | — | — | V7.6.1 |
 
 ## V8 Authorization
 
 | Section                      | Evidence summary                                                                                                                                                                           | Pass                           | Partial | Gap    | N/A |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ | ------- | ------ | --- |
-| V8.1 Documentation           | Function/data/field/action rules and per-action password proofs are documented | V8.1.1, V8.1.2, V8.1.3, V8.1.4 | — | — | — |
+| V8.1 Documentation           | Function/data/field/action rules and per-action password confirmations are documented | V8.1.1, V8.1.2, V8.1.3, V8.1.4 | — | — | — |
 | V8.2 Enforcement             | Central role/action, account/object/parent-reference and field rules; project-bound writes fail closed when the parent cannot be resolved in-tenant; no adaptive environment/device engine | V8.2.1, V8.2.2, V8.2.3         | —       | V8.2.4 | —   |
 | V8.3 Trusted layer/immediacy | Server-side DB membership on every operation; changes/revocations immediate; no privilege-bearing intermediary                                                                             | V8.3.1, V8.3.2, V8.3.3         | —       | —      | —   |
-| V8.4 Multi-tenancy/admin | Independent cross-tenant enforcement; specified sensitive actions require an action-bound password proof; no local MFA or continuous device/risk assessment | V8.4.1 | V8.4.2 | — | — |
+| V8.4 Multi-tenancy/admin | Independent cross-tenant enforcement; specified sensitive actions require an action-bound password confirmation; no local MFA or continuous device/risk assessment | V8.4.1 | V8.4.2 | — | — |
 
 ## V9 Self-contained tokens
 
@@ -176,7 +176,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------- | --- | --- |
 | V16.1 Inventory        | Layer/event/format/destination/sensitivity inventory exists; actual access control and retention need operator evidence | — | V16.1.1 | — | — |
 | V16.2 Log content      | UTC ISO metadata, documented JSON streams and credential/body redaction; clock synchronization and deployed processor correlation need evidence | V16.2.1, V16.2.3, V16.2.5 | V16.2.2, V16.2.4 | — | — |
-| V16.3 Security events  | Optional request logging records event, method, route, status, outcome and correlation ID; password sign-in success, credential failure and throttling are separately logged with bounded fields; other authority/proof/validation failures are not individually logged | V16.3.1, V16.3.4 | V16.3.2, V16.3.3 | — | — |
+| V16.3 Security events  | Optional request logging records event, method, route, status, outcome and correlation ID; password sign-in success, credential failure and throttling are separately logged with bounded fields; other authority/confirmation/validation failures are not individually logged | V16.3.1, V16.3.4 | V16.3.2, V16.3.3 | — | — |
 | V16.4 Log protection   | Structured serialization prevents injection; audit rows are in SQLite; external forwarding is not provided and deployment access controls require operator evidence | V16.4.1 | V16.4.2, V16.4.3 | — | — |
 | V16.5 Failure handling | Generic responses, fail-closed external/control failures, transaction rollback and startup error handling; no process-wide last-resort handler for unhandled exceptions was identified | V16.5.1, V16.5.2, V16.5.3 | — | V16.5.4 | — |
 
@@ -204,10 +204,10 @@ changed rows are supported by the following source evidence:
 | V6.8, V7.6.1, V9, V10 | `apps/backend/app/controllers/auth_controller.ts` reports `password-only`; `apps/backend/start/auth_routes.ts` registers no federation or OAuth callback routes. |
 | V7.3.2, V7.4.5, V7.5.2 | `apps/backend/app/services/auth/session_expiry.ts` sets a 14-day idle expiry; `apps/backend/config/account_kit.ts` enables session management; `apps/backend/start/auth_routes.ts` has no session inventory or administrator revocation route. |
 | V7.1.1–V7.1.3 | `apps/backend/config/account_kit.ts` sets a 14-day idle expiry; it does not configure an absolute lifetime or concurrent-session cap. Current docs record the absence of an absolute lifetime but not its risk rationale; unlimited concurrent sessions are allowed with no count-based eviction. No federation exists. |
-| V7.5.3 | `@kevinjohn/adonisjs-confirm-action-with-password` binds single-use, five-minute password proofs to user, Kit session, live credential revision, company, action and intent; host authority is rechecked through `config/password_confirmations.ts`. |
+| V7.5.3 | `@kevinjohn/adonisjs-confirm-action-with-password` binds single-use, five-minute password confirmations to user, Kit session, live credential revision, company, action and intent; host authority is rechecked through `config/password_confirmations.ts`. |
 | V11.3 | `apps/backend/config/encryption.ts` declares AES-256-GCM using `APP_KEY`; no application call site proving which stored data uses it was identified, so the classifications remain Partial. |
 | V11.4.1–V11.4.4 | SHA-256 is used for token and intent digests (approved hash and adequate digest length); password scrypt meets the selected OWASP minimum profile (Met); the application does not derive encryption keys from passwords (N/A). |
-| V16.3.1, V16.3.3 | `apps/backend/app/middleware/request_logging_middleware.ts` and `apps/backend/app/controllers/auth_controller.ts` are opt-in and record request completion plus password sign-in success, credential failure and throttling with a shared correlation ID; other authority/proof/validation/Kit failures are not individually logged, so V16.3.3 is Partial. |
+| V16.3.1, V16.3.3 | `apps/backend/app/middleware/request_logging_middleware.ts` and `apps/backend/app/controllers/auth_controller.ts` are opt-in and record request completion plus password sign-in success, credential failure and throttling with a shared correlation ID; other authority/confirmation/validation/Kit failures are not individually logged, so V16.3.3 is Partial. |
 
 ## Input-boundary evidence update (2026-10-10)
 
@@ -243,7 +243,7 @@ not claims that input validation alone completes another control.
 | V6.3.8 — Partial | Generic messages alone do not prove indistinguishable response codes and timing across login, registration and recovery. Maintainers need differential boundary tests and timing assessment. |
 | V6.3.3, V6.3.5 — Gap | Password-only access does not meet the multi-factor requirement; suspicious-attempt notices are absent. |
 | V6.3.7 — Partial | Account Kit sends notices after password change and reset completion when mail is configured. No email-change route is exposed by the product. |
-| V8.2.4 — Gap; V8.4.2 — Partial | Adaptive device/risk authorization is absent, and action-bound password proofs cover only the specified sensitive actions. Maintainers would need a separate product decision and enforcement tests to change this scope. |
+| V8.2.4 — Gap; V8.4.2 — Partial | Adaptive device/risk authorization is absent, and action-bound password confirmations cover only the specified sensitive actions. Maintainers would need a separate product decision and enforcement tests to change this scope. |
 | V16.2.2, V16.3.2, V16.4.2–V16.4.3 — Partial | Operators must provide clock and external collector/ACL/retention evidence; maintainers would need additional event coverage for successful high-assurance decisions. Local safe-error tests do not prove those deployment controls. |
 | V16.5.4 — Gap | The 2026-10-26 source review found no process-wide last-resort handler; `apps/backend/bin/server.ts` catches startup failure only. |
 | V16.1.1, V16.2.4 — Partial | The checked-in logging inventory does not establish deployed retention/access or show that the selected log processor can read and correlate each stream. Operators must supply processor and access evidence. |

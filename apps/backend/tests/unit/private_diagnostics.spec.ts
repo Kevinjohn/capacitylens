@@ -2,7 +2,7 @@ import app from '@adonisjs/core/services/app';
 import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import { IdentityAuthorityError } from '#services/auth/authorization';
-import { ActionProofError } from '#services/auth/action_proof';
+import { PasswordConfirmationError } from '#services/auth/password_confirmation';
 import { test } from '@japa/runner';
 import { PasswordConfirmationRequiredException } from '@kevinjohn/adonisjs-confirm-action-with-password';
 import type { HttpContext } from '@adonisjs/core/http';
@@ -58,7 +58,7 @@ test('expected authentication and authorization refusals do not report server er
     [new InvalidSessionError(), 401],
     [new UnverifiedEmailError(), 403],
     [new IdentityAuthorityError('PRIVATE_AUTHORITY'), 403],
-    [new ActionProofError(), 403],
+    [new PasswordConfirmationError(), 403],
     [new PasswordConfirmationRequiredException(), 403],
   ] as const) {
     const captured = diagnosticContext();

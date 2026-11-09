@@ -18,11 +18,11 @@ const accountId = 'a-studio';
 const password = 'fixture-password-2026';
 
 async function proof(client: ApiClient, cookie: string) {
-  const issued = await asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+  const issued = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
     .json({ action: 'anonymise', accountId, intent: {}, password: 'fixture-password-2026' })
     .send();
   issued.assertStatus(200);
-  return (issued.body() as { proofId: string }).proofId;
+  return (issued.body() as { confirmationId: string }).confirmationId;
 }
 
 async function deleteAllocation(client: ApiClient, cookie: string, resourceId: string) {
@@ -313,13 +313,13 @@ test.group('company anonymisation', (group) => {
     const accountBefore = await db.from('accounts').where('id', accountId).first();
     const before = await withTransaction((trx) => getPlanningRevision(trx, accountId));
     const missing = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
-      .json({ proofId: '' })
+      .json({ confirmationId: '' })
       .send();
     missing.assertStatus(403);
     assert.equal(await withTransaction((trx) => getPlanningRevision(trx, accountId)), before);
-    const proofId = await proof(client, cookie);
+    const confirmationId = await proof(client, cookie);
     const applied = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
-      .json({ proofId })
+      .json({ confirmationId })
       .send();
     applied.assertStatus(204);
     const resources = await db.from('resources').where('account_id', accountId);
@@ -428,12 +428,12 @@ test.group('company anonymisation', (group) => {
     assert.isAbove(payloadBefore.length, 0);
     assert.isDefined(commitmentBefore);
     const before = await withTransaction((trx) => getPlanningRevision(trx, accountId));
-    const proofId = await proof(client, cookie);
+    const confirmationId = await proof(client, cookie);
     await db.rawQuery(`CREATE TRIGGER fail_anonymise_audit BEFORE INSERT ON audit_entries
       WHEN NEW.action = 'anonymise' BEGIN SELECT RAISE(ABORT, 'injected failure'); END`);
     try {
       const failed = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
-        .json({ proofId })
+        .json({ confirmationId })
         .send();
       failed.assertStatus(500);
     } finally {
@@ -457,7 +457,10 @@ test.group('company anonymisation', (group) => {
       commitmentBefore
     );
     assert.lengthOf(
-      await db.from('password_confirmations').where({ id: proofId }).whereNull('consumed_at'),
+      await db
+        .from('password_confirmations')
+        .where({ id: confirmationId })
+        .whereNull('consumed_at'),
       1
     );
     assert.equal(await withTransaction((trx) => getPlanningRevision(trx, accountId)), before);
@@ -472,7 +475,7 @@ test.group('company anonymisation', (group) => {
       payloadBefore
     );
     const applied = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
-      .json({ proofId })
+      .json({ confirmationId })
       .send();
     applied.assertStatus(204);
   });
@@ -483,19 +486,19 @@ test.group('company anonymisation', (group) => {
   }) => {
     const { cookie } = await resetAuthenticatedData(client, true);
     const before = await db.from('resources').where('account_id', 'a-loft').first();
-    const proofId = await proof(client, cookie);
+    const confirmationId = await proof(client, cookie);
     const mismatch = await asDataOwner(client.post('/api/accounts/a-loft/anonymise'), cookie)
-      .json({ proofId })
+      .json({ confirmationId })
       .send();
     mismatch.assertStatus(403);
     const unchangedBefore = await db.from('resources').where('id', before.id).first();
     assert.equal(unchangedBefore.name, before.name);
     const first = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
-      .json({ proofId })
+      .json({ confirmationId })
       .send();
     first.assertStatus(204);
     const replay = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
-      .json({ proofId })
+      .json({ confirmationId })
       .send();
     replay.assertStatus(403);
     const unchangedAfter = await db.from('resources').where('id', before.id).first();
@@ -511,20 +514,23 @@ test.group('company anonymisation', (group) => {
     assert,
   }) => {
     const { cookie, userId } = await resetAuthenticatedData(client, true);
-    const proofId = await proof(client, cookie);
+    const confirmationId = await proof(client, cookie);
     const resource = await db.from('resources').where('account_id', accountId).first();
     await db
       .from('memberships')
       .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'editor' });
     const denied = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
-      .json({ proofId })
+      .json({ confirmationId })
       .send();
     denied.assertStatus(403);
     const unchanged = await db.from('resources').where('id', resource.id).first();
     assert.equal(unchanged.name, resource.name);
     assert.lengthOf(
-      await db.from('password_confirmations').where({ id: proofId }).whereNull('consumed_at'),
+      await db
+        .from('password_confirmations')
+        .where({ id: confirmationId })
+        .whereNull('consumed_at'),
       1
     );
   });
@@ -549,9 +555,9 @@ test.group('company anonymisation', (group) => {
     removed.assertStatus(200);
     const groupId = (removed.body() as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId;
-    const proofId = await proof(client, cookie);
+    const confirmationId = await proof(client, cookie);
     const scrubbed = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
-      .json({ proofId })
+      .json({ confirmationId })
       .send();
     scrubbed.assertStatus(204);
     assert.lengthOf(await db.from('deleted_groups').where('group_id', groupId), 0);

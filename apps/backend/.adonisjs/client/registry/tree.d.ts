@@ -92,9 +92,7 @@ export interface ApiDefinition {
       signUp: typeof routes['api.auth.sign-up']
       signIn: typeof routes['api.auth.sign-in']
       signOut: typeof routes['api.auth.sign-out']
-      actionProof: {
-        password: typeof routes['api.auth.action-proof.password']
-      }
+      passwordConfirmation: typeof routes['api.auth.password-confirmation']
       requestReset: typeof routes['api.auth.request-reset']
       inspectReset: typeof routes['api.auth.inspect-reset']
       resetPassword: typeof routes['api.auth.reset-password']

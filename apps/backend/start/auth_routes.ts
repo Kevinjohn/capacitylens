@@ -2,7 +2,8 @@ import router from '@adonisjs/core/services/router';
 
 const AuthController = () => import('#controllers/auth_controller');
 const CredentialController = () => import('#controllers/credential_controller');
-const ActionProofsController = () => import('#controllers/action_proofs_controller');
+const PasswordConfirmationsController = () =>
+  import('#controllers/password_confirmations_controller');
 const VerificationController = () => import('#controllers/verification_controller');
 
 export function registerAuthRoutes() {
@@ -11,8 +12,8 @@ export function registerAuthRoutes() {
   router.post('/api/auth/sign-in', [AuthController, 'signIn']).as('api.auth.sign-in');
   router.post('/api/auth/sign-out', [AuthController, 'signOut']).as('api.auth.sign-out');
   router
-    .post('/api/auth/action-proof/password', [ActionProofsController, 'password'])
-    .as('api.auth.action-proof.password');
+    .post('/api/auth/password-confirmation', [PasswordConfirmationsController, 'password'])
+    .as('api.auth.password-confirmation');
   router
     .post('/api/auth/request-reset', [CredentialController, 'requestReset'])
     .as('api.auth.request-reset');

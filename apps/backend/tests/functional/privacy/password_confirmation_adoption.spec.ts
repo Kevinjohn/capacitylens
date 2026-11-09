@@ -8,7 +8,7 @@ import hash from '@adonisjs/core/services/hash';
 import proofs from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
-import ActionProofsController from '#controllers/action_proofs_controller';
+import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
 import { admissionDecision, actorIn, kitContextIn, withActor } from '#services/auth/current_actor';
 import {
   captureMasqueradeContext,
@@ -27,10 +27,10 @@ import {
 import { freshDatabase } from '../../helpers/fresh_database.js';
 
 const accountId = 'a-studio';
-const required = { error: 'Confirm this action again.', code: 'ACTION_PROOF_REQUIRED' };
+const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
 const body = { action: 'anonymise', accountId, intent: {}, password: fixturePassword };
 function issue(client: ApiClient, cookie: string, input = body) {
-  return asDataOwner(client.post('/api/auth/action-proof/password'), cookie).json(input).send();
+  return asDataOwner(client.post('/api/auth/password-confirmation'), cookie).json(input).send();
 }
 
 test.group('package proof adoption boundaries', (group) => {
@@ -39,7 +39,7 @@ test.group('package proof adoption boundaries', (group) => {
 
   test('a foreign Origin is refused on password proof issuance', async ({ client, assert }) => {
     const { cookie } = await resetAuthenticatedData(client);
-    const response = await asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+    const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
       .header('origin', 'https://lex.example')
       .header('sec-fetch-site', 'cross-site')
       .json(body)
@@ -79,12 +79,12 @@ test.group('package proof adoption boundaries', (group) => {
         };
       }
       const prove = proofs.confirmPassword;
-      const controller = ActionProofsController.prototype.password;
+      const controller = PasswordConfirmationsController.prototype.password;
       let reached = 0;
       proofs.confirmPassword = async () => {
         throw new Error('Preflight must refuse before package verification.');
       };
-      ActionProofsController.prototype.password = function (ctx) {
+      PasswordConfirmationsController.prototype.password = function (ctx) {
         reached++;
         if (gate === 'principal mismatch') {
           const captured = capturedMasqueradeContext(ctx);
@@ -95,7 +95,7 @@ test.group('package proof adoption boundaries', (group) => {
       };
       cleanup(() => {
         proofs.confirmPassword = prove;
-        ActionProofsController.prototype.password = controller;
+        PasswordConfirmationsController.prototype.password = controller;
       });
       const response = await issue(client, cookie);
       response.assertStatus(gate === 'principal mismatch' ? 409 : 403);
@@ -131,7 +131,7 @@ test.group('package proof adoption boundaries', (group) => {
       response.assertStatus(403);
       assert.deepEqual(response.body(), {
         error: 'Incorrect password.',
-        code: 'ACTION_PROOF_DENIED',
+        code: 'PASSWORD_CONFIRMATION_DENIED',
       });
     }
     const success = await issue(client, browser.cookie, { ...body, accountId: 'a-loft' });
@@ -160,11 +160,11 @@ test.group('package proof adoption boundaries', (group) => {
     });
     const response = await issue(client, cookie);
     response.assertStatus(200);
-    assert.deepEqual(Object.keys(response.body()), ['proofId']);
+    assert.deepEqual(Object.keys(response.body()), ['confirmationId']);
     assert.equal(called, 1);
     const row = await db
       .from('password_confirmations')
-      .where('id', response.body().proofId)
+      .where('id', response.body().confirmationId)
       .firstOrFail();
     assert.isNull(row.consumed_at);
   });
@@ -218,7 +218,7 @@ test.group('package proof adoption boundaries', (group) => {
     const responses = [
       await issue(client, cookie, { ...body, accountId: scope }),
       await asDataOwner(client.post('/api/transfer/apply'), cookie)
-        .json({ accountId: scope, document, baseRevision, proofId: 'missing' })
+        .json({ accountId: scope, document, baseRevision, confirmationId: 'missing' })
         .send(),
     ];
     for (const response of responses) {
@@ -226,7 +226,7 @@ test.group('package proof adoption boundaries', (group) => {
       assert.deepEqual(response.body(), required);
     }
     const anonymise = await asDataOwner(client.post(`/api/accounts/${scope}/anonymise`), cookie)
-      .json({ proofId: 'missing' })
+      .json({ confirmationId: 'missing' })
       .send();
     anonymise.assertStatus(404);
   });
@@ -239,10 +239,12 @@ test.group('package proof adoption boundaries', (group) => {
     b.assertStatus(200);
     await db.from('memberships').where('scope_id', accountId).delete();
     await db.from('accounts').where('id', accountId).delete();
-    assert.isNull(await db.from('password_confirmations').where('id', a.body().proofId).first());
+    assert.isNull(
+      await db.from('password_confirmations').where('id', a.body().confirmationId).first()
+    );
     const survivor = await db
       .from('password_confirmations')
-      .where('id', b.body().proofId)
+      .where('id', b.body().confirmationId)
       .firstOrFail();
     assert.equal(survivor.scope, 'a-loft');
     assert.isNull(survivor.consumed_at);
@@ -254,9 +256,9 @@ test.group('package proof adoption boundaries', (group) => {
     cleanup,
   }) => {
     const { cookie } = await resetAuthenticatedData(client);
-    const original = ActionProofsController.prototype.password;
+    const original = PasswordConfirmationsController.prototype.password;
     let checked = 0;
-    ActionProofsController.prototype.password = async function (ctx: HttpContext) {
+    PasswordConfirmationsController.prototype.password = async function (ctx: HttpContext) {
       for (const interrupted of [false, true]) {
         let captured: Trx | undefined;
         const sentinel = new Error('INTERRUPTED_CALLBACK');
@@ -279,7 +281,7 @@ test.group('package proof adoption boundaries', (group) => {
       return original.call(this, ctx);
     };
     cleanup(() => {
-      ActionProofsController.prototype.password = original;
+      PasswordConfirmationsController.prototype.password = original;
     });
     const response = await issue(client, cookie);
     response.assertStatus(200);

@@ -257,9 +257,9 @@ test.group('native read-only masquerade', (group) => {
       )
         .json({ dismissed: true })
         .send();
-      const actionProofWrite = asSession(
+      const confirmationWrite = asSession(
         client
-          .post('/api/auth/action-proof/password')
+          .post('/api/auth/password-confirmation')
           .header('sec-fetch-site', 'same-origin')
           .header('x-test-admission-pause', 'idle'),
         cookie,
@@ -277,7 +277,7 @@ test.group('native read-only masquerade', (group) => {
       const started = await startView(client, cookie, targetId);
       started.assertStatus(200);
       release.resolve();
-      const [saved, proof] = await Promise.all([normalWrite, actionProofWrite]);
+      const [saved, proof] = await Promise.all([normalWrite, confirmationWrite]);
       saved.assertStatus(200);
       proof.assertStatus(200);
       assert.isDefined(

@@ -171,7 +171,7 @@ The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by
 in **Data and support**. **Device data** and **Deleted items** are not shown in Settings. In an
 authenticated server deployment, **Import JSON** is Owner-only; **Export JSON** remains available
 at its existing role tiers and is redacted for non-owners. The temporary in-memory demo has no
-member identities, so it accepts a full beta file without login or action proof.
+member identities, so it accepts a full beta file without login or password confirmation.
 
 Export writes a `capacitylens-beta` version `1` document with one company, all scoped planning
 tables, stable IDs and supported company settings. A redacted export is for inspection only.

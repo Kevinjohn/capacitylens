@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
-import { ActionProofDialog } from '@/auth/ActionProofDialog';
+import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { useCan } from '@/auth/permissionContext';
 import { useRole } from '@/auth/permissionContext';
 import { API_BASE } from '@/data/apiConfig';
@@ -64,7 +64,7 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
     setNotice(m.settings_company_anonymise_done());
   };
 
-  const submit = async (proofId: string) => {
+  const submit = async (confirmationId: string) => {
     if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== accountId) {
       return;
     }
@@ -96,7 +96,7 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ proofId }),
+          body: JSON.stringify({ confirmationId }),
         },
         API_BULK_TIMEOUT_MS,
       );
@@ -183,13 +183,13 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
         </Modal>
       )}
       {proving && (
-        <ActionProofDialog
+        <PasswordConfirmationDialog
           action="anonymise"
           accountId={accountId}
           intent={{}}
-          onConfirmed={(proofId) => {
+          onConfirmed={(confirmationId) => {
             setProving(false);
-            void submit(proofId);
+            void submit(confirmationId);
           }}
           onCancel={() => setProving(false)}
         />
