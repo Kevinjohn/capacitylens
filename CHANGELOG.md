@@ -16,6 +16,7 @@ new features and **patch** versions carry fixes.
 - Update the view-as package to Masquerade 0.2.7, the release that pins Account Kit 0.3.3; its only runtime change is an added middleware for host-owned account routes that CapacityLens does not mount.
 - Update Account Kit to 0.3.3 and Access Control to 0.1.6 (#1800). Admission completion reads the invited role through Account Kit's admission record instead of its table; behaviour is unchanged.
 - Scheduled, pre-upgrade and reset backups use `@kevinjohn/adonisjs-sqlite-backup` 0.1.0 (#1785). Each backup is a verified `bak-utc-*` bundle directory instead of a `capacitylens-utc-*.db` file, and existing `.db` snapshots are no longer pruned. `node ace db:backup` now takes an action (`create`, `list`, `verify`, `restore-prepare` or `prune`), so a scheduled bare `db:backup` must become `db:backup create`. Pre-upgrade bundles go to `<backup directory>/pre-migration`. Startup refuses a backup directory that contains the live database.
+- Account commands record their receipts with `@kevinjohn/adonisjs-duplicate-request-guard` 0.1.0 inside the command's transaction (#1783). Receipts are scoped to one person's operation, and receipts from before the upgrade are not carried over, so a command retried across the upgrade runs again.
 
 ### Fixed
 
