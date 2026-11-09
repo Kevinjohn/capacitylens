@@ -24,8 +24,8 @@ const commands = {
     ['run', 'typecheck'],
     ['run', 'lint'],
     ['--dir', 'apps/frontend', 'exec', 'vitest', 'run', '--coverage'],
+    // The root build script ends with bundle:check, so a failing budget fails this step.
     ['run', 'build'],
-    ['run', 'bundle:check'],
   ],
   backend: [
     ...structuralChecks,
