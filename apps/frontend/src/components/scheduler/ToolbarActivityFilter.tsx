@@ -38,15 +38,30 @@ export function ToolbarActivityFilter({
   repeatableActivities,
   onChange,
 }: ToolbarActivityFilterProps) {
+  const selectedValue = activityKind ? `kind:${activityKind}` : (activityId ?? 'all');
+  const availableValues = new Set([
+    'all',
+    ...internalActivities.map((activity) => activity.id),
+    ...repeatableActivities.map((activity) => activity.id),
+    ...(internalActivities.length > 0 ? ['kind:internal'] : []),
+    ...(repeatableActivities.length > 0 ? ['kind:repeatable'] : []),
+  ]);
+  const selectionUnavailable = selectedValue !== 'all' && !availableValues.has(selectedValue);
+
   return (
     <Select
-      value={activityKind ? `kind:${activityKind}` : (activityId ?? 'all')}
+      value={selectedValue}
       onValueChange={(value) => onChange(buildActivityFilterPatch(value))}
     >
       <SelectTrigger size="sm" aria-label={m.scheduler_filter_activity_aria()} className="w-auto">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
+        {selectionUnavailable && (
+          <SelectItem value={selectedValue} disabled>
+            {m.scheduler_filter_activity_unavailable()}
+          </SelectItem>
+        )}
         <SelectGroup>
           <SelectItem value="all">{m.scheduler_filter_all_activities()}</SelectItem>
         </SelectGroup>

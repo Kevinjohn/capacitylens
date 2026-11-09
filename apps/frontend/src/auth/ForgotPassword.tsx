@@ -19,7 +19,7 @@ export function ForgotPassword() {
     event.preventDefault();
     const normalizedEmail = normalizeAccountEmail(email);
     if (!isAccountEmail(normalizedEmail)) {
-      setError(m.login_failed());
+      setError(m.identity_err_email());
       return;
     }
     setBusy(true);
@@ -27,7 +27,7 @@ export function ForgotPassword() {
     try {
       const response = await authClient.requestPasswordReset(normalizedEmail);
       if (!response.error) setPhase('sent');
-      else setError(m.login_failed());
+      else setError(m.login_reset_request_failed());
     } catch {
       // Surface a transport failure inline so password recovery remains retryable without reporting whether the address exists.
       setError(m.login_network_error());
