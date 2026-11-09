@@ -27,6 +27,7 @@ new features and **patch** versions carry fixes.
 - Restrict checklist dismissal to Owners and Admins, correct password confirmation and reset feedback, and suppress mixed-case bearer paths in nginx access logs (#1802).
 - Correct native operator command examples and the focused TypeScript test invocation (#1802).
 - A membership call the Access Control package refuses as invalid input is now a reported server fault instead of an unlogged 400, since every product request is validated before it reaches the package (#1789). A company or member identifier longer than the package accepts matches no route and answers 404. Permission lookups in the shared declaration ignore inherited object keys.
+- Unexpected failures while reading an import document, the getting-started dismissal or the archived-data read are now reported as faults instead of being shown as invalid input (#1827).
 
 ## [0.75.0-alpha.1] - 2026-11-08
 
