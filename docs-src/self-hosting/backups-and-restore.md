@@ -1,61 +1,101 @@
 ---
 title: Backups and restore
-description: Protect and restore the native SQLite database using verified snapshots and the Adonis backup commands.
+description: Protect and restore the native SQLite database using verified bundles and the Adonis backup commands.
 ---
 
 # Backups and restore
 
-CapacityLens stores a company's data in one SQLite database. Keep the database and its backup
-directory on persistent storage with access limited to the service user. A copy of the database
-alone is not a recovery plan: retain multiple snapshots away from the host and rehearse restoration.
+CapacityLens stores a company's data in one SQLite database. Keep the live database outside the
+backup directory, with access limited to the service user. Use plain filesystem paths, not `file:`
+URIs. Scheduled, pre-migration and reset backups require **local storage only**; network filesystems
+such as NFS are unsupported. Retain protected copies away from the host and rehearse restoration.
 
-## Scheduled and manual snapshots
+## Scheduled and manual bundles
 
-Set `CAPACITYLENS_BACKUP_DIR` to enable an online snapshot at web-service startup and every 24
-hours while it runs. `CAPACITYLENS_BACKUP_KEEP` controls how many completed managed snapshots to
-retain; the default is 48. A running backup prevents another scheduled job from overlapping it.
-See [Configuration](/self-hosting/configuration) for retention settings.
+Set `CAPACITYLENS_BACKUP_DIR` to enable a backup at web-service startup and every 24 hours while it
+runs. Startup checks the source and prepares the root with mode `0700`. If that root disappears
+later, a scheduled run fails without recreating it. Restore the storage/mount and permissions before
+retrying. Unset or empty configuration disables scheduling without preventing application startup.
 
-Check the service logs for backup failures and confirm that recent completed snapshots exist.
-Readiness checks the database; it does not track backup success.
+`CAPACITYLENS_BACKUP_KEEP` defaults to 48 completed READY bundles. A scheduled run skips overlapping
+work, creates one bundle, then prunes after success. Failed creates do not prune. Prune failures are
+logged separately and do not invalidate a successful backup. Readiness checks the database, so inspect
+backup logs and completed bundles separately. Diagnostics reports the maximum manifest creation time,
+which can differ from name order after a backward clock step.
 
-To write a verified snapshot on demand, leave the application running; the backup command uses
-SQLite's online backup API. Run it as the service user with the same private environment as the
-service:
+Each bundle is a directory named `bak-utc-YYYYMMDD-HHMMSS-mmm` containing:
+
+```text
+bak-utc-20261108-120000-000/
+  db.sqlite
+  manifest.json
+  READY
+```
+
+The package makes a one-step online copy, checks full SQLite integrity, foreign keys and the migration
+journal, records size and SHA-256 in the manifest, then writes READY last. Only READY bundles are
+recovery points. Database, manifest and READY files are read-only.
+
+Run manual commands as the service user with the same private environment as the service. A
+manual create can run while the application is online:
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
   -p WorkingDirectory=/opt/capacitylens/current/backend \
   -p EnvironmentFile=/etc/capacitylens.env \
   -p Environment=NODE_ENV=production \
-  /usr/bin/env node ace.js db:backup
+  /usr/bin/env node ace.js db:backup create
 ```
 
-This command requires `CAPACITYLENS_BACKUP_DIR`. The resulting database snapshot is written to the
-configured directory. Scheduled and manual snapshots share count-based retention: after a
-successful snapshot, excess older managed snapshots are removed. Pre-upgrade snapshots, temporary
-files and unrelated files are excluded. If an older in-flight backup finishes after a newer one,
-retention protects both the newly written snapshot and the newest recovery point. The completed
-count can exceed the configured target until a later successful backup reapplies the limit.
-A failed copy is not published as a completed snapshot and does not trigger retention. Copy
-snapshots off the host and protect them like production data.
+Use `list`, `verify --bundle <name>` or `prune` in place of `create` for the other actions.
 
-An interrupted process can leave unpublished `.tmp` files and their `-wal` or `-shm` sidecars.
-Retention excludes these files, and startup does not sweep them. To reclaim their disk space,
-stop the service and wait for any manual backup commands to finish. Inspect the backup directory
-and remove only confirmed abandoned temporary files; preserve completed `.db` snapshots and
-pre-upgrade recovery files.
+Manual create prepares the configured directory; confirm its storage is mounted first. It creates a
+bundle without pruning; use `prune` explicitly afterward. Prune keeps the newest configured count in
+name order and removes unfinished bundles under the directory lock. `--keep <count>` overrides the
+retention count for that prune. `list`, `verify` and `restore-prepare` accept `--directory <path>` to
+read another backup root, including when scheduling is disabled. Create and prune use the configured root.
 
-## Restore a snapshot
+Pre-upgrade bundles go to `<configured backup directory>/pre-migration`, or `<database path>.backups`
+when scheduling is disabled. Reset archives live beside the original database. Scheduled retention does
+not manage either destination. Old `capacitylens-*.db` scheduled snapshots are not managed by the new
+retention; never delete the live database, pre-migration files or reset archives as retention cleanup.
 
-Restore into a new path so the current database remains available for investigation:
+An interrupted create can leave a bundle directory without READY. It is not a backup; the next prune
+removes it once no creator holds the lock. Use `db:backup prune` rather than deleting files from an
+active backup root. Unrelated files are left alone. Preserve verified copies before reclaiming space.
 
-1. Stop the service and keep it stopped through the restore and validation.
-2. Copy the selected verified snapshot to a new file in the persistent data directory. Do not
-   copy a live SQLite database file while it is being written.
-3. Point `CAPACITYLENS_DB` at the restored copy in `/etc/capacitylens.env`, then run the upgrade
-   as the service user with the service environment. The command runs pending migrations and
-   checks schema integrity:
+Names increase within a root. If its newest bundle is dated more than 24 hours after the clock, create
+refuses. Correct the clock or move the verified future bundle to a separate protected recovery directory
+before trying again; preserve that recovery point. A backward step within 24 hours adjusts the next name,
+while its manifest still records the actual clock time.
+
+## Restore a bundle
+
+Stage into a new path so the current database remains available for investigation:
+
+1. Stop the service and keep it stopped through restoration and validation.
+2. Choose a recovery point and stage a verified copy:
+
+   ```bash
+   sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+     -p WorkingDirectory=/opt/capacitylens/current/backend \
+     -p EnvironmentFile=/etc/capacitylens.env \
+     -p Environment=NODE_ENV=production \
+     /usr/bin/env node ace.js db:backup list --directory /var/lib/capacitylens/backups
+   sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+     -p WorkingDirectory=/opt/capacitylens/current/backend \
+     -p EnvironmentFile=/etc/capacitylens.env \
+     -p Environment=NODE_ENV=production \
+     /usr/bin/env node ace.js db:backup restore-prepare --directory /var/lib/capacitylens/backups \
+     --bundle <name> --target /var/lib/capacitylens/restored.db
+   ```
+
+   Omit `--directory` to use the configured root. Both commands work with an explicit directory while
+   scheduling is disabled. The target must be new, outside the backup root and live database/sidecar
+   paths, with no existing sidecars. `restore-prepare` checks the staged copy and never replaces the live file.
+3. Point `CAPACITYLENS_DB` at the staged copy in `/etc/capacitylens.env`, then run the upgrade as
+   the service user with the service environment. The command backs up existing data, runs pending
+   migrations and checks schema integrity:
 
    ```bash
    sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
@@ -64,13 +104,11 @@ Restore into a new path so the current database remains available for investigat
      -p Environment=NODE_ENV=production \
      /usr/bin/env node ace.js app:upgrade
    ```
-4. Start the service, check `/health/ready`, and verify the expected company and data before
-   allowing normal use.
-5. Keep the original database, snapshot and prior environment settings until the restore is
-   accepted.
+4. Start the service, check `/health/ready`, and verify the expected company and data before normal use.
+5. Keep the original database, bundle and prior environment settings until the restore is accepted.
 
-Never replace or delete the only copy of the current database before the restored copy passes
-startup checks. Do not edit the migration journal or database files by hand.
+Never replace or delete the only copy of the current database before the staged copy passes startup
+checks. Do not edit migration journals or database files by hand. Protect off-host bundles like production data.
 
 ## Recover a sole Owner's local password
 

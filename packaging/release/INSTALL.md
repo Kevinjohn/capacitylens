@@ -64,10 +64,10 @@ sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
   -p WorkingDirectory=/opt/capacitylens/current/backend \
   -p EnvironmentFile=/etc/capacitylens.env \
   -p Environment=NODE_ENV=production \
-  /usr/bin/env node ace.js db:backup
+  /usr/bin/env node ace.js db:backup create
 ```
 
-The running server also writes verified snapshots at startup and every 24 hours to
+The running server also writes verified READY bundles at startup and every 24 hours to
 `CAPACITYLENS_BACKUP_DIR`. The supplied nginx
 site serves static assets from `backend/public` and proxies health and API requests; the Caddy example proxies
 everything to the backend.

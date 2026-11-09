@@ -156,7 +156,7 @@ This is the short, present-tense record of decisions that constrain future work.
   an online backup before migrating; the backup is the rollback. There are no down migrations and
   no checksum ledger.
 - A native online SQLite backup runs at startup and every 24 hours; count-based retention keeps the
-  configured number of snapshots. Failures are logged or returned by the operator command.
+  configured number of verified READY bundles on local storage. The package owns copying, verification, retention and restore preparation; the web provider owns scheduling. Pre-migration bundles and reset archives stay outside scheduled retention. Failures are logged or returned by the operator command.
 
 ## Browser data
 

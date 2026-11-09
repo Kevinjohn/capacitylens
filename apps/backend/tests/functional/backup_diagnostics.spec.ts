@@ -3,10 +3,11 @@ import { test } from '@japa/runner';
 import { freshDatabase } from '../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
-import { mkdtempSync, rmSync, writeFileSync, utimesSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js';
+import { createBundle } from '@kevinjohn/adonisjs-sqlite-backup';
 import type { ApiClient } from '@japa/api-client';
 
 test.group('Backup diagnostics', (group) => {
@@ -195,25 +196,48 @@ test.group('Backup diagnostics', (group) => {
     }
   });
 
-  test('diagnostics uses the newest snapshot file mtime, not its filename date', async ({
+  test('diagnostics uses the maximum READY manifest time despite name order and file mtime', async ({
     assert,
   }) => {
     const dir = mkdtempSync(join(tmpdir(), 'capacitylens-diagnostics-'));
     const original = env.get('CAPACITYLENS_BACKUP_DIR');
     try {
-      const older = join(dir, 'capacitylens-utc-20261020-120000-000.db');
-      const newer = join(dir, 'capacitylens-utc-20261021-120000-000.db');
-      writeFileSync(older, 'old');
-      writeFileSync(newer, 'new');
-      writeFileSync(join(dir, 'unrelated.db'), 'ignore');
-      utimesSync(older, new Date('2026-10-21T23:00:00.000Z'), new Date('2026-10-21T23:00:00.000Z'));
-      utimesSync(newer, new Date('2026-10-20T08:12:13.000Z'), new Date('2026-10-20T08:12:13.000Z'));
+      const connection = db.getRawConnection(db.primaryConnectionName)!.config;
+      const livePath = (connection.connection as { filename: string }).filename;
+      const older = await createBundle({
+        livePath,
+        directory: dir,
+        now: () => Date.UTC(2026, 9, 21, 23),
+      });
+      const newer = await createBundle({
+        livePath,
+        directory: dir,
+        now: () => Date.UTC(2026, 9, 21, 22),
+      });
+      utimesSync(older.path, new Date('2020-01-01'), new Date('2020-01-01'));
+      utimesSync(newer.path, new Date('2030-01-01'), new Date('2030-01-01'));
       env.set('CAPACITYLENS_BACKUP_DIR', dir);
       const response = await owner.get('/api/diagnostics');
       assert.equal(response.status(), 200);
       assert.containsSubset(response.body(), {
         server: { backup: { newestSnapshotAt: '2026-10-21T23:00:00.000Z' } },
       });
+    } finally {
+      env.set('CAPACITYLENS_BACKUP_DIR', original ?? '');
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  test('diagnostics does not report an unfinished bundle', async ({ assert }) => {
+    const dir = mkdtempSync(join(tmpdir(), 'capacitylens-diagnostics-'));
+    const original = env.get('CAPACITYLENS_BACKUP_DIR');
+    try {
+      const partial = join(dir, 'bak-utc-20990101-000000-000');
+      mkdirSync(partial);
+      writeFileSync(join(partial, 'db.sqlite'), 'unfinished');
+      env.set('CAPACITYLENS_BACKUP_DIR', dir);
+      const response = await owner.get('/api/diagnostics');
+      assert.equal(response.status(), 200);
+      assert.containsSubset(response.body(), { server: { backup: { newestSnapshotAt: null } } });
     } finally {
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '');
       rmSync(dir, { recursive: true, force: true });

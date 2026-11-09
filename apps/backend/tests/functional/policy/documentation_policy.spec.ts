@@ -178,7 +178,7 @@ test.group('M5 documentation and policy contracts', () => {
     const configuration = read('docs-src/self-hosting/configuration.md').replace(/\s+/g, ' ');
     assert.match(configuration, /at web-service startup and every 24 hours/);
     assert.match(configuration, /defaulting to 48/);
-    assert.match(configuration, /Positive fractional values are floored to whole snapshots/);
+    assert.match(configuration, /Positive fractional values are floored to whole bundles/);
     assert.match(configuration, /invalid or nonpositive values use 48 with a startup warning/);
     assert.match(configuration, /values above 10,000 clamp to 10,000 with a warning/);
     assert.match(configuration, /`CAPACITYLENS_BACKUP_INTERVAL_MIN` setting is no longer used/);

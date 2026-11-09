@@ -1,20 +1,18 @@
 import { test } from '@japa/runner';
-import {
-  cpSync,
-  copyFileSync,
-  mkdtempSync,
-  readdirSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { cpSync, copyFileSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { openNativeDatabase } from '#services/backup/native';
-import { ensurePrivateBackupDirectory, writeOneShotSnapshot } from '#services/backup/snapshot';
+// @ts-expect-error better-sqlite3 does not publish declarations
+import Database from 'better-sqlite3';
+import {
+  createBundle,
+  listBundles,
+  prepareDirectory,
+  verifyBundle,
+} from '@kevinjohn/adonisjs-sqlite-backup';
 import { preMigrationBackupDirectory } from '../../commands/app_upgrade.js';
 import { scratchBackendFilter } from './operator_command_support.js';
 
@@ -53,7 +51,7 @@ const ace = (root: string, databasePath: string, name: string, backupDir?: strin
   command(root, databasePath, ['ace.js', name], backupDir);
 
 function journal(databasePath: string) {
-  const database = openNativeDatabase(databasePath, { readonly: true, fileMustExist: true });
+  const database = new Database(databasePath, { readonly: true, fileMustExist: true });
   try {
     return database.prepare('SELECT name FROM adonis_schema ORDER BY id').all() as Array<{
       name: string;
@@ -64,7 +62,7 @@ function journal(databasePath: string) {
 }
 
 function tables(databasePath: string) {
-  const database = openNativeDatabase(databasePath, { readonly: true, fileMustExist: true });
+  const database = new Database(databasePath, { readonly: true, fileMustExist: true });
   try {
     return (
       database.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{
@@ -87,9 +85,7 @@ function scratchApp(root: string, migrations: Record<string, string>) {
 }
 
 function preMigrationSnapshots(dir: string) {
-  return readdirSync(dir).filter((name) =>
-    /^capacitylens-pre-migration-utc-[\d-]+\.db$/.test(name)
-  );
+  return listBundles(dir).map((bundle) => verifyBundle(dir, bundle.name).name);
 }
 
 test('native upgrade initializes a fresh database without a snapshot', ({
@@ -144,8 +140,8 @@ test('native upgrade backs up an existing database before migrating and refuses 
     const [snapshot, ...others] = preMigrationSnapshots(backups);
     assert.isDefined(snapshot);
     assert.lengthOf(others, 0);
-    assert.lengthOf(journal(join(backups, snapshot!)), 4);
-    assert.notInclude(tables(join(backups, snapshot!)), 'upgrade_added');
+    assert.lengthOf(journal(join(backups, snapshot!, 'db.sqlite')), 4);
+    assert.notInclude(tables(join(backups, snapshot!, 'db.sqlite')), 'upgrade_added');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -232,7 +228,7 @@ test('masquerade migration retires legacy tokens and preserves historical audit 
       '--no-schema-generate',
     ]);
     assert.equal(upgraded.status, 0, upgraded.output);
-    const migrated = openNativeDatabase(dbPath, { readonly: true });
+    const migrated = new Database(dbPath, { readonly: true });
     try {
       const names = (
         migrated.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{
@@ -274,7 +270,7 @@ test('upgrade refuses schema drift on an otherwise complete database', ({
     const dbPath = join(root, 'live.db');
     const init = ace(appRoot, dbPath, 'app:upgrade');
     assert.equal(init.status, 0, init.output);
-    const database = openNativeDatabase(dbPath);
+    const database = new Database(dbPath);
     database.prepare('DROP TRIGGER clients_account_immutable').run();
     database.close();
     const drift = ace(appRoot, dbPath, 'app:upgrade');
@@ -308,7 +304,7 @@ test('a failing later migration rolls back its own DDL after an earlier file com
     assert.notInclude(tables(dbPath), 'upgrade_rolled_back');
     const [snapshot] = preMigrationSnapshots(join(root, 'live.db.backups'));
     assert.isDefined(snapshot);
-    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!)), 4);
+    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!, 'db.sqlite')), 4);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -320,29 +316,53 @@ test('upgrade fallback creates a private backup directory without changing its p
   const root = await mkdtemp(join(tmpdir(), 'capacitylens-upgrade-'));
   try {
     const databasePath = join(root, 'live.db');
-    const database = openNativeDatabase(databasePath);
+    const database = new Database(databasePath);
     try {
       database.prepare('CREATE TABLE entries (id INTEGER PRIMARY KEY)').run();
       const parent = await stat(root);
       const parentMode = parent.mode & 0o777;
       const dir = preMigrationBackupDirectory(databasePath);
-      const file = join(dir, 'capacitylens-pre-migration.db');
-      ensurePrivateBackupDirectory(dir);
-      await writeOneShotSnapshot({ database, dir, file });
+      prepareDirectory(dir);
+      const bundle = await createBundle({ source: { database }, directory: dir });
+      const file = join(bundle.path, 'db.sqlite');
+      assert.equal(verifyBundle(dir, bundle.name).path, bundle.path);
       const afterParent = await stat(root);
       const backupDirectory = await stat(dir);
       const backupFile = await stat(file);
       assert.equal(afterParent.mode & 0o777, parentMode);
       assert.equal(backupDirectory.mode & 0o777, 0o700);
-      assert.equal(backupFile.mode & 0o777, 0o600);
+      assert.equal(backupFile.mode & 0o777, 0o400);
       assert.equal(
         preMigrationBackupDirectory(databasePath, join(root, 'configured')),
-        join(root, 'configured')
+        join(root, 'configured', 'pre-migration')
       );
     } finally {
       database.close();
     }
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('upgrade prepares the configured pre-migration destination on first use', ({
+  assert,
+  test: t,
+}) => {
+  t.timeout(60_000);
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-upgrade-configured-'));
+  try {
+    const live = join(root, 'live.db');
+    assert.equal(ace(appRoot, live, 'app:upgrade').status, 0);
+    const directory = join(root, 'scheduled');
+    const upgrade = ace(appRoot, live, 'app:upgrade', directory);
+    assert.equal(upgrade.status, 0, upgrade.output);
+    assert.deepEqual(listBundles(directory), []);
+    const actual = join(directory, 'pre-migration');
+    const bundles = listBundles(actual);
+    assert.lengthOf(bundles, 1);
+    assert.equal(verifyBundle(actual, bundles[0]!.name).path, bundles[0]!.path);
+    assert.lengthOf(journal(join(bundles[0]!.path, 'db.sqlite')), 4);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

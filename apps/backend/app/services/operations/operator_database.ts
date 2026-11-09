@@ -1,6 +1,19 @@
 import { existsSync, lstatSync } from 'node:fs';
 import db from '@adonisjs/lucid/services/db';
-import type { NativeDatabase } from '#services/backup/native';
+/** Native operations required while the operator owns the pool's only connection. */
+export interface NativeDatabase {
+  readonly inTransaction: boolean;
+  exec(sql: string): unknown;
+  prepare(sql: string): {
+    get(...params: unknown[]): unknown;
+    all(...params: unknown[]): unknown[];
+    run(...params: unknown[]): unknown;
+    safeIntegers(enabled?: boolean): { all(...params: unknown[]): unknown[] };
+  };
+  pragma(sql: string, options?: { simple?: boolean }): unknown;
+  backup(path: string, options?: { progress?: (info: unknown) => number }): Promise<unknown>;
+  close(): void;
+}
 
 /** Require operator intent and an existing disk database before opening any connection. */
 export function operatorDatabasePath(confirmServerStopped: boolean) {
