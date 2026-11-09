@@ -1,5 +1,5 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { todayISO } from '@capacitylens/shared/lib/dateMath';
 import type { Closure } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
@@ -82,11 +82,14 @@ export function ClosureForm({
   const [name, setName] = useState(closure?.name ?? '');
   const [startDate, setStartDate] = useState(closure?.startDate ?? today);
   const [endDate, setEndDate] = useState(closure?.endDate ?? today);
+  const [pending, setPending] = useState(false);
+  const inFlight = useRef(false);
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
 
   const submit = async () => {
+    if (inFlight.current) return;
     const cleanName = parseText(name, fail, {
       requiredMessage: m.form_closure_err_name_required(),
     });
@@ -101,6 +104,8 @@ export function ClosureForm({
     }
 
     const patch = { name: cleanName, startDate, endDate };
+    inFlight.current = true;
+    setPending(true);
     try {
       if (closure) {
         if (isStaleEdit(useStore.getState().data.closures, closure.id, closure.updatedAt)) {
@@ -119,6 +124,9 @@ export function ClosureForm({
         null,
         cause instanceof Error ? resolveErrorMessage(cause) : m.form_closure_err_save_failed(),
       );
+    } finally {
+      inFlight.current = false;
+      setPending(false);
     }
   };
 
@@ -130,19 +138,21 @@ export function ClosureForm({
         void submit();
       }}
       onEdit={clear}
-      footer={<FormActions onCancel={onClose} />}
+      footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
-      <ClosureFormFields
-        name={name}
-        onNameChange={setName}
-        startDate={startDate}
-        onStartDateChange={setStartDate}
-        endDate={endDate}
-        onEndDateChange={setEndDate}
-        error={error}
-        errorField={errorField}
-        errorId={errorId}
-      />
+      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
+        <ClosureFormFields
+          name={name}
+          onNameChange={setName}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          error={error}
+          errorField={errorField}
+          errorId={errorId}
+        />
+      </fieldset>
     </Modal>
   );
 }

@@ -29,7 +29,6 @@ const optional: Buffer | string | null = run().stdout;
     process.execPath,
     [
       join(root, 'node_modules/typescript/bin/tsc'),
-      '--ignoreConfig',
       '--noEmit',
       '--strict',
       '--skipLibCheck',
