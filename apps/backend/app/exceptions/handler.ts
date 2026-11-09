@@ -45,7 +45,15 @@ function proofRefusal(error: unknown) {
     return { status: 403, body: { error: 'Incorrect password.', code: 'ACTION_PROOF_DENIED' } };
   }
   if (error instanceof PasswordConfirmationThrottledException) {
-    return { status: 429, body: { error: 'Rate limit exceeded.' } };
+    const seconds = Math.max(1, Math.ceil(error.retryAfterSeconds));
+    const minutes = Math.ceil(seconds / 60);
+    return {
+      status: 429,
+      headers: { 'Retry-After': String(seconds) },
+      body: {
+        error: `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      },
+    };
   }
   if (error instanceof InvalidPasswordConfirmationRequestException) {
     return { status: 400, body: { error: 'Invalid action confirmation.' } };
@@ -176,7 +184,12 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       return ctx.response.status(error.status).send({ error: error.message, code: error.code });
     }
     const proof = proofRefusal(error);
-    if (proof) return ctx.response.status(proof.status).send(proof.body);
+    if (proof) {
+      for (const [name, value] of Object.entries(proof.headers ?? {})) {
+        ctx.response.header(name, value);
+      }
+      return ctx.response.status(proof.status).send(proof.body);
+    }
     if (error instanceof IdentityAuthorityError) {
       return ctx.response.forbidden({ error: error.message, code: error.code });
     }
