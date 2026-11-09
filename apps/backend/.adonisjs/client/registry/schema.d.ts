@@ -736,17 +736,17 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signOut']>>>
     }
   }
-  'api.auth.action-proof.password': {
+  'api.auth.password-confirmation': {
     methods: ["POST"]
-    pattern: '/api/auth/action-proof/password'
+    pattern: '/api/auth/password-confirmation'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['password']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['password']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['password']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['password']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['password']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['password']>>>
     }
   }
   'api.auth.request-reset': {

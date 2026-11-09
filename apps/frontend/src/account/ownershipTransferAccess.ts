@@ -25,7 +25,7 @@ export const ownershipTransferAccess = {
   async transferOwnership(input: {
     workspaceId: string;
     targetPrincipalId: string;
-    proofId: string;
+    confirmationId: string;
   }): Promise<TeamAccessResult<OwnershipTransferReceipt>> {
     return readCommandResult(await accountClient.transferOwnership(input), parseReceipt, 200);
   },

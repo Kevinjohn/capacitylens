@@ -14,7 +14,7 @@ import { summarize } from './import-export/importExportMessages';
 import { useExportAction } from './import-export/useExportAction';
 import { usePendingImport } from './import-export/usePendingImport';
 import type { PendingImport } from './import-export/usePendingImport';
-import { ActionProofDialog } from '@/auth/ActionProofDialog';
+import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { API_BASE } from '@/data/apiConfig';
 import { apiFetch } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
@@ -264,14 +264,14 @@ export function ImportExport() {
         />
       )}
       {pendingImport && activeAccountId && previewRevision !== null && confirmingAction && (
-        <ActionProofDialog
+        <PasswordConfirmationDialog
           action="import"
           accountId={activeAccountId}
           intent={{ baseRevision: previewRevision, document: pendingImport.document }}
-          onConfirmed={(proofId) => {
+          onConfirmed={(confirmationId) => {
             setConfirmingAction(false);
             setPendingImport(null);
-            void confirmServerImport(pendingImport.document, previewRevision, proofId);
+            void confirmServerImport(pendingImport.document, previewRevision, confirmationId);
           }}
           onCancel={() => setConfirmingAction(false)}
         />

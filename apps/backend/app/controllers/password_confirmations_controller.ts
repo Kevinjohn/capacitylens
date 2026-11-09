@@ -2,26 +2,26 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { parseBetaExport } from '@capacitylens/shared/data/betaTransfer';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import {
-  ACTION_PROOF_KINDS,
-  actionProofActor,
-  type ActionProofKind,
-} from '#services/auth/action_proof';
+  PASSWORD_CONFIRMATION_KINDS,
+  passwordConfirmationActor,
+  type PasswordConfirmationKind,
+} from '#services/auth/password_confirmation';
 import { accountInput, withActor } from '#services/auth/current_actor';
 import { classifyLogError, reportPrivateFailure } from '#services/logging_safety';
 
-type ProofRequest = {
-  action: ActionProofKind;
+type ConfirmationRequest = {
+  action: PasswordConfirmationKind;
   accountId: string;
   intent: unknown;
   password: string;
 };
 
-function requestBody(value: unknown): ProofRequest | null {
+function requestBody(value: unknown): ConfirmationRequest | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const body = value as Record<string, unknown>;
   const fields = ['action', 'accountId', 'intent', 'password'];
   if (Object.keys(body).some((key) => !fields.includes(key))) return null;
-  if (!ACTION_PROOF_KINDS.includes(body.action as ActionProofKind)) return null;
+  if (!PASSWORD_CONFIRMATION_KINDS.includes(body.action as PasswordConfirmationKind)) return null;
   if (typeof body.accountId !== 'string' || !body.accountId) return null;
   if (typeof body.password !== 'string') return null;
   if (!body.intent || typeof body.intent !== 'object' || Array.isArray(body.intent)) return null;
@@ -49,19 +49,19 @@ function requestBody(value: unknown): ProofRequest | null {
           baseRevision: intent.baseRevision,
           document: parseBetaExport(JSON.stringify(intent.document)),
         },
-      } as ProofRequest;
+      } as ConfirmationRequest;
     } catch {
       return null;
     }
   } else if (Object.keys(intent).length !== 0) return null;
-  return body as ProofRequest;
+  return body as ConfirmationRequest;
 }
 
-export default class ActionProofsController {
+export default class PasswordConfirmationsController {
   async password(ctx: HttpContext) {
     const body = requestBody(ctx.request.body());
-    if (!body) return ctx.response.badRequest({ error: 'Invalid action confirmation.' });
-    await withActor(ctx, async (_actor, trx) => actionProofActor(body.accountId, trx));
+    if (!body) return ctx.response.badRequest({ error: 'Invalid password confirmation.' });
+    await withActor(ctx, async (_actor, trx) => passwordConfirmationActor(body.accountId, trx));
     const { confirmationId } = await passwordConfirmations.confirmPassword(
       await accountInput(ctx),
       {
@@ -76,10 +76,10 @@ export default class ActionProofsController {
     } catch (error) {
       reportPrivateFailure(
         ctx,
-        { event: 'action_proof.prune', errorType: classifyLogError(error) },
-        'Action proof pruning failed'
+        { event: 'password_confirmation.prune', errorType: classifyLogError(error) },
+        'Password confirmation pruning failed'
       );
     }
-    return ctx.response.ok({ proofId: confirmationId });
+    return ctx.response.ok({ confirmationId: confirmationId });
   }
 }

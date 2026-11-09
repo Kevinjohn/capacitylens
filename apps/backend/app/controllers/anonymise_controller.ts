@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { withActor, kitContextIn } from '#services/auth/current_actor';
 import { anonymiseResources } from '#services/anonymise';
-import { actionProofActor } from '#services/auth/action_proof';
+import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { getActiveMembership, createMemberBouncer } from '#services/auth/authorization';
 
@@ -37,15 +37,15 @@ export default class AnonymiseController {
       typeof body !== 'object' ||
       Array.isArray(body) ||
       Object.keys(body).length !== 1 ||
-      typeof (body as Record<string, unknown>).proofId !== 'string'
+      typeof (body as Record<string, unknown>).confirmationId !== 'string'
     ) {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
     }
     const { accountId } = ctx.params;
     await withActor(ctx, async (_actor, trx) => {
-      const actor = await actionProofActor(accountId, trx);
+      const actor = await passwordConfirmationActor(accountId, trx);
       await passwordConfirmations.consume(kitContextIn(trx), {
-        confirmationId: (body as { proofId: string }).proofId,
+        confirmationId: (body as { confirmationId: string }).confirmationId,
         action: 'anonymise',
         scope: accountId,
         intent: {},

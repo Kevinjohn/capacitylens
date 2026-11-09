@@ -267,7 +267,12 @@ boundary. The forward-only migration replaces outstanding legacy proofs without 
 `scope -> accounts.id ON DELETE CASCADE`. Credential writes remain Account Kit-owned. Global pruning
 runs after successful issuance outside every transaction and cannot fail the issuance response.
 
-### Action-proof capability audit (26 October 2026)
+The product calls these password confirmations, not action proofs (9 November 2026): the endpoint is
+`POST /api/auth/password-confirmation`, requests carry `confirmationId`, and refusals use
+`PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`. Behaviour is unchanged. The old
+path has no alias: the API is pre-1.0 and its only client is in this repository.
+
+### Password confirmation capability audit (26 October 2026)
 
 Retain the product proof for ownership transfer, import and company-wide people anonymisation. The installed
 Account Kit 0.1.2 has recent-password proofs, but its public contract does not provide all the
@@ -294,8 +299,8 @@ Kit runtime parity tests passed.
 | Recheck authority and refuse view-as                        | Requires a live Owner and refuses masquerade at issuance and before a new protected mutation; a committed ownership-transfer receipt may still replay after demotion | Product membership, role and projection policy must remain product-owned; no equivalent combined product operation is established      |
 
 The owning product code is
-[`action_proof.ts`](apps/backend/app/services/auth/action_proof.ts) and
-[`action_proofs_controller.ts`](apps/backend/app/controllers/action_proofs_controller.ts).
+[`password_confirmation.ts`](apps/backend/app/services/auth/password_confirmation.ts) and
+[`password_confirmations_controller.ts`](apps/backend/app/controllers/password_confirmations_controller.ts).
 Existing regression sources cover the protected mutation boundaries in
 [`transfer_apply.spec.ts`](apps/backend/tests/functional/transfer_apply.spec.ts),
 [`ownership_transfer.spec.ts`](apps/backend/tests/functional/membership/ownership_transfer.spec.ts)

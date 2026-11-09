@@ -5,7 +5,7 @@ import {
   type BetaExportDocument,
 } from '@capacitylens/shared/data/betaTransfer';
 import { withActor, kitContextIn } from '#services/auth/current_actor';
-import { actionProofActor } from '#services/auth/action_proof';
+import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { BatchRequestError } from '#services/planning/errors';
 import {
@@ -19,7 +19,7 @@ function input(value: unknown, apply: boolean) {
   const expected = apply ? ['accountId', 'document', 'baseRevision'] : ['accountId', 'document'];
   if (
     expected.some((key) => !Object.hasOwn(body, key)) ||
-    Object.keys(body).some((key) => !expected.includes(key) && !(apply && key === 'proofId'))
+    Object.keys(body).some((key) => !expected.includes(key) && !(apply && key === 'confirmationId'))
   ) {
     return null;
   }
@@ -28,7 +28,7 @@ function input(value: unknown, apply: boolean) {
     apply &&
     (!Number.isSafeInteger(body.baseRevision) ||
       (body.baseRevision as number) < 0 ||
-      (body.proofId !== undefined && typeof body.proofId !== 'string'))
+      (body.confirmationId !== undefined && typeof body.confirmationId !== 'string'))
   ) {
     return null;
   }
@@ -37,7 +37,7 @@ function input(value: unknown, apply: boolean) {
       accountId: body.accountId as string,
       document: parseBetaExport(JSON.stringify(body.document)) as BetaExportDocument,
       baseRevision: apply ? (body.baseRevision as number) : undefined,
-      proofId: apply ? ((body.proofId as string | undefined) ?? '') : undefined,
+      confirmationId: apply ? ((body.confirmationId as string | undefined) ?? '') : undefined,
     };
   } catch {
     return null;
@@ -62,7 +62,7 @@ export default class TransferController {
     if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer document.' });
     try {
       const result = await withActor(ctx, async (_actor, trx) => {
-        await actionProofActor(body.accountId as string, trx);
+        await passwordConfirmationActor(body.accountId as string, trx);
         return previewBetaAccountTransfer(trx, body.accountId as string, body.document);
       });
       return ctx.response.ok(result);
@@ -76,9 +76,9 @@ export default class TransferController {
     if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' });
     try {
       const result = await withActor(ctx, async (_actor, trx) => {
-        const actor = await actionProofActor(body.accountId as string, trx);
+        const actor = await passwordConfirmationActor(body.accountId as string, trx);
         await passwordConfirmations.consume(kitContextIn(trx), {
-          confirmationId: body.proofId as string,
+          confirmationId: body.confirmationId as string,
           action: 'import',
           scope: body.accountId as string,
           intent: { baseRevision: body.baseRevision, document: body.document },

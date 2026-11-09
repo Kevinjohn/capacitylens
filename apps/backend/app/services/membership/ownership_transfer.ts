@@ -23,7 +23,7 @@ export async function transferOwnership(
   ctx: HttpContext,
   accountId: string,
   toUserId: string,
-  proofId: string,
+  confirmationId: string,
   command: AccountCommandIdentity
 ): Promise<OwnershipTransferReceipt> {
   return withActor(ctx, async (actor, trx) => {
@@ -44,7 +44,7 @@ export async function transferOwnership(
           throw new Error('Invalid ownership transfer receipt.');
         }
       },
-      // The controller supplies a string; eligibility checks must precede empty-proof rejection.
+      // The controller supplies a string; eligibility checks must precede empty-confirmation rejection.
       parseAuthorization: (raw) => raw as string,
       authorizeExecute: async (_context, authorization) => {
         if (currentRole !== 'owner') throw new IdentityAuthorityError('Forbidden.');
@@ -101,7 +101,7 @@ export async function transferOwnership(
       scopeId: accountId,
       payload: { toUserId },
       command,
-      authorization: proofId,
+      authorization: confirmationId,
     });
   });
 }

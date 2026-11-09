@@ -29,7 +29,7 @@ interface ChangeMemberRoleInput {
 interface TransferOwnershipInput {
   workspaceId: string;
   targetPrincipalId: string;
-  proofId: string;
+  confirmationId: string;
   command?: BrowserAccountCommand | undefined;
 }
 
@@ -179,7 +179,7 @@ export const accountClient = {
   transferOwnership({
     workspaceId,
     targetPrincipalId,
-    proofId,
+    confirmationId,
     command,
   }: TransferOwnershipInput): Promise<Response> {
     return runCommand({
@@ -188,7 +188,11 @@ export const accountClient = {
       request: (resolved) =>
         apiFetch(
           apiRouteUrl('api.ownership.transfer', { params: { accountId: workspaceId } }),
-          buildJsonCommandRequestInit('POST', { toUserId: targetPrincipalId, proofId }, resolved),
+          buildJsonCommandRequestInit(
+            'POST',
+            { toUserId: targetPrincipalId, confirmationId },
+            resolved,
+          ),
         ),
     });
   },

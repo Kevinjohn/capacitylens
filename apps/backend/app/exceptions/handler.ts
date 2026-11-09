@@ -7,7 +7,7 @@ import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import { IdentityAuthorityError } from '#services/auth/authorization';
-import { ActionProofError } from '#services/auth/action_proof';
+import { PasswordConfirmationError } from '#services/auth/password_confirmation';
 import { AdmissionError } from '#services/admission/errors';
 import { buildKitRefusal } from '#services/account_kit/refusal';
 import { buildAccessRefusal } from '#services/access_control/refusal';
@@ -30,7 +30,7 @@ import {
 
 type ParserFailure = 'unsupported-encoding' | 'invalid-json' | 'invalid-json-shape';
 
-function proofRefusal(error: unknown) {
+function confirmationRefusal(error: unknown) {
   if (
     error instanceof PasswordConfirmationRequiredException ||
     error instanceof PasswordConfirmationStaleException ||
@@ -38,11 +38,14 @@ function proofRefusal(error: unknown) {
   ) {
     return {
       status: 403,
-      body: { error: 'Confirm this action again.', code: 'ACTION_PROOF_REQUIRED' },
+      body: { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' },
     };
   }
   if (error instanceof PasswordConfirmationDeniedException) {
-    return { status: 403, body: { error: 'Incorrect password.', code: 'ACTION_PROOF_DENIED' } };
+    return {
+      status: 403,
+      body: { error: 'Incorrect password.', code: 'PASSWORD_CONFIRMATION_DENIED' },
+    };
   }
   if (error instanceof PasswordConfirmationThrottledException) {
     const seconds = Math.max(1, Math.ceil(error.retryAfterSeconds));
@@ -56,7 +59,7 @@ function proofRefusal(error: unknown) {
     };
   }
   if (error instanceof InvalidPasswordConfirmationRequestException) {
-    return { status: 400, body: { error: 'Invalid action confirmation.' } };
+    return { status: 400, body: { error: 'Invalid password confirmation.' } };
   }
 }
 
@@ -180,15 +183,15 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         ...(error.decision === undefined ? {} : { decision: error.decision }),
       });
     }
-    if (error instanceof ActionProofError || error instanceof FirstCompanyPendingError) {
+    if (error instanceof PasswordConfirmationError || error instanceof FirstCompanyPendingError) {
       return ctx.response.status(error.status).send({ error: error.message, code: error.code });
     }
-    const proof = proofRefusal(error);
-    if (proof) {
-      for (const [name, value] of Object.entries(proof.headers ?? {})) {
+    const refusal = confirmationRefusal(error);
+    if (refusal) {
+      for (const [name, value] of Object.entries(refusal.headers ?? {})) {
         ctx.response.header(name, value);
       }
-      return ctx.response.status(proof.status).send(proof.body);
+      return ctx.response.status(refusal.status).send(refusal.body);
     }
     if (error instanceof IdentityAuthorityError) {
       return ctx.response.forbidden({ error: error.message, code: error.code });
@@ -265,11 +268,11 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * @note You should not attempt to send a response from this method.
    */
   async report(error: unknown, ctx: HttpContext) {
-    if (proofRefusal(error)) return;
+    if (confirmationRefusal(error)) return;
     if (
       error instanceof IdentityAuthorityError ||
       error instanceof AdmissionError ||
-      error instanceof ActionProofError ||
+      error instanceof PasswordConfirmationError ||
       error instanceof FirstCompanyPendingError
     ) {
       return;

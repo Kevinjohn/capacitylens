@@ -260,7 +260,7 @@ test.group('native authorization and role projections', (group) => {
       );
 
       const importing = await importSeed(client, cookie);
-      assert.equal(importing.status(), 403, `${role} import without action proof`);
+      assert.equal(importing.status(), 403, `${role} import without password confirmation`);
 
       if (role === 'owner') {
         const reset = await withSession(trusted(client.post('/api/test/reset')), cookie)
@@ -326,7 +326,7 @@ test.group('native authorization and role projections', (group) => {
     }
   });
 
-  test('import needs an action proof however recent the sign-in, while reads and writes do not', async ({
+  test('import needs a password confirmation however recent the sign-in, while reads and writes do not', async ({
     client,
     assert,
     cleanup,
@@ -340,7 +340,7 @@ test.group('native authorization and role projections', (group) => {
         .update({ created_at: new Date(Date.now() - ageMinutes * 60_000).toISOString() });
       const imported = await importSeed(client, cookie);
       imported.assertStatus(403);
-      assert.equal((imported.body() as { code?: string }).code, 'ACTION_PROOF_REQUIRED');
+      assert.equal((imported.body() as { code?: string }).code, 'PASSWORD_CONFIRMATION_REQUIRED');
       await expectStatus(stateFor(client, cookie), 200);
       await expectStatus(writeDismissal(client, cookie), 200);
     }

@@ -344,11 +344,11 @@ const routes = {
     tokens: [[0,"api"],[0,"auth"],[0,"sign-out"]],
     types: placeholder as Registry['api.auth.sign-out']['types'],
   },
-  'api.auth.action-proof.password': {
+  'api.auth.password-confirmation': {
     methods: ["POST"],
-    pattern: '/api/auth/action-proof/password',
-    tokens: [[0,"api"],[0,"auth"],[0,"action-proof"],[0,"password"]],
-    types: placeholder as Registry['api.auth.action-proof.password']['types'],
+    pattern: '/api/auth/password-confirmation',
+    tokens: [[0,"api"],[0,"auth"],[0,"password-confirmation"]],
+    types: placeholder as Registry['api.auth.password-confirmation']['types'],
   },
   'api.auth.request-reset': {
     methods: ["POST"],

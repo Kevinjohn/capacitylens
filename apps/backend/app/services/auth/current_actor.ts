@@ -91,7 +91,7 @@ export async function admissionDecision(userId: string | number, trx: Trx) {
 const actors = new WeakMap<Trx, CurrentActor>();
 const kitContexts = new WeakMap<Trx, KitContext>();
 
-/** Requires the confirmed address and admission shared by product and proof transactions. */
+/** Requires the confirmed address and admission shared by product and password confirmation transactions. */
 export async function requireConfirmedAdmission(account: KitContext['account'], trx: Trx) {
   if (!account.active) throw new UnverifiedEmailError();
   const decision = await admissionDecision(account.id, trx);

@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { m } from '@/i18n';
-import { ActionProofDialog } from './ActionProofDialog';
+import { PasswordConfirmationDialog } from './PasswordConfirmationDialog';
 
 const request = vi.hoisted(() => vi.fn());
 
 vi.mock('@/api/queryClient', () => ({
-  apiRouteUrl: () => '/api/auth/action-proof/password',
+  apiRouteUrl: () => '/api/auth/password-confirmation',
 }));
 vi.mock('@/data/requestTimeout', () => ({ apiFetch: (...args: unknown[]) => request(...args) }));
 
@@ -16,7 +16,7 @@ afterEach(() => request.mockReset());
 function renderDialog(action: 'transfer-ownership' | 'import' | 'anonymise' = 'import') {
   const onConfirmed = vi.fn();
   render(
-    <ActionProofDialog
+    <PasswordConfirmationDialog
       action={action}
       accountId="account-1"
       intent={{ revision: 4 }}
@@ -27,28 +27,28 @@ function renderDialog(action: 'transfer-ownership' | 'import' | 'anonymise' = 'i
   return onConfirmed;
 }
 
-describe('ActionProofDialog', () => {
+describe('PasswordConfirmationDialog', () => {
   it('submits exactly once with Enter', async () => {
-    request.mockResolvedValue(Response.json({ proofId: 'proof-1' }));
+    request.mockResolvedValue(Response.json({ confirmationId: 'confirmation-1' }));
     const onConfirmed = renderDialog();
     const password = screen.getByLabelText(m.login_password());
     await userEvent.type(password, 'current-password');
     await userEvent.keyboard('{Enter}');
 
     await waitFor(() => expect(request).toHaveBeenCalledOnce());
-    expect(onConfirmed).toHaveBeenCalledWith('proof-1');
+    expect(onConfirmed).toHaveBeenCalledWith('confirmation-1');
   });
 
   it('submits exactly once with the Continue button', async () => {
-    request.mockResolvedValue(Response.json({ proofId: 'proof-2' }));
+    request.mockResolvedValue(Response.json({ confirmationId: 'confirmation-2' }));
     const onConfirmed = renderDialog();
     fireEvent.change(screen.getByLabelText(m.login_password()), {
       target: { value: 'current-password' },
     });
-    fireEvent.click(screen.getByTestId('action-proof-confirm'));
+    fireEvent.click(screen.getByTestId('password-confirmation-submit'));
 
     await waitFor(() => expect(request).toHaveBeenCalledOnce());
-    expect(onConfirmed).toHaveBeenCalledWith('proof-2');
+    expect(onConfirmed).toHaveBeenCalledWith('confirmation-2');
   });
 
   it('ignores empty and pending submissions and uses neutral progress copy', async () => {
@@ -58,7 +58,7 @@ describe('ActionProofDialog', () => {
     );
     const onConfirmed = renderDialog('transfer-ownership');
     const form = screen.getByRole('dialog').querySelector('form');
-    if (!form) throw new Error('Expected the action proof form.');
+    if (!form) throw new Error('Expected the password confirmation form.');
 
     fireEvent.submit(form);
     expect(request).not.toHaveBeenCalled();
@@ -69,8 +69,8 @@ describe('ActionProofDialog', () => {
     expect(screen.getByRole('button', { name: m.reauth_confirming() })).toBeDisabled();
     fireEvent.submit(form);
     expect(request).toHaveBeenCalledOnce();
-    resolveRequest?.(Response.json({ proofId: 'proof-3' }));
-    await waitFor(() => expect(onConfirmed).toHaveBeenCalledWith('proof-3'));
+    resolveRequest?.(Response.json({ confirmationId: 'confirmation-3' }));
+    await waitFor(() => expect(onConfirmed).toHaveBeenCalledWith('confirmation-3'));
   });
 
   it.each(['transfer-ownership', 'import', 'anonymise'] as const)(
@@ -81,7 +81,7 @@ describe('ActionProofDialog', () => {
       fireEvent.change(screen.getByLabelText(m.login_password()), {
         target: { value: 'current-password' },
       });
-      fireEvent.click(screen.getByTestId('action-proof-confirm'));
+      fireEvent.click(screen.getByTestId('password-confirmation-submit'));
 
       expect(await screen.findByRole('button', { name: m.reauth_confirming() })).toBeDisabled();
       expect(screen.queryByText(m.ownership_transfer_working())).not.toBeInTheDocument();
@@ -91,16 +91,16 @@ describe('ActionProofDialog', () => {
   it('allows retry after a rejected confirmation', async () => {
     request
       .mockResolvedValueOnce(Response.json({ error: 'Rejected.' }, { status: 403 }))
-      .mockResolvedValueOnce(Response.json({ proofId: 'proof-retry' }));
+      .mockResolvedValueOnce(Response.json({ confirmationId: 'confirmation-retry' }));
     const onConfirmed = renderDialog();
     fireEvent.change(screen.getByLabelText(m.login_password()), {
       target: { value: 'current-password' },
     });
-    fireEvent.click(screen.getByTestId('action-proof-confirm'));
+    fireEvent.click(screen.getByTestId('password-confirmation-submit'));
     expect(await screen.findByRole('alert')).toHaveTextContent('Rejected.');
-    fireEvent.click(screen.getByTestId('action-proof-confirm'));
+    fireEvent.click(screen.getByTestId('password-confirmation-submit'));
 
     await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
-    expect(onConfirmed).toHaveBeenCalledWith('proof-retry');
+    expect(onConfirmed).toHaveBeenCalledWith('confirmation-retry');
   });
 });

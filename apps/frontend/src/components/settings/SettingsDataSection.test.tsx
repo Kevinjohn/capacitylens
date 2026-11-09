@@ -20,8 +20,8 @@ import { SettingsDataSection } from './SettingsDataSection';
 
 vi.mock('@/data/requestTimeout', () => ({ apiFetch: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
 vi.mock('@/lib/reloadPage', () => ({ reloadPage: vi.fn() }));
-vi.mock('@/auth/ActionProofDialog', () => ({
-  ActionProofDialog: ({ onConfirmed }: { onConfirmed: (id: string) => void }) => (
+vi.mock('@/auth/PasswordConfirmationDialog', () => ({
+  PasswordConfirmationDialog: ({ onConfirmed }: { onConfirmed: (id: string) => void }) => (
     <button type="button" onClick={() => onConfirmed('proof-one')}>
       Confirm identity
     </button>
@@ -297,7 +297,10 @@ describe('Company-wide people anonymisation', () => {
     expect(planningProbe.suspends).toBe(1);
     expect(apiFetch).toHaveBeenCalledWith(
       expect.stringMatching(new RegExp(`/api/accounts/${DEFAULT_ACCOUNT_ID}/anonymise$`)),
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ proofId: 'proof-one' }) }),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ confirmationId: 'proof-one' }),
+      }),
       expect.any(Number),
     );
     expect(reloadPage).toHaveBeenCalledOnce();

@@ -1183,7 +1183,7 @@
   "swatch_trigger_label": "{label} ({color})",
   "swatch_group_label": "{label} swatches",
   "reauth_title": "Confirm it's you",
-  "action_proof_password_body": "Enter your current password to confirm this specific action. A recent sign-in alone is not enough.",
+  "password_confirmation_body": "Enter your current password to confirm this specific action. A recent sign-in alone is not enough.",
   "reauth_failed": "Could not confirm your identity. Check your password and try again.",
   "reauth_confirming": "Confirming…",
   "joining_mail_pending": "Check {email} for a verification link. Open it in this same browser within 15 minutes.",

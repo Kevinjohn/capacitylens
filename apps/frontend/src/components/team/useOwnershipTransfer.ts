@@ -23,7 +23,7 @@ interface OwnershipTransferState {
 
 export interface OwnershipTransferController extends OwnershipTransferState {
   refresh(): Promise<void>;
-  transfer(targetPrincipalId: string, proofId: string): Promise<void>;
+  transfer(targetPrincipalId: string, confirmationId: string): Promise<void>;
 }
 
 const EMPTY_MEMBERS: readonly TeamMember[] = [];
@@ -106,13 +106,13 @@ async function reconcileCallerAccess(
 async function sendTransfer(
   accountId: string,
   targetPrincipalId: string,
-  proofId: string,
+  confirmationId: string,
 ): Promise<OwnershipTransferResult | null> {
   try {
     return await teamAccessClient.transferOwnership({
       workspaceId: accountId,
       targetPrincipalId,
-      proofId,
+      confirmationId,
     });
   } catch (cause) {
     console.error('OwnershipTransferCard: transfer response was not received', cause);
@@ -158,13 +158,13 @@ function useTransferCommand({
   const [error, setError] = useState<string | null>(null);
   const lock = useRef(false);
   const transfer = useCallback(
-    async (targetPrincipalId: string, proofId: string): Promise<void> => {
+    async (targetPrincipalId: string, confirmationId: string): Promise<void> => {
       if (!available || accountId === null || targetPrincipalId === '' || lock.current) return;
       lock.current = true;
       setBusy(true);
       setError(null);
       try {
-        const result = await sendTransfer(accountId, targetPrincipalId, proofId);
+        const result = await sendTransfer(accountId, targetPrincipalId, confirmationId);
         await settleTransfer({ result, accountId, refreshAuth, setError });
       } finally {
         lock.current = false;

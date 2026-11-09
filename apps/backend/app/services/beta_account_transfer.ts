@@ -97,7 +97,7 @@ export async function previewBetaAccountTransfer(
   return { baseRevision, imported: prepared.imported, changed };
 }
 
-/** Replaces the company slice with stable IDs; the caller owns authorization and proof consumption. */
+/** Replaces the company slice with stable IDs; the caller owns authorization and password confirmation consumption. */
 export async function applyBetaAccountTransfer(
   trx: TransactionClientContract,
   accountId: string,
