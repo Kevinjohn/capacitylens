@@ -36,14 +36,18 @@ The package makes a one-step online copy, checks full SQLite integrity, foreign 
 journal, records size and SHA-256 in the manifest, then writes READY last. Only READY bundles are
 recovery points. Database, manifest and READY files are read-only.
 
-Run manual commands from the archive's `backend/` directory with the service environment loaded:
+Run manual commands as the service user with the same private environment as the service. A
+manual create can run while the application is online:
 
 ```bash
-node ace.js db:backup create
-node ace.js db:backup list
-node ace.js db:backup verify --bundle <name>
-node ace.js db:backup prune
+sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+  -p WorkingDirectory=/opt/capacitylens/current/backend \
+  -p EnvironmentFile=/etc/capacitylens.env \
+  -p Environment=NODE_ENV=production \
+  /usr/bin/env node ace.js db:backup create
 ```
+
+Use `list`, `verify --bundle <name>` or `prune` in place of `create` for the other actions.
 
 Manual create prepares the configured directory; confirm its storage is mounted first. It creates a
 bundle without pruning; use `prune` explicitly afterward. Prune keeps the newest configured count in
@@ -73,15 +77,33 @@ Stage into a new path so the current database remains available for investigatio
 2. Choose a recovery point and stage a verified copy:
 
    ```bash
-   node ace.js db:backup list --directory /var/lib/capacitylens/backups
-   node ace.js db:backup restore-prepare --directory /var/lib/capacitylens/backups --bundle <name> --target /var/lib/capacitylens/restored.db
+   sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+     -p WorkingDirectory=/opt/capacitylens/current/backend \
+     -p EnvironmentFile=/etc/capacitylens.env \
+     -p Environment=NODE_ENV=production \
+     /usr/bin/env node ace.js db:backup list --directory /var/lib/capacitylens/backups
+   sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+     -p WorkingDirectory=/opt/capacitylens/current/backend \
+     -p EnvironmentFile=/etc/capacitylens.env \
+     -p Environment=NODE_ENV=production \
+     /usr/bin/env node ace.js db:backup restore-prepare --directory /var/lib/capacitylens/backups \
+     --bundle <name> --target /var/lib/capacitylens/restored.db
    ```
 
    Omit `--directory` to use the configured root. Both commands work with an explicit directory while
    scheduling is disabled. The target must be new, outside the backup root and live database/sidecar
    paths, with no existing sidecars. `restore-prepare` checks the staged copy and never replaces the live file.
-3. Point `CAPACITYLENS_DB` at the staged copy and run `node ace.js app:upgrade` from `backend/`.
-   The command backs up existing data, runs pending migrations and checks schema integrity.
+3. Point `CAPACITYLENS_DB` at the staged copy in `/etc/capacitylens.env`, then run the upgrade as
+   the service user with the service environment. The command backs up existing data, runs pending
+   migrations and checks schema integrity:
+
+   ```bash
+   sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+     -p WorkingDirectory=/opt/capacitylens/current/backend \
+     -p EnvironmentFile=/etc/capacitylens.env \
+     -p Environment=NODE_ENV=production \
+     /usr/bin/env node ace.js app:upgrade
+   ```
 4. Start the service, check `/health/ready`, and verify the expected company and data before normal use.
 5. Keep the original database, bundle and prior environment settings until the restore is accepted.
 
@@ -91,10 +113,14 @@ checks. Do not edit migration journals or database files by hand. Protect off-ho
 ## Recover a sole Owner's local password
 
 Use this when the sole active Owner cannot reset their own password. Stop the service and run the
-command from `backend/` with the same private environment used by the service:
+command as the service user with the same private environment used by the service:
 
 ```bash
-node ace.js owner:reset-password owner@example.com --confirm-server-stopped
+sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+  -p WorkingDirectory=/opt/capacitylens/current/backend \
+  -p EnvironmentFile=/etc/capacitylens.env \
+  -p Environment=NODE_ENV=production \
+  /usr/bin/env node ace.js owner:reset-password owner@example.com --confirm-server-stopped
 ```
 
 The command emits a single-use reset link after recording the recovery action. Deliver the link
@@ -102,9 +128,9 @@ privately; do not put it in a ticket, shell history shared with others, or servi
 
 ## Replace an installation
 
-`node ace.js app:reset <new-database-path> --confirm-server-stopped --disposable` is a separate, destructive
-operator action. It is unavailable in production and requires an explicit disposable confirmation
-outside production. It requires the server to be stopped, preserves a verified snapshot and archived
-copy of the original installation, then initializes a new database path. Update `CAPACITYLENS_DB`
-only after the command succeeds. If it fails, preserve the named recovery files and partial
-destination; do not retry over them.
+`node ace.js app:reset <new-database-path> --confirm-server-stopped --disposable` is a separate,
+destructive operator action. It is unavailable in production and requires an explicit disposable
+confirmation outside production. It requires the server to be stopped, preserves a verified snapshot
+and archived copy of the original installation, then initializes a new database path. Update
+`CAPACITYLENS_DB` only after the command succeeds. If it fails, preserve the named recovery files and
+partial destination; do not retry over them.

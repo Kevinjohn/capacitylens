@@ -21,6 +21,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep editor drafts and custom fields frozen while saves are pending, retain invitation errors after closing the dialog, and keep unavailable activity filters clearable (#1802).
+- Restrict checklist dismissal to Owners and Admins, correct password confirmation and reset feedback, and suppress mixed-case bearer paths in nginx access logs (#1802).
+- Correct native operator command examples and the focused TypeScript test invocation (#1802).
 - A membership call the Access Control package refuses as invalid input is now a reported server fault instead of an unlogged 400, since every product request is validated before it reaches the package (#1789). A company or member identifier longer than the package accepts matches no route and answers 404. Permission lookups in the shared declaration ignore inherited object keys.
 
 ## [0.75.0-alpha.1] - 2026-11-08

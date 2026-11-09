@@ -28,7 +28,7 @@ function registerSelectFieldBasics(options: typeof selectFieldOptions) {
     render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />);
     const select = screen.getByLabelText('Pick one');
     expect(select).toBeInTheDocument();
-    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    fireEvent.keyDown(screen.getByLabelText('Pick one'), { key: 'ArrowDown' });
     expect(screen.getByRole('option', { name: 'Option A' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Option B' })).toHaveAttribute('data-value', 'b');
     expect(screen.getByRole('option', { name: 'Option C' })).toBeInTheDocument();
@@ -39,7 +39,7 @@ function registerSelectFieldBasics(options: typeof selectFieldOptions) {
     render(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />);
     const select = screen.getByLabelText('Pick one');
     select.focus();
-    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    fireEvent.keyDown(screen.getByLabelText('Pick one'), { key: 'ArrowDown' });
     fireEvent.click(screen.getByRole('option', { name: 'Option B' }));
     expect(onChange).toHaveBeenCalledWith('b');
   });
@@ -236,5 +236,32 @@ function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
   it('is disabled when disabled prop is true', () => {
     render(<SelectField label="Locked" value="a" onChange={vi.fn()} options={options} disabled />);
     expect(screen.getByLabelText('Locked')).toBeDisabled();
+  });
+
+  it('closes an open menu when disabled and does not restore it when re-enabled', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <SelectField label="Pick one" value="a" onChange={onChange} options={options} />,
+    );
+    const select = screen.getByLabelText('Pick one');
+    fireEvent.keyDown(select, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Option B' })).toBeInTheDocument();
+
+    rerender(
+      <SelectField label="Pick one" value="a" onChange={onChange} options={options} disabled />,
+    );
+    expect(screen.queryByRole('option', { name: 'Option B' })).not.toBeInTheDocument();
+    const disabledSelect = screen.getByLabelText('Pick one');
+    fireEvent.keyDown(disabledSelect, { key: 'ArrowDown' });
+    fireEvent.click(disabledSelect);
+    expect(onChange).not.toHaveBeenCalled();
+
+    rerender(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />);
+    expect(screen.queryByRole('option', { name: 'Option B' })).not.toBeInTheDocument();
+    const enabledSelect = screen.getByLabelText('Pick one');
+    fireEvent.keyDown(enabledSelect, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Option B' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: 'Option B' }));
+    expect(onChange).toHaveBeenCalledWith('b');
   });
 }

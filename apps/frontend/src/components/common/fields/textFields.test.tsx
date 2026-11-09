@@ -105,6 +105,11 @@ describe('NumberField', () => {
 });
 
 describe('DateField', () => {
+  it('forwards disabled to the date input', () => {
+    render(<DateField label="Start date" value="2026-06-01" onChange={vi.fn()} disabled />);
+    expect(screen.getByLabelText('Start date')).toBeDisabled();
+  });
+
   it('renders with label and date value', () => {
     render(<DateField label="Start date" value="2026-06-01" onChange={vi.fn()} />);
     expect(screen.getByLabelText('Start date')).toHaveValue('2026-06-01');

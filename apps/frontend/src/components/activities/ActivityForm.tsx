@@ -1,6 +1,6 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useActiveScopedData, useScopedData } from '@/store/useScopedData';
 import { useFieldError } from '@/hooks/useFieldError';
@@ -101,6 +101,7 @@ interface ActivityFieldsProps {
   errorField: string | null;
   errorId: string;
   error: string | null;
+  pending: boolean;
 }
 
 function ActivityFields(props: ActivityFieldsProps) {
@@ -115,6 +116,7 @@ function ActivityFields(props: ActivityFieldsProps) {
         invalid={props.errorField === 'name'}
         describedById={props.errorId}
         layout="label-control"
+        disabled={props.pending}
       />
       <SegmentedField
         label={m.form_activity_kind_label()}
@@ -126,6 +128,7 @@ function ActivityFields(props: ActivityFieldsProps) {
         fullWidth
         density="compact"
         layout="label-control"
+        disabled={props.pending}
       />
       {props.kind === 'project' && (
         <SelectField
@@ -138,6 +141,7 @@ function ActivityFields(props: ActivityFieldsProps) {
           invalid={props.errorField === 'project'}
           describedById={props.errorId}
           layout="label-control"
+          disabled={props.pending}
         />
       )}
       <FieldError id={props.errorId}>{props.error}</FieldError>
@@ -179,9 +183,12 @@ export function ActivityForm({
   const { name, setName, kind, projectId, phaseId, changeKind, changeProject } =
     useActivityFields(activity);
   const { error, errorField, errorId, fail } = useFieldError();
+  const [pending, setPending] = useState(false);
+  const inFlight = useRef(false);
   const projectOptions = useProjectOptions(activity);
 
   const submit = async () => {
+    if (inFlight.current) return;
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     // A project-specific activity must have a project; internal/all-projects are project-less (projectId/phaseId
@@ -197,6 +204,8 @@ export function ActivityForm({
       ...(kind === 'project' && projectId ? { projectId } : {}),
       ...(kind === 'project' ? { phaseId: phaseId || null } : {}),
     };
+    inFlight.current = true;
+    setPending(true);
     // Surface a store-side rejection as a form error rather than an uncaught React error, see the
     // store CRUD contract.
     try {
@@ -214,6 +223,9 @@ export function ActivityForm({
     } catch (e) {
       if (e instanceof PlanningSaveCancelledError) return;
       fail(null, resolveErrorMessage(e));
+    } finally {
+      inFlight.current = false;
+      setPending(false);
     }
   };
 
@@ -224,7 +236,7 @@ export function ActivityForm({
       onSubmit={() => {
         void submit();
       }}
-      footer={<FormActions onCancel={onClose} />}
+      footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
       <ActivityFields
         name={name}
@@ -237,6 +249,7 @@ export function ActivityForm({
         errorField={errorField}
         errorId={errorId}
         error={error}
+        pending={pending}
       />
     </Modal>
   );
