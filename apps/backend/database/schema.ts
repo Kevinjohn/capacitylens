@@ -334,29 +334,6 @@ export class ClosureSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
-export class CommandResultSchema extends BaseModel {
-  static $columns = ['accountId', 'commandId', 'createdAt', 'id', 'idempotencyKey', 'operation', 'payloadHash', 'result', 'updatedAt'] as const
-  $columns = CommandResultSchema.$columns
-  @column()
-  declare accountId: string | null
-  @column()
-  declare commandId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare idempotencyKey: string | null
-  @column()
-  declare operation: string | null
-  @column()
-  declare payloadHash: string
-  @column()
-  declare result: unknown
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
 export class CompanyPlanningRevisionSchema extends BaseModel {
   static $columns = ['accountId', 'revision'] as const
   $columns = CompanyPlanningRevisionSchema.$columns
@@ -681,6 +658,31 @@ export class RateLimitSchema extends BaseModel {
   declare key: string
   @column()
   declare points: number
+}
+
+export class RequestReceiptSchema extends BaseModel {
+  static $columns = ['commandId', 'createdAt', 'id', 'operation', 'payloadHash', 'requestKey', 'result', 'scopeId', 'state', 'updatedAt'] as const
+  $columns = RequestReceiptSchema.$columns
+  @column()
+  declare commandId: string
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare operation: string
+  @column()
+  declare payloadHash: string
+  @column()
+  declare requestKey: string
+  @column()
+  declare result: string | null
+  @column()
+  declare scopeId: string
+  @column()
+  declare state: string
+  @column()
+  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
 export class ResourceSchema extends BaseModel {

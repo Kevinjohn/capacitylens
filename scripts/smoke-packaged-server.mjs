@@ -22,8 +22,8 @@ import {
 const MEMBER_VIEW_DURATION_MS = 15 * 60_000;
 const RESOURCE_NAME = 'Bruce Wayne Packaged Schedule';
 // The baseline is followed by planning deletion ownership, the member-view control migration and
-// legacy recovery conversion.
-const MIGRATION_COUNT = 4;
+// legacy recovery conversion, then the transactional idempotency receipt cutover.
+const MIGRATION_COUNT = 5;
 
 function inspectDatabase(path, expectedResourceName) {
   const database = new DatabaseSync(path, { readOnly: true });

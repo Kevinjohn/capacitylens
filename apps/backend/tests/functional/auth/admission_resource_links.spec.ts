@@ -251,8 +251,24 @@ test.group('direct member resource association', (group) => {
       .where({ account_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
       .count('* as total');
     assert.equal(Number(auditCountBeforeLink[0].total), 0);
-    const linked = await put(ownerId, 'r-clark', null);
+    const createLinkCommand = () =>
+      withSession(
+        client
+          .put(`/api/accounts/a-studio/members/${ownerId}/resource-link`)
+          .header('sec-fetch-site', 'same-origin'),
+        ownerCookie
+      )
+        .headers({
+          'x-account-command-id': 'member-link-command-0001',
+          'idempotency-key': 'member-link-idempotency-0001',
+        })
+        .json({ resourceId: 'r-clark', expectedRevision: null })
+        .send();
+    const linked = await createLinkCommand();
     linked.assertStatus(200);
+    const replayLinked = await createLinkCommand();
+    replayLinked.assertStatus(200);
+    assert.deepEqual(replayLinked.body(), linked.body());
     const revision = (linked.body() as { revision: string }).revision;
     const revisionRowAfterLink = await db
       .from('company_planning_revisions')
@@ -299,15 +315,36 @@ test.group('direct member resource association', (group) => {
     await db.from('resources').where('id', 'r-clark').update({ archived_at: now });
     const archivedCurrent = await put(ownerId, 'r-barry', revision);
     archivedCurrent.assertStatus(409);
-    const cleared = await withSession(
-      client
-        .delete(`/api/accounts/a-studio/members/${ownerId}/resource-link`)
-        .header('sec-fetch-site', 'same-origin'),
-      ownerCookie
-    )
-      .json({ expectedRevision: revision })
-      .send();
+    const unlink = () =>
+      withSession(
+        client
+          .delete(`/api/accounts/a-studio/members/${ownerId}/resource-link`)
+          .header('sec-fetch-site', 'same-origin'),
+        ownerCookie
+      )
+        .headers({
+          'x-account-command-id': 'member-unlink-command-0001',
+          'idempotency-key': 'member-unlink-idempotency-0001',
+        })
+        .json({ expectedRevision: revision })
+        .send();
+    const cleared = await unlink();
     cleared.assertStatus(204);
+    const replayCleared = await unlink();
+    replayCleared.assertStatus(204);
+    const revisionRowAfterClear = await db
+      .from('company_planning_revisions')
+      .where('account_id', 'a-studio')
+      .first();
+    assert.equal(Number(revisionRowAfterClear?.revision), revisionAfterLink + 1);
+    assert.lengthOf(
+      await db.from('audit_entries').where({
+        account_id: 'a-studio',
+        action: 'member-resource.unlinked',
+        entity_id: ownerId,
+      }),
+      1
+    );
     const second = await put(ownerId, 'r-barry', null);
     second.assertStatus(200);
     const otherId = crypto.randomUUID();

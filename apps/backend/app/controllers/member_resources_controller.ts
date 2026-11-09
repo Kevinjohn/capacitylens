@@ -1,11 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
 import { assertCompanyAction } from '#services/auth/authorization';
-import {
-  claimAccountCommand,
-  completeAccountCommand,
-  readAccountCommand,
-} from '#services/account_commands';
+import { runAccountCommand, readAccountCommand } from '#services/account_commands';
 import { writeAudit } from '#services/audit';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
 import { invalidAdmission } from '#services/admission/errors';
@@ -38,36 +34,38 @@ export default class MemberResourcesController {
       }
       const command = readAccountCommand(ctx);
       const { accountId, principalId } = ctx.params;
-      const result = await withActor(ctx, async (_actor, trx) => {
-        const { actorId } = await assertCompanyAction(accountId, 'members:manage', trx);
-        const claim = await claimAccountCommand(trx, {
-          actorId,
-          accountId,
-          operation: 'set-member-resource-link',
+      const result = await withActor(ctx, async (currentActor, trx) => {
+        let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
+        return runAccountCommand(trx, {
+          name: 'set-member-resource-link',
+          authorizeAccess: async () => {
+            actor = await assertCompanyAction(accountId, 'members:manage', trx);
+          },
+          work: async () => {
+            const { actorId } = actor;
+            const link = await setMemberResourceLink(trx, {
+              accountId,
+              userId: principalId,
+              resourceId: body.resourceId as string,
+              expectedRevision: body.expectedRevision as string | null,
+            });
+            if (link.changed) {
+              await writeAudit(trx, {
+                accountId,
+                actorId,
+                action: 'member-resource.linked',
+                entity: 'membership',
+                entityId: principalId,
+                fields: ['resourceLink'],
+              });
+            }
+            return { resourceId: link.resourceId, revision: link.revision };
+          },
+          actorId: currentActor.userId,
+          scopeId: accountId,
           payload: { principalId, ...body },
           command,
-          kind: 'semantic',
         });
-        if (claim.replayed) return claim.result;
-        const link = await setMemberResourceLink(trx, {
-          accountId,
-          userId: principalId,
-          resourceId: body.resourceId as string,
-          expectedRevision: body.expectedRevision as string | null,
-        });
-        if (link.changed) {
-          await writeAudit(trx, {
-            accountId,
-            actorId,
-            action: 'member-resource.linked',
-            entity: 'membership',
-            entityId: principalId,
-            fields: ['resourceLink'],
-          });
-        }
-        const commandResult = { resourceId: link.resourceId, revision: link.revision };
-        await completeAccountCommand(trx, command.commandId, commandResult);
-        return commandResult;
       });
       return ctx.response.ok(result);
     } catch (error) {
@@ -81,31 +79,35 @@ export default class MemberResourcesController {
       if (typeof body.expectedRevision !== 'string' || !body.expectedRevision) invalidAdmission();
       const command = readAccountCommand(ctx);
       const { accountId, principalId } = ctx.params;
-      await withActor(ctx, async (_actor, trx) => {
-        const { actorId } = await assertCompanyAction(accountId, 'members:manage', trx);
-        const claim = await claimAccountCommand(trx, {
-          actorId,
-          accountId,
-          operation: 'clear-member-resource-link',
+      await withActor(ctx, async (currentActor, trx) => {
+        let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
+        return runAccountCommand(trx, {
+          name: 'clear-member-resource-link',
+          authorizeAccess: async () => {
+            actor = await assertCompanyAction(accountId, 'members:manage', trx);
+          },
+          work: async () => {
+            const { actorId } = actor;
+            await clearMemberResourceLink(trx, {
+              accountId,
+              userId: principalId,
+              expectedRevision: body.expectedRevision as string,
+            });
+            await writeAudit(trx, {
+              accountId,
+              actorId,
+              action: 'member-resource.unlinked',
+              entity: 'membership',
+              entityId: principalId,
+              fields: ['resourceLink'],
+            });
+            return { ok: true };
+          },
+          actorId: currentActor.userId,
+          scopeId: accountId,
           payload: { principalId, ...body },
           command,
-          kind: 'semantic',
         });
-        if (claim.replayed) return;
-        await clearMemberResourceLink(trx, {
-          accountId,
-          userId: principalId,
-          expectedRevision: body.expectedRevision as string,
-        });
-        await writeAudit(trx, {
-          accountId,
-          actorId,
-          action: 'member-resource.unlinked',
-          entity: 'membership',
-          entityId: principalId,
-          fields: ['resourceLink'],
-        });
-        await completeAccountCommand(trx, command.commandId, { ok: true });
       });
       return ctx.response.noContent();
     } catch (error) {

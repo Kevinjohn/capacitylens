@@ -235,12 +235,14 @@ test.group('atomic ownership transfer', (group) => {
       .first();
     assert.equal(ownerAfterRefusal.role, 'owner');
     assert.lengthOf(
-      await db.from('command_results').where('operation', 'like', 'semantic:transfer-ownership:%'),
+      await db
+        .from('request_receipts')
+        .whereRaw("json_extract(operation, '$[0]') = ?", ['transfer-ownership']),
       0
     );
   });
 
-  test('masquerade is read-only and duplicate command identities cannot cross actors', async ({
+  test('masquerade is read-only and command identities are scoped to each actor', async ({
     client,
     assert,
   }) => {
@@ -276,8 +278,31 @@ test.group('atomic ownership transfer', (group) => {
       .headers(command)
       .json({ toUserId: ownerId })
       .send();
-    otherActor.assertStatus(409);
+    otherActor.assertStatus(403);
+    assert.deepEqual(otherActor.body(), {
+      error: 'Confirm this action again.',
+      code: 'ACTION_PROOF_REQUIRED',
+    });
     assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 1);
+    const reverseProof = await transferProof(client, adminCookie, ownerId);
+    const reverse = () =>
+      signed(client.post('/api/accounts/a-studio/ownership-transfer'), adminCookie)
+        .headers(command)
+        .json({ toUserId: ownerId, proofId: reverseProof })
+        .send();
+    const reversed = await reverse();
+    reversed.assertStatus(200);
+    assert.deepEqual(reversed.body(), { fromUserId: adminId, toUserId: ownerId });
+    const replay = await reverse();
+    replay.assertStatus(200);
+    assert.deepEqual(replay.body(), reversed.body());
+    assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 2);
+    assert.lengthOf(
+      await db
+        .from('request_receipts')
+        .where({ scope_id: 'a-studio', command_id: command['x-account-command-id'] }),
+      2
+    );
   });
 
   test('promotion and audit faults roll back both roles and command receipts', async ({
@@ -286,6 +311,10 @@ test.group('atomic ownership transfer', (group) => {
   }) => {
     const { ownerId, adminId, ownerCookie, now } = await fixture(client);
     const proofId = await transferProof(client, ownerCookie, adminId);
+    const revisionBefore = await db
+      .from('company_planning_revisions')
+      .where('account_id', 'a-studio')
+      .first();
     for (const [id, email] of [
       [ownerId, 'bruce.wayne@wayne.example'],
       [adminId, 'clark.kent@wayne.example'],
@@ -316,13 +345,20 @@ test.group('atomic ownership transfer', (group) => {
         .first();
       assert.equal(owner.role, 'owner');
       assert.equal(admin.role, 'admin');
+      assert.deepEqual(
+        await db.from('company_planning_revisions').where('account_id', 'a-studio').first(),
+        revisionBefore
+      );
+      const proof = await db.from('action_proofs').where('id', proofId).first();
+      assert.isNotNull(proof);
+      assert.isNull(proof.consumed_at);
       assert.lengthOf(
         await db.from('password_reset_tokens').whereIn('tokenable_id', [ownerId, adminId]),
         2
       );
       assert.isNull(
         await db
-          .from('command_results')
+          .from('request_receipts')
           .where('command_id', `ownership-fault-command-${suffix}`)
           .first()
       );
@@ -349,7 +385,7 @@ test.group('atomic ownership transfer', (group) => {
       await db.rawQuery('DROP TRIGGER IF EXISTS fail_ownership_audit');
     }
     await db.rawQuery(
-      "CREATE TRIGGER fail_ownership_receipt BEFORE UPDATE OF result ON command_results WHEN NEW.operation LIKE 'semantic:transfer-ownership:%' BEGIN SELECT RAISE(ABORT, 'forced receipt failure'); END"
+      "CREATE TRIGGER fail_ownership_receipt BEFORE UPDATE OF result ON request_receipts WHEN json_extract(NEW.operation, '$[0]') = 'transfer-ownership' BEGIN SELECT RAISE(ABORT, 'forced receipt failure'); END"
     );
     try {
       const failed = await tryTransfer('receipt');
@@ -358,6 +394,9 @@ test.group('atomic ownership transfer', (group) => {
     } finally {
       await db.rawQuery('DROP TRIGGER IF EXISTS fail_ownership_receipt');
     }
+    const retried = await tryTransfer('receipt');
+    retried.assertStatus(200);
+    assert.deepEqual(retried.body(), { fromUserId: ownerId, toUserId: adminId });
   });
 
   test('two distinct concurrent commands produce one swap and one refused stale authority', async ({
@@ -392,7 +431,9 @@ test.group('atomic ownership transfer', (group) => {
     assert.equal(newOwner.role, 'owner');
     assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 1);
     assert.lengthOf(
-      await db.from('command_results').where('operation', 'like', 'semantic:transfer-ownership:%'),
+      await db
+        .from('request_receipts')
+        .whereRaw("json_extract(operation, '$[0]') = ?", ['transfer-ownership']),
       1
     );
   });
@@ -435,7 +476,7 @@ test.group('atomic ownership transfer', (group) => {
     assert.equal(nominee.role, 'admin');
     assert.isNull(
       await db
-        .from('command_results')
+        .from('request_receipts')
         .where('command_id', 'ownership-broken-owner-command-0001')
         .first()
     );

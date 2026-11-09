@@ -272,10 +272,24 @@ test.group('company anonymisation', (group) => {
       .from('planning_mutations')
       .where('account_id', accountId)
       .select('*');
+    const receiptStamp = new Date().toISOString();
+    await db.table('request_receipts').insert({
+      id: 'retained-member-command',
+      scope_id: accountId,
+      command_id: 'retained-member-command-0001',
+      operation: JSON.stringify(['change-member-role', userId]),
+      request_key: 'retained-member-key-0001',
+      payload_hash: 'a'.repeat(64),
+      state: 'completed',
+      result: JSON.stringify({ userId, role: 'owner' }),
+      created_at: receiptStamp,
+      updated_at: receiptStamp,
+    });
     const commandCommitmentsBefore = await db
-      .from('command_results')
-      .where('account_id', accountId)
+      .from('request_receipts')
+      .where('scope_id', accountId)
       .select('*');
+    assert.lengthOf(commandCommitmentsBefore, 1);
     const auditBefore = await db.from('audit_entries').where('account_id', accountId).select('*');
     const foreignGroupBefore = await db
       .from('deleted_groups')
@@ -379,7 +393,7 @@ test.group('company anonymisation', (group) => {
       planningCommitmentsBefore
     );
     assert.deepEqual(
-      await db.from('command_results').where('account_id', accountId).select('*'),
+      await db.from('request_receipts').where('scope_id', accountId).select('*'),
       commandCommitmentsBefore
     );
     const auditAfter = await db.from('audit_entries').where('account_id', accountId).select('*');
