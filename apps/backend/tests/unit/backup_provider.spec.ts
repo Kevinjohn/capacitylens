@@ -3,7 +3,7 @@ import type { TestContext } from '@japa/runner/core';
 import { mock } from 'node:test';
 import app from '@adonisjs/core/services/app';
 import type { ApplicationService } from '@adonisjs/core/types';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 // @ts-expect-error better-sqlite3 does not publish declarations
@@ -88,7 +88,7 @@ function makeBackup(events: string[]): BackupService {
   };
 }
 
-function makeRealBackup(root: string) {
+function makeRealBackup(root: string, directory = join(root, 'backups')) {
   const path = join(root, 'source.db');
   const database = new Database(path);
   database.pragma('journal_mode = WAL');
@@ -96,7 +96,7 @@ function makeRealBackup(root: string) {
     "CREATE TABLE adonis_schema(id INTEGER PRIMARY KEY,name TEXT); INSERT INTO adonis_schema VALUES(1,'baseline'); CREATE TABLE entries(id INTEGER PRIMARY KEY)"
   );
   database.close();
-  return new SqliteBackup(defineConfig({ directory: join(root, 'backups'), keep: 2 }), {
+  return new SqliteBackup(defineConfig({ directory, keep: 2 }), {
     connection: 'sqlite',
     connections: { sqlite: { client: 'better-sqlite3', connection: { filename: path } } },
   });
@@ -160,7 +160,8 @@ test('startup refuses a backup directory that contains the live database', async
   const { assert, cleanup } = context;
   const root = mkdtempSync(join(tmpdir(), 'capacitylens-provider-'));
   cleanup(() => rmSync(root, { recursive: true, force: true }));
-  const backup = makeRealBackup(root);
+  chmodSync(root, 0o755);
+  const backup = makeRealBackup(root, root);
   let createCalled = false;
   backup.create = async () => {
     createCalled = true;
@@ -172,6 +173,7 @@ test('startup refuses a backup directory that contains the live database', async
     /CAPACITYLENS_BACKUP_DIR=.*could not be initialized: backup directory contains the live database/
   );
   assert.isFalse(createCalled);
+  assert.equal(statSync(root).mode & 0o777, 0o755, 'refusal precedes directory preparation');
   await provider.shutdown();
 });
 

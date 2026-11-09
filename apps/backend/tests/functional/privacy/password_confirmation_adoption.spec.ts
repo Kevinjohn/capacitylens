@@ -138,7 +138,10 @@ test.group('package proof adoption boundaries', (group) => {
     success.assertStatus(200);
     const blocked = await issue(client, second.cookie);
     blocked.assertStatus(429);
-    assert.deepEqual(blocked.body(), { error: 'Rate limit exceeded.' });
+    assert.deepEqual(blocked.body(), { error: 'Too many attempts. Try again in 20 minutes.' });
+    const retryAfter = Number(blocked.header('retry-after'));
+    assert.isAbove(retryAfter, 1140);
+    assert.isAtMost(retryAfter, 1200);
   });
 
   test('a prune failure after issue still returns its stored proof outside transactions', async ({

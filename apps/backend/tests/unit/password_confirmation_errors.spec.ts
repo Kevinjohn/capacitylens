@@ -22,7 +22,16 @@ for (const [error, status, expected] of [
     403,
     { error: 'Incorrect password.', code: 'PASSWORD_CONFIRMATION_DENIED' },
   ],
-  [new PasswordConfirmationThrottledException(1200), 429, { error: 'Rate limit exceeded.' }],
+  [
+    new PasswordConfirmationThrottledException(1200),
+    429,
+    { error: 'Too many attempts. Try again in 20 minutes.' },
+  ],
+  [
+    new PasswordConfirmationThrottledException(0.4),
+    429,
+    { error: 'Too many attempts. Try again in 1 minute.' },
+  ],
   [
     new InvalidPasswordConfirmationRequestException('PRIVATE_INPUT'),
     400,
@@ -40,12 +49,16 @@ for (const [error, status, expected] of [
   }) => {
     let actualStatus: number | undefined;
     let body: unknown;
+    const headers: Record<string, string> = {};
     const reports: unknown[] = [];
     const ctx = {
       request: { method: () => 'POST' },
       route: { pattern: '/api/auth/password-confirmation' },
       logger: { error: (fields: unknown) => reports.push(fields) },
       response: {
+        header(name: string, value: string) {
+          headers[name] = value;
+        },
         status(code: number) {
           actualStatus = code;
           return {
@@ -65,6 +78,11 @@ for (const [error, status, expected] of [
     await handler.report(error, ctx);
     assert.equal(actualStatus, status);
     assert.deepEqual(body, expected);
+    const retryAfter =
+      error instanceof PasswordConfirmationThrottledException
+        ? { 'Retry-After': String(Math.max(1, Math.ceil(error.retryAfterSeconds))) }
+        : {};
+    assert.deepEqual(headers, retryAfter);
     assert.lengthOf(reports, status === 500 ? 1 : 0);
     if (status === 500)
       assert.deepEqual(reports[0], {
