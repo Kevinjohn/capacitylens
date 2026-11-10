@@ -9,7 +9,7 @@ screen: 'Schedule and New allocation'
 
 Diana has checked Bruce’s working days and Friday time off. This example assumes the company works Monday through Friday, Bruce is available for full days, and **Days** is the company’s current planning mode. No work is booked on these dates yet.
 
-1. On **Schedule**, select **+** on Bruce’s row to open **New allocation** for the visible week. Set the start date to Monday.
+1. On **Schedule**, choose **Work** in the filter row if time-off drawing is selected, then select **+** on Bruce’s row to open **New allocation** for the visible week. Set the start date to Monday.
 2. Choose **Website refresh** in **Project**, then **Design** in **Activity**.
 3. Enter **4** in **Days of work** and **4** in **Days over**. The date span should end Thursday.
 4. Check the dates, then select **Save**.

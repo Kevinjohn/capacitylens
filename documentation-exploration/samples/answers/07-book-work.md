@@ -9,7 +9,7 @@ screen: 'Schedule'
 
 An **Editor**, **Admin** or **Owner** can open **Schedule**, create a **New allocation** on a person's row, fill in the work and dates, then save it.
 
-1. On **Schedule**, choose **+** beside the person, or drag across empty dates. The **New allocation** form opens.
+1. On **Schedule**, choose **Work** in the filter row if time-off drawing is selected, then choose **+** beside the person, or drag across empty dates. The **New allocation** form opens.
 2. Choose the **Project** and **Activity**, check you opened the intended person's row, set the start date and enter the amount for your company's scheduling mode.
 3. Choose **Save** and confirm the booking appears on the person's row.
 

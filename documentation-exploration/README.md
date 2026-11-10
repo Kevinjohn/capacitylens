@@ -4,6 +4,8 @@
 
 - [Research and recommendation](research.md): what to borrow, what feels heavy today, and concrete recommendations for writing, page size, roles, navigation and layout.
 - [Source observations](sources.md): ten open-source documentation examples, public repositories and evidence limits.
+- [FAQ appendix](faq.html): comprehensive question-and-answer lookup kept after the task-led guide.
+- [Story coverage](faq-coverage.md): maintainer mapping from the expanded catalogue to FAQ answers, including unavailable features.
 - [Verification](verification.md): what was checked and what still needs real reader feedback.
 
 There are **three complete ten-page treatments of one journey**: an already-created company prepares a feasible next-week plan and a Viewer finds their work. The same destination can be compared across treatments using the links above each article.
@@ -16,11 +18,11 @@ There are **three complete ten-page treatments of one journey**: an already-crea
 
 The samples include Owner, Admin, Editor, Viewer and conditional operator handoffs. Roles are shown at the action, without hiding other viewpoints. The walkthrough is optional: a Viewer can go directly to page 9 and a planner directly to pages 6–8.
 
-The three sets are alternatives, not a proposal to maintain three copies. Keep one canonical set when a direction is selected. The existing published documentation and application are unchanged.
+The selected editorial direction is one guide with an intention-led entrance, task/screen pages and a comprehensive FAQ appendix. A is the foundation; B is an optional walkthrough. C remains a comparison example, not the chosen main structure. The three sets are alternatives, not a proposal to maintain three copies. Keep one canonical set when a direction is selected. The existing published documentation and application are unchanged.
 
 ## Editable sources
 
-Markdown lives in `samples/handbook`, `samples/guided` and `samples/answers`. Existing product screenshots remain in their original `docs-src/screenshots` locations and are reused by relative link. Keep the sample folder inside this checkout when opening it so those images remain reachable.
+Markdown lives in `samples/handbook`, `samples/guided` and `samples/answers`. FAQ editorial parts and story mappings live in `faq-parts/`. The builder assembles `faq.md`, `faq-coverage.md` and their standalone previews, checking complete coverage against `faq-catalogue.json`. That catalogue pins the expanded proposal in PR #1848 rather than silently following changes on an unmerged branch. Existing product screenshots remain in their original `docs-src/screenshots` locations and are reused by relative link. Keep the sample folder inside this checkout when opening it so those images remain reachable.
 
 To regenerate the standalone previews from the repository root, using the Node major in `.nvmrc` and the project's installed dependencies:
 
@@ -32,6 +34,12 @@ To check formatting:
 
 ```sh
 pnpm exec prettier --check documentation-exploration
+```
+
+To verify the FAQ coverage safeguards:
+
+```sh
+node --test documentation-exploration/build-faq.test.mjs
 ```
 
 The build uses the documentation renderer already installed by this repository. It adds no dependencies. No production documentation build or application release is performed by this sample builder.

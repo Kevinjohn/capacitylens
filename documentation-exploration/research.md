@@ -1,6 +1,6 @@
 # Make the next action easy to find
 
-**Recommendation:** organise everyday help around the work someone came to do. Keep a short first-week route, show role restrictions beside the affected action, and move exhaustive options into reference pages. Improve the route before changing the documentation engine.
+**Direction:** use one guide with an intention-led entrance, task and screen pages, and a comprehensive FAQ appendix. Write first for agency owners, project managers and team leaders who understand agency work and have no interest in software engineering. Keep a short first-week route and show role restrictions beside the affected action.
 
 This is an editorial investigation and sample collection for [#1846](https://github.com/Kevinjohn/capacitylens/issues/1846), researched on **10 November 2026** against repository revision `ac69d13a1`. The examples are alternatives for review; the current documentation remains intact.
 
@@ -83,7 +83,20 @@ A short page fails if it sends readers elsewhere for the next essential instruct
 
 ## Structure and submenus
 
-Use three reader-facing sections. Their names describe actual needs:
+The opening question is **What are you here to do?** Its answers describe intentions:
+
+- See whether CapacityLens would help our team.
+- Explore an example team and week.
+- Find my work.
+- Plan or change the team's work.
+- Get teammates set up.
+- Install or look after the service.
+
+After that initial distinction, use direct task and screen titles: **Plan next week**, **Add people**, **Book work**, **Schedule**, **Invite teammates** and **Install CapacityLens**. The main guide is not a chain of questions. An Owner can arrive for any of these purposes; a role is an action condition, not an adequate answer to the opening question.
+
+Keep these paths in one guide. Installation and technical operations remain available where someone needs them. They do not lead the evaluation, example-week or everyday-use paths. Opening ordinary help or trying an example should not first require understanding Git, package managers or deployment choices. The existing terminal-based demo is a delivery barrier to address separately; these editorial samples do not add a hosted demo.
+
+Use simple section groups inside that guide:
 
 - **Use CapacityLens:** plan next week, see your work, add/change bookings, manage time off, find capacity, recover a failed change.
 - **Manage the company:** invite or remove access, connect a member to a schedule row, settings, Owner responsibilities and privacy/data operations.
@@ -91,11 +104,11 @@ Use three reader-facing sections. Their names describe actual needs:
 
 Keep a small product introduction and demo link available from the help home. Contributor architecture, test records and historical security reviews can remain accessible from a separate contributor/reference destination rather than the everyday sidebar.
 
-Within **Use CapacityLens**, keep the optional first-week route above a compact task list. Use one level of grouping for “Prepare the plan”, “Book and adjust”, and “Review the week”. Do not add a second level solely to reproduce the application's menu. Show only the current section's navigation; keep the other two sections reachable through stable top-level links. Preserve explicit current-page indication and usable narrow-screen menus.
+Within **Use CapacityLens**, keep the optional first-week route above a compact task list. Use one level of grouping for “Prepare the plan”, “Book and adjust”, and “Review the week”. Do not add a second level solely to reproduce the application's menu. Keep the everyday tasks prominent and administration and operations clearly labelled farther down the same guide. Preserve direct links to each destination. Preserve explicit current-page indication and usable narrow-screen menus.
 
-Roles remain valuable as **entry shortcuts and action conditions**, rather than four parallel manuals:
+Use roles to check that the guide covers each responsibility and to state access conditions where they affect an action:
 
-| Reader   | Useful entry                                | Boundary to make clear                                                        |
+| Reader   | Relevant tasks                              | Boundary to make clear                                                        |
 | -------- | ------------------------------------------- | ----------------------------------------------------------------------------- |
 | Owner    | Hand daily management to an Admin           | Ownership and destructive company operations remain separate responsibilities |
 | Admin    | Give the team access and prepare the plan   | Invitation/membership and schedule rows are separate                          |
@@ -125,7 +138,13 @@ Small agencies often have one person covering several responsibilities. Task rou
 | **B — First-week walkthrough** | Continuous fictional example, sequential navigation, quieter warm page and an optional all-steps menu | Learning the product from an already-created company  | Can feel like a course; returning readers should not need to follow the sequence |
 | **C — Answer desk**            | Question titles, immediate answer, grouped help navigation and optional detail                        | Symptom-led visits and occasional users               | Can fragment a coherent workflow and grow into a duplicate FAQ if unmanaged      |
 
-**Choose A as the foundation.** Borrow B's controlled example for an optional introduction, and C's question wording for genuine interruptions. Publishing all three complete sets would recreate the duplication problem. They are complete here so the choice can be made from real pages rather than a mood board.
+**Use A as the foundation**, with B's controlled example available as an optional introduction. The question-led main structure in C is not the chosen direction; it remains in this exploration for comparison.
+
+Keep an **[FAQ appendix](faq.md)** covering the user-story catalogue. It uses reader-language questions grouped by subject, concise answers and links to detailed tasks. It includes everyday questions, edge cases, availability limits and operator questions at the end. It can be comprehensive without becoming the main reading route. Closely related stories can share an answer when the answer actually covers them.
+
+A separate [story coverage table](faq-coverage.md) maps every catalogue entry to an answer, so the reader-facing appendix carries no test names or story identifiers. Hidden or demo-only stories remain discoverable as availability answers rather than instructions for controls that do not exist. Coverage must be refreshed with the catalogue. The current appendix uses the expanded 179-story proposal in PR #1848, pinned to a documented revision; that proposal is still open.
+
+Maintain one canonical explanation per rule, while repeating a short instruction where a task needs to stand alone. Publishing all three complete main-guide sets would recreate the duplication problem.
 
 ## The ten-page journey and its viewpoints
 

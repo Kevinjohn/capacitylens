@@ -7,7 +7,7 @@ screen: 'Schedule'
 
 # Book work
 
-Editors, Admins and Owners can book work on **Schedule**.
+Editors, Admins and Owners can book work on **Schedule**. If time-off drawing is selected, open **Show filters** and choose **Work** first.
 
 1. **Choose a person and dates.** Select **+** on that person's row to open **New allocation**. Or drag across working days on the row to set the date span.
 2. **Choose the work.** Set **Project**, then choose **Activity**. For the example in [Add work](04-add-work.md), choose **Wayne Enterprises → Website refresh** and **Design**.

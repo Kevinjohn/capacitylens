@@ -16,7 +16,8 @@
     <div class="preview-note">Editorial preview · Actual product unchanged</div>
     <nav class="report-nav" aria-label="Research documents">
       <a href="research.html">Comparison report</a><a href="sources.html">Source notes</a
-      ><a href="verification.html" aria-current="page">Verification record</a>
+      ><a href="verification.html" aria-current="page">Verification record</a
+      ><a href="faq.html">FAQ appendix</a><a href="faq-coverage.html">Story coverage</a>
     </nav>
     <main id="main" class="report-article" tabindex="-1">
       <article>
@@ -52,8 +53,9 @@
             worktree.
           </li>
           <li>
-            Deliverable: three sets of ten Markdown pages, standalone previews, research, source
-            notes and a comparison entry page.
+            Deliverable: three sets of ten Markdown pages, a comprehensive FAQ appendix, a separate
+            story-coverage reference, standalone previews, research, source notes and a comparison
+            entry page.
           </li>
           <li>
             Current product instructions were compared with the relevant access, invitation,
@@ -66,9 +68,12 @@
             completed.
           </li>
         </ul>
-        <h2 id="checks" tabindex="-1">
-          Checks
-          <a class="header-anchor" href="#checks" aria-label='Permalink to "Checks"'
+        <h2 id="original-comparison-checks" tabindex="-1">
+          Original comparison checks
+          <a
+            class="header-anchor"
+            href="#original-comparison-checks"
+            aria-label='Permalink to "Original comparison checks"'
             >&ZeroWidthSpace;</a
           >
         </h2>
@@ -136,6 +141,72 @@
           Application-wide hooks and suites are outside this standalone editorial investigation’s
           scoped checks, recorded in the tracking issue. No claim is made that a full application
           gate or production-documentation build ran.
+        </p>
+        <h2 id="faq-appendix-checks" tabindex="-1">
+          FAQ appendix checks
+          <a
+            class="header-anchor"
+            href="#faq-appendix-checks"
+            aria-label='Permalink to "FAQ appendix checks"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <p>
+          The appendix adds <strong>114 reader questions</strong> covering
+          <strong>179 of 179 catalogue stories</strong> across 14 subjects. The source catalogue is
+          the unmerged expanded proposal in PR #1848, pinned to
+          <code>0d961752a0bb682b1348addf1ae621ae70abe57d</code>; the mapping and availability labels
+          are visible in the separate coverage reference. It is not a claim that all 179 application
+          journeys were run.
+        </p>
+        <ul>
+          <li>
+            The coverage builder checks every source identifier, prevents duplicate story records
+            and question anchors, and validates primary and related answer destinations. New
+            identifiers in the local catalogue require refreshing the snapshot. All 132 story
+            identifiers in this checkout are included in the broader snapshot.
+          </li>
+          <li>
+            Eight focused Node tests passed, covering successful assembly, missing coverage,
+            duplicate mappings, missing/duplicate/untracked question anchors, catalogue growth,
+            installation placement at the end, and multiple answers without inflating story counts.
+          </li>
+          <li>
+            The regenerated collection contains 36 HTML pages. Relative links, assets and fragments
+            were checked, including target anchors in linked production HTML and links in the
+            editable FAQ parts.
+          </li>
+          <li>
+            The FAQ, coverage reference and comparison index rendered without page scripts or
+            whole-page horizontal overflow at 320, 768, 1024 and 1440px. Reader copy contained no
+            story identifiers.
+          </li>
+          <li>
+            The keyboard journey from the task guide to the FAQ, then a topic jump and Back to the
+            guide succeeded at 320px with page scripts disabled.
+          </li>
+          <li>
+            Automated WCAG A/AA-tagged checks on the FAQ, coverage reference and updated index
+            reported no violations or incomplete checks. This remains limited automated evidence,
+            not full accessibility conformance.
+          </li>
+          <li>
+            HTML and assembled FAQ Markdown were byte-identical across a rebuild. Source formatting,
+            builder syntax and whitespace checks passed.
+          </li>
+          <li>
+            The FAQ received independent source-based content review, including access restrictions,
+            current controls, hidden/demo availability, optional member linking, date navigation,
+            Work/Time off mode, save uncertainty, archive/restore and calendar rules. New-booking
+            starts were traced through the form submit and server write checks rather than inferred
+            from an override-aware move helper. All review findings were reconciled, and no known
+            factual findings remain within the reviewed FAQ scope.
+          </li>
+        </ul>
+        <p>
+          Original browser evidence remains applicable to unchanged content and layout. The three
+          booking sample pages now also name the Work draw-mode prerequisite. The source story
+          catalogue, application and production documentation inputs remain unchanged.
         </p>
         <h2 id="evidence-boundaries" tabindex="-1">
           Evidence boundaries

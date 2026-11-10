@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createMarkdownRenderer } from 'vitepress';
 import { parse } from 'yaml';
 import { format, resolveConfig } from 'prettier';
+import { buildFaq } from './build-faq.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const formatOptions = await resolveConfig(fileURLToPath(import.meta.url));
@@ -67,7 +68,7 @@ const variants = [
     key: 'answers',
     letter: 'C',
     name: 'Answer desk',
-    purpose: 'Find a question, complete the task, and return when work changes.',
+    purpose: 'Comparison only: a question-led main structure, outside the selected direction.',
     tradeoff: 'Strong entry points for interruptions; less emphasis on a continuous route.',
     className: 'answers',
   },
@@ -85,13 +86,24 @@ md.renderer.rules.image = (tokens, idx) => {
   const alt = md.renderer.renderInlineAsText(token.children ?? [], md.options, {});
   return `<a class="screenshot" href="${esc(src)}"><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy"></a>`;
 };
-const reportNames = ['research', 'sources', 'verification'];
+const faqCoverage = await buildFaq(root, formatOptions);
+const reportNames = ['research', 'sources', 'verification', 'faq', 'faq-coverage'];
+const reportLabels = {
+  research: 'Comparison report',
+  sources: 'Source notes',
+  verification: 'Verification record',
+  faq: 'FAQ appendix',
+  'faq-coverage': 'Story coverage',
+};
 const renderLink = md.renderer.rules.link_open;
 md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   if (!env.report) return renderLink(tokens, idx, options, env, self);
   const token = tokens[idx];
   const href = token.attrGet('href');
-  if (href && /^(?:\.\/)?(?:research|sources|verification)\.md(?:[?#]|$)/.test(href)) {
+  if (
+    href &&
+    /^(?:\.\/)?(?:research|sources|verification|faq|faq-coverage)\.md(?:[?#]|$)/.test(href)
+  ) {
     token.attrSet('href', href.replace(/\.md(?=[?#]|$)/, '.html'));
   }
   return self.renderToken(tokens, idx, options);
@@ -179,7 +191,7 @@ for (const [v, variant] of variants.entries()) {
       document(
         page.metadata.title,
         page.metadata.description,
-        `${header}${switcher}${menu}<div class="layout">${sidebar}${content}</div><footer>CapacityLens · Standalone editorial sample · <a href="../../research.html">Read the comparison report</a></footer>`,
+        `${header}${switcher}${menu}<div class="layout">${sidebar}${content}</div><footer>CapacityLens · Standalone editorial sample · <a href="../../faq.html">FAQ appendix</a> · <a href="../../research.html">Read the comparison report</a></footer>`,
         variant.className,
         '../../preview.css',
       ),
@@ -187,7 +199,7 @@ for (const [v, variant] of variants.entries()) {
   }
 }
 const table = `<div class="table-scroll"><table><caption>The same ten destinations in each option</caption><thead><tr><th scope="col">Task</th>${variants.map((v) => `<th scope="col">${v.letter}: ${v.name}</th>`).join('')}</tr></thead><tbody>${tasks.map((_, i) => `<tr><th scope="row">${labels[i]}</th>${variants.map((v) => `<td><a href="preview/${v.key}/${stem(i)}.html">${v.letter} · ${i + 1}. ${esc(pages[variants.indexOf(v)][i].metadata.title)}</a></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-const landing = `<header class="site-header"><a class="brand" href="index.html">CapacityLens <span>Documentation exploration</span></a><a href="research.html">Comparison report</a></header><main id="main" class="landing" tabindex="-1"><p class="eyebrow">Editorial preview · Actual product unchanged</p><h1>Three ways to find your next step</h1><p class="lede">One journey: the company is already set up, the team makes a feasible plan for next week, and a Viewer can find their work. Compare the writing and navigation before choosing a direction.</p><p>All three options cover the same ten destinations. The sequence is optional: start at the task you need. These are documentation samples, not a new product interface.</p><section aria-labelledby="options"><h2 id="options">Choose an option</h2>${variants.map((v) => `<section class="option"><h3><a href="preview/${v.key}/${stem(0)}.html">${v.letter} · ${v.name}</a>${v.key === 'handbook' ? ' <span class="recommendation">Recommended</span>' : ''}</h3><p>${v.purpose} ${v.tradeoff}${v.key === 'handbook' ? ' Recommended because it supports both first planning and returning directly to a task without hiding the route.' : ''}</p><p><a href="preview/${v.key}/${stem(0)}.html">Start with planning</a> · <a href="preview/${v.key}/${stem(6)}.html">Compare the first booking</a> · <a href="samples/${v.key}/${stem(0)}.md">Read the Markdown source</a></p></section>`).join('')}</section><section><h2>Compare by task</h2><p>Use the same-task switcher on any sample to move between A, B and C without losing your place.</p>${table}</section><p><a href="research.html">Read the comparison report and recommendation</a> · <a href="sources.html">Source notes</a> · <a href="verification.html">Verification record</a></p></main><footer>Local, script-free preview. Screenshots link to their full-size originals.</footer>`;
+const landing = `<header class="site-header"><a class="brand" href="index.html">CapacityLens <span>Documentation exploration</span></a><a href="research.html">Comparison report</a></header><main id="main" class="landing" tabindex="-1"><p class="eyebrow">Editorial preview · Actual product unchanged</p><h1>Three ways to find your next step</h1><p class="lede">One journey: the company is already set up, the team makes a feasible plan for next week, and a Viewer can find their work. Compare the writing and navigation before choosing a direction.</p><p>The selected direction is a task-led guide with an intention-led entrance and a comprehensive <a href="faq.html">FAQ appendix</a>. A is the foundation; B offers an optional walkthrough. C remains available for comparison.</p><p>All three options cover the same ten destinations. The sequence is optional: start at the task you need. These are documentation samples, not a new product interface.</p><section aria-labelledby="options"><h2 id="options">Choose an option</h2>${variants.map((v) => `<section class="option"><h3><a href="preview/${v.key}/${stem(0)}.html">${v.letter} · ${v.name}</a>${v.key === 'handbook' ? ' <span class="recommendation">Recommended</span>' : ''}</h3><p>${v.purpose} ${v.tradeoff}${v.key === 'handbook' ? ' Recommended because it supports both first planning and returning directly to a task without hiding the route.' : ''}</p><p><a href="preview/${v.key}/${stem(0)}.html">Start with planning</a> · <a href="preview/${v.key}/${stem(6)}.html">Compare the first booking</a> · <a href="samples/${v.key}/${stem(0)}.md">Read the Markdown source</a></p></section>`).join('')}</section><section><h2>Compare by task</h2><p>Use the same-task switcher on any sample to move between A, B and C without losing your place.</p>${table}</section><p><a href="faq.html">Read the FAQ appendix</a> · <a href="research.html">Read the comparison report and recommendation</a> · <a href="sources.html">Source notes</a> · <a href="verification.html">Verification record</a></p></main><footer>Local, script-free preview. Screenshots link to their full-size originals.</footer>`;
 await writeHtml(
   resolve(root, 'index.html'),
   document(
@@ -199,17 +211,32 @@ await writeHtml(
   ),
 );
 for (const report of reports) {
-  const navigation = `<nav class="report-nav" aria-label="Research documents">${reports.map((item) => `<a href="${item.name}.html"${item.name === report.name ? ' aria-current="page"' : ''}>${item.name === 'research' ? 'Comparison report' : item.name === 'sources' ? 'Source notes' : 'Verification record'}</a>`).join('')}</nav>`;
-  const body = `<header class="site-header"><a class="brand" href="index.html">CapacityLens <span>Documentation exploration</span></a><a href="index.html">Compare options</a></header><div class="preview-note">Editorial preview · Actual product unchanged</div>${navigation}<main id="main" class="report-article" tabindex="-1"><article>${report.article}</article></main><footer><a href="index.html">Compare the three options</a> · <a href="${report.name}.md">Markdown source</a></footer>`;
+  const navigation =
+    report.name === 'faq'
+      ? ''
+      : `<nav class="report-nav" aria-label="Research documents">${reports.map((item) => `<a href="${item.name}.html"${item.name === report.name ? ' aria-current="page"' : ''}>${reportLabels[item.name]}</a>`).join('')}</nav>`;
+  const returnLink =
+    report.name === 'faq'
+      ? '<a href="preview/handbook/01-plan-next-week.html">Back to the guide</a>'
+      : '<a href="index.html">Compare options</a>';
+  const footer =
+    report.name === 'faq'
+      ? returnLink
+      : `<a href="index.html">Compare the three options</a> · <a href="${report.name}.md">Markdown source</a>`;
+  const body = `<header class="site-header"><a class="brand" href="index.html">CapacityLens <span>Documentation exploration</span></a>${returnLink}</header><div class="preview-note">Editorial preview · Actual product unchanged</div>${navigation}<main id="main" class="report-article" tabindex="-1"><article>${report.article}</article></main><footer>${footer}</footer>`;
   await writeHtml(
     resolve(root, `${report.name}.html`),
     document(
       report.title,
-      'Documentation research and evaluation for CapacityLens.',
+      report.name === 'faq'
+        ? 'Answers about planning, people, bookings, company access and data in CapacityLens.'
+        : 'Documentation research and evaluation for CapacityLens.',
       body,
       'report',
       'preview.css',
     ),
   );
 }
-console.log('Built 30 standalone sample pages, three research documents and the comparison index.');
+console.log(
+  `Built 30 sample pages, five appendices/reports and the index; FAQ covers ${faqCoverage.stories} stories in ${faqCoverage.questions} questions.`,
+);

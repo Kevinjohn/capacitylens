@@ -16,7 +16,8 @@
     <div class="preview-note">Editorial preview · Actual product unchanged</div>
     <nav class="report-nav" aria-label="Research documents">
       <a href="research.html" aria-current="page">Comparison report</a
-      ><a href="sources.html">Source notes</a><a href="verification.html">Verification record</a>
+      ><a href="sources.html">Source notes</a><a href="verification.html">Verification record</a
+      ><a href="faq.html">FAQ appendix</a><a href="faq-coverage.html">Story coverage</a>
     </nav>
     <main id="main" class="report-article" tabindex="-1">
       <article>
@@ -30,10 +31,10 @@
           >
         </h1>
         <p>
-          <strong>Recommendation:</strong> organise everyday help around the work someone came to
-          do. Keep a short first-week route, show role restrictions beside the affected action, and
-          move exhaustive options into reference pages. Improve the route before changing the
-          documentation engine.
+          <strong>Direction:</strong> use one guide with an intention-led entrance, task and screen
+          pages, and a comprehensive FAQ appendix. Write first for agency owners, project managers
+          and team leaders who understand agency work and have no interest in software engineering.
+          Keep a short first-week route and show role restrictions beside the affected action.
         </p>
         <p>
           This is an editorial investigation and sample collection for
@@ -461,7 +462,34 @@
             >&ZeroWidthSpace;</a
           >
         </h2>
-        <p>Use three reader-facing sections. Their names describe actual needs:</p>
+        <p>
+          The opening question is <strong>What are you here to do?</strong> Its answers describe
+          intentions:
+        </p>
+        <ul>
+          <li>See whether CapacityLens would help our team.</li>
+          <li>Explore an example team and week.</li>
+          <li>Find my work.</li>
+          <li>Plan or change the team's work.</li>
+          <li>Get teammates set up.</li>
+          <li>Install or look after the service.</li>
+        </ul>
+        <p>
+          After that initial distinction, use direct task and screen titles:
+          <strong>Plan next week</strong>, <strong>Add people</strong>, <strong>Book work</strong>,
+          <strong>Schedule</strong>, <strong>Invite teammates</strong> and
+          <strong>Install CapacityLens</strong>. The main guide is not a chain of questions. An
+          Owner can arrive for any of these purposes; a role is an action condition, not an adequate
+          answer to the opening question.
+        </p>
+        <p>
+          Keep these paths in one guide. Installation and technical operations remain available
+          where someone needs them. They do not lead the evaluation, example-week or everyday-use
+          paths. Opening ordinary help or trying an example should not first require understanding
+          Git, package managers or deployment choices. The existing terminal-based demo is a
+          delivery barrier to address separately; these editorial samples do not add a hosted demo.
+        </p>
+        <p>Use simple section groups inside that guide:</p>
         <ul>
           <li>
             <strong>Use CapacityLens:</strong> plan next week, see your work, add/change bookings,
@@ -485,19 +513,19 @@
           Within <strong>Use CapacityLens</strong>, keep the optional first-week route above a
           compact task list. Use one level of grouping for “Prepare the plan”, “Book and adjust”,
           and “Review the week”. Do not add a second level solely to reproduce the application's
-          menu. Show only the current section's navigation; keep the other two sections reachable
-          through stable top-level links. Preserve explicit current-page indication and usable
-          narrow-screen menus.
+          menu. Keep the everyday tasks prominent and administration and operations clearly labelled
+          farther down the same guide. Preserve direct links to each destination. Preserve explicit
+          current-page indication and usable narrow-screen menus.
         </p>
         <p>
-          Roles remain valuable as <strong>entry shortcuts and action conditions</strong>, rather
-          than four parallel manuals:
+          Use roles to check that the guide covers each responsibility and to state access
+          conditions where they affect an action:
         </p>
         <table tabindex="0">
           <thead>
             <tr>
               <th>Reader</th>
-              <th>Useful entry</th>
+              <th>Relevant tasks</th>
               <th>Boundary to make clear</th>
             </tr>
           </thead>
@@ -637,10 +665,29 @@
           </tbody>
         </table>
         <p>
-          <strong>Choose A as the foundation.</strong> Borrow B's controlled example for an optional
-          introduction, and C's question wording for genuine interruptions. Publishing all three
-          complete sets would recreate the duplication problem. They are complete here so the choice
-          can be made from real pages rather than a mood board.
+          <strong>Use A as the foundation</strong>, with B's controlled example available as an
+          optional introduction. The question-led main structure in C is not the chosen direction;
+          it remains in this exploration for comparison.
+        </p>
+        <p>
+          Keep an <strong><a href="faq.html">FAQ appendix</a></strong> covering the user-story
+          catalogue. It uses reader-language questions grouped by subject, concise answers and links
+          to detailed tasks. It includes everyday questions, edge cases, availability limits and
+          operator questions at the end. It can be comprehensive without becoming the main reading
+          route. Closely related stories can share an answer when the answer actually covers them.
+        </p>
+        <p>
+          A separate <a href="faq-coverage.html">story coverage table</a> maps every catalogue entry
+          to an answer, so the reader-facing appendix carries no test names or story identifiers.
+          Hidden or demo-only stories remain discoverable as availability answers rather than
+          instructions for controls that do not exist. Coverage must be refreshed with the
+          catalogue. The current appendix uses the expanded 179-story proposal in PR #1848, pinned
+          to a documented revision; that proposal is still open.
+        </p>
+        <p>
+          Maintain one canonical explanation per rule, while repeating a short instruction where a
+          task needs to stand alone. Publishing all three complete main-guide sets would recreate
+          the duplication problem.
         </p>
         <h2 id="the-ten-page-journey-and-its-viewpoints" tabindex="-1">
           The ten-page journey and its viewpoints
