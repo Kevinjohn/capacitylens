@@ -1,41 +1,30 @@
 # US-ALL-01 — Create an allocation via the modal
 
-**Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "creates an allocation from the row + button (assignee preselected)" · `e2e/scheduler.spec.ts` → "draws a new allocation on an empty part of a lane"
+As an Editor, I want to book an activity onto a resource for a date range so that the Schedule shows the assigned work and its capacity.
 
-## Goal
-
-Book a person onto an activity for a date range, with a chosen hours/day and status, so the work shows as a bar on the schedule.
-
-## Why
-
-Scheduling work is the core job of the app. A studio manager plans who does what and when; every capacity and utilisation cue downstream is computed from these allocations. The modal is the precise, keyboard-friendly way to enter one (as opposed to a rough lane draw).
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the June bars are visible.
-
-1. On the **Bruce Wayne** row, click the **+** (`Add allocation`) button at the right of the name column. The **New allocation** dialog opens; in row-create mode the assignee is fixed to that row, so there is no **Assignee** select — the dialog title names them ("New allocation for _Bruce Wayne_").
-2. Choose **Project** = _Queen Consolidated / Project Watchtower_.
-3. Choose **Activity** = _Wireframes_.
-4. Set **Start** = `2026-06-16` and **End** = `2026-06-18`.
-5. Set **Hours / day** = `4`.
-6. Choose **Status** = _Confirmed_ in the three-option status group.
-7. Optionally type a single-line **Note**.
-8. Click **Save**. The dialog closes.
+**Status:** Current
+**Access:** Editor, Admin or Owner
+**Entry:** Schedule (`/`)
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
+**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx), [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
 
 ## Acceptance criteria
 
-- ✅ After Save, a new `allocation-bar` appears on the **Bruce Wayne** row spanning 16–18 June, labelled with the activity (_Wireframes_) and `· 4h`.
-- ✅ The bar carries `data-status="confirmed"`.
-- ✅ When the modal is opened from the row **+**, the assignee is fixed to that row's resource (here _Bruce Wayne_): there is no **Assignee** select in create mode — the dialog title names the resource instead.
-- ✅ Choosing a real **Project** repopulates **Activity** with an **All projects** group first and a **Project-specific** group second. Each group is alphabetical.
-- ✅ The **Project** picker starts with _Internal_ and _No specific project_, then a divider and real projects sorted by client and project name. Internal exposes internal activities; No specific project exposes All-projects activities and creates an unattributed booking.
-- ✅ Choosing an All-projects activity under a real project attributes that allocation to the project. Its bar carries the project/client label and matches their schedule filters; changing the scope to _No specific project_ clears that attribution.
-- ✅ **Status** is a labelled _Confirmed_ / _Tentative_ / _Completed_ radiogroup and **Note** is a single-line text field.
-- ✅ At normal modal widths, labels use the shared 25% column and controls use the 75% column.
-  Date/workload controls stay side by side within that control area, **Status** fills it with three
-  equal segments, and the form stacks without clipping or page overflow on narrow screens.
-- ✅ Drawing a left-to-right gesture on an empty part of a lane (in **Work** draw mode) instead opens the same **New allocation** dialog, preset to that lane's resource and the drawn dates.
-- ✅ The hover **+**, click and draw are absent/rejected when their start date is globally
-  non-working, outside that resource's working pattern or covered by their time off. A span that
-  starts on an allowed date may still cross blocked dates.
+| Field               | Control           | Required/default/conditions                                                                                                                                                                 |
+| ------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Assignee            | Resource context  | Required; fixed by the resource row or lane used to open create; create has no Assignee select.                                                                                             |
+| Project             | Select            | Optional attribution; defaults to Internal unless a placeholder row fixes its bound project. Choices include No specific project and eligible projects.                                     |
+| Activity            | Select            | Required; choices follow the selected project scope.                                                                                                                                        |
+| Task                | Text input        | Optional; shown only when the company’s Show task field in schedule setting is enabled.                                                                                                     |
+| Start               | Date input        | Required; defaults to today unless a date is supplied by the schedule entry point.                                                                                                          |
+| End                 | Date input        | Required when the form uses a typed date range (Hours mode or an external resource); defaults to Start when no range is supplied. Hidden and derived from span fields in Days/Blocks modes. |
+| Hours / day         | Select            | Hours mode for capacity-counting resources; options 1, 2, 4 or 8 hours. Hidden for external resources.                                                                                      |
+| Days of work        | Number input      | Required in Days mode for capacity-counting resources; positive value, 0.5 step.                                                                                                            |
+| Days over           | Number input      | Days and Blocks modes for capacity-counting resources; defaults to 1, optional, step 1, range capped by the supported span. Disabled when no effective working days are available.          |
+| Repeat              | Select            | Create only; defaults to Doesn’t repeat; Weekly, Every 2 weeks, Every 3 weeks, Every 4 weeks or Monthly.                                                                                    |
+| Repeat until        | Date input        | Create only; required when Repeat is enabled; limited to today/start through six calendar months after the start.                                                                           |
+| Status              | Segmented control | Confirmed by default; Confirmed, Tentative or Completed.                                                                                                                                    |
+| Note                | Text input        | Optional.                                                                                                                                                                                   |
+| Ignore working days | Checkbox          | Unchecked by default; hidden for external resources; does not bypass time off or closures.                                                                                                  |
+
+- Save creates the allocation and closes the form.

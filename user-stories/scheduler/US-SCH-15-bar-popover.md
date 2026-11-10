@@ -1,43 +1,18 @@
 # US-SCH-15 — Allocation detail popover on hover/focus
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows a detail popover on hover (US-SCH-15)"
+As an Editor, I want allocation details available on hover or focus so that I can inspect a booking without opening its form.
 
-## Goal
+**Status:** Current
 
-Hovering — or keyboard-focusing — an allocation bar shows a detail popover with the activity, project · client, date range, hours/day, any non-default status annotation, note and (for linked repeats) the last surviving series end; confirmed is implicit when no annotation is shown, and the popover hides again when you leave.
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-A bar can only show so much on its face, especially when narrow. The manager often just wants the facts of one booking — what is it, for whom, when, how heavy, and whether it is tentative or completed — without opening the edit modal and risking a change. A missing status annotation means the booking is confirmed by default. A lightweight popover gives that on hover, and offering it on keyboard focus too means the same detail is reachable without a mouse.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
-
-1. Hover the **Brand System** bar.
-2. A popover (`data-testid="allocation-popover"`) appears showing: the activity/label, **project · client** (e.g. _Metropolis Rebrand · LexCorp_), the **date range**, **Nh/day**, a **Tentative** or **Completed** annotation when applicable, and a note line if the allocation has one. A confirmed allocation omits the redundant **Confirmed** word.
-   The popover is horizontally anchored to the centre of the allocation bar's currently visible
-   segment, including when the bar continues behind the fixed resource column or beyond the right
-   edge; normal collision handling keeps the card itself on-screen near a viewport edge.
-3. Move the pointer off the bar — the popover hides.
-4. Now use the keyboard: **Tab** to focus an allocation bar. The same popover appears on focus,
-   including in Viewer read-only mode where the bar remains a non-editable image.
-5. The visible card contains allocation details only, without an instruction footer. Its assistive
-   label retains drag/resize/reassign guidance for editors and says **Read-only allocation details**
-   for a Viewer. Assistive technology receives the complete activity, project/client, dates, hours,
-   applicable status annotation and note text from the bar even when optional face-label parts are turned off.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ Hovering a bar shows the **allocation-popover** with the project/client and the date range.
-- ✅ The popover is horizontally anchored to the centre of the bar's currently visible segment
-  rather than its off-screen start or full unclipped width, while remaining on-screen near an edge.
-- ✅ The popover includes hours/day, a **Tentative** or **Completed** annotation when applicable, and (when present) the note; confirmed work has no redundant status word.
-- ✅ A linked repeat says **Series through <date>** in the popover and accessible name; an unlinked
-  allocation has no series claim.
-- ✅ Moving the pointer off the bar hides the popover.
-- ✅ Keyboard-focusing a bar (Tab) shows the same popover for editors and Viewers — it's not
-  mouse-only, and Viewer focus does not enable editing, moving or resizing.
-- ✅ The visible popover has no instruction footer, while its assistive label retains the
-  appropriate editor or Viewer guidance.
-- ✅ Viewer detail output contains the complete read-only context and never advertises edit gestures.
+- Hovering or focusing an allocation opens its detail popover.
+- The popover includes the allocation’s available dates, status and notes.

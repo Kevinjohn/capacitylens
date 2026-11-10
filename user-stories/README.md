@@ -1,248 +1,288 @@
-# CapacityLens — User stories
+# CapacityLens user stories
 
-End-to-end user stories for **every** capability of CapacityLens, written as **runnable test
-scripts for a human**. Each story is goal-first (what the user wants), then _why_, then
-_how_ (numbered, end-to-end steps from a defined starting state), then explicit, checkable
-**acceptance criteria** (✅). Every story also names its automated coverage — the Playwright
-**E2E test(s)** that exercise the same flow where one exists, or the **unit test / manual
-check** otherwise — so the manual scripts and the suite stay in lock-step.
+A catalogue of what people can do and why, with concise acceptance criteria for the fields
+or controls they encounter. Historical stories stay discoverable when a feature is hidden or removed.
 
-- **[REFERENCE.md](REFERENCE.md)** — the single source of truth: routes, control labels,
-  `data-testid`s, the first-run seed data, and domain rules. Read this first.
-- **[TEMPLATE.md](TEMPLATE.md)** — the story shape + a fully-worked exemplar.
+- [Coverage matrix](COVERAGE.md): actions, roles, availability and newly documented capabilities.
+- [Decision gaps](GAPS.md): discrepancies and deliberately retained features.
+- [Template](TEMPLATE.md): how to write and maintain a story.
+- [Reference](REFERENCE.md): contexts, shared boundaries and source map.
 
-**How to run a manual pass:** `pnpm run dev:demo`, open the URL Vite prints (5173 is the
-lane-zero example; use the printed port when another lane is selected), then work through the areas
-below ticking each ✅. Reload to reset the in-memory demo to its seed. Use
-`pnpm run dev` when the story specifically covers server persistence or authentication.
+179 stories across 19 areas. All 132 pre-existing story files and identifiers are retained.
 
-**How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
-`pnpm test` (the workspace's frontend/shared Vitest suites and backend tests), and the axe a11y
-oracle in `e2e/a11y.spec.ts`.
+Status describes source-reviewed availability, not a browser test result. See the reference for
+status definitions. Guide and implementation links live with each story; tests remain in the test suite.
 
-132 stories across 17 areas. The **Automated coverage** column names the spec file(s) whose
-tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
-stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
-line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
-are covered by **unit tests and/or the manual script** instead, and are flagged as such. Three
-stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04; the jump-to-date
-picker — US-TBR-04) are marked **not runnable** until that UI returns.
+## Accessibility
 
----
+| Story                                                           | Action                                                 | Status  |
+| --------------------------------------------------------------- | ------------------------------------------------------ | ------- |
+| [US-KBD-01](accessibility/US-KBD-01-bar-keyboard.md)            | Operate schedule allocations by keyboard               | Current |
+| [US-KBD-02](accessibility/US-KBD-02-modal-keyboard.md)          | Use dialogs with a keyboard                            | Current |
+| [US-KBD-03](accessibility/US-KBD-03-grid-semantics.md)          | Understand the schedule grid with assistive technology | Current |
+| [US-KBD-04](accessibility/US-KBD-04-axe-clean.md)               | Keep key screens accessible                            | Current |
+| [US-KBD-05](accessibility/US-KBD-05-field-error-association.md) | Associate validation errors with fields                | Current |
+| [US-KBD-06](accessibility/US-KBD-06-compact-input-modals.md)    | Scan management forms at different widths              | Current |
 
-## Navigation & shell — `navigation/`
+## Account
 
-| Story                                                          | Title                                                          | Automated coverage                                                                                         |
-| -------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate between all available sections                        | `e2e/navigation.spec.ts`                                                                                   |
-| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | Active section is indicated (`aria-current`)                   | `e2e/navigation.spec.ts`                                                                                   |
-| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Content gated on hydration ("Loading…")                        | manual (AppShell gates on `hydrated`)                                                                      |
-| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | Server save-failure warning                                    | `e2e/resilience.db.spec.ts` + unit (`AppShell.test.tsx`, `planningCacheController.test.ts`)                |
-| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Transient toast (auto-dismiss)                                 | `e2e/data.spec.ts` (toast appears); auto-dismiss manual                                                    |
-| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Light / dark theme preference                                  | `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts` (dark)                                                       |
-| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recoverable error screen                                       | unit (`ErrorBoundary.test.tsx`) + manual                                                                   |
-| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Command palette (⌘K / Ctrl+K)                                  | `e2e/palette.spec.ts` + unit (`CommandPalette.test.tsx`, `fuzzy.test.ts`)                                  |
-| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Mobile affordances (sidebar rail + rotate hint)                | `e2e/mobile.spec.ts`                                                                                       |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Sign in before using persisted server data                     | `e2e/login.auth.spec.ts` (auth-backed project)                                                             |
-| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Non-blocking, reusable product orientation                     | `ProductOrientation.test.tsx` + `AppShell.productOrientation.test.tsx` + `e2e/product-orientation.spec.ts` |
-| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Setup milestones, progress, dismissal and role-based tour      | `e2e/getting-started.spec.ts` + `e2e/getting-started.db.spec.ts` + auth E2E + `GettingStarted.test.tsx`    |
-| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company                       | `AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`                          |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `button.test.tsx` + `designTokens.test.ts` + `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts`                 |
-| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and start the role-based tour                        | `HelpView.test.tsx` + navigation, mobile and role-auth E2E                                                 |
+| Story                                                          | Action                               | Status  |
+| -------------------------------------------------------------- | ------------------------------------ | ------- |
+| [US-ACCOUNT-01](account/US-ACCOUNT-01-identity.md)             | Check my signed-in identity          | Current |
+| [US-ACCOUNT-02](account/US-ACCOUNT-02-password-change.md)      | Change my password                   | Current |
+| [US-ACCOUNT-03](account/US-ACCOUNT-03-password-reset.md)       | Recover a forgotten password         | Current |
+| [US-ACCOUNT-04](account/US-ACCOUNT-04-sign-out.md)             | Sign out of this browser             | Current |
+| [US-ACCOUNT-05](account/US-ACCOUNT-05-delete-account.md)       | Delete my account                    | Current |
+| [US-ACCOUNT-06](account/US-ACCOUNT-06-register.md)             | Create my account from an invitation | Current |
+| [US-ACCOUNT-07](account/US-ACCOUNT-07-confirm-email.md)        | Confirm my email address             | Current |
+| [US-ACCOUNT-08](account/US-ACCOUNT-08-session-verification.md) | Retry session verification           | Current |
+| [US-ACCOUNT-09](account/US-ACCOUNT-09-limited-access.md)       | Resolve my limited account access    | Current |
 
-## Overview — `capacity-overview/`
+## Activities
 
-| Story                                                                 | Title                                        | Automated coverage                                                     |
-| --------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
-| [US-CAP-01](capacity-overview/US-CAP-01-review-four-week-capacity.md) | Review four-, eight- or twelve-week capacity | `e2e/capacity-overview.spec.ts` + `e2e/capacity-overview.auth.spec.ts` |
+| Story                                                        | Action                                                             | Status  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------ | ------- |
+| [US-ACT-01](activities/US-ACT-01-add-activity.md)            | Add an activity (internal, all-projects, or project-specific)      | Current |
+| [US-ACT-02](activities/US-ACT-02-activity-phase.md)          | Assign an activity to a phase (optional; resets on project change) | Hidden  |
+| [US-ACT-03](activities/US-ACT-03-edit-activity.md)           | Edit an activity                                                   | Current |
+| [US-ACT-04](activities/US-ACT-04-delete-activity-cascade.md) | Archive an activity (allocations hidden)                           | Current |
+| [US-ACT-05](activities/US-ACT-05-restore-activity.md)        | Restore an archived activity                                       | Current |
 
-## Resources — `resources/`
+## Allocation
 
-| Story                                                     | Title                                | Automated coverage                                            |
-| --------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------- |
-| [US-RES-01](resources/US-RES-01-add-person.md)            | Add a person                         | `e2e/resources.spec.ts` + unit/component/store (availability) |
-| [US-RES-02](resources/US-RES-02-add-placeholder.md)       | Add a placeholder bound to a project | `e2e/resources.spec.ts`                                       |
-| [US-RES-03](resources/US-RES-03-edit-resource.md)         | Edit a resource                      | `e2e/resources.spec.ts` + component/store (availability)      |
-| [US-RES-04](resources/US-RES-04-archive-resource.md)      | Archive a resource (retain children) | `e2e/resources.spec.ts`                                       |
-| [US-RES-05](resources/US-RES-05-working-days.md)          | Set working days                     | unit (`capacity.test.ts`) + manual                            |
-| [US-RES-06](resources/US-RES-06-working-hours.md)         | Use fixed working hours              | unit + `e2e/resources.spec.ts`                                |
-| [US-RES-07](resources/US-RES-07-engagement.md)            | Studio or Supplementary engagement   | `e2e/resources.spec.ts`                                       |
-| [US-RES-08](resources/US-RES-08-discipline-grouping.md)   | Group under a discipline             | `e2e/resources.spec.ts` + `e2e/disciplines.spec.ts`           |
-| [US-RES-09](resources/US-RES-09-resource-colour.md)       | Colour derives from discipline       | `e2e/resources.spec.ts`                                       |
-| [US-RES-10](resources/US-RES-10-resource-list-display.md) | Resource list display                | `e2e/resources.spec.ts` + unit (`ResourceList.test.tsx`)      |
-| [US-RES-11](resources/US-RES-11-availability-dates.md)    | Set availability dates               | unit/component/store + server batch; manual (no E2E)          |
+| Story                                                          | Action                                         | Status  |
+| -------------------------------------------------------------- | ---------------------------------------------- | ------- |
+| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create an allocation via the modal             | Current |
+| [US-ALL-02](allocation/US-ALL-02-edit.md)                      | Edit an existing allocation                    | Current |
+| [US-ALL-03](allocation/US-ALL-03-duplicate.md)                 | Duplicate an allocation                        | Current |
+| [US-ALL-04](allocation/US-ALL-04-delete.md)                    | Delete an allocation                           | Current |
+| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add a new activity inline from the modal       | Current |
+| [US-ALL-06](allocation/US-ALL-06-change-assignee.md)           | Change an allocation's assignee                | Current |
+| [US-ALL-07](allocation/US-ALL-07-placeholder-locks-project.md) | Placeholder assignee locks the project         | Current |
+| [US-ALL-08](allocation/US-ALL-08-validation.md)                | The modal rejects bad input                    | Current |
+| [US-ALL-09](allocation/US-ALL-09-repeat-creation.md)           | Create repeating weekly or monthly allocations | Current |
+| [US-ALL-10](allocation/US-ALL-10-task-field.md)                | Add an optional task to an allocation          | Current |
+| [US-ALL-11](allocation/US-ALL-11-cancel-allocation-form.md)    | Cancel allocation create or edit               | Current |
 
-## Disciplines — `disciplines/`
+## Capacity Overview
 
-| Story                                                            | Title                                               | Automated coverage                                 |
-| ---------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------- |
-| [US-DIS-01](disciplines/US-DIS-01-add-discipline.md)             | Add a discipline                                    | `e2e/disciplines.spec.ts`                          |
-| [US-DIS-02](disciplines/US-DIS-02-edit-discipline.md)            | Edit a discipline                                   | `e2e/disciplines.spec.ts`                          |
-| [US-DIS-03](disciplines/US-DIS-03-delete-discipline-ungroups.md) | Delete (ungroups resources)                         | `e2e/disciplines.spec.ts`                          |
-| [US-DIS-04](disciplines/US-DIS-04-sort-order.md)                 | Disciplines use a predictable order on each surface | `e2e/alphabetical-management-lists.spec.ts` + unit |
+| Story                                                                 | Action                                       | Status  |
+| --------------------------------------------------------------------- | -------------------------------------------- | ------- |
+| [US-CAP-01](capacity-overview/US-CAP-01-review-four-week-capacity.md) | Review four-, eight- or twelve-week capacity | Current |
 
-## Clients — `clients/`
+## Clients
 
-| Story                                                      | Title                                  | Automated coverage                                   |
-| ---------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
-| [US-CLI-01](clients/US-CLI-01-add-client.md)               | Add a client                           | `e2e/clients.spec.ts`                                |
-| [US-CLI-02](clients/US-CLI-02-edit-client.md)              | Edit a client                          | `e2e/clients.spec.ts`                                |
-| [US-CLI-03](clients/US-CLI-03-archive-client.md)           | Archive a client (retain children)     | `e2e/clients.spec.ts` + unit (`integrity.test.ts`)   |
-| [US-CLI-04](clients/US-CLI-04-internal-client.md)          | Built-in Internal client               | `e2e/internal-client.spec.ts`                        |
-| [US-CLI-05](clients/US-CLI-05-private-client-code-name.md) | Mark a client private with a code name | `e2e/clients.spec.ts` + unit (`ClientForm.test.tsx`) |
+| Story                                                      | Action                                 | Status  |
+| ---------------------------------------------------------- | -------------------------------------- | ------- |
+| [US-CLI-01](clients/US-CLI-01-add-client.md)               | Add a client                           | Current |
+| [US-CLI-02](clients/US-CLI-02-edit-client.md)              | Edit a client                          | Current |
+| [US-CLI-03](clients/US-CLI-03-archive-client.md)           | Archive a client                       | Current |
+| [US-CLI-04](clients/US-CLI-04-internal-client.md)          | The built-in "Internal" client         | Current |
+| [US-CLI-05](clients/US-CLI-05-private-client-code-name.md) | Mark a client private with a code name | Current |
+| [US-CLI-06](clients/US-CLI-06-restore-client.md)           | Restore an archived client             | Current |
 
-## Projects — `projects/`
+## Data
 
-| Story                                                        | Title                                   | Automated coverage                                  |
-| ------------------------------------------------------------ | --------------------------------------- | --------------------------------------------------- |
-| [US-PRJ-01](projects/US-PRJ-01-add-project.md)               | Add a project (needs a client)          | `e2e/projects.spec.ts` + `e2e/crud.spec.ts`         |
-| [US-PRJ-02](projects/US-PRJ-02-edit-project.md)              | Edit a project                          | `e2e/projects.spec.ts`                              |
-| [US-PRJ-03](projects/US-PRJ-03-archive-project.md)           | Archive a project (retain children)     | `e2e/projects.spec.ts` + unit (`integrity.test.ts`) |
-| [US-PRJ-04](projects/US-PRJ-04-manage-phases.md)             | Manage phases in a project              | manual — n/a (Phase UI hidden)                      |
-| [US-PRJ-05](projects/US-PRJ-05-private-project-code-name.md) | Mark a project private with a code name | unit (`ProjectForm.test.tsx`) + manual              |
+| Story                                                   | Action                                    | Status  |
+| ------------------------------------------------------- | ----------------------------------------- | ------- |
+| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                       | Current |
+| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data          | Current |
+| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history   | Current |
+| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files               | Current |
+| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload          | Current |
+| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore temporary demo data               | Demo    |
+| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in transfer | Current |
+| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation        | Current |
 
-## Privacy & confidential names — `privacy/`
+## Disciplines
 
-| Story                                                                   | Title                                            | Automated coverage                                          |
-| ----------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
-| [US-PRI-01](privacy/US-PRI-01-role-safe-private-name-display.md)        | Role-safe private-name display across the app    | server authz + component tests; cross-surface manual        |
-| [US-PRI-02](privacy/US-PRI-02-preserve-private-identities-on-writes.md) | Preserve private identities across server writes | `apps/backend/tests/functional/planning/operations.spec.ts` |
+| Story                                                            | Action                                                 | Status  |
+| ---------------------------------------------------------------- | ------------------------------------------------------ | ------- |
+| [US-DIS-01](disciplines/US-DIS-01-add-discipline.md)             | Add a discipline                                       | Current |
+| [US-DIS-02](disciplines/US-DIS-02-edit-discipline.md)            | Edit a discipline                                      | Current |
+| [US-DIS-03](disciplines/US-DIS-03-delete-discipline-ungroups.md) | Delete a discipline (resources ungrouped, not deleted) | Current |
+| [US-DIS-04](disciplines/US-DIS-04-sort-order.md)                 | Disciplines use a predictable order on each surface    | Current |
 
-## Activities — `activities/`
+## Filters
 
-| Story                                                        | Title                                        | Automated coverage             |
-| ------------------------------------------------------------ | -------------------------------------------- | ------------------------------ |
-| [US-ACT-01](activities/US-ACT-01-add-activity.md)            | Add an activity (general or under a project) | `e2e/activities.spec.ts`       |
-| [US-ACT-02](activities/US-ACT-02-activity-phase.md)          | Assign an activity to a phase                | manual — n/a (Phase UI hidden) |
-| [US-ACT-03](activities/US-ACT-03-edit-activity.md)           | Edit an activity                             | `e2e/activities.spec.ts`       |
-| [US-ACT-04](activities/US-ACT-04-delete-activity-cascade.md) | Delete an activity (cascade)                 | `e2e/activities.spec.ts`       |
+| Story                                               | Action                                 | Status  |
+| --------------------------------------------------- | -------------------------------------- | ------- |
+| [US-FIL-01](filters/US-FIL-01-search.md)            | Search resources by name or role       | Current |
+| [US-FIL-02](filters/US-FIL-02-filter-discipline.md) | Filter by discipline                   | Current |
+| [US-FIL-03](filters/US-FIL-03-filter-client.md)     | Filter by client                       | Current |
+| [US-FIL-04](filters/US-FIL-04-filter-project.md)    | Filter by project                      | Current |
+| [US-FIL-05](filters/US-FIL-05-hide-tentative.md)    | Hide tentative allocations             | Current |
+| [US-FIL-06](filters/US-FIL-06-clear-filters.md)     | Clear all filters at once              | Current |
+| [US-FIL-07](filters/US-FIL-07-empty-state.md)       | Empty state when no resource matches   | Current |
+| [US-FIL-08](filters/US-FIL-08-filter-activity.md)   | Filter by activity (the activity lens) | Current |
+| [US-FIL-09](filters/US-FIL-09-toggle-filter-row.md) | Show or hide the schedule filters      | Current |
+| [US-FIL-10](filters/US-FIL-10-show-unallocated.md)  | Show resources without matching work   | Current |
 
-## Time off — `time-off/`
+## Installation
 
-| Story                                                   | Title                             | Automated coverage                                                                           |
-| ------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------- |
-| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)        | Book time off                     | `e2e/timeoff.spec.ts` + `e2e/features.spec.ts`                                               |
-| [US-TOF-02](time-off/US-TOF-02-edit-time-off.md)        | Edit a time-off entry             | `e2e/timeoff.spec.ts`                                                                        |
-| [US-TOF-03](time-off/US-TOF-03-delete-time-off.md)      | Delete a time-off entry           | `e2e/timeoff.spec.ts`                                                                        |
-| [US-TOF-04](time-off/US-TOF-04-type-label.md)           | Human type label                  | `e2e/timeoff.spec.ts` + unit (`TimeOffList.test.tsx`)                                        |
-| [US-TOF-05](time-off/US-TOF-05-grouped-forward-view.md) | Group current/future time off     | `e2e/timeoff.spec.ts` + unit (`timeOffView.test.ts`)                                         |
-| [US-TOF-06](time-off/US-TOF-06-company-wide-closure.md) | Company-wide closure for Everyone | `e2e/company-closures.auth.spec.ts` + unit (`timeOffView.test.ts`, `schedulerModel.test.ts`) |
+| Story                                                     | Action                                  | Status   |
+| --------------------------------------------------------- | --------------------------------------- | -------- |
+| [US-INS-01](installation/US-INS-01-install-one-agency.md) | Install and operate one agency instance | Operator |
 
-## Scheduler timeline — `scheduler/`
+## Navigation
 
-| Story                                                           | Title                                      | Automated coverage                                               |
-| --------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------- |
-| [US-SCH-01](scheduler/US-SCH-01-grouped-capacity-cues.md)       | Grouped rows + capacity cues               | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-02](scheduler/US-SCH-02-draw-allocation.md)             | Draw a new allocation                      | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off on a lane                    | `e2e/features.spec.ts`                                           |
-| [US-SCH-04](scheduler/US-SCH-04-move-drag.md)                   | Move an allocation by dragging             | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-05](scheduler/US-SCH-05-resize.md)                      | Resize an allocation                       | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign by dragging between rows          | `e2e/features.spec.ts`                                           |
-| [US-SCH-07](scheduler/US-SCH-07-placeholder-reassign-reject.md) | Placeholder reassign rejected              | unit (`AllocationBar.pointerDrag.interaction.test.tsx`) + manual |
-| [US-SCH-08](scheduler/US-SCH-08-lane-stacking.md)               | Overlapping allocations stack              | `e2e/scheduler.spec.ts` + unit (`lanePacking.test.ts`)           |
-| [US-SCH-09](scheduler/US-SCH-09-over-allocation.md)             | Over-allocated days flagged                | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-10](scheduler/US-SCH-10-unavailable-days.md)            | Unavailable days greyed                    | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-11](scheduler/US-SCH-11-time-off-block.md)              | Time off as a labelled block               | `e2e/features.spec.ts` + `e2e/timeoff.spec.ts`                   |
-| [US-SCH-12](scheduler/US-SCH-12-today-line.md)                  | Today line                                 | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-13](scheduler/US-SCH-13-utilisation-flag.md)            | Per-resource utilisation %, red when over  | `e2e/scheduler.spec.ts` + unit (`schedulerModel.test.ts`)        |
-| [US-SCH-14](scheduler/US-SCH-14-utilisation-summary.md)         | Overall + per-discipline summary           | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-15](scheduler/US-SCH-15-bar-popover.md)                 | Bar detail popover                         | `e2e/scheduler.spec.ts` + unit (`AllocationBar.test.tsx`)        |
-| [US-SCH-16](scheduler/US-SCH-16-collapse-group.md)              | Collapse/expand a discipline group         | `e2e/features.spec.ts`                                           |
-| [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md)            | Row "+" quick-create                       | `e2e/allocation.spec.ts`                                         |
-| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to visible window    | manual                                                           |
-| [US-SCH-19](scheduler/US-SCH-19-status-and-note-distinct.md)    | Status & note visually distinct on the bar | `e2e/scheduler.spec.ts`                                          |
+| Story                                                          | Action                                           | Status  |
+| -------------------------------------------------------------- | ------------------------------------------------ | ------- |
+| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate permitted sections                      | Current |
+| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | See the active section                           | Current |
+| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Wait for company data                            | Current |
+| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | See planning read and save failures              | Current |
+| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Read and dismiss action notices                  | Current |
+| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Choose appearance                                | Current |
+| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                   | Current |
+| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                    | Current |
+| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen                | Current |
+| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Enter the persisted application                  | Current |
+| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry                  | Current |
+| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                    | Current |
+| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company         | Current |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity    | Current |
+| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour                  | Current |
+| [US-NAV-17](navigation/US-NAV-17-demo-mode.md)                 | Create, switch between, and reset demo companies | Demo    |
+| [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address                | Current |
+| [US-NAV-19](navigation/US-NAV-19-connection-retry.md)          | Retry after a server connection failure          | Current |
+| [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load    | Current |
+| [US-NAV-21](navigation/US-NAV-21-browser-storage-recovery.md)  | Recover unreadable browser storage               | Current |
+| [US-NAV-22](navigation/US-NAV-22-desktop-sidebar-toggle.md)    | Collapse or expand desktop navigation            | Current |
 
-## Allocation editor — `allocation/`
+## Privacy
 
-| Story                                                          | Title                         | Automated coverage                                |
-| -------------------------------------------------------------- | ----------------------------- | ------------------------------------------------- |
-| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create via the modal          | `e2e/allocation.spec.ts`                          |
-| [US-ALL-02](allocation/US-ALL-02-edit.md)                      | Edit an allocation            | `e2e/allocation.spec.ts`                          |
-| [US-ALL-03](allocation/US-ALL-03-duplicate.md)                 | Duplicate an allocation       | `e2e/allocation.spec.ts`                          |
-| [US-ALL-04](allocation/US-ALL-04-delete.md)                    | Delete an allocation          | `e2e/allocation.spec.ts`                          |
-| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add an activity inline        | `e2e/allocation.spec.ts`                          |
-| [US-ALL-06](allocation/US-ALL-06-change-assignee.md)           | Change assignee               | `e2e/allocation.spec.ts`                          |
-| [US-ALL-07](allocation/US-ALL-07-placeholder-locks-project.md) | Placeholder locks the project | `e2e/allocation.spec.ts` + `e2e/features.spec.ts` |
-| [US-ALL-08](allocation/US-ALL-08-validation.md)                | Rejects bad input             | `e2e/allocation.spec.ts`                          |
-| [US-ALL-09](allocation/US-ALL-09-repeat-creation.md)           | Create repeating allocations  | `e2e/allocation.spec.ts`                          |
-| [US-ALL-10](allocation/US-ALL-10-task-field.md)                | Add an optional task label    | unit/component + manual                           |
+| Story                                                                   | Action                                       | Status  |
+| ----------------------------------------------------------------------- | -------------------------------------------- | ------- |
+| [US-PRI-01](privacy/US-PRI-01-role-safe-private-name-display.md)        | Show private names according to role         | Current |
+| [US-PRI-02](privacy/US-PRI-02-preserve-private-identities-on-writes.md) | Preserve protected names on non-Owner writes | Current |
 
-## Toolbar — `toolbar/`
+## Projects
 
-| Story                                                | Title                                         | Automated coverage                              |
-| ---------------------------------------------------- | --------------------------------------------- | ----------------------------------------------- |
-| [US-TBR-01](toolbar/US-TBR-01-zoom.md)               | Weeks visible (1/2/4/6/8 weeks)               | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
-| [US-TBR-02](toolbar/US-TBR-02-pan.md)                | Pan a week (icon-only Prev/Next)              | `e2e/toolbar.spec.ts`                           |
-| [US-TBR-03](toolbar/US-TBR-03-today.md)              | Re-centre on Today                            | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
-| [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md)       | Jump to a date (hidden from toolbar — #173)   | `JumpToDateInput.test.tsx` + `useStore.test.ts` |
-| [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Work / Time-off draw mode                     | `e2e/toolbar.spec.ts` + `e2e/features.spec.ts`  |
-| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md)  | Booking undo/redo toolbar buttons + keyboard  | `e2e/toolbar.spec.ts`                           |
-| [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Booking undo/redo (⌘Z / ⌘⇧Z)                  | `e2e/toolbar.spec.ts`                           |
-| [US-TBR-08](toolbar/US-TBR-08-week-start-snap.md)    | Navigation re-anchors left edge to week start | `e2e/scheduler.spec.ts` + `e2e/toolbar.spec.ts` |
+| Story                                                        | Action                                  | Status  |
+| ------------------------------------------------------------ | --------------------------------------- | ------- |
+| [US-PRJ-01](projects/US-PRJ-01-add-project.md)               | Add a project (must belong to a client) | Current |
+| [US-PRJ-02](projects/US-PRJ-02-edit-project.md)              | Edit a project                          | Current |
+| [US-PRJ-03](projects/US-PRJ-03-archive-project.md)           | Archive a project                       | Current |
+| [US-PRJ-04](projects/US-PRJ-04-manage-phases.md)             | Manage phases inside a project          | Hidden  |
+| [US-PRJ-05](projects/US-PRJ-05-private-project-code-name.md) | Mark a project private with a code name | Current |
+| [US-PRJ-06](projects/US-PRJ-06-restore-project.md)           | Restore an archived project             | Current |
 
-## Filters — `filters/`
+## Resources
 
-| Story                                               | Title                | Automated coverage                             |
-| --------------------------------------------------- | -------------------- | ---------------------------------------------- |
-| [US-FIL-01](filters/US-FIL-01-search.md)            | Search by name/role  | `e2e/filters.spec.ts`                          |
-| [US-FIL-02](filters/US-FIL-02-filter-discipline.md) | Filter by discipline | `e2e/filters.spec.ts`                          |
-| [US-FIL-03](filters/US-FIL-03-filter-client.md)     | Filter by client     | `e2e/filters.spec.ts`                          |
-| [US-FIL-04](filters/US-FIL-04-filter-project.md)    | Filter by project    | `e2e/filters.spec.ts` + `e2e/features.spec.ts` |
-| [US-FIL-05](filters/US-FIL-05-hide-tentative.md)    | Hide tentative       | `e2e/filters.spec.ts`                          |
-| [US-FIL-06](filters/US-FIL-06-clear-filters.md)     | Clear all filters    | `e2e/filters.spec.ts`                          |
-| [US-FIL-07](filters/US-FIL-07-empty-state.md)       | Filtered empty state | `e2e/filters.spec.ts`                          |
-| [US-FIL-08](filters/US-FIL-08-filter-activity.md)   | Filter by activity   | `e2e/filters.spec.ts`                          |
-| [US-FIL-09](filters/US-FIL-09-toggle-filter-row.md) | Toggle filter row    | `e2e/toolbar.spec.ts`                          |
+| Story                                                     | Action                                        | Status  |
+| --------------------------------------------------------- | --------------------------------------------- | ------- |
+| [US-RES-01](resources/US-RES-01-add-person.md)            | Add a person resource                         | Current |
+| [US-RES-02](resources/US-RES-02-add-placeholder.md)       | Add a placeholder bound to a project          | Current |
+| [US-RES-03](resources/US-RES-03-edit-resource.md)         | Edit a resource's fields                      | Current |
+| [US-RES-04](resources/US-RES-04-archive-resource.md)      | Archive a resource                            | Current |
+| [US-RES-05](resources/US-RES-05-working-days.md)          | Set a resource's working days                 | Current |
+| [US-RES-06](resources/US-RES-06-working-hours.md)         | Use fixed resource working hours              | Current |
+| [US-RES-07](resources/US-RES-07-engagement.md)            | Studio or Supplementary engagement            | Current |
+| [US-RES-08](resources/US-RES-08-discipline-grouping.md)   | Group a resource under a discipline           | Current |
+| [US-RES-09](resources/US-RES-09-resource-colour.md)       | A resource's colour comes from its discipline | Current |
+| [US-RES-10](resources/US-RES-10-resource-list-display.md) | The resource list display                     | Current |
+| [US-RES-11](resources/US-RES-11-availability-dates.md)    | Set a person's availability dates             | Current |
+| [US-RES-12](resources/US-RES-12-add-external-party.md)    | Add an external party                         | Current |
+| [US-RES-13](resources/US-RES-13-restore-resource.md)      | Restore an archived resource                  | Current |
+| [US-RES-14](resources/US-RES-14-favourite-resource.md)    | Favourite a resource                          | Current |
+| [US-RES-15](resources/US-RES-15-edit-external-party.md)   | Edit an external party                        | Current |
+| [US-RES-16](resources/US-RES-16-anonymise-resource.md)    | Anonymise an archived resource                | Current |
 
-## Settings — `settings/`
+## Scheduler
 
-| Story                                                     | Title                                           | Automated coverage                                     |
-| --------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------ |
-| [US-SET-01](settings/US-SET-01-calendar-settings.md)      | Team calendar (week start + timezone)           | `e2e/settings-calendar.spec.ts`                        |
-| [US-SET-02](settings/US-SET-02-bar-labels.md)             | Allocation-bar label toggles                    | `e2e/settings-bar-labels.spec.ts`                      |
-| [US-SET-03](settings/US-SET-03-build-stamp.md)            | Build stamp (flag-gated)                        | `e2e/settings-build-stamp.spec.ts` (Diagnostics)       |
-| [US-SET-04](settings/US-SET-04-send-feedback.md)          | Send feedback mailto (flag-gated)               | `e2e/settings-build-stamp.spec.ts` (Diagnostics)       |
-| [US-SET-05](settings/US-SET-05-minimise-weekends.md)      | Minimise weekends on the schedule               | `e2e/minimise-weekends.spec.ts`                        |
-| [US-SET-06](settings/US-SET-06-show-placeholders.md)      | Show placeholders on the schedule               | `e2e/placeholders.spec.ts`                             |
-| [US-SET-07](settings/US-SET-07-show-external.md)          | Show external / 3rd parties                     | `e2e/external.spec.ts`                                 |
-| [US-SET-08](settings/US-SET-08-clear-local-storage.md)    | Device preferences                              | device preference and network failure tests            |
-| [US-SET-09](settings/US-SET-09-snap-to-week-start.md)     | Snap the schedule's left edge to the week start | `e2e/snap-week.spec.ts`                                |
-| [US-SET-10](settings/US-SET-10-member-management.md)      | Member management (invite / role / revoke)      | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts` |
-| [US-SET-11](settings/US-SET-11-viewer-readonly.md)        | Viewer read-only mode                           | `e2e/viewer.auth.spec.ts`                              |
-| [US-SET-12](settings/US-SET-12-archived-deleted.md)       | Inline archives and deleted records             | `e2e/archived.spec.ts`                                 |
-| [US-SET-13](settings/US-SET-13-password-reset-links.md)   | Password recovery by email                      | `recovery.spec.ts` + unit (`ResetPassword.test.tsx`)   |
-| [US-SET-14](settings/US-SET-14-internal-work-colours.md)  | Internal work colours                           | `e2e/internal-colours.spec.ts`                         |
-| [US-SET-15](settings/US-SET-15-global-working-days.md)    | Company-wide working days                       | `e2e/global-working-days.spec.ts`                      |
-| [US-SET-16](settings/US-SET-16-diagnostics.md)            | Copy privacy-safe diagnostics                   | `DiagnosticsView.test.tsx` + `e2e/a11y.spec.ts`        |
-| [US-SET-17](settings/US-SET-17-date-style.md)             | Company-wide date format                        | `e2e/settings-date-style.spec.ts` + `.db.spec.ts`      |
-| [US-SET-18](settings/US-SET-18-ownership-transfer.md)     | Hand the company to someone else                | `e2e/ownership-transfer.auth.spec.ts`                  |
-| [US-SET-19](settings/US-SET-19-company-joining-policy.md) | Approve who joins the company                   | `e2e/admission.auth.spec.ts`                           |
+| Story                                                           | Action                                                             | Status  |
+| --------------------------------------------------------------- | ------------------------------------------------------------------ | ------- |
+| [US-SCH-01](scheduler/US-SCH-01-grouped-capacity-cues.md)       | Resources grouped by discipline, with capacity cues                | Current |
+| [US-SCH-02](scheduler/US-SCH-02-draw-allocation.md)             | Draw a new allocation across empty lane space                      | Current |
+| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off directly on a lane                                   | Current |
+| [US-SCH-04](scheduler/US-SCH-04-move-drag.md)                   | Move an allocation by dragging its body                            | Current |
+| [US-SCH-05](scheduler/US-SCH-05-resize.md)                      | Resize an allocation with its grip handles                         | Current |
+| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign an allocation onto another resource                       | Current |
+| [US-SCH-07](scheduler/US-SCH-07-placeholder-reassign-reject.md) | Reassigning onto a mismatched placeholder is rejected              | Current |
+| [US-SCH-08](scheduler/US-SCH-08-lane-stacking.md)               | Overlapping allocations stack into separate lanes                  | Current |
+| [US-SCH-09](scheduler/US-SCH-09-over-allocation.md)             | Over-allocated days are flagged with an over-marker                | Current |
+| [US-SCH-10](scheduler/US-SCH-10-unavailable-days.md)            | Unavailable days are greyed (weekends, non-working days, time off) | Current |
+| [US-SCH-11](scheduler/US-SCH-11-time-off-block.md)              | Time off renders as a labelled hatched block                       | Current |
+| [US-SCH-12](scheduler/US-SCH-12-today-line.md)                  | A vertical line marks today                                        | Current |
+| [US-SCH-13](scheduler/US-SCH-13-utilisation-flag.md)            | Per-resource near-term utilisation flag                            | Current |
+| [US-SCH-14](scheduler/US-SCH-14-utilisation-summary.md)         | Overall and per-discipline utilisation summary                     | Current |
+| [US-SCH-15](scheduler/US-SCH-15-bar-popover.md)                 | Allocation detail popover on hover/focus                           | Current |
+| [US-SCH-16](scheduler/US-SCH-16-collapse-group.md)              | Collapse and expand a discipline group                             | Current |
+| [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md)            | Quick-create an allocation from a row's "+" button                 | Current |
+| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to the date you're looking at                | Current |
+| [US-SCH-19](scheduler/US-SCH-19-status-and-note-distinct.md)    | Allocation status and notes are visually distinct on the bar       | Current |
+| [US-SCH-20](scheduler/US-SCH-20-person-schedule-drawer.md)      | Open a read-only person schedule                                   | Current |
 
-## Keyboard & accessibility — `accessibility/`
+## Settings
 
-| Story                                                           | Title                               | Automated coverage                                         |
-| --------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------- |
-| [US-KBD-01](accessibility/US-KBD-01-bar-keyboard.md)            | Operate a bar by keyboard           | `e2e/accessibility.spec.ts`                                |
-| [US-KBD-02](accessibility/US-KBD-02-modal-keyboard.md)          | Modal focus management              | `e2e/accessibility.spec.ts`                                |
-| [US-KBD-03](accessibility/US-KBD-03-grid-semantics.md)          | Grid semantics + row summary        | `e2e/accessibility.spec.ts`                                |
-| [US-KBD-04](accessibility/US-KBD-04-axe-clean.md)               | No serious/critical WCAG violations | `e2e/a11y.spec.ts` (light + dark + modal)                  |
-| [US-KBD-05](accessibility/US-KBD-05-field-error-association.md) | Field-level error association       | `e2e/accessibility.spec.ts` + unit (`ClientForm.test.tsx`) |
-| [US-KBD-06](accessibility/US-KBD-06-compact-input-modals.md)    | Scan compact input modals           | `e2e/modal-layout.spec.ts` + component tests               |
+| Story                                                       | Action                                   | Status  |
+| ----------------------------------------------------------- | ---------------------------------------- | ------- |
+| [US-SET-01](settings/US-SET-01-calendar-settings.md)        | Company details                          | Current |
+| [US-SET-02](settings/US-SET-02-bar-labels.md)               | Choose allocation bar labels             | Current |
+| [US-SET-03](settings/US-SET-03-build-stamp.md)              | Read build details                       | Current |
+| [US-SET-04](settings/US-SET-04-send-feedback.md)            | Open a feedback email                    | Current |
+| [US-SET-05](settings/US-SET-05-minimise-weekends.md)        | Minimise weekend columns                 | Current |
+| [US-SET-06](settings/US-SET-06-show-placeholders.md)        | Show placeholders                        | Current |
+| [US-SET-07](settings/US-SET-07-show-external.md)            | Show external resources                  | Current |
+| [US-SET-08](settings/US-SET-08-clear-local-storage.md)      | Keep device preferences separate         | Current |
+| [US-SET-09](settings/US-SET-09-snap-to-week-start.md)       | Snap the schedule to week boundaries     | Current |
+| [US-SET-10](settings/US-SET-10-member-management.md)        | Manage members and invitations           | Current |
+| [US-SET-11](settings/US-SET-11-viewer-readonly.md)          | View role capabilities                   | Current |
+| [US-SET-12](settings/US-SET-12-archived-deleted.md)         | Archive and anonymise records            | Current |
+| [US-SET-13](settings/US-SET-13-password-reset-links.md)     | Recover a password                       | Current |
+| [US-SET-14](settings/US-SET-14-internal-work-colours.md)    | Use neutral internal-work colours        | Current |
+| [US-SET-15](settings/US-SET-15-global-working-days.md)      | Set company working days                 | Current |
+| [US-SET-16](settings/US-SET-16-diagnostics.md)              | Copy diagnostics                         | Current |
+| [US-SET-17](settings/US-SET-17-date-style.md)               | Choose the date format                   | Current |
+| [US-SET-18](settings/US-SET-18-ownership-transfer.md)       | Transfer company ownership               | Current |
+| [US-SET-19](settings/US-SET-19-company-joining-policy.md)   | Approve company admission                | Current |
+| [US-SET-20](settings/US-SET-20-allocation-units.md)         | Choose scheduling units                  | Current |
+| [US-SET-21](settings/US-SET-21-overview-access.md)          | Control Overview access                  | Current |
+| [US-SET-22](settings/US-SET-22-use-disciplines.md)          | Enable disciplines                       | Current |
+| [US-SET-23](settings/US-SET-23-inline-activity-creation.md) | Create activities inline                 | Current |
+| [US-SET-24](settings/US-SET-24-task-field.md)               | Show the Task field                      | Current |
+| [US-SET-25](settings/US-SET-25-example-data.md)             | Add example data                         | Current |
+| [US-SET-26](settings/US-SET-26-anonymise-all-people.md)     | Anonymise all people                     | Current |
+| [US-SET-27](settings/US-SET-27-utilisation-visibility.md)   | Choose which utilisation figures to show | Current |
 
-## Data management — `data/`
+## Team
 
-| Story                                                   | Title                                           | Automated coverage                                 |
-| ------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------- |
-| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export to JSON                                  | `e2e/crud.spec.ts`                                 |
-| [US-DAT-02](data/US-DAT-02-import-json.md)              | Import (with confirmation)                      | `e2e/data.spec.ts`                                 |
-| [US-DAT-03](data/US-DAT-03-undo-import.md)              | ⌘Z after an import keeps the imported data      | `e2e/data.spec.ts`                                 |
-| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject a non-CapacityLens file                  | `e2e/data.spec.ts`                                 |
-| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Persist across reload                           | `e2e/crud.spec.ts`                                 |
-| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Seed on first run, no re-seed after clear       | `e2e/data.spec.ts` + `e2e/crud.spec.ts`            |
-| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Export, import and upgrade private names safely | server authz + import unit tests; v6→v7 manual gap |
+| Story                                              | Action                            | Status  |
+| -------------------------------------------------- | --------------------------------- | ------- |
+| [US-TEAM-01](team/US-TEAM-01-check-access.md)      | Check company access              | Current |
+| [US-TEAM-02](team/US-TEAM-02-invite-member.md)     | Invite a teammate                 | Current |
+| [US-TEAM-03](team/US-TEAM-03-manage-invitation.md) | Resend or revoke an invitation    | Current |
+| [US-TEAM-04](team/US-TEAM-04-accept-invitation.md) | Accept an emailed invitation      | Current |
+| [US-TEAM-05](team/US-TEAM-05-request-admission.md) | Request and decide company access | Current |
+| [US-TEAM-06](team/US-TEAM-06-change-membership.md) | Change a member's role or access  | Current |
+| [US-TEAM-07](team/US-TEAM-07-link-resource.md)     | Link a member to a Resource       | Current |
+| [US-TEAM-08](team/US-TEAM-08-view-as-member.md)    | View the company as a member      | Current |
+| [US-TEAM-11](team/US-TEAM-11-sign-in-tracking.md)  | Record member sign-ins            | Hidden  |
 
-## Installation — `installation/`
+## Time Off
 
-| Story                                                     | Title                               | Automated coverage                                                                                       |
-| --------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [US-INS-01](installation/US-INS-01-install-one-agency.md) | Install CapacityLens for one agency | `gate` → `packaged` job + `apps/backend/tests/functional/state/static_fallback.spec.ts`; manual per host |
+| Story                                                     | Action                                                          | Status  |
+| --------------------------------------------------------- | --------------------------------------------------------------- | ------- |
+| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)          | Book time off for a resource                                    | Current |
+| [US-TOF-02](time-off/US-TOF-02-edit-time-off.md)          | Edit a time-off entry                                           | Current |
+| [US-TOF-03](time-off/US-TOF-03-delete-time-off.md)        | Delete a time-off entry (confirmed)                             | Current |
+| [US-TOF-04](time-off/US-TOF-04-type-label.md)             | Time-off list reads terse; the type label lives on the timeline | Current |
+| [US-TOF-05](time-off/US-TOF-05-grouped-forward-view.md)   | Scan current and future time off by resource                    | Current |
+| [US-TOF-06](time-off/US-TOF-06-company-wide-closure.md)   | Record a named company closure                                  | Current |
+| [US-TOF-07](time-off/US-TOF-07-repeat-time-off.md)        | Create repeated personal time off                               | Current |
+| [US-TOF-08](time-off/US-TOF-08-edit-company-closure.md)   | Edit a company closure                                          | Current |
+| [US-TOF-09](time-off/US-TOF-09-delete-company-closure.md) | Delete a company closure                                        | Current |
+
+## Toolbar
+
+| Story                                                | Action                                                | Status  |
+| ---------------------------------------------------- | ----------------------------------------------------- | ------- |
+| [US-TBR-01](toolbar/US-TBR-01-zoom.md)               | Zoom the timeline (1/2/4/6/8 weeks)                   | Current |
+| [US-TBR-02](toolbar/US-TBR-02-pan.md)                | Pan a week back / forward                             | Current |
+| [US-TBR-03](toolbar/US-TBR-03-today.md)              | Re-centre on Today                                    | Current |
+| [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md)       | Jump to a specific date (hidden from the toolbar)     | Hidden  |
+| [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Switch Work / Time-off draw mode                      | Current |
+| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md)  | Undo / Redo toolbar buttons                           | Current |
+| [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Undo / Redo with ⌘Z / ⌘⇧Z                             | Current |
+| [US-TBR-08](toolbar/US-TBR-08-week-start-snap.md)    | Navigation re-anchors the left edge to the week start | Current |

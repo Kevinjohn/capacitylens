@@ -1,34 +1,23 @@
 # US-TOF-01 — Book time off for a resource
 
-**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "books time off and shows it as a labelled block on the schedule"
+As an Editor, I want to record personal time off so that the affected dates reduce the resource’s available capacity.
 
-## Goal
-
-Book a stretch of time off for one resource (resource, start, end, type and an optional note) so those days read as unavailable and nobody is scheduled into them.
-
-## Why
-
-People take holidays, get sick and book unpaid days. The manager records that once on the Time off page; from then on the schedule treats those days as zero-capacity for that resource, so planned work never collides with someone who isn't there.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`).
-
-1. Click **Add time off**. The "Add time off" dialog opens.
-2. Choose **Resource** = _Clark Kent_ (`r-nike`).
-3. Set **Start** = `2026-06-17` and **End** = `2026-06-19` (both in the seed's June window).
-4. Set **Type** = _Holiday_.
-5. Optionally type a short, single-line **Note** (e.g. `Long weekend`).
-6. Click **Save**. The dialog closes and a new entry appears in the list.
-7. Go to **Schedule** (`/`), click **Today** so the seed bars are in view, and set **Weeks visible** to **1 week** so individual day columns are wide enough to render the per-day tint and the block label.
+**Status:** Current
+**Access:** Editor, Admin or Owner
+**Entry:** Time off page
+**Documentation:** [time-off.md](../../docs-src/using/time-off.md)
+**Source:** [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx), [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/timeoff/TimeOffRepeatFields.tsx)
 
 ## Acceptance criteria
 
-- ✅ After Save, the dialog closes and a `timeoff-row` for **Clark Kent** appears in the Time off list, reading **Clark Kent · Wed 17th Jun · 3 days**. (The list is deliberately terse. The timeline shows the absence span and type; the note remains stored and is visible only in views available to roles authorized to read it; see US-TOF-04.)
-- ✅ On the Schedule (click **Today**, **Weeks visible** = **1 week**), Clark's lane shows a labelled `timeoff-block` over 17–19 June carrying the type label (the block label renders once a column is wide enough — use 1 week).
-- ✅ Those days read as unavailable: each covered day in Clark's lane is greyed (`data-testid="unavailable-day"`), reflecting 0 available hours.
-- ✅ Saving with **no Resource** selected keeps the dialog open and is rejected with the inline error "Choose a resource." (`aria-invalid` on the Resource field).
-- ✅ Clearing **Start** or **End** so a date is empty keeps the dialog open and is rejected with "Start and end dates are required." (`aria-invalid` on the date fields).
-- ✅ Saving with **End** before **Start** (e.g. End `2026-06-15`, Start `2026-06-17`) keeps the dialog open and is rejected with "End date cannot be before the start date."
-- ✅ **Note** is a single-line text input. An empty note remains valid; a populated note persists
-  across reopening the entry; Editor/Viewer do not receive or submit the protected field.
+| Field        | Control    | Required/default/conditions                                                                                              |
+| ------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Resource     | Select     | Required; defaults from the entry point when supplied; excludes external parties.                                        |
+| Start        | Date input | Required; defaults to today unless a date is supplied by the entry point.                                                |
+| End          | Date input | Required; defaults to Start unless supplied; cannot precede Start.                                                       |
+| Type         | Select     | Required; defaults to Holiday; options Holiday, Sick, Unpaid or Other.                                                   |
+| Repeat       | Select     | Create only; defaults to Doesn’t repeat; weekly, every two/three/four weeks, monthly on date or monthly on last weekday. |
+| Repeat until | Date input | Required for repeating entries; includes an occurrence starting on the cutoff date.                                      |
+| Note         | Text input | Optional; editable and visible only to roles permitted to see time-off notes (Owner/Admin).                              |
+
+- Save creates the time-off entry; Cancel leaves the schedule unchanged.

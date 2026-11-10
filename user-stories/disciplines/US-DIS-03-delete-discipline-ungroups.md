@@ -1,33 +1,15 @@
 # US-DIS-03 — Delete a discipline (resources ungrouped, not deleted)
 
-**Area:** Disciplines · **Persona:** Studio manager · **Linked E2E:** `e2e/disciplines.spec.ts` → "deletes a discipline and ungroups its resources without deleting them"
+As an Editor, I want to remove a discipline so that its resources become ungrouped without being deleted.
 
-## Goal
-
-Remove a discipline the studio no longer uses, keeping its resources and moving them into their engagement fallback bands.
-
-## Why
-
-Reorganising the team should never cost you people. Deleting a discipline is intentionally **non-destructive**: the category disappears but everyone in it stays schedulable, just ungrouped, until reassigned. The manager needs reassurance of this before confirming.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Disciplines** in the sidebar (`/disciplines`). _Design_ groups _Bruce Wayne_ and the _Senior Designer_ placeholder.
-
-1. On the **Design** row, click the **Delete** (trash) icon. The "Delete discipline?" confirmation dialog opens.
-2. Read the dialog: it states that the discipline's resources will be **ungrouped, not deleted**.
-3. Click **Delete** to confirm. The dialog closes.
-4. Click **Schedule** in the sidebar (`/`); click **Today** to see the seed bars.
-5. Press **⌘Z**. The discipline and its resource grouping return.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Disciplines screen → discipline row → Delete {discipline name}
+**Documentation:** [Guide](../../docs-src/using/disciplines.md)
+**Source:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx) · [ConfirmDialog.tsx](../../apps/frontend/src/components/common/dialogs.tsx)
 
 ## Acceptance criteria
 
-- ✅ The confirmation dialog is titled **Delete discipline?** and clearly states the resources will be **ungrouped, not deleted**.
-- ✅ After confirming, the **Design** discipline is gone from the Disciplines list and from the schedule grouping (no Design group header).
-- ✅ **Bruce Wayne** and the **Senior Designer** placeholder still exist as resources — they now
-  appear under **Unassigned**, the band for people without a discipline, on the seeded Studio-only
-  schedule (or **Studio** once the company has a Supplementary person), not removed.
-- ✅ Bruce's existing allocations and the placeholder's binding are untouched (only the grouping changed).
-- ✅ Pressing **⌘Z** restores **Design** and reassigns its surviving resources without undoing other resource edits. **Redo** removes the discipline and ungroups them again.
-
-**Docs:** [Disciplines](../../docs-src/using/disciplines.md)
+- Selecting **Delete {discipline}** opens **Delete discipline?** with **Delete** and **Cancel** controls and states resources will be ungrouped, not deleted.
+- **Cancel** leaves the discipline intact. **Delete** removes the discipline and clears its resource grouping; the resources remain.
+- Undo restores the discipline and its resource group assignments.

@@ -1,53 +1,17 @@
-# US-NAV-12 — See a concise explanation of how CapacityLens works
+# US-NAV-12 — Understand the product at entry
 
-**Area:** Navigation & shell · **Persona:** Anyone entering a company or the personal Account page · **Linked coverage:** `apps/frontend/src/components/ProductOrientation.test.tsx`, `apps/frontend/src/components/AppShell.productOrientation.test.tsx`, `apps/frontend/src/lib/productOrientation.test.ts`, `e2e/product-orientation.spec.ts`
+As a company member, I want concise product guidance when I enter so that I can understand the schedule without being blocked.
 
-**Documentation:** [What is CapacityLens?](../../docs-src/getting-started/what-is-capacitylens.md), [Editor journey](../../docs-src/using/editor.md), [Viewer journey](../../docs-src/using/viewer.md)
+**Status:** Current
 
-**Sources:** `apps/frontend/src/components/ProductOrientation.tsx`, `apps/frontend/src/components/useProductOrientation.ts`,
-`apps/frontend/src/lib/productOrientation.ts`, `apps/frontend/src/components/AppShell.tsx`, `apps/frontend/src/components/AppSidebar.tsx`
+**Access:** Owner, Admin, Editor, Viewer
 
-## Goal
+**Entry:** Automatically shown orientation; sidebar product-orientation action
 
-Understand the schedule's basic language and CapacityLens's boundary without being blocked from
-the application.
+**Documentation:** [What Is Capacitylens](../../docs-src/getting-started/what-is-capacitylens.md)
 
-## Why
-
-CapacityLens is deliberately a week-by-week capacity planner, not a task or deadline tracker. A
-short explanation beside the application gives a new person that mental model while leaving the
-schedule, navigation and account recovery paths usable.
-
-## How (end-to-end, default local mode)
-
-**Precondition:** Start from a clean browser profile or remove the current product-orientation
-dismissal keys from local storage.
-
-1. Open the demo and choose **Wayne Enterprises** from its company picker.
-2. The application opens normally. A region headed **How CapacityLens works** appears above the
-   page and explains the week-by-week view, rows and scheduled work, and the product boundary.
-   The Schedule link and page remain available while it is visible.
-3. Click **Got it**. The region closes without changing page.
-4. Reload and choose the same company. The explanation stays closed for this person, company and
-   device.
-5. The explanation stays dismissed on reload for this person, company and device. Choose
-   **How CapacityLens works** in the sidebar to reopen it; focus moves to its heading. Dismiss it
-   again with **Got it** and focus returns to the sidebar trigger.
-6. Repeat from the personal **Account** page with no active company. The same explanation remains
-   available and its dismissal is stored independently from company dismissals.
+**Source:** [ProductOrientation.tsx](../../apps/frontend/src/components/ProductOrientation.tsx); [useProductOrientation.ts](../../apps/frontend/src/components/useProductOrientation.ts)
 
 ## Acceptance criteria
 
-- The guidance is a labelled, non-modal region (`data-testid="product-orientation"`), not a page,
-  dialog or route gate. It never hides the application shell.
-- It plainly explains that people are rows, scheduled work spans their days, clients, projects
-  and activities identify the work, and CapacityLens does not manage tasks, tickets or deadlines.
-- The region is available to every role and in the no-company personal Account state.
-- **Got it** dismisses it for the current person and company on this device. Dismissal uses the
-  versioned `capacitylens/productOrientation/v1/<subject>/<company>` preference and is never part
-  of company data or an export. The no-company state has its own stable scope.
-- A storage failure does not block the application: the region stays dismissed for the current
-  mount and can return on a later load.
-- Eligible new users see the region automatically until they dismiss it. The **How CapacityLens
-  works** sidebar action reopens it after dismissal and focuses its heading; dismissing it returns
-  focus to the trigger. Automatic background state changes do not repeatedly steal focus.
+- Eligible users see non-blocking guidance until dismissed; dismissal is a scoped device preference and the sidebar action reopens it.

@@ -1,48 +1,23 @@
 # US-RES-01 — Add a person resource
 
-**Area:** Resources · **Persona:** Studio manager · **Coverage:** component (`apps/frontend/src/components/resources/ResourceForm.test.tsx`) + unit/store availability coverage · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule" (base flow; no availability-date assertions)
+As an Editor, I want to add a person with a role, working pattern and optional team details so that the schedule reflects their capacity.
 
-**Documentation:** [Resources — set availability dates](../../docs-src/using/resources.md#set-availability-dates)
-
-## Goal
-
-Add a named person (with a role, discipline and working pattern) so they can be scheduled.
-
-## Why
-
-The schedule is only useful once the team is in it. A studio manager onboards each new
-hire or freelancer once; everything downstream (allocations, capacity, utilisation) keys
-off that resource record.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Resources** in the sidebar.
-
-1. Click **Add resource**. The "Add resource" dialog opens (locked to a person — there is no Type switcher; placeholders have their own **Add placeholder** button).
-2. Fill **Name** = `Dana Lee`, **Role** = `Motion Designer`.
-3. Choose **Discipline** = _Design_.
-4. Leave **Engagement** = _Studio_.
-5. In **Working days**, ensure Mon–Fri are **Full day** and Sat/Sun are **Not working**.
-6. Leave **Start date** and **End date** blank so Dana's capacity is unbounded by date.
-7. Click **Save**. The dialog closes.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Resources screen → Add resource
+**Documentation:** [Guide](../../docs-src/using/resources.md)
+**Source:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx) · [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx)
 
 ## Acceptance criteria
 
-- ✅ After Save, the dialog closes and a row for **Dana Lee** appears in the Resources list.
-- ✅ The row shows the role (_Motion Designer_) and a colour avatar with the initials _DL_.
-- ✅ Going to **Schedule** shows a _Dana Lee_ row under the **Design** group.
-- ✅ Saving with an empty **Name** keeps the dialog open and shows an inline error
-  ("Name is required for a person.") associated with the Name field (`aria-invalid`).
-- ✅ The saved resource uses the fixed **8-hour** full-day capacity.
-- ✅ **Start date** and **End date** are optional inclusive date boundaries for Studio and
-  Supplementary people; leaving them blank leaves that side unbounded. The same date is valid, and
-  a first date after a last date is rejected.
-- ✅ Role is optional; leaving it blank still saves the person.
-- ✅ If a self-hosted server rejects the save, the dialog stays open and shows the server error
-  instead of implying that the person was saved.
-- ✅ At normal dialog widths, Name, Role, Discipline and Engagement use compact rows with roughly
-  one quarter for the label and three quarters for the control. Start date and End date share one
-  full-width two-column row. On a narrow screen the fields stack vertically, while Working days
-  remains full width.
-- ✅ The form does not let a manager set another person's avatar. Personal identity pictures belong
-  to the person's Account and can appear on the schedule through the Team & access member link.
+| Field        | Control          | Required/default/conditions                                                                                           |
+| ------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Name         | Text field       | Required                                                                                                              |
+| Role         | Text field       | Optional                                                                                                              |
+| Discipline   | Picker           | Shown when disciplines are enabled and at least one is available; optional                                            |
+| Engagement   | Segmented choice | Studio or Supplementary; defaults to Studio                                                                           |
+| Start date   | Date field       | Optional; unbounded when blank                                                                                        |
+| End date     | Date field       | Optional; unbounded when blank                                                                                        |
+| Working days | Weekday picker   | Monday–Friday default Full day; other weekdays default Not working; at least one weekday must be Full day or Half day |
+
+- **Save** adds the person to the People list; valid values are retained.

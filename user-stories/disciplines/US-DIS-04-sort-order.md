@@ -1,29 +1,14 @@
 # US-DIS-04 — Disciplines use a predictable order on each surface
 
-**Area:** Disciplines · **Persona:** Studio manager · **Linked E2E:** `e2e/alphabetical-management-lists.spec.ts` + `e2e/disciplines.spec.ts` · **Unit:** `apps/frontend/src/components/disciplines/DisciplineList.test.tsx` + `apps/frontend/src/store/selectors.extra.test.ts`
+As an Editor, I want disciplines ordered for easy browsing so that the schedule keeps a predictable group order.
 
-## Goal
-
-Have disciplines appear alphabetically where they are managed, while the schedule keeps the deliberate operational group order assigned when disciplines are created.
-
-## Why
-
-The management list is for finding and editing a discipline, so alphabetical order is easiest to scan. The schedule is a planning surface whose stable group order is assigned **automatically** (a new discipline lands last) rather than hand-managed through a fiddly field. These surfaces therefore have intentionally different ordering rules.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Disciplines** in the sidebar (`/disciplines`). The seed's
-schedule order is _Design_, _Development_, _Copywriting_; the management list opens as _Copywriting_,
-_Design_, _Development_.
-
-1. Click **Add discipline**, name it `Strategy`, pick a colour, and **Save**.
-2. Confirm the management list reads _Copywriting_, _Design_, _Development_, _Strategy_.
-3. Click **Schedule** in the sidebar (`/`); click **Today**. Confirm its existing group order remains _Design_, _Development_, _Copywriting_, _Strategy_.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Disciplines screen → list; Schedule → discipline groups
+**Documentation:** [Guide](../../docs-src/using/disciplines.md)
+**Source:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx) · [selectors.ts](../../apps/frontend/src/store/selectors.ts)
 
 ## Acceptance criteria
 
-- ✅ A discipline's sort order is **assigned automatically** — there is no Sort-order field in the discipline form.
-- ✅ The Disciplines management list is alphabetical by displayed name.
-- ✅ The schedule remains ordered by ascending `sortOrder`, with equal orders broken alphabetically by name; a new **Strategy** group therefore lands after the existing groups.
-- ✅ Sorting the management view does not mutate stored discipline order or change the schedule grouping.
-- ✅ Case, accent and exact-name ties use deterministic tie-breakers rather than relying on engine sort stability or the host locale.
+- The Disciplines management list is alphabetically ordered.
+- Add discipline has no Sort order field; a new discipline receives the next schedule order. The Schedule groups follow stored order.

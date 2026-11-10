@@ -1,27 +1,18 @@
 # US-TBR-05 — Switch Work / Time-off draw mode
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "switches draw mode between Work and Time off" · `e2e/features.spec.ts` → "drawing in Time off mode opens a prefilled time-off form"
+As an Editor, I want to switch between Work and Time off draw modes so that a lane gesture opens the matching form.
 
-## Goal
+**Status:** Current
 
-Toggle what a lane draw creates: an allocation (Work) or a time-off block (Time off).
+**Access:** Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-The same drag-on-a-lane gesture is the fastest way to block out either work or absence. A single-selection radiogroup lets the manager reuse the gesture for both without separate tools, and the active mode is clearly checked. **Time off mode also makes itself unmistakable across the whole grid — existing work bars recede to inert, dimmed neutral ghosts and booked time off switches to a vivid yellow background while retaining its grey diagonal hatch — so the toggle never reads as a dead control (its only previous feedback was its own checked state, which several testers missed).**
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view. The draw-mode toggle is a pair of buttons **Work** / **Time off** (distinct from the **Time off** nav link in the sidebar).
-
-1. With **Work** active, draw a left-to-right gesture on the **Clark Kent** lane.
-2. Cancel that dialog. Click the **Time off** toggle button so it becomes active.
-3. Draw a left-to-right gesture on the **Clark Kent** lane again.
+**Source:** [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
 
 ## Acceptance criteria
 
-- ✅ The draw-mode choices form a radiogroup; the active radio has `aria-checked="true"` and the other has `aria-checked="false"`.
-- ✅ In **Work** mode, a lane draw opens the **New allocation** dialog, preset to that lane's resource.
-- ✅ In **Time off** mode, a lane draw opens the **Add time off** dialog, with **Resource** preset to that lane's resource.
-- ✅ Switching to **Time off** recedes existing work bars to a flat neutral (theme-aware `var(--color-muted-foreground)`) at ~20% opacity and makes them **inert** (no click/drag, no hover popover, not tab-focusable); existing time-off blocks use the same vivid yellow background and dark label ink in light and dark themes, keep their light-grey diagonal hatch and use only a tight glow. Switching back to **Work** restores them. The effect is purely visual + interaction state — **no underlying allocation/time-off data changes**.
-- ✅ Because the dimmed bars are inert, a draw started _over_ an existing allocation still books time off — the bar no longer intercepts the gesture.
+- The draw-mode control switches between **Work** and **Time off**.
+- A lane draw opens the matching allocation or time-off form.

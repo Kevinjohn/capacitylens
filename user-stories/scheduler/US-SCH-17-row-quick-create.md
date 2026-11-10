@@ -1,26 +1,18 @@
 # US-SCH-17 — Quick-create an allocation from a row's "+" button
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "creates an allocation from the row + button (assignee preselected)"
+As an Editor, I want to start an allocation from a resource row so that the correct resource is already selected.
 
-## Goal
+**Status:** Current
 
-Click a resource row's "+" button to open a "New allocation" modal already fixed to that resource (their name in the dialog title — there is no Assignee field to choose in row-create mode).
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-Drawing on the lane (US-SCH-02) is great when you know exactly which days you want; sometimes the manager just knows _who_ and wants to book them quickly without aiming a drag. The row "+" is that shortcut — one click, the right person already selected, then pick the project, activity and dates. It removes the most error-prone step (choosing the right assignee) by carrying the row's identity into the form.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`).
-
-1. On a resource row (e.g. **Bruce Wayne**), click its **"+"** button (labelled "Add allocation for Bruce Wayne" / titled "Add allocation").
-2. A **"New allocation"** modal opens, titled **"New allocation for Bruce Wayne"**.
-3. Confirm the assignee is fixed to that row's resource (**Bruce Wayne**) — named in the dialog title, with **no Assignee select** to change (the row "+" already chose them).
-4. The Start/End dates are prefilled (see US-SCH-18 for which date) — pick a **Project** and **Activity** and **Save** to book it.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ Clicking a row's **"+"** opens the **"New allocation"** modal.
-- ✅ The modal is fixed to that row's resource (e.g. **Bruce Wayne**), named in the dialog title — there is **no Assignee select** in row-create mode.
-- ✅ The flow lets you complete the booking for that person (project + activity + save) without re-choosing the assignee.
+- The row **+** opens a new allocation form with that resource selected.
+- The form title identifies the resource.

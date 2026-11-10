@@ -1,31 +1,18 @@
 # US-TBR-07 — Undo / Redo with ⌘Z / ⌘⇧Z
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "undoes/redoes with the keyboard and ignores the shortcut while typing"
+As an Editor, I want keyboard shortcuts for Undo and Redo so that I can reverse planning changes quickly while preserving text entry.
 
-## Goal
+**Status:** Current
 
-Undo with **⌘Z** and redo with **⌘⇧Z** from anywhere on the schedule, while the shortcut stays out of the way when the user is typing in a text field.
+**Access:** Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-Power users expect the standard keyboard undo/redo. But those keys must not steal a user's in-field edit (e.g. fixing a typo in the search box should undo the _text_, not the last schedule change), so the global shortcut is suppressed while focus is in an input or textarea.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
-
-1. Make one reversible edit — e.g. click a bar and **Delete** it.
-2. Press **⌘Z**. Then press **⌘⇧Z**.
-3. Click into the **Search people…** box, type a few characters, and with focus still in the box press **⌘Z**.
-4. Click outside the box (blur it), then press **⌘Z** again.
+**Source:** [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
 
 ## Acceptance criteria
 
-- ✅ With focus outside any field, **⌘Z** undoes the last booking change (the deleted bar returns) and **⌘⇧Z** redoes it (the bar disappears again).
-- ✅ While focus is in the **Search people…** text input, **⌘Z** is ignored at the app level — it does not undo a schedule change (it acts on the field's text instead).
-- ✅ The guard covers text **input** / **textarea** / contentEditable; after blurring the search box, **⌘Z** undoes booking changes again.
-- ✅ The shortcut uses the same page-local history as the toolbar for eligible acknowledged typed
-  planning changes. Imports and irreversible privacy actions have no inverse in that history.
-- ✅ An eligible acknowledged change remains undoable after a background refresh containing only its own acknowledged revisions; a genuine remote change clears the history to protect the other writer’s work.
-
-**Documentation:** [Undo and redo](../../docs-src/using/read-the-schedule.md).
+- ⌘Z / Ctrl+Z undo and ⌘⇧Z / Ctrl+Shift+Z redo planning changes.
+- Shortcuts do not run while text entry, IME composition or a modal owns input.

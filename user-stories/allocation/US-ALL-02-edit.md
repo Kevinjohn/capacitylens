@@ -1,37 +1,28 @@
 # US-ALL-02 — Edit an existing allocation
 
-**Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "edits an allocation and reflects the change on the bar"
+As an Editor, I want to change an allocation in place so that an updated plan keeps its existing booking.
 
-## Goal
-
-Change an existing allocation's hours, dates, status or note and see the bar update to match.
-
-## Why
-
-Plans change constantly — a booking stretches, drops to part-time, becomes tentative, or gains a note. The manager needs to adjust an existing booking in place rather than delete and recreate it, keeping its identity (and undo history) intact.
-
-**Documentation:** [Schedule and change work — Edit, duplicate or delete a booking](../../docs-src/using/schedule-work.md#edit-duplicate-or-delete-a-booking)
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. The seed has a _Wireframes_ bar on **Bruce Wayne**.
-
-1. Click the **Wireframes** bar. The **Edit allocation** dialog opens, pre-filled with the bar's current Assignee, Project, Activity, dates, Hours / day, Status and Note.
-2. Change **Hours / day** from its current value to `4`.
-3. Change **End** to one day later.
-4. Choose **Status** = _Tentative_ in the three-option status group.
-5. Type a single-line **Note**, e.g. `Pending sign-off`.
-6. Click **Save**. The dialog closes.
+**Status:** Current
+**Access:** Editor, Admin or Owner
+**Entry:** Schedule (`/`)
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
+**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx), [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
 
 ## Acceptance criteria
 
-- ✅ Clicking a bar opens **Edit allocation** (not _New allocation_) with every field pre-filled from that allocation.
-- ✅ After Save, the bar's label updates to show `· 4h`.
-- ✅ The bar now extends one day further (its end date moved).
-- ✅ Setting **Status** = _Tentative_ renders the bar with a dashed border + hatched overlay and `data-status="tentative"`; setting it to _Completed_ prefixes the label with a `✓` and sets `data-status="completed"`.
-- ✅ Adding a **Note** adds a trailing `•` marker to the bar label (and the note shows in the hover popover).
-- ✅ Saving another field without editing a historical multiline note preserves that stored note exactly; directly editing **Note** adopts the field's single-line value.
-- ✅ An attributed All-projects allocation reopens with its project selected and keeps the attribution when another field changes. A legacy unattributed All-projects allocation reopens as **No specific project** and stays unattributed unless explicitly assigned.
-- ✅ Creating an activity inline in the edit form does not by itself make the allocation stale. If another session changes the allocation while the form is open, Save is refused with **The schedule changed while you were editing**; close and reopen the current allocation, then reapply the intended changes.
-- ✅ Edit uses the same responsive 25/75 label/control layout as create, including its **Assignee**
-  row, while keeping every existing value and omitting the create-only **Repeat** controls.
+| Field               | Control           | Required/default/conditions                                                                                                   |
+| ------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Assignee            | Select            | Required; prefilled with the current resource.                                                                                |
+| Project             | Select            | Prefilled with current scope; choices follow resource and activity constraints.                                               |
+| Activity            | Select            | Required; prefilled with the current activity.                                                                                |
+| Task                | Text input        | Optional; shown only when the company enables Show task field in schedule; prefilled when available.                          |
+| Start               | Date input        | Required; prefilled with the saved start date.                                                                                |
+| End                 | Date input        | Required in Hours mode and for external resources; otherwise derived from the span fields for capacity-counting resources.    |
+| Hours / day         | Select            | Hours mode for capacity-counting resources; options 1, 2, 4 or 8 hours; hidden for external resources.                        |
+| Days of work        | Number input      | Days mode for capacity-counting resources; required, positive value, 0.5 step.                                                |
+| Days over           | Number input      | Days and Blocks modes for capacity-counting resources; optional, step 1; disabled if no effective working days are available. |
+| Status              | Segmented control | Prefilled with the saved status; Confirmed, Tentative or Completed.                                                           |
+| Note                | Text input        | Optional; prefilled with the saved note.                                                                                      |
+| Ignore working days | Checkbox          | Prefilled with the saved value; hidden for external resources.                                                                |
+
+- Save updates the existing allocation; Cancel leaves its saved values unchanged.

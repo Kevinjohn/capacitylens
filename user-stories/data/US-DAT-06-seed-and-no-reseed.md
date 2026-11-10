@@ -1,29 +1,14 @@
-# US-DAT-06 — Demo resets to its canonical seed
+# US-DAT-06 — Explore temporary demo data
 
-**Area:** Demo · **Persona:** Evaluator · **Linked E2E:** `e2e/data.spec.ts`, `e2e/crud.spec.ts`
+As a demo user, I want to explore temporary demo data so that I can try the product without creating durable company data.
 
-## Goal
-
-Explore and edit freely without creating durable browser-owned scheduling data.
-
-## Why
-
-The demo should be safe to experiment with and deterministic for evaluation. Scheduling edits last
-for the current page only, while real deployments remain empty unless an operator explicitly seeds
-them.
-
-## How (end-to-end)
-
-**Precondition:** Open the in-memory demo and select **Wayne Enterprises**.
-
-1. Confirm a canonical seeded row such as **Bruce Wayne** is present.
-2. Make a visible change during the current page session and confirm it remains while navigating.
-3. Reload the page, pass through the entry gates, and select **Wayne Enterprises** again.
-4. Confirm the canonical seed has replaced the temporary edit.
+**Status:** Demo
+**Access:** Demo user
+**Entry:** Open in-memory demo → choose company
+**Documentation:** [Settings](../../docs-src/using/settings.md)
+**Source:** [fakeAuth.ts](../../apps/frontend/src/lib/fakeAuth.ts)
 
 ## Acceptance criteria
 
-- ✅ Every new demo page load starts with the canonical fictional seed.
-- ✅ Changes remain available during that page session.
-- ✅ A full reload discards demo changes and restores the seed.
-- ✅ A real server starts empty unless the operator explicitly enables demo seeding.
+- Demo changes last only for the open page.
+- Reload restores the canonical demo seed; real server data is not automatically seeded.
