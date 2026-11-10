@@ -44,7 +44,7 @@ Use `nvm use` and the pinned pnpm version before changing dependencies. Ranges l
 [shared](packages/shared/package.json) manifests; [pnpm-lock.yaml](pnpm-lock.yaml) records the
 resolved workspace graph. Upgrade related AdonisJS packages as a compatible set. Keep the backend
 and frontend Tuyau dependencies compatible, then regenerate the backend route client and type-check
-its consumers. Account Kit is a vendored release archive: changing its pin also changes native
+its consumers. Account Kit is pinned to a GitHub release asset URL: changing its pin also changes native
 packaging and can affect sign-in, admission and sessions, so include the relevant backend auth tests
 and packaged smoke checks.
 
@@ -152,14 +152,12 @@ Implementation scope and current acceptance evidence remain in the owning GitHub
 
 ## Lucid soft-delete integration
 
-The backend pins `@kevinjohn/adonisjs-lucid-soft-delete` version `0.1.4` as the packed asset from the
-[tagged GitHub release](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.4)
-in [`vendor/lucid-soft-deletes/`](vendor/lucid-soft-deletes/). Its SHA-256 is
-`6d9ebe9aab2554f766498c1bd314c9eea8926d88dcad0b0e7bfaa941fca32822`; verify the archive
-against its adjacent checksum with `shasum -a 256 -c
-vendor/lucid-soft-deletes/kevinjohn-adonisjs-lucid-soft-delete-0.1.4.tgz.sha256`. This is a release
-asset pin, not a registry dependency. Update the archive, checksum, backend manifest and lockfile
-together.
+The backend pins `@kevinjohn/adonisjs-lucid-soft-delete` version `0.1.7` by the asset URL of its
+[tagged GitHub release](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.7).
+Every `@kevinjohn/*` package is consumed the same way, from its own repository's release; the
+lockfile records each archive's integrity. To change a pin, update the backend manifest URL and the
+lockfile together. pnpm 11.4 writes a newly resolved URL entry without `integrity`, which a frozen
+install then refuses; add the archive's `sha512-` integrity to that `resolution` before committing.
 
 Client, Project, Activity and Resource keep the package's Luxon `deletedAt` attribute. Their
 serializers validate the UTC ISO timestamp sent to the shared domain and wire contract. Keep the

@@ -87,7 +87,7 @@ policy and backup-encryption controls.
 | SQLite | One synchronous connection per process and database file | Pool acquisition waits up to five seconds; SQLite lock waits up to one second before surfacing failure; these are separate limits, not an aggregate operation deadline; do not spawn another writer |
 | Production API requests | 300 per minute per IP by default; operator may configure another bounded value | Production startup rejects invalid or zero values; unset configuration uses the 300/minute default; retain edge controls for deployment protection |
 | Failed password confirmation checks | 5 failures per minute per account, then a 20-minute block | The confirm-action-with-password package reserves each attempt before hashing through the app database limiter; success resets only that account; sign-in has separate Account Kit throttles |
-| Account Kit sign-in throttle | 10 requests/minute per client; 5/minute per identity with a 20-minute block | Defaults in the vendored Account Kit; application configuration changes only test throttling |
+| Account Kit sign-in throttle | 10 requests/minute per client; 5/minute per identity with a 20-minute block | Defaults in the pinned Account Kit release; application configuration changes only test throttling |
 | Import preparation | Atomic database operation; framework request-size limit | Invalid imports fail without replacing stored data |
 | Batch mutation | Framework parser limits | One SQLite transaction; authorization/validation per operation; a stale conflict rolls the batch back |
 | Backup operation | One in flight | Scheduler skips overlap; shutdown waits before closing SQLite |
@@ -108,7 +108,7 @@ access, retention, time synchronization, alerting and any external log collectio
 
 ## Third parties and build inputs
 
-- Runtime includes Node.js 24, AdonisJS, Account Kit (vendored archive), React/UI packages, SQLite
+- Runtime includes Node.js 24, AdonisJS, Account Kit (pinned GitHub release), React/UI packages, SQLite
   in Node and configured SMTP. Account Kit is pinned by lockfile integrity and is outside
   Dependabot's direct package release tracking.
 - Build/test inputs include pnpm registry packages, GitHub Actions, CodeQL, Playwright browsers,
