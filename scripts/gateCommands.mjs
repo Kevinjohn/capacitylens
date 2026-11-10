@@ -1,6 +1,7 @@
 const structuralChecks = [
   'policy:gate-runner:test',
   'policy:check-changed:test',
+  'policy:turbo-graph:test',
   'policy:ports',
   'policy:ports:test',
   'policy:sonner-csp:test',

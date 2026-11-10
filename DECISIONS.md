@@ -262,7 +262,7 @@ This is the short, present-tense record of decisions that constrain future work.
 ### Password confirmation package adoption (9 November 2026)
 
 This supersedes the retention decision in the historical capability audit below. CapacityLens uses
-`@kevinjohn/adonisjs-confirm-action-with-password` 0.1.0 with exactly Account Kit 0.3.3. Its five-minute confirmations bind
+`@kevinjohn/adonisjs-confirm-action-with-password` 0.1.1 with exactly Account Kit 0.3.4. Its five-minute confirmations bind
 the user, sign-in, live credential revision, company, action and exact intent. Host pre-flight and
 transactional policy retain confirmed-email, admission, live Owner and no-masquerade requirements.
 The app's database limiter reserves attempts per account before hashing: five failures per minute,
@@ -286,7 +286,7 @@ bindings and caller-owned transactional consumption needed by these operations. 
 confirmation or a different proof purpose is not an equivalent replacement.
 
 This source audit checked application revision `f52bee5fe75604b33c1191294a80259825461aba` and
-[`vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.2.tgz`](vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.2.tgz)
+the then-vendored Account Kit 0.1.2 archive
 (SHA-256 `18696d27971605dbbada54ccb9066260499fc9ab3f258cd7684ed6098dacf573`).
 The archive's `build/src/account_kit.d.ts`, `social_enums.d.ts`, `social_proofs.d.ts`, package
 exports and bundled proof implementation establish the Kit column below. This is not a claim that

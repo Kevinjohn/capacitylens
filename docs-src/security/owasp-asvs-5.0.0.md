@@ -191,7 +191,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 ## Account Kit authentication amendment (2026-10-26)
 
 The current authentication classifications above were checked against the password-only routes,
-Account Kit configuration and vendored Kit behavior. Dated security-review documents retain their
+Account Kit configuration and pinned Kit release behavior. Dated security-review documents retain their
 original evidence; these current classifications supersede earlier authentication claims. The
 changed rows are supported by the following source evidence:
 

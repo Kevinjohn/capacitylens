@@ -4,7 +4,7 @@ packages:
   - packages/*
 
 # Inject workspace build outputs so deployed dependencies remain self-contained.
-# Production packaging uses the reviewed legacy adapter for the pinned local archive.
+# Production packaging uses the reviewed legacy adapter for the pinned release-asset packages.
 injectWorkspacePackages: true
 syncInjectedDepsAfterScripts:
   - build
@@ -58,6 +58,6 @@ allowBuilds:
   tree-sitter-bash: false
 
 minimumReleaseAgeExclude:
-  # Reviewed release archives are vendored by revision and digest, with no registry release date.
+  # Our packages install from GitHub release asset URLs, pinned by lockfile integrity, with no registry release date.
   - '@kevinjohn/*'
   - qs@6.16.0

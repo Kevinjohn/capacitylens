@@ -47,7 +47,19 @@ test('collects installed direct dependencies from each workspace and skips local
       workspace(
         'capacitylens-backend',
         '/repo/apps/backend',
-        {},
+        {
+          '@adonisjs/lucid': {
+            from: '@adonisjs/lucid',
+            version: '22.4.2',
+            resolved: 'https://registry.npmjs.org/@adonisjs/lucid/-/lucid-22.4.2.tgz',
+          },
+          '@kevinjohn/adonisjs-account-kit': {
+            from: '@kevinjohn/adonisjs-account-kit',
+            version: '0.3.4',
+            resolved:
+              'https://github.com/Kevinjohn/oss-adonisjs-account-kit/releases/download/v0.3.4/kevinjohn-adonisjs-account-kit-0.3.4.tgz',
+          },
+        },
         { '@adonisjs/core': { from: '@adonisjs/core', version: '6.20.0' } },
       ),
     ]),
@@ -56,6 +68,7 @@ test('collects installed direct dependencies from each workspace and skips local
 
   assert.deepEqual(entries, [
     { name: 'react', workspace: '.', installed: '19.3.1' },
+    { name: '@adonisjs/lucid', workspace: 'apps/backend', installed: '22.4.2' },
     { name: '@adonisjs/core', workspace: 'apps/backend', installed: '6.20.0' },
   ]);
 });
