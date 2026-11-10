@@ -2,6 +2,7 @@ import type { AppData, ID } from '@capacitylens/shared/types/entities';
 import {
   BETA_EXPORT_FORMAT,
   BETA_EXPORT_SCHEMA_VERSION,
+  BetaTransferError,
   parseBetaExport,
 } from '@capacitylens/shared/data/betaTransfer';
 import { readApiError } from '@/lib/readApiError';
@@ -56,10 +57,11 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
   );
   if (!res.ok) throw new InactiveSliceHttpError(res.status, await readApiError(res));
   const body: unknown = await res.json();
+  let document;
   try {
     // The state endpoint returns raw AppData; wrapping it validates every row and link before a
     // backup can turn it into a portable file. Redacted mode also accepts Admin projections.
-    const document = parseBetaExport(
+    document = parseBetaExport(
       JSON.stringify({
         format: BETA_EXPORT_FORMAT,
         schemaVersion: BETA_EXPORT_SCHEMA_VERSION,
@@ -67,9 +69,10 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
         data: body,
       }),
     );
-    if (document.data.accounts[0]?.id !== accountId) throw new InactiveSliceShapeError();
-    return document.data;
-  } catch {
-    throw new InactiveSliceShapeError();
+  } catch (error) {
+    if (error instanceof BetaTransferError) throw new InactiveSliceShapeError();
+    throw error;
   }
+  if (document.data.accounts[0]?.id !== accountId) throw new InactiveSliceShapeError();
+  return document.data;
 }

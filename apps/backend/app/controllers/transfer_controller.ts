@@ -1,15 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import {
-  parseBetaExport,
-  BetaTransferError,
-  type BetaExportDocument,
-} from '@capacitylens/shared/data/betaTransfer';
+import { BetaTransferError } from '@capacitylens/shared/data/betaTransfer';
 import { withActor, kitContextIn } from '#services/auth/current_actor';
 import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { BatchRequestError } from '#services/planning/errors';
 import {
   applyBetaAccountTransfer,
+  parseRequestDocument,
   previewBetaAccountTransfer,
 } from '#services/beta_account_transfer';
 
@@ -32,16 +29,14 @@ function input(value: unknown, apply: boolean) {
   ) {
     return null;
   }
-  try {
-    return {
-      accountId: body.accountId as string,
-      document: parseBetaExport(JSON.stringify(body.document)) as BetaExportDocument,
-      baseRevision: apply ? (body.baseRevision as number) : undefined,
-      confirmationId: apply ? ((body.confirmationId as string | undefined) ?? '') : undefined,
-    };
-  } catch {
-    return null;
-  }
+  const document = parseRequestDocument(body.document);
+  if (!document) return null;
+  return {
+    accountId: body.accountId as string,
+    document,
+    baseRevision: apply ? (body.baseRevision as number) : undefined,
+    confirmationId: apply ? ((body.confirmationId as string | undefined) ?? '') : undefined,
+  };
 }
 
 function failure(ctx: HttpContext, error: unknown) {
