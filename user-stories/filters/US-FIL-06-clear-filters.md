@@ -16,3 +16,34 @@ As a company member, I want to clear all active filters at once so that I can re
 
 - **Clear Filters** is enabled only when a filter is active.
 - Selecting it resets search, selection filters, Tentative and Show unallocated.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Choose Clear Filters"]
+  N2["search, selection filters, Tentative and Show unallocated reset"]
+  N3["full schedule returns"]
+  N1 --> N2
+  N2 --> N3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["SchedulerToolbarFilters Clear Filters action"] --> B["useToolbarSearch.clearSearch callback"]
+  B --> C["schedulerSlice.clearFilters resets local filter state"]
+  C --> D["SchedulerGrid rebuilds the full schedule"]
+  D --> E["No planning write or server mutation"]
+```
+
+**Code references:**
+
+- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
+- [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts)
+- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
+- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
+- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)

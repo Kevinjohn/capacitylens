@@ -16,3 +16,28 @@ As a company member, I want current and future time off grouped by resource so t
 
 - The Time off page groups current and future entries by resource.
 - Past entries are hidden without being deleted.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Open Time off page"]
+  N2["entries are grouped by resource and show current/future absences"]
+  N3["past entries are omitted from this view but retained"]
+  N1 --> N2
+  N2 --> N3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["TimeOffList reads scoped entries and current week start"] --> B["buildTimeOffGroups omits past entries and groups remaining rows by resource"]
+  B --> C["TimeOffList renders each group and its entries"]
+  C --> D["Past entries remain stored"]
+```
+
+**Code references:**
+
+- [TimeOffList.tsx](../../apps/frontend/src/components/timeoff/TimeOffList.tsx)
+- [timeOffView.ts](../../apps/frontend/src/components/timeoff/timeOffView.ts)

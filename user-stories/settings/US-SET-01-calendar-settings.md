@@ -19,3 +19,21 @@ The read-only values differ from the configuration target; see [GAP-01](../GAPS.
 | Time zone      | Read-only text | Company time zone; fixed after creation. |
 
 - The question-mark help control explains the company details.
+
+## User flow
+
+```mermaid
+flowchart TD
+A["Open Settings: Company details"] --> B["Read company name, week start and time zone"]
+B --> C["Open the help explanation if needed"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  settings["SettingsView renders SettingsAccountOptions"] --> details["SettingsAccountOptions maps companyName, weekStartsOn, timezone to rows"]
+  details --> display["SettingsAccountOptions displays read-only table"]
+```
+
+**Code references:** [SettingsView.tsx](../../apps/frontend/src/components/settings/SettingsView.tsx), [SettingsAccountSections.tsx](../../apps/frontend/src/components/settings/SettingsAccountSections.tsx)

@@ -22,6 +22,18 @@ The matrix keeps every historical story discoverable by status.
 | Jump to date                                              | Hidden       | [DECISIONS.md](../DECISIONS.md#scheduling-invariants) explicitly hides this picker while retaining its code. Keep the toolbar story with historical controls labelled unavailable.                                                                                                                                                                                                               |
 | Company picker, additional company creation and switching | Demo         | The [company picker](../apps/frontend/src/components/accounts/AccountPicker.tsx) remains in the temporary demo. Production has one company and no ordinary switcher or additional-company action. Keep this distinction in the navigation stories.                                                                                                                                               |
 
+## Retained recovery screens without current triggers
+
+The diagram trace found no current producers for three legacy error-state flags:
+`connectionError`, `activeAccountLoadFailed` and `loadError`. They are initialized false/null in
+[runtimeSlice](../apps/frontend/src/store/slices/runtimeSlice.ts), and
+[AppEntryGate](../apps/frontend/src/components/AppEntryGate.tsx) only consumes them.
+The named setters have no current application callers; the account-load marker is cleared but
+never assigned a failed company. The connection, company-load and browser-storage recovery
+stories remain, with status **Hidden** and explicitly intended flows. Their retained components
+are not evidence of reachable user journeys. Current planning-error notices and session-verification
+recovery remain separately documented as available.
+
 ## Source capabilities without an ordinary UI
 
 - **Member sign-in tracking:** the server route and mutation support recording sign-ins, but

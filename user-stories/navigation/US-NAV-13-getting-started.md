@@ -17,3 +17,29 @@ As an Owner, Admin, or Editor, I want visible first-schedule milestones so that 
 - Five milestones reflect current company data. Each unfinished milestone links to its relevant screen; completed milestones are shown as done.
 - The card can be hidden and shown with its toggle. Owner/Admin can dismiss it; when fewer than five milestones are complete, dismissal requires confirmation. Editor can use the card but has no dismiss action.
 - Show me around starts the role-aware schedule tour when available. The Help page provides a separate, persistent route to start that tour.
+
+## User flow
+
+```mermaid
+flowchart TD
+  open["Open Getting Started"] --> review["Review five milestones and unfinished links"]
+  review --> toggle["Hide or show the card"]
+  review --> dismiss["Owner/Admin chooses Dismiss"]
+  dismiss -->|milestones incomplete| confirm["Confirm dismissal"]
+  dismiss -->|all complete| done["Card is dismissed"]
+  review --> tour["Show me around starts role-based tour"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  shell["AppShell renders GettingStarted"] --> steps["buildGettingStartedSteps derives five milestones"]
+  steps --> panel["GettingStarted renders progress and links"]
+  panel --> toggle["setOpen hides or shows checklist"]
+  panel --> dismiss["useCompanyDismissal saves dismissal"]
+  dismiss -->|incomplete| confirm["AlertDialog requests confirmation"]
+  panel --> tour["useTourAction starts role tour"]
+```
+
+**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx); [gettingStarted.ts](../../apps/frontend/src/lib/gettingStarted.ts); [gettingStartedClient.ts](../../apps/frontend/src/account/gettingStartedClient.ts); [useTourAction.ts](../../apps/frontend/src/hooks/useTourAction.ts)

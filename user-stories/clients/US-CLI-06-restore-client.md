@@ -12,3 +12,25 @@ As an Editor, I want to restore an archived client so that its active work retur
 
 - A directly archived client has an accessible **Restore** control. Selecting it returns the client to active status and active views.
 - A row hidden only by an archived parent links to **Restore archived parent**; restoring the parent reveals descendants that remain active.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Clients screen"] --> B["Archived clients"] --> C["Select Restore"] --> D["Client becomes active"] --> E["Client returns to active views"]
+  C -->|Action refused| F["Notice explains the restore failed"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["useArchiveRecovery provides archived row and parent identity"] --> B["ArchiveRecoverySection / ArchivedEntitySection Restore control"]
+  B --> C["useLifecycleActions.unarchive → sendPlanningCommand"] --> D["client.unarchive intent"]
+  D --> E{"createStorePlanningTransport"}
+  E -->|server| F["createPlanningTransport → api.planning.client.unarchive"] --> G["PlanningController.clientUnarchive → mutatePlanning begins scoped transaction"]
+  G --> H["executePlanningIntent.transitionLifecycle updates only the restored row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt and activeOnly refresh update views"]
+  E -->|demo| I["createVolatilePlanningTransport.execute → apply in page memory"] --> J
+```
+
+**Code references:** [ClientList.tsx](../../apps/frontend/src/components/clients/ClientList.tsx) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [ArchiveRecoverySection.tsx](../../apps/frontend/src/components/common/ArchiveRecoverySection.tsx) · [useArchiveRecovery.ts](../../apps/frontend/src/hooks/useArchiveRecovery.ts) · [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)
