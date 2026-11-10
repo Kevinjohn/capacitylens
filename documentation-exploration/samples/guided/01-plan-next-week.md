@@ -13,7 +13,7 @@ The example assumes the company works Monday through Friday, both schedule rows 
 
 ## Follow the work that applies
 
-1. Diana invites Bruce as a Viewer. Bruce accepts, then asks for access if the company’s admission rules require approval: [Give Bruce access](02-get-access.md).
+1. Diana invites Bruce as a Viewer. Bruce accepts and asks for access, and Diana approves him: [Give Bruce access](02-get-access.md).
 2. Add Bruce and Diana to the schedule. Diana can optionally link Bruce’s sign-in to his schedule row; he can open its work list without that link: [Add schedule people](03-add-people.md).
 3. Create Wayne Enterprises, its Website refresh project, and the project-specific Design activity: [Set up the work](04-add-work.md).
 4. Record Bruce’s Friday off before entering work: [Record the absence](05-add-time-off.md).

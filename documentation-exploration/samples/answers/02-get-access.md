@@ -1,6 +1,6 @@
 ---
 title: How does a teammate get access?
-description: An Owner or Admin invites the teammate; they accept, then complete any configured admission step.
+description: An Owner or Admin invites the teammate; they accept and ask for access, and an Owner or Admin approves them.
 audience: 'Owner, Admin, invitee'
 screen: 'Team & access'
 ---
@@ -11,9 +11,9 @@ Only an **Owner** or **Admin** can invite someone or manage membership. Open **T
 
 The teammate opens the email, enters their name and chooses a password, then selects **Accept invitation**. An invitation gives them the invited company role; it does not add a schedule person. See [Add people](03-add-people.md) to create and optionally link a resource row.
 
-## Why might approval still be needed?
+## Why is approval still needed?
 
-Admission depends on the installation's settings. It may check an allowed email domain, invitation evidence and Owner/Admin approval. If approval is required, the invitee selects **Ask for access** after accepting. An Owner or Admin opens **Team & access**, finds **Waiting for approval**, and selects **Approve**. The invitee selects **Check again** after the decision. Until admitted, they cannot reach company planning data.
+Every new teammate needs an invitation and Owner or Admin approval; the installation may also limit access to an allowed email domain. After accepting, the invitee selects **Ask for access**. An Owner or Admin opens **Team & access**, finds **Waiting for approval**, and selects **Approve**. The invitee selects **Check again** after the decision. Until admitted, they cannot reach company planning data.
 
 ## The invite is missing or does not work
 

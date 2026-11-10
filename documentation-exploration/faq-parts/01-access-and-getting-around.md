@@ -84,7 +84,7 @@ Open **Account** and select **Sign out**. This ends only the current browser ses
 
 ### Why can’t I open the company after accepting an invitation?
 
-Accepting an invitation creates your sign-in and company membership, though email confirmation or approval may still be needed before company data opens. Follow the access screen. Select **Ask for access** when shown; after approval, select **Check again**, then **Join company** if offered. If your email domain is refused, sign out and use your work address; ask an Owner or Admin about declined or withdrawn access. For an expired or used invitation, ask its sender for a new one. Membership and a scheduled Resource row are separate; an Owner or Admin can link them. Linking is optional; a visible row’s avatar opens its work list.
+Accepting an invitation creates your sign-in and company membership and confirms your email address, but an Owner or Admin must still approve you before company data opens. Follow the access screen. Select **Ask for access** when shown; after approval, select **Check again**, then **Join company** if offered. If your email domain is refused, sign out and use your work address; ask an Owner or Admin about declined or withdrawn access. For an expired or used invitation, ask its sender for a new one. Membership and a scheduled Resource row are separate; an Owner or Admin can link them. Linking is optional; a visible row’s avatar opens its work list.
 
 <span id="faq-access-email-confirmation"></span>
 

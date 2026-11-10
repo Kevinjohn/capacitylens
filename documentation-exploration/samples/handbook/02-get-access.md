@@ -11,9 +11,9 @@ An Owner or Admin can invite a teammate from **Team & access**. Choose **Editor*
 
 1. Select **Invite someone**, choose the **Role**, enter the teammate's email address and select **Create invite**. CapacityLens emails the invitation to that address. The invitation expires after seven days; **Resend** sends a fresh link and replaces the earlier one.
 2. The teammate opens the email link, enters their name and password, then selects **Accept invitation**.
-3. If the installation requires approval, they select **Ask for access**. An Owner or Admin opens **Team & access** and, under **Waiting for approval**, selects **Approve**. The teammate selects **Check again** after approval. Domain rules or approval requirements depend on the installation's configuration.
+3. They select **Ask for access**. An Owner or Admin opens **Team & access** and, under **Waiting for approval**, selects **Approve**. The teammate selects **Check again** after approval. Every new teammate needs this approval; only an allowed email-domain rule depends on the installation's configuration.
 
-Accepting an invitation creates a sign-in membership; any required admission checks still apply. It does not create a schedule row. To schedule the teammate, add a resource and link the member separately in [Add people](03-add-people.md).
+Accepting an invitation creates a sign-in membership; Owner or Admin approval is still required. It does not create a schedule row. To schedule the teammate, add a resource and link the member separately in [Add people](03-add-people.md).
 
 ## If access stalls
 

@@ -1,6 +1,6 @@
 ---
 title: Give Bruce access
-description: Invite Bruce as a Viewer, complete any admission step the company requires, and recover an invitation that did not arrive.
+description: Invite Bruce as a Viewer, approve his access, and recover an invitation that did not arrive.
 audience: 'Owner or Admin'
 screen: 'Team & access'
 ---
@@ -9,9 +9,9 @@ screen: 'Team & access'
 
 Diana wants Bruce to see the schedule, not change it. In **Team & access**, she selects **Invite someone**, chooses **Viewer**, enters Bruce’s email address, and selects **Create invite**. CapacityLens emails the invitation; it does not display a copyable link in the app.
 
-Accepting the invitation creates a sign-in and membership with the invited role; admission may still be required. It does not create Bruce’s schedule row. Diana will add that separately in [Add schedule people](03-add-people.md).
+Accepting the invitation creates a sign-in and membership with the invited role; an Owner or Admin must still approve him. It does not create Bruce’s schedule row. Diana will add that separately in [Add schedule people](03-add-people.md).
 
-Bruce opens the invitation from his email, enters his name and a password, then selects **Accept invitation**. The company may also require admission approval, depending on its configuration. If Bruce sees **Ask for access**, he selects it. Diana opens **Team & access → Waiting for approval**, finds Bruce, and selects **Approve**. Bruce then selects **Check again** on the waiting screen to continue. If the company does not require this approval step, Bruce can continue once the access screen says he is admitted.
+Bruce opens the invitation from his email, enters his name and a password, then selects **Accept invitation**. Every new teammate needs Owner or Admin approval, so Bruce selects **Ask for access**. Diana opens **Team & access → Waiting for approval**, finds Bruce, and selects **Approve**. Bruce then selects **Check again** on the waiting screen to continue.
 
 ## If the invitation is missing
 
