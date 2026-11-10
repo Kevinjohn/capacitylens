@@ -53,6 +53,13 @@ test('Compose upgrades before API startup and preserves the private persistent d
   // nginx reaches the API over the private Compose network, so loopback-only trust would key every
   // request by the nginx container.
   assert.equal(compose.services.api.environment.CAPACITYLENS_TRUST_PROXY_HEADERS, 'private');
+  // With private trust, any host that reaches the web port can choose its client address, so the
+  // published ports stay on loopback unless the operator binds them for a load balancer.
+  for (const service of ['web', 'web-client'])
+    assert.deepEqual(compose.services[service].ports, [
+      '${WEB_BIND_IP:-127.0.0.1}:${WEB_PORT:-8080}:8080',
+    ]);
+  assert.equal(compose.services.api.ports, undefined);
   // Production refuses a plain-HTTP origin, so Compose requires the operator's address instead of a default.
   assert.match(
     compose.services.api.environment.CAPACITYLENS_PUBLIC_URL,

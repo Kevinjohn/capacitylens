@@ -26,6 +26,11 @@ The published port binds to loopback by default. Configure your HTTPS proxy to f
 `127.0.0.1:8080`; see [TLS and networking](/self-hosting/tls-and-networking). Change `WEB_PORT`
 only when another service already uses that port.
 
+Set `WEB_BIND_IP` to a private address only for a load balancer that overwrites
+`X-Forwarded-For`, and firewall that address so nothing else can reach it. The web container and
+the API take the client address from private-network peers, so any other host that reaches the port
+can choose the address its requests are limited by.
+
 ## Build and start
 
 The Node base image comes from Docker Hub and remains pinned by digest. GitHub-hosted runners
