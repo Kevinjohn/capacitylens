@@ -18,15 +18,6 @@ Read status together with access and entry conditions. A Current story can inclu
 alternative, explicitly labelled as such. Status is source-reviewed availability, not a claim
 that its journey was exercised in a browser. A retained story does not authorize new functionality.
 
-## Reading the diagrams
-
-Both diagrams render from Mermaid in GitHub. **User flow** uses plain-language flowcharts to show what a person does and sees.
-**Code flow** uses Mermaid to show the relevant components, functions, state and service calls.
-Code references below each diagram link to the implementation used to trace it. Diagrams show
-the story's relevant path, not every internal check or a claim that a browser journey was run.
-An unavailable user flow is explicitly labelled; its code diagram distinguishes retained code
-from missing controls. See [the template](TEMPLATE.md#diagram-conventions) for maintenance rules.
-
 ## Roles and contexts
 
 - Viewers read planning data. Editors, Admins and Owners can make ordinary planning changes.

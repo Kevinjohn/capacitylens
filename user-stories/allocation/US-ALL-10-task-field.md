@@ -13,38 +13,3 @@ As an Editor, I want to add a short task description so that an allocation can c
 | Field | Control    | Required/default/conditions                                                |
 | ----- | ---------- | -------------------------------------------------------------------------- |
 | Task  | Text input | Optional; shown only when the company enables Show task field in schedule. |
-
-## User flow
-
-```mermaid
-flowchart TD
-  N1["When task details are enabled, enter optional task text in allocation form"]
-  N2["Save"]
-  N3["task appears with the booking"]
-  B1["Task field disabled ; then  no task control shown"]
-  B2["Invalid text ; then  field error; correct and retry"]
-  B3["Cancel ; then  discard task draft"]
-  N1 --> N2
-  N2 --> N3
-  N2 -.-> B1
-  N2 -.-> B2
-  N2 -.-> B3
-```
-
-## Code flow
-
-```mermaid
-flowchart TD
-  A["AllocationScheduleFields shows task when setting enables it"] --> B["useAllocationModalState supplies task value"]
-  B --> C["allocationSubmit.parseOptionalTask validates and normalizes text"]
-  C -->|valid| D["Include task in allocation draft"]
-  C -->|invalid| E["Field error; no write"]
-  D --> F["addAllocation/updateAllocation planning command"]
-  F --> G["Reconciled allocation renders task"]
-```
-
-**Code references:**
-
-- [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
-- [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
-- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)

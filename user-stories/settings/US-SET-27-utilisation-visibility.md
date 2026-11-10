@@ -15,22 +15,3 @@ As a company member, I want to choose which utilisation figures appear on my sch
 | Show Total Utilisation      | Switch  | On by default.                                                  |
 | Show Discipline Utilisation | Switch  | On by default; shown only when company disciplines are enabled. |
 | Show Personal Utilisation   | Switch  | On by default.                                                  |
-
-## User flow
-
-```mermaid
-flowchart TD
-A["Open Settings: Utilisation figures on this device"] --> B["Choose total, discipline and personal figures"]
-B --> C["Schedule shows the selected figures in this browser"]
-```
-
-## Code flow
-
-```mermaid
-flowchart TD
-  view["SettingsAppearanceSection renders utilisation switches"] --> setter["runtimeSlice.setUtilizationPref updates state"]
-  setter --> storage["displayPrefs.writeStoredUtilizationPrefs writes localStorage"]
-  setter --> overview["SchedulerGridHeader and SchedulerGridRow read utilisation preferences"]
-```
-
-**Code references:** [SettingsAppearanceSection.tsx](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx), [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts), [displayPrefs.ts](../../apps/frontend/src/lib/displayPrefs.ts), [SchedulerGridHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridHeader.tsx), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx)

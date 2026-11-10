@@ -15,29 +15,3 @@ As a company member, I want to choose this device’s light or dark appearance s
 ## Acceptance criteria
 
 - Light, Dark, and Match system choices update the interface and persist as device preference; reduced-motion preference is respected.
-
-## User flow
-
-```mermaid
-flowchart TD
-  human1["Choose Light, Dark, or Match system in Settings"]
-  human2["Appearance updates and the choice is saved on this device"]
-  human3["Use sidebar action"]
-  human4["toggle explicitly between Light and Dark"]
-  human1 --> human2
-  human1 --> human3
-  human3 --> human4
-```
-
-## Code flow
-
-```mermaid
-flowchart TD
-  settings["SettingsAppearanceSection onChange"] --> action["runtimeSlice setTheme"]
-  sidebar["ThemeToggleMenuItem calls setTheme"] --> action
-  action --> storage["writeStoredTheme saves device preference"]
-  action --> dom["applyThemeToDom applies resolved theme"]
-  system["subscribeToSystemScheme"] --> resolved["resolveTheme follows OS for system choice"]
-```
-
-**Code references:** [SettingsAppearanceSection.tsx](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx); [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts); [theme.ts](../../apps/frontend/src/lib/theme.ts)

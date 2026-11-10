@@ -349,23 +349,6 @@ test.group('M5 documentation and policy contracts', () => {
     }
   });
 
-  test('keeps a user flow and a source-linked code flow on every story', ({ assert }) => {
-    for (const file of storyFiles()) {
-      const content = readFileSync(file, 'utf8');
-      assert.lengthOf([...content.matchAll(/^## User flow$/gm)], 1, file);
-      assert.lengthOf([...content.matchAll(/^## Code flow$/gm)], 1, file);
-      const userStart = content.indexOf('## User flow');
-      const codeStart = content.indexOf('## Code flow');
-      assert.isBelow(userStart, codeStart, `User flow must precede code flow: ${file}`);
-      const userFlow = content.slice(userStart, codeStart);
-      assert.match(userFlow, /^```mermaid\n[\s\S]+?^```$/m, `Missing user flowchart: ${file}`);
-      const diagrams = [...content.matchAll(/^```mermaid\n([\s\S]+?)^```$/gm)];
-      assert.lengthOf(diagrams, 2, `Expected user and code diagrams: ${file}`);
-      for (const diagram of diagrams) assert.match(diagram[1]!, /^flowchart (?:TD|LR)\b/, file);
-      assert.match(content.slice(codeStart), /^\*\*Code references:\*\*\s+(?:- )?\[/m, file);
-    }
-  });
-
   test('keeps permanent deletion guidance on the entity view', ({ assert }) => {
     assert.notMatch(
       read('docs-src/using/resources.md'),
