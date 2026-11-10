@@ -22,3 +22,29 @@ As a person with an account, I want to reset a forgotten password so that I can 
 | Confirm password | Password input | Required; must match New password. |
 
 - **Set new password** uses the emailed link. A successful reset asks the person to sign in with the new password; invalid or expired links direct them to request another. The bearer is not displayed or stored by the product.
+
+## User flow
+
+```mermaid
+flowchart TD
+  open["Sign-in screen → Forgot password?"] --> email["Enter email → Email reset link"]
+  email --> confirmation["See the same confirmation for any address"]
+  confirmation --> link["Open emailed link → Enter matching new passwords"]
+  link --> set["Set new password"]
+  set --> done["Success: go to sign in"]
+  set --> invalid["Invalid or expired link: request another"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  forgot["ForgotPassword.submit sends reset request"] --> request["authClient.requestPasswordReset"]
+  request --> kitRequest["CredentialController.requestReset calls Account Kit passwordReset.request"]
+  kitRequest --> neutral["ForgotPassword shows non-enumerating confirmation"]
+  link["ResetPassword.submit sends token and new password"] --> reset["authClient.resetPassword"]
+  reset --> kitReset["CredentialController.resetPassword calls Account Kit passwordReset.reset"]
+  kitReset --> outcome["ResetPassword renders success or link error"]
+```
+
+**Code references:** [LoginScreen.tsx](../../apps/frontend/src/auth/LoginScreen.tsx), [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx), [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)

@@ -17,3 +17,39 @@ As an Owner or Admin, I want to change an eligible member's role or active statu
 - **Save role** applies the selected role after the role dialog; the dialog shows a summary of that role.
 - **Suspend** asks for confirmation and explains that access stops while role and history remain. **Restore membership** asks for confirmation and restores the member with the previous role.
 - Active members appear in Members; suspended members appear under **No longer active**. Nobody can change their own membership or the Owner through these controls.
+
+## User flow
+
+```mermaid
+flowchart TD
+    Open["Open Members and choose an eligible member"] --> Change{"Change role or active status?"}
+    Change -->|"Role"| Edit["Select Edit, choose a role and Save role"]
+    Edit --> Updated["Review the updated member row"]
+    Change -->|"Status"| Menu["Open More actions"]
+    Menu --> Suspend["Select Suspend and confirm"]
+    Menu --> Restore["Select Restore membership and confirm"]
+    Suspend --> Inactive["Member appears under No longer active"]
+    Restore --> Active["Member returns to active Members"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+    Row["MemberRow opens role edit or More actions"] --> RoleDialog["MemberConfirmations role dialog calls changeRole"]
+    RoleDialog --> RoleMutation["createRoleMutation → teamAccessClient.changeMemberRole"]
+    RoleMutation --> RoleAPI["accountClient PATCH api.members.role"]
+    RoleAPI --> RoleServer["MembersController.changeRole → changeMemberRole → Access Control membership update"]
+    RoleServer --> RoleResult{"Role update succeeded?"}
+    RoleResult -->|"Yes"| RefreshRole["useMembersOrchestration refreshDirectory updates role row"]
+    RoleResult -->|"No"| RoleError["useFieldError presents the role update error"]
+    Row --> StatusConfirm["MemberConfirmations confirms Suspend or Restore"]
+    StatusConfirm --> StatusMutation["createStatusMutation → teamAccessClient.changeMemberStatus"]
+    StatusMutation --> StatusAPI["accountClient PATCH api.members.status"]
+    StatusAPI --> StatusServer["MembersController.changeStatus → changeMemberStatus → Access Control membership status"]
+    StatusServer --> StatusResult{"Status update succeeded?"}
+    StatusResult -->|"Yes"| RefreshStatus["useMembersOrchestration refreshDirectory updates active group"]
+    StatusResult -->|"No"| StatusError["useFieldError presents the access update error"]
+```
+
+**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx), [MemberConfirmations.tsx](../../apps/frontend/src/components/team/MemberConfirmations.tsx), [useMembersOrchestration.ts](../../apps/frontend/src/components/team/useMembersOrchestration.ts), [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [accountClient.ts](../../apps/frontend/src/account/accountClient.ts), [membership_routes.ts](../../apps/backend/start/membership_routes.ts), [members_controller.ts](../../apps/backend/app/controllers/members_controller.ts), [member_mutations.ts](../../apps/backend/app/services/membership/member_mutations.ts)

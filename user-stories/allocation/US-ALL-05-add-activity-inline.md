@@ -15,3 +15,38 @@ As an Editor, I want to add an activity from the allocation form so that I can a
 | New activity name | Text input | Required to add an activity; available only when the company enables inline activity creation. |
 
 - **Add activity** creates an activity in the selected scope and selects it in the Activity control.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["In allocation form choose project scope"]
+  N2["enter activity name"]
+  N3["Add activity"]
+  N4["new activity is selected"]
+  B1["Feature disabled or invalid name ; then  inline creation unavailable or field error"]
+  B2["Close form ; then  no allocation is saved unless Save is chosen"]
+  N1 --> N2
+  N2 --> N3
+  N3 --> N4
+  N3 -.-> B1
+  N3 -.-> B2
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["AllocationTargetFields: inline activity entry when enabled"] --> B["useAllocationTargetState: addActivity handler"]
+  B --> C["addActivity typed catalogue write for selected scope"]
+  C -->|created| D["Select new activity in Activity field"]
+  C -->|invalid/failure| E["Show field/form error; retain form"]
+  D --> F["Allocation remains a draft until Save"]
+```
+
+**Code references:**
+
+- [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx)
+- [useAllocationTargetState.ts](../../apps/frontend/src/components/scheduler/useAllocationTargetState.ts)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)

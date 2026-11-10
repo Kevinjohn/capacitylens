@@ -16,3 +16,25 @@ As an Editor, I want status and notes to look distinct on allocation bars so tha
 
 - Tentative, completed and confirmed allocations have distinct visual treatments.
 - A note marker appears only on allocations that have a note.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer looks at allocation bars"]
+  B["Tentative, completed and confirmed states look distinct"]
+  C["A note marker appears only when a note exists"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["SchedulerGridModel supplies allocation status and note"] --> B["AllocationBar derives label and status presentation"]
+  B --> C["AllocationBarView renders status class and note marker"]
+  C --> D["Viewer reads visual state on the Schedule"]
+```
+
+**Code references:** [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx)

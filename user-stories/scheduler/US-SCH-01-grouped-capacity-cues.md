@@ -16,3 +16,26 @@ As an Editor, I want resources grouped by discipline with capacity cues so that 
 
 - The Schedule groups resources by discipline and shows each resource’s utilisation.
 - Over-capacity and unavailable days are visibly marked.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer opens Schedule"]
+  B["Resources appear under discipline headings"]
+  C["Capacity cues show utilisation, availability and over-capacity"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["Schedule opens"] --> B["useSchedulerGridModel builds grid model"]
+  B --> C["buildSchedulerModel groups resources and derives day states"]
+  C --> D["applyVisibleUtilization updates visible-window utilisation and lanes"]
+  D --> E["SchedulerGridRows renders resource rows and ResourceLane cues"]
+```
+
+**Code references:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)

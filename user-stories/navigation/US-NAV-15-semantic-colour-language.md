@@ -15,3 +15,25 @@ As a company member, I want consistent semantic colours so that I can recognize 
 ## Acceptance criteria
 
 - Brand, positive, neutral, warning, and destructive actions use consistent high-contrast semantic styling.
+
+## User flow
+
+```mermaid
+flowchart TD
+  human1["Scan navigation and actions"]
+  human2["Brand, positive, neutral, warning, or destructive intent is conveyed"]
+  human3["Text and controls remain legible"]
+  human1 --> human2
+  human2 --> human3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  action["Button receives variant and visual intent"] --> styles["button.tsx assigns semantic classes"]
+  styles --> tokens["index.css resolves semantic color tokens"]
+  tokens --> ui["rendered control communicates intent"]
+```
+
+**Code references:** [button.tsx](../../apps/frontend/src/components/ui/button.tsx); [index.css](../../apps/frontend/src/index.css)

@@ -12,3 +12,25 @@ As a company member, I want invalid import files rejected so that an accidental 
 
 - The importer accepts only a valid full beta v1 document.
 - Invalid or foreign documents are refused before replacement; current company data remains intact.
+
+## User flow
+
+```mermaid
+flowchart TD
+  choose["Import JSON → Choose a file"] --> check["Check the CapacityLens beta export format"]
+  check --> invalid["Invalid or foreign file: see an error; current data remains"]
+  check --> valid["Valid file: review the preview before replacement"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  file["usePendingImport.readFile reads selected file"] --> parser["parseBetaExport validates JSON and beta document shape"]
+  parser -->|"invalid"| notice["ImportExport reports error before preview or replacement"]
+  parser -->|"valid"| preview["BetaImportPreview.prepareBetaImport checks full import contract"]
+  preview -->|"server apply"| request["TransferController input calls parseRequestDocument"]
+  request --> validate["previewBetaAccountTransfer or applyBetaAccountTransfer prepares document again"]
+```
+
+**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [BetaImportPreview.tsx](../../apps/frontend/src/components/import-export/BetaImportPreview.tsx), [betaTransfer.ts](../../packages/shared/src/data/betaTransfer.ts), [transfer_controller.ts](../../apps/backend/app/controllers/transfer_controller.ts), [beta_account_transfer.ts](../../apps/backend/app/services/beta_account_transfer.ts)
