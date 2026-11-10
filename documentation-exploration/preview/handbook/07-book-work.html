@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Add a project activity to a person&#39;s schedule for the dates and amount they can take on."
+    />
+    <title>Book work · CapacityLens documentation preview</title>
+    <link rel="stylesheet" href="../../preview.css" />
+  </head>
+  <body class="handbook">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="../../index.html"
+        >CapacityLens <span>Documentation exploration</span></a
+      ><a href="../../index.html">Compare options</a>
+    </header>
+    <div class="preview-note">Editorial preview · A: Task handbook · Actual product unchanged</div>
+    <nav class="compare" aria-label="Same task in another option">
+      <span>Compare this task:</span
+      ><a
+        href="../handbook/07-book-work.html"
+        aria-label="Option A: Task handbook"
+        aria-current="page"
+        >A<span> Task handbook</span></a
+      ><a href="../guided/07-book-work.html" aria-label="Option B: First-week walkthrough"
+        >B<span> First-week walkthrough</span></a
+      ><a href="../answers/07-book-work.html" aria-label="Option C: Answer desk"
+        >C<span> Answer desk</span></a
+      >
+    </nav>
+    <details class="route-menu">
+      <summary>Browse tasks</summary>
+      <nav aria-label="All tasks">
+        <ol>
+          <li><a href="01-plan-next-week.html">Plan next week</a></li>
+          <li><a href="02-get-access.html">Get access</a></li>
+          <li><a href="03-add-people.html">Add people</a></li>
+          <li><a href="04-add-work.html">Add work</a></li>
+          <li><a href="05-add-time-off.html">Add time off</a></li>
+          <li><a href="06-find-capacity.html">Find capacity</a></li>
+          <li><a href="07-book-work.html" aria-current="page">Book work</a></li>
+          <li><a href="08-resolve-overbooking.html">Resolve overbooking</a></li>
+          <li><a href="09-check-your-week.html">Check your week</a></li>
+          <li><a href="10-update-the-plan.html">Update the plan</a></li>
+        </ol>
+      </nav>
+    </details>
+    <div class="layout">
+      <aside class="sidebar">
+        <nav aria-label="Task handbook">
+          <p class="nav-label">Your next-week plan</p>
+          <ol>
+            <li><a href="01-plan-next-week.html">Plan next week</a></li>
+            <li><a href="02-get-access.html">Get access</a></li>
+            <li><a href="03-add-people.html">Add people</a></li>
+            <li><a href="04-add-work.html">Add work</a></li>
+            <li><a href="05-add-time-off.html">Add time off</a></li>
+            <li><a href="06-find-capacity.html">Find capacity</a></li>
+            <li><a href="07-book-work.html" aria-current="page">Book work</a></li>
+            <li><a href="08-resolve-overbooking.html">Resolve overbooking</a></li>
+            <li><a href="09-check-your-week.html">Check your week</a></li>
+            <li><a href="10-update-the-plan.html">Update the plan</a></li>
+          </ol>
+        </nav>
+      </aside>
+      <main id="main" tabindex="-1">
+        <div class="page-context">
+          <p>Schedule</p>
+          <p><strong>For:</strong> Editor, Admin, Owner</p>
+        </div>
+        <article>
+          <h1 id="book-work" tabindex="-1">
+            Book work
+            <a class="header-anchor" href="#book-work" aria-label='Permalink to "Book work"'
+              >&ZeroWidthSpace;</a
+            >
+          </h1>
+          <p>Editors, Admins and Owners can book work on <strong>Schedule</strong>.</p>
+          <ol>
+            <li>
+              <strong>Choose a person and dates.</strong> Select <strong>+</strong> on that person's
+              row to open <strong>New allocation</strong>. Or drag across working days on the row to
+              set the date span.
+            </li>
+            <li>
+              <strong>Choose the work.</strong> Set <strong>Project</strong>, then choose
+              <strong>Activity</strong>. For the example in
+              <a href="./04-add-work.html">Add work</a>, choose
+              <strong>Wayne Enterprises → Website refresh</strong> and <strong>Design</strong>.
+            </li>
+            <li>
+              <strong>Set the amount.</strong> In <strong>Days</strong> mode, the form has
+              <strong>Days of work</strong> and <strong>Days over</strong>. With a Monday–Friday
+              company and a full-day person, set <strong>Start Date</strong> to Monday,
+              <strong>Days of work</strong> to <code>1</code>, and <strong>Days over</strong> to
+              <code>2</code>. Check that the calculated end is Tuesday. This books one day of work
+              across two full working days.
+            </li>
+            <li>
+              <strong>Save and check the result.</strong> Select <strong>Save</strong>. The booking
+              appears on the person's row. A bar can appear before the server confirms a save; if
+              the page shows
+              <strong>Changes aren’t being saved right now — we’ll keep retrying</strong>, leave it
+              open and wait for the warning to clear.
+            </li>
+          </ol>
+          <p>
+            A new booking normally starts as <strong>Confirmed</strong>. Choose
+            <strong>Tentative</strong> for work not yet won; tentative work still counts towards
+            utilisation.
+          </p>
+          <h2 id="other-project-choices-and-units" tabindex="-1">
+            Other project choices and units
+            <a
+              class="header-anchor"
+              href="#other-project-choices-and-units"
+              aria-label='Permalink to "Other project choices and units"'
+              >&ZeroWidthSpace;</a
+            >
+          </h2>
+          <p>
+            <strong>Internal</strong> is for internal activities.
+            <strong>No specific project</strong> is for All-projects activities without project
+            attribution. A real project offers its project-specific activities and shared
+            All-projects activities.
+          </p>
+          <p>
+            New companies default to <strong>Days</strong>, but an existing company may use
+            <strong>Hours</strong> or <strong>Blocks</strong>. Use the amount fields shown in the
+            form; do not change company settings just for this booking. In Blocks mode, bookings do
+            not measure capacity. For a saved booking that needs a change, see
+            <a href="./08-resolve-overbooking.html">Resolve overbooking</a>. A Viewer can inspect
+            the schedule with <a href="./09-check-your-week.html">Check your week</a>.
+          </p>
+        </article>
+        <nav class="page-turn" aria-label="Related tasks">
+          <a rel="prev" href="06-find-capacity.html"><span>Previous</span>Find capacity</a
+          ><a rel="next" href="08-resolve-overbooking.html"><span>Next</span>Resolve overbooking</a>
+        </nav>
+      </main>
+    </div>
+    <footer>
+      CapacityLens · Standalone editorial sample ·
+      <a href="../../research.html">Read the comparison report</a>
+    </footer>
+  </body>
+</html>

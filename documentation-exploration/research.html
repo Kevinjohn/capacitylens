@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Documentation research and evaluation for CapacityLens." />
+    <title>Make the next action easy to find · CapacityLens documentation preview</title>
+    <link rel="stylesheet" href="preview.css" />
+  </head>
+  <body class="report">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="index.html">CapacityLens <span>Documentation exploration</span></a
+      ><a href="index.html">Compare options</a>
+    </header>
+    <div class="preview-note">Editorial preview · Actual product unchanged</div>
+    <nav class="report-nav" aria-label="Research documents">
+      <a href="research.html" aria-current="page">Comparison report</a
+      ><a href="sources.html">Source notes</a><a href="verification.html">Verification record</a>
+    </nav>
+    <main id="main" class="report-article" tabindex="-1">
+      <article>
+        <h1 id="make-the-next-action-easy-to-find" tabindex="-1">
+          Make the next action easy to find
+          <a
+            class="header-anchor"
+            href="#make-the-next-action-easy-to-find"
+            aria-label='Permalink to "Make the next action easy to find"'
+            >&ZeroWidthSpace;</a
+          >
+        </h1>
+        <p>
+          <strong>Recommendation:</strong> organise everyday help around the work someone came to
+          do. Keep a short first-week route, show role restrictions beside the affected action, and
+          move exhaustive options into reference pages. Improve the route before changing the
+          documentation engine.
+        </p>
+        <p>
+          This is an editorial investigation and sample collection for
+          <a href="https://github.com/Kevinjohn/capacitylens/issues/1846">#1846</a>, researched on
+          <strong>10 November 2026</strong> against repository revision <code>ac69d13a1</code>. The
+          examples are alternatives for review; the current documentation remains intact.
+        </p>
+        <p>
+          <a href="index.html">Compare the three designs</a> ·
+          <a href="sources.html">Source observations</a> ·
+          <a href="verification.html">Verification and limits</a>
+        </p>
+        <p>
+          On this page:
+          <a href="#why-the-current-documentation-feels-larger-than-the-product">Diagnosis</a> ·
+          <a href="#what-the-strongest-examples-contribute">Examples</a> ·
+          <a href="#writing-direct-calm-and-specific">Writing</a> ·
+          <a href="#how-much-belongs-on-one-page">Page length</a> ·
+          <a href="#structure-and-submenus">Navigation</a> ·
+          <a href="#layout-make-the-text-easier-to-use">Layout</a> ·
+          <a href="#three-alternatives-to-choose-between">Alternatives</a>
+        </p>
+        <h2 id="why-the-current-documentation-feels-larger-than-the-product" tabindex="-1">
+          Why the current documentation feels larger than the product
+          <a
+            class="header-anchor"
+            href="#why-the-current-documentation-feels-larger-than-the-product"
+            aria-label='Permalink to "Why the current documentation feels larger than the product"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <p>
+          The existing <a href="../docs-src/STYLE.md">style guide</a> already makes many of the
+          right decisions: plain language, actual screens, concise instructions, meaningful warnings
+          and no card layouts. The individual sentences are generally clear. The reader's route
+          needs more attention.
+        </p>
+        <ul>
+          <li>
+            <strong>Several organising systems compete.</strong> The everyday sidebar offers role
+            routes, screen guides, task instructions and an FAQ. A person trying to move a booking
+            must decide between “Plan work as an Editor”, “Schedule”, “Schedule and change work” and
+            “FAQ”. These are legitimate documents with overlapping promises.
+          </li>
+          <li>
+            <strong>The entry page is another directory.</strong>
+            <a href="../docs-src/using/index.md">See your work</a> has 23 non-image Markdown links.
+            It initially says most people need very little, then offers a substantial “Go further”
+            list. The first visit can feel like the start of a course.
+          </li>
+          <li>
+            <strong>Long reference is doing introductory work.</strong> Schedule covers navigation,
+            the work list, grouping, bars, capacity, closures, filters and the command palette.
+            Those details are valuable when needed; they compete with the immediate question when
+            presented together.
+          </li>
+          <li>
+            <strong>Role routes repeat shared behaviour.</strong> Admin, Editor and Viewer guidance
+            all explain parts of joining, reading the schedule, capacity and settings. The same rule
+            is maintained in several places, and shared screens acquire several introductions.
+          </li>
+          <li>
+            <strong>A screenshot can delay the action.</strong> The published Schedule page starts
+            with a large full-window capture. It orients the reader, but its small controls still
+            need enlargement. A focused crop beside a specific instruction would sometimes do more
+            with less space.
+          </li>
+          <li>
+            <strong>Search is absent from the shipped build.</strong> The source config declares
+            local search, but
+            <a href="../scripts/docs-standalone.mjs">the standalone build</a> removes the client
+            interface and hides <code>.VPNavBarSearch</code>. The published Schedule page inspected
+            during this investigation also has no visible search. Good titles and cross-links
+            therefore carry more responsibility than the development preview suggests.
+          </li>
+        </ul>
+        <p>
+          A rough size check makes the scale visible. Counting whitespace-delimited tokens after
+          removing YAML front matter gives 17 everyday pages / 11,451 tokens, nine Admin pages /
+          3,271 tokens and five Owner pages / 1,731 tokens. Within everyday help, Settings is 1,641
+          tokens, Schedule 1,406 and Schedule and change work 1,244. These are reproducible size
+          proxies, including Markdown/HTML and image descriptions,
+          <strong>not reading-time estimates or evidence that a long page is bad</strong>.
+        </p>
+        <p>
+          There is also a maintenance signal: the everyday entry page describes
+          <strong>Create account and accept</strong>, while the current invitation component and
+          focused joining page use <strong>Accept invitation</strong>. This investigation does not
+          correct the live page, but the alternatives follow the current component. Reducing
+          repeated instructions can reduce this kind of drift.
+        </p>
+        <h2 id="what-the-strongest-examples-contribute" tabindex="-1">
+          What the strongest examples contribute
+          <a
+            class="header-anchor"
+            href="#what-the-strongest-examples-contribute"
+            aria-label='Permalink to "What the strongest examples contribute"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <p>
+          These are useful exemplars for particular decisions, not a ranking of whole documentation
+          sites. Inspection establishes observable patterns, not that their users find information
+          faster.
+        </p>
+        <table tabindex="0">
+          <thead>
+            <tr>
+              <th>Example</th>
+              <th>Useful observed pattern</th>
+              <th>CapacityLens application</th>
+              <th>What to leave behind</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <a href="https://docs.immich.app/overview/quick-start/">Immich quick start</a>
+              </td>
+              <td>
+                A defined starting point, one initial path, numbered actions and a concrete trial of
+                the result
+              </td>
+              <td>Offer one first-week route before presenting every option</td>
+              <td>Infrastructure detail and its much broader product navigation</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://actualbudget.org/docs/getting-started/starting-fresh/"
+                  >Actual Budget: Starting Fresh</a
+                >
+              </td>
+              <td>
+                Setup follows a meaningful workflow; specialist tasks are linked from that workflow
+              </td>
+              <td>Teach the cycle of availability → bookings → review</td>
+              <td>Its extended conceptual discussion inside onboarding</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://docs.astro.build/en/tutorial/0-introduction/">Astro tutorial</a>
+                and <a href="https://docs.astro.build/en/recipes/">recipes</a>
+              </td>
+              <td>Guided learning and focused task recipes have distinct purposes</td>
+              <td>Keep a walkthrough optional and let returning readers enter at a task</td>
+              <td>A developer curriculum, ecosystem tree and progress tracker</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://docs.djangoproject.com/en/5.2/intro/whatsnext/"
+                  >Django: What to read next</a
+                >
+              </td>
+              <td>
+                Distinguishes guided learning, conceptual guides, common tasks and exact reference
+              </td>
+              <td>Decide each page's purpose before drafting</td>
+              <td>Four visible taxonomy buckets if three simple user sections suffice</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://help.penpot.app/user-guide/first-steps/">Penpot: First Steps</a>
+              </td>
+              <td>A compact entry page describes what each destination gives the reader</td>
+              <td>A short help home can offer useful routes without retelling them</td>
+              <td>Another chooser for every job title</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://www.home-assistant.io/docs/automation/"
+                  >Home Assistant: Automations</a
+                >
+              </td>
+              <td>
+                Separates a first tutorial, explanations, reference and symptom-based recovery
+              </td>
+              <td>Link “book your first work” to deeper booking options and relevant errors</td>
+              <td>Deep nested navigation appropriate to a much larger product</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://docs.godotengine.org/en/stable/about/introduction.html"
+                  >Godot documentation introduction</a
+                >
+              </td>
+              <td>
+                Explicitly distinguishes an introductory route from a manual browsed as needed
+              </td>
+              <td>Say that the ten-page route is optional</td>
+              <td>Engine/API reference scale and extensive prerequisite lessons</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://docs.frappe.io/framework/user/en/desk/navigation/desktop"
+                  >Frappe desktop navigation</a
+                >
+              </td>
+              <td>Names interface regions and relates instructions to what permissions reveal</td>
+              <td>Name <strong>Schedule</strong>, the person's row and the exact control</td>
+              <td>Its apps/modules hierarchy and large framework sidebar</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://www.bookstackapp.com/docs/user/getting-around/"
+                  >BookStack: Getting Around</a
+                >
+              </td>
+              <td>Documents several ways to reach content rather than assuming one linear route</td>
+              <td>Provide task links, current-page state and sensible onward routes</td>
+              <td>The current user index's long chronological list of article excerpts</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="https://caddyserver.com/docs/quick-starts/reverse-proxy"
+                  >Caddy reverse-proxy quick start</a
+                >
+              </td>
+              <td>Gives prerequisites, an action and a direct way to check the result</td>
+              <td>Follow “Save” with what should appear and what to check</td>
+              <td>Terminal-oriented presentation for ordinary planning help</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Public repository inspection is recorded in
+          <a href="sources.html">Source observations</a>, including archived or moved sources.
+          Source code helps establish how a site is organised; it is not a substitute for reading
+          the rendered page.
+        </p>
+        <p>
+          <a href="https://www.diataxis.fr/start-here/">Diátaxis</a> is a useful editorial check: is
+          this page teaching, helping someone do a task, explaining a rule, or listing precise
+          options? Apply that distinction behind the scenes. Readers do not need to learn our
+          documentation taxonomy.
+        </p>
+        <h2 id="writing-direct-calm-and-specific" tabindex="-1">
+          Writing: direct, calm and specific
+          <a
+            class="header-anchor"
+            href="#writing-direct-calm-and-specific"
+            aria-label='Permalink to "Writing: direct, calm and specific"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <ol>
+          <li>
+            <strong>Put the answer in the first sentence.</strong> “Open Schedule and select the
+            avatar beside your name” is more useful than announcing what the guide covers.
+          </li>
+          <li>
+            <strong>Name the location and control together.</strong> “In Resources, select Add
+            resource.” Avoid “add a person” without saying where.
+          </li>
+          <li>
+            <strong>Use the reader's task as a procedure title.</strong> “Move a booking to someone
+            else” communicates more than “Allocation management”. Keep <strong>Schedule</strong> as
+            the title of a genuine screen reference.
+          </li>
+          <li>
+            <strong>Make restrictions local.</strong> “An Owner or Admin sends invitations” belongs
+            beside the invitation steps. A permission matrix is available for comparison, not
+            required reading.
+          </li>
+          <li>
+            <strong>Keep warmth in useful reassurance.</strong> “Adding someone to the schedule does
+            not send them an invitation” resolves a real uncertainty. “You're all set!” contributes
+            little if the result has not been checked.
+          </li>
+          <li>
+            <strong>Explain an unfamiliar product distinction once.</strong> A person on the
+            schedule and a member who can sign in are different. Clients and agencies do not need
+            generic business definitions.
+          </li>
+          <li>
+            <strong>Preserve the important caveat.</strong> A percentage below 100% can hide an
+            overloaded day. Reducing text must not remove the daily check or the fixed 14-day
+            warning rule.
+          </li>
+          <li>
+            <strong>Put recovery at the point of interruption.</strong> A failed invitation email
+            belongs with invitations; an uncertain save belongs with changing the plan. Keep a short
+            symptom index for readers who arrive through an error.
+          </li>
+        </ol>
+        <h3 id="before-and-after" tabindex="-1">
+          Before and after
+          <a
+            class="header-anchor"
+            href="#before-and-after"
+            aria-label='Permalink to "Before and after"'
+            >&ZeroWidthSpace;</a
+          >
+        </h3>
+        <p>
+          The “after” examples demonstrate editing choices; they do not replace the detailed
+          reference.
+        </p>
+        <table tabindex="0">
+          <thead>
+            <tr>
+              <th>Current wording or structure</th>
+              <th>Suggested treatment</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Editor opens with an inventory of editable objects and Owner-only operations</td>
+              <td>
+                “Check next week's working days, time off and bookings on Schedule. Then add or move
+                work.”
+              </td>
+              <td>
+                Start with the planner's job; reserve exceptional authority for the relevant task
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Viewer introduction lists bookings, resources, time off and company settings that
+                cannot be changed
+              </td>
+              <td>
+                “Use Schedule to review your work. Ask the planner if a booking needs changing.”
+              </td>
+              <td>Gives a useful action before the boundary</td>
+            </tr>
+            <tr>
+              <td>
+                Admin entry explains its own five-step guide and guides the reader need not read
+              </td>
+              <td>
+                “Add the people and work you plan, then book a person. Invite teammates who need to
+                see or maintain the plan.”
+              </td>
+              <td>Describes product actions instead of documentation architecture</td>
+            </tr>
+            <tr>
+              <td>A booking page opens with general context before locating the control</td>
+              <td>
+                “On Schedule, select + on the person's row. Choose Project and Activity, then check
+                the dates and amount.”
+              </td>
+              <td>Makes the start of the task locatable</td>
+            </tr>
+            <tr>
+              <td>Overview access described as a general prerequisite for team review</td>
+              <td>
+                “If Overview is available, use it to compare weekly capacity. Everyone can review
+                Schedule.”
+              </td>
+              <td>Keeps the Viewer route usable under default permissions</td>
+            </tr>
+          </tbody>
+        </table>
+        <h2 id="how-much-belongs-on-one-page" tabindex="-1">
+          How much belongs on one page?
+          <a
+            class="header-anchor"
+            href="#how-much-belongs-on-one-page"
+            aria-label='Permalink to "How much belongs on one page?"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <p>
+          Page length follows the decision being made. These ranges are drafting prompts, not
+          acceptance limits.
+        </p>
+        <table tabindex="0">
+          <thead>
+            <tr>
+              <th>Page purpose</th>
+              <th>Useful content</th>
+              <th>Typical starting range</th>
+              <th>Move elsewhere</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Help home</td>
+              <td>A few common needs and clearly named destinations</td>
+              <td>100–200 words</td>
+              <td>Product sales pitch, full permission table, every reference link</td>
+            </tr>
+            <tr>
+              <td>Routine task</td>
+              <td>Where to start, essential steps, expected result, likely interruption</td>
+              <td>150–350 words</td>
+              <td>Every optional field and rare policy exception</td>
+            </tr>
+            <tr>
+              <td>First-use walkthrough stage</td>
+              <td>A concrete example, steps, a visible result and the next handoff</td>
+              <td>200–450 words</td>
+              <td>Repeated explanations of earlier lessons</td>
+            </tr>
+            <tr>
+              <td>Screen reference</td>
+              <td>What each meaningful region/control does, with anchors</td>
+              <td>Whatever the subject needs</td>
+              <td>Onboarding narrative and repeated basic tasks</td>
+            </tr>
+            <tr>
+              <td>High-consequence operation</td>
+              <td>
+                Authority, effect, prerequisites, confirmation, verification and recovery limits
+              </td>
+              <td>Whatever safe completion needs</td>
+              <td>Nothing required to make an informed choice</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          A short page fails if it sends readers elsewhere for the next essential instruction. A
+          long reference succeeds if readers can land on the exact answer. Split by distinct need,
+          not by arbitrary word count. Combine tiny dependent actions when separating them would
+          make readers hop between pages; creating a client, project and first activity can stay
+          together.
+        </p>
+        <h2 id="structure-and-submenus" tabindex="-1">
+          Structure and submenus
+          <a
+            class="header-anchor"
+            href="#structure-and-submenus"
+            aria-label='Permalink to "Structure and submenus"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <p>Use three reader-facing sections. Their names describe actual needs:</p>
+        <ul>
+          <li>
+            <strong>Use CapacityLens:</strong> plan next week, see your work, add/change bookings,
+            manage time off, find capacity, recover a failed change.
+          </li>
+          <li>
+            <strong>Manage the company:</strong> invite or remove access, connect a member to a
+            schedule row, settings, Owner responsibilities and privacy/data operations.
+          </li>
+          <li>
+            <strong>Install and run:</strong> installation, email, backups, upgrades, service
+            problems and technical reference.
+          </li>
+        </ul>
+        <p>
+          Keep a small product introduction and demo link available from the help home. Contributor
+          architecture, test records and historical security reviews can remain accessible from a
+          separate contributor/reference destination rather than the everyday sidebar.
+        </p>
+        <p>
+          Within <strong>Use CapacityLens</strong>, keep the optional first-week route above a
+          compact task list. Use one level of grouping for “Prepare the plan”, “Book and adjust”,
+          and “Review the week”. Do not add a second level solely to reproduce the application's
+          menu. Show only the current section's navigation; keep the other two sections reachable
+          through stable top-level links. Preserve explicit current-page indication and usable
+          narrow-screen menus.
+        </p>
+        <p>
+          Roles remain valuable as <strong>entry shortcuts and action conditions</strong>, rather
+          than four parallel manuals:
+        </p>
+        <table tabindex="0">
+          <thead>
+            <tr>
+              <th>Reader</th>
+              <th>Useful entry</th>
+              <th>Boundary to make clear</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Owner</td>
+              <td>Hand daily management to an Admin</td>
+              <td>Ownership and destructive company operations remain separate responsibilities</td>
+            </tr>
+            <tr>
+              <td>Admin</td>
+              <td>Give the team access and prepare the plan</td>
+              <td>Invitation/membership and schedule rows are separate</td>
+            </tr>
+            <tr>
+              <td>Editor</td>
+              <td>Find capacity, then book or move work</td>
+              <td>Cannot manage members; Overview is restricted by default</td>
+            </tr>
+            <tr>
+              <td>Viewer</td>
+              <td>Find next week's work</td>
+              <td>Cannot change bookings or enter their own holiday</td>
+            </tr>
+            <tr>
+              <td>Operator</td>
+              <td>Verify and hand over a working installation</td>
+              <td>Hosting/email/backups are separate from daily planning</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Small agencies often have one person covering several responsibilities. Task routes let
+          that person move naturally between jobs. Do not hide content behind an audience selector:
+          it can conceal a required handoff or become another choice before an answer.
+        </p>
+        <h2 id="layout-make-the-text-easier-to-use" tabindex="-1">
+          Layout: make the text easier to use
+          <a
+            class="header-anchor"
+            href="#layout-make-the-text-easier-to-use"
+            aria-label='Permalink to "Layout: make the text easier to use"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <ul>
+          <li>
+            <strong>Keep the main reading column around 65–75 characters.</strong> Start around 17px
+            text with generous line height; test on actual screens rather than declaring one size
+            correct.
+          </li>
+          <li>
+            <strong>Give the action priority in the opening viewport.</strong> A title, one short
+            orientation sentence, a relevant access condition and the first action should generally
+            fit before a large screenshot.
+          </li>
+          <li>
+            <strong>Keep the site chrome quiet.</strong> Stable product/help link, section
+            navigation, one task sidebar where useful. Avoid a hero section or decorative cards on
+            every article.
+          </li>
+          <li>
+            <strong>Use an outline when it pays for its space.</strong> A long reference benefits
+            from “On this page”; a 200-word task with three sections may not.
+          </li>
+          <li>
+            <strong>Use screenshots as evidence of location.</strong> Reuse a wide overview to teach
+            the screen once. Prefer a readable dialog or control crop for an action. Keep names and
+            controls in text and offer the original image at full size.
+          </li>
+          <li>
+            <strong>Collapse optional explanation only.</strong> Do not hide permissions, data loss,
+            saving problems, a necessary step or the fact that a booking overlaps time off.
+          </li>
+          <li>
+            <strong>Keep navigation functional without scripts.</strong> The current product
+            deliberately supports disk-openable documentation. The samples use ordinary links and
+            native details menus, with no fake search box.
+          </li>
+          <li>
+            <strong>Treat search as a separate product decision.</strong> A future small static
+            search could help a larger corpus, but it must work in the delivered artifact and
+            preserve agreed offline behaviour. Better headings and task links are useful now.
+          </li>
+          <li>
+            <strong
+              >Design help for narrow screens even though scheduling is desktop-oriented.</strong
+            >
+            Someone can read an invitation or recovery instruction on a phone without doing mobile
+            scheduling.
+          </li>
+        </ul>
+        <h2 id="three-alternatives-to-choose-between" tabindex="-1">
+          Three alternatives to choose between
+          <a
+            class="header-anchor"
+            href="#three-alternatives-to-choose-between"
+            aria-label='Permalink to "Three alternatives to choose between"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <table tabindex="0">
+          <thead>
+            <tr>
+              <th>Alternative</th>
+              <th>Writing and layout</th>
+              <th>Strongest use</th>
+              <th>Cost or risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>A — Task handbook</strong></td>
+              <td>Short action pages, persistent compact task navigation, restrained white page</td>
+              <td>Everyday lookup and direct links from the application</td>
+              <td>Needs a good entry route for someone who has never planned a week</td>
+            </tr>
+            <tr>
+              <td><strong>B — First-week walkthrough</strong></td>
+              <td>
+                Continuous fictional example, sequential navigation, quieter warm page and an
+                optional all-steps menu
+              </td>
+              <td>Learning the product from an already-created company</td>
+              <td>
+                Can feel like a course; returning readers should not need to follow the sequence
+              </td>
+            </tr>
+            <tr>
+              <td><strong>C — Answer desk</strong></td>
+              <td>
+                Question titles, immediate answer, grouped help navigation and optional detail
+              </td>
+              <td>Symptom-led visits and occasional users</td>
+              <td>Can fragment a coherent workflow and grow into a duplicate FAQ if unmanaged</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          <strong>Choose A as the foundation.</strong> Borrow B's controlled example for an optional
+          introduction, and C's question wording for genuine interruptions. Publishing all three
+          complete sets would recreate the duplication problem. They are complete here so the choice
+          can be made from real pages rather than a mood board.
+        </p>
+        <h2 id="the-ten-page-journey-and-its-viewpoints" tabindex="-1">
+          The ten-page journey and its viewpoints
+          <a
+            class="header-anchor"
+            href="#the-ten-page-journey-and-its-viewpoints"
+            aria-label='Permalink to "The ten-page journey and its viewpoints"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <p>
+          The scenario begins with an installed company and an active Owner. It ends with a feasible
+          next-week plan that a Viewer can find. Installation and first-company creation are
+          deliberately outside this journey; an operator is involved only if the application or
+          email is unavailable.
+        </p>
+        <table tabindex="0">
+          <thead>
+            <tr>
+              <th>Page</th>
+              <th>Need</th>
+              <th>Acting or reading viewpoint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Choose where to enter the weekly planning route</td>
+              <td>Everyone; Owner can hand off daily management</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Give people access and join successfully</td>
+              <td>Owner/Admin sends; teammate accepts; operator handles email service</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Add the people whose time is planned</td>
+              <td>Editor/Admin/Owner; Admin/Owner links membership</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Prepare the client, project and activity</td>
+              <td>Editor/Admin/Owner</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Include absences before booking</td>
+              <td>Planner; Viewer asks for correction</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Find who has room next week</td>
+              <td>Everyone on Schedule; optional Overview access</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td>Book the work</td>
+              <td>Editor/Admin/Owner</td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td>Resolve an overloaded day</td>
+              <td>Planner; destination person's availability matters</td>
+            </tr>
+            <tr>
+              <td>9</td>
+              <td>Check your own week and report a correction</td>
+              <td>Viewer, also useful to all teammates</td>
+            </tr>
+            <tr>
+              <td>10</td>
+              <td>Keep the plan current and recover from interruptions</td>
+              <td>Planner; Owner/Admin/operator only for the relevant boundary</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          The guided version uses Bruce Wayne and Diana Prince, a Wayne Enterprises Website refresh
+          project and a Design activity. It states the example's Days-mode and working-week
+          assumptions rather than asking readers to change their company to match a tutorial.
+          Existing screenshots are labelled as interface references with illustrative data.
+        </p>
+        <h2 id="what-would-establish-that-this-is-better" tabindex="-1">
+          What would establish that this is better?
+          <a
+            class="header-anchor"
+            href="#what-would-establish-that-this-is-better"
+            aria-label='Permalink to "What would establish that this is better?"'
+            >&ZeroWidthSpace;</a
+          >
+        </h2>
+        <p>
+          Rendered pages and working links establish that the alternatives are reviewable. They do
+          not establish that newcomers find answers faster. Before replacing the live structure, use
+          a small comparison with people unfamiliar with the product:
+        </p>
+        <ul>
+          <li>Ask a Viewer to find next week's bookings and what to do if a holiday is wrong.</li>
+          <li>Ask a planner to find why a 75% week can still contain an overloaded day.</li>
+          <li>Ask an Admin to invite someone who is already listed on the schedule.</li>
+          <li>
+            Ask someone to recover after a save message says the outcome could not be confirmed.
+          </li>
+          <li>
+            Ask an operator to find the email-delivery and backup responsibilities without reading
+            scheduling help.
+          </li>
+        </ul>
+        <p>
+          Use the current site and one candidate in alternating order. Record the first destination
+          chosen, whether the answer was found unaided, wrong turns, missing information and a
+          plain-language explanation of the answer. Time can be recorded, but do not promise a speed
+          improvement from this investigation. A handful of sessions is useful qualitative evidence,
+          not statistical proof.
+        </p>
+        <p>
+          If A is selected, adopt it for one complete journey first, preserve old inbound URLs with
+          redirects or retained anchors, update relevant in-app help links and stories, regenerate
+          the committed documentation, and test the actual standalone build. Keep one canonical
+          explanation for each rule. The design choice remains open; no production migration has
+          been performed here.
+        </p>
+      </article>
+    </main>
+    <footer>
+      <a href="index.html">Compare the three options</a> · <a href="research.md">Markdown source</a>
+    </footer>
+  </body>
+</html>
