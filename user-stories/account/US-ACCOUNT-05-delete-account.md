@@ -14,5 +14,5 @@ As a signed-in person, I want to delete my account so that my sign-in and compan
 | ---------------- | -------------- | --------------------------- |
 | Current password | Password input | Required.                   |
 
-- The dialog explains that deletion cannot be undone and removes the sign-in and company memberships; the person's name remains on past schedules and audit entries.
+- The dialog explains that deletion cannot be undone and removes the sign-in and company memberships; the person Resource remains on past schedules, while audit history retains the former user ID.
 - **Delete account** submits the form; **Cancel** closes the dialog and clears its field. An Owner must transfer ownership before deletion. On success, the browser returns to sign-in.

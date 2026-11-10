@@ -15,4 +15,4 @@ As an Owner or Admin, I want to email a teammate an invitation with a role so th
 | Role  | Select      | Required; defaults to Editor; Admin, Editor or Viewer are available, not Owner. |
 | Email | Email input | Required; invitee's address.                                                    |
 
-- **Create invite** emails the invitation; the app does not display the invitation link. If email delivery is unavailable, the page explains that the invitation was saved but not emailed.
+- **Create invite** emails the invitation; the app does not display the invitation link. Missing mail configuration prevents creation. If delivery fails after the invitation was saved, the page explains that it was saved but not emailed and it can be resent.

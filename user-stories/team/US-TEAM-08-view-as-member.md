@@ -13,3 +13,4 @@ As an Owner or Admin, I want to view the app as another active member so that I 
 - **View the app as this member** asks for confirmation before opening the member view.
 - A banner identifies the member, shows when the view ends, and offers **End now**; a **Retry** control appears when the member view needs to be restored.
 - The member view is read-only and expires after 15 minutes. Company navigation ends it; signing out ends it for the current session.
+- Other signed-in sessions observe the same member view, or its end, on their next request.
