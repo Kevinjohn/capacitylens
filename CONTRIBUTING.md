@@ -156,7 +156,7 @@ The backend pins `@kevinjohn/adonisjs-lucid-soft-delete` version `0.1.7` by the 
 [tagged GitHub release](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.7).
 Every `@kevinjohn/*` package is consumed the same way, from its own repository's release; the
 lockfile records each archive's integrity. To change a pin, update the backend manifest URL and the
-lockfile together. pnpm 11.4 writes a newly resolved URL entry without `integrity`, which a frozen
+lockfile together. pnpm 11.5 writes a newly resolved URL entry without `integrity`, which a frozen
 install then refuses; add the archive's `sha512-` integrity to that `resolution` before committing.
 
 Client, Project, Activity and Resource keep the package's Luxon `deletedAt` attribute. Their
