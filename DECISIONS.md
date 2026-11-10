@@ -237,6 +237,12 @@ This is the short, present-tense record of decisions that constrain future work.
   stop. Package operations never run inside the single-connection product transaction. Covered
   writes require the context captured for the action, including idle-mode writes; stale actions are
   refused and never automatically replayed.
+- One global server middleware enforces view-as policy before routing: while a mode is active it
+  refuses every unsafe request and the listed identity, membership and administration reads. The
+  package's effective guard and route markers are not used, because product routes resolve their
+  actor through `withActor`, not the AdonisJS auth middleware those markers depend on. A new
+  sensitive read route must be added to the middleware's list. Revisit if product routes adopt the
+  auth middleware.
 - Package events are authoritative for new view-as lifecycle audit. Historical product audit stays
   intact, but new events do not retain a company ID or separate explicit/company-switch/sign-out
   classifications. Control state and events stay in database backups, outside scheduling exports.
@@ -256,7 +262,7 @@ This is the short, present-tense record of decisions that constrain future work.
 ### Password confirmation package adoption (9 November 2026)
 
 This supersedes the retention decision in the historical capability audit below. CapacityLens uses
-`@kevinjohn/adonisjs-confirm-action-with-password` 0.1.0 with exactly Account Kit 0.3.3. Its five-minute confirmations bind
+`@kevinjohn/adonisjs-confirm-action-with-password` 0.1.1 with exactly Account Kit 0.3.4. Its five-minute confirmations bind
 the user, sign-in, live credential revision, company, action and exact intent. Host pre-flight and
 transactional policy retain confirmed-email, admission, live Owner and no-masquerade requirements.
 The app's database limiter reserves attempts per account before hashing: five failures per minute,
@@ -280,7 +286,7 @@ bindings and caller-owned transactional consumption needed by these operations. 
 confirmation or a different proof purpose is not an equivalent replacement.
 
 This source audit checked application revision `f52bee5fe75604b33c1191294a80259825461aba` and
-[`vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.2.tgz`](vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.2.tgz)
+the then-vendored Account Kit 0.1.2 archive
 (SHA-256 `18696d27971605dbbada54ccb9066260499fc9ab3f258cd7684ed6098dacf573`).
 The archive's `build/src/account_kit.d.ts`, `social_enums.d.ts`, `social_proofs.d.ts`, package
 exports and bundled proof implementation establish the Kit column below. This is not a claim that

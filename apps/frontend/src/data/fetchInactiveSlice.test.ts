@@ -89,6 +89,21 @@ describe('fetchInactiveSlice', () => {
     }
   });
 
+  it('lets an unexpected failure propagate instead of reporting a shape error', async () => {
+    const fault = new TypeError('unexpected reader fault');
+    const body = {
+      get accounts(): never {
+        throw fault;
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ok(body)),
+    );
+
+    await expect(fetchInactiveSlice('a-studio')).rejects.toBe(fault);
+  });
+
   it('refuses a complete-looking response with invalid lifecycle state or a broken link', async () => {
     const valid = buildBetaExport(seed(), { accountId: 'a-studio', completeness: 'full' }).data;
     const lifecycle = structuredClone(valid);

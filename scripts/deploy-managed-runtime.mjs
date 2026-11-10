@@ -78,7 +78,7 @@ export async function deployManagedRuntime(repositoryRoot, deployment, backend) 
       ['--filter', '@capacitylens/backend...', 'install', '--frozen-lockfile', '--ignore-scripts'],
       source,
     );
-    // The pinned local archive is resolved correctly by legacy deploy; dedicated-lockfile deploy tries the registry.
+    // The pinned release-asset packages are resolved correctly by legacy deploy; dedicated-lockfile deploy tries the registry.
     checked(
       [
         '--filter',

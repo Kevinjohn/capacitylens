@@ -35,7 +35,7 @@ FROM web-build AS web-client-build
 # into the CSP rather than weakening connect-src or templating mutable runtime configuration.
 RUN node scripts/render-client-nginx.mjs nginx.client.conf.template /tmp/nginx.client.conf
 
-# Deployment runs in this disposable build stage, preserving the pinned local archive.
+# Deployment runs in this disposable build stage, preserving the pinned release-asset packages.
 FROM web-build AS server-deploy
 RUN pnpm --filter @capacitylens/backend deploy --prod --legacy --no-optional /runtime-deploy \
     && node scripts/prepare-container-runtime.mjs /app /runtime-deploy /prod/backend

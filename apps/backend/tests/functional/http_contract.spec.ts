@@ -132,7 +132,9 @@ async function withServer(
 }
 
 const limitedRead = (server: Booted, forwardedFor: string) =>
-  server.send('GET', '/api/meta', { 'x-forwarded-for': forwardedFor }).then(({ status }) => status);
+  server
+    .send('GET', '/api/auth/me', { 'x-forwarded-for': forwardedFor })
+    .then(({ status }) => status);
 
 // The protected reset route yields 401 without a session after an accepted origin, while the
 // origin guard returns 403 first when a forwarded https protocol makes the origin cross-site.

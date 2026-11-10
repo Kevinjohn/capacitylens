@@ -79,6 +79,7 @@
     "policy:sonner-csp:test": "node --test scripts/check-sonner-csp.test.mjs",
     "policy:gate-runner:test": "node --test scripts/run-gate.test.mjs scripts/pre-push.test.mjs",
     "policy:check-changed:test": "node --test scripts/check-changed.test.mjs",
+    "policy:turbo-graph:test": "node --test scripts/turbo-graph.test.mjs",
     "policy:dependabot": "node scripts/check-dependabot.mjs",
     "policy:dependabot:test": "node --test scripts/check-dependabot.test.mjs",
     "dependency:major-report": "node scripts/report-major-dependencies.mjs",

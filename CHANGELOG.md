@@ -15,19 +15,26 @@ new features and **patch** versions carry fixes.
 
 - The **Getting started** checklist now sits left-aligned in its drawer instead of in a card on the right, and no longer repeats the drawer's **Hide checklist** and **Dismiss** buttons.
 - **Breaking for API clients:** action proofs are now called password confirmations. `POST /api/auth/action-proof/password` is now `POST /api/auth/password-confirmation` and returns `confirmationId` instead of `proofId`; ownership transfer, import apply and company anonymisation accept `confirmationId`; the error codes `ACTION_PROOF_REQUIRED` and `ACTION_PROOF_DENIED` are now `PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`. Behaviour is unchanged, and the old path has no alias.
+- Every `@kevinjohn/*` package now installs from its own repository's GitHub release instead of an archive copied into `vendor/`, which is removed. The packages move to their latest releases, which change only examples and tooling: Account Kit 0.3.4, Access Control 0.1.7, Masquerade 0.2.8, password confirmation 0.1.1 and soft deletes 0.1.7.
 - Update the view-as package to Masquerade 0.2.7, the release that pins Account Kit 0.3.3; its only runtime change is an added middleware for host-owned account routes that CapacityLens does not mount.
 - Update Account Kit to 0.3.3 and Access Control to 0.1.6 (#1800). Admission completion reads the invited role through Account Kit's admission record instead of its table; behaviour is unchanged.
 - Scheduled, pre-upgrade and reset backups use `@kevinjohn/adonisjs-sqlite-backup` 0.1.0 (#1785). Each backup is a verified `bak-utc-*` bundle directory instead of a `capacitylens-utc-*.db` file, and existing `.db` snapshots are no longer pruned. `node ace db:backup` now takes an action (`create`, `list`, `verify`, `restore-prepare` or `prune`), so a scheduled bare `db:backup` must become `db:backup create`. Pre-upgrade bundles go to `<backup directory>/pre-migration`. Startup refuses a backup directory that contains the live database.
 - Account commands record their receipts with `@kevinjohn/adonisjs-duplicate-request-guard` 0.1.0 inside the command's transaction (#1783). Receipts are scoped to one person's operation, and receipts from before the upgrade are not carried over, so a command retried across the upgrade runs again.
 - Password checks for ownership transfer, import and company anonymisation use `@kevinjohn/adonisjs-confirm-action-with-password` 0.1.0 (#1784). Wrong passwords are limited to five a minute per account, then blocked for 20 minutes; the refusal says how long to wait and sends `Retry-After`. This replaces three per 10 seconds per client address. Confirmations issued before the upgrade are discarded.
 
+### Removed
+
+- **Breaking for API clients:** the unused public `GET /api/meta` route is removed (#1826). It loaded every planning table to report whether any company existed.
+
 ### Fixed
 
 - In the Docker Compose stack, each client now has its own request limits (#1840). Previously every request reached the API from the nginx container, so one client using up the sign-in limit blocked everyone. `CAPACITYLENS_TRUST_PROXY_HEADERS` accepts `private`, which also trusts forwarded headers from private-network peers, and Compose sets it.
 - Keep editor drafts and custom fields frozen while saves are pending, retain invitation errors after closing the dialog, and keep unavailable activity filters clearable (#1802).
+- Scheduled-person avatars on the Scheduler and Capacity overview no longer blank and reload after every save; they reload only when people change or a member link changes (#1825).
 - Restrict checklist dismissal to Owners and Admins, correct password confirmation and reset feedback, and suppress mixed-case bearer paths in nginx access logs (#1802).
 - Correct native operator command examples and the focused TypeScript test invocation (#1802).
 - A membership call the Access Control package refuses as invalid input is now a reported server fault instead of an unlogged 400, since every product request is validated before it reaches the package (#1789). A company or member identifier longer than the package accepts matches no route and answers 404. Permission lookups in the shared declaration ignore inherited object keys.
+- Unexpected failures while reading an import document, the getting-started dismissal or the archived-data read are now reported as faults instead of being shown as invalid input (#1827).
 
 ## [0.75.0-alpha.1] - 2026-11-08
 

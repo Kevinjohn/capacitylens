@@ -1,5 +1,4 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { parseBetaExport } from '@capacitylens/shared/data/betaTransfer';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import {
   PASSWORD_CONFIRMATION_KINDS,
@@ -8,6 +7,7 @@ import {
 } from '#services/auth/password_confirmation';
 import { accountInput, withActor } from '#services/auth/current_actor';
 import { classifyLogError, reportPrivateFailure } from '#services/logging_safety';
+import { parseRequestDocument } from '#services/beta_account_transfer';
 
 type ConfirmationRequest = {
   action: PasswordConfirmationKind;
@@ -42,17 +42,12 @@ function requestBody(value: unknown): ConfirmationRequest | null {
     ) {
       return null;
     }
-    try {
-      return {
-        ...body,
-        intent: {
-          baseRevision: intent.baseRevision,
-          document: parseBetaExport(JSON.stringify(intent.document)),
-        },
-      } as ConfirmationRequest;
-    } catch {
-      return null;
-    }
+    const document = parseRequestDocument(intent.document);
+    if (!document) return null;
+    return {
+      ...body,
+      intent: { baseRevision: intent.baseRevision, document },
+    } as ConfirmationRequest;
   } else if (Object.keys(intent).length !== 0) return null;
   return body as ConfirmationRequest;
 }
