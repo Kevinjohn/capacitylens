@@ -4,7 +4,7 @@ import db from '@adonisjs/lucid/services/db';
 import { listBundles } from '@kevinjohn/adonisjs-sqlite-backup';
 import router from '@adonisjs/core/services/router';
 import logger from '@adonisjs/core/services/logger';
-import { checkDatabase, readState, resetState } from '#services/state_repository';
+import { checkDatabase, resetState } from '#services/state_repository';
 import { withActor } from '#services/auth/current_actor';
 import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
 import { fileURLToPath } from 'node:url';
@@ -46,10 +46,6 @@ router.get('/health/ready', async ({ response }) => {
   } catch {
     return response.serviceUnavailable({ isHealthy: false, status: 'error', checks: [] });
   }
-});
-router.get('/api/meta', async () => {
-  const state = await readState();
-  return { hasData: state.accounts.length > 0 };
 });
 router
   .get('/api/diagnostics', async (ctx) => {

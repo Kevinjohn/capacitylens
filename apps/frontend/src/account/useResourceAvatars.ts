@@ -40,7 +40,9 @@ function parseProjection(body: unknown): ReadonlyMap<string, string> {
 /** Load the narrow identity projection and discard it immediately across account/session boundaries. */
 export function useResourceAvatars(accountId: string | null): ReadonlyMap<string, string> {
   const membershipRevision = useStore((state) => state.membershipRevision);
-  const accountData = useStore((state) => state.data);
+  // Only resource rows can change which avatars apply; allocation and catalogue saves leave this
+  // array untouched, so they no longer clear and refetch the projection.
+  const resources = useStore((state) => state.data.resources);
   const { user } = useAuth();
   const boundary = `${accountId ?? ''}\u0000${membershipRevision}\u0000${user?.id ?? ''}\u0000${user?.image ?? ''}`;
   const [renderedBoundary, setRenderedBoundary] = useState(boundary);
@@ -88,7 +90,7 @@ export function useResourceAvatars(accountId: string | null): ReadonlyMap<string
       window.removeEventListener('offline', onOffline);
       window.removeEventListener(RESOURCE_AVATARS_INVALIDATED, refresh);
     };
-  }, [refresh, membershipRevision, user, accountData]);
+  }, [refresh, boundary, resources]);
   return renderedBoundary === boundary && projection?.accountId === accountId
     ? projection.avatars
     : EMPTY_AVATARS;
