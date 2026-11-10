@@ -40,10 +40,14 @@ export function parseInstalledDependencies(source, repositoryRoot) {
       }
       for (const [manifestName, dependency] of Object.entries(listed)) {
         const installed = dependency?.version;
-        // Local file and workspace dependencies have no registry release to compare.
+        // Local file, workspace and non-registry tarball dependencies (our packages install from
+        // GitHub release assets) have no registry release to compare. Registry tarballs use `/-/`.
         if (
           [installed, dependency?.resolved].some(
-            (value) => typeof value === 'string' && /^(?:file|link|workspace):/.test(value),
+            (value) =>
+              typeof value === 'string' &&
+              (/^(?:file|link|workspace):/.test(value) ||
+                (/^https?:\/\//.test(value) && !/\/-\/[^/]+\.tgz$/.test(value))),
           )
         )
           continue;
