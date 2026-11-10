@@ -102,7 +102,7 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | [US-DIS-01](disciplines/US-DIS-01-add-discipline.md)             | Add a discipline                                       | Editor and above (Editor, Admin, Owner) | Current | Existing  |
 | [US-DIS-02](disciplines/US-DIS-02-edit-discipline.md)            | Edit a discipline                                      | Editor and above (Editor, Admin, Owner) | Current | Existing  |
 | [US-DIS-03](disciplines/US-DIS-03-delete-discipline-ungroups.md) | Delete a discipline (resources ungrouped, not deleted) | Editor and above (Editor, Admin, Owner) | Current | Existing  |
-| [US-DIS-04](disciplines/US-DIS-04-sort-order.md)                 | Disciplines use a predictable order on each surface    | Editor and above (Editor, Admin, Owner) | Current | Existing  |
+| [US-DIS-04](disciplines/US-DIS-04-sort-order.md)                 | Disciplines use a predictable order on each surface    | Viewer, Editor, Admin or Owner          | Current | Existing  |
 
 ## Filters
 
@@ -181,8 +181,8 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | [US-RES-06](resources/US-RES-06-working-hours.md)         | Use fixed resource working hours              | Editor and above (Editor, Admin, Owner)                                          | Current | Existing  |
 | [US-RES-07](resources/US-RES-07-engagement.md)            | Studio or Supplementary engagement            | Editor and above (Editor, Admin, Owner)                                          | Current | Existing  |
 | [US-RES-08](resources/US-RES-08-discipline-grouping.md)   | Group a resource under a discipline           | Editor and above (Editor, Admin, Owner)                                          | Current | Existing  |
-| [US-RES-09](resources/US-RES-09-resource-colour.md)       | A resource's colour comes from its discipline | Editor and above (Editor, Admin, Owner)                                          | Current | Existing  |
-| [US-RES-10](resources/US-RES-10-resource-list-display.md) | The resource list display                     | Editor and above (Editor, Admin, Owner)                                          | Current | Existing  |
+| [US-RES-09](resources/US-RES-09-resource-colour.md)       | A resource's colour comes from its discipline | Viewer, Editor, Admin or Owner                                                   | Current | Existing  |
+| [US-RES-10](resources/US-RES-10-resource-list-display.md) | The resource list display                     | Viewer, Editor, Admin or Owner; editing actions require Editor or higher         | Current | Existing  |
 | [US-RES-11](resources/US-RES-11-availability-dates.md)    | Set a person's availability dates             | Editor and above (Editor, Admin, Owner)                                          | Current | Existing  |
 | [US-RES-12](resources/US-RES-12-add-external-party.md)    | Add an external party                         | Editor and above (Editor, Admin, Owner)                                          | Current | New       |
 | [US-RES-13](resources/US-RES-13-restore-resource.md)      | Restore an archived resource                  | Editor and above (Editor, Admin, Owner); only Owner/Admin see full inactive data | Current | New       |
@@ -263,17 +263,17 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 ## Time Off
 
-| Story                                                     | Action                                                          | Access                 | Status  | Catalogue |
-| --------------------------------------------------------- | --------------------------------------------------------------- | ---------------------- | ------- | --------- |
-| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)          | Book time off for a resource                                    | Editor, Admin or Owner | Current | Existing  |
-| [US-TOF-02](time-off/US-TOF-02-edit-time-off.md)          | Edit a time-off entry                                           | Editor, Admin or Owner | Current | Existing  |
-| [US-TOF-03](time-off/US-TOF-03-delete-time-off.md)        | Delete a time-off entry (confirmed)                             | Editor, Admin or Owner | Current | Existing  |
-| [US-TOF-04](time-off/US-TOF-04-type-label.md)             | Time-off list reads terse; the type label lives on the timeline | Editor, Admin or Owner | Current | Existing  |
-| [US-TOF-05](time-off/US-TOF-05-grouped-forward-view.md)   | Scan current and future time off by resource                    | Editor, Admin or Owner | Current | Existing  |
-| [US-TOF-06](time-off/US-TOF-06-company-wide-closure.md)   | Record a named company closure                                  | Editor, Admin or Owner | Current | Existing  |
-| [US-TOF-07](time-off/US-TOF-07-repeat-time-off.md)        | Create repeated personal time off                               | Editor, Admin or Owner | Current | New       |
-| [US-TOF-08](time-off/US-TOF-08-edit-company-closure.md)   | Edit a company closure                                          | Editor, Admin or Owner | Current | New       |
-| [US-TOF-09](time-off/US-TOF-09-delete-company-closure.md) | Delete a company closure                                        | Editor, Admin or Owner | Current | New       |
+| Story                                                     | Action                                                          | Access                         | Status  | Catalogue |
+| --------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------ | ------- | --------- |
+| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)          | Book time off for a resource                                    | Editor, Admin or Owner         | Current | Existing  |
+| [US-TOF-02](time-off/US-TOF-02-edit-time-off.md)          | Edit a time-off entry                                           | Editor, Admin or Owner         | Current | Existing  |
+| [US-TOF-03](time-off/US-TOF-03-delete-time-off.md)        | Delete a time-off entry (confirmed)                             | Editor, Admin or Owner         | Current | Existing  |
+| [US-TOF-04](time-off/US-TOF-04-type-label.md)             | Time-off list reads terse; the type label lives on the timeline | Viewer, Editor, Admin or Owner | Current | Existing  |
+| [US-TOF-05](time-off/US-TOF-05-grouped-forward-view.md)   | Scan current and future time off by resource                    | Viewer, Editor, Admin or Owner | Current | Existing  |
+| [US-TOF-06](time-off/US-TOF-06-company-wide-closure.md)   | Record a named company closure                                  | Editor, Admin or Owner         | Current | Existing  |
+| [US-TOF-07](time-off/US-TOF-07-repeat-time-off.md)        | Create repeated personal time off                               | Editor, Admin or Owner         | Current | New       |
+| [US-TOF-08](time-off/US-TOF-08-edit-company-closure.md)   | Edit a company closure                                          | Editor, Admin or Owner         | Current | New       |
+| [US-TOF-09](time-off/US-TOF-09-delete-company-closure.md) | Delete a company closure                                        | Editor, Admin or Owner         | Current | New       |
 
 ## Toolbar
 

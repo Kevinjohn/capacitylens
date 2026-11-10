@@ -3,7 +3,7 @@
 As an Editor, I want resource colour to follow its discipline so that the schedule uses consistent group colours.
 
 **Status:** Current
-**Access:** Editor and above (Editor, Admin, Owner)
+**Access:** Viewer, Editor, Admin or Owner
 **Entry:** Disciplines screen → Edit discipline → Colour; Schedule → resource row
 **Documentation:** [Guide](../../docs-src/using/resources.md)
 **Source:** [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts) · [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)

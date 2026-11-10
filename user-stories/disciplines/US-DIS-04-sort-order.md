@@ -3,7 +3,7 @@
 As an Editor, I want disciplines ordered for easy browsing so that the schedule keeps a predictable group order.
 
 **Status:** Current
-**Access:** Editor and above (Editor, Admin, Owner)
+**Access:** Viewer, Editor, Admin or Owner
 **Entry:** Disciplines screen → list; Schedule → discipline groups
 **Documentation:** [Guide](../../docs-src/using/disciplines.md)
 **Source:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx) · [selectors.ts](../../apps/frontend/src/store/selectors.ts)

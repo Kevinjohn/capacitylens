@@ -4,7 +4,7 @@ As a company member, I want the time-off list to show who is away and for how lo
 
 **Status:** Current
 
-**Access:** Editor, Admin or Owner
+**Access:** Viewer, Editor, Admin or Owner
 
 **Entry:** Time off page
 

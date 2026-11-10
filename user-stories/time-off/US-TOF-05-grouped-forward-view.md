@@ -4,7 +4,7 @@ As a company member, I want current and future time off grouped by resource so t
 
 **Status:** Current
 
-**Access:** Editor, Admin or Owner
+**Access:** Viewer, Editor, Admin or Owner
 
 **Entry:** Time off page
 

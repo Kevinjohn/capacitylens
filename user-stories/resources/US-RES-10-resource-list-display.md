@@ -3,7 +3,7 @@
 As an Editor, I want a scannable resource roster so that I can find people and priority resources quickly.
 
 **Status:** Current
-**Access:** Editor and above (Editor, Admin, Owner)
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 **Entry:** Resources screen → resource lists
 **Documentation:** [Guide](../../docs-src/using/resources.md)
 **Source:** [ResourceListContent.tsx](../../apps/frontend/src/components/resources/ResourceListContent.tsx) · [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts)
