@@ -28,8 +28,9 @@ function trustProxyHeaders(trusted: boolean) {
   httpConfig().trustProxy = trusted ? defineConfig({}).trustProxy : () => false;
 }
 
-async function requestMetadata(client: ApiClient, forwardedIp?: string) {
-  const request = client.get('/api/meta');
+/** A public, rate-limited read: signed out, it answers 401 until the client's budget runs out. */
+async function requestSignedOutSession(client: ApiClient, forwardedIp?: string) {
+  const request = client.get('/api/auth/me');
   if (forwardedIp) request.header('x-forwarded-for', forwardedIp);
   return request.send();
 }
@@ -67,9 +68,9 @@ test.group('native auth and API rate limits', (group) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2');
 
-    assert.equal(await responseStatus(requestMetadata(client)), 200);
-    assert.equal(await responseStatus(requestMetadata(client)), 200);
-    const limited = await requestMetadata(client);
+    assert.equal(await responseStatus(requestSignedOutSession(client)), 401);
+    assert.equal(await responseStatus(requestSignedOutSession(client)), 401);
+    const limited = await requestSignedOutSession(client);
     assert.equal(limited.status(), 429);
     assert.deepEqual(limited.body(), { error: 'Rate limit exceeded.' });
     const persistedLimits = await db.from('rate_limits').select('key', 'points');
@@ -93,7 +94,11 @@ test.group('native auth and API rate limits', (group) => {
       await db.from('rate_limits').delete();
       setEnvironment('CAPACITYLENS_RATE_LIMIT', configured);
       for (let attempt = 0; attempt < 4; attempt++)
-        assert.equal(await responseStatus(requestMetadata(client)), 200, `setting ${configured}`);
+        assert.equal(
+          await responseStatus(requestSignedOutSession(client)),
+          401,
+          `setting ${configured}`
+        );
     }
   });
 
@@ -105,16 +110,16 @@ test.group('native auth and API rate limits', (group) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2');
     trustProxyHeaders(false);
-    assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 200);
-    assert.equal(await responseStatus(requestMetadata(client, '203.0.113.42')), 200);
-    assert.equal(await responseStatus(requestMetadata(client, '203.0.113.43')), 429);
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 401);
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.42')), 401);
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.43')), 429);
 
     await db.from('rate_limits').delete();
     trustProxyHeaders(true);
-    assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 200);
-    assert.equal(await responseStatus(requestMetadata(client, '203.0.113.42')), 200);
-    assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 200);
-    assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 429);
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 401);
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.42')), 401);
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 401);
+    assert.equal(await responseStatus(requestSignedOutSession(client, '203.0.113.41')), 429);
   });
 
   test('failed sign-in attempts are bounded by client and limiter records omit credentials', async ({

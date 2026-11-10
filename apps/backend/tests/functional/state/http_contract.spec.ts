@@ -73,13 +73,12 @@ test.group('M1 HTTP contract', (group) => {
     const anonymous = await client.post('/api/test/reset').json({ seed: false });
     assert.equal(anonymous.status(), 401);
     await resetState(false);
-    const emptyMeta = await client.get('/api/meta');
-    assert.deepEqual(emptyMeta.body(), { hasData: false });
     client = await resetAuthenticatedClient(client, true);
     const signedIn = await client.post('/api/test/reset').json({ seed: false });
     assert.equal(signedIn.status(), 403);
-    const seededMeta = await client.get('/api/meta');
-    assert.deepEqual(seededMeta.body(), { hasData: true });
+    // The retired metadata route is gone, not merely unadvertised.
+    const retiredMeta = await client.get('/api/meta');
+    assert.equal(retiredMeta.status(), 404);
   });
 
   test('reset remains forbidden even when the fixture flag is disabled', async ({
