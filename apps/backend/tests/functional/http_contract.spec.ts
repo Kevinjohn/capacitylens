@@ -206,6 +206,41 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
     );
   });
 
+  test('private proxy trust: a private-network peer supplies the forwarded address', async ({
+    assert,
+  }) => {
+    await withServer(
+      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'private', CAPACITYLENS_RATE_LIMIT: '1' },
+      { peer: '172.18.0.3' },
+      async (server) => {
+        assert.notEqual(await limitedRead(server, '203.0.113.5'), 429);
+        assert.equal(await limitedRead(server, '203.0.113.5'), 429, 'the same client is limited');
+        assert.notEqual(
+          await limitedRead(server, '198.51.100.7'),
+          429,
+          'another forwarded client has its own budget'
+        );
+      }
+    );
+  });
+
+  test('private proxy trust: a public peer cannot supply a forwarded address', async ({
+    assert,
+  }) => {
+    await withServer(
+      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'private', CAPACITYLENS_RATE_LIMIT: '1' },
+      { peer: '203.0.113.50' },
+      async (server) => {
+        assert.notEqual(await limitedRead(server, '203.0.113.5'), 429);
+        assert.equal(
+          await limitedRead(server, '198.51.100.7'),
+          429,
+          'both requests are keyed by the peer 203.0.113.50'
+        );
+      }
+    );
+  });
+
   test('trusted proxy headers: the origin guard uses a loopback proxy forwarded protocol', async ({
     assert,
   }) => {
