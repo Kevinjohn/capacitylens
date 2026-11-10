@@ -1033,26 +1033,6 @@
     },
     {
       "method": "GET",
-      "path": "/api/meta",
-      "status": 200,
-      "headers": {
-        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
-        "cross-origin-opener-policy": "same-origin",
-        "cross-origin-resource-policy": "same-origin",
-        "referrer-policy": "no-referrer",
-        "x-content-type-options": "nosniff",
-        "x-frame-options": "DENY",
-        "access-control-expose-headers": "x-capacitylens-audit-warning",
-        "content-type": "application/json; charset=utf-8",
-        "cache-control": "no-store",
-        "content-length": "16"
-      },
-      "body": {
-        "hasData": true
-      }
-    },
-    {
-      "method": "GET",
       "path": "/api/diagnostics",
       "status": 200,
       "headers": {

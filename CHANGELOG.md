@@ -21,9 +21,14 @@ new features and **patch** versions carry fixes.
 - Account commands record their receipts with `@kevinjohn/adonisjs-duplicate-request-guard` 0.1.0 inside the command's transaction (#1783). Receipts are scoped to one person's operation, and receipts from before the upgrade are not carried over, so a command retried across the upgrade runs again.
 - Password checks for ownership transfer, import and company anonymisation use `@kevinjohn/adonisjs-confirm-action-with-password` 0.1.0 (#1784). Wrong passwords are limited to five a minute per account, then blocked for 20 minutes; the refusal says how long to wait and sends `Retry-After`. This replaces three per 10 seconds per client address. Confirmations issued before the upgrade are discarded.
 
+### Removed
+
+- **Breaking for API clients:** the unused public `GET /api/meta` route is removed (#1826). It loaded every planning table to report whether any company existed.
+
 ### Fixed
 
 - Keep editor drafts and custom fields frozen while saves are pending, retain invitation errors after closing the dialog, and keep unavailable activity filters clearable (#1802).
+- Scheduled-person avatars on the Scheduler and Capacity overview no longer blank and reload after every save; they reload only when people change or a member link changes (#1825).
 - Restrict checklist dismissal to Owners and Admins, correct password confirmation and reset feedback, and suppress mixed-case bearer paths in nginx access logs (#1802).
 - Correct native operator command examples and the focused TypeScript test invocation (#1802).
 - A membership call the Access Control package refuses as invalid input is now a reported server fault instead of an unlogged 400, since every product request is validated before it reaches the package (#1789). A company or member identifier longer than the package accepts matches no route and answers 404. Permission lookups in the shared declaration ignore inherited object keys.
