@@ -237,6 +237,12 @@ This is the short, present-tense record of decisions that constrain future work.
   stop. Package operations never run inside the single-connection product transaction. Covered
   writes require the context captured for the action, including idle-mode writes; stale actions are
   refused and never automatically replayed.
+- One global server middleware enforces view-as policy before routing: while a mode is active it
+  refuses every unsafe request and the listed identity, membership and administration reads. The
+  package's effective guard and route markers are not used, because product routes resolve their
+  actor through `withActor`, not the AdonisJS auth middleware those markers depend on. A new
+  sensitive read route must be added to the middleware's list. Revisit if product routes adopt the
+  auth middleware.
 - Package events are authoritative for new view-as lifecycle audit. Historical product audit stays
   intact, but new events do not retain a company ID or separate explicit/company-switch/sign-out
   classifications. Control state and events stay in database backups, outside scheduling exports.

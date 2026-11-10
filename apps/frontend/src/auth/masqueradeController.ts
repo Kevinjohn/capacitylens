@@ -348,21 +348,7 @@ export class MasqueradeController {
     try {
       await this.dependencies.api.end(state.token, reason);
       if (!this.ownsRuntime(generation, 'ending')) return { kind: 'superseded' };
-      const projection = await restoreMasqueradeProjection({
-        state,
-        readStatus: () =>
-          this.dependencies.api.status(useStore.getState().activeAccountId ?? undefined),
-        isCurrent: () => this.ownsRuntime(generation, 'ending'),
-        publishActive: (status) =>
-          useStore.getState().setMasquerade({
-            kind: 'starting',
-            pending: { accountId: status.accountId, targetUserId: status.targetUserId },
-            state: status,
-            generation,
-          }),
-        restoreProjection: finish,
-        onProjectionFailure: (message) => this.fail(message),
-      });
+      const projection = await this.restoreEndingProjection(state, generation, finish);
       if (projection.kind === 'active') {
         await this.retryProjection();
         return { kind: 'superseded' };
@@ -378,21 +364,7 @@ export class MasqueradeController {
       if (!this.ownsRuntime(generation, 'ending')) return { kind: 'superseded' };
       this.fail(error instanceof Error ? error.message : failureMessage);
       try {
-        const projection = await restoreMasqueradeProjection({
-          state,
-          readStatus: () =>
-            this.dependencies.api.status(useStore.getState().activeAccountId ?? undefined),
-          isCurrent: () => this.ownsRuntime(generation, 'ending'),
-          publishActive: (status) =>
-            useStore.getState().setMasquerade({
-              kind: 'starting',
-              pending: { accountId: status.accountId, targetUserId: status.targetUserId },
-              state: status,
-              generation,
-            }),
-          restoreProjection: finish,
-          onProjectionFailure: (message) => this.fail(message),
-        });
+        const projection = await this.restoreEndingProjection(state, generation, finish);
         if (projection.kind === 'superseded') return { kind: 'superseded' };
         if (projection.kind === 'failed') return { kind: 'failed' };
         if (projection.kind === 'active') {
@@ -534,30 +506,40 @@ export class MasqueradeController {
     void this.restoreAfterServerEnd(state, generation);
   }
 
+  /** Reconcile an ending mode with the server; callers differ only in how they restore the real view. */
+  private restoreEndingProjection(
+    state: MasqueradeState,
+    generation: number,
+    restoreProjection: (state: MasqueradeState) => Promise<FinishProjectionResult>,
+  ) {
+    return restoreMasqueradeProjection({
+      state,
+      readStatus: () =>
+        this.dependencies.api.status(useStore.getState().activeAccountId ?? undefined),
+      isCurrent: () => this.ownsRuntime(generation, 'ending'),
+      publishActive: (status) =>
+        useStore.getState().setMasquerade({
+          kind: 'starting',
+          pending: { accountId: status.accountId, targetUserId: status.targetUserId },
+          state: status,
+          generation,
+        }),
+      restoreProjection,
+      onProjectionFailure: (message) => this.fail(message),
+    });
+  }
+
   private async restoreAfterServerEnd(state: MasqueradeState, generation: number): Promise<void> {
     try {
-      const projection = await restoreMasqueradeProjection({
-        state,
-        readStatus: () =>
-          this.dependencies.api.status(useStore.getState().activeAccountId ?? undefined),
-        isCurrent: () => this.ownsRuntime(generation, 'ending'),
-        publishActive: (status) =>
-          useStore.getState().setMasquerade({
-            kind: 'starting',
-            pending: { accountId: status.accountId, targetUserId: status.targetUserId },
-            state: status,
-            generation,
-          }),
-        restoreProjection: async (current) =>
-          (await this.dependencies.reproject(current.accountId))
-            ? { kind: 'finished' }
-            : {
-                kind: 'failed',
-                message:
-                  'The masquerade ended, but the real account view could not be restored. Retry.',
-              },
-        onProjectionFailure: (message) => this.fail(message),
-      });
+      const projection = await this.restoreEndingProjection(state, generation, async (current) =>
+        (await this.dependencies.reproject(current.accountId))
+          ? { kind: 'finished' }
+          : {
+              kind: 'failed',
+              message:
+                'The masquerade ended, but the real account view could not be restored. Retry.',
+            },
+      );
       if (projection.kind === 'active') {
         await this.retryProjection();
         return;

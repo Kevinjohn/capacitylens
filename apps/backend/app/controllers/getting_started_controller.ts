@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import vine from '@vinejs/vine';
+import vine, { errors as vineErrors } from '@vinejs/vine';
 import { withActor } from '#services/auth/current_actor';
 import { assertCompanyAction, IdentityAuthorityError } from '#services/auth/authorization';
 
@@ -25,7 +25,8 @@ export default class GettingStartedController {
     const { params, request, response } = ctx;
     try {
       await request.validateUsing(dismissal, { data: request.body() });
-    } catch {
+    } catch (error) {
+      if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
       return response.badRequest({ error: 'dismissed must be true.' });
     }
     const now = new Date().toISOString();
