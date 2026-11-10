@@ -6,10 +6,10 @@ description: Build the API and web images and keep the database in persistent Co
 # Install with Docker
 
 The supplied Compose stack uses separate web and API containers and sends API requests across the
-private Compose network. This topology has not been validated for production; its separate-container
-proxy makes all clients share one request-limit budget. The supported proxy runs on the application
-host and connects over loopback, preserving forwarded client addresses. For a directly supported
-production installation, use the [native release archive](/self-hosting/install-without-docker).
+private Compose network. The API trusts forwarded client addresses from that network
+(`CAPACITYLENS_TRUST_PROXY_HEADERS=private`), so each client keeps its own request limits. Docker is
+optional; the [native release archive](/self-hosting/install-without-docker) remains the expected
+installation.
 
 Use Docker Compose on a Linux host with a public HTTPS proxy. The web container serves the app
 and forwards API requests over the private Compose network. Public HTTPS terminates at your

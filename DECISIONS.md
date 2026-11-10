@@ -345,8 +345,9 @@ framework defaults; any other departure needs a decision recorded here first.
   maintenance; the company Owner is not expected to maintain hosting alone.
 - Native Node with a loopback TLS proxy on the same machine is the expected installation. The
   operator owns that proxy; the server's HSTS header is host-only. Existing container support is
-  optional. A proxy on a separate machine or container is unsupported for the first release;
-  private-network forwarding support is deferred until after it.
+  optional. A proxy on a separate machine is unsupported for the first release. The Compose stack's
+  own nginx hop is supported: its API trusts forwarded headers from private-network peers
+  (`CAPACITYLENS_TRUST_PROXY_HEADERS=private`), so each client keeps its own request limits.
 
 ## Open source
 

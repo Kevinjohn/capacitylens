@@ -88,4 +88,22 @@ assert.ok(
   companies.some((row) => row.name === 'Wayne Enterprises' && row.role === 'owner'),
   'The company did not survive API recreation',
 );
-console.log('Docker smoke: first identity, company setup and persistence passed.');
+// Each forwarded client keeps its own sign-in budget behind the packaged nginx.
+const failedSignIn = (client, email) =>
+  fetch(`${baseUrl}/api/auth/sign-in`, {
+    method: 'POST',
+    headers: { ...json, 'x-forwarded-for': client },
+    body: JSON.stringify({ email, password: 'wrong-docker-smoke-password' }),
+  }).then((response) => response.status);
+let limited = false;
+for (let attempt = 0; attempt < 20 && !limited; attempt += 1)
+  limited = (await failedSignIn('203.0.113.10', `limit-${attempt}@wayne.example`)) === 429;
+assert.ok(limited, 'Repeated failed sign-ins from one client were never limited');
+assert.notEqual(
+  await failedSignIn('198.51.100.20', 'other-client@wayne.example'),
+  429,
+  "A second client shared the first client's sign-in budget",
+);
+console.log(
+  'Docker smoke: first identity, company setup, persistence and per-client limits passed.',
+);

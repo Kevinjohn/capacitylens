@@ -50,6 +50,9 @@ test('Compose upgrades before API startup and preserves the private persistent d
     'capacitylens-backups:/backups',
   ]);
   assert.equal(compose.services.api.environment.SESSION_DRIVER, 'database');
+  // nginx reaches the API over the private Compose network, so loopback-only trust would key every
+  // request by the nginx container.
+  assert.equal(compose.services.api.environment.CAPACITYLENS_TRUST_PROXY_HEADERS, 'private');
   // Production refuses a plain-HTTP origin, so Compose requires the operator's address instead of a default.
   assert.match(
     compose.services.api.environment.CAPACITYLENS_PUBLIC_URL,

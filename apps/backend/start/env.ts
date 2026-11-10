@@ -23,6 +23,18 @@ type SecretValidator = ReturnType<typeof Env.schema.secret>;
 type OptionalStringValidator = ReturnType<typeof Env.schema.string.optional>;
 type OptionalBooleanValidator = ReturnType<typeof Env.schema.boolean.optional>;
 type EnumValidator<Value extends string> = ReturnType<typeof Env.schema.enum<Value>>;
+type ProxyTrustValidator = (key: string, value?: string) => 'off' | 'loopback' | 'private';
+
+/**
+ * True keeps loopback-only trust and `private` also trusts private-network peers. Unset is `off`
+ * rather than undefined, because `env.get` would fall back to the raw text for undefined.
+ */
+const optionalProxyTrust: ProxyTrustValidator = (key, value) => {
+  if (value === undefined || value === '' || value === 'false' || value === '0') return 'off';
+  if (value === 'true' || value === '1') return 'loopback';
+  if (value === 'private') return 'private';
+  throw new Error(`${key} must be true, false, 1, 0 or private`);
+};
 
 type OptionalStringKey =
   | 'CAPACITYLENS_SECRET'
@@ -42,10 +54,7 @@ type OptionalStringKey =
   | 'CAPACITYLENS_TEST_HTTP_PORT';
 
 type OptionalBooleanKey =
-  | 'CAPACITYLENS_ALLOW_OPEN_SIGNUP'
-  | 'CAPACITYLENS_ALLOW_RESET'
-  | 'CAPACITYLENS_CREATE_ADMIN_ADMIN'
-  | 'CAPACITYLENS_TRUST_PROXY_HEADERS';
+  'CAPACITYLENS_ALLOW_OPEN_SIGNUP' | 'CAPACITYLENS_ALLOW_RESET' | 'CAPACITYLENS_CREATE_ADMIN_ADMIN';
 
 type CapacityLensEnvironmentSchema = {
   NODE_ENV: EnumValidator<'development' | 'production' | 'test'>;
@@ -57,6 +66,7 @@ type CapacityLensEnvironmentSchema = {
   CAPACITYLENS_AUDIT: ReturnType<typeof Env.schema.enum.optional<'on' | 'off'>>;
   CAPACITYLENS_LOG: ReturnType<typeof Env.schema.enum.optional<'0' | '1'>>;
   SESSION_DRIVER: EnumValidator<'cookie' | 'memory' | 'database'>;
+  CAPACITYLENS_TRUST_PROXY_HEADERS: ProxyTrustValidator;
 } & { [Key in OptionalStringKey]: OptionalStringValidator } & {
   [Key in OptionalBooleanKey]: OptionalBooleanValidator;
 };
@@ -100,7 +110,7 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_PUBLIC_URL: optional,
   CAPACITYLENS_RATE_LIMIT: optionalInteger(1_000_000, 0),
   CAPACITYLENS_TEST_HTTP_PORT: optionalInteger(65535),
-  CAPACITYLENS_TRUST_PROXY_HEADERS: optionalBoolean,
+  CAPACITYLENS_TRUST_PROXY_HEADERS: optionalProxyTrust,
 };
 
 type CapacityLensEnvironment = Awaited<ReturnType<typeof Env.create<typeof envSchema>>>;

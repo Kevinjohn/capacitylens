@@ -20,7 +20,8 @@ services:
       upgrade:
         condition: service_completed_successfully
     # The database and backups directory are inside mounted volumes so data persists across rebuilds.
-    # The API image binds to 0.0.0.0 for nginx on the private Compose network.
+    # The API image binds to 0.0.0.0 for nginx on the private Compose network. Its port is not
+    # published, so `private` proxy trust takes the client address nginx forwards from that network.
     environment: &api-environment
       PORT: '8787'
       HOST: 0.0.0.0
@@ -33,7 +34,7 @@ services:
       CAPACITYLENS_DB: /data/capacitylens.db
       CAPACITYLENS_BACKUP_DIR: ${CAPACITYLENS_BACKUP_DIR-/backups}
       CAPACITYLENS_BACKUP_KEEP: ${CAPACITYLENS_BACKUP_KEEP:-7}
-      CAPACITYLENS_TRUST_PROXY_HEADERS: '1'
+      CAPACITYLENS_TRUST_PROXY_HEADERS: private
       CAPACITYLENS_CORS_ORIGIN: ${CAPACITYLENS_CORS_ORIGIN:-}
       CAPACITYLENS_SECRET: ${CAPACITYLENS_SECRET:-}
       CAPACITYLENS_PUBLIC_URL: ${CAPACITYLENS_PUBLIC_URL:?set CAPACITYLENS_PUBLIC_URL to the public HTTPS address}

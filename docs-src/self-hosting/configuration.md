@@ -76,7 +76,10 @@ forwarded headers.
 
 Set `CAPACITYLENS_TRUST_PROXY_HEADERS=1` only when the application listener is reachable solely
 through a trusted proxy on the same host that overwrites forwarded headers. The application then
-trusts forwarded client address and scheme headers from loopback connections only. Keep `APP_URL`
+trusts forwarded client address and scheme headers from loopback connections only. The Docker
+Compose stack sets `private`, which also trusts peers on private networks (10.0.0.0/8,
+172.16.0.0/12, 192.168.0.0/16 and fc00::/7); use it only when the listener is unreachable from
+anything but the proxy on that network. Keep `APP_URL`
 and `CAPACITYLENS_PUBLIC_URL` aligned with the browser-visible address. An HTTPS public URL makes
 the application send a host-only one-year HSTS header and mark its cookies `Secure`; an HTTP public
 URL sends no HSTS and uses plain cookies. The supplied nginx file leaves HSTS to the application

@@ -32,3 +32,13 @@ test('typed switches and SMTP addresses reject unsupported supplied values', ({ 
     'invalid'
   );
 });
+
+test('proxy trust keeps boolean values loopback-only and accepts private', ({ assert }) => {
+  const key = 'CAPACITYLENS_TRUST_PROXY_HEADERS';
+  const validate = envSchema[key];
+  for (const value of [undefined, '', 'false', '0']) assert.equal(validate(key, value), 'off');
+  for (const value of ['true', '1']) assert.equal(validate(key, value), 'loopback');
+  assert.equal(validate(key, 'private'), 'private');
+  for (const value of ['yes', 'PRIVATE', 'all', ' private'])
+    assert.throws(() => validate(key, value), key);
+});

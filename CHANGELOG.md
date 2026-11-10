@@ -23,6 +23,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- In the Docker Compose stack, each client now has its own request limits (#1840). Previously every request reached the API from the nginx container, so one client using up the sign-in limit blocked everyone. `CAPACITYLENS_TRUST_PROXY_HEADERS` accepts `private`, which also trusts forwarded headers from private-network peers, and Compose sets it.
 - Keep editor drafts and custom fields frozen while saves are pending, retain invitation errors after closing the dialog, and keep unavailable activity filters clearable (#1802).
 - Restrict checklist dismissal to Owners and Admins, correct password confirmation and reset feedback, and suppress mixed-case bearer paths in nginx access logs (#1802).
 - Correct native operator command examples and the focused TypeScript test invocation (#1802).
