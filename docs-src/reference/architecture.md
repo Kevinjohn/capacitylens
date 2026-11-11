@@ -60,8 +60,7 @@ packages/shared/src/
 The rest of `apps/backend/app/services` includes single-purpose modules: `anonymise.ts`,
 `beta_account_transfer.ts` (export import), `first_company_setup.ts`,
 `initial_company_defaults.ts`, `account_commands.ts` (command headers and error adapter), `audit.ts`,
-`cors_policy.ts`, `logging_safety.ts`, `schema_integrity.ts`, `soft_deletes.ts` and
-`with_transaction.ts`.
+`cors_policy.ts`, `logging_safety.ts`, `schema_integrity.ts` and `with_transaction.ts`.
 
 ## One planning write, end to end
 

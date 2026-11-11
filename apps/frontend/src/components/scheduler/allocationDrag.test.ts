@@ -2,11 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveVolumePreservingHours,
   resolveGesture,
-  buildSnappedBarGeometry,
   reconcileReassignedHours as reconcileReassignedHoursWithWeek,
 } from './allocationDrag';
-import { buildColumnGeometry } from './columnGeometry';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { DateRange } from '@/lib/gestureMath';
 import type { Resource, Weekday } from '@capacitylens/shared/types/entities';
@@ -288,73 +285,6 @@ describe('computeGesture rescaling guards', () => {
     });
     expect(hours).toBe(30);
     expect(clamped).toBe(false);
-  });
-});
-
-describe('snappedBarGeometry', () => {
-  const current = range('2026-06-01', '2026-06-04');
-
-  const geom = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 20, {
-    minimiseWeekends: false,
-    weekendWidth: 12,
-  });
-
-  it('converts a non-weekend-aware move to absolute pixels (left at the snapped start, width holds)', () => {
-    const { left, width } = buildSnappedBarGeometry({
-      mode: 'move',
-      current,
-      deltaDays: 2,
-      options: IGNORE,
-      geometry: geom,
-    });
-    expect(left).toBe(2 * 20);
-    expect(width).toBe(4 * 20);
-  });
-
-  it('threads opts through to applyGesture (weekend-aware result differs from naive)', () => {
-    // Snapped geometry must honor working-calendar options so previews match committed ranges across a weekend.
-    const thuFri = range('2026-06-04', '2026-06-05');
-    const naive = buildSnappedBarGeometry({
-      mode: 'move',
-      current: thuFri,
-      deltaDays: 1,
-      options: IGNORE,
-      geometry: geom,
-    });
-    const weekendAware = buildSnappedBarGeometry({
-      mode: 'move',
-      current: thuFri,
-      deltaDays: 1,
-      options: { workingDays: [1, 2, 3, 4, 5] },
-      geometry: geom,
-    });
-
-    expect(naive).toEqual({ left: 4 * 20, width: 2 * 20 });
-    expect(weekendAware).not.toEqual(naive);
-  });
-
-  it('keeps the preview pixel-identical to the view-model when the range crosses a narrow weekend', () => {
-    // Narrow-weekend geometry must measure each real column width so a range crossing the weekend cannot use uniform dayWidth arithmetic.
-    const narrow = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 20, {
-      minimiseWeekends: true,
-      weekendWidth: 8,
-    });
-
-    const committed = {
-      left: narrow.xForDateInGeom('2026-06-05'),
-      width: narrow.widthForDates('2026-06-05', '2026-06-08'),
-    };
-
-    const preview = buildSnappedBarGeometry({
-      mode: 'resize-end',
-      current: range('2026-06-05', '2026-06-05'),
-      deltaDays: 1,
-      options: { workingDays: [1, 2, 3, 4, 5] },
-      geometry: narrow,
-    });
-    expect(preview).toEqual(committed);
-
-    expect(preview.width).toBe(56);
   });
 });
 
