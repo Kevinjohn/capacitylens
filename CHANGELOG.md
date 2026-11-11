@@ -26,6 +26,8 @@ new features and **patch** versions carry fixes.
 
 ### Removed
 
+- The obsolete `/external` bookmark alias and startup cleanup for retired offline browser snapshots. External parties remain available in Resources.
+
 - The in-memory planning engine, backend-free demo build and demo-only client container. Remote client images require a configured API origin.
 
 - **Breaking for API clients:** the unused public `GET /api/meta` route is removed (#1826). It loaded every planning table to report whether any company existed.

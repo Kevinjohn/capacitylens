@@ -1042,4 +1042,17 @@ The historical WebKit reset's exact cause remains unproven. A passive socket cap
 
 Historical 24-case matrices and earlier 103/87/70-unit or 302-fixture runs are diagnostic or superseded, not green acceptance. An earlier toy reload count of two had no structured records and remains unclassified; an isolated successful retry is not acceptance. A separate held committed A→B trace now demonstrates strict refusal, the positive post-reload probe is verified, and all six actual-application reload journeys passed in the frozen cohort. Phase-0 resource figures, listener-reset timings and bundle comparison remain as already recorded above; none establishes the still-pending hosted browser acceptance.
 
-The final browser matrix, both PRs' `e2e:all`, three consecutive clean hosted Chromium acceptance runs, and final independent assessment/publication-ready state remain pending. PRs #1852 and #1860 remain draft and unmerged. Passing the integrated backend suite does not imply browser acceptance.
+The pre-simplification browser acceptance and independent assessment completed at P1 `737a11b` and P2 `47255a5`; both PRs became ready and remained unmerged. The full hosted matrix passed 336 Chromium/auth, 297 Firefox and 149+148 WebKit cases with zero whole-test retries, flakes or skips. The accepted Chromium sequence uses the explicitly reviewed earlier-head carry. Historical local `e2e:all` commands remain EXIT 1 with their scoped corrections separately verified; they are not relabeled successful. Complete source provenance, performance costs and accepted limits are recorded in [the final issue evidence](https://github.com/Kevinjohn/capacitylens/issues/1851#issuecomment-6804225723).
+
+## Bounded simplification follow-up
+
+With no active installations to upgrade, the following removals are intentional:
+
+- The unused HTTP drain poller and its mock-only test are removed. Actual reset pause/resume, native handler/upstream accounting, diagnostic endpoints, process ownership and genuine reset controls remain.
+- The reset helper no longer accepts an ignored request context; first-company callers retain the same direct SQLite reset and browser journey.
+- The account-directory hook has one refresh owner: it reads before company selection and yields active-company reads to PermissionProvider. Masquerade and active-company yielding assertions remain independently covered.
+- The unit transport handle calls its concrete stub directly for reset/source updates while retaining store ownership checks and wrapped transport identity.
+- Retired offline snapshot cleanup and its two cleanup-only unit cases are deleted; there is no current producer for those old worker/cache/IndexedDB/flag artifacts. Current preferences, security and unavailable-storage handling remain.
+- The old `/external` bookmark alias, static route entry and its redirect-only browser case are deleted. External-party features remain under Resources. The prior three-engine matrix therefore contains one now-retired compatibility case per engine; its totals are historical evidence, not a new full run of the smaller collection.
+
+The data-only deletion-snapshot migration cleanup is deferred to [#1862](https://github.com/Kevinjohn/capacitylens/issues/1862), which identifies exact edits, dependent assertions, preserved contracts and focused commands. No migration or upgrade/backup behavior changes in this follow-up. Verification is scoped to affected behavior; unchanged full-suite evidence is reused with its original source pins. Both PRs remain unmerged.

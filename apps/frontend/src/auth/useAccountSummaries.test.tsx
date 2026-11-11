@@ -329,7 +329,7 @@ function createYieldingHookTest() {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     useStore.setState({
-      activeAccountId: 'a1',
+      activeAccountId: null,
       masquerade: {
         kind: 'active',
         generation: 1,
@@ -344,6 +344,18 @@ function createYieldingHookTest() {
         },
       },
     });
+
+    const view = renderWithQuery(<HookHost />);
+    await act(async () => {});
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it('yields active-account reads when the permission provider owns that generation', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    useStore.setState({ activeAccountId: 'a1' });
 
     const view = renderWithQuery(<HookHost />);
     await act(async () => {});
