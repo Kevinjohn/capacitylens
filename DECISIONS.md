@@ -345,11 +345,9 @@ framework defaults; any other departure needs a decision recorded here first.
 ## Installation
 
 - Installation is one runnable release archive, and the server takes production defaults when
-  `NODE_ENV=production`. Its `install.sh` script, run as root on a systemd host with a domain name
-  and the Owner's email address, is the default path: it runs the manual steps, generating the
-  secrets into a new environment file, installing the unit, configuring a same-machine Caddy site
-  when Caddy is installed and printing the setup link. It never rewrites an existing environment
-  file; running a newer release's script without arguments is the upgrade. Backup scheduling stays
+  `NODE_ENV=production`. Its `install.sh` script, which runs the manual steps as root on a systemd
+  host, is the default path. It never rewrites an existing environment file; running a newer
+  release's script without arguments is the upgrade. Backup scheduling stays
   in the web provider. The manual steps remain the documented fallback.
   Company naming then happens in the browser. The hosting operator owns upgrades, backups and service
   maintenance; the company Owner is not expected to maintain hosting alone.
