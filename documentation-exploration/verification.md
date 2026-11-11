@@ -28,7 +28,7 @@ Application-wide hooks and suites are outside this standalone editorial investig
 
 ## FAQ appendix checks
 
-The appendix adds **114 reader questions** covering **179 of 179 catalogue stories** across 14 subjects. The source catalogue is the unmerged expanded proposal in PR #1848, pinned to `0d961752a0bb682b1348addf1ae621ae70abe57d`; the mapping and availability labels are visible in the separate coverage reference. It is not a claim that all 179 application journeys were run.
+The appendix adds **114 reader questions** covering **179 of 179 catalogue stories** across 14 subjects. The source catalogue is the unmerged expanded proposal in PR #1848, pinned to `5327ff406e13cbbb870fa257bbb9e6ceffc18dba`; the mapping and availability labels are visible in the separate coverage reference. It is not a claim that all 179 application journeys were run.
 
 - The coverage builder checks every source identifier, prevents duplicate story records and question anchors, and validates primary and related answer destinations. New identifiers in the local catalogue require refreshing the snapshot. All 132 story identifiers in this checkout are included in the broader snapshot.
 - Eight focused Node tests passed, covering successful assembly, missing coverage, duplicate mappings, missing/duplicate/untracked question anchors, catalogue growth, installation placement at the end, and multiple answers without inflating story counts.
