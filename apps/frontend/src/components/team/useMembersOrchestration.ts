@@ -172,7 +172,7 @@ function useMemberMutationState(input: MemberMutationStateInput) {
   const refreshDirectory = input.directoryState.reload;
   const reconciliation = createMemberAccessReconciliation({
     ...input.directoryState.actionDependencies,
-    beginAuthorizedRead: input.directoryState.beginAuthorizedRead,
+    replaceAuthorizedDirectory: input.directoryState.replaceAuthorizedDirectory,
   });
   const actions = createMemberMutations({
     ...input.directoryState.actionDependencies,
@@ -255,7 +255,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     workspaceId: activeAccountId,
     reload: directoryState.reload,
     acceptedReadGeneration: directoryState.acceptedReadGeneration,
-    members: directoryState.members,
   });
   const setActionStatusElement = useActionStatusFocus(directoryState.busyAction);
   return {

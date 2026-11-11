@@ -38,7 +38,6 @@ describe('useMemberResourceLinkRequest', () => {
           workspaceId,
           reload,
           acceptedReadGeneration: 0,
-          members: [member],
         })(member),
       { initialProps: { workspaceId: 'a-studio' as string | null } },
     );
@@ -68,7 +67,6 @@ describe('useMemberResourceLinkRequest', () => {
           workspaceId: 'a-studio',
           reload,
           acceptedReadGeneration,
-          members: [member],
         })(member),
       { initialProps: { acceptedReadGeneration: 1 } },
     );
@@ -85,37 +83,5 @@ describe('useMemberResourceLinkRequest', () => {
     expect(result.current.pending).toBe(true);
     rerender({ acceptedReadGeneration: 3 });
     expect(result.current.pending).toBe(false);
-  });
-
-  it('drops settled requests for members a newer accepted read no longer lists', async () => {
-    const bea: TeamMember = { ...member, userId: 'bea', name: 'Barbara Gordon', email: 'bea@x.io' };
-    vi.spyOn(teamAccessClient, 'setMemberResourceLink').mockImplementation((input) =>
-      input.principalId === 'ed'
-        ? Promise.resolve({ kind: 'rejected', status: 409, message: 'Changed elsewhere.' })
-        : new Promise(() => {}),
-    );
-    const reload = vi.fn(() => 1);
-    const { result, rerender } = renderHook(
-      ({ acceptedReadGeneration, members }) =>
-        useMemberResourceLinkRequests({
-          workspaceId: 'a-studio',
-          reload,
-          acceptedReadGeneration,
-          members,
-        }),
-      { initialProps: { acceptedReadGeneration: 0, members: [member, bea] } },
-    );
-    await act(async () => {
-      result.current(member).change('r-bruce');
-      result.current(bea).change('r-diana');
-      await Promise.resolve();
-    });
-    rerender({ acceptedReadGeneration: 1, members: [member, bea] });
-    expect(result.current(member).error).toBe('Changed elsewhere.');
-
-    // Both leave the directory; Barbara's request is still sending, so it is kept.
-    rerender({ acceptedReadGeneration: 2, members: [] });
-    expect(result.current(member).error).toBeNull();
-    expect(result.current(bea).pending).toBe(true);
   });
 });

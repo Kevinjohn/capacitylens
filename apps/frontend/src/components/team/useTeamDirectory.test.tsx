@@ -113,8 +113,7 @@ describe('useTeamDirectory read generations', () => {
       requested = result.current.reload();
     });
     const replaced = makeDirectory({ resourceId: 'r-bruce', revision: 'rev-2' });
-    const replaceAuthorizedDirectory = result.current.beginAuthorizedRead();
-    act(() => replaceAuthorizedDirectory(replaced, []));
+    act(() => result.current.replaceAuthorizedDirectory(replaced, []));
     expect(result.current.directory).toMatchObject({ snapshot: { members: replaced.members } });
     expect(result.current.acceptedReadGeneration).toBe(accepted);
 

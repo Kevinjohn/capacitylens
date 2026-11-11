@@ -262,12 +262,6 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
   // generation accepts it; failures and other snapshot replacements leave it unaccepted.
   const [reloadKey, setReloadKey] = useState(0);
   const [acceptedReadGeneration, setAcceptedReadGeneration] = useState(0);
-  // Mirrors the accepted generation for replacements that settle outside render.
-  const acceptedReadGenerationRef = useRef(0);
-  const acceptReadGeneration = useCallback((generation: number) => {
-    acceptedReadGenerationRef.current = generation;
-    setAcceptedReadGeneration(generation);
-  }, []);
   const [inviteReloadKey, setInviteReloadKey] = useState(0);
   const reload = useCallback((): number => {
     lastRequestedReadGeneration += 1;
@@ -289,7 +283,7 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     membersQuery,
     scopeId,
     readGeneration: reloadKey,
-    acceptReadGeneration,
+    acceptReadGeneration: setAcceptedReadGeneration,
   });
   useInvitationQueryEffects({
     activeAccountId,
@@ -307,7 +301,6 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     setDirectory,
     reload,
     acceptedReadGeneration,
-    acceptedReadGenerationRef,
     reloadInvites,
   };
 }
@@ -332,22 +325,12 @@ function useActionState() {
 /** Owns authoritative directory reads, self-gating, reload generations and action exclusion. */
 export function useTeamDirectory(options: TeamDirectoryOptions) {
   const { activeAccountId } = options;
-  const {
-    directory,
-    setDirectory,
-    reload,
-    acceptedReadGeneration,
-    acceptedReadGenerationRef,
-    reloadInvites,
-  } = useDirectoryRead(options);
+  const { directory, setDirectory, reload, acceptedReadGeneration, reloadInvites } =
+    useDirectoryRead(options);
   const { busyAction, beginAction, endAction } = useActionState();
   const currentAccountLoaded = directory.accountId === activeAccountId;
-  // Call before an out-of-band directory read starts. Its replacement is dropped if a members
-  // read requested after it began has already been accepted, because that snapshot is fresher.
-  const beginAuthorizedRead = useCallback(() => {
-    const readStartedAfter = lastRequestedReadGeneration;
-    return (next: TeamDirectory, invites: TeamInvitation[]) => {
-      if (acceptedReadGenerationRef.current > readStartedAfter) return;
+  const replaceAuthorizedDirectory = useCallback(
+    (next: TeamDirectory, invites: TeamInvitation[]) => {
       setDirectory((previous) => {
         if (previous.kind !== 'ready' && previous.kind !== 'error') return previous;
         const snapshot = {
@@ -360,15 +343,16 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
           ? { ...previous, snapshot }
           : { ...previous, content: { kind: 'authorized', snapshot } };
       });
-    };
-  }, [setDirectory, acceptedReadGenerationRef]);
+    },
+    [setDirectory],
+  );
 
   return {
     directory:
       currentAccountLoaded && directory.accountId !== null
         ? directory
         : ({ kind: 'loading', accountId: activeAccountId } satisfies DirectoryState),
-    beginAuthorizedRead,
+    replaceAuthorizedDirectory,
     reload,
     acceptedReadGeneration,
     reloadInvites,

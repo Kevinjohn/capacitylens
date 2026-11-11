@@ -7,11 +7,9 @@ import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
 import { resetStoreWithAccount } from '@/test/fixtures';
 import { holdCalls } from '@/test/holdCalls';
 import {
-  expectNotice,
   mockApi,
   openInactiveGroup,
   renderSection,
-  saveRoleVia,
   waitForMemberRow,
 } from './MembersSection.testSupport';
 import type { User } from './MembersSection.testSupport';
@@ -24,7 +22,6 @@ vi.mock('@/data/apiConfig', () => ({
 type MembersRead = Awaited<ReturnType<typeof teamAccessClient.listMembers>>;
 type LinkWrite = Awaited<ReturnType<typeof teamAccessClient.setMemberResourceLink>>;
 type UnlinkWrite = Awaited<ReturnType<typeof teamAccessClient.clearMemberResourceLink>>;
-type InvitationsRead = Awaited<ReturnType<typeof teamAccessClient.listInvitations>>;
 type ResourceLink = TeamMember['resourceLink'];
 
 function makeMember(userId: string, name: string, resourceLink: ResourceLink = null): TeamMember {
@@ -73,24 +70,22 @@ function controlRequests(initialRead = makeRead()) {
   const reads = holdCalls<MembersRead>();
   const writes = holdCalls<LinkWrite>();
   const unlinks = holdCalls<UnlinkWrite>();
-  // Invitation reads answer at once unless a test holds them.
-  const invitations = { ...holdCalls<InvitationsRead>(), hold: false };
   const listMembers = vi
     .spyOn(teamAccessClient, 'listMembers')
     .mockResolvedValueOnce(initialRead)
     .mockImplementation(() => new Promise((resolve) => reads.calls.push(resolve)));
-  vi.spyOn(teamAccessClient, 'listInvitations').mockImplementation(() =>
-    invitations.hold
-      ? new Promise((resolve) => invitations.calls.push(resolve))
-      : Promise.resolve({ kind: 'ok', status: 200, value: [] }),
-  );
+  vi.spyOn(teamAccessClient, 'listInvitations').mockResolvedValue({
+    kind: 'ok',
+    status: 200,
+    value: [],
+  });
   const setLink = vi
     .spyOn(teamAccessClient, 'setMemberResourceLink')
     .mockImplementation(() => new Promise((resolve) => writes.calls.push(resolve)));
   vi.spyOn(teamAccessClient, 'clearMemberResourceLink').mockImplementation(
     () => new Promise((resolve) => unlinks.calls.push(resolve)),
   );
-  return { reads, writes, unlinks, invitations, listMembers, setLink };
+  return { reads, writes, unlinks, listMembers, setLink };
 }
 
 async function openResourceDialog(user: User, email: RegExp): Promise<HTMLElement> {
@@ -326,39 +321,5 @@ describe('MembersSection — resource link read fence', () => {
     expect(getSelector(reopened)).toBeDisabled();
     await reads.settleNext(makeRead({ ed: bruce, bea: diana }));
     await waitFor(() => expect(getSelector(reopened)).toBeEnabled());
-  });
-
-  it('ignores a reconciliation read that began before a newer accepted read', async () => {
-    const user = userEvent.setup();
-    const { reads, writes, invitations, setLink } = controlRequests();
-    vi.spyOn(teamAccessClient, 'changeMemberRole').mockResolvedValue({
-      kind: 'unknown',
-      status: 500,
-      message: null,
-    });
-    renderSection();
-    const edDialog = await openResourceDialog(user, /ed@x\.io/);
-    await choosePerson(user, edDialog, 'Bruce Wayne');
-    await closeDialog(user, edDialog);
-
-    // Barbara's uncertain role change reconciles with a read taken before Clark's link lands.
-    invitations.hold = true;
-    await saveRoleVia(user, await waitForMemberRow(/bea@x\.io/), 'Viewer');
-    await waitFor(() => expect(invitations.calls).toHaveLength(1));
-    invitations.hold = false;
-    await reads.settleNext(makeRead());
-    await writes.settleNext({ kind: 'ok', status: 200, value: bruce });
-    await reads.settleNext(makeRead({ ed: bruce }));
-    await invitations.settleNext({ kind: 'ok', status: 200, value: [] });
-    await expectNotice(/./);
-
-    const edRow = await waitForMemberRow(/ed@x\.io/);
-    expect(within(edRow).getByTestId('member-resource-status')).toHaveTextContent('Bruce Wayne');
-    const reopened = await openResourceDialog(user, /ed@x\.io/);
-    await waitFor(() => expect(getSelector(reopened)).toBeEnabled());
-    await choosePerson(user, reopened, 'Diana Prince');
-    expect(setLink).toHaveBeenLastCalledWith(
-      expect.objectContaining({ resourceId: 'r-diana', expectedRevision: 'rev-2' }),
-    );
   });
 });
