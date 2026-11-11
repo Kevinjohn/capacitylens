@@ -297,7 +297,7 @@ export async function serverState(
     }>
   >
 > {
-  const response = await request.get(`${target.api}/api/state`);
+  const response = await request.get(`${target.api}/api/state`, { maxRetries: 1 });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }

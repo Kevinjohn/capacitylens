@@ -1026,6 +1026,16 @@ The four new observer mechanisms each have an intended-red regression command, r
 
 Each mutant was restored to observer source hash `2c2465ee2a3244dea8e9b42f0492ad9e09fc9797bfcbdd2b051e4109bda51374`. Existing mappings for the earlier five fault-transport mutants and the event guard mutant remain applicable. These isolated red checks do not supersede the incomplete three-engine cohort.
 
+### Canonical probe connection recovery
+
+At P1 `1686ed8ac26d917c4b9c8840406d718452172e8e`, only the existing canonical-state GET gains `{ maxRetries: 1 }`. This permits at most two transport attempts per logical GET, retrying `ECONNRESET` only. HTTP failures, non-reset connection errors, JSON parsing, canonical-value assertions and existing caller polling/timeouts retain their behavior. Repeating the planning-data observation is safe; this does not claim that authentication/session bookkeeping performs no database writes. There is no global request retry or product server/admission change.
+
+`node --test scripts/serverStateTransport.test.mjs` passed nine real-TCP cases using the actual exported helper and public request context: one reset followed by actual canonical JSON; two resets; rejection through the actual polling callback; initial and post-reset HTTP500/403 failures; listener loss; and an initial non-reset connection failure. The observed rejected poll callback ran once and made two GETs. This is an observed call-boundary result, not a global two-attempt claim across every possible poll.
+
+Removing the retry option makes `node --test --test-name-pattern="serverState retries one reset and returns the actual canonical response" scripts/serverStateTransport.test.mjs` fail directly with `ECONNRESET`. The helper bytes are restored afterward. The native TCP tests are included in `policy:e2e-workers:test` alongside the existing runtime checks; the cutover retains its disposable-demo storage checks too.
+
+The historical WebKit reset's exact cause remains unproven. A passive socket capture passed the unchanged journey without reproducing it; the separately observed canceled proxy requests are not evidence for the direct request's failure. The bounded probe contract explicitly recovers one transient reset, while repeated reset and API loss still fail. Current browser acceptance remains separate from this helper proof.
+
 Historical 24-case matrices and earlier 103/87/70-unit or 302-fixture runs are diagnostic or superseded, not green acceptance. An earlier toy reload count of two had no structured records and remains unclassified; an isolated successful retry is not acceptance. A separate held committed A→B trace now demonstrates strict refusal, the positive post-reload probe is verified, and all six actual-application reload journeys passed in the frozen cohort. Phase-0 resource figures, listener-reset timings and bundle comparison remain as already recorded above; none establishes the still-pending hosted browser acceptance.
 
 The final browser matrix, both PRs' `e2e:all`, three consecutive clean hosted Chromium acceptance runs, and final independent assessment/publication-ready state remain pending. PRs #1852 and #1860 remain draft and unmerged. Passing the integrated backend suite does not imply browser acceptance.
