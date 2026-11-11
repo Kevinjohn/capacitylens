@@ -88,7 +88,7 @@ only needed when the browser app and API use different origins.
 
 `CAPACITYLENS_LOG=1` enables routine request-completion and structured password sign-in outcome
 logs. Sign-in records identify success, credential failure or throttling and share the request's
-correlation ID; they omit identity, network, user-agent and credential values. Sensitive
+`request_id`; they omit identity, network, user-agent and credential values. Sensitive
 request/response values are redacted, and unexpected failures remain logged without their private
 messages. Set
 `CAPACITYLENS_RATE_LIMIT` to change the process-wide request limit; it is not a per-company
