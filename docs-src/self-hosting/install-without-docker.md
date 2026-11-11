@@ -73,9 +73,10 @@ Running the command again is safe. It keeps `/etc/capacitylens.env` and its secr
 an option that would change a setting in it, unless you add `--update-env`, which replaces only
 the settings you pass. If a first install stopped before printing the setup link, the next run
 finishes it and asks for the Owner's email address again. After that, it prints a new setup link
-only when you pass `--owner-email`. Only one run at a time is allowed; if a run was killed, remove
-`/run/capacitylens-install.lock` before trying again. The same command upgrades the installation;
-see [Upgrades](/self-hosting/upgrades).
+only when you pass `--owner-email`. Only one run at a time is allowed. If a run was killed, wait
+until `systemctl is-active capacitylens-upgrade` no longer reports `active`, so no database
+migration is still running, then remove `/run/capacitylens-install.lock` and try again. The same
+command upgrades the installation; see [Upgrades](/self-hosting/upgrades).
 
 ## Install by hand
 

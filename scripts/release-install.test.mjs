@@ -17,7 +17,9 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  bootstrapCommand,
   configureCaddy,
+  isHandoverNeeded,
   issueSetupLink,
   readSetupLink,
   waitUntilReady,
@@ -120,16 +122,15 @@ test('a first install writes the environment with secrets, the unit, the Caddy s
   assert.match(await readState(root), /^proxy=caddy\nsetup=complete$/m);
   assert.deepEqual(await readdir(join(root, 'run')), [], 'The lock is released.');
   assert.equal(await readlink(join(root, 'opt', 'capacitylens', 'current')), release.slice(0, -1));
-  assert.equal(
-    (await lstat(join(root, 'var', 'lib', 'capacitylens', 'backups'))).mode & 0o777,
-    0o700,
-  );
+  assert.equal((await lstat(join(root, 'var', 'lib', 'capacitylens'))).mode & 0o777, 0o700);
 
   const commands = result.stdout.split('\n');
   const indexOf = (text) => commands.findIndex((line) => line.includes(text));
   for (const text of [
     'useradd --system',
-    'chown -h capacitylens:capacitylens /var/lib/capacitylens /var/lib/capacitylens/backups',
+    'skipped: give /var/lib/capacitylens to capacitylens',
+    'skipped: runuser -u capacitylens -- mkdir -p -m 0700 /var/lib/capacitylens/backups',
+    'systemd-run --unit=capacitylens-upgrade --pipe',
     'systemctl stop capacitylens',
     '--uid=capacitylens -p WorkingDirectory=/opt/capacitylens/current/backend -p EnvironmentFile=/etc/capacitylens.env',
     'ace.js app:upgrade',
@@ -141,6 +142,8 @@ test('a first install writes the environment with secrets, the unit, the Caddy s
     assert.ok(indexOf(text) >= 0, text);
   // The old release stops before current moves; the service starts only after the upgrade.
   const order = [
+    'give /var/lib/capacitylens to capacitylens',
+    'runuser -u capacitylens',
     'systemctl stop capacitylens',
     'linked /opt/capacitylens/current',
     'ace.js app:upgrade',
@@ -173,7 +176,7 @@ test('a re-run keeps the environment and its secrets and adds the Caddy import o
     ':80 {\n\tfile_server\n}\nimport /etc/caddy/capacitylens.caddy\n',
   );
   assert.match(again.stdout, /kept \/etc\/capacitylens\.env/);
-  assert.doesNotMatch(again.stdout, /setup link|admission:bootstrap|chown/i);
+  assert.doesNotMatch(again.stdout, /setup link|admission:bootstrap/i);
   assert.match(again.stdout, /wait for http:\/\/127\.0\.0\.1:8787\/health\/ready/);
 });
 
@@ -245,12 +248,13 @@ test('an environment file outside the supported format is refused before anythin
 test('refuses links in place of service folders and links out of the staging root', async (context) => {
   const outside = await makeRoot(context);
   const linked = await makeRoot(context);
-  await mkdir(join(linked, 'var', 'lib', 'capacitylens'), { recursive: true });
+  await mkdir(join(linked, 'var', 'lib'), { recursive: true });
   await mkdir(join(linked, 'elsewhere'));
-  await symlink(join(linked, 'elsewhere'), join(linked, 'var', 'lib', 'capacitylens', 'backups'));
-  const backups = runInstaller(['--root', linked, ...firstInstall]);
-  assert.equal(backups.status, 2);
-  assert.match(backups.stderr, /\/var\/lib\/capacitylens\/backups must be a directory, not a link/);
+  await symlink(join(linked, 'elsewhere'), join(linked, 'var', 'lib', 'capacitylens'));
+  const data = runInstaller(['--root', linked, ...firstInstall]);
+  assert.equal(data.status, 2);
+  assert.match(data.stderr, /\/var\/lib\/capacitylens must be a directory, not a link/);
+  assert.deepEqual(await readdir(join(linked, 'elsewhere')), []);
   assert.deepEqual((await listWritten(linked)).sort(), ['elsewhere', 'var']);
 
   const escaping = await makeRoot(context);
@@ -259,6 +263,56 @@ test('refuses links in place of service folders and links out of the staging roo
   assert.equal(etc.status, 2);
   assert.match(etc.stderr, /leads outside the staging root/);
   assert.deepEqual(await readdir(outside), []);
+});
+
+test('a staging root below a linked folder is resolved through it', async (context) => {
+  const base = await makeRoot(context);
+  await mkdir(join(base, 'real'));
+  await symlink(join(base, 'real'), join(base, 'link'));
+  const result = runInstaller(['--root', join(base, 'link', 'new-staging'), ...firstInstall]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(
+    (await readFile(join(base, 'real', 'new-staging', 'etc', 'capacitylens.env'), 'utf8')).includes(
+      'APP_KEY=',
+    ),
+  );
+});
+
+test('a dollar sign in the Owner email reaches the command unexpanded', async (context) => {
+  const command = bootstrapCommand('diana${USER}@themyscira.example');
+  assert.equal(command.at(-2), 'diana$${USER}@themyscira.example');
+  assert.equal(command.at(-3), 'account-kit:admission:bootstrap');
+  const root = await makeRoot(context);
+  const result = runInstaller([
+    '--root',
+    root,
+    '--public-url',
+    'https://capacity.example.com',
+    '--owner-email',
+    'diana${USER}@themyscira.example',
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /admission:bootstrap 'diana\$\$\{USER\}@themyscira\.example'/);
+});
+
+test('the data folder is handed over when new or left by an interrupted first install', () => {
+  const uid = 990;
+  const folder = (owner, mode) => ({ uid: owner, mode: 0o40000 | mode });
+  assert.equal(
+    isHandoverNeeded(folder(uid, 0o700), { uid, created: false, resumable: false }),
+    false,
+  );
+  assert.equal(isHandoverNeeded(folder(0, 0o700), { uid, created: true, resumable: false }), true);
+  assert.equal(isHandoverNeeded(folder(0, 0o700), { uid, created: false, resumable: true }), true);
+  for (const [stats, resumable] of [
+    [folder(0, 0o700), false],
+    [folder(0, 0o755), true],
+    [folder(1000, 0o700), true],
+  ])
+    assert.throws(
+      () => isHandoverNeeded(stats, { uid, created: false, resumable }),
+      /Correct its owner by hand/,
+    );
 });
 
 test('a second run is refused while the lock is held', async (context) => {

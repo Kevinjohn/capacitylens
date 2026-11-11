@@ -36,12 +36,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  installer["install.mjs writes the environment, unit and Caddy site, then runs app:upgrade"] --> upgrade["AppUpgrade.run verifies SQLite connection"]
+  installer["install.mjs writes the environment and unit, then runs app:upgrade"] --> upgrade["AppUpgrade.run verifies SQLite connection"]
   upgrade --> backup["createBundle snapshots existing database"]
   backup --> migrate["Ace kernel runs migration:run"]
   migrate --> integrity["assertSchemaIntegrity checks schema"]
   integrity --> service["service starts"]
-  service --> ready["/health/ready calls healthChecks.run"]
+  service --> caddy["install.mjs writes and validates the Caddy site, then reloads Caddy"]
+  caddy --> ready["/health/ready calls healthChecks.run"]
   ready --> bootstrap["Account Kit admission bootstrap CLI issues invitation"]
   bootstrap --> browser["FirstCompanySetupController.store validates setup"]
   browser --> guard["requiresFirstCompanySetup checks first-company conditions"]

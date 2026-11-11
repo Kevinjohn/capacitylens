@@ -4,11 +4,13 @@
 // Run with --help for every option. Uses only Node built-ins, so it runs before anything else is set up.
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { constants } from 'node:fs';
 import {
   chmod,
   chown,
   lstat,
   mkdir,
+  open,
   readFile,
   realpath,
   rename,
@@ -16,7 +18,7 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -58,6 +60,8 @@ const paths = {
 };
 const releaseParent = '/opt/capacitylens';
 const user = 'capacitylens';
+// A fixed name, so systemd refuses a second migration while one is still running.
+const upgradeUnit = 'capacitylens-upgrade';
 const serviceReadyMs = 60_000;
 // Certificate issuance can take a while on a first start.
 const httpsReadyMs = 120_000;
@@ -270,13 +274,22 @@ async function requireStagedPath(root, path, { followLast = true } = {}) {
   return target;
 }
 
-function bootstrapCommand(ownerEmail) {
-  return serviceCommand('account-kit:admission:bootstrap', ownerEmail, '--role=viewer');
+export function bootstrapCommand(ownerEmail) {
+  return serviceCommand(['account-kit:admission:bootstrap', ownerEmail, '--role=viewer']);
 }
 
-function serviceCommand(...args) {
+function upgradeCommand() {
+  return serviceCommand(['app:upgrade'], { unit: upgradeUnit });
+}
+
+/**
+ * Run an ace command as the service user with the service environment. systemd expands `$` in the
+ * command line, so a literal one is written as `$$`.
+ */
+function serviceCommand(args, { unit } = {}) {
   return [
     'systemd-run',
+    ...(unit ? [`--unit=${unit}`] : []),
     '--pipe',
     '--wait',
     '--collect',
@@ -291,8 +304,32 @@ function serviceCommand(...args) {
     '/usr/bin/env',
     'node',
     'ace.js',
-    ...args,
+    ...args.map((arg) => arg.replaceAll('$', () => '$$')),
   ];
+}
+
+/**
+ * Decide whether root should hand a service folder to the service user. A folder created by this
+ * run is handed over; so is one an interrupted first install left root-owned with mode 0700.
+ * @returns false when the service user already owns it.
+ * @throws InstallRefusal for any other owner or mode.
+ */
+export function isHandoverNeeded(stats, { uid, created, resumable }) {
+  if (stats.uid === uid) return false;
+  if (created || (resumable && stats.uid === 0 && (stats.mode & 0o7777) === 0o700)) return true;
+  throw new InstallRefusal(
+    `${paths.data} belongs to uid ${stats.uid} with mode ${(stats.mode & 0o7777).toString(8)}, ` +
+      `not to ${user}. Correct its owner by hand, then run the command again.`,
+  );
+}
+
+function readServiceIds() {
+  const read = (flag) => {
+    const result = spawnSync('id', [flag, user], { encoding: 'utf8' });
+    if (result.status !== 0) throw new Error(`Could not look up the ${user} user.`);
+    return Number(result.stdout.trim());
+  };
+  return { uid: read('-u'), gid: read('-g') };
 }
 
 /** Effects for a real host, for files under a staging root, or for a dry run. */
@@ -335,23 +372,60 @@ function createEffects({ root, dryRun }) {
       await rm(await at(path), { force: true });
     },
     /**
-     * Create a directory that does not exist yet and report whether it was created. An existing
-     * directory is left as it is, so nothing follows a link its owner may have put in its place.
+     * Create a root-owned directory, in a root-owned parent, with its final mode if it is missing.
      * @throws InstallRefusal when the path exists but is not a directory.
      */
     async directory(path, mode) {
       const target = await at(path);
       const current = await lstatOptional(target);
-      if (current?.isDirectory()) return false;
+      if (current?.isDirectory()) return;
       if (current) throw new InstallRefusal(`${path} must be a directory, not a link or file.`);
-      if (dryRun) {
-        show(`  would create ${path}`);
-        return true;
-      }
+      if (dryRun) return show(`  would create ${path}`);
       await mkdir(dirname(target), { recursive: true });
       await mkdir(target, { mode });
-      await chmod(target, mode);
-      return true;
+    },
+    /**
+     * Create the service's data folder in its root-owned parent and give it to the service user.
+     * Ownership changes through a descriptor opened without following links, never by path.
+     * @throws InstallRefusal when the path is a link or not a directory, or has an unexpected owner.
+     */
+    async serviceDirectory(path, { resumable }) {
+      const target = await at(path);
+      if (dryRun) {
+        const current = await lstatOptional(target);
+        if (current && !current.isDirectory())
+          throw new InstallRefusal(`${path} must be a directory, not a link or file.`);
+        return show(`  would create ${path} and give it to ${user}`);
+      }
+      await mkdir(dirname(target), { recursive: true });
+      let created = true;
+      try {
+        await mkdir(target, { mode: 0o700 });
+      } catch (error) {
+        if (error?.code !== 'EEXIST') throw error;
+        created = false;
+      }
+      let handle;
+      try {
+        handle = await open(
+          target,
+          constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+        );
+      } catch (error) {
+        if (error?.code === 'ELOOP' || error?.code === 'ENOTDIR')
+          throw new InstallRefusal(`${path} must be a directory, not a link or file.`, {
+            cause: error,
+          });
+        throw error;
+      }
+      try {
+        if (simulated) return show(`  skipped: give ${path} to ${user}`);
+        const ids = readServiceIds();
+        if (isHandoverNeeded(await handle.stat(), { ...ids, created, resumable }))
+          await handle.chown(ids.uid, ids.gid);
+      } finally {
+        await handle.close();
+      }
     },
     async link(path, target) {
       if (dryRun) return show(`  would link ${path} -> ${target}`);
@@ -376,7 +450,8 @@ function createEffects({ root, dryRun }) {
       } catch (error) {
         if (error?.code !== 'EEXIST') throw error;
         throw new InstallRefusal(
-          `Another install is running (${path} exists). If none is, remove that file and run again.`,
+          `Another install is running (${path} exists). If none is, and ` +
+            `\`systemctl is-active ${upgradeUnit}\` does not report active, remove that file and run again.`,
         );
       }
       return () => rm(target, { force: true });
@@ -547,6 +622,15 @@ export async function install(argv) {
     throw new InstallRefusal(`Unpack the release into ${releaseParent}, not ${dirname(release)}.`);
   const unlock = await effects.lock(paths.lock);
   try {
+    // A migration started by a run that was killed keeps running; never start a second one.
+    if (
+      !effects.simulated &&
+      spawnSync('systemctl', ['is-active', '--quiet', upgradeUnit]).status === 0
+    )
+      throw new InstallRefusal(
+        `A database migration from an earlier run is still running. Wait until ` +
+          `\`systemctl is-active ${upgradeUnit}\` no longer reports active, then run again.`,
+      );
     await installRelease({ flags, effects, release });
   } finally {
     await unlock();
@@ -619,12 +703,11 @@ async function installRelease({ flags, effects, release }) {
       '/usr/sbin/nologin',
       user,
     ]);
-  // Scheduled backups run inside the service whenever CAPACITYLENS_BACKUP_DIR is set. Only folders
-  // created now are handed over, without following links: the service user owns what is inside.
-  const created = [];
-  for (const path of [paths.data, paths.backups])
-    if (await effects.directory(path, 0o700)) created.push(path);
-  if (created.length > 0) effects.run(['chown', '-h', `${user}:${user}`, ...created]);
+  // Root never creates or changes anything inside the service-owned data folder, so the backups
+  // folder is made by the service user. runuser ships with util-linux on every systemd distribution.
+  // Scheduled backups run inside the service whenever CAPACITYLENS_BACKUP_DIR is set.
+  await effects.serviceDirectory(paths.data, { resumable: firstInstall });
+  effects.run(['runuser', '-u', user, '--', 'mkdir', '-p', '-m', '0700', paths.backups]);
 
   const setup = firstInstall ? 'pending' : (state.setup ?? 'complete');
   if (state.proxy !== proxy || state.setup !== setup)
@@ -638,7 +721,7 @@ async function installRelease({ flags, effects, release }) {
   await effects.directory(releaseParent, 0o755);
   await effects.link(paths.current, release);
   // Backs up an existing database before migrating; on failure the service stays stopped.
-  effects.run(serviceCommand('app:upgrade'));
+  effects.run(upgradeCommand());
   effects.run(['systemctl', 'enable', '--now', 'capacitylens']);
 
   const site = (await readFile(join(release, 'Caddyfile.example'), 'utf8'))
@@ -685,15 +768,26 @@ async function installRelease({ flags, effects, release }) {
     );
 }
 
-/** Resolve a staging root, refusing one that is empty or names the real root. */
+/**
+ * Resolve a staging root through its nearest existing ancestor, so a link anywhere above it is
+ * followed once here and every later path compares against the same canonical root.
+ * @throws InstallRefusal when the root is empty or names the real root.
+ */
 async function resolveStagingRoot(value) {
   if (!value) throw new InstallRefusal('--root needs a staging directory.');
-  let root = resolve(value);
-  try {
-    root = await realpath(root);
-  } catch (error) {
-    if (error?.code !== 'ENOENT') throw error;
+  const missing = [];
+  let existing = resolve(value);
+  for (;;) {
+    try {
+      existing = await realpath(existing);
+      break;
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+      missing.unshift(basename(existing));
+      existing = dirname(existing);
+    }
   }
+  const root = join(existing, ...missing);
   if (root === '/') throw new InstallRefusal('--root must be a staging directory, not /.');
   return root;
 }
