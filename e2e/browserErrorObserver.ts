@@ -146,11 +146,9 @@ function installBrowserErrorObserver(config: { token: string; stateKey: string }
       writable: false,
       value: state,
     });
-    if (!state.nonce) {
-      state.nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
-        byte.toString(16).padStart(2, '0'),
-      ).join('');
-    }
+    state.nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join('');
     nativeDebug = console.debug.bind(console);
     const onError = (event: Event) => {
       if (!(event instanceof ErrorEvent)) return;
