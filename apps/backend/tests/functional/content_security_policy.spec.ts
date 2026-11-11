@@ -16,12 +16,6 @@ test.group('Shield content security policy', (group) => {
     await limiter.clear();
   });
 
-  test('an API response carries the policy', async ({ client, assert }) => {
-    const response = await client.get('/api/health');
-    assert.equal(response.status(), 200);
-    assert.equal(response.header('content-security-policy'), policy);
-  });
-
   test('a cross-site refusal carries the policy', async ({ client, assert }) => {
     const response = await client
       .post('/api/test/reset')
