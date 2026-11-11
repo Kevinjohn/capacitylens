@@ -33,8 +33,9 @@ sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
 sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs
 ```
 
-The command asks for the public HTTPS address, the Owner's email address and the SMTP mail
-settings. Leave the mail host blank to set up mail later; see [step 3](#_3-configure-the-installation)
+The release must be unpacked into `/opt/capacitylens` so the service user can read it. The
+command asks for the public HTTPS address, the Owner's email address and the SMTP mail settings;
+the password is not shown as you type it. Leave the mail host blank to set up mail later; see [step 3](#_3-configure-the-installation)
 for what works without it. Then it:
 
 - creates the `capacitylens` service user and `/var/lib/capacitylens` with its `backups` folder
@@ -42,20 +43,22 @@ for what works without it. Then it:
   `CAPACITYLENS_SECRET`
 - points `/opt/capacitylens/current` at the release, installs the systemd unit, runs the database
   upgrade and starts the service
-- writes `/etc/caddy/capacitylens.caddy`, imports it from `/etc/caddy/Caddyfile` and reloads Caddy
-- prints the one-time setup link for the Owner
+- writes `/etc/caddy/capacitylens.caddy`, imports it from `/etc/caddy/Caddyfile`, validates the
+  result and reloads Caddy; if Caddy refuses it, both files are put back as they were
+- waits for the service to report ready, then prints the one-time setup link for the Owner
 
 Verified backups then run when the service starts and every 24 hours; see
 [Backups and restore](/self-hosting/backups-and-restore). Open the setup link and continue at
 [step 5](#_5-open).
 
-To run without prompts, pass the answers as options:
+To run without prompts, pass the answers as options. The SMTP password comes from a file readable
+only by root, so it never appears on the command line:
 
 ```bash
 sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs \
   --public-url https://capacity.example.com --owner-email owner@example.com \
   --mail-host smtp.example.com --mail-port 587 --mail-user capacity \
-  --mail-password '…' --mail-from capacity@example.com
+  --mail-password-file /root/smtp-password --mail-from capacity@example.com
 ```
 
 With an existing nginx or other HTTPS proxy on the same machine, add `--proxy none`: the command

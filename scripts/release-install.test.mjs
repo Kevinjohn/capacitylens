@@ -26,8 +26,12 @@ const firstInstall = [
   'diana@themyscira.example',
 ];
 
-function runInstaller(args) {
-  return spawnSync(process.execPath, [installer, ...args], { encoding: 'utf8', input: '' });
+function runInstaller(args, options = {}) {
+  return spawnSync(process.execPath, [installer, ...args], {
+    encoding: 'utf8',
+    input: '',
+    ...options,
+  });
 }
 
 async function makeRoot(context) {
@@ -273,9 +277,11 @@ test(
   },
 );
 
-test('refuses a staging root that is the real root and a release outside /opt/capacitylens', () => {
+test('refuses a staging root that is the real root and a release outside /opt/capacitylens', async (context) => {
+  // An empty root must not fall back to the working directory, so run from a scratch one.
+  const cwd = await makeRoot(context);
   for (const root of ['', '/', '/tmp/..']) {
-    const result = runInstaller(['--root', root, ...firstInstall]);
+    const result = runInstaller(['--root', root, ...firstInstall], { cwd });
     assert.equal(result.status, 2, root);
     assert.match(
       result.stderr,
@@ -285,6 +291,7 @@ test('refuses a staging root that is the real root and a release outside /opt/ca
   const placed = runInstaller(['--dry-run', ...firstInstall]);
   assert.equal(placed.status, 2);
   assert.match(placed.stderr, /Unpack the release into \/opt\/capacitylens/);
+  assert.deepEqual(await readdir(cwd), []);
 });
 
 test('a dry run writes nothing and an existing proxy gets the settings printed', async (context) => {

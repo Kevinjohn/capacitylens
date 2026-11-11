@@ -21,9 +21,10 @@ may provide controls for these steps; check that they support the required proce
 1. **Download** the release archive from the
    [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 
-2. **Run the install command** in the unpacked archive with `sudo node install.mjs`. It asks for
-   the public HTTPS address, the Owner's email address and the email delivery settings, then sets
-   up the service, HTTPS at a same-machine Caddy and daily backups. The
+2. **Run the install command** from the archive unpacked into `/opt/capacitylens`, with
+   `sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs`. It asks for the public HTTPS
+   address, the Owner's email address and the email delivery settings, then sets up the service,
+   HTTPS at a same-machine Caddy and daily backups. The
    [installation guide](/self-hosting/install-without-docker#install-with-one-command) gives the
    exact commands and the manual steps.
 

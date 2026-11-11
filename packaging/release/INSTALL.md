@@ -13,9 +13,10 @@ unpack the archive into `/opt/capacitylens` and run:
 sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs
 ```
 
-It asks for the public HTTPS address, the Owner's email address and SMTP settings, writes
-`/etc/capacitylens.env` with generated secrets, installs and starts the systemd unit, configures
-Caddy for automatic HTTPS, enables the daily verified backups and prints the setup link. Use
+It asks for the public HTTPS address, the Owner's email address and SMTP settings (the password
+hidden, or from `--mail-password-file`), writes `/etc/capacitylens.env` with generated secrets,
+installs and starts the systemd unit, configures Caddy for automatic HTTPS, enables the daily
+verified backups and prints the setup link. Use
 `--proxy none` with another same-machine proxy, `--dry-run` to preview and `--help` for the
 options that replace the questions. Running the same command from a newer release upgrades the
 installation; it keeps the environment file and backs up the database before migrating.
