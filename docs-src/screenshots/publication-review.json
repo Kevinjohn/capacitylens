@@ -182,5 +182,13 @@
   {
     "path": "docs-src/screenshots/reviews/fresh_install_json_restored_after.png",
     "sha256": "f14c59046945cdfea50721804245aabf2632ee2e17cabde6a92f74d0a954e99c"
+  },
+  {
+    "path": "docs-src/screenshots/reviews/reassignment_working_day_before.jpg",
+    "sha256": "48b5de88a2d46761660538c9410464dbbfd11aa5c738bbbe3b0e22c8b5157a8f"
+  },
+  {
+    "path": "docs-src/screenshots/reviews/reassignment_working_day_after.png",
+    "sha256": "ca5df6290605fd0a2bd82ba9abd3c1ca72e87b39aee8c19f5ece9bf6eeba71c2"
   }
 ]
