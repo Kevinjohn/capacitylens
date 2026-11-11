@@ -615,10 +615,21 @@ test('verified documents support same-document navigation and repeated reloads',
     await observer.waitForPage(page);
     await page.goto('data:text/html,<title>Navigation control</title>');
     await observer.waitForPage(page);
-    await page.evaluate(() => {
-      location.hash = 'same-document';
-    });
-    await observer.waitForPage(page);
+    const held = stateReadBarrier();
+    held.hold(page.mainFrame());
+    try {
+      await page.goto(`${page.url()}#same-document`);
+      await held.captured;
+      await page.goto(`${page.url().split('#')[0]}#same-document-again`);
+      await observer.waitForPage(page);
+    } finally {
+      held.release();
+    }
+    await held.delivered;
+    await observer.assertContextReady(context);
+    expect(observer.lifecycleDiagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ event: 'repeated-document-verified' })]),
+    );
     await page.reload();
     await observer.waitForPage(page);
     await page.reload();

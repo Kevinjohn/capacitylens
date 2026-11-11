@@ -100,6 +100,10 @@ export const test = base.extend<CapacityLensFixtures>({
       await pageErrorObserver.assertContextReady(context);
     }
   },
+  page: async ({ page, pageErrorObserver }, use) => {
+    await pageErrorObserver.waitForPage(page);
+    await use(page);
+  },
   newObservedContext: async ({ browser, pageErrorObserver }, use) => {
     const contexts = new Set<BrowserContext>();
     try {
@@ -107,6 +111,12 @@ export const test = base.extend<CapacityLensFixtures>({
         const context = await browser.newContext(options);
         contexts.add(context);
         await pageErrorObserver.registerContext(context);
+        const createPage = context.newPage.bind(context);
+        context.newPage = async () => {
+          const page = await createPage();
+          await pageErrorObserver.waitForPage(page);
+          return page;
+        };
         return context;
       });
     } finally {
