@@ -99,6 +99,7 @@ const requiredReleaseFiles = [
   'capacitylens.nginx.conf',
   'Caddyfile.example',
   'INSTALL.md',
+  'install.mjs',
   'VERSION',
 ];
 
