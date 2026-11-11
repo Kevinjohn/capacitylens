@@ -54,16 +54,3 @@ export function internalClientFor(clients: Client[], accountId: ID): Client | un
 export function isBuiltinClient(client: Pick<Client, 'builtin'>): boolean {
   return client.builtin === true;
 }
-
-/**
- * Legacy shared predicate for detecting a second built-in client. The current server enforces
- * its own canonical Internal-client rules independently.
- * True when writing a client with `builtin: true` and the given id would add a second built-in to the
- * account: the account already has a builtin whose id differs from this write. Matching the first
- * builtin id returns false; this predicate does not validate its canonical fields. `internalClientFor` is first-match, so a duplicate
- * would silently shadow data under an arbitrary Internal, reject it at the API boundary instead.
- */
-export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID): boolean {
-  const existing = internalClientFor(clients, accountId);
-  return existing !== undefined && existing.id !== id;
-}

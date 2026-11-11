@@ -170,20 +170,20 @@ test.group('soft-deleted rows', (group) => {
   }) => {
     await resetAuthenticatedData(client, true);
     const state = await readState(undefined, true);
-    const [trashedLocal, activeLocal] = state.allocations.filter(
+    const [deletedLocal, activeLocal] = state.allocations.filter(
       (row) => row.accountId === 'a-studio'
     );
     const otherTenant = state.allocations.find((row) => row.accountId === 'a-loft')!;
-    const before = await db.from('allocations').where('id', trashedLocal!.id).first();
+    const before = await db.from('allocations').where('id', deletedLocal!.id).first();
 
     const softDeleted = await db.transaction((trx) =>
       retainedQuery(trx, 'a-studio', 'allocations')
-        .whereIn('id', [trashedLocal!.id, otherTenant.id])
+        .whereIn('id', [deletedLocal!.id, otherTenant.id])
         .softDelete()
     );
 
     assert.equal(softDeleted, 1);
-    const deleted = await db.from('allocations').where('id', trashedLocal!.id).first();
+    const deleted = await db.from('allocations').where('id', deletedLocal!.id).first();
     assert.isNotNull(deleted.deleted_at);
     assert.equal(deleted.updated_at, before.updated_at);
     const untouched = await db.from('allocations').where('id', otherTenant.id).first();
@@ -196,12 +196,12 @@ test.group('soft-deleted rows', (group) => {
     const purged = await db.transaction((trx) =>
       retainedQuery(trx, 'a-studio', 'allocations')
         .onlyTrashed()
-        .whereIn('id', [trashedLocal!.id, activeLocal!.id, otherTenant.id])
+        .whereIn('id', [deletedLocal!.id, activeLocal!.id, otherTenant.id])
         .forceDelete()
     );
 
     assert.equal(purged, 1);
-    assert.isNull(await db.from('allocations').where('id', trashedLocal!.id).first());
+    assert.isNull(await db.from('allocations').where('id', deletedLocal!.id).first());
     assert.isObject(await db.from('allocations').where('id', activeLocal!.id).first());
     assert.isObject(await db.from('allocations').where('id', otherTenant.id).first());
   });
