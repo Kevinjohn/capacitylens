@@ -35,9 +35,10 @@ function makeDirectory(
 }
 
 // Resolves the first members read at once and holds every later read until the test settles it.
-function controlMemberReads(): { settleNext(result: MembersRead): Promise<void> } {
+function controlMemberReads() {
   const held: ((result: MembersRead) => void)[] = [];
-  vi.spyOn(teamAccessClient, 'listMembers')
+  const listMembers = vi
+    .spyOn(teamAccessClient, 'listMembers')
     .mockResolvedValueOnce({ kind: 'ok', status: 200, value: makeDirectory(null) })
     .mockImplementation(() => new Promise((resolve) => held.push(resolve)));
   vi.spyOn(teamAccessClient, 'listInvitations').mockResolvedValue({
@@ -46,7 +47,8 @@ function controlMemberReads(): { settleNext(result: MembersRead): Promise<void> 
     value: [],
   });
   return {
-    async settleNext(result) {
+    listMembers,
+    async settleNext(result: MembersRead) {
       await waitFor(() => expect(held.length).toBeGreaterThan(0));
       const settle = held.shift();
       await act(async () => {
@@ -57,8 +59,9 @@ function controlMemberReads(): { settleNext(result: MembersRead): Promise<void> 
   };
 }
 
-function renderDirectory() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderDirectory(
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   const fail = vi.fn();
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
@@ -125,5 +128,35 @@ describe('useTeamDirectory read generations', () => {
 
     await reads.settleNext({ kind: 'ok', status: 200, value: replaced });
     await waitFor(() => expect(result.current.acceptedReadGeneration).toBe(requested));
+  });
+
+  // A revisit within the cache lifetime must not accept a cached read from an earlier visit.
+  it('requests a generation that a remount cannot satisfy from the shared query cache', async () => {
+    const reads = controlMemberReads();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const firstVisit = renderDirectory(queryClient);
+    await waitFor(() => expect(firstVisit.result.current.directory.kind).toBe('ready'));
+    act(() => {
+      firstVisit.result.current.reload();
+    });
+    await reads.settleNext({ kind: 'ok', status: 200, value: makeDirectory(null) });
+    firstVisit.unmount();
+
+    const secondVisit = renderDirectory(queryClient);
+    await waitFor(() => expect(secondVisit.result.current.directory.kind).toBe('ready'));
+    const callsBeforeReload = reads.listMembers.mock.calls.length;
+    let requested = 0;
+    act(() => {
+      requested = secondVisit.result.current.reload();
+    });
+    await waitFor(() =>
+      expect(reads.listMembers.mock.calls.length).toBeGreaterThan(callsBeforeReload),
+    );
+    expect(secondVisit.result.current.acceptedReadGeneration).toBeLessThan(requested);
+
+    const linked = { resourceId: 'r-bruce', revision: 'rev-2' };
+    await reads.settleNext({ kind: 'ok', status: 200, value: makeDirectory(linked) });
+    await reads.settleNext({ kind: 'ok', status: 200, value: makeDirectory(linked) });
+    await waitFor(() => expect(secondVisit.result.current.acceptedReadGeneration).toBe(requested));
   });
 });

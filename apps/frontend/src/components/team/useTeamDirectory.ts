@@ -41,6 +41,11 @@ type DirectoryState =
 
 type SetDirectory = Dispatch<SetStateAction<DirectoryState>>;
 
+// Reload generations are part of the members query key, so they stay unique for the life of the
+// query cache: a later mount must not reuse a key whose cached read predates its write. Every mount
+// still starts on generation 0, so a revisit shows the cached directory while it refetches.
+let lastRequestedReadGeneration = 0;
+
 function directorySnapshot(state: DirectoryState, accountId: string): DirectorySnapshot | null {
   if (state.accountId !== accountId) return null;
   if (state.kind === 'ready') return state.snapshot;
@@ -255,14 +260,13 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
   const authorizedAccountRef = useRef<{ scopeId: string; accountId: string } | null>(null);
   // Each reload requests a new read generation. Only a successful members read applied for that
   // generation accepts it; failures and other snapshot replacements leave it unaccepted.
-  const requestedReadGeneration = useRef(0);
   const [reloadKey, setReloadKey] = useState(0);
   const [acceptedReadGeneration, setAcceptedReadGeneration] = useState(0);
   const [inviteReloadKey, setInviteReloadKey] = useState(0);
   const reload = useCallback((): number => {
-    requestedReadGeneration.current += 1;
-    setReloadKey(requestedReadGeneration.current);
-    return requestedReadGeneration.current;
+    lastRequestedReadGeneration += 1;
+    setReloadKey(lastRequestedReadGeneration);
+    return lastRequestedReadGeneration;
   }, []);
   const reloadInvites = useCallback(async () => setInviteReloadKey((key) => key + 1), []);
   const { membersQuery, invitationsQuery } = useScopedDirectoryQueries({
