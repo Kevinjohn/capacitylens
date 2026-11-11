@@ -52,6 +52,16 @@ test.group('unsafe-request origin guard', (group) => {
       },
       { name: 'refuses a write with neither Origin nor Sec-Fetch-Site', headers: {}, status: 403 },
       {
+        name: 'refuses a same-site write without Origin',
+        headers: { 'sec-fetch-site': 'same-site' },
+        status: 403,
+      },
+      {
+        name: 'refuses an Origin that only matches after normalising',
+        headers: { origin: `${publicOrigin.origin.toUpperCase()}/` },
+        status: 403,
+      },
+      {
         name: 'refuses a mismatched Origin despite Sec-Fetch-Site same-origin',
         headers: { 'origin': 'http://evil.example', 'sec-fetch-site': 'same-origin' },
         status: 403,
