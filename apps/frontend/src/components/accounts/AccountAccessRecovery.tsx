@@ -7,7 +7,7 @@ export function AccountAccessRecovery() {
   const complete = useStore((state) => state.accountSummariesComplete);
   const ambiguous = useStore((state) => state.accountSummariesAmbiguous);
 
-  if (!complete) {
+  if (!complete && !ambiguous && accounts.length <= 1) {
     return (
       <main className="flex min-h-full items-center justify-center bg-canvas p-6">
         <p role="status" className="text-sm text-muted-foreground">

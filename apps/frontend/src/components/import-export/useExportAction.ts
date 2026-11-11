@@ -31,7 +31,6 @@ export function useExportAction() {
       if (role !== null && can(role, 'resources:anonymise')) {
         exported = await fetchInactiveSlice(activeAccountId);
       }
-      if (!activeAccountId) throw new Error('An active company is required before exporting.');
       const completeness = role !== null && canSeePrivateNames(role) ? 'full' : 'redacted';
       downloadTextFile(
         'capacitylens-data.json',

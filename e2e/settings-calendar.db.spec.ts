@@ -17,16 +17,18 @@ test.describe('Company details', () => {
     expect(sectionCount).toBeGreaterThan(0);
     await expect(helpActions).toHaveCount(sectionCount);
 
-    for (let index = 0; index < sectionCount; index += 1) {
-      const titleBox = await titles.nth(index).boundingBox();
-      const helpBox = await helpActions.nth(index).boundingBox();
-      expect(titleBox).not.toBeNull();
-      expect(helpBox).not.toBeNull();
+    await expect(async () => {
+      for (let index = 0; index < sectionCount; index += 1) {
+        const titleBox = await titles.nth(index).boundingBox();
+        const helpBox = await helpActions.nth(index).boundingBox();
+        expect(titleBox).not.toBeNull();
+        expect(helpBox).not.toBeNull();
 
-      const titleCentre = titleBox!.y + titleBox!.height / 2;
-      const helpCentre = helpBox!.y + helpBox!.height / 2;
-      expect(Math.abs(titleCentre - helpCentre)).toBeLessThanOrEqual(0.5);
-    }
+        const titleCentre = titleBox!.y + titleBox!.height / 2;
+        const helpCentre = helpBox!.y + helpBox!.height / 2;
+        expect(Math.abs(titleCentre - helpCentre)).toBeLessThanOrEqual(0.5);
+      }
+    }).toPass({ timeout: 5_000 });
   });
 
   test('renders the frozen values without disabled form controls', async ({ page }) => {

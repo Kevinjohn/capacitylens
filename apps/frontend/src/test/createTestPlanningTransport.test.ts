@@ -123,8 +123,7 @@ it('reset discards queued responses, failures, calls and recorded commitments', 
   const transport = createTestPlanningTransport();
   const stub = getStubPlanningTransport();
   stub.reset(context.companyId, makeAppData());
-  stub.respondNext(receipt('discarded-response', 5));
-  stub.failNext(new Error('discarded-error'));
+  stub.respondNext(receipt('committed', 5));
   await transport.execute(
     context,
     {
@@ -134,6 +133,14 @@ it('reset discards queued responses, failures, calls and recorded commitments', 
     },
     signal,
   );
+
+  await expect(transport.lookup(context, 'committed', signal)).resolves.toMatchObject({
+    status: 'committed',
+    mutationId: 'committed',
+    revision: 5,
+  });
+  stub.respondNext(receipt('discarded-response', 8));
+  stub.failNext(new Error('discarded-error'));
 
   stub.reset(
     context.companyId,

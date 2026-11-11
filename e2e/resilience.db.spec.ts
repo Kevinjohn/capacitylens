@@ -3,8 +3,6 @@ import { API, serverState, requireStateRows } from './serverTestState';
 import { failRequestsUntilReleased } from './failRequestsUntilReleased';
 import { waitForAppLanding, freezeBrowserDate, openApp } from './browserTestSupport';
 
-function registerBeforeEachHooks() {}
-
 function registerInitialStateFailurePreventsEditingTest() {
   test('an initial planning read failure prevents a write until reload recovers the real server data', async ({
     page,
@@ -190,7 +188,6 @@ function registerStaleConcurrentEditRejectedExplainedTests() {
 }
 
 test.describe('database-backed resilience', () => {
-  registerBeforeEachHooks();
   registerInitialStateFailurePreventsEditingTest();
   registerFailedSaveStaysVisiblyUnsavedTest();
   registerStaleConcurrentEditRejectedExplainedTests();

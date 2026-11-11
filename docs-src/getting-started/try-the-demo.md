@@ -9,9 +9,12 @@ Run a sample agency's schedule on your own machine. The command starts the full 
 app with disposable SQLite storage. Schedule changes survive refresh and reset when you restart
 the command. Display preferences may stay in your browser. To keep real data, [install CapacityLens](/self-hosting/install) instead.
 
-You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x) or 26 (26.9.0 or newer within 26.x; check with
-`node --version`) and
-[pnpm](https://pnpm.io), which `corepack` in Node provides.
+Use [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x; check with
+`node --version`) and install [pnpm](https://pnpm.io/installation) before continuing. Node 26
+(26.9.0 or newer within 26.x) remains an experimental, best-effort option, as described in
+[CONTRIBUTING](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md).
+[Node 25 and later do not bundle Corepack](https://nodejs.org/download/release/v25.8.0/docs/api/corepack.html),
+so do not assume the Node installation supplies pnpm.
 
 ## Run it
 
@@ -21,7 +24,7 @@ You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x) or 26 (
    git clone https://github.com/Kevinjohn/capacitylens.git
    cd capacitylens
    git checkout vX.Y.Z
-   corepack enable && pnpm install --frozen-lockfile
+   pnpm install --frozen-lockfile
    ```
 
    Replace `vX.Y.Z` with the newest tag on the
