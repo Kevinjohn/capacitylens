@@ -27,6 +27,87 @@ function listen(port) {
   });
 }
 
+const stagedWorkerSource = `
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+
+const stage = process.env.CAPACITYLENS_CRASH_STAGE;
+const marker = process.env.CAPACITYLENS_CRASH_MARKER;
+const target = JSON.parse(process.env.CAPACITYLENS_CRASH_TARGET);
+const lane = Number(process.env.CAPACITYLENS_CRASH_LANE);
+const slot = Number(process.env.CAPACITYLENS_CRASH_SLOT);
+const originalWriteFileSync = fs.writeFileSync;
+const originalRenameSync = fs.renameSync;
+const pause = () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+const writeMarker = (value) =>
+  originalWriteFileSync(marker, JSON.stringify(value), { mode: 0o600 });
+
+if (stage === 'before-owner' || stage === 'after-owner') {
+  fs.writeFileSync = function (path, contents, ...options) {
+    const filename = String(path);
+    if (stage === 'before-owner' && filename.endsWith('.json.' + process.pid + '.tmp')) {
+      writeMarker({ ownerPath: filename.slice(0, -('.' + process.pid + '.tmp').length), owner: JSON.parse(contents) });
+      pause();
+    }
+    return originalWriteFileSync.call(fs, path, contents, ...options);
+  };
+  fs.renameSync = function (from, to) {
+    const source = String(from);
+    const result = originalRenameSync.call(fs, from, to);
+    if (stage === 'after-owner' && source.endsWith('.json.' + process.pid + '.tmp')) {
+      writeMarker({ ownerPath: String(to), owner: JSON.parse(originalReadFileSync(String(to), 'utf8')) });
+      pause();
+    }
+    return result;
+  };
+  const originalReadFileSync = fs.readFileSync;
+  syncBuiltinESMExports();
+}
+
+const { startE2eWorkerServer } = await import(process.env.CAPACITYLENS_CRASH_RUNTIME_URL);
+if (stage === 'active') {
+  await startE2eWorkerServer(target, lane, slot);
+  writeMarker({ active: true, pid: process.pid });
+  pause();
+} else {
+  await startE2eWorkerServer(target, lane, slot);
+}
+`;
+
+async function waitForFile(path, timeoutMs = 20_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      return JSON.parse(await readFile(path, 'utf8'));
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Timed out waiting for staged worker marker ${path}.`);
+}
+
+async function waitForProcessGroupExit(group, timeoutMs = 15_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(-group, 0);
+    } catch (error) {
+      if (error.code === 'ESRCH') return;
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.throws(() => process.kill(-group, 0), { code: 'ESRCH' });
+}
+
+function waitForExit(child) {
+  return new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('exit', (code, signal) => resolve({ code, signal }));
+  });
+}
+
 test('occupied API and web endpoints leave the existing database untouched', async () => {
   const ports = workerPorts(lane, slot);
   for (const [kind, port] of [
@@ -256,6 +337,119 @@ test(
       await rm(`${db}.template`, { force: true });
       await rm(cache, { recursive: true, force: true });
       await resetLease();
+    }
+  },
+);
+
+test(
+  'SIGKILL of the real worker parent reaps guardians before recovery and restart',
+  { skip: process.platform === 'win32' },
+  async () => {
+    const db = join(process.cwd(), 'apps/backend', `.e2e-l${lane}-w${slot}.db`);
+    const cache = join(process.cwd(), 'node_modules', `.vite-e2e-l${lane}-w${slot}`);
+    const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers');
+    const lock = join(leaseDirectory, `l${lane}-w${slot}.lock`);
+    const runtimeUrl = new URL('./e2eWorkerRuntime.mjs', import.meta.url).href;
+    const temp = join(tmpdir(), `capacitylens-e2e-parent-crash-${process.pid}`);
+    await mkdir(temp, { recursive: true });
+
+    const recoverAndCheckFiles = async () => {
+      await writeFile(db, 'stale worker database');
+      await writeFile(`${db}.template`, 'stale worker template');
+      await mkdir(cache, { recursive: true });
+      await writeFile(join(cache, 'stale'), 'stale worker cache');
+      await recoverE2eWorker(
+        target(db, workerPorts(lane, slot).api, workerPorts(lane, slot).web),
+        lane,
+        slot,
+      );
+      for (const path of [db, `${db}.template`, cache])
+        await assert.rejects(access(path), { code: 'ENOENT' });
+    };
+
+    const runStage = async (stage) => {
+      const marker = join(temp, `${stage}.json`);
+      const child = spawn(process.execPath, ['--input-type=module', '-e', stagedWorkerSource], {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          CAPACITYLENS_CRASH_STAGE: stage,
+          CAPACITYLENS_CRASH_MARKER: marker,
+          CAPACITYLENS_CRASH_RUNTIME_URL: runtimeUrl,
+          CAPACITYLENS_CRASH_TARGET: JSON.stringify(
+            target(db, workerPorts(lane, slot).api, workerPorts(lane, slot).web),
+          ),
+          CAPACITYLENS_CRASH_LANE: String(lane),
+          CAPACITYLENS_CRASH_SLOT: String(slot),
+        },
+        stdio: ['ignore', 'ignore', 'pipe'],
+      });
+      let stderr = '';
+      child.stderr.setEncoding('utf8').on('data', (chunk) => {
+        stderr = `${stderr}${chunk}`.slice(-12_000);
+      });
+      const exited = waitForExit(child);
+      try {
+        const staged = await waitForFile(marker);
+        let ownerPath = staged.ownerPath;
+        let groups = staged.owner?.groups;
+        if (stage === 'active') {
+          const owners = (await readdir(lock)).filter((name) =>
+            /^owner-\d+-[a-f0-9-]+\.json$/.test(name),
+          );
+          assert.equal(owners.length, 1, 'active worker publishes exactly one lease owner');
+          ownerPath = join(lock, owners[0]);
+          groups = JSON.parse(await readFile(ownerPath, 'utf8')).groups;
+          assert.equal(groups.length, 2, 'active worker has API and Vite guardian groups');
+        } else if (stage === 'before-owner') {
+          assert.equal(staged.owner.groups.length, 1, 'pending owner has the spawned API guardian');
+          assert.deepEqual(JSON.parse(await readFile(ownerPath, 'utf8')).groups, []);
+        } else {
+          assert.equal(
+            staged.owner.groups.length,
+            1,
+            'published owner has the spawned API guardian',
+          );
+          assert.deepEqual(
+            JSON.parse(await readFile(ownerPath, 'utf8')).groups,
+            staged.owner.groups,
+          );
+        }
+
+        child.kill('SIGKILL');
+        assert.deepEqual(await exited, { code: null, signal: 'SIGKILL' }, stderr);
+        for (const group of groups) await waitForProcessGroupExit(group);
+        await recoverAndCheckFiles();
+      } finally {
+        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+        await exited.catch(() => {});
+      }
+    };
+
+    try {
+      await runStage('before-owner');
+      await runStage('after-owner');
+      await runStage('active');
+
+      const restarted = await startE2eWorkerServer(
+        target(db, workerPorts(lane, slot).api, workerPorts(lane, slot).web),
+        lane,
+        slot,
+      );
+      try {
+        assert.equal((await fetch(`${restarted.target.api}/health/ready`)).ok, true);
+        assert.equal((await fetch(`${restarted.baseURL}/health/ready`)).ok, true);
+      } finally {
+        await restarted.stop();
+      }
+    } finally {
+      await rm(db, { force: true });
+      await rm(`${db}-wal`, { force: true });
+      await rm(`${db}-shm`, { force: true });
+      await rm(`${db}.template`, { force: true });
+      await rm(cache, { recursive: true, force: true });
+      await rm(lock, { recursive: true, force: true });
+      await rm(temp, { recursive: true, force: true });
     }
   },
 );
