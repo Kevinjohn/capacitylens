@@ -14,6 +14,8 @@ import {
 } from './helpers.js';
 
 const route = (path: string) => `/api/accounts/${accountId}/${path}`;
+const body = (response: { body(): unknown }) =>
+  response.body() as { code: string; revision: number };
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -22,7 +24,9 @@ const input = (baseRevision: number, intent: Record<string, unknown>) => ({
 
 test.group('reassignment working-day override', (group) => {
   group.setup(() => freshDatabase());
-  group.each.setup(() => resetPlanningFixture());
+  group.each.setup(async () => {
+    await resetPlanningFixture();
+  });
 
   test('the override permits reassignment on a non-working day but never bypasses availability or the new-booking start rule', async ({
     client,
@@ -43,7 +47,7 @@ test.group('reassignment working-day override', (group) => {
         .send();
     const refused = await patch(0, { resourceId: 'r-alex' });
     refused.assertStatus(400);
-    assert.equal(refused.body().code, 'VALIDATION_ERROR');
+    assert.equal(body(refused).code, 'VALIDATION_ERROR');
     let state = await readState(accountId, true);
     assert.equal(state.allocations.find((row) => row.id === allocation.id)!.resourceId, 'r-pam');
 
@@ -51,7 +55,7 @@ test.group('reassignment working-day override', (group) => {
     override.assertStatus(200);
     const reassigned = await patch(1, { resourceId: 'r-alex' });
     reassigned.assertStatus(200);
-    assert.equal(reassigned.body().revision, 2);
+    assert.equal(body(reassigned).revision, 2);
     state = await readState(accountId, true);
     const saved = state.allocations.find((row) => row.id === allocation.id)!;
     assert.equal(saved.resourceId, 'r-alex');
@@ -69,15 +73,15 @@ test.group('reassignment working-day override', (group) => {
       .json(input(2, { operation: 'allocation.create', allocation: newRow }))
       .send();
     newBooking.assertStatus(400);
-    assert.equal(newBooking.body().code, 'VALIDATION_ERROR');
+    assert.equal(body(newBooking).code, 'VALIDATION_ERROR');
     await db.from('resources').where('id', 'r-pam').update({ first_available_date: '2026-06-08' });
     const before = await readState(accountId, true);
     const unavailable = await patch(2, { resourceId: 'r-pam' });
     unavailable.assertStatus(400);
-    assert.equal(unavailable.body().code, 'VALIDATION_ERROR');
+    assert.equal(body(unavailable).code, 'VALIDATION_ERROR');
     assert.deepEqual(await readState(accountId, true), before);
     const canonical = await session(client.get(planningUrl), cookie).send();
     canonical.assertStatus(200);
-    assert.equal(canonical.body().revision, 2);
+    assert.equal(body(canonical).revision, 2);
   });
 });
