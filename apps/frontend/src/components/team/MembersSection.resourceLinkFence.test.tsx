@@ -105,6 +105,20 @@ async function closeDialog(user: User, dialog: HTMLElement): Promise<void> {
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 }
 
+// Clark's write leaves its read held; Barbara then writes while that read is still in flight.
+async function startBarbaraWriteDuringClarkRead(user: User) {
+  const requests = controlRequests();
+  renderSection();
+  const edDialog = await openResourceDialog(user, /ed@x\.io/);
+  await choosePerson(user, edDialog, 'Bruce Wayne');
+  await requests.writes.settleNext({ kind: 'ok', status: 200, value: bruce });
+  await waitFor(() => expect(requests.listMembers).toHaveBeenCalledTimes(2));
+  await closeDialog(user, edDialog);
+  const beaDialog = await openResourceDialog(user, /bea@x\.io/);
+  await choosePerson(user, beaDialog, 'Diana Prince');
+  return { ...requests, beaDialog };
+}
+
 beforeEach(async () => {
   await resetStoreWithAccount();
   vi.stubGlobal('fetch', mockApi());
@@ -138,17 +152,19 @@ describe('MembersSection — resource link read fence', () => {
 
   it('does not let a read already in flight before the write release it', async () => {
     const user = userEvent.setup();
-    const { reads, writes, listMembers } = controlRequests();
-    renderSection();
-    const edDialog = await openResourceDialog(user, /ed@x\.io/);
-    await choosePerson(user, edDialog, 'Bruce Wayne');
-    await writes.settleNext({ kind: 'ok', status: 200, value: bruce });
-    await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(2));
-    await closeDialog(user, edDialog);
+    const { reads, writes, listMembers, beaDialog } = await startBarbaraWriteDuringClarkRead(user);
+    await writes.settleNext({ kind: 'ok', status: 200, value: diana });
+    await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(3));
 
-    // Barbara's write starts while the read requested for Clark's write is still in flight.
-    const beaDialog = await openResourceDialog(user, /bea@x\.io/);
-    await choosePerson(user, beaDialog, 'Diana Prince');
+    await reads.settleNext(makeRead({ ed: bruce }));
+    expect(getSelector(beaDialog)).toBeDisabled();
+    await reads.settleNext(makeRead({ ed: bruce, bea: diana }));
+    await waitFor(() => expect(getSelector(beaDialog)).toBeEnabled());
+  });
+
+  it('does not let an earlier read that lands while the write is sending release it', async () => {
+    const user = userEvent.setup();
+    const { reads, writes, listMembers, beaDialog } = await startBarbaraWriteDuringClarkRead(user);
     await reads.settleNext(makeRead({ ed: bruce }));
     expect(getSelector(beaDialog)).toBeDisabled();
     await writes.settleNext({ kind: 'ok', status: 200, value: diana });
@@ -177,6 +193,35 @@ describe('MembersSection — resource link read fence', () => {
     expect(getSelector(refreshingDialog)).toBeDisabled();
     await reads.settleNext(makeRead({ ed: bruce }));
     await waitFor(() => expect(getSelector(refreshingDialog)).toBeEnabled());
+    expect(within(refreshingDialog).getByRole('status')).toHaveTextContent(
+      'Resource link updated.',
+    );
+  });
+
+  it('clears a finished success on reopen but keeps an unknown outcome', async () => {
+    const user = userEvent.setup();
+    const { reads, writes } = controlRequests();
+    renderSection();
+    const dialog = await openResourceDialog(user, /ed@x\.io/);
+    await choosePerson(user, dialog, 'Bruce Wayne');
+    await writes.settleNext({ kind: 'ok', status: 200, value: bruce });
+    await reads.settleNext(makeRead({ ed: bruce }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('status')).toHaveTextContent('Resource link updated.'),
+    );
+    await closeDialog(user, dialog);
+    const reopened = await openResourceDialog(user, /ed@x\.io/);
+    expect(within(reopened).getByRole('status')).toBeEmptyDOMElement();
+
+    await choosePerson(user, reopened, 'Diana Prince');
+    await writes.settleNext({ kind: 'unknown', status: 409, message: null });
+    await reads.settleNext(makeRead({ ed: diana }));
+    await waitFor(() => expect(getSelector(reopened)).toBeEnabled());
+    await closeDialog(user, reopened);
+    const afterUnknown = await openResourceDialog(user, /ed@x\.io/);
+    expect(within(afterUnknown).getByRole('alert')).toHaveTextContent(
+      m.settings_member_resource_unknown(),
+    );
   });
 
   // Revisions alone cannot tell this refresh apart: before the write and after the concurrent

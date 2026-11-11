@@ -192,7 +192,10 @@ export function MemberResourceDialog({
         aria-label={m.settings_member_resource_link_aria({ member: memberLabel })}
         data-testid="member-resource-menu"
         disabled={busy}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          request.clearStatus();
+          setOpen(true);
+        }}
       >
         <LinkIcon />
       </Button>

@@ -116,6 +116,12 @@ export function useMemberResourceLinkRequest({
       .finally(() => finishRequest(current));
   };
 
+  // A finished success is announced once; errors and unknown outcomes stay until the next change.
+  // While the change is still pending, keep it so the reopened dialog announces its completion.
+  const clearStatus = () => {
+    if (!pending) setExpectedResourceId(undefined);
+  };
+
   const reconciled =
     !pending &&
     expectedResourceId !== undefined &&
@@ -128,5 +134,6 @@ export function useMemberResourceLinkRequest({
       reconciled: reconciled,
     }),
     change,
+    clearStatus,
   };
 }
