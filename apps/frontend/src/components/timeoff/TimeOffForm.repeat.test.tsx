@@ -19,8 +19,9 @@ function render(ui: ReactElement) {
 
 function queueRepeatedEntries(): void {
   getStubPlanningTransport().respondNext((execution) => {
-    if (execution.intent.operation !== 'timeOff.repeat')
-      {throw new Error('Expected repeated time off');}
+    if (execution.intent.operation !== 'timeOff.repeat') {
+      throw new Error('Expected repeated time off');
+    }
     return {
       status: 'committed',
       mutationId: execution.mutationId,
