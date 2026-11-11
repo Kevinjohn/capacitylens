@@ -22,7 +22,7 @@ The first time you enter, CapacityLens may show a short introduction. Reopen it 
 
 ### Why is the page still loading, or why do I see “Something went wrong”?
 
-Wait while company data loads; an incomplete load is not an empty schedule. If an unexpected display error replaces the page, select **Reload** to reopen the application. If the application cannot connect to the server, select **Try again**. If the active company fails to load, select **Retry**. Only the demo offers **Choose another company** on that screen. If the problem continues, contact whoever manages your CapacityLens service.
+Wait while company data loads; an incomplete load is not an empty schedule. If an unexpected display error replaces the page, select **Reload** to reopen the application. Older connection-failure and company-load recovery screens remain in the code, but nothing in the current application opens them. If the problem continues, contact whoever manages your CapacityLens service.
 
 <span id="faq-access-planning-errors"></span>
 
@@ -40,7 +40,7 @@ Informational notices clear automatically so you can continue working. Error not
 
 ### Can I change the appearance, and what do button colours mean?
 
-Open **Settings → My display** to choose **Light**, **Dark** or **Match system** for this device. Button colours distinguish product, positive, neutral, warning and destructive actions. Read the button label as well as its colour, especially before an action that removes or changes information.
+Open **Settings → My display** to choose **Light**, **Dark** or **Match system** for this device. Button colours are consistent: green for primary and confirming actions, neutral styles for secondary and cancel actions, red for destructive actions, and the brand colour for link-style actions. Read the button label as well as its colour, especially before an action that removes or changes information.
 
 <span id="faq-access-demo-companies"></span>
 
@@ -52,7 +52,7 @@ The company picker and temporary company creation are available in the demo only
 
 ### What if CapacityLens cannot read browser data?
 
-If the browser-data recovery screen appears, select **Download raw copy** first, then check that the file appears in your downloads. This copies legacy or other local browser data; it does not contain or restore the server schedule. If you decide to discard unreadable local data, select **Reset data**, review **Reset stored data?**, and confirm with **Reset**. Cancel if you are not ready. If the download or reset fails, follow the message on screen and ask your administrator for help.
+CapacityLens keeps no schedule data in the browser. A recovery screen for unreadable browser data (**Download raw copy**, **Reset data**) remains in the code, but nothing in the current application opens it, so you should not see it. If another error appears, follow its message or ask whoever manages the service.
 
 ## Signing in and account access
 

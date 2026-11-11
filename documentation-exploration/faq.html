@@ -128,10 +128,9 @@
         <p>
           Wait while company data loads; an incomplete load is not an empty schedule. If an
           unexpected display error replaces the page, select <strong>Reload</strong> to reopen the
-          application. If the application cannot connect to the server, select
-          <strong>Try again</strong>. If the active company fails to load, select
-          <strong>Retry</strong>. Only the demo offers <strong>Choose another company</strong> on
-          that screen. If the problem continues, contact whoever manages your CapacityLens service.
+          application. Older connection-failure and company-load recovery screens remain in the
+          code, but nothing in the current application opens them. If the problem continues, contact
+          whoever manages your CapacityLens service.
         </p>
         <p><span id="faq-access-planning-errors"></span></p>
         <h3 id="what-should-i-do-if-a-schedule-read-or-save-fails" tabindex="-1">
@@ -180,10 +179,11 @@
         </h3>
         <p>
           Open <strong>Settings → My display</strong> to choose <strong>Light</strong>,
-          <strong>Dark</strong> or <strong>Match system</strong> for this device. Button colours
-          distinguish product, positive, neutral, warning and destructive actions. Read the button
-          label as well as its colour, especially before an action that removes or changes
-          information.
+          <strong>Dark</strong> or <strong>Match system</strong> for this device. Button colours are
+          consistent: green for primary and confirming actions, neutral styles for secondary and
+          cancel actions, red for destructive actions, and the brand colour for link-style actions.
+          Read the button label as well as its colour, especially before an action that removes or
+          changes information.
         </p>
         <p><span id="faq-access-demo-companies"></span></p>
         <h3 id="can-i-try-another-company-or-make-a-temporary-one" tabindex="-1">
@@ -213,13 +213,10 @@
           >
         </h3>
         <p>
-          If the browser-data recovery screen appears, select
-          <strong>Download raw copy</strong> first, then check that the file appears in your
-          downloads. This copies legacy or other local browser data; it does not contain or restore
-          the server schedule. If you decide to discard unreadable local data, select
-          <strong>Reset data</strong>, review <strong>Reset stored data?</strong>, and confirm with
-          <strong>Reset</strong>. Cancel if you are not ready. If the download or reset fails,
-          follow the message on screen and ask your administrator for help.
+          CapacityLens keeps no schedule data in the browser. A recovery screen for unreadable
+          browser data (<strong>Download raw copy</strong>, <strong>Reset data</strong>) remains in
+          the code, but nothing in the current application opens it, so you should not see it. If
+          another error appears, follow its message or ask whoever manages the service.
         </p>
         <h2 id="signing-in-and-account-access" tabindex="-1">
           Signing in and account access
@@ -390,7 +387,7 @@
         </h3>
         <p>
           Use <strong>Prev</strong> and <strong>Next</strong> to move the window by one week, or
-          select <strong>Today</strong> to return to the current date.
+          select <strong>Today</strong> to return to the start of the current week.
           <strong>Weeks visible</strong> offers 1, 2, 4, 6, or 8 weeks. The timeline aligns to your
           company’s configured week start when you change the range or scroll. To jump to a date,
           press <strong>⌘K</strong> on Mac or <strong>Ctrl+K</strong> on Windows, type a valid date
@@ -432,7 +429,7 @@
           visual treatments, and a note marker appears when a booking has a note. Time off appears
           as a labelled hatched block. Non-working and time-off days are shaded when the Schedule is
           zoomed in closely enough to show day-level detail. A vertical line marks today only while
-          today is in view.
+          today falls within the loaded timeline.
         </p>
         <p><span id="faq-plan-create-work"></span></p>
         <h3 id="how-do-i-start-a-new-booking-from-the-schedule" tabindex="-1">
@@ -639,10 +636,14 @@
           >
         </h3>
         <p>
-          Use <strong>Filter by activity</strong> in the expanded filter row to focus on a type of
-          work, including internal or all-projects activities. The filter narrows the visible work
-          but does not recalculate capacity from only the matching bars.
-          <strong>Show unallocated</strong> can add resources with no matching work to the results.
+          Use <strong>Filter by activity</strong> in the expanded filter row to focus on internal or
+          all-projects work: choose <strong>Internal — All</strong>,
+          <strong>All projects — All</strong> or one such activity. Project-specific activities are
+          not listed; use <strong>Filter by project</strong> for them. Choosing an activity resets
+          the client and project filters, and choosing a client or project resets the activity
+          filter. The filter narrows the visible work but does not recalculate capacity from only
+          the matching bars. <strong>Show unallocated</strong> can add resources with no matching
+          work to the results.
         </p>
         <p><span id="faq-plan-hide-tentative"></span></p>
         <h3 id="can-i-hide-tentative-bookings-from-view" tabindex="-1">
@@ -1347,10 +1348,11 @@
           >
         </h3>
         <p>
-          For an eligible booking, an Editor, Admin or Owner can use <strong>Duplicate</strong> to
-          create a separate copy with the same person, project, activity and planning details. The
-          original stays in place; use <strong>Undo</strong> on Schedule if you duplicated it by
-          mistake. Repeated bookings cannot be duplicated from an individual occurrence.
+          For an eligible booking, an Editor, Admin or Owner can select
+          <strong>Duplicate</strong> in <strong>Edit allocation</strong> to create a separate copy
+          from the form’s current values; the dialog then closes. The original keeps its saved
+          values; use <strong>Undo</strong> on Schedule if you duplicated it by mistake. Repeated
+          bookings cannot be duplicated from an individual occurrence.
         </p>
         <p><span id="faq-book-delete-allocation"></span></p>
         <h3 id="how-do-i-remove-a-booking-and-can-i-undo-it" tabindex="-1">
@@ -1440,10 +1442,9 @@
           and reapply.
         </p>
         <p>
-          The <strong>Changes aren’t being saved right now — we’ll keep retrying</strong> banner
-          means the save is unconfirmed. The row may update first. Retries continue in memory while
-          open; reloading loses that state, so there is no offline recovery. Verify the plan after
-          the banner clears. If unclear, check Schedule before retrying; it may have saved.
+          If a save fails or its result is uncertain, the error notice stays until you close it. A
+          bar on Schedule does not prove the server saved it, and a reload cannot recover an unsaved
+          change. Check Schedule before repeating the change; it may already have saved.
         </p>
         <p><span id="faq-book-repeat-patterns"></span></p>
         <h3 id="do-repeating-bookings-and-repeating-time-off-work-the-same-way" tabindex="-1">
@@ -1542,9 +1543,9 @@
         </h3>
         <p>
           The list is designed to scan who is away and for how long. The type label appears on the
-          matching time-off block on <strong>Schedule</strong>. Open that view to distinguish
-          <strong>Holiday</strong>, <strong>Sick</strong>, <strong>Unpaid</strong> or
-          <strong>Other</strong>.
+          matching time-off block on <strong>Schedule</strong> when the block is wide enough, and
+          screen readers always announce it. Open that view to distinguish <strong>Holiday</strong>,
+          <strong>Sick</strong>, <strong>Unpaid</strong> or <strong>Other</strong>.
         </p>
         <p><span id="faq-book-old-time-off"></span></p>
         <h3 id="an-old-absence-disappeared-from-the-list-was-it-deleted" tabindex="-1">
@@ -1971,24 +1972,25 @@
           its avatar work list, linked or not.
         </p>
         <p><span id="faq-company-view-as-member"></span></p>
-        <h3 id="what-does-view-the-app-as-this-member-do" tabindex="-1">
-          What does “View the app as this member” do?
+        <h3 id="what-does-viewing-the-app-as-another-member-do" tabindex="-1">
+          What does viewing the app as another member do?
           <a
             class="header-anchor"
-            href="#what-does-view-the-app-as-this-member-do"
-            aria-label='Permalink to "What does “View the app as this member” do?"'
+            href="#what-does-viewing-the-app-as-another-member-do"
+            aria-label='Permalink to "What does viewing the app as another member do?"'
             >&ZeroWidthSpace;</a
           >
         </h3>
         <p>
-          An Owner or Admin can select <strong>View the app as this member</strong> on another
-          active member's row in <strong>Team &amp; access</strong>. After confirmation, a banner
-          identifies the member and shows when the view ends. It lasts 15 minutes; choose
-          <strong>End now</strong> to return sooner. This view is read-only: it cannot change the
-          plan, membership or company settings. The view applies to all signed-in sessions. Signing
-          out ends it only for the current session; other active sessions keep it until it is ended
-          or expires. If the member view needs restoring, choose <strong>Retry</strong> in the
-          banner.
+          An Owner or Admin can select the eye button, <strong>View the app as {member}</strong>, on
+          another active member's row in <strong>Team &amp; access</strong>, then select
+          <strong>Start masquerade</strong> in <strong>View as this member?</strong>. A
+          <strong>Masquerading as {name}</strong> banner shows when the view ends. It lasts 15
+          minutes; choose <strong>End now</strong> to return sooner. This view is read-only: it
+          cannot change the plan, membership or company settings. The view applies to all signed-in
+          sessions. Signing out ends it only for the current session; other active sessions keep it
+          until it is ended or expires. If the member view needs restoring, choose
+          <strong>Retry</strong> in the banner.
         </p>
         <p><span id="faq-company-sign-in-tracking"></span></p>
         <h3 id="can-i-turn-on-member-sign-in-tracking" tabindex="-1">
@@ -2048,11 +2050,13 @@
         <p>
           Only an Owner can import on a server installation. In
           <strong>Settings → Data and support → Import JSON</strong>, choose a full JSON export made
-          by CapacityLens and select <strong>Continue</strong>. Review the company and record count,
-          then choose <strong>Replace data</strong>. Server imports require the Owner's current
-          password to confirm that exact file. Cancel or a rejected preview leaves company data
-          unchanged; if company data changed after preview, preview again. A full export can restore
-          planning to a prepared company; invitees and sign-ins must be set up separately.
+          by CapacityLens. Review the company and record count, then select
+          <strong>Continue</strong>. Review what will be replaced, then choose
+          <strong>Replace data</strong>. Server imports then ask for the Owner's current password in
+          <strong>Confirm it’s you</strong> to confirm that exact file. Cancel or a rejected preview
+          leaves company data unchanged; if company data changed after preview, preview again. A
+          full export can restore planning to a prepared company; invitees and sign-ins must be set
+          up separately.
         </p>
         <p><span id="faq-company-import-undo"></span></p>
         <h3 id="can-i-undo-an-import" tabindex="-1">
@@ -2099,10 +2103,10 @@
         </h3>
         <p>
           On a server-backed company, a change remains after reload once the server has saved it. A
-          bar that appears immediately is not proof that its save completed. The app may retry while
-          the page remains open, but it does not save scheduling data in the browser for recovery
-          after reload. If a save result is uncertain, inspect the latest company data before
-          repeating the action because it may already have been saved.
+          bar that appears immediately is not proof that its save completed. It does not retry
+          failed saves automatically or save scheduling data in the browser for recovery after
+          reload. If a save result is uncertain, inspect the latest company data before repeating
+          the action because it may already have been saved.
         </p>
         <p><span id="faq-company-conflict"></span></p>
         <h3 id="what-if-another-person-changed-the-plan-while-i-was-editing" tabindex="-1">
@@ -2119,8 +2123,8 @@
           review the current values, then reapply your change. Your earlier edit was not saved. For
           a result that is uncertain rather than refused, check the refreshed plan before trying
           again so you do not duplicate a change that already committed.
-          <a href="../docs/using/settings.html#connection-errors">Connection errors</a> explains the
-          visible save warning.
+          <a href="../docs/using/settings.html#connection-errors">Connection errors</a> covers
+          connection errors.
         </p>
         <p><span id="faq-company-example-data"></span></p>
         <h3 id="can-i-add-example-data-to-an-existing-company" tabindex="-1">

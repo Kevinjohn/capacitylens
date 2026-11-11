@@ -43,7 +43,7 @@ The first time you enter, CapacityLens may show a short introduction. Reopen it 
 
 ### Why is the page still loading, or why do I see “Something went wrong”?
 
-Wait while company data loads; an incomplete load is not an empty schedule. If an unexpected display error replaces the page, select **Reload** to reopen the application. If the application cannot connect to the server, select **Try again**. If the active company fails to load, select **Retry**. Only the demo offers **Choose another company** on that screen. If the problem continues, contact whoever manages your CapacityLens service.
+Wait while company data loads; an incomplete load is not an empty schedule. If an unexpected display error replaces the page, select **Reload** to reopen the application. Older connection-failure and company-load recovery screens remain in the code, but nothing in the current application opens them. If the problem continues, contact whoever manages your CapacityLens service.
 
 <span id="faq-access-planning-errors"></span>
 
@@ -61,7 +61,7 @@ Informational notices clear automatically so you can continue working. Error not
 
 ### Can I change the appearance, and what do button colours mean?
 
-Open **Settings → My display** to choose **Light**, **Dark** or **Match system** for this device. Button colours distinguish product, positive, neutral, warning and destructive actions. Read the button label as well as its colour, especially before an action that removes or changes information.
+Open **Settings → My display** to choose **Light**, **Dark** or **Match system** for this device. Button colours are consistent: green for primary and confirming actions, neutral styles for secondary and cancel actions, red for destructive actions, and the brand colour for link-style actions. Read the button label as well as its colour, especially before an action that removes or changes information.
 
 <span id="faq-access-demo-companies"></span>
 
@@ -73,7 +73,7 @@ The company picker and temporary company creation are available in the demo only
 
 ### What if CapacityLens cannot read browser data?
 
-If the browser-data recovery screen appears, select **Download raw copy** first, then check that the file appears in your downloads. This copies legacy or other local browser data; it does not contain or restore the server schedule. If you decide to discard unreadable local data, select **Reset data**, review **Reset stored data?**, and confirm with **Reset**. Cancel if you are not ready. If the download or reset fails, follow the message on screen and ask your administrator for help.
+CapacityLens keeps no schedule data in the browser. A recovery screen for unreadable browser data (**Download raw copy**, **Reset data**) remains in the code, but nothing in the current application opens it, so you should not see it. If another error appears, follow its message or ask whoever manages the service.
 
 ## Signing in and account access
 
@@ -131,7 +131,7 @@ Open **Account** and select **Delete account**. Enter your current password and 
 
 ### How do I move through the Schedule?
 
-Use **Prev** and **Next** to move the window by one week, or select **Today** to return to the current date. **Weeks visible** offers 1, 2, 4, 6, or 8 weeks. The timeline aligns to your company’s configured week start when you change the range or scroll. To jump to a date, press **⌘K** on Mac or **Ctrl+K** on Windows, type a valid date in `YYYY-MM-DD` format (for example, `2026-11-23`), then choose **Go to date 2026-11-23**. The toolbar itself has no date picker.
+Use **Prev** and **Next** to move the window by one week, or select **Today** to return to the start of the current week. **Weeks visible** offers 1, 2, 4, 6, or 8 weeks. The timeline aligns to your company’s configured week start when you change the range or scroll. To jump to a date, press **⌘K** on Mac or **Ctrl+K** on Windows, type a valid date in `YYYY-MM-DD` format (for example, `2026-11-23`), then choose **Go to date 2026-11-23**. The toolbar itself has no date picker.
 
 <span id="faq-plan-read-capacity-cues"></span>
 
@@ -143,7 +143,7 @@ When **Use disciplines** is on, resource rows are grouped by discipline. When di
 
 ### How can I tell work, time off, and unavailable days apart?
 
-Work appears as labelled bars. Tentative, confirmed, and completed work have different visual treatments, and a note marker appears when a booking has a note. Time off appears as a labelled hatched block. Non-working and time-off days are shaded when the Schedule is zoomed in closely enough to show day-level detail. A vertical line marks today only while today is in view.
+Work appears as labelled bars. Tentative, confirmed, and completed work have different visual treatments, and a note marker appears when a booking has a note. Time off appears as a labelled hatched block. Non-working and time-off days are shaded when the Schedule is zoomed in closely enough to show day-level detail. A vertical line marks today only while today falls within the loaded timeline.
 
 <span id="faq-plan-create-work"></span>
 
@@ -215,7 +215,7 @@ Choose a client in **Filter by client** to show that client’s bookings. Then u
 
 ### How do I find work by activity?
 
-Use **Filter by activity** in the expanded filter row to focus on a type of work, including internal or all-projects activities. The filter narrows the visible work but does not recalculate capacity from only the matching bars. **Show unallocated** can add resources with no matching work to the results.
+Use **Filter by activity** in the expanded filter row to focus on internal or all-projects work: choose **Internal — All**, **All projects — All** or one such activity. Project-specific activities are not listed; use **Filter by project** for them. Choosing an activity resets the client and project filters, and choosing a client or project resets the activity filter. The filter narrows the visible work but does not recalculate capacity from only the matching bars. **Show unallocated** can add resources with no matching work to the results.
 
 <span id="faq-plan-hide-tentative"></span>
 
@@ -459,7 +459,7 @@ An Editor, Admin or Owner can select the booking bar to open **Edit allocation**
 
 ### What does **Duplicate** do?
 
-For an eligible booking, an Editor, Admin or Owner can use **Duplicate** to create a separate copy with the same person, project, activity and planning details. The original stays in place; use **Undo** on Schedule if you duplicated it by mistake. Repeated bookings cannot be duplicated from an individual occurrence.
+For an eligible booking, an Editor, Admin or Owner can select **Duplicate** in **Edit allocation** to create a separate copy from the form’s current values; the dialog then closes. The original keeps its saved values; use **Undo** on Schedule if you duplicated it by mistake. Repeated bookings cannot be duplicated from an individual occurrence.
 
 <span id="faq-book-delete-allocation"></span>
 
@@ -491,7 +491,7 @@ A placeholder is tied to one **Bound project**. Its booking stays with that proj
 
 Fix marked fields: choose an activity and valid dates, with **Hours / day** or **Days of work** above zero. New bookings must start on a working day outside time off or a closure. If the schedule changed, reopen and reapply.
 
-The **Changes aren’t being saved right now — we’ll keep retrying** banner means the save is unconfirmed. The row may update first. Retries continue in memory while open; reloading loses that state, so there is no offline recovery. Verify the plan after the banner clears. If unclear, check Schedule before retrying; it may have saved.
+If a save fails or its result is uncertain, the error notice stays until you close it. A bar on Schedule does not prove the server saved it, and a reload cannot recover an unsaved change. Check Schedule before repeating the change; it may already have saved.
 
 <span id="faq-book-repeat-patterns"></span>
 
@@ -523,7 +523,7 @@ An Editor, Admin or Owner can use **Edit** beside the entry to update its dates,
 
 ### Why doesn’t the Time off list show whether it is holiday or sick time?
 
-The list is designed to scan who is away and for how long. The type label appears on the matching time-off block on **Schedule**. Open that view to distinguish **Holiday**, **Sick**, **Unpaid** or **Other**.
+The list is designed to scan who is away and for how long. The type label appears on the matching time-off block on **Schedule** when the block is wide enough, and screen readers always announce it. Open that view to distinguish **Holiday**, **Sick**, **Unpaid** or **Other**.
 
 <span id="faq-book-old-time-off"></span>
 
@@ -663,9 +663,9 @@ No. A member can sign in and use the company without a schedule row linked to th
 
 <span id="faq-company-view-as-member"></span>
 
-### What does “View the app as this member” do?
+### What does viewing the app as another member do?
 
-An Owner or Admin can select **View the app as this member** on another active member's row in **Team & access**. After confirmation, a banner identifies the member and shows when the view ends. It lasts 15 minutes; choose **End now** to return sooner. This view is read-only: it cannot change the plan, membership or company settings. The view applies to all signed-in sessions. Signing out ends it only for the current session; other active sessions keep it until it is ended or expires. If the member view needs restoring, choose **Retry** in the banner.
+An Owner or Admin can select the eye button, **View the app as {member}**, on another active member's row in **Team & access**, then select **Start masquerade** in **View as this member?**. A **Masquerading as {name}** banner shows when the view ends. It lasts 15 minutes; choose **End now** to return sooner. This view is read-only: it cannot change the plan, membership or company settings. The view applies to all signed-in sessions. Signing out ends it only for the current session; other active sessions keep it until it is ended or expires. If the member view needs restoring, choose **Retry** in the banner.
 
 <span id="faq-company-sign-in-tracking"></span>
 
@@ -685,7 +685,7 @@ Any company member can select **Settings → Data and support → Export JSON**.
 
 ### How do I preview and replace company data?
 
-Only an Owner can import on a server installation. In **Settings → Data and support → Import JSON**, choose a full JSON export made by CapacityLens and select **Continue**. Review the company and record count, then choose **Replace data**. Server imports require the Owner's current password to confirm that exact file. Cancel or a rejected preview leaves company data unchanged; if company data changed after preview, preview again. A full export can restore planning to a prepared company; invitees and sign-ins must be set up separately.
+Only an Owner can import on a server installation. In **Settings → Data and support → Import JSON**, choose a full JSON export made by CapacityLens. Review the company and record count, then select **Continue**. Review what will be replaced, then choose **Replace data**. Server imports then ask for the Owner's current password in **Confirm it’s you** to confirm that exact file. Cancel or a rejected preview leaves company data unchanged; if company data changed after preview, preview again. A full export can restore planning to a prepared company; invitees and sign-ins must be set up separately.
 
 <span id="faq-company-import-undo"></span>
 
@@ -703,13 +703,13 @@ Import accepts only a valid, full CapacityLens export. A redacted export, anothe
 
 ### Do saved changes remain after I reload?
 
-On a server-backed company, a change remains after reload once the server has saved it. A bar that appears immediately is not proof that its save completed. The app may retry while the page remains open, but it does not save scheduling data in the browser for recovery after reload. If a save result is uncertain, inspect the latest company data before repeating the action because it may already have been saved.
+On a server-backed company, a change remains after reload once the server has saved it. A bar that appears immediately is not proof that its save completed. It does not retry failed saves automatically or save scheduling data in the browser for recovery after reload. If a save result is uncertain, inspect the latest company data before repeating the action because it may already have been saved.
 
 <span id="faq-company-conflict"></span>
 
 ### What if another person changed the plan while I was editing?
 
-That edit is refused and the app loads the latest company plan. Close and reopen the form, review the current values, then reapply your change. Your earlier edit was not saved. For a result that is uncertain rather than refused, check the refreshed plan before trying again so you do not duplicate a change that already committed. [Connection errors](../docs/using/settings.html#connection-errors) explains the visible save warning.
+That edit is refused and the app loads the latest company plan. Close and reopen the form, review the current values, then reapply your change. Your earlier edit was not saved. For a result that is uncertain rather than refused, check the refreshed plan before trying again so you do not duplicate a change that already committed. [Connection errors](../docs/using/settings.html#connection-errors) covers connection errors.
 
 <span id="faq-company-example-data"></span>
 

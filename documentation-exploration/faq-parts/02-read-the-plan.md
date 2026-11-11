@@ -4,7 +4,7 @@
 
 ### How do I move through the Schedule?
 
-Use **Prev** and **Next** to move the window by one week, or select **Today** to return to the current date. **Weeks visible** offers 1, 2, 4, 6, or 8 weeks. The timeline aligns to your company’s configured week start when you change the range or scroll. To jump to a date, press **⌘K** on Mac or **Ctrl+K** on Windows, type a valid date in `YYYY-MM-DD` format (for example, `2026-11-23`), then choose **Go to date 2026-11-23**. The toolbar itself has no date picker.
+Use **Prev** and **Next** to move the window by one week, or select **Today** to return to the start of the current week. **Weeks visible** offers 1, 2, 4, 6, or 8 weeks. The timeline aligns to your company’s configured week start when you change the range or scroll. To jump to a date, press **⌘K** on Mac or **Ctrl+K** on Windows, type a valid date in `YYYY-MM-DD` format (for example, `2026-11-23`), then choose **Go to date 2026-11-23**. The toolbar itself has no date picker.
 
 <span id="faq-plan-read-capacity-cues"></span>
 
@@ -16,7 +16,7 @@ When **Use disciplines** is on, resource rows are grouped by discipline. When di
 
 ### How can I tell work, time off, and unavailable days apart?
 
-Work appears as labelled bars. Tentative, confirmed, and completed work have different visual treatments, and a note marker appears when a booking has a note. Time off appears as a labelled hatched block. Non-working and time-off days are shaded when the Schedule is zoomed in closely enough to show day-level detail. A vertical line marks today only while today is in view.
+Work appears as labelled bars. Tentative, confirmed, and completed work have different visual treatments, and a note marker appears when a booking has a note. Time off appears as a labelled hatched block. Non-working and time-off days are shaded when the Schedule is zoomed in closely enough to show day-level detail. A vertical line marks today only while today falls within the loaded timeline.
 
 <span id="faq-plan-create-work"></span>
 
@@ -88,7 +88,7 @@ Choose a client in **Filter by client** to show that client’s bookings. Then u
 
 ### How do I find work by activity?
 
-Use **Filter by activity** in the expanded filter row to focus on a type of work, including internal or all-projects activities. The filter narrows the visible work but does not recalculate capacity from only the matching bars. **Show unallocated** can add resources with no matching work to the results.
+Use **Filter by activity** in the expanded filter row to focus on internal or all-projects work: choose **Internal — All**, **All projects — All** or one such activity. Project-specific activities are not listed; use **Filter by project** for them. Choosing an activity resets the client and project filters, and choosing a client or project resets the activity filter. The filter narrows the visible work but does not recalculate capacity from only the matching bars. **Show unallocated** can add resources with no matching work to the results.
 
 <span id="faq-plan-hide-tentative"></span>
 

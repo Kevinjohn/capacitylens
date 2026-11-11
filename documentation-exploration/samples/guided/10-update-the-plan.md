@@ -13,7 +13,7 @@ For a recent mistaken change on **Schedule**, use **Undo** in the toolbar. Undo 
 
 ## If a save is uncertain
 
-Server problems stay visible. The app may say **Changes aren’t being saved right now — we’ll keep retrying.** Wait for the schedule to settle, then check the saved row before making the same change again. CapacityLens has no offline planning mode; unsaved changes are not a separate browser copy you can rely on.
+Server problems stay visible as error notices. Check the saved row before making the same change again. CapacityLens has no offline planning mode; unsaved changes are not a separate browser copy you can rely on.
 
 If the response to a save was uncertain, the app reloads the latest server schedule so you can compare it with the change you meant to make. Review the row and reapply any change that is still missing. Do not assume that a request succeeded because the bar moved briefly while editing.
 

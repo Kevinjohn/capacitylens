@@ -22,7 +22,7 @@ An Editor, Admin or Owner can select the booking bar to open **Edit allocation**
 
 ### What does **Duplicate** do?
 
-For an eligible booking, an Editor, Admin or Owner can use **Duplicate** to create a separate copy with the same person, project, activity and planning details. The original stays in place; use **Undo** on Schedule if you duplicated it by mistake. Repeated bookings cannot be duplicated from an individual occurrence.
+For an eligible booking, an Editor, Admin or Owner can select **Duplicate** in **Edit allocation** to create a separate copy from the form’s current values; the dialog then closes. The original keeps its saved values; use **Undo** on Schedule if you duplicated it by mistake. Repeated bookings cannot be duplicated from an individual occurrence.
 
 <span id="faq-book-delete-allocation"></span>
 
@@ -54,7 +54,7 @@ A placeholder is tied to one **Bound project**. Its booking stays with that proj
 
 Fix marked fields: choose an activity and valid dates, with **Hours / day** or **Days of work** above zero. New bookings must start on a working day outside time off or a closure. If the schedule changed, reopen and reapply.
 
-The **Changes aren’t being saved right now — we’ll keep retrying** banner means the save is unconfirmed. The row may update first. Retries continue in memory while open; reloading loses that state, so there is no offline recovery. Verify the plan after the banner clears. If unclear, check Schedule before retrying; it may have saved.
+If a save fails or its result is uncertain, the error notice stays until you close it. A bar on Schedule does not prove the server saved it, and a reload cannot recover an unsaved change. Check Schedule before repeating the change; it may already have saved.
 
 <span id="faq-book-repeat-patterns"></span>
 
@@ -86,7 +86,7 @@ An Editor, Admin or Owner can use **Edit** beside the entry to update its dates,
 
 ### Why doesn’t the Time off list show whether it is holiday or sick time?
 
-The list is designed to scan who is away and for how long. The type label appears on the matching time-off block on **Schedule**. Open that view to distinguish **Holiday**, **Sick**, **Unpaid** or **Other**.
+The list is designed to scan who is away and for how long. The type label appears on the matching time-off block on **Schedule** when the block is wide enough, and screen readers always announce it. Open that view to distinguish **Holiday**, **Sick**, **Unpaid** or **Other**.
 
 <span id="faq-book-old-time-off"></span>
 

@@ -118,9 +118,9 @@ No. A member can sign in and use the company without a schedule row linked to th
 
 <span id="faq-company-view-as-member"></span>
 
-### What does “View the app as this member” do?
+### What does viewing the app as another member do?
 
-An Owner or Admin can select **View the app as this member** on another active member's row in **Team & access**. After confirmation, a banner identifies the member and shows when the view ends. It lasts 15 minutes; choose **End now** to return sooner. This view is read-only: it cannot change the plan, membership or company settings. The view applies to all signed-in sessions. Signing out ends it only for the current session; other active sessions keep it until it is ended or expires. If the member view needs restoring, choose **Retry** in the banner.
+An Owner or Admin can select the eye button, **View the app as {member}**, on another active member's row in **Team & access**, then select **Start masquerade** in **View as this member?**. A **Masquerading as {name}** banner shows when the view ends. It lasts 15 minutes; choose **End now** to return sooner. This view is read-only: it cannot change the plan, membership or company settings. The view applies to all signed-in sessions. Signing out ends it only for the current session; other active sessions keep it until it is ended or expires. If the member view needs restoring, choose **Retry** in the banner.
 
 <span id="faq-company-sign-in-tracking"></span>
 
@@ -140,7 +140,7 @@ Any company member can select **Settings → Data and support → Export JSON**.
 
 ### How do I preview and replace company data?
 
-Only an Owner can import on a server installation. In **Settings → Data and support → Import JSON**, choose a full JSON export made by CapacityLens and select **Continue**. Review the company and record count, then choose **Replace data**. Server imports require the Owner's current password to confirm that exact file. Cancel or a rejected preview leaves company data unchanged; if company data changed after preview, preview again. A full export can restore planning to a prepared company; invitees and sign-ins must be set up separately.
+Only an Owner can import on a server installation. In **Settings → Data and support → Import JSON**, choose a full JSON export made by CapacityLens. Review the company and record count, then select **Continue**. Review what will be replaced, then choose **Replace data**. Server imports then ask for the Owner's current password in **Confirm it’s you** to confirm that exact file. Cancel or a rejected preview leaves company data unchanged; if company data changed after preview, preview again. A full export can restore planning to a prepared company; invitees and sign-ins must be set up separately.
 
 <span id="faq-company-import-undo"></span>
 
@@ -158,13 +158,13 @@ Import accepts only a valid, full CapacityLens export. A redacted export, anothe
 
 ### Do saved changes remain after I reload?
 
-On a server-backed company, a change remains after reload once the server has saved it. A bar that appears immediately is not proof that its save completed. The app may retry while the page remains open, but it does not save scheduling data in the browser for recovery after reload. If a save result is uncertain, inspect the latest company data before repeating the action because it may already have been saved.
+On a server-backed company, a change remains after reload once the server has saved it. A bar that appears immediately is not proof that its save completed. It does not retry failed saves automatically or save scheduling data in the browser for recovery after reload. If a save result is uncertain, inspect the latest company data before repeating the action because it may already have been saved.
 
 <span id="faq-company-conflict"></span>
 
 ### What if another person changed the plan while I was editing?
 
-That edit is refused and the app loads the latest company plan. Close and reopen the form, review the current values, then reapply your change. Your earlier edit was not saved. For a result that is uncertain rather than refused, check the refreshed plan before trying again so you do not duplicate a change that already committed. [Connection errors](../../docs/using/settings.html#connection-errors) explains the visible save warning.
+That edit is refused and the app loads the latest company plan. Close and reopen the form, review the current values, then reapply your change. Your earlier edit was not saved. For a result that is uncertain rather than refused, check the refreshed plan before trying again so you do not duplicate a change that already committed. [Connection errors](../../docs/using/settings.html#connection-errors) covers connection errors.
 
 <span id="faq-company-example-data"></span>
 

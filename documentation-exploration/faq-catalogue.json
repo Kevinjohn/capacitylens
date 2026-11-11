@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "0d961752a0bb682b1348addf1ae621ae70abe57d",
+  "sourceCommit": "5327ff406e13cbbb870fa257bbb9e6ceffc18dba",
   "sourcePullRequest": "https://github.com/Kevinjohn/capacitylens/pull/1848",
   "sourceState": "open proposal at the time of this snapshot",
   "stories": [
@@ -475,19 +475,19 @@
       "id": "US-NAV-19",
       "title": "Retry after a server connection failure",
       "path": "navigation/US-NAV-19-connection-retry.md",
-      "status": "Current"
+      "status": "Hidden \u2014 retained screen with no current error-state producer."
     },
     {
       "id": "US-NAV-20",
       "title": "Recover when the active company fails to load",
       "path": "navigation/US-NAV-20-account-load-recovery.md",
-      "status": "Current"
+      "status": "Hidden \u2014 retained screen with no current error-state producer."
     },
     {
       "id": "US-NAV-21",
       "title": "Recover unreadable browser storage",
       "path": "navigation/US-NAV-21-browser-storage-recovery.md",
-      "status": "Current"
+      "status": "Hidden \u2014 retained screen with no current error-state producer."
     },
     {
       "id": "US-NAV-22",
