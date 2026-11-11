@@ -86,7 +86,7 @@
     "dependency:major-report:test": "node --test scripts/report-major-dependencies.test.mjs",
     "policy:packaged-smoke:test": "node --test scripts/packagedServer.test.mjs scripts/smoke-packaged-server.test.mjs scripts/smoke-packaged-dialogs.test.mjs scripts/loopbackHttpProxy.test.mjs",
     "policy:node-runtime:test": "node --test scripts/check-node-runtime.test.mjs scripts/check-node26.test.mjs",
-    "policy:e2e-workers:test": "node --test --test-concurrency=1 scripts/e2eWorkerRuntime.test.mjs scripts/e2eProxyDrain.test.mjs scripts/playwrightWorkers.test.mjs scripts/e2eReset.test.mjs scripts/playwright-server-reuse.test.mjs && node scripts/paraglidePluginParity.mjs"
+    "policy:e2e-workers:test": "node --test --test-concurrency=1 scripts/e2eWorkerRuntime.test.mjs scripts/e2eProxyDrain.test.mjs scripts/playwrightWorkers.test.mjs scripts/e2eReset.test.mjs scripts/playwright-server-reuse.test.mjs scripts/serverStateTransport.test.mjs && node scripts/paraglidePluginParity.mjs"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}": "eslint --max-warnings 0 --no-warn-ignored"
