@@ -3,7 +3,7 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { encodeRow } from '#services/state_repository';
-import access from '#config/access_control';
+import { establishInitialCompanyAuthority } from '#services/initial_company_authority';
 
 /** Writes the complete first company inside the caller's transaction. */
 export async function createInitialCompany(
@@ -45,18 +45,11 @@ export async function createInitialCompany(
         buildInternalClient(accountId, now) as unknown as Record<string, unknown>
       )
     );
-  await access.memberships.createFirstMember({ scopeId: accountId, userId: input.ownerId, trx });
-  await trx.table('company_planning_revisions').insert({ account_id: accountId, revision: 1 });
-  await trx.table('audit_entries').insert({
-    id: crypto.randomUUID(),
-    account_id: accountId,
-    actor_id: input.actorId,
-    action: 'company.initialized',
-    entity: 'account',
-    entity_id: accountId,
-    details: JSON.stringify({ changedFields: ['company', 'owner'] }),
-    created_at: now,
-    updated_at: now,
+  await establishInitialCompanyAuthority(trx, {
+    accountId,
+    ownerId: input.ownerId,
+    actorId: input.actorId,
+    now,
   });
 
   return { accountId, ownerId: input.ownerId };

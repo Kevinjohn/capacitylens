@@ -1,9 +1,9 @@
 import { test } from '@japa/runner';
 import {
-  assertProductionPosture,
   bootstrapRecoveryMessage,
   recordBootstrapAdmission,
-} from '#providers/configuration_provider';
+} from '#services/development_bootstrap';
+import { assertProductionPosture } from '#providers/configuration_provider';
 
 test('production refuses bootstrap, invalid limiter, and audit settings', ({ assert }) => {
   const safe = { mode: 'password-only', allowReset: false, rateLimit: '300', audit: 'on' };
