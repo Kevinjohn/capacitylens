@@ -59,3 +59,10 @@ export function soloShare(cores?: number): number;
  * Returns the maximum worker share allowed for one run.
  */
 export function reservationCeiling(cores?: number): number;
+
+/** First isolated worker port. */
+export const WORKER_BASE: number;
+/** API/web worker slots per lane. */
+export const WORKER_SLOTS_PER_LANE: number;
+/** Returns an isolated API/web pair; invalid lane or slot throws RangeError. */
+export function workerPorts(lane: number, slot: number): Readonly<{ api: number; web: number }>;

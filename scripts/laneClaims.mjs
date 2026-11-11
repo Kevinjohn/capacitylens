@@ -28,6 +28,8 @@ import {
   LANE_CLAIM_ENVIRONMENT_KEY,
   LANE_ENVIRONMENT_KEY,
   portsForLane,
+  WORKER_SLOTS_PER_LANE,
+  workerPorts,
   reservationCeiling,
   resolveLane,
   soloShare,
@@ -316,7 +318,11 @@ export async function assertLaneFree(
   lane,
   { probe = portInUse, owner = listenerPid, directoryOf = listenerDirectory } = {},
 ) {
-  for (const [service, port] of Object.entries(portsForLane(lane))) {
+  const endpoints = Object.entries(portsForLane(lane));
+  for (let slot = 0; slot < WORKER_SLOTS_PER_LANE; slot += 1)
+    for (const [service, port] of Object.entries(workerPorts(lane, slot)))
+      endpoints.push([`worker ${slot} ${service}`, port]);
+  for (const [service, port] of endpoints) {
     if (!(await probe(port))) continue;
     const pid = owner(port);
     if (pid === null)

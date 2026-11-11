@@ -33,6 +33,23 @@ const BASES = Object.freeze({
   docsPreview: 5910,
 });
 
+/** First API port in the isolated browser-worker range. */
+export const WORKER_BASE = 10000;
+/** Number of API/web pairs reserved per lane. */
+export const WORKER_SLOTS_PER_LANE = 50;
+
+/** Return the isolated API and web ports for a lane and stable parallel-worker slot. */
+export function workerPorts(lane, slot) {
+  assertLane(lane);
+  if (!Number.isInteger(slot) || slot < 0 || slot >= WORKER_SLOTS_PER_LANE) {
+    throw new RangeError(
+      `A worker slot must be an integer from 0 to ${WORKER_SLOTS_PER_LANE - 1}; received ${JSON.stringify(slot)}.`,
+    );
+  }
+  const api = WORKER_BASE + lane * WORKER_SLOTS_PER_LANE * 2 + slot * 2;
+  return Object.freeze({ api, web: api + 1 });
+}
+
 /** Return an integer lane from 0 to `LANE_CEILING - 1`, or throw `RangeError`. */
 export function assertLane(lane) {
   if (!Number.isInteger(lane) || lane < 0 || lane >= LANE_CEILING) {

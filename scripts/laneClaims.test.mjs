@@ -500,6 +500,22 @@ test('an occupied port is reported without killing its same-worktree process', a
   assert.deepEqual(killed, []);
 });
 
+test('an occupied worker endpoint refuses the lane without stopping its owner', async () => {
+  const lane = 3;
+  const port = 10399;
+  const killed = [];
+  await assert.rejects(
+    assertLaneFree(lane, {
+      probe: (candidate) => Promise.resolve(candidate === port),
+      owner: () => 4242,
+      directoryOf: () => '/tmp/mine',
+      kill: (pid) => killed.push(pid),
+    }),
+    /lane 3.*pid 4242.*\/tmp\/mine.*kill 4242.*CAPACITYLENS_PORT_LANE=<n>/,
+  );
+  assert.deepEqual(killed, []);
+});
+
 test('missing lsof is reported while an ordinary no-match exit returns null', () => {
   for (const inspect of [
     () =>

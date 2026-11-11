@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   LANE_CEILING,
+  WORKER_SLOTS_PER_LANE,
+  workerPorts,
   portsForLane,
   reservationCeiling,
   resolveLane,
@@ -36,6 +38,9 @@ test('no two services share a port anywhere in the lane range', () => {
   for (let lane = 0; lane < LANE_CEILING; lane += 1) {
     for (const [service, port] of Object.entries(portsForLane(lane)))
       claim(port, `${service} lane ${lane}`);
+    for (let slot = 0; slot < WORKER_SLOTS_PER_LANE; slot += 1)
+      for (const [service, port] of Object.entries(workerPorts(lane, slot)))
+        claim(port, `${service} lane ${lane} slot ${slot}`);
   }
 });
 
@@ -65,4 +70,12 @@ test('the pool leaves a core for everything that is not a test worker, and never
   assert.equal(soloShare(1), 1);
   assert.equal(reservationCeiling(10), 5);
   assert.equal(reservationCeiling(1), 1);
+});
+
+test('worker slots are bounded and keep each lane in its reserved range', () => {
+  assert.deepEqual(workerPorts(0, 0), { api: 10000, web: 10001 });
+  assert.deepEqual(workerPorts(9, 49), { api: 10998, web: 10999 });
+  for (const slot of [-1, 0.5, 50, NaN, Infinity])
+    assert.throws(() => workerPorts(0, slot), RangeError);
+  assert.throws(() => workerPorts(10, 0), RangeError);
 });
