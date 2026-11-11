@@ -55,9 +55,11 @@ async function assertReflow(page: Page) {
   await saturdayLabel.click();
   const saturdayCheckbox = group.getByRole('checkbox', { name: 'Saturday' });
   await expect(saturdayCheckbox).toBeChecked();
+  await expect(saturdayCheckbox).toBeEnabled();
   await saturdayCheckbox.focus();
   await page.keyboard.press('Space');
   await expect(saturdayCheckbox).not.toBeChecked();
+  await expect(saturdayCheckbox).toBeEnabled();
   const switches = await page.getByRole('switch').all();
   expect(switches.length).toBeGreaterThan(0);
   for (const control of switches) {

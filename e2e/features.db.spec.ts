@@ -138,6 +138,7 @@ function registerRejectsVerticalReassignmentOntoNonTest() {
     await createDialog.getByLabel('Start').fill('2026-06-05');
     await createDialog.getByLabel('End').fill('2026-06-05');
     await createDialog.getByRole('button', { name: 'Save' }).click();
+    await expect(createDialog).toBeHidden();
 
     const dianaLane = page.locator('[data-resource-id="r-pam"]');
     const bar = dianaLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ });
@@ -171,6 +172,7 @@ function registerRejectsVerticalReassignmentOntoNonTest() {
     const editDialog = page.getByRole('dialog', { name: 'Edit allocation' });
     await editDialog.getByRole('checkbox', { name: 'Ignore working days' }).check();
     await editDialog.getByRole('button', { name: 'Save' }).click();
+    await expect(editDialog).toBeHidden();
 
     const ignoredBarBox = await box(bar);
     await page.mouse.move(

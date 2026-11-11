@@ -275,6 +275,8 @@ async function removeDatabaseFiles(target) {
   await rm(target.templatePath, { force: true });
 }
 
+class BusyWorkerError extends Error {}
+
 async function assertProxyDrained(webOrigin) {
   const response = await fetch(`${webOrigin}/__e2e/active-proxies`, {
     signal: AbortSignal.timeout(1_000),
@@ -289,7 +291,7 @@ async function assertProxyDrained(webOrigin) {
   )
     throw new Error('Worker Vite drain probe returned an invalid active request count.');
   if (value.activeRequests !== 0 || value.openSockets !== 0)
-    throw new Error(
+    throw new BusyWorkerError(
       `Refusing database reset while Vite has ${value.activeRequests} active API requests and ${value.openSockets} open upstream sockets.`,
     );
 }
@@ -303,9 +305,24 @@ async function assertRequestsDrained(apiOrigin) {
   if (!Number.isInteger(value.activeRequests) || value.activeRequests < 0)
     throw new Error('Worker API drain probe returned an invalid active request count.');
   if (value.activeRequests !== 0)
-    throw new Error(
+    throw new BusyWorkerError(
       `Refusing database reset while the API has ${value.activeRequests} active requests.`,
     );
+}
+
+/** Wait briefly for cancelled clients' proxy sockets and backend handlers to complete. */
+async function waitForWorkerDrain(target, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    try {
+      await assertProxyDrained(target.web);
+      await assertRequestsDrained(target.api);
+      return;
+    } catch (error) {
+      if (!(error instanceof BusyWorkerError) || Date.now() >= deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
 }
 
 /** Starts an isolated API/Vite pair for one Playwright parallelIndex and owns their lifecycle. */
@@ -409,6 +426,9 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
         await assertProxyDrained(target.web);
         await assertRequestsDrained(target.api);
       },
+      async waitUntilDrained() {
+        await waitForWorkerDrain(target);
+      },
       async stop() {
         await stop();
       },
@@ -444,6 +464,7 @@ export async function recoverE2eWorker(target, lane = resolveLane(), slot = 0) {
 }
 
 export {
+  waitForWorkerDrain as waitForE2eWorkerDrain,
   acquireLease as acquireE2eWorkerLease,
   releaseLease as releaseE2eWorkerLease,
   assertProxyDrained as assertE2eProxyDrained,

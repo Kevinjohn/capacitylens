@@ -15,18 +15,21 @@ async function addTimeOff(page: Page, resource: string, start: string, end = sta
   await dialog.getByLabel('Start').fill(start);
   await dialog.getByLabel('End').fill(end);
   await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
 }
 
 async function markerOnFirstTimeOff(lane: Locator) {
   const block = lane.getByTestId('timeoff-block').first();
   const left = await block.evaluate((element) => (element as HTMLElement).style.left);
   const markers = lane.getByTestId('over-marker');
-  const markerIndex = await markers.evaluateAll(
-    (elements, expectedLeft) =>
-      elements.findIndex((element) => (element as HTMLElement).style.left === expectedLeft),
-    left,
-  );
-  expect(markerIndex).toBeGreaterThanOrEqual(0);
+  const findMarker = () =>
+    markers.evaluateAll(
+      (elements, expectedLeft) =>
+        elements.findIndex((element) => (element as HTMLElement).style.left === expectedLeft),
+      left,
+    );
+  await expect.poll(findMarker).toBeGreaterThanOrEqual(0);
+  const markerIndex = await findMarker();
   const marker = markers.nth(markerIndex);
   await expect(marker).toHaveClass(/bg-danger\/55/);
 
@@ -74,6 +77,7 @@ test('modal edits, drag and repeat creation show work on holiday as over allocat
   await editor.getByLabel('Start Date').fill('2026-06-10');
   await editor.getByLabel(/^End/).fill('2026-06-10');
   await editor.getByRole('button', { name: 'Save' }).click();
+  await expect(editor).toBeHidden();
   await markerOnFirstTimeOff(bruceLane);
   await page.screenshot({ path: testInfo.outputPath('issue_283_after.png') });
 
@@ -107,6 +111,7 @@ test('modal edits, drag and repeat creation show work on holiday as over allocat
   await selectShadOption(create.getByRole('combobox', { name: 'Repeat' }), 'weekly');
   await create.getByLabel('Repeat until').fill('2026-06-17');
   await create.getByRole('button', { name: 'Save' }).click();
+  await expect(create).toBeHidden();
   await markerOnFirstTimeOff(dianaLane);
   await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Diana Prince' })).toContainText(
     'Over capacity on 1 day.',
@@ -153,6 +158,7 @@ test('editing a zero-load block onto time off shows the visible and non-colour c
   await editor.getByLabel('Start Date').fill('2026-06-10');
   await editor.getByLabel('Days over').fill('5');
   await editor.getByRole('button', { name: 'Save' }).click();
+  await expect(editor).toBeHidden();
 
   await markerOnFirstTimeOff(bruceLane);
   await expect(bruceLane.getByTestId('over-marker')).toHaveCount(3);
