@@ -24,7 +24,6 @@ new features and **patch** versions carry fixes.
 
 ### Removed
 
-- Contributor tooling with no remaining caller is removed (#1837): the manual planning benchmark (`scripts/bench-planning.mjs` and `scripts/bench/`) and the root scripts `docs:navigation:test`, `test:server`, `test:watch` and `gate:server`. `pnpm run docs:build` still checks documentation navigation, and `pnpm run gate:all` still runs the backend checks.
 - **Breaking for API clients:** the unused public `GET /api/meta` route is removed (#1826). It loaded every planning table to report whether any company existed.
 
 ### Fixed
