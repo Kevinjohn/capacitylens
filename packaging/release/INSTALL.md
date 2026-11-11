@@ -14,7 +14,7 @@ sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com own
 ```
 
 It runs the steps below: it writes `/etc/capacitylens.env` with generated secrets, upgrades the
-database, installs and starts the systemd unit, configures Caddy for automatic HTTPS and prints
+database, installs and starts the systemd unit, configures Caddy for automatic HTTPS when it is installed and prints
 the setup link. Mail is left unset until you add it. Run a newer release's `install.sh` without
 arguments to upgrade; it keeps the environment file and backs up the database before migrating.
 

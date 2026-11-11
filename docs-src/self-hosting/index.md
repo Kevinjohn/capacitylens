@@ -12,8 +12,8 @@ whoever manages your hosting. That person also handles backups, upgrades and ser
 The expected installation is the native release archive with an HTTPS proxy on the same machine.
 
 1. **Download** and unpack the archive for your host.
-2. **Run** its install command with your domain name. It configures the service, secrets, HTTPS
-   at a same-machine Caddy and backups, then prints the setup link.
+2. **Run** its install command with your domain name. It configures the service, secrets,
+   backups and, when Caddy is installed, HTTPS, then prints the setup link.
 3. **Open** the link and complete sign-in and company naming in the browser.
 
 [Install without Docker](/self-hosting/install-without-docker) gives the exact Linux commands and

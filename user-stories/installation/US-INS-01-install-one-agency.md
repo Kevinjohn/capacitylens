@@ -36,11 +36,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  installer["install.sh writes the environment and unit, then runs app:upgrade"] --> upgrade["AppUpgrade.run verifies SQLite connection"]
+  installer["install.sh writes the environment, then runs app:upgrade"] --> upgrade["AppUpgrade.run verifies SQLite connection"]
   upgrade --> backup["createBundle snapshots existing database"]
   backup --> migrate["Ace kernel runs migration:run"]
   migrate --> integrity["assertSchemaIntegrity checks schema"]
-  integrity --> service["service starts"]
+  integrity --> service["install.sh installs and starts the unit"]
   service --> caddy["install.sh writes and validates the Caddy site, then reloads Caddy"]
   caddy --> ready["/health/ready calls healthChecks.run"]
   ready --> bootstrap["Account Kit admission bootstrap CLI issues invitation"]

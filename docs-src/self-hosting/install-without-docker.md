@@ -50,8 +50,9 @@ Verified backups run when the service starts and every 24 hours; see
 [Backups and restore](/self-hosting/backups-and-restore). Mail is left unset: add the
 `CAPACITYLENS_MAIL_*` settings with `sudoedit /etc/capacitylens.env` and restart the service before
 inviting anyone else ([step 3](#_3-configure-the-installation) says what works without them). Open
-the setup link and continue at [step 5](#_5-open). Running the command again is safe, and running
-a newer release's command without arguments upgrades; see [Upgrades](/self-hosting/upgrades).
+the setup link and continue at [step 5](#_5-open). Until the Owner has signed up, running the same
+command again finishes an interrupted install and prints a fresh link. Running a newer release's
+command without arguments upgrades; see [Upgrades](/self-hosting/upgrades).
 
 ## Install by hand
 
