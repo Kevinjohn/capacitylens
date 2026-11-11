@@ -11,20 +11,19 @@ import { MasqueradeController } from './masqueradeController';
 const reads = vi.hoisted(() => ({ fail: false, count: 0 }));
 
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
-    '@/data/planning/volatilePlanningTransport',
+  const actual = await vi.importActual<typeof import('@/test/createTestPlanningTransport')>(
+    '@/test/createTestPlanningTransport',
   );
   return {
     createStorePlanningTransport: (readData: () => AppData) => {
-      const transport = actual.createVolatilePlanningTransport(readData);
-      return {
+      return actual.createTestPlanningTransport(readData, (transport) => ({
         ...transport,
         read: async (...args: Parameters<typeof transport.read>) => {
           reads.count += 1;
           if (reads.fail) throw new Error('Canonical planning read failed');
           return transport.read(...args);
         },
-      };
+      }));
     },
   };
 });

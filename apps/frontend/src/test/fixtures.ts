@@ -15,7 +15,7 @@ import type {
 import type { Draft } from '@/store/useStore';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { createPlanningCacheState } from '@/data/planning/planningCacheController';
+import { resetPlanningTransport } from '@/test/planningTransportHandle';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
 
 // Shared fixtures establish an active account so scoped store mutations have a valid tenant.
@@ -198,12 +198,14 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
  * Use in beforeEach so `add*` (which requires an active account) works. The returned promise
  * settles once the planning cache has read the account, so allocation writes can begin. */
 export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promise<boolean> {
-  const data = makeAppData({ accounts: [makeAccount({ id: accountId })] });
-  useStore.getState().replaceAll(data);
-  useStore.setState({ planning: createPlanningCacheState().planning });
+  const account = makeAccount({ id: accountId });
+  const data = makeAppData({ accounts: [account] });
+  useStore.getState().clearPlanning();
+  resetPlanningTransport(accountId, data, useStore.getState().data);
+  useStore.getState().setAccountSummaries({
+    list: [{ id: accountId, name: account.name, role: 'owner' }],
+  });
   useStore.getState().setActiveAccount(accountId);
-  // Visible rows alone do not reset the volatile transport’s pending Restore groups and commitments.
-  useStore.getState().replaceAfterDemoImport(data);
   // Clear transient notices so the singleton store cannot leak another test’s toast.
   useStore.getState().setNotice(null);
   // Clear transient announcements and membership state so singleton fixtures remain order-independent.
@@ -211,7 +213,7 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promi
   // Likewise reset the transient access role so a prior viewer-guard test can't leave the
   // singleton store in 'viewer' and silently no-op the next spec's mutations. Default = editable.
   useStore.getState().setActiveRole(null);
-  return useStore.getState().refreshPlanning();
+  return useStore.getState().refreshPlanning({ fresh: true });
 }
 
 type SetPlaceholdersEnabledOptions = { on: boolean; accountId?: ID };

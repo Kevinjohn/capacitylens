@@ -18,13 +18,12 @@ const failure = vi.hoisted(() => ({
 const lookups = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
-    '@/data/planning/volatilePlanningTransport',
+  const actual = await vi.importActual<typeof import('@/test/createTestPlanningTransport')>(
+    '@/test/createTestPlanningTransport',
   );
   return {
     createStorePlanningTransport: (readData: () => AppData) => {
-      const transport = actual.createVolatilePlanningTransport(readData);
-      return {
+      return actual.createTestPlanningTransport(readData, (transport) => ({
         ...transport,
         read: async (...args: Parameters<typeof transport.read>) => {
           if (failure.read) throw failure.read;
@@ -43,7 +42,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
           lookups.count += 1;
           return transport.lookup(...args);
         },
-      };
+      }));
     },
   };
 });
