@@ -140,6 +140,9 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
           403,
           'an authenticated administrator cannot reset the fixture over HTTP'
         );
+        assert.deepEqual(await memberlessReset.json(), {
+          error: 'Installation reset is unavailable with authentication enabled.',
+        });
       }
     } finally {
       await stop(child, port);

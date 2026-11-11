@@ -978,6 +978,14 @@ The five tests in baseline `apps/frontend/src/store/internalClient.test.ts` are 
 
 ## Integrated acceptance checkpoints
 
+### Backend migration corrections
+
+Under Node 24.22.2 and pnpm 11.23.0, `pnpm run test:server --files tests/functional/planning/independent_operations.spec.ts --files tests/functional/state/e2e_server.spec.ts --files tests/functional/auth/first_company_setup.spec.ts` passed all 21 selected tests at `33203c7eadaae95119f22707ff3e73cd931e0b43`. This checks actual HTTP writes and native server startup. The preceding gate's incorrect creation-refusal assertion and obsolete slotless launcher both failed; they were corrected without changing production planning behavior.
+
+The launcher boundary uses centrally reserved slot 46, separately from the runtime, proxy and reset mechanism tests. `node --test scripts/ports.test.mjs` passed all eight checks. Temporarily assigning that boundary the reset test's slot 47 makes `node --test --test-name-pattern='script fixtures use distinct' scripts/ports.test.mjs` fail its exact uniqueness assertion (`3 !== 4`); the registry is restored afterward.
+
+The refined launcher assertion checks both HTTP403 and the actual native policy response, `{ error: 'Installation reset is unavailable with authentication enabled.' }`, for each server flavour. `pnpm run test:server --files tests/functional/state/e2e_server.spec.ts` passes both launches in its one test. With the status left at 403 and only that middleware response changed temporarily to `Unrelated refusal.`, the same command fails the exact body comparison. The middleware bytes are restored afterward. The route's separate `Reset is disabled.` branch is not the native authentication-policy boundary.
+
 - At `bd415eb65456847c22a8688a7992140af4cb9554`, the complete frontend unit suite passed all 3,978 tests in 318 files with two workers. The worktree was clean at both invocation and completion. This is the engine-absent fixture proof; earlier failed migration diagnostics are not acceptance results.
 - At `ee1c847764d37224f9125e2ccc553583ca71d9bf`, the existing persistence hydration and client create/reload browser journeys passed consecutively on one Chromium worker with zero retries. Each test uses the real reset, authentication and canonical server read.
 - The same revision completed 20 actual idle-worker resets, including Vite/API listener pause, company SQL restoration and API/Vite listening acknowledgements. Nearest-rank p50 was 45.596 ms and p95 was 54.188 ms. Every sample was followed by successful API readiness and Vite-client requests. A concurrent container build and separate browser checks were present; these numbers describe the integrated boundary under that load, rather than isolated template-copy cost.
