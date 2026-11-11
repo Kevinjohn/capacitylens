@@ -1,69 +1,42 @@
 import { defineConfig, devices } from '@playwright/test';
-import {
-  coreSpecPattern,
-  parseReportPhaseName,
-  selectsOnlyExplicitCoreSpecs,
-} from './scripts/playwrightServerScope';
+import { parseReportPhaseName } from './scripts/playwrightServerScope';
 import { resolvePlaywrightRunMode } from './scripts/playwrightRunMode.mjs';
-import { ports, testShare } from './scripts/ports.mjs';
+import { browserWorkerCount } from './scripts/playwrightWorkers.mjs';
+import { ports } from './scripts/ports.mjs';
 
-// Playwright drives the app through Vite in three project groups:
-//   chromium: in-memory demo on the lane web port.
-//   db-backed: temporary SQLite server plus a Vite proxy; *.db.spec.ts run here.
-//   auth-backed: password-only server plus a Vite proxy, where the login screen exists (US-NAV-10).
-// Each worktree receives isolated lane ports for concurrent runs. Global setup runs too late
-// to choose them, so the lane must set them before this file is evaluated.
 const lanePorts = ports();
-const WEB_PORT = lanePorts.web;
-const API_PORT = lanePorts.dbApi;
-const DB_WEB_PORT = lanePorts.dbWeb;
-const AUTH_API_PORT = lanePorts.authApi;
-const AUTH_WEB_PORT = lanePorts.authWeb;
-const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
-const coreSpec = coreSpecPattern;
-const flavourSpec = (flavour: 'db' | 'auth') =>
-  new RegExp(String.raw`\.${flavour}\.spec\.${specExtension}$`, 'i');
-
-// WebKit and Firefox opt-ins run the core demo specs against Vite without SQLite or auth servers.
-// e2e:browsers runs the core specs on all three engines. e2e:all runs Chromium's server-backed
-// specs, then starts isolated Vite-only runs for WebKit and Firefox; later engines still run
-// after an earlier engine fails. CAPACITYLENS_WEBKIT or CAPACITYLENS_FIREFOX enables its project.
-// The matching *_ONLY flag also selects Vite-only servers; CAPACITYLENS_VITE_ONLY selects them
-// without limiting the browser projects.
-const runMode = resolvePlaywrightRunMode(process.env, process.argv, selectsOnlyExplicitCoreSpecs);
+const runMode = resolvePlaywrightRunMode(process.env);
 const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name);
 const reportPhase = parseReportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
+const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
+const dbSpec = new RegExp(String.raw`\.db\.spec\.${specExtension}$`, 'i');
+const authSpec = new RegExp(String.raw`\.auth\.spec\.${specExtension}$`, 'i');
 
-// Core and cross-browser specs use the in-memory demo server. Database and auth projects have
-// their own Vite proxies and API targets.
-const devWebServer = {
-  command: 'pnpm run dev:demo',
-  // The default fixture deliberately has no optional deployment provenance or feedback address.
-  env: { VITE_CAPACITYLENS_BUILD_SHA: '', VITE_CAPACITYLENS_FEEDBACK_MAILTO: '' },
-  url: `http://localhost:${WEB_PORT}`,
-  // Never reuse: Playwright identifies a running server by URL, not persistence mode. Reusing a
-  // server-mode process would run in-memory demo specs against the wrong backend. Each run starts
-  // a fresh demo build; lane allocation prevents concurrent worktrees from colliding.
+const authApiServer = {
+  command: 'pnpm run start:auth-e2e',
+  cwd: './apps/backend',
+  url: `http://127.0.0.1:${lanePorts.authApi}/health/ready`,
   reuseExistingServer: false,
   timeout: 120_000,
 };
+const authWebServer = {
+  command: 'pnpm run dev:auth',
+  url: `http://127.0.0.1:${lanePorts.authWeb}/health/ready`,
+  reuseExistingServer: false,
+  timeout: 120_000,
+  env: { CAPACITYLENS_DEV_API_PORT: String(lanePorts.authApi), VITE_CAPACITYLENS_API: '' },
+};
 
-/** Configures isolated browser projects and servers for the selected port lane and E2E mode. */
+/** Each `*.db.spec.ts` project owns one real SQLite-backed worker server. */
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/globalSetup.ts',
   fullyParallel: true,
-  // A committed test.only is equally dangerous locally and in CI; reject it in every invocation.
   forbidOnly: true,
-  // These are measured suite budgets, stated explicitly instead of inheriting Playwright defaults.
   timeout: 30_000,
   expect: { timeout: 5_000 },
-  // This run's CPU reservation (scripts/laneClaims.mjs). A solo run reserves half the cores, which
-  // is exactly Playwright's own default; concurrent runs divide the machine instead of each taking
-  // that half. Every worker drives a browser, so the reservation is the right unit here.
-  workers: testShare(),
+  workers: browserWorkerCount(),
   retries: process.env.CI ? 2 : 0,
-  // Shared SQLite fixtures and the authentication limiter require serial server-backed projects.
-  // The browser-only projects keep their normal parallelism.
   reporter: process.env.CI
     ? [
         ['github'],
@@ -72,61 +45,37 @@ export default defineConfig({
       ]
     : 'list',
   outputDir: `test-results/artifacts/${reportPhase}`,
-  use: {
-    trace: 'on-first-retry',
-  },
+  use: { trace: 'on-first-retry' },
   projects: [
     ...(projectEnabled('chromium')
       ? [
           {
             name: 'chromium',
-            testMatch: coreSpec,
-            use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${WEB_PORT}` },
+            testMatch: dbSpec,
+            use: { ...devices['Desktop Chrome'] },
           },
         ]
       : []),
-    ...(projectEnabled('db-backed')
+    ...(projectEnabled('auth-backed')
       ? [
           {
-            name: 'db-backed',
-            testMatch: flavourSpec('db'),
-            // Every DB-backed test resets the same SQLite fixture in beforeEach. Running those resets
-            // concurrently can abort another page's in-flight account read and makes the suite pass by
-            // luck against mutually changing state. Keep this one shared-database project serial; the
-            // browser-only projects retain their normal parallelism.
-            workers: 1,
-            use: {
-              ...devices['Desktop Chrome'],
-              baseURL: `http://localhost:${DB_WEB_PORT}`,
-            },
-          },
-          {
             name: 'auth-backed',
-            testMatch: flavourSpec('auth'),
-            // Microsoft sign-in is deferred; its removed verification route is outside current acceptance.
+            testMatch: authSpec,
             testIgnore: '**/microsoft-verification.auth.spec.ts',
-            // All contexts share one loopback IP and its sign-in budget; overlapping login attempts
-            // can exhaust the real limiter before successful authentication resets the budget.
             workers: 1,
             use: {
               ...devices['Desktop Chrome'],
-              baseURL: `http://localhost:${AUTH_WEB_PORT}`,
+              baseURL: `http://localhost:${lanePorts.authWeb}`,
             },
           },
         ]
       : []),
-    // WebKit and Firefox run the same in-memory demo specs as Chromium to catch engine-specific
-    // rendering and interaction regressions. They are opt-in so the default e2e command stays fast.
-    // Database and auth projects remain Chromium-only because they cover server and persistence flows.
     ...(projectEnabled('webkit')
       ? [
           {
             name: 'webkit',
-            testMatch: coreSpec,
-            use: {
-              ...devices['Desktop Safari'],
-              baseURL: `http://localhost:${WEB_PORT}`,
-            },
+            testMatch: dbSpec,
+            use: { ...devices['Desktop Safari'] },
           },
         ]
       : []),
@@ -134,57 +83,13 @@ export default defineConfig({
       ? [
           {
             name: 'firefox',
-            testMatch: coreSpec,
-            // Firefox runs separately, so a WebKit failure cannot skip it.
-            use: {
-              ...devices['Desktop Firefox'],
-              baseURL: `http://localhost:${WEB_PORT}`,
-            },
+            testMatch: dbSpec,
+            use: { ...devices['Desktop Firefox'] },
           },
         ]
       : []),
   ],
-  // Cross-browser core runs need only Vite; other runs
-  // start the SQLite and auth servers required by their specs.
-  webServer:
-    runMode.serverProfile === 'vite'
-      ? [devWebServer]
-      : [
-          devWebServer,
-          {
-            command: 'pnpm run start:e2e',
-            cwd: './apps/backend',
-            url: `http://127.0.0.1:${API_PORT}/health/ready`,
-            reuseExistingServer: false,
-            timeout: 120_000,
-          },
-          {
-            command: 'pnpm run dev:api',
-            // Warm and verify the browser's real Vite → API path before the first page mounts.
-            // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
-            url: `http://127.0.0.1:${DB_WEB_PORT}/health/ready`,
-            reuseExistingServer: false,
-            timeout: 120_000,
-            // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
-            // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
-            // cross-origin exception that the shipped app never has.
-            env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: '' },
-          },
-          {
-            // Start a fresh auth API for each run because its database wipe and admin bootstrap
-            // execute only during startup.
-            command: 'pnpm run start:auth-e2e',
-            cwd: './apps/backend',
-            url: `http://127.0.0.1:${AUTH_API_PORT}/health/ready`,
-            reuseExistingServer: false,
-            timeout: 120_000,
-          },
-          {
-            command: 'pnpm run dev:auth',
-            url: `http://127.0.0.1:${AUTH_WEB_PORT}/health/ready`,
-            reuseExistingServer: false,
-            timeout: 120_000,
-            env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT), VITE_CAPACITYLENS_API: '' },
-          },
-        ],
+  ...(runMode.serverProfile === 'standard' && projectEnabled('auth-backed')
+    ? { webServer: [authApiServer, authWebServer] }
+    : {}),
 });

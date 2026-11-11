@@ -73,15 +73,23 @@ export const test = base.extend<CapacityLensFixtures>({
   newObservedContext: async ({ browser, pageErrorObserver }, use) => {
     const contexts = new Set<BrowserContext>();
     const listeners = new Map<BrowserContext, (page: Page) => void>();
-    await use(async (options) => {
-      const context = await browser.newContext(options);
-      const observePage = pageErrorObserver.observePage;
-      context.pages().forEach(observePage);
-      context.on('page', observePage);
-      contexts.add(context);
-      listeners.set(context, observePage);
-      return context;
-    });
-    contexts.forEach((context) => context.off('page', listeners.get(context)!));
+    try {
+      await use(async (options) => {
+        const context = await browser.newContext(options);
+        const observePage = pageErrorObserver.observePage;
+        context.pages().forEach(observePage);
+        context.on('page', observePage);
+        contexts.add(context);
+        listeners.set(context, observePage);
+        return context;
+      });
+    } finally {
+      await Promise.all(
+        [...contexts].map(async (context) => {
+          context.off('page', listeners.get(context)!);
+          await context.close();
+        }),
+      );
+    }
   },
 });

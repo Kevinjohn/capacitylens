@@ -112,6 +112,8 @@ test.describe('first-install calendar settings', () => {
     await openFirstCompanySetup(page, request);
     await expect(page.getByLabel('Week starts on')).toHaveValue('1');
     const zone = page.getByLabel('Time zone', { exact: true });
+    // Native first-install setup uses the explicit GMT default, even in a London browser.
+    await expect(zone).toHaveValue('Etc/GMT');
     await expect(zone.getByRole('option', { name: 'GMT (UTC+00:00)', exact: true })).toHaveCount(1);
     await expect(zone.getByRole('option', { name: /London.*Europe\/London/ })).toHaveCount(1);
     await zone.selectOption('America/New_York');

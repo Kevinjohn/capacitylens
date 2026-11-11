@@ -57,6 +57,8 @@ stryker.log
 !server/src/fixtures/databases/*.db
 *.db-wal
 *.db-shm
+# Isolated browser databases also own templates and reset-test locks.
+/apps/backend/.e2e-l*-w*.db*
 server/.auth-e2e-mailbox.jsonl
 # Server audit logs are runtime artifacts written beside the database.
 *-audit.jsonl

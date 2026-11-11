@@ -16,6 +16,8 @@ export const GUARDED_FILES = Object.freeze([
   'docs-src/.vitepress/config.mts',
   'e2e/authTestSupport.ts',
   'e2e/serverTestState.ts',
+  'e2e/workerServer.ts',
+  'scripts/e2eWorkerRuntime.mjs',
   'apps/backend/scripts/e2e-server.mjs',
 ]);
 

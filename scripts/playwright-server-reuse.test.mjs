@@ -7,6 +7,10 @@ const viteConfigSource = await readFile(
   new URL('../apps/frontend/vite.config.ts', import.meta.url),
   'utf8',
 );
+const workerRuntimeSource = await readFile(
+  new URL('./e2eWorkerRuntime.mjs', import.meta.url),
+  'utf8',
+);
 
 test('every automatically started Playwright server refuses an existing endpoint', () => {
   const reuseSettings = [...configSource.matchAll(/reuseExistingServer:\s*([^,\n]+)/g)].map(
@@ -15,30 +19,37 @@ test('every automatically started Playwright server refuses an existing endpoint
 
   assert.equal(
     reuseSettings.length,
-    5,
-    'expected every configured dev server to declare its reuse policy',
+    2,
+    'expected the two auth-profile global servers to declare their reuse policy',
   );
   assert.deepEqual(
     reuseSettings,
-    Array.from({ length: 5 }, () => 'false'),
+    Array.from({ length: 2 }, () => 'false'),
   );
 });
 
 test('the standard profile waits for real database readiness through both Vite proxies', () => {
   const probes = [
     ...configSource.matchAll(
-      /url:\s*`http:\/\/127\.0\.0\.1:\$\{(API_PORT|DB_WEB_PORT|AUTH_API_PORT|AUTH_WEB_PORT)\}([^`]*)`/g,
+      /url:\s*`http:\/\/127\.0\.0\.1:\$\{lanePorts\.(authApi|authWeb)\}([^`]*)`/g,
     ),
   ].map((match) => `${match[1]}${match[2]}`);
 
-  assert.deepEqual(probes, [
-    'API_PORT/health/ready',
-    'DB_WEB_PORT/health/ready',
-    'AUTH_API_PORT/health/ready',
-    'AUTH_WEB_PORT/health/ready',
-  ]);
+  assert.deepEqual(probes, ['authApi/health/ready', 'authWeb/health/ready']);
   assert.match(
     viteConfigSource,
     /'\/health':\s*{[\s\S]*?target: `http:\/\/localhost:\$\{devApiPort\}`/,
   );
+});
+
+test('worker startup waits for API readiness before Vite proxy readiness', () => {
+  const apiProbe = workerRuntimeSource.indexOf(
+    "await waitReady(api, `${target.api}/health/ready`, 'E2E API server');",
+  );
+  const webProbe = workerRuntimeSource.indexOf(
+    "await waitReady(vite, `${target.web}/health/ready`, 'E2E Vite proxy', processes);",
+  );
+
+  assert.ok(apiProbe >= 0, 'expected the worker API readiness probe');
+  assert.ok(webProbe > apiProbe, 'expected the Vite proxy probe after API readiness');
 });

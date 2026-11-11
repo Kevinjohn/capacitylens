@@ -313,7 +313,7 @@ test('explicit browser presets clear conflicting inherited mode flags', () => {
   for (const preset of Object.values(E2E_RUN_PRESETS)) {
     const environment = nonColourEnvironment({}, presetEnvironment(inherited, preset.environment));
     assert.equal(environment.KEEP_THIS, 'yes');
-    const mode = resolvePlaywrightRunMode(environment, [], () => false);
+    const mode = resolvePlaywrightRunMode(environment);
     assert.deepEqual(
       mode.projects.filter((project) => ['webkit', 'firefox'].includes(project)),
       preset.projects.filter((project) => ['webkit', 'firefox'].includes(project)),

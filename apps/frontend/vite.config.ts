@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import { loadEnv } from 'vite';
-import type { Plugin } from 'vite';
+import type { Plugin, ProxyOptions } from 'vite';
+import { Agent } from 'node:http';
+import type { Socket } from 'node:net';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
@@ -31,6 +33,7 @@ if (!Object.hasOwn(lanePorts, viteService)) {
   );
 }
 const servicePort = lanePorts[viteService as keyof typeof lanePorts];
+const e2eWorker = process.env.CAPACITYLENS_E2E_WORKER === '1';
 /**
  * Emit real directory index documents for fixed client routes. The packaged nginx image still
  * provides the normal SPA fallback, while these aliases also survive a static outer proxy that
@@ -57,8 +60,57 @@ export function staticSpaRouteDocuments(): Plugin {
   };
 }
 
+/** Track pending proxy requests and their actual upstream sockets before a worker resets SQLite. */
+function createE2eProxyDrainProbe() {
+  let activeRequests = 0;
+  const sockets = new Set<Socket>();
+  const agent = new Agent({ keepAlive: false });
+  const configure: NonNullable<ProxyOptions['configure']> = (proxy) => {
+    proxy.on('proxyReq', (request) => {
+      const observe = (socket: Socket) => {
+        if (socket.destroyed || sockets.has(socket)) return;
+        sockets.add(socket);
+        socket.once('close', () => sockets.delete(socket));
+      };
+      if (request.socket) observe(request.socket);
+      else request.once('socket', observe);
+    });
+  };
+  const plugin: Plugin = {
+    name: 'capacitylens-e2e-proxy-drain-probe',
+    configureServer(server) {
+      server.httpServer?.once('close', () => agent.destroy());
+      server.middlewares.use((request, response, next) => {
+        if (request.url === '/__e2e/active-proxies') {
+          response.statusCode = 200;
+          response.setHeader('content-type', 'application/json');
+          response.end(JSON.stringify({ activeRequests, openSockets: sockets.size }));
+          return;
+        }
+        if (!request.url?.startsWith('/api/') && !request.url?.startsWith('/health')) return next();
+        activeRequests += 1;
+        let finished = false;
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          activeRequests -= 1;
+        };
+        response.once('finish', finish);
+        response.once('close', finish);
+        next();
+      });
+    },
+  };
+  return { plugin, proxyOptions: { agent, configure } };
+}
+
 /** Configures application builds and lane-local development, refusing invalid client deployment settings. */
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
+  const workerServe = command === 'serve' && e2eWorker;
+  const drainProbe = workerServe ? createE2eProxyDrainProbe() : null;
+  const vitePort = workerServe
+    ? parsePort(process.env.CAPACITYLENS_VITE_PORT, servicePort, 'CAPACITYLENS_VITE_PORT')
+    : servicePort;
   // Stryker loads this config from the repository root, so resolve frontend paths from the config file.
   const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
   const fileEnv = loadEnv(mode, frontendRoot, 'VITE_CAPACITYLENS_');
@@ -73,6 +125,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     root: frontendRoot,
+    ...(workerServe && process.env.CAPACITYLENS_VITE_CACHE_DIR
+      ? { cacheDir: process.env.CAPACITYLENS_VITE_CACHE_DIR }
+      : {}),
     build: {
       outDir: '../../dist',
       emptyOutDir: true,
@@ -88,11 +143,17 @@ export default defineConfig(({ mode }) => {
       // precompile them so direct type-check and Vitest commands can resolve the output. The
       // account-scoped locale stays client-only in a global variable; baseLocale keeps English as
       // the fallback without a page reload or server round-trip.
-      paraglideVitePlugin({
-        project: './project.inlang',
-        outdir: './src/paraglide',
-        strategy: ['globalVariable', 'baseLocale'],
-      }),
+      ...(!workerServe
+        ? [
+            paraglideVitePlugin({
+              project: './project.inlang',
+              outdir: './src/paraglide',
+              outputStructure: 'locale-modules',
+              strategy: ['globalVariable', 'baseLocale'],
+            }),
+          ]
+        : []),
+      ...(drainProbe ? [drainProbe.plugin] : []),
     ],
     resolve: {
       alias: {
@@ -106,7 +167,7 @@ export default defineConfig(({ mode }) => {
     // Refuse occupied ports so the launcher and browser retain the same endpoint.
     server: {
       host: '127.0.0.1',
-      port: servicePort,
+      port: vitePort,
       strictPort: true,
       // The dev proxy and full-stack launcher share the configured lane API port so browser requests stay same-origin.
       proxy: {
@@ -115,10 +176,12 @@ export default defineConfig(({ mode }) => {
           // scripts/dev-fullstack.mjs's API_PORT so the launcher and this proxy stay in lockstep.
           target: `http://localhost:${devApiPort}`,
           changeOrigin: true,
+          ...(drainProbe?.proxyOptions ?? {}),
         },
         '/health': {
           target: `http://localhost:${devApiPort}`,
           changeOrigin: true,
+          ...(drainProbe?.proxyOptions ?? {}),
         },
       },
     },

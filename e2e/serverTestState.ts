@@ -1,129 +1,216 @@
 import { expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
-import { ports } from '../scripts/ports.mjs';
-import { serverTestApiOrigin } from '../scripts/playwrightRunMode.mjs';
+import { resolveLane, workerPorts } from '../scripts/ports.mjs';
 import { DatabaseSync } from 'node:sqlite';
-import { existsSync, realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, realpathSync, rmSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
 
-// Database-backed specs reset server state between tests, then exercise the app through
-// real UI flows. Their normal app fixture contains one company; server tests seed legacy
-// multi-company data directly when they need tenant-isolation cases.
-
-/** Resolves the server API origin for the claimed local lane. */
-export const API = serverTestApiOrigin(ports().dbApi);
-
-const databasePath = fileURLToPath(new URL('../apps/backend/.e2e.db', import.meta.url));
 const backendDirectory = fileURLToPath(new URL('../apps/backend/', import.meta.url));
 
-type ResetServerOptions = { request: APIRequestContext; withSeed?: boolean };
-function seedDisposableDatabase() {
-  if (!existsSync(databasePath) || realpathSync(databasePath) !== resolve(databasePath))
-    throw new Error('The disposable database-backed fixture is unavailable.');
-  const seeded = spawnSync(
-    process.execPath,
-    ['ace.js', 'db:seed', '--files=database/seeders/main_seeder.ts'],
-    {
-      cwd: backendDirectory,
-      env: {
-        ...process.env,
-        NODE_ENV: 'development',
-        HOST: '127.0.0.1',
-        PORT: String(ports().dbApi),
-        LOG_LEVEL: 'error',
-        APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
-        APP_URL: API,
-        SESSION_DRIVER: 'database',
-        CAPACITYLENS_DB: '.e2e.db',
-        CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
-        CAPACITYLENS_PUBLIC_URL: API,
-        CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
-        CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: 'auth-e2e-password-2026',
-      },
-      encoding: 'utf8',
-    },
-  );
-  if (seeded.status !== 0)
-    throw new Error(`Disposable fixture seed failed: ${seeded.stderr || seeded.stdout}`);
+/** All endpoints and files belonging to one stable browser-worker slot. */
+export interface ServerTarget {
+  lane: number;
+  slot: number;
+  api: string;
+  web: string;
+  databasePath: string;
+  templatePath: string;
 }
 
-/** Restores the fixture identity after a company-erasure test deletes its last member. */
-export function ensureDbFixtureAdministrator() {
-  if (!existsSync(databasePath))
+/** Resolve isolated browser-worker endpoints and disposable database paths. */
+export function serverTarget(lane: number, slot: number): ServerTarget {
+  const endpoints = workerPorts(lane, slot);
+  const databasePath = resolve(backendDirectory, `.e2e-l${lane}-w${slot}.db`);
+  return Object.freeze({
+    lane,
+    slot,
+    api: `http://localhost:${endpoints.api}`,
+    web: `http://localhost:${endpoints.web}`,
+    databasePath,
+    templatePath: `${databasePath}.template`,
+  });
+}
+
+let configuredTarget = serverTarget(resolveLane(), 0);
+let drain: (() => Promise<void>) | undefined;
+/** Current worker API origin; imports observe configuration before a test starts. */
+export let API = configuredTarget.api;
+
+/** Bind this Playwright worker to its owned target and request-drain boundary. */
+export function configureServerTarget(target: ServerTarget, assertDrained: () => Promise<void>) {
+  configuredTarget = target;
+  API = target.api;
+  drain = assertDrained;
+}
+
+function assertDisposableDatabase(target: ServerTarget) {
+  if (
+    !/^\.e2e-l\d-w\d{1,2}\.db$/.test(basename(target.databasePath)) ||
+    resolve(target.databasePath, '..') !== resolve(backendDirectory) ||
+    !existsSync(target.databasePath) ||
+    realpathSync(target.databasePath) !== resolve(target.databasePath)
+  )
     throw new Error('The disposable database-backed fixture is unavailable.');
-  const db = new DatabaseSync(databasePath, { readOnly: true });
+}
+
+/** Verify the server bootstrapped its fixture identity; company resets never recreate credentials. */
+export function ensureDbFixtureAdministrator(target: ServerTarget = configuredTarget) {
+  assertDisposableDatabase(target);
+  const db = new DatabaseSync(target.databasePath, { readOnly: true });
+  let found: boolean;
   try {
-    if (db.prepare('SELECT id FROM users WHERE email = ?').get('admin@admin.admin')) return;
+    found = Boolean(db.prepare('SELECT id FROM users WHERE email = ?').get('admin@admin.admin'));
   } finally {
     db.close();
   }
-  seedDisposableDatabase();
+  if (!found)
+    throw new Error('The disposable administrator is unavailable; restart the worker fixture.');
 }
 
-/** Resets only the disposable SQLite fixture; product HTTP reset stays forbidden. */
-export async function resetServer({ withSeed = true }: ResetServerOptions): Promise<void> {
-  if (!existsSync(databasePath) || realpathSync(databasePath) !== resolve(databasePath))
-    throw new Error('The disposable database-backed fixture is unavailable.');
-  const db = new DatabaseSync(databasePath);
+const companyTables = [
+  'accounts',
+  'clients',
+  'disciplines',
+  'projects',
+  'phases',
+  'resources',
+  'activities',
+  'allocations',
+  'time_off',
+  'closures',
+  'memberships',
+  'audit_entries',
+  'company_planning_revisions',
+  'planning_mutations',
+  'deleted_groups',
+  'deleted_rows',
+  'account_member_resources',
+  'ownership_transfers',
+  'company_settings',
+  'account_getting_started_dismissals',
+  'request_receipts',
+  'password_confirmations',
+] as const;
+
+function orderedCompanyTables(db: DatabaseSync): string[] {
+  const remaining = new Set<string>(companyTables);
+  const ordered: string[] = [];
+  while (remaining.size) {
+    const next = [...remaining].find((table) => {
+      const dependencies = db.prepare(`PRAGMA foreign_key_list("${table}")`).all() as Array<{
+        table: string;
+      }>;
+      return dependencies.every(
+        (dependency) => dependency.table === table || !remaining.has(dependency.table),
+      );
+    });
+    if (!next) throw new Error('Disposable company tables contain a foreign-key cycle.');
+    const columns = db.prepare(`PRAGMA table_info("${next}")`).all();
+    if (!columns.length) throw new Error(`The disposable schema is missing ${next}.`);
+    ordered.push(next);
+    remaining.delete(next);
+  }
+  return ordered;
+}
+
+function bindFixtureOwner(db: DatabaseSync) {
+  const administrator = db
+    .prepare('SELECT id FROM users WHERE email = ?')
+    .get('admin@admin.admin') as { id: string } | undefined;
+  if (!administrator) throw new Error('The disposable administrator is unavailable.');
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
+    VALUES ('a-studio', ?, 'owner', 'active', ?, ?)`,
+  ).run(administrator.id, now, now);
+}
+
+/** Snapshot the worker's initial company once; identities are never restored from this template. */
+export async function prepareServerTemplate(target: ServerTarget): Promise<void> {
+  if (target !== configuredTarget)
+    throw new Error('Configure the worker target before preparing its template.');
+  if (!drain) throw new Error('The worker request-drain boundary is not configured.');
+  await drain();
+  ensureDbFixtureAdministrator(target);
+  const db = new DatabaseSync(target.databasePath);
   try {
-    const tables = new Set(
-      (
-        db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
-          name: string;
-        }>
-      ).map(({ name }) => name),
-    );
-    if (
-      ['users', 'memberships', 'accounts', 'adonis_sessions', 'audit_entries'].some(
-        (table) => !tables.has(table),
-      )
-    )
-      throw new Error('The disposable database does not match the authenticated schema.');
-    db.exec('PRAGMA foreign_keys = ON');
-    db.exec('PRAGMA busy_timeout = 5000');
-    db.exec('BEGIN IMMEDIATE');
+    orderedCompanyTables(db);
+    db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
     try {
-      // Only the guarded test database is cleared; insert-only seeding then restores a fresh fixture.
-      // Package memberships restrict company deletion, so they go first.
-      db.exec('DELETE FROM audit_entries; DELETE FROM memberships; DELETE FROM accounts');
+      db.exec(
+        "DELETE FROM audit_entries; DELETE FROM memberships; DELETE FROM accounts WHERE id <> 'a-studio'",
+      );
+      bindFixtureOwner(db);
+      db.exec(
+        "INSERT OR IGNORE INTO company_planning_revisions (account_id, revision) VALUES ('a-studio', 0)",
+      );
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');
       throw error;
     }
-    seedDisposableDatabase();
-    db.exec('BEGIN IMMEDIATE');
+    rmSync(target.templatePath, { force: true });
+    db.prepare('VACUUM INTO ?').run(target.templatePath);
+  } finally {
+    db.close();
+  }
+}
+
+type ResetServerOptions = {
+  request?: APIRequestContext;
+  withSeed?: boolean;
+  target?: ServerTarget;
+};
+
+/** Restore only company-owned tables through SQLite; users, sessions and Account Kit records survive. */
+export async function resetServer({
+  withSeed = true,
+  target = configuredTarget,
+}: ResetServerOptions): Promise<void> {
+  if (target !== configuredTarget)
+    throw new Error('A reset must use this worker’s configured target.');
+  if (!drain) throw new Error('The worker request-drain boundary is not configured.');
+  await drain();
+  ensureDbFixtureAdministrator(target);
+  if (
+    !existsSync(target.templatePath) ||
+    realpathSync(target.templatePath) !== resolve(target.templatePath)
+  )
+    throw new Error('The disposable company template is unavailable.');
+  const db = new DatabaseSync(target.databasePath);
+  try {
+    db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000');
+    const tables = orderedCompanyTables(db);
+    db.prepare('ATTACH DATABASE ? AS fixture_template').run(target.templatePath);
     try {
-      if (withSeed) {
-        db.prepare('DELETE FROM memberships WHERE scope_id <> ?').run('a-studio');
-        db.prepare('DELETE FROM accounts WHERE id <> ?').run('a-studio');
-      } else db.exec('DELETE FROM memberships; DELETE FROM accounts');
-      if (withSeed) {
-        const admin = db
-          .prepare('SELECT id FROM users WHERE email = ?')
-          .get('admin@admin.admin') as { id: string } | undefined;
-        if (!admin) throw new Error('The disposable administrator is unavailable.');
-        const now = new Date().toISOString();
-        db.prepare(
-          `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
-           VALUES (?, ?, 'owner', 'active', ?, ?)
-           ON CONFLICT(scope_id, user_id) DO UPDATE SET role = 'owner', status = 'active', updated_at = excluded.updated_at`,
-        ).run('a-studio', admin.id, now, now);
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        for (const table of tables.toReversed()) db.exec(`DELETE FROM "${table}"`);
+        if (withSeed) {
+          for (const table of tables) {
+            if (table === 'memberships') bindFixtureOwner(db);
+            else db.exec(`INSERT INTO "${table}" SELECT * FROM fixture_template."${table}"`);
+          }
+        }
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
       }
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
+    } finally {
+      db.exec('DETACH DATABASE fixture_template');
     }
   } finally {
     db.close();
   }
 }
 
-/** Returns the server tables used by database-backed assertions. */
-export async function serverState(request: APIRequestContext): Promise<
+/** Read the real worker's company state for persistence assertions. */
+export async function serverState(
+  request: APIRequestContext,
+  target: ServerTarget = configuredTarget,
+): Promise<
   Record<
     string,
     Array<{
@@ -139,11 +226,10 @@ export async function serverState(request: APIRequestContext): Promise<
     }>
   >
 > {
-  const res = await request.get(`${API}/api/state`);
-  expect(res.ok()).toBeTruthy();
-  return res.json();
+  const response = await request.get(`${target.api}/api/state`);
+  expect(response.ok()).toBeTruthy();
+  return response.json();
 }
-
 /** Returns the named table’s rows without changing the server state.
  * @throws Error when the response omits the table; callers must not treat an omitted table as empty.
  */

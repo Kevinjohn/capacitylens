@@ -4,6 +4,7 @@ const structuralChecks = [
   'policy:turbo-graph:test',
   'policy:ports',
   'policy:ports:test',
+  'policy:e2e-workers:test',
   'policy:sonner-csp:test',
   'package:managed-release:test',
   'security:screenshot-publication',
