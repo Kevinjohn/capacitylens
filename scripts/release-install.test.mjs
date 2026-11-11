@@ -1,10 +1,21 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { lstat, mkdtemp, readFile, readlink, readdir, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readlink,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { configureCaddy, readSetupLink } from '../packaging/release/install.mjs';
 
 const release = fileURLToPath(new URL('../packaging/release/', import.meta.url));
 const installer = join(release, 'install.mjs');
@@ -14,29 +25,32 @@ const firstInstall = [
   '--owner-email',
   'diana@themyscira.example',
 ];
-const mail = [
-  '--mail-host',
-  'smtp.example.com',
-  '--mail-user',
-  'diana',
-  '--mail-password',
-  's3cr$t pw\\x',
-  '--mail-from',
-  'capacity@example.com',
-];
 
-// Settings come from flags only: the caller's environment must not leak into the install.
 function runInstaller(args) {
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !key.startsWith('CAPACITYLENS_')),
-  );
-  return spawnSync(process.execPath, [installer, ...args], { encoding: 'utf8', env, input: '' });
+  return spawnSync(process.execPath, [installer, ...args], { encoding: 'utf8', input: '' });
 }
 
 async function makeRoot(context) {
   const root = await mkdtemp(join(tmpdir(), 'capacitylens-install-test-'));
   context.after(() => rm(root, { recursive: true, force: true }));
   return root;
+}
+
+// The mail options, with the password in a file outside the staging root.
+async function makeMail(context) {
+  const directory = await makeRoot(context);
+  const passwordFile = join(directory, 'smtp-password');
+  await writeFile(passwordFile, 's3cr$t pw\\x\n');
+  return [
+    '--mail-host',
+    'smtp.example.com',
+    '--mail-user',
+    'diana',
+    '--mail-password-file',
+    passwordFile,
+    '--mail-from',
+    'capacity@example.com',
+  ];
 }
 
 const readEnv = async (root) =>
@@ -49,7 +63,7 @@ const readEnv = async (root) =>
 
 test('a first install writes the environment with secrets, the unit, the Caddy site and the release link', async (context) => {
   const root = await makeRoot(context);
-  const result = runInstaller(['--root', root, ...firstInstall, ...mail]);
+  const result = runInstaller(['--root', root, ...firstInstall, ...(await makeMail(context))]);
   assert.equal(result.status, 0, result.stderr);
 
   const env = await readEnv(root);
@@ -85,7 +99,7 @@ test('a first install writes the environment with secrets, the unit, the Caddy s
     0o700,
   );
 
-  const commands = result.stdout.split('\n').filter((line) => line.startsWith('  skipped: '));
+  const commands = result.stdout.split('\n');
   const indexOf = (text) => commands.findIndex((line) => line.includes(text));
   for (const text of [
     'useradd --system',
@@ -95,11 +109,25 @@ test('a first install writes the environment with secrets, the unit, the Caddy s
     'ace.js app:upgrade',
     'systemctl enable --now capacitylens',
     'systemctl reload caddy',
+    'wait for http://127.0.0.1:8787/health/ready',
     'ace.js account-kit:admission:bootstrap diana@themyscira.example --role=viewer',
   ])
     assert.ok(indexOf(text) >= 0, text);
-  assert.ok(indexOf('app:upgrade') < indexOf('enable --now capacitylens'));
-  assert.ok(indexOf('enable --now capacitylens') < indexOf('admission:bootstrap'));
+  // The old release stops before current moves; the service starts only after the upgrade.
+  const order = [
+    'systemctl stop capacitylens',
+    'linked /opt/capacitylens/current',
+    'ace.js app:upgrade',
+    'systemctl enable --now capacitylens',
+    'caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile',
+    'systemctl reload caddy',
+    'wait for http://127.0.0.1:8787/health/ready',
+    'admission:bootstrap',
+  ].map(indexOf);
+  assert.deepEqual(
+    order,
+    [...order].sort((a, b) => a - b),
+  );
 });
 
 test('a re-run keeps the environment and its secrets and adds the Caddy import once', async (context) => {
@@ -117,8 +145,7 @@ test('a re-run keeps the environment and its secrets and adds the Caddy import o
     ':80 {\n\tfile_server\n}\nimport /etc/caddy/capacitylens.caddy\n',
   );
   assert.match(again.stdout, /kept \/etc\/capacitylens\.env/);
-  assert.match(again.stdout, /No setup link printed/);
-  assert.doesNotMatch(again.stdout, /admission:bootstrap/);
+  assert.doesNotMatch(again.stdout, /setup link|admission:bootstrap/i);
 });
 
 test('a changed setting is refused unless --update-env, which keeps the secrets', async (context) => {
@@ -149,7 +176,48 @@ test('a changed setting is refused unless --update-env, which keeps the secrets'
   );
 });
 
+test('--update-env replaces the active assignment and keeps commented ones', async (context) => {
+  const root = await makeRoot(context);
+  await mkdir(join(root, 'etc'));
+  const env = join(root, 'etc', 'capacitylens.env');
+  await writeFile(
+    env,
+    [
+      'APP_URL=https://capacity.example.com',
+      'CAPACITYLENS_PUBLIC_URL=https://first.example.com',
+      '# CAPACITYLENS_PUBLIC_URL=https://commented.example.com',
+      'CAPACITYLENS_PUBLIC_URL=https://capacity.example.com',
+      '# CAPACITYLENS_MAIL_HOST=smtp.example.com',
+      '',
+    ].join('\n'),
+  );
+  const result = runInstaller([
+    '--root',
+    root,
+    '--update-env',
+    '--public-url',
+    'https://plan.example.com',
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    await readFile(env, 'utf8'),
+    [
+      'APP_URL=https://plan.example.com',
+      'CAPACITYLENS_PUBLIC_URL=https://first.example.com',
+      '# CAPACITYLENS_PUBLIC_URL=https://commented.example.com',
+      'CAPACITYLENS_PUBLIC_URL=https://plan.example.com',
+      '# CAPACITYLENS_MAIL_HOST=smtp.example.com',
+      '',
+    ].join('\n'),
+  );
+  assert.match(result.stdout, /Backups are not scheduled: .*CAPACITYLENS_BACKUP_DIR/);
+  assert.doesNotMatch(result.stdout, /undefined/);
+});
+
 test('refuses incomplete or unsafe input without writing anything', async (context) => {
+  const mail = await makeMail(context);
+  const quoted = join(await makeRoot(context), 'quoted-password');
+  await writeFile(quoted, "it's");
   const cases = [
     [
       ['--public-url', 'http://capacity.example.com', '--owner-email', 'diana@themyscira.example'],
@@ -166,12 +234,13 @@ test('refuses incomplete or unsafe input without writing anything', async (conte
     ],
     [['--public-url', 'https://capacity.example.com'], /first install needs --owner-email/],
     [['--owner-email', 'diana@themyscira.example'], /first install needs --public-url/],
-    [[...firstInstall, '--mail-host', 'smtp.example.com'], /also needs CAPACITYLENS_MAIL_USER/],
-    [[...firstInstall, '--mail-user', 'diana'], /CAPACITYLENS_MAIL_USER needs --mail-host/],
+    [[...firstInstall, ...mail.slice(0, 2)], /also needs --mail-user, --mail-password-file/],
+    [[...firstInstall, '--mail-user', 'diana'], /--mail-user needs --mail-host/],
     [
-      [...firstInstall, ...mail.slice(0, 4), '--mail-password', "it's", ...mail.slice(6)],
+      [...firstInstall, ...mail.slice(0, 4), '--mail-password-file', quoted, ...mail.slice(6)],
       /single quote/,
     ],
+    [[...firstInstall, '--mail-password', 'x'], /Unknown option '--mail-password'/],
     [[...firstInstall, '--proxy', 'apache'], /--proxy must be caddy or none/],
   ];
   for (const [args, message] of cases) {
@@ -183,10 +252,39 @@ test('refuses incomplete or unsafe input without writing anything', async (conte
   }
 });
 
-test('refuses to change the host without root', { skip: process.getuid?.() === 0 }, () => {
-  const result = runInstaller(firstInstall);
-  assert.equal(result.status, 2);
-  assert.match(result.stderr, /Run as root/);
+test(
+  'refuses to change the host without root',
+  { skip: process.getuid?.() === 0 },
+  async (context) => {
+    const result = runInstaller(firstInstall);
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /Run as root/);
+
+    const root = await makeRoot(context);
+    await mkdir(join(root, 'etc'));
+    await writeFile(join(root, 'etc', 'capacitylens.env'), 'APP_KEY=x\n');
+    await chmod(join(root, 'etc', 'capacitylens.env'), 0o000);
+    const unreadable = runInstaller(['--root', root, '--dry-run']);
+    assert.equal(unreadable.status, 2);
+    assert.match(
+      unreadable.stderr,
+      /^Refused: Cannot read .*capacitylens\.env\. Run with sudo\.\n$/,
+    );
+  },
+);
+
+test('refuses a staging root that is the real root and a release outside /opt/capacitylens', () => {
+  for (const root of ['', '/', '/tmp/..']) {
+    const result = runInstaller(['--root', root, ...firstInstall]);
+    assert.equal(result.status, 2, root);
+    assert.match(
+      result.stderr,
+      /--root (needs a staging directory|must be a staging directory, not \/)/,
+    );
+  }
+  const placed = runInstaller(['--dry-run', ...firstInstall]);
+  assert.equal(placed.status, 2);
+  assert.match(placed.stderr, /Unpack the release into \/opt\/capacitylens/);
 });
 
 test('a dry run writes nothing and an existing proxy gets the settings printed', async (context) => {
@@ -207,4 +305,48 @@ test('a dry run writes nothing and an existing proxy gets the settings printed',
     'capacitylens.env',
     'systemd',
   ]);
+});
+
+test('reads the setup link from the bootstrap result line', () => {
+  const url = 'https://capacity.example.com/invite/abc';
+  assert.equal(readSetupLink(`{"result":"printed","url":"${url}"}\n`), url);
+  assert.equal(readSetupLink(`notice\n{"result":"printed","url":"${url}","fault":{}}\n`), url);
+  assert.equal(readSetupLink('{"result":"printed"}\n'), null);
+  assert.equal(readSetupLink('{not json\nE_FAILED: no\n'), null);
+  assert.equal(readSetupLink(''), null);
+});
+
+function makeEffects(files, failing) {
+  const commands = [];
+  return {
+    commands,
+    read: async (path) => files.get(path) ?? null,
+    write: async (path, content) => void files.set(path, String(content)),
+    remove: async (path) => void files.delete(path),
+    run(argv) {
+      commands.push(argv.join(' '));
+      if (argv.join(' ').startsWith(failing)) throw new Error(`${failing} failed`);
+      return '';
+    },
+  };
+}
+
+test('Caddy is validated before reload, and a refused configuration is put back', async () => {
+  const stock = ':80 {\n\tfile_server\n}\n';
+  for (const failing of ['caddy validate', 'systemctl reload caddy']) {
+    const files = new Map([['/etc/caddy/Caddyfile', stock]]);
+    const effects = makeEffects(files, failing);
+    await assert.rejects(() => configureCaddy(effects, 'site {}\n'), /were restored/);
+    assert.deepEqual([...files], [['/etc/caddy/Caddyfile', stock]], failing);
+  }
+  const files = new Map([['/etc/caddy/capacitylens.caddy', 'old {}\n']]);
+  const effects = makeEffects(files, 'never');
+  await configureCaddy(effects, 'site {}\n');
+  assert.deepEqual(effects.commands, [
+    'caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile',
+    'systemctl enable --now caddy',
+    'systemctl reload caddy',
+  ]);
+  assert.equal(files.get('/etc/caddy/capacitylens.caddy'), 'site {}\n');
+  assert.equal(files.get('/etc/caddy/Caddyfile'), 'import /etc/caddy/capacitylens.caddy\n');
 });

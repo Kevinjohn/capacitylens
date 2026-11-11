@@ -5,9 +5,10 @@
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, realpath, rename, symlink, writeFile, rm } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
+import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -20,7 +21,8 @@ Installs this release, or upgrades to it, and prints the first setup link.
   --mail-host <host>      SMTP host; leave out to set up mail later
   --mail-port <port>      SMTP port (default 587)
   --mail-user <user>      SMTP user name
-  --mail-password <pw>    SMTP password
+  --mail-password-file <path>
+                          File holding the SMTP password (asked, hidden, on a terminal)
   --mail-from <email>     Sender address
   --proxy caddy|none      Write a same-machine Caddy site (default) or print the proxy settings
   --update-env            Change the given settings in an existing environment file
@@ -28,8 +30,7 @@ Installs this release, or upgrades to it, and prints the first setup link.
   --dry-run               Print what would happen without changing anything
   --help                  Show this help
 
-Each setting can also come from its environment variable: CAPACITYLENS_PUBLIC_URL,
-CAPACITYLENS_OWNER_EMAIL and CAPACITYLENS_MAIL_HOST, _PORT, _USER, _PASSWORD and _FROM.`;
+Unpack the release into /opt/capacitylens so the service user can read it.`;
 
 const paths = {
   env: '/etc/capacitylens.env',
@@ -40,10 +41,18 @@ const paths = {
   caddyfile: '/etc/caddy/Caddyfile',
   caddySite: '/etc/caddy/capacitylens.caddy',
 };
+const releaseParent = '/opt/capacitylens';
 const user = 'capacitylens';
-const mailKeys = ['HOST', 'PORT', 'USER', 'PASSWORD', 'FROM'].map(
-  (part) => `CAPACITYLENS_MAIL_${part}`,
-);
+const readyTimeoutMs = 60_000;
+// Each mail setting and the option that supplies it.
+const mailOptions = {
+  CAPACITYLENS_MAIL_HOST: '--mail-host',
+  CAPACITYLENS_MAIL_PORT: '--mail-port',
+  CAPACITYLENS_MAIL_USER: '--mail-user',
+  CAPACITYLENS_MAIL_PASSWORD: '--mail-password-file',
+  CAPACITYLENS_MAIL_FROM: '--mail-from',
+};
+const mailKeys = Object.keys(mailOptions);
 
 class InstallRefusal extends Error {}
 
@@ -67,18 +76,23 @@ function formatValue(key, value) {
   return `'${value}'`;
 }
 
-/** Fill the shipped example: listed keys get their value, and a commented-out listed key is enabled. */
-function buildEnvironmentFile(example, values) {
-  const pending = new Map(Object.entries(values));
-  const lines = example.split('\n').map((line) => {
-    const key = /^(?:# )?([A-Z][A-Z0-9_]*)=/.exec(line)?.[1];
-    if (!key || !pending.has(key)) return line;
-    const value = pending.get(key);
-    pending.delete(key);
-    return `${key}=${formatValue(key, value)}`;
-  });
-  const extra = [...pending].map(([key, value]) => `${key}=${formatValue(key, value)}`);
-  return [...lines.slice(0, lines.at(-1) === '' ? -1 : undefined), ...extra, ''].join('\n');
+/**
+ * Set each value in an environment file. The last active assignment wins, as in systemd, so that
+ * one is replaced; a commented-out `# KEY=` line is enabled only when no active one exists.
+ */
+function buildEnvironmentFile(text, values) {
+  const lines = text.split('\n');
+  if (lines.at(-1) === '') lines.pop();
+  const extra = [];
+  for (const [key, value] of Object.entries(values)) {
+    const line = `${key}=${formatValue(key, value)}`;
+    const active = lines.findLastIndex((existing) => existing.trim().startsWith(`${key}=`));
+    const index =
+      active >= 0 ? active : lines.findIndex((existing) => existing.startsWith(`# ${key}=`));
+    if (index >= 0) lines[index] = line;
+    else extra.push(line);
+  }
+  return [...lines, ...extra, ''].join('\n');
 }
 
 function parsePublicUrl(value) {
@@ -105,13 +119,18 @@ function requireEmail(value, label) {
 function requireMailSettings(mail) {
   if (!mail.CAPACITYLENS_MAIL_HOST) {
     const stray = mailKeys.filter((key) => key !== 'CAPACITYLENS_MAIL_PORT' && mail[key]);
-    if (stray.length > 0) throw new InstallRefusal(`${stray.join(', ')} needs --mail-host.`);
+    if (stray.length > 0)
+      throw new InstallRefusal(
+        `${stray.map((key) => mailOptions[key]).join(', ')} needs --mail-host.`,
+      );
     return {};
   }
   const settings = { ...mail, CAPACITYLENS_MAIL_PORT: mail.CAPACITYLENS_MAIL_PORT || '587' };
   const missing = mailKeys.filter((key) => !settings[key]);
   if (missing.length > 0)
-    throw new InstallRefusal(`Mail delivery also needs ${missing.join(', ')}.`);
+    throw new InstallRefusal(
+      `Mail delivery also needs ${missing.map((key) => mailOptions[key]).join(', ')}.`,
+    );
   const port = Number(settings.CAPACITYLENS_MAIL_PORT);
   if (!/^\d+$/.test(settings.CAPACITYLENS_MAIL_PORT) || port < 1 || port > 65535)
     throw new InstallRefusal('The mail port must be a number from 1 to 65535.');
@@ -143,15 +162,22 @@ function createPrompter() {
   };
 }
 
-/** Resolve each setting from its flag, then its environment variable, then a prompt on a terminal. */
+/** Resolve each setting from its option, then from a prompt on a terminal. */
 async function readSettings(flags, { needsAnswers }) {
-  const given = (flag, variable) => flags[flag] ?? process.env[variable] ?? '';
+  const passwordFile = flags['mail-password-file'];
   const settings = {
-    publicUrl: given('public-url', 'CAPACITYLENS_PUBLIC_URL'),
-    ownerEmail: given('owner-email', 'CAPACITYLENS_OWNER_EMAIL'),
-    mail: Object.fromEntries(
-      mailKeys.map((key) => [key, given(`mail-${key.split('_').at(-1).toLowerCase()}`, key)]),
-    ),
+    publicUrl: flags['public-url'] ?? '',
+    ownerEmail: flags['owner-email'] ?? '',
+    mail: {
+      CAPACITYLENS_MAIL_HOST: flags['mail-host'] ?? '',
+      CAPACITYLENS_MAIL_PORT: flags['mail-port'] ?? '',
+      CAPACITYLENS_MAIL_USER: flags['mail-user'] ?? '',
+      // Read as given: the file belongs to the operator, not to the staging root.
+      CAPACITYLENS_MAIL_PASSWORD: passwordFile
+        ? (await readFile(passwordFile, 'utf8')).replace(/\r?\n$/, '')
+        : '',
+      CAPACITYLENS_MAIL_FROM: flags['mail-from'] ?? '',
+    },
   };
   const prompter = needsAnswers ? createPrompter() : null;
   if (prompter) {
@@ -184,6 +210,8 @@ async function readOptionalFile(path) {
     return await readFile(path, 'utf8');
   } catch (error) {
     if (error?.code === 'ENOENT') return null;
+    if (error?.code === 'EACCES')
+      throw new InstallRefusal(`Cannot read ${path}. Run with sudo.`, { cause: error });
     throw error;
   }
 }
@@ -226,6 +254,10 @@ function createEffects({ root, dryRun }) {
       await rename(temporary, at(path));
       show(`  wrote ${path}`);
     },
+    async remove(path) {
+      if (dryRun) return show(`  would remove ${path}`);
+      await rm(at(path), { force: true });
+    },
     async directory(path, mode) {
       if (dryRun) return show(`  would create ${path}`);
       await mkdir(at(path), { recursive: true, mode });
@@ -249,26 +281,89 @@ function createEffects({ root, dryRun }) {
         stdio: ['inherit', capture ? 'pipe' : 'inherit', 'inherit'],
       });
       if (result.error) throw new Error(`${argv[0]} could not start: ${result.error.message}`);
-      if (result.status !== 0)
-        throw new Error(`${argv.slice(0, 3).join(' ')} failed with status ${result.status}.`);
+      if (result.status !== 0) {
+        const failure = new Error(
+          `${argv.slice(0, 3).join(' ')} failed with status ${result.status}.`,
+        );
+        // A captured command may have printed something the caller must still show.
+        failure.stdout = result.stdout ?? '';
+        throw failure;
+      }
       return result.stdout ?? '';
+    },
+    async waitUntilReady(url) {
+      if (dryRun || root !== '/') return show(`  skipped: wait for ${url}`);
+      const deadline = Date.now() + readyTimeoutMs;
+      let last = 'no response';
+      while (Date.now() < deadline) {
+        try {
+          const response = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+          if (response.ok) return;
+          last = `status ${response.status}`;
+        } catch (error) {
+          last = error.message;
+        }
+        await delay(1_000);
+      }
+      throw new Error(
+        `The service was not ready at ${url} after ${readyTimeoutMs / 1000} seconds (${last}). ` +
+          'Check: sudo journalctl -u capacitylens',
+      );
     },
     simulated: dryRun || root !== '/',
   };
 }
 
-function printSetupLink(output, ownerEmail) {
-  const line = output.trim().split('\n').at(-1) ?? '';
-  let url;
-  try {
-    url = JSON.parse(line).url;
-  } catch (error) {
-    // Show the command's own output rather than lose a link that was issued.
-    console.log(output);
-    throw new Error('The bootstrap output was not the expected JSON line.', { cause: error });
+/** Read the setup link from the bootstrap command's JSON result line, or null when it has none. */
+export function readSetupLink(output) {
+  for (const line of output.trim().split('\n').reverse()) {
+    if (!line.startsWith('{')) continue;
+    let result;
+    try {
+      result = JSON.parse(line);
+    } catch {
+      // Not the result line; the caller shows the raw output when no link is found.
+      continue;
+    }
+    if (typeof result?.url === 'string') return result.url;
   }
-  if (!url) throw new Error('The bootstrap command printed no setup link.');
-  console.log(`\nSetup link for ${ownerEmail}. It works once; send it privately:\n\n  ${url}\n`);
+  return null;
+}
+
+/**
+ * Write the Caddy site and its import, then validate and reload Caddy. On any failure both files
+ * are put back as they were before the error is raised.
+ * @throws Error when validation or the reload fails.
+ */
+export async function configureCaddy(effects, site) {
+  const previous = {
+    [paths.caddySite]: await effects.read(paths.caddySite),
+    [paths.caddyfile]: await effects.read(paths.caddyfile),
+  };
+  const caddyfile = previous[paths.caddyfile] ?? '';
+  const importLine = `import ${paths.caddySite}`;
+  await effects.write(paths.caddySite, site, 0o644);
+  if (!caddyfile.split('\n').includes(importLine))
+    await effects.write(
+      paths.caddyfile,
+      `${caddyfile}${caddyfile && !caddyfile.endsWith('\n') ? '\n' : ''}${importLine}\n`,
+      0o644,
+    );
+  try {
+    effects.run(['caddy', 'validate', '--config', paths.caddyfile, '--adapter', 'caddyfile']);
+    effects.run(['systemctl', 'enable', '--now', 'caddy']);
+    effects.run(['systemctl', 'reload', 'caddy']);
+  } catch (error) {
+    for (const [path, content] of Object.entries(previous)) {
+      if (content === null) await effects.remove(path);
+      else await effects.write(path, content, 0o644);
+    }
+    throw new Error(
+      `Caddy refused the new configuration, so ${paths.caddyfile} and ${paths.caddySite} were ` +
+        'restored. CapacityLens itself is running; fix Caddy and run the command again.',
+      { cause: error },
+    );
+  }
 }
 
 /**
@@ -284,7 +379,7 @@ export async function install(argv) {
       'mail-host': { type: 'string' },
       'mail-port': { type: 'string' },
       'mail-user': { type: 'string' },
-      'mail-password': { type: 'string' },
+      'mail-password-file': { type: 'string' },
       'mail-from': { type: 'string' },
       proxy: { type: 'string', default: 'caddy' },
       'update-env': { type: 'boolean', default: false },
@@ -296,14 +391,17 @@ export async function install(argv) {
   if (flags.help) return console.log(usage);
   if (!['caddy', 'none'].includes(flags.proxy))
     throw new InstallRefusal('--proxy must be caddy or none.');
-  const root = flags.root ?? '/';
+  const root = flags.root === undefined ? '/' : await resolveStagingRoot(flags.root);
   const effects = createEffects({ root, dryRun: flags['dry-run'] });
   if (!effects.simulated && process.getuid?.() !== 0)
     throw new InstallRefusal('Run as root: sudo node install.mjs …, or preview with --dry-run.');
+  const release = dirname(await realpath(fileURLToPath(import.meta.url)));
+  // The service user must be able to read the release; /opt/capacitylens is world-readable.
+  if (root === '/' && dirname(release) !== releaseParent)
+    throw new InstallRefusal(`Unpack the release into ${releaseParent}, not ${dirname(release)}.`);
   if (!effects.simulated && flags.proxy === 'caddy' && spawnSync('caddy', ['version']).error)
     throw new InstallRefusal('Caddy is not installed. Install it first, or use --proxy none.');
 
-  const release = dirname(await realpath(fileURLToPath(import.meta.url)));
   const existingText = await effects.read(paths.env);
   const existing = existingText === null ? null : parseEnvironmentFile(existingText);
   const settings = await readSettings(flags, { needsAnswers: existing === null });
@@ -362,7 +460,7 @@ export async function install(argv) {
   await effects.write(paths.unit, await readFile(join(release, 'capacitylens.service')), 0o644);
   effects.run(['systemctl', 'daemon-reload']);
   effects.run(['systemctl', 'stop', 'capacitylens']);
-  await effects.directory(dirname(paths.current), 0o755);
+  await effects.directory(releaseParent, 0o755);
   await effects.link(paths.current, release);
   // Backs up an existing database before migrating; on failure the service stays stopped.
   effects.run(serviceCommand('app:upgrade'));
@@ -371,36 +469,59 @@ export async function install(argv) {
   const site = (await readFile(join(release, 'Caddyfile.example'), 'utf8'))
     .replaceAll('capacity.example.com', publicUrl.host)
     .replaceAll('127.0.0.1:8787', upstream);
-  if (flags.proxy === 'caddy') {
-    await effects.write(paths.caddySite, site, 0o644);
-    const caddyfile = (await effects.read(paths.caddyfile)) ?? '';
-    const importLine = `import ${paths.caddySite}`;
-    if (!caddyfile.split('\n').includes(importLine))
-      await effects.write(
-        paths.caddyfile,
-        `${caddyfile}${caddyfile && !caddyfile.endsWith('\n') ? '\n' : ''}${importLine}\n`,
-        0o644,
-      );
-    effects.run(['systemctl', 'enable', '--now', 'caddy']);
-    effects.run(['systemctl', 'reload', 'caddy']);
-  } else {
+  if (flags.proxy === 'caddy') await configureCaddy(effects, site);
+  else {
     console.log(
       `\nPoint your HTTPS proxy for ${publicUrl.host} at http://${upstream}. The Caddy equivalent:\n\n` +
         `${site}\nFor nginx, use ${paths.current}/capacitylens.nginx.conf.`,
     );
   }
 
+  console.log(`\nCapacityLens runs as the ${user} service at ${publicUrl.origin}.`);
   console.log(
-    `\nCapacityLens runs as the ${user} service at ${publicUrl.origin}.` +
-      `\nVerified backups are written at startup and every 24 hours to ${environment.CAPACITYLENS_BACKUP_DIR}.`,
+    environment.CAPACITYLENS_BACKUP_DIR
+      ? `Verified backups are written at startup and every 24 hours to ${environment.CAPACITYLENS_BACKUP_DIR}.`
+      : `Backups are not scheduled: ${paths.env} does not set CAPACITYLENS_BACKUP_DIR. Add ` +
+          `CAPACITYLENS_BACKUP_DIR=${paths.backups} with sudoedit, then run: sudo systemctl restart capacitylens`,
   );
-  if (!settings.ownerEmail)
-    return console.log('No setup link printed. Pass --owner-email to print one.');
-  const output = effects.run(
-    serviceCommand('account-kit:admission:bootstrap', settings.ownerEmail, '--role=viewer'),
-    { capture: true },
-  );
-  if (!effects.simulated) printSetupLink(output, settings.ownerEmail);
+  // An upgrade prints no link unless one is asked for.
+  if (!settings.ownerEmail) return;
+  await effects.waitUntilReady(`http://${upstream}/health/ready`);
+  let output;
+  let failure = null;
+  try {
+    output = effects.run(
+      serviceCommand('account-kit:admission:bootstrap', settings.ownerEmail, '--role=viewer'),
+      { capture: true },
+    );
+  } catch (error) {
+    output = error.stdout ?? '';
+    failure = error;
+  }
+  if (!effects.simulated) {
+    const url = readSetupLink(output);
+    // A link that was issued is shown even when a later step of the command failed.
+    if (url)
+      console.log(
+        `\nSetup link for ${settings.ownerEmail}. It works once; send it privately:\n\n  ${url}\n`,
+      );
+    else console.log(output);
+    if (!url && !failure) throw new Error('The bootstrap command printed no setup link.');
+  }
+  if (failure) throw failure;
+}
+
+/** Resolve a staging root, refusing one that is empty or names the real root. */
+async function resolveStagingRoot(value) {
+  if (!value) throw new InstallRefusal('--root needs a staging directory.');
+  let root = resolve(value);
+  try {
+    root = await realpath(root);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  if (root === '/') throw new InstallRefusal('--root must be a staging directory, not /.');
+  return root;
 }
 
 if (process.argv[1] && (await realpath(process.argv[1])) === fileURLToPath(import.meta.url)) {
