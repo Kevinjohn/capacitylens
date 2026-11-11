@@ -165,7 +165,7 @@ export default class CredentialController {
       return ctx.response.badRequest({ error: 'Invalid credential request.' });
     }
     const input = await accountInput(ctx);
-    const actorId = await passwordConfirmations.withConfirmation(
+    await passwordConfirmations.withConfirmation(
       input,
       {
         confirmationId: body.confirmationId,
@@ -173,12 +173,12 @@ export default class CredentialController {
         scope: String(input.userId),
         intent: {},
       },
-      async ({ account }) => account.id
+      async () => {}
     );
     let outcome: 'deleted' | 'committed' = 'deleted';
     try {
       await accountKit.accountData.delete({
-        actorId,
+        actorId: input.userId,
         currentPassword: body.currentPassword,
       });
     } catch (error) {

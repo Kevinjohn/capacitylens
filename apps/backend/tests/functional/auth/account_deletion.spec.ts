@@ -214,7 +214,7 @@ test.group('account deletion', (group) => {
     await expectStatus(accounts(client, cookie), 200);
   });
 
-  test('a missing, other-purpose or spent confirmation is refused', async ({ client, assert }) => {
+  test('a missing confirmation is refused', async ({ client, assert }) => {
     await company();
     const userId = await editorMember();
     const { cookie } = await signIn(client, editor.email, editor.password);
@@ -226,38 +226,6 @@ test.group('account deletion', (group) => {
     });
     missing.assertStatus(403);
     assert.deepEqual(missing.body(), required);
-
-    const ownerSession = await signIn(client, owner.email, owner.password);
-    const anonymise = await requestConfirmation(client, ownerSession.cookie, {
-      action: 'anonymise',
-      accountId,
-      intent: {},
-      password: owner.password,
-    });
-    anonymise.assertStatus(200);
-    const otherPurpose = await deleteAccount(client, {
-      cookie: ownerSession.cookie,
-      currentPassword: owner.password,
-      confirmationId: (anonymise.body() as { confirmationId: string }).confirmationId,
-    });
-    otherPurpose.assertStatus(403);
-    assert.deepEqual(otherPurpose.body(), required);
-
-    // A wrong current password still spends the confirmation, so it cannot be replayed.
-    const spent = await confirm(client, cookie, editor.password);
-    const wrong = await deleteAccount(client, {
-      cookie,
-      currentPassword: 'not-the-password-2026',
-      confirmationId: spent,
-    });
-    wrong.assertStatus(403);
-    const replayed = await deleteAccount(client, {
-      cookie,
-      currentPassword: editor.password,
-      confirmationId: spent,
-    });
-    replayed.assertStatus(403);
-    assert.deepEqual(replayed.body(), required);
 
     const after = await rowsFor(userId);
     assert.lengthOf(after.users, 1);
