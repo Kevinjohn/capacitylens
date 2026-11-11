@@ -103,15 +103,8 @@ export const authClient = {
     post('api.auth.reset-password', input),
   /** Ends every sign-in, this one included, once the password changes. */
   changePassword: (input: PasswordChangeInput) => post('api.auth.change-password', input),
-  /** Issues a password confirmation for deleting the signed-in identity. */
-  confirmAccountDeletion: (password: string) =>
-    post('api.auth.password-confirmation', { action: 'delete-account', intent: {}, password }),
-  /**
-   * Deletes the signed-in identity, spending its password confirmation; Account Kit also checks the
-   * current password. The server ends the sign-in.
-   */
-  deleteAccount: (input: { currentPassword: string; confirmationId: string }) =>
-    post('api.auth.delete-account', input),
+  /** Deletes the signed-in identity after re-entering its password; the server ends the sign-in. */
+  deleteAccount: (input: { currentPassword: string }) => post('api.auth.delete-account', input),
   sendEmailVerification: () => post('api.auth.verification.send', {}),
   inspectEmailVerification: (token: string) => post('api.auth.verification.inspect', { token }),
   /** Confirms the address and sets the password the person chose. */

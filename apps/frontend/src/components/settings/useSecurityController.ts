@@ -130,17 +130,7 @@ function useAccountDeletion({ fail, clear, setMessage, setBusy }: PasswordChange
     const requestGeneration = ++generation.current;
     setBusy(true);
     try {
-      const confirmation = await authClient.confirmAccountDeletion(currentPassword);
-      if (!confirmation.data) {
-        if (requestGeneration === generation.current) {
-          fail('current', confirmation.error?.message ?? m.reauth_failed());
-        }
-        return;
-      }
-      const result = await authClient.deleteAccount({
-        currentPassword,
-        confirmationId: confirmation.data.confirmationId,
-      });
+      const result = await authClient.deleteAccount({ currentPassword });
       // A committed deletion whose follow-up failed still removed the account and ended the sign-in.
       if (result.error && result.error.code !== 'ACCOUNT_DELETION_COMMITTED') {
         if (requestGeneration !== generation.current) return;

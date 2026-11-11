@@ -128,9 +128,9 @@ This is the short, present-tense record of decisions that constrain future work.
   action-specific proof. Client, project and activity catalogue fields, the company, Owner and
   memberships remain unchanged. There is no company
   deletion, soft-delete or purge action.
-- A person deletes their own account from **Account** with their current password. The deletion
-  spends a `delete-account` password confirmation scoped to the person, then Account Kit, whose own
-  password check cannot be turned off, removes the identity, sessions and tokens; in the same transaction CapacityLens removes every
+- A person deletes their own account from **Account** with their current password. The password
+  is checked through a `delete-account` password confirmation scoped to the person, then Account
+  Kit removes the identity, sessions and tokens; in the same transaction CapacityLens removes every
   membership through the Access Control package and the member/person link. An Owner must transfer
   ownership first. Invitations the person sent stay acceptable with their inviter cleared. The person
   resource and audit rows keep the former user id as history.
@@ -274,10 +274,10 @@ boundary. The forward-only migration replaces outstanding legacy proofs without 
 `scope -> accounts.id ON DELETE CASCADE`. Credential writes remain Account Kit-owned. Global pruning
 runs after successful issuance outside every transaction and cannot fail the issuance response.
 
-Account deletion is the exception (11 November 2026, #1792): its `delete-account` confirmation is
-scoped to the person's own id, needs no company authority, and is spent just before Account Kit's
-own deletion transaction, so a refused deletion needs a new confirmation. The Kit's own
-current-password check stays because it cannot be turned off. The `scope -> accounts.id` foreign
+Account deletion is the exception (11 November 2026, #1792): the deletion request itself issues
+and spends its `delete-account` confirmation, scoped to the person's own id with no company
+authority, just before Account Kit's own deletion transaction. The Kit's own current-password check
+stays because it cannot be turned off. The `scope -> accounts.id` foreign
 key is dropped for this; confirmations last five minutes and are pruned globally.
 
 The product calls these password confirmations, not action proofs (9 November 2026): the endpoint is

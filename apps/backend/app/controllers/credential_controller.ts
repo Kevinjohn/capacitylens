@@ -151,28 +151,24 @@ export default class CredentialController {
 
   /**
    * Deletes the signed-in identity with its memberships and member links, then ends this sign-in.
-   * A `delete-account` password confirmation is spent first, so a deletion that then fails needs a
-   * new one; the Kit still checks the current password, which it cannot be configured to skip. An
-   * Owner transfers ownership first.
+   * The password is checked by issuing and spending a `delete-account` password confirmation, which
+   * gives deletion the same wrong-password limit and refusal as other sensitive actions. An Owner
+   * transfers ownership first.
    */
   async deleteAccount(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (
-      !fields(body, ['currentPassword', 'confirmationId']) ||
-      typeof body.currentPassword !== 'string' ||
-      typeof body.confirmationId !== 'string'
-    ) {
+    if (!fields(body, ['currentPassword']) || typeof body.currentPassword !== 'string') {
       return ctx.response.badRequest({ error: 'Invalid credential request.' });
     }
     const input = await accountInput(ctx);
+    const request = { action: 'delete-account', scope: String(input.userId), intent: {} };
+    const { confirmationId } = await passwordConfirmations.confirmPassword(input, {
+      ...request,
+      password: body.currentPassword,
+    });
     await passwordConfirmations.withConfirmation(
       input,
-      {
-        confirmationId: body.confirmationId,
-        action: 'delete-account',
-        scope: String(input.userId),
-        intent: {},
-      },
+      { ...request, confirmationId },
       async () => {}
     );
     let outcome: 'deleted' | 'committed' = 'deleted';

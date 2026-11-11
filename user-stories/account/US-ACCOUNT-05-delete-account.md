@@ -16,7 +16,7 @@ As a signed-in person, I want to delete my account so that my sign-in and compan
 
 - The dialog explains that deletion cannot be undone and removes the sign-in and company memberships; the person Resource remains on past schedules, while audit history retains the former user ID.
 - **Delete account** submits the form; **Cancel** closes the dialog and clears its field. An Owner must transfer ownership before deletion. On success, the browser returns to sign-in.
-- The password first gets a single-use `delete-account` password confirmation, as ownership transfer, import and company anonymisation do. A wrong password shows **Incorrect password.** against the field and deletes nothing. The deletion spends the confirmation even when it is then refused, so a retry confirms again.
+- The password is checked through a single-use `delete-account` password confirmation, with the same wrong-password limit as ownership transfer, import and company anonymisation. A wrong password shows **Incorrect password.** against the field and deletes nothing.
 
 ## User flow
 
@@ -35,16 +35,14 @@ flowchart TD
 ```mermaid
 flowchart TD
   view["AccountView opens DeleteAccountDialog"] --> submit["useAccountDeletion.submit sends current password"]
-  submit --> confirm["authClient.confirmAccountDeletion"]
-  confirm --> issue["PasswordConfirmationsController issues a delete-account confirmation"]
-  issue --> refused["Wrong password or throttled: refusal shown on the field"]
-  issue --> client["authClient.deleteAccount with confirmationId"]
+  submit --> client["authClient.deleteAccount"]
   client --> route["CredentialController.deleteAccount"]
-  route --> spend["Package withConfirmation spends the confirmation"]
-  spend --> required["Missing or invalid confirmation: PASSWORD_CONFIRMATION_REQUIRED"]
+  route --> issue["Package confirmPassword issues a delete-account confirmation"]
+  issue --> refused["Wrong password or throttled: refusal shown on the field"]
+  issue --> spend["Package withConfirmation spends it"]
   spend --> kit["Account Kit accountData.delete checks the current password"]
   kit --> owner["Owner protection returns LAST_OWNER conflict"]
   kit --> session["Successful deletion terminates session; browser reloads"]
 ```
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityController.ts](../../apps/frontend/src/components/settings/useSecurityController.ts), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_confirmations_controller.ts](../../apps/backend/app/controllers/password_confirmations_controller.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)
+**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityController.ts](../../apps/frontend/src/components/settings/useSecurityController.ts), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)
