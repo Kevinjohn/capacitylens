@@ -921,15 +921,17 @@ test('the first committed child document must contain its own installer', async 
 
 test('an identified attachment waiting for READY retains its superseded failure', async ({
   browser,
-}) => {
+}, testInfo) => {
   const observer = createBrowserErrorObserver();
   const context = await browser.newContext();
   const target = 'http://frame-control.invalid/identified-target';
   const navigationCaptured = deferred<void>();
-  const readyCaptured = deferred<void>();
+  const targetReadyCaptured = deferred<void>();
   const readFinished = deferred<void>();
-  let releaseNavigation = () => {};
-  let releaseReady = () => {};
+  const pendingNavigations: Array<{ url: string; deliver: () => void }> = [];
+  const pendingReady: Array<{ url: string; nonce: string; deliver: () => void }> = [];
+  const deliveryTrace: Array<{ event: string; url: string; nonce?: string }> = [];
+  let bufferChildReady = false;
   context.on('page', (page) => {
     const listen = page.on.bind(page) as unknown as (
       event: string,
@@ -939,24 +941,24 @@ test('an identified attachment waiting for READY retains its superseded failure'
       if (event !== 'framenavigated') return listen(event, listener);
       return listen(event, (value) => {
         const frame = value as Frame;
-        if (frame.url() !== target) {
+        if (frame === page.mainFrame()) {
           listener(frame);
           return;
         }
-        releaseNavigation = () => {
-          releaseNavigation = () => {};
-          listener(frame);
-        };
-        navigationCaptured.resolve();
+        const url = frame.url();
+        deliveryTrace.push({ event: 'navigation-buffered', url });
+        pendingNavigations.push({ url, deliver: () => listener(frame) });
+        if (url === target) navigationCaptured.resolve();
       });
     }) as Page['on'];
     page.on('frameattached', (frame) => {
       const evaluate = frame.evaluate.bind(frame);
-      frame.evaluate = ((...args: Parameters<Frame['evaluate']>) =>
-        evaluate(...args).then((state) => {
-          readFinished.resolve();
-          return state;
-        })) as Frame['evaluate'];
+      frame.evaluate = (async (...args: Parameters<Frame['evaluate']>) => {
+        await navigationCaptured.promise;
+        const state = await evaluate(...args);
+        readFinished.resolve();
+        return state;
+      }) as Frame['evaluate'];
     });
   });
   const listen = context.on.bind(context) as unknown as (
@@ -968,17 +970,20 @@ test('an identified attachment waiting for READY retains its superseded failure'
     return listen(event, (value) => {
       const message = value as ConsoleMessage;
       const text = message.text();
-      if (text.startsWith(observerMessagePrefix)) {
+      if (bufferChildReady && text.startsWith(observerMessagePrefix)) {
         const envelope = JSON.parse(text.slice(observerMessagePrefix.length)) as {
           kind: string;
           url: string;
+          nonce: string;
         };
-        if (envelope.kind === 'ready' && envelope.url === target) {
-          releaseReady = () => {
-            releaseReady = () => {};
-            listener(message);
-          };
-          readyCaptured.resolve();
+        if (envelope.kind === 'ready') {
+          deliveryTrace.push({ event: 'ready-buffered', url: envelope.url, nonce: envelope.nonce });
+          pendingReady.push({
+            url: envelope.url,
+            nonce: envelope.nonce,
+            deliver: () => listener(message),
+          });
+          if (envelope.url === target) targetReadyCaptured.resolve();
           return;
         }
       }
@@ -992,26 +997,61 @@ test('an identified attachment waiting for READY retains its superseded failure'
     await context.route(target, (route) =>
       route.fulfill({ contentType: 'text/html', body: emptyDocument }),
     );
+    bufferChildReady = true;
     await page.evaluate((src) => {
       const frame = document.createElement('iframe');
       frame.src = src;
       document.body.append(frame);
     }, target);
-    await Promise.all([navigationCaptured.promise, readyCaptured.promise, readFinished.promise]);
+    await Promise.all([
+      navigationCaptured.promise,
+      targetReadyCaptured.promise,
+      readFinished.promise,
+    ]);
     await page.evaluate(() => true);
-    expect(observer.lifecycleDiagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          event: 'state-read-accepted',
-          origin: 'attached',
-          observedStatus: 'ready',
-          observedNonce: expect.any(String),
-        }),
-      ]),
+    const targetReadyIndex = pendingReady.findIndex((entry) => entry.url === target);
+    expect(targetReadyIndex).toBeGreaterThanOrEqual(0);
+    const targetReady = pendingReady[targetReadyIndex]!;
+    const accepted = observer.lifecycleDiagnostics.find(
+      (entry) =>
+        entry.event === 'state-read-accepted' &&
+        entry.origin === 'attached' &&
+        entry.observedNonce === targetReady.nonce,
     );
-    releaseNavigation();
-    releaseReady();
+    expect(accepted).toMatchObject({ observedStatus: 'ready' });
+    expect(
+      observer.lifecycleDiagnostics.filter(
+        (entry) => entry.event === 'verified' && entry.generation === accepted!.generation,
+      ),
+    ).toEqual([]);
+    expect(observer.errors).toEqual([]);
+    const firstNavigation = pendingNavigations.shift();
+    expect(firstNavigation).toBeDefined();
+    deliveryTrace.push({ event: 'navigation-delivered', url: firstNavigation!.url });
+    firstNavigation!.deliver();
+    expect(coverageMessages(observer)).toEqual([
+      {
+        kind: 'coverage-failure',
+        message: 'BROWSER_ERROR_OBSERVER_COVERAGE:document-superseded-before-ready',
+        reason: undefined,
+      },
+    ]);
+    pendingReady.splice(targetReadyIndex, 1);
+    deliveryTrace.push({
+      event: 'ready-delivered',
+      url: targetReady.url,
+      nonce: targetReady.nonce,
+    });
+    targetReady.deliver();
     await observer.waitForPage(page);
+    while (pendingNavigations.length) {
+      const navigation = pendingNavigations.shift()!;
+      deliveryTrace.push({ event: 'navigation-delivered', url: navigation.url });
+      navigation.deliver();
+      await observer.waitForPage(page);
+    }
+    for (const ready of pendingReady.splice(0)) ready.deliver();
+    await observer.assertContextReady(context);
     expect(coverageMessages(observer)).toEqual([
       {
         kind: 'coverage-failure',
@@ -1020,9 +1060,15 @@ test('an identified attachment waiting for READY retains its superseded failure'
       },
     ]);
   } finally {
-    releaseNavigation();
-    releaseReady();
+    for (const ready of pendingReady.splice(0)) ready.deliver();
+    for (const navigation of pendingNavigations.splice(0)) navigation.deliver();
     await observer.dispose();
+    await testInfo.attach('identified-attachment-delivery-trace', {
+      body: Buffer.from(
+        JSON.stringify({ deliveryTrace, lifecycle: observer.lifecycleDiagnostics }, null, 2),
+      ),
+      contentType: 'application/json',
+    });
   }
 });
 
