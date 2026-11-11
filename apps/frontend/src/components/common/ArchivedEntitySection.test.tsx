@@ -1,3 +1,4 @@
+import { replaceFixtureData } from '@/test/fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -23,7 +24,7 @@ beforeEach(async () => {
     avatarUrl: 'https://images.example/diana.png',
     archivedAt: '2026-01-01T00:00:00.000Z',
   });
-  useStore.getState().replaceAll(makeAppData({ resources: [resource] }));
+  replaceFixtureData(makeAppData({ resources: [resource] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
 });
 afterEach(() => vi.unstubAllEnvs());

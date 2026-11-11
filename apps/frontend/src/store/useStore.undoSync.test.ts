@@ -1,3 +1,4 @@
+import { replaceFixtureData } from '@/test/fixtures';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useStore } from './useStore';
@@ -16,7 +17,7 @@ beforeEach(() => resetStoreWithAccount());
 
 function registerUndoSyncPart1(): void {
   it('re-stamps an undo whose content is identical but stored revision changed', async () => {
-    useStore.getState().replaceAll(
+    replaceFixtureData(
       makeAppData({
         clients: [
           { ...NULLABLE_FIELDS.clients, ...meta, id: 'c1', name: 'Client', color: '#111111' },
@@ -46,7 +47,7 @@ function registerUndoSyncPart1(): void {
       name: `Client ${index}`,
       color: '#111111',
     }));
-    useStore.getState().replaceAll(makeAppData({ clients }));
+    replaceFixtureData(makeAppData({ clients }));
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
     await useStore.getState().refreshPlanning();
     await useStore.getState().addClient({ name: 'Last client', color: '#222222' });
@@ -64,7 +65,7 @@ function registerUndoSyncPart1(): void {
 
 function registerUndoSyncPart2(): void {
   it('restores an activity phaseId after a phase delete', async () => {
-    useStore.getState().replaceAll(
+    replaceFixtureData(
       makeAppData({
         clients: [
           { ...NULLABLE_FIELDS.clients, ...meta, id: 'c1', name: 'Client', color: '#111111' },
@@ -104,7 +105,7 @@ function registerUndoSyncPart2(): void {
   });
 
   it('restores a resource disciplineId after a discipline delete', async () => {
-    useStore.getState().replaceAll(
+    replaceFixtureData(
       makeAppData({
         disciplines: [
           { ...NULLABLE_FIELDS.disciplines, ...meta, id: 'd1', name: 'Design', sortOrder: 0 },

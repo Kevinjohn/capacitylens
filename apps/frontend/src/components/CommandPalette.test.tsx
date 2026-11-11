@@ -1,3 +1,4 @@
+import { replaceFixtureData } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, within, fireEvent, act, waitFor } from '@testing-library/react';
@@ -48,7 +49,7 @@ async function addInternalSearchItems() {
   const internal =
     data.clients.find((client) => client.builtin === true) ??
     buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
-  useStore.getState().replaceAll({
+  replaceFixtureData({
     ...data,
     clients: data.clients.some((client) => client.id === internal.id)
       ? data.clients
