@@ -34,8 +34,17 @@ test('turning disciplines off hides every surface; turning it back on restores t
 
   // Enable External (default off) so its final band is present; it's an independent account pref.
   const showExternal = page.getByRole('switch', { name: 'Show external resources' });
+  const showExternalCommitted = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' &&
+      /\/api\/accounts\/[^/]+\/settings$/.test(new URL(response.url()).pathname),
+  );
   await showExternal.click();
   await expect(showExternal).toHaveAttribute('aria-checked', 'true');
+  const showExternalResponse = await showExternalCommitted;
+  expect(showExternalResponse.status()).toBe(200);
+  const showExternalReceipt = await showExternalResponse.json();
+  expect(showExternalReceipt.status).toBe('committed');
 
   await expect(page.getByRole('link', { name: 'Disciplines' })).toBeVisible();
   const useDisciplines = page.getByRole('switch', { name: 'Use disciplines' });
