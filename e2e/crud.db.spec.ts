@@ -19,7 +19,15 @@ test.describe('CRUD and persistent company transfer', () => {
     await page.getByRole('button', { name: 'Add client' }).click();
 
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Persisted Client');
+    const committed = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === '/api/accounts/a-studio/clients',
+    );
     await page.getByRole('button', { name: 'Save' }).click();
+    const response = await committed;
+    expect(response.status()).toBe(200);
+    expect(await response.json()).toMatchObject({ status: 'committed' });
 
     await expect(page.getByText('Persisted Client')).toBeVisible();
 

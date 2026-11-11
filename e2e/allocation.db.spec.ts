@@ -191,9 +191,20 @@ function registerEditsMonthlyOccurrenceDeletesSeriesTest() {
     await expect(
       repeatedDelete.getByRole('button', { name: 'Delete this occurrence' }),
     ).toBeVisible();
+    const tailDeleteCommitted = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        /\/api\/accounts\/[^/]+\/allocations\/delete-group$/.test(new URL(response.url()).pathname),
+    );
     await repeatedDelete
       .getByRole('button', { name: 'Delete this and future occurrences' })
       .click();
+    const tailDeleteResponse = await tailDeleteCommitted;
+    expect(tailDeleteResponse.status()).toBe(200);
+    const tailDeleteReceipt = await tailDeleteResponse.json();
+    expect(tailDeleteReceipt.status).toBe('committed');
+    await expect(editor).toBeHidden();
+    await expect(page.getByTestId('undo-button')).toBeEnabled();
     await expect(page.getByTestId('allocation-bar')).toHaveCount(7);
     const survivingOccurrence = page.locator(
       '[data-testid="allocation-bar"][aria-label*="12 Jun to 12 Jun"]',
@@ -202,7 +213,16 @@ function registerEditsMonthlyOccurrenceDeletesSeriesTest() {
     await expect(survivingOccurrence).toHaveAttribute('aria-label', /series through 12 Jun/i);
     await expect(julyOccurrence).toHaveCount(0);
 
+    const tailRestoreCommitted = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        /\/api\/accounts\/[^/]+\/planning\/restore-group$/.test(new URL(response.url()).pathname),
+    );
     await page.keyboard.press('ControlOrMeta+z');
+    const tailRestoreResponse = await tailRestoreCommitted;
+    expect(tailRestoreResponse.status()).toBe(200);
+    const tailRestoreReceipt = await tailRestoreResponse.json();
+    expect(tailRestoreReceipt.status).toBe('committed');
     await expect(page.getByTestId('allocation-bar')).toHaveCount(10);
     await expect(julyOccurrence).toBeVisible();
 
