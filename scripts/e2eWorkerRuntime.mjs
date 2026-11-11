@@ -466,9 +466,6 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
       target,
       baseURL: target.web,
       controlToken: resetToken,
-      async assertDrained() {
-        await waitForWorkerDrain(target);
-      },
       async stop() {
         await stop();
       },
