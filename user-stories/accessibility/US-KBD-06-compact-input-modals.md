@@ -1,42 +1,17 @@
-# US-KBD-06 — Scan compact input modals
+# US-KBD-06 — Scan management forms at different widths
 
-**Area:** Accessibility · forms · **Persona:** Studio manager · **Linked E2E:**
-`e2e/modal-layout.spec.ts`
+As a company member, I want labelled form controls to remain clear on desktop and narrow screens so that I can complete supported forms.
 
-## Goal
+**Status:** Current
 
-Scan labels, required markers and controls consistently across the common management forms without
-making narrow screens harder to use.
+**Access:** Owner, Admin, Editor; visibility and writes are role-gated
 
-## Why
+**Entry:** Resource, External party, Discipline, Client, Project, Activity, and Time off forms
 
-Stacking every label above its control makes short add/edit dialogs taller and slower to scan. The
-approved Resource form establishes a compact row while retaining a mobile-first stacked fallback.
-The same visual language should apply to the other common input dialogs.
+**Documentation:** [Help](../../docs-src/using/help.md)
 
-## How (end-to-end)
-
-1. Open each add or edit dialog for **External party**, **Discipline**, **Client**, **Project**,
-   **Activity** and **Time off**.
-2. At a normal desktop width, compare the label and control columns.
-3. In Client or Project, enable **Use code name** and inspect the conditional **Code name** field and its helper row.
-4. In Activity, switch Kind and inspect the conditional **Project** field.
-5. Narrow the browser below the small-screen breakpoint.
-6. Submit one required form without its required value and inspect the error association.
+**Source:** [modal-layout.spec.ts](../../e2e/modal-layout.spec.ts)
 
 ## Acceptance criteria
 
-- ✅ At normal modal widths, every visible field in the six named dialogs uses the same approximate
-  25% label / 75% control row as the Resource form.
-- ✅ Conditional Activity and privacy controls retain that row when they appear.
-- ✅ Helper text occupies a separate row beneath its control, without shifting the label away from the control.
-- ✅ Below the small-screen breakpoint, each label stacks above its full-width control.
-- ✅ Long labels wrap within the label area without shifting the control column or widening the page.
-- ✅ Required markers, invalid styling and `aria-describedby` error association remain intact.
-- ✅ Allocation, company, invitation, Team and other administrative dialogs are unchanged.
-
-## Automated coverage
-
-`e2e/modal-layout.spec.ts` verifies all six create dialogs plus normal geometry, long-label wrapping,
-narrow stacking, page containment and required-error association. Shared field and form component
-tests verify the opt-in layout contract, including conditional fields.
+- Fields use aligned labels at wider widths and stacked labels on narrow screens; required and conditional fields remain associated.

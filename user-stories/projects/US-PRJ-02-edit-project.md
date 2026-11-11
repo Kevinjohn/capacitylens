@@ -1,30 +1,21 @@
 # US-PRJ-02 — Edit a project
 
-**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "edits a project name"
+As an Editor, I want to edit a project’s name, client and colour so that its updated details appear throughout the schedule.
 
-## Goal
-
-Change a project's name, owning client and colour, and see the changes reflected — including the colour of its allocation bars on the schedule.
-
-## Why
-
-Projects get renamed, move between clients (a brand handed to a different account), and get re-coloured for clarity on a busy timeline. The schedule reads project work by colour, so a colour change must follow through to the bars immediately.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Watchtower** belongs to _Queen Consolidated_ and has allocations in June 2026.
-
-1. On the **Project Watchtower** row, click the **Edit** (pencil) icon. The dialog opens pre-filled.
-2. Change **Name** = `Project Thunder`.
-3. Change **Client** = _LexCorp_.
-4. Change the **Colour** by opening it and picking a different swatch.
-5. Click **Save**. The dialog closes.
-6. Open the **Schedule** (`/`) and click **Today** to see this project's bars.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Projects screen → project row → Edit
+**Documentation:** [Guide](../../docs-src/using/projects.md)
+**Source:** [ProjectList.tsx](../../apps/frontend/src/components/projects/ProjectList.tsx) · [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx)
 
 ## Acceptance criteria
 
-- ✅ The Projects list row now reads **Project Thunder** and its "Client / Project" label shows _LexCorp_.
-- ✅ On the **Schedule**, the allocation bars that belonged to this project now render in the **new project colour**.
-- ✅ The project's activities and allocations are preserved through the edit — only name, client and colour changed.
-- ✅ Clearing **Name** to empty and clicking **Save** is rejected (required-field error, dialog stays open).
-- ✅ Removing the **Client** entirely and clicking **Save** is rejected with **"A project must belong to a client."**
+| Field         | Control         | Required/default/conditions                                                                                                |
+| ------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Client        | Picker          | Required; Internal first, then active clients by name; a current archived client stays selected but cannot be chosen again |
+| Name          | Text field      | Required; current value prefilled; read-only for non-Owners when the project uses a code name                              |
+| Use code name | Switch          | Owner only (anyone in demo mode); current value prefilled                                                                  |
+| Code name     | Text field      | Owner only; shown and required when Use code name is on                                                                    |
+| Colour        | Preset swatches | Current colour preselected; hidden when the client is Internal                                                             |
+
+- **Save** updates the project. Invalid required values keep the form open with an error. **Cancel** closes without saving.

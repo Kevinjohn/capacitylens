@@ -1,38 +1,16 @@
-# US-SET-02 — Choose what allocation bars say
+# US-SET-02 — Choose allocation bar labels
 
-**Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/settings-bar-labels.spec.ts` → "bars show client and project before the activity by default", "switches in Settings default on and strip the client, then the project, from bars"
+As a company member, I want to choose allocation bar labels so that schedule bars show the context I need.
 
+**Status:** Current
+**Access:** Owner, Admin, Editor, Viewer
+**Entry:** Settings → My display → Allocation labels on this device
 **Documentation:** [Settings](../../docs-src/using/settings.md)
-
-## Goal
-
-Decide whether each bar on the schedule names its client and/or project before the activity, so the helicopter view carries as much (or as little) context as the studio wants.
-
-## Why
-
-At a glance, "Wireframes" alone doesn't say _whose_ wireframes. Prefixing the client and
-project makes a busy schedule self-describing; a studio with one client per person may
-prefer to switch the prefixes off and keep bars short. The choice is per-browser (like the
-theme), not shared account data.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open on the Schedule (clock inside the seed window — see _Seed data_ in REFERENCE.md).
-
-1. Find Bruce's **Wireframes** bar. Its label reads **Queen Consolidated · Project Watchtower · Wireframes · 8h**.
-2. Open **Settings** (sidebar). In the **Allocation labels on this device** section, find the **Show client name** and **Show project name** switches — both on.
-3. Switch **Show client name** off.
-4. Return to **Schedule**. The bar now reads **Project Watchtower · Wireframes · 8h**.
-5. Back in **Settings**, switch **Show project name** off too.
-6. Return to **Schedule**. The bar now reads just **Wireframes · 8h**.
+**Source:** [SettingsAppearanceSection.tsx](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx)
 
 ## Acceptance criteria
 
-- The Allocation labels on this device row appears before **Utilisation figures on this device** in **My display**.
-- Both switches default to **on** (`aria-checked="true"`).
-- With both on, a capacity-counting non-External allocation's label is `Client · Project · Activity`
-  (then `· Nh` outside Blocks mode). External bars have no hours label; Blocks spans do not show
-  hours.
-- Switching **Show client name** off removes only the client part; **Show project name** off removes only the project part; both off leaves just the activity.
-- An activity with no project shows no empty separators — missing parts are skipped.
-- The choice survives a reload in the same browser (device-global `capacitylens/barLabelPrefs`), and is **not** included in Export JSON.
+| Field             | Control | Required/default/conditions      |
+| ----------------- | ------- | -------------------------------- |
+| Show client name  | Switch  | On by default; this device only. |
+| Show project name | Switch  | On by default; this device only. |

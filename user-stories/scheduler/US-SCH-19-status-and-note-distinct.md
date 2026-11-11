@@ -1,28 +1,18 @@
 # US-SCH-19 — Allocation status and notes are visually distinct on the bar
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "allocation status and note are visually distinct on the bar (US-SCH-19)"
+As an Editor, I want status and notes to look distinct on allocation bars so that I can read important booking details at a glance.
 
-## Goal
+**Status:** Current
 
-Tell confirmed, tentative and completed allocations apart at a glance on the timeline, and flag the bars that carry a note.
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-A manager scanning the schedule needs to know which bookings are firm versus pencilled-in (tentative), which work is already done (completed), and which bars carry context worth reading — without opening each one. Crucially, tentative must read as _different_, not _faded_: an earlier version dimmed the whole bar with opacity, which quietly broke the label's contrast. The current design keeps the label fully legible and signals status with a border/hatch and small glyphs instead.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and reset the horizontal scroll. The seeded **Visual Design** bar on Bruce Wayne is **tentative**.
-
-1. Look at the **Visual Design** bar: it has a **dashed border** and a faint **diagonal hatch** overlay, while its label text stays at full contrast.
-2. Click the **Wireframes** bar to open **Edit allocation**.
-3. Set **Status** = _Completed_, type a **Note** (e.g. `Handed off to QA`), click **Save**.
-4. The Wireframes bar now shows a **✓** before the activity name and a **•** marker (note present).
-5. Hover the Wireframes bar — the detail popover shows the note text.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ A **tentative** bar carries `data-status="tentative"`, a dashed border and a hatch overlay; its label remains full-contrast (no whole-bar opacity).
-- ✅ A **completed** bar carries `data-status="completed"` and shows a **✓** before the activity name.
-- ✅ A bar with a **note** shows a **•** marker, and the note appears in the hover/focus popover.
-- ✅ A plain **confirmed** bar with no note shows none of these (solid border, no ✓, no •) and carries `data-status="confirmed"`.
+- Tentative, completed and confirmed allocations have distinct visual treatments.
+- A note marker appears only on allocations that have a note.

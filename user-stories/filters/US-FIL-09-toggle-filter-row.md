@@ -1,35 +1,18 @@
 # US-FIL-09 — Show or hide the schedule filters
 
-**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "shows a responsive filter row with search left and the remaining controls grouped right"
+As a company member, I want to show or hide the filter row so that I can keep the Schedule compact when filters are not needed.
 
-## Goal
+**Status:** Current
 
-Keep the schedule compact until its filters or draw-mode control are needed.
+**Access:** Viewer, Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-The full filter row earns its space when many resources or projects are in play, but it otherwise
-pushes the schedule down without helping. A clear toggle keeps every control close without making
-the expanded row permanent.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`).
-
-1. Confirm the button beside **Schedule** reads **Show filters** and the filter row is absent.
-2. Click **Show filters**.
-3. Confirm the row appears and includes **Work** / **Time off** plus the existing filter controls.
-4. Click **Hide filters**.
+**Source:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
 
 ## Acceptance criteria
 
-- ✅ The filter-icon button sits beside the **Schedule** heading, reads **Show filters** while
-  collapsed and **Hide filters** while expanded, and exposes the same state through `aria-expanded`.
-- ✅ The row is collapsed by default; opening it moves the schedule down and reveals the existing
-  controls without resetting them.
-- ✅ The expanded row keeps **Search people…** on the left. Every subsequent filter and view
-  control forms a right-aligned, wrapping group in its existing keyboard order, with **Clear
-  Filters** immediately after the final control.
-- ✅ The **Work** / **Time off** draw-mode radiogroup lives in the expanded row; **Undo** and **Redo**
-  remain in the primary toolbar.
-- ✅ Hiding the row removes its controls from keyboard and assistive-technology navigation.
+- **Show filters** opens the filter row and changes to **Hide filters**; hiding it removes those controls from view.
+- The expanded row contains **Search people…**, the discipline, client, project and activity filters that apply, **Tentative**, the Work / Time off draw mode for Editors and above, **Show unallocated** while a client, project or activity filter is set, and **Clear Filters**.

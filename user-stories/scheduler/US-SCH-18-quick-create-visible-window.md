@@ -1,27 +1,17 @@
 # US-SCH-18 — Quick-create defaults to the date you're looking at
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Coverage:** manual — no dedicated automated test (the default is computed in `SchedulerGrid.tsx` → `visibleStartDate`)
+As an Editor, I want quick-create to use the date at the left edge of the visible Schedule so that the default matches the period I am viewing.
 
-## Goal
+**Status:** Current
 
-The row "+" defaults the new allocation's dates to the date currently at the **left edge of the viewport** — where the manager is actually looking — not always to today.
+**Access:** Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-If quick-create always defaulted to today, then after scrolling out to plan, say, August, every "+" booking would land back in May and have to be re-dated. Defaulting to the visible window's left date means the new allocation appears where the manager's attention already is, so the common case (book this person _around here_) needs no date editing at all.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks**. (Note: panning with **Next ›** advances the visible window by whole weeks rather than pinning to a specific date, so read the left-edge date from the timeline header — don't assume it equals a date you have in mind.)
-
-1. Click **Next ›** several times so you're looking at a date range well away from today. Read the date now sitting at the **left edge** of the visible range from the timeline header.
-2. On a resource row, click its **"+"** button.
-3. In the **"New allocation"** modal, read the prefilled **Start** date.
-4. Confirm **Start** matches the date at the **left of the viewport** you read in step 1 — not today's date.
-5. Click **Next ›** further to reach a different month and click **"+"** again: the prefilled **Start** now matches _that_ range's visible-left date, proving the default tracks the viewport rather than today.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ After scrolling/jumping, clicking a row's **"+"** prefills **Start** with the date at the **left edge of the visible window**, not today.
-- ✅ Jumping to a different date and clicking **"+"** again prefills the new visible-left date (the default follows the viewport).
-- ✅ When the timeline is scrolled away from today, the prefilled **Start** is the visible-left date, **not** the current real-world date.
+- The row **+** uses the date at the left edge of the visible timeline as the new entry’s Start and End.

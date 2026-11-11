@@ -1,34 +1,20 @@
-# US-DAT-02 — Import a full beta JSON document
+# US-DAT-02 — Preview and replace company data
 
-**Area:** Data management · **Persona:** Company Owner · **Linked E2E:** `e2e/data.spec.ts` → "previews a full document without writing and Cancel keeps the current company", "replaces the selected company in memory and a reload restores the demo seed"; `e2e/transfer.auth.spec.ts` → signed-in preview, confirmation and replacement
+As an Owner, I want to preview and replace company data so that I can restore a valid full export into this company.
 
-**Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#import-and-export)
-
-## Goal
-
-Replace one company's planning records and supported settings from a full beta export, after a preview and explicit confirmation. Preserve stable entity IDs and existing member-to-person links. Allow restoration into a freshly installed company while leaving other companies and destination sign-in records unchanged.
-
-## Why
-
-Import is a full replacement, not a merge. A mistaken destination or file can erase planning work, and Undo cannot reverse it. The Owner must see what will be replaced and confirm that particular operation.
-
-## How (end-to-end)
-
-**Precondition:** A full `capacitylens-beta` version `1` JSON file from **Export JSON**. In a signed-in installation, the current user is the selected company's Owner.
-
-1. Open **Settings → Data and support → Import and export** and choose **Import JSON** (`data-testid="import-data"`).
-2. Select the file. The preview checks the format, completeness, company scope, row values and links. Select **Continue** to obtain the current company revision.
-3. Review the file name, record counts and replacement warning. **Cancel** leaves the company untouched.
-4. Select **Replace data**. In a signed-in installation, confirm this exact file, destination and revision with your password. A different file cannot use the confirmation.
-5. If another edit changed the company after preview, preview again. If the response is uncertain, the app reloads authoritative state before edits resume.
+**Status:** Current
+**Access:** Owner on server; demo users in temporary demo
+**Entry:** Settings → Data and support → Import and export → Import JSON
+**Documentation:** [Settings](../../docs-src/using/settings.md#import-and-export)
+**Source:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [BetaImportPreview.tsx](../../apps/frontend/src/components/import-export/BetaImportPreview.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx)
 
 ## Acceptance criteria
 
-- The file has `format: "capacitylens-beta"`, schema version `1`, `completeness: "full"`, exactly one company and all scoped tables. Malformed, redacted, foreign, dangling or invalid data is refused without changing records; values are not repaired. Every source row must belong to the company declared in the document.
-- The preview and confirmation name the file, show record counts and state that the selected company's data will be replaced. Cancel performs no replacement or proof spend.
-- Only the Owner can import in a signed-in installation. A recent sign-in alone is insufficient. Each proof binds one action, principal, native session, company, document and revision; it cannot authorize another import or ownership transfer.
-- A full export from another installation can replace a newly created company without editing the file. Only the company ID and row company scope bind to the selected destination; scheduling IDs, Internal client ID and relationships stay unchanged. Destination sign-in and membership records remain in place. A document whose scheduling IDs are already used by another company on the same installation is refused before anything changes.
-- A valid changed import retains scheduling IDs and existing member links, replaces supported company settings and scheduling rows atomically, clears deleted restoration groups, and records one planning revision and one audit entry. An unchanged import records neither.
-- A stale revision or failed partial write leaves the previous company data in place. On failure the proof remains unspent, so the Owner can retry the same exact operation while it remains valid.
-- The temporary demo applies the same strict document in page memory without a sign-in or server request. A file whose scheduling IDs collide with another demo company is refused without changing either company. Other demo companies remain unchanged, and refresh restores the demo seed.
-- The import is not undoable. The browser's device preferences and identity, membership, session and admission records are never part of the transfer file.
+| Field       | Control                                | Required/default/conditions                                                                                                                       |
+| ----------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Import JSON | JSON file chooser                      | Shown to the Owner on a server and to anyone in demo mode; accepts application/json; the file must be a complete beta v1 export from this product |
+| Password    | Password input in **Confirm it’s you** | Server only; the Owner’s current password                                                                                                         |
+
+Choosing a file opens **Import data?** with "{count} planning records for {company}. Entity IDs and company settings are preserved." and **Continue**; closing it changes nothing. On a server, Continue first has the server check the file. A second **Import data?** dialog reads "Import {file} — this replaces this company’s data with {record counts}." (on a server, followed by "This cannot be undone.") and offers **Replace data** and **Cancel**. In demo mode Replace data applies the file; on a server it opens **Confirm it’s you**, where **Continue** applies the import and **Cancel** returns to the previous dialog.
+
+- Cancel, invalid input or a stale revision leaves data unchanged. Server import is Owner-only; demo import stays temporary.

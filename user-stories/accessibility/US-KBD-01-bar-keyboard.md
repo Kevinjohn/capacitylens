@@ -1,47 +1,17 @@
-# US-KBD-01 — Operate an allocation bar by keyboard
+# US-KBD-01 — Operate schedule allocations by keyboard
 
-**Area:** Keyboard & accessibility · **Persona:** Keyboard-only scheduler · **Linked E2E:** `e2e/accessibility.spec.ts` → "an allocation bar is focusable and Enter opens the editor", "arrow keys move a focused bar by a day"; resize/invert in `apps/frontend/src/components/scheduler/AllocationBar.keyboard.interaction.test.tsx` → "moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)"
+As a keyboard-only scheduler, I want to focus, move, resize, and open allocation bars by keyboard so that I can manage work without dragging.
 
-## Goal
+**Status:** Current
 
-Move and resize an allocation bar entirely from the keyboard — no mouse drag required —
-and hear what the bar is when it's focused.
+**Access:** Owner, Admin, Editor; Viewer is read-only
 
-## Why
+**Entry:** Schedule allocation bar keyboard focus and arrow keys
 
-Drag-and-drop is mouse-first. A keyboard-only or screen-reader user still needs to
-schedule and adjust work. Each bar is a focusable control with arrow-key equivalents
-of the drag gestures, and its accessible name announces the activity, applicable status annotation
-and dates plus the available shortcuts. Confirmed is the implicit default when no status annotation
-is spoken, so the timeline remains concise while being fully operable without pointing.
+**Documentation:** [Read The Schedule](../../docs-src/using/read-the-schedule.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at Schedule (`/`). Set **Weeks visible** to **4 weeks** and scroll the grid
-left if needed so the seed bars are visible (running near the seed dates; otherwise
-click **Today** to bring the seed bars into view). Use the **Wireframes** bar (4 days) — its right edge
-stays on screen.
-
-1. Press **Tab** repeatedly until the **Wireframes** allocation bar is focused
-   (it shows a visible focus ring).
-2. With a capacity-counting, non-External allocation bar focused outside Blocks mode, read its
-   accessible name (screen reader, or DevTools accessibility pane): it announces activity, `Nh per
-day`, any applicable status annotation, and `start to end`
-   dates, including "Enter to edit; arrow keys to move, Shift+arrow to resize."
-3. Press **Enter** — the allocation editor (Edit allocation modal) opens. Press
-   **Escape** to close it and return focus to the bar.
-4. Press **→** — the bar moves one day later. Press **←** — it moves one day earlier
-   (back to where it was).
-5. Press **Shift+→** — the bar's end extends one day (it gets wider). Press **Shift+←**
-   — the end contracts one day.
+**Source:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx)
 
 ## Acceptance criteria
 
-- ✅ The bar is reachable with **Tab** and shows a visible focus indicator.
-- ✅ **Enter** (or **Space**) opens the allocation editor for that bar.
-- ✅ **→ / ←** move the bar one day later / earlier.
-- ✅ **Shift+→ / Shift+←** resize the bar's end out / in by one day.
-- ✅ Outside Blocks mode, a non-External bar's `aria-label` announces activity, hours/day, any applicable status annotation and
-  names the shortcuts ("Enter to edit; arrow keys to move, Shift+arrow to resize.").
-- ✅ A keyboard resize that would invert the range (end before start) is ignored — the
-  bar stays put rather than producing an invalid allocation.
+- Focused bars have an accessible name; Enter opens editing when permitted and arrow-key commands move or resize as available.

@@ -1,25 +1,18 @@
 # US-FIL-07 — Empty state when no resource matches
 
-**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "shows the filtered empty state when nothing matches"
+As a company member, I want a clear empty state when filters match no resources so that I know the schedule is filtered rather than missing data.
 
-## Goal
+**Status:** Current
 
-When the active filters match no resource, show an empty state that explains why, instead of a blank grid.
+**Access:** Viewer, Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-A filter that hides everything looks broken. A clear message tells the manager the schedule isn't empty — their filter just matched nobody — so they fix the filter rather than worry about lost data.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view.
-
-1. In **Search people…**, type a string that matches no resource name or role, e.g. `zzzzz`.
-2. In the centred empty-state card, click **Clear filters**.
+**Source:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
 
 ## Acceptance criteria
 
-- ✅ With no resource matching, the grid shows the `scheduler-empty` element — a centred card (filter icon + the message **"No resources match the current filters."** + a short subtext) in the schedule body, matching the entity-list empty states.
-- ✅ No discipline groups, resource rows or allocation bars are shown while the empty state is active.
-- ✅ This is the _filtered_ empty state — distinct from the no-data state shown when there are genuinely no resources yet (which instead offers a **Go to Resources** button).
-- ✅ The empty state offers a **Clear filters** button; clicking it clears the active filters and the full schedule returns. (Clearing the search, or the toolbar **Clear Filters**, does the same.)
+- When filters leave no resource rows, the Schedule shows **No resources match the current filters.** with a **Clear filters** action.
+- Clearing the filters restores the schedule rows.

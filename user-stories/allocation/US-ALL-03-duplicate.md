@@ -1,30 +1,19 @@
 # US-ALL-03 — Duplicate an allocation
 
-**Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "duplicates an allocation from the edit dialog" and "edits one monthly occurrence, deletes its series tail and restores the tail with one Undo"
+As an Editor, I want to duplicate an allocation so that I can reuse its resource, activity and dates without re-entering them.
 
-## Goal
+**Status:** Current
 
-Create a second identical allocation from an existing one in a single click, so repeated bookings don't have to be re-entered field by field.
+**Access:** Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-Studios often repeat a booking — the same person on the same activity for the same window again, or a quick copy to tweak. Duplicating from the edit dialog is faster and less error-prone than re-keying every field.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Note the current count of bars on the **Bruce Wayne** row.
-
-The source must be an unlinked allocation. Allocations created in a linked repeat batch deliberately
-do not offer **Duplicate**; an unlinked All-projects allocation still does.
-
-1. Click the **Wireframes** bar. The **Edit allocation** dialog opens.
-2. Click **Duplicate**. The dialog closes immediately (no confirmation).
+**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
 
 ## Acceptance criteria
 
-- ✅ After Duplicate, a second bar exists for the same resource, same activity, same dates, same hours/day and same status as the original.
-- ✅ The total number of `allocation-bar` elements on that resource's row increases by exactly one.
-- ✅ The original bar is unchanged (Duplicate copies; it does not move or edit the source).
-- ✅ The duplicate is itself an independent allocation — editing or deleting it does not affect the original.
-- ✅ Pressing **⌘Z** removes the duplicate (the action is undoable).
-- ✅ Linked repeat occurrences hide **Duplicate**; unlinked allocations retain it regardless of activity kind.
+- The Edit allocation dialog shows **Duplicate** only for an allocation that is not part of a repeating series.
+- **Duplicate** immediately creates a separate allocation from the form’s current values and closes the dialog; the original allocation keeps its saved values.
+- An invalid form or a refused save keeps the dialog open with an error and creates no copy. Undo removes a created copy.

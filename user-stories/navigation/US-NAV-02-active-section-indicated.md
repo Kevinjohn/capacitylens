@@ -1,34 +1,17 @@
-# US-NAV-02 — Current section is indicated in the nav
+# US-NAV-02 — See the active section
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "the active section is marked aria-current"
+As a company member, I want the current section identified in navigation so that I know where I am.
 
-## Goal
+**Status:** Current
 
-See at a glance which section is open, so it's obvious where you are in the app.
+**Access:** Owner, Admin, Editor, Viewer
 
-## Why
+**Entry:** Current sidebar route link
 
-Without a clear "you are here" marker, a manager can lose track of which list they're
-editing and make a change on the wrong screen. The active link is styled distinctly
-(brand-soft background + semibold ink) and exactly one link is active at any moment.
+**Documentation:** [Help](../../docs-src/using/help.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at Schedule (`/`).
-
-1. Note the **Schedule** link: it has the brand-soft background and semibold weight
-   (the other links are plain with a hover background only).
-2. Click **Clients**. The **Clients** link now takes the active styling.
-3. Confirm **Schedule** has dropped back to the plain (inactive) style.
-4. Click **Activities**. The active styling moves to **Activities**; **Clients** reverts to plain.
-5. At each step, scan the whole sidebar: only one link is in the active state.
+**Source:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx)
 
 ## Acceptance criteria
 
-- ✅ The link matching the current route is active: brand-soft background
-  (`bg-brand-soft`) and semibold text (`font-semibold`).
-- ✅ Inactive links use the plain style (no brand-soft background; hover only).
-- ✅ Clicking a link moves the active styling to it and clears it from the previous link.
-- ✅ Exactly one link is active at a time (never zero, never two).
-- ✅ The **Schedule** link is active only on `/` exactly — visiting `/resources` does
-  not leave **Schedule** highlighted (the `end` match on the root route).
+- The current destination is marked as current; the root Schedule link matches only the root route.

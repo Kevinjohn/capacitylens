@@ -1,26 +1,17 @@
-# US-NAV-03 — Content is gated on hydration
+# US-NAV-03 — Wait for company data
 
-**Area:** Navigation & shell · **Persona:** User · **Coverage:** `apps/frontend/src/components/AppShell.test.tsx`
+As a company member, I want a loading state while company data is read so that incomplete data is not mistaken for an empty schedule.
 
-## Goal
+**Status:** Current
 
-Wait for the selected data source to hydrate before seeing account content.
+**Access:** Owner, Admin, Editor, Viewer
 
-## Why
+**Entry:** Application content during initial load
 
-Rendering an empty schedule while real data is still loading looks like data loss and briefly exposes
-controls against an incomplete state. A loading gate makes that boundary explicit.
+**Documentation:** [Read The Schedule](../../docs-src/using/read-the-schedule.md)
 
-## How (end-to-end)
-
-**Precondition:** Open the app with hydration deliberately delayed in the test harness.
-
-1. Begin loading the selected server or demo adapter.
-2. Observe **Loading…** in the content area while hydration is pending.
-3. Complete hydration and observe the requested schedule or list replace the loading state.
+**Source:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)
 
 ## Acceptance criteria
 
-- ✅ The content area shows **Loading…** until the selected persistence adapter hydrates the store.
-- ✅ No empty schedule or list flashes before data arrives.
-- ✅ Server mode waits for the API load; demo mode waits for the in-memory seed.
+- The page content area shows **Loading…** until the selected data source finishes loading, and again while a member view is starting or ending.

@@ -1,42 +1,19 @@
 # US-SCH-09 — Over-allocated days are flagged with an over-marker
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows seeded resources, grouping and capacity cues"; `e2e/weekend-overmarker.spec.ts` → "a spanned weekend is not over; ignored working days and time off are"; `e2e/holiday-overallocation.spec.ts` → modal edit, drag and repeat holiday conflicts
+As an Editor, I want over-capacity days marked on the Schedule so that I can see when allocated hours exceed availability.
 
-## Goal
+**Status:** Current
 
-Any day where a resource's allocated hours exceed their available hours is flagged on the timeline with an over-marker — a full-height tint plus a band across the top of the column.
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-Over-allocation is the single most important signal in a capacity tool: it's the difference between a plan that's deliverable and one that quietly burns someone out. Painting the offending day red across its full height — and adding a top band so it reads even where bars don't fill the column — turns "someone, somewhere is overbooked" into "_this_ person on _this_ day," which is what lets the manager fix it. Unlike the weekend/unavailable greying (which only paints at fine zoom — see US-SCH-10), the **over-marker** is a hard scheduling warning and renders at **every** zoom level, so over-allocation is never hidden just because you zoomed out.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-**Non-working days don't count unless you opt in.** A normal allocation does no work on a resource's non-working weekdays, so a bar that merely **spans** one leaves the day greyed (unavailable) but **not** red — it isn't "over". Two zero-capacity cases still DO flag red, because they're real conflicts: (a) work scheduled on a **time-off / holiday** day, and (b) any personal non-working day an allocation explicitly includes via **Ignore working days** (the resource still has 0 capacity that day, so the work honestly reads as over).
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. **Bruce Wayne** is over-allocated on **3–4 June** (8h on one allocation + 4h on another > his 8h/day).
-
-1. Look at Bruce's row on **3–4 June**: those columns carry the over-marker (full-height tint with a top band).
-2. Confirm a non-over-allocated day (e.g. a day with a single 8h booking) carries **no** over-marker.
-3. Add hours to a day that was previously fine: open an allocation on a day at capacity and raise its **Hours / day** (or draw a second bar on the same day) so the total exceeds available. That day is now flagged with an over-marker too.
-4. Put work onto a holiday by changing dates in the allocation modal, dragging a bar, and creating a
-   repeating series whose generated occurrence lands on the holiday. In each case the red day stays
-   visible with the holiday hatch and label, and the allocation bar remains on top.
-5. Switch Scheduling to **Blocks** and edit a block onto time off. The overlapping day uses the same
-   red treatment and row summary even though Blocks still show 0% utilisation. Days covered only by
-   the person's or company's non-working pattern remain grey rather than red.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ Bruce's **3–4 June** shows at least one **over-marker** (`data-testid="over-marker"`).
-- ✅ A day where allocated ≤ available shows **no** over-marker.
-- ✅ Pushing a day's total allocated hours above available (more hours, or an extra bar) flags that day with an over-marker.
-- ✅ The over-marker is visible with **Weeks visible** set to **4 weeks** (it does not depend on fine zoom).
-- ✅ A weekend that an allocation merely **spans** (default, weekend-aware) shows **no** over-marker — only the grey unavailable tint.
-- ✅ An allocation with **Ignore working days** checked flags every included personal non-working day with an over-marker (the resource has 0 capacity that day).
-- ✅ Work scheduled on a **time-off / holiday** day still shows the over-marker (a real conflict, unlike a merely-spanned weekend); the red overlay, holiday treatment and allocation remain legible in their intended stacking order.
-- ✅ Direct date edits, drag/reassignment and generated repeat occurrences all produce that same
-  holiday conflict signal; a holiday with no allocation is unavailable but not red.
-- ✅ In Blocks mode, a block/time-off overlap is explicitly marked without adding hourly load or
-  utilisation; a block on an ordinary working day and time off without a block are not marked.
-- ✅ Blocks do not gain a red marker merely for spanning personal or company non-working days.
+- With Hours or Days scheduling input, a resource day gets the over-capacity marker (red top border and red fill) only when its allocated hours exceed its available hours; at or below availability, no marker appears.
+- With Blocks, allocations carry no hours, so a day is marked only when an allocation falls on a time-off day.
+- On a day with time off, the marker uses a stronger red fill. External resources are not capacity-tracked and show no marker.

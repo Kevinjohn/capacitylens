@@ -1,47 +1,23 @@
 # US-RES-03 — Edit a resource's fields
 
-**Area:** Resources · **Persona:** Studio manager · **Coverage:** component (`apps/frontend/src/components/resources/ResourceForm.test.tsx`) + store availability coverage · **Linked E2E:** `e2e/resources.spec.ts` → "edits a resource and the change persists" (base flow; no availability-date assertions)
+As an Editor, I want to edit a resource’s details so that the roster and schedule stay accurate.
 
-**Documentation:** [Resources — set availability dates](../../docs-src/using/resources.md#set-availability-dates)
-
-## Goal
-
-Change an existing resource's details (role, discipline and working pattern) and have those
-changes reflected everywhere the resource appears.
-
-## Why
-
-People change roles, move disciplines or switch their working pattern. The manager edits
-the one resource record and the list, the schedule grouping and the capacity all update —
-there's no second place to keep in sync.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Resources** in the sidebar.
-
-1. On the **Clark Kent** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens, pre-filled
-   with the current values (Role _Web Developer_, Discipline _Development_, Mon–Fri full days).
-2. Change **Role** = `Lead Developer`.
-3. Change **Discipline** = _Design_.
-4. Change Wednesday to **Half day**.
-5. Set **Start date** = `2026-06-08` and leave **End date** blank.
-6. Click **Save**. The dialog closes.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Resources screen → resource row → Edit
+**Documentation:** [Guide](../../docs-src/using/resources.md)
+**Source:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx) · [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [ResourceAvailabilityFields.tsx](../../apps/frontend/src/components/resources/ResourceAvailabilityFields.tsx)
 
 ## Acceptance criteria
 
-- ✅ The dialog reused in edit mode is titled **"Edit resource"** and every field is
-  pre-filled with the resource's existing values when it opens.
-- ✅ After Save, the Resources list row for **Clark Kent** shows the new role
-  (_Lead Developer_) without redundant hours-per-day text.
-- ✅ The edited resource is saved with an 8-hour full day; this also normalises any legacy custom
-  `workingHoursPerDay` value when that resource is next edited.
-- ✅ On **Schedule**, the **Clark Kent** row now appears under the **Design** group
-  (moved out of _Development_).
-- ✅ In the server-backed app, the changes persist across a page reload.
-- ✅ In the public demo, the change lasts for the current page only and reload restores the seed.
-- ✅ Availability dates are inclusive. A blank boundary is unbounded, the same date on both sides
-  is valid, and a first date after a last date keeps the dialog open with an inline validation error.
-- ✅ The resource form does not expose an Avatar URL control. A person's profile image belongs to
-  their own Account identity rather than to a manager editing the resource.
-- ✅ Editing role, discipline, engagement, working days or availability metadata does not rewrite
-  existing allocations, even when one now falls outside the person's availability range.
+| Field                 | Control          | Required/default/conditions                                                                         |
+| --------------------- | ---------------- | --------------------------------------------------------------------------------------------------- |
+| Name                  | Text field       | Current value prefilled; required for people, optional for placeholders                             |
+| Role                  | Text field       | Current value prefilled; optional                                                                   |
+| Discipline            | Picker           | Current value prefilled; shown when disciplines are enabled and at least one exists                 |
+| Engagement            | Segmented choice | People only; current value prefilled, Studio or Supplementary                                       |
+| Bound project         | Picker           | Placeholders only; current project prefilled and required                                           |
+| Start date / End date | Date fields      | People only; current values prefilled; optional and inclusive; End date cannot be before Start date |
+| Working days          | Weekday picker   | People only; current values prefilled; at least one weekday Full day or Half day                    |
+
+- **Save** updates the resource with the selected kind-specific fields; invalid required values keep the form open with an error. **Cancel** closes without saving.

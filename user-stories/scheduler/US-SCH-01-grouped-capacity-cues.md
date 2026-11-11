@@ -1,40 +1,19 @@
 # US-SCH-01 — Resources grouped by discipline, with capacity cues
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows seeded resources, grouping and capacity cues"
+As an Editor, I want resources grouped by discipline with capacity cues so that I can spot workload and availability while planning.
 
-## Goal
+**Status:** Current
 
-Open the schedule and see every resource grouped under its discipline, with at-a-glance cues for over-allocation, unavailable days and each person's utilisation.
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-The schedule is the studio manager's daily home page. Before touching anything they need to read the room: who sits in which discipline, who is overbooked, who is off, and each person's utilisation. Surfacing those cues on the grid itself — rather than buried in reports — is what makes the timeline a planning tool and not just a list of bars.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`).
-
-1. Note the discipline group headers down the grid: **Design**, **Development**, **Copywriting** (the seed disciplines, in their sort order).
-2. Confirm each resource row sits under the right group — e.g. **Bruce Wayne** under **Design**, **Clark Kent** and **Barry Allen** under **Development**, **Diana Prince** under **Copywriting**.
-   Studio people precede Supplementary people within each discipline. A favourite leads only its
-   own engagement partition; neither engagement nor favourite status moves the discipline itself.
-3. Click **Today** so the seed bars are in view. Bruce is over-allocated on **3–4 June** (8h + 4h > 8h): his bars there carry an over-allocation marker (a full-height tint with a top band).
-4. Set **Weeks visible** to **1 week** (or **2 weeks**) so the fine-zoom greying renders, staying on the current week. Weekend columns and non-working days show the **unavailable-day** grey tint.
-5. Read the left column: each row shows a **utilisation** percentage under **"Utilisation · Nw"**
-   (N = the current **Weeks visible** span), computed over the currently visible window. Separately, red
-   emphasis marks over-allocation within the fixed forward 14-day window described by US-SCH-13.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ The grid shows **discipline group** headers (Design, Development, Copywriting) with resource rows nested under them.
-- ✅ Studio people appear before Supplementary people within their existing discipline; favourites
-  lead alphabetically inside each engagement partition. Placeholders remain after people and
-  external favourites remain in the separate External band.
-- ✅ Unassigned capacity-tracked resources follow the assigned discipline bands in **Studio** then
-  **Supplementary**. With disciplines off, those engagement bands become the primary grouping; when
-  the company has no active Supplementary person, one band replaces them: **Unassigned** with
-  disciplines on, **Resources** with disciplines off. Empty bands never render and
-  External / 3rd party remains last.
-- ✅ At `2026-06-01`, Bruce's 3–4 June shows at least one **over-marker** (`data-testid="over-marker"`).
-- ✅ With **Weeks visible** set to **1 week** or **2 weeks**, at least one **unavailable-day** tint (`data-testid="unavailable-day"`) is visible (weekend / non-working day).
-- ✅ Each resource row shows a **utilisation** figure (`data-testid="utilization"`).
+- With disciplines enabled, the Schedule groups resources by discipline, with people who have none under **Unassigned**; otherwise they appear under **Resources**. Either fallback splits into **Studio** and **Supplementary** when an active Supplementary person exists, and external parties appear under **External / 3rd party**.
+- With Show Personal Utilisation on, each tracked resource’s row shows its utilisation for the visible window.
+- Over-capacity and unavailable days are visibly marked.

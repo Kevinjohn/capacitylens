@@ -1,38 +1,21 @@
 # US-PRJ-01 — Add a project (must belong to a client)
 
-**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "rejects a project without a client and adds one with a client"
+As an Editor, I want to add a project under a client so that it can be scheduled and filtered.
 
-## Goal
-
-Add a new project under a client so it can be scheduled, filtered and allocated against — and confirm a project cannot be saved without a client.
-
-## Why
-
-A project is meaningless without an owning client; that invariant keeps the whole hierarchy (client → project → activity → allocation) intact. The manager creates a project once, after which it shows up wherever work is planned.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). Clients _Queen Consolidated_ and _LexCorp_ exist.
-
-1. Click **Add project**. The "Add project" dialog opens.
-2. Open **Client**. **Internal** appears first, followed by a divider that cannot be selected, then
-   _LexCorp_ and _Queen Consolidated_ alphabetically. Close the picker without choosing.
-3. Fill **Name** = `Spring Campaign` but leave **Client** unset.
-4. Click **Save** — observe it is rejected.
-5. Now choose **Client** = _LexCorp_.
-6. Open **Colour** and pick a swatch from the preset grid.
-7. Click **Save**. The dialog closes.
-8. Open the **Schedule** (`/`) and **Filter by project**; and start an allocation to check the **Project** picker.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Projects screen → Add project
+**Documentation:** [Guide](../../docs-src/using/projects.md)
+**Source:** [ProjectList.tsx](../../apps/frontend/src/components/projects/ProjectList.tsx) · [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx)
 
 ## Acceptance criteria
 
-- ✅ Saving with **Client** unset keeps the dialog open and shows the error **"A project must belong to a client."** (an `alert`).
-- ✅ The **Client** picker pins **Internal** first, separates it with a genuinely non-selectable
-  divider, then lists active ordinary clients alphabetically.
-- ✅ After choosing _LexCorp_ and Save, the dialog closes and **Spring Campaign** appears in the Projects list with its "Client / Project" label showing _LexCorp_.
-- ✅ Active projects are ordered alphabetically by client and then project, using each record's
-  trimmed non-empty code name instead of its ordinary name when one is set. This display-only order
-  does not change the project-first, grey-client row presentation or the stored project order.
-- ✅ **Spring Campaign** is selectable in the schedule's **Filter by project**.
-- ✅ When allocating, **Spring Campaign** is selectable in the **Project** picker.
-- ✅ Saving with an empty **Name** is also rejected (required-field error, dialog stays open).
+| Field         | Control         | Required/default/conditions                                            |
+| ------------- | --------------- | ---------------------------------------------------------------------- |
+| Client        | Picker          | Required; no default; Internal first, then active clients by name      |
+| Name          | Text field      | Required; initially blank                                              |
+| Use code name | Switch          | Owner only (anyone in demo mode); off by default                       |
+| Code name     | Text field      | Owner only; shown and required when Use code name is on                |
+| Colour        | Preset swatches | Defaults to project colour #da2d92; hidden when the client is Internal |
+
+- **Save** adds the project. Invalid required values keep the form open with an error. **Cancel** closes without saving.
