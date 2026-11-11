@@ -295,7 +295,9 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
         const staticFile = await server.send('GET', '/favicon.svg');
         assert.equal(staticFile.status, 200);
         assert.match(String(staticFile.headers['content-type']), /^image\/svg\+xml/);
-        const unmatched = await server.send('PATCH', '/no-such-route');
+        const unmatched = await server.send('PATCH', '/no-such-route', {
+          'sec-fetch-site': 'same-origin',
+        });
         assert.equal(unmatched.status, 404);
         for (const [label, reply] of [
           ['static', staticFile],
