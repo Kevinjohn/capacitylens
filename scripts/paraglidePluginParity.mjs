@@ -63,7 +63,11 @@ try {
     server: { host: '127.0.0.1', port: 0, strictPort: false },
     logLevel: 'silent',
   });
-  await vite.close();
+  try {
+    await vite.environments.client.pluginContainer.buildStart();
+  } finally {
+    await vite.close();
+  }
   assert.deepEqual(
     await treeDigest(generated),
     await treeDigest(temp),

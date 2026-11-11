@@ -59,6 +59,7 @@ test('segmented controls keep an even selected outline at every position', async
   }
 
   await selected.click();
+  await expect(selected).toHaveAttribute('aria-checked', 'true');
   const selectedBackground = (await selectedTreatment(selected)).backgroundColor;
   await selected.hover();
   expect((await selectedTreatment(selected)).backgroundColor).toBe(selectedBackground);

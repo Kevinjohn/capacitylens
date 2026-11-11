@@ -11,6 +11,7 @@ export interface E2eWorkerServer {
   target: E2eWorkerTarget;
   baseURL: string;
   assertDrained(): Promise<void>;
+  waitUntilDrained(): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -39,3 +40,9 @@ export function releaseE2eWorkerLease(paths: E2eWorkerLease['paths']): Promise<v
 export function assertE2eProxyDrained(webOrigin: string): Promise<void>;
 /** Refuse a reset while the disposable API has handlers still completing. */
 export function assertE2eRequestsDrained(apiOrigin: string): Promise<void>;
+
+/** Bounded settling of both proxy sockets and awaited backend handlers. */
+export function waitForE2eWorkerDrain(
+  target: Pick<E2eWorkerTarget, 'api' | 'web'>,
+  timeoutMs?: number,
+): Promise<void>;

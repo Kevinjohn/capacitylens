@@ -1,6 +1,6 @@
 import { test, expect } from './dbFixtures';
 import type { Locator, Page } from './dbFixtures';
-import { goToSeedWeek, openApp, setZoom } from './browserTestSupport';
+import { changeCompanySetting, goToSeedWeek, openApp, setZoom } from './browserTestSupport';
 
 async function centre(locator: Locator): Promise<{ x: number; y: number }> {
   const box = await locator.boundingBox();
@@ -56,8 +56,12 @@ test('sets global working days and gates schedule creation starts', async ({ pag
 
   // Friday becomes globally unavailable; Saturday becomes globally available so Bruce's personal
   // Monday–Friday pattern is the independent reason that date remains blocked.
-  await page.getByRole('checkbox', { name: 'Friday' }).click();
-  await page.getByRole('checkbox', { name: 'Saturday' }).click();
+  const friday = page.getByRole('checkbox', { name: 'Friday' });
+  const saturday = page.getByRole('checkbox', { name: 'Saturday' });
+  await changeCompanySetting(page, () => friday.click());
+  await expect(friday).not.toBeChecked();
+  await changeCompanySetting(page, () => saturday.click());
+  await expect(saturday).toBeChecked();
   await page.screenshot({ path: testInfo.outputPath('global_working_days_settings.png') });
 
   await page.getByRole('link', { name: 'Schedule' }).click();

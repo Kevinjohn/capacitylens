@@ -51,8 +51,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - A company closure is a literal inclusive date span: no working-week filtering, whole days only
   and no per-person exception. Closures and personal time off are independent and may overlap
   freely, with no merging or precedence.
-- New allocations must start on an effective working day (create, duplicate and reassignment all
-  enforce it); edits to existing allocations stay permissive. Later occurrences of a repeat batch
+- New allocations must start on an effective working day (create and duplicate always enforce
+  it). Reassignment also enforces it unless **Ignore working days** is on; the override still
+  respects availability dates. Other edits to existing allocations stay permissive. Later occurrences of a repeat batch
   may start on non-effective days and are counted in an advisory, not blocked.
 - Changing global working days reinterprets existing allocations: stored dates never move, while
   capacity, utilisation and conflicts are recalculated.

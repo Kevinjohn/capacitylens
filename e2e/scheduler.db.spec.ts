@@ -206,8 +206,7 @@ function registerDragsBarMoveLaterTest() {
     await page.mouse.move(dragX, cy, { steps: 8 });
     await page.mouse.up();
 
-    const b1 = await box(bar);
-    expect(b1.x).toBeGreaterThan(b0.x + 20);
+    await expect.poll(async () => (await box(bar)).x).toBeGreaterThan(b0.x + 20);
 
     const laneBounds = await box(lane);
     await page.screenshot({
@@ -242,8 +241,7 @@ function registerResizesBarEndHandleTest() {
     });
     await page.mouse.up();
 
-    const b1 = await box(bar);
-    expect(b1.width).toBeGreaterThan(b0.width + 20);
+    await expect.poll(async () => (await box(bar)).width).toBeGreaterThan(b0.width + 20);
   });
 }
 

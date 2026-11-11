@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect } from './dbFixtures';
 import type { Page } from './dbFixtures';
-import { disableCssMotion, openApp } from './browserTestSupport';
+import { changeCompanySetting, disableCssMotion, openApp } from './browserTestSupport';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -52,12 +52,13 @@ async function assertReflow(page: Page) {
     expect(target!.height).toBeGreaterThanOrEqual(48);
   }
   const saturdayLabel = group.getByText('Sat', { exact: true });
-  await saturdayLabel.click();
+  await changeCompanySetting(page, () => saturdayLabel.click());
   const saturdayCheckbox = group.getByRole('checkbox', { name: 'Saturday' });
   await expect(saturdayCheckbox).toBeChecked();
-  await saturdayCheckbox.focus();
-  await page.keyboard.press('Space');
+  await expect(saturdayCheckbox).toBeEnabled();
+  await changeCompanySetting(page, () => saturdayCheckbox.press('Space'));
   await expect(saturdayCheckbox).not.toBeChecked();
+  await expect(saturdayCheckbox).toBeEnabled();
   const switches = await page.getByRole('switch').all();
   expect(switches.length).toBeGreaterThan(0);
   for (const control of switches) {
