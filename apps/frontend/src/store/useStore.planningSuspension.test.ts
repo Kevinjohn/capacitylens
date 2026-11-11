@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { makeAccount, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  makeAccount,
+  makeResourceDraft,
+  resetStoreWithAccount,
+  replaceFixtureData,
+} from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { useStore } from './useStore';
 
@@ -43,7 +48,7 @@ describe('planning command suspension', () => {
   });
 
   it('does not let an old company release unlock a later context incarnation', async () => {
-    useStore.getState().replaceAll({
+    replaceFixtureData({
       ...useStore.getState().data,
       accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
     });
@@ -76,7 +81,7 @@ describe('planning command suspension', () => {
   });
 
   it('retires a demo company lock across picker selection without erasing other demo companies', async () => {
-    useStore.getState().replaceAll({
+    replaceFixtureData({
       ...useStore.getState().data,
       accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
     });

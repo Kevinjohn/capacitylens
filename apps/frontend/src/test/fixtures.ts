@@ -15,7 +15,10 @@ import type {
 import type { Draft } from '@/store/useStore';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { resetPlanningTransport } from '@/test/planningTransportHandle';
+import {
+  resetPlanningTransport,
+  updatePlanningFixtureSource as updatePlanningFixtureSourceHandle,
+} from '@/test/planningTransportHandle';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
 
 // Shared fixtures establish an active account so scoped store mutations have a valid tenant.
@@ -194,12 +197,14 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
   };
 }
 
-/** Reset the store to a clean single-account state with that account active.
- * Use in beforeEach so `add*` (which requires an active account) works. The returned promise
- * settles once the planning cache has read the account, so allocation writes can begin. */
-export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promise<boolean> {
-  const account = makeAccount({ id: accountId });
-  const data = makeAppData({ accounts: [account] });
+/** Reset the store to fixture data with the selected account active and its planning history clear.
+ * The returned promise settles once the planning cache has read the account. */
+export function resetStoreWithData(
+  data: AppData,
+  accountId: ID = data.accounts[0]?.id ?? DEFAULT_ACCOUNT_ID,
+): Promise<boolean> {
+  const account = data.accounts.find(({ id }) => id === accountId);
+  if (!account) throw new Error(`The fixture data must contain account ${accountId}.`);
   useStore.getState().clearPlanning();
   resetPlanningTransport(accountId, data, useStore.getState().data);
   useStore.getState().setAccountSummaries({
@@ -214,6 +219,24 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promi
   // singleton store in 'viewer' and silently no-op the next spec's mutations. Default = editable.
   useStore.getState().setActiveRole(null);
   return useStore.getState().refreshPlanning({ fresh: true });
+}
+
+/** Reset the store to a clean single-account state with that account active.
+ * Use in beforeEach so `add*` (which requires an active account) works. */
+export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promise<boolean> {
+  const account = makeAccount({ id: accountId });
+  return resetStoreWithData(makeAppData({ accounts: [account] }), accountId);
+}
+
+/** Update an in-test direct store replacement as the source for subsequent canonical reads. */
+export function updatePlanningFixtureSource(data: AppData): void {
+  updatePlanningFixtureSourceHandle(data, useStore.getState().data);
+}
+
+/** Replace direct fixture data and publish it as the source for subsequent canonical reads. */
+export function replaceFixtureData(data: AppData): void {
+  useStore.getState().replaceAll(data);
+  updatePlanningFixtureSource(data);
 }
 
 type SetPlaceholdersEnabledOptions = { on: boolean; accountId?: ID };

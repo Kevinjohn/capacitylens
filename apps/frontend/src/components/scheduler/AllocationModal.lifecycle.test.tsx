@@ -4,6 +4,7 @@ import { act, render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
+import { updatePlanningFixtureSource } from '@/test/fixtures';
 import { makeResourceDraft } from '@/test/fixtures';
 import { chooseOption } from './__tests__/schedulerTestKit';
 import {
@@ -202,6 +203,7 @@ describe('AllocationModal lifecycle', () => {
           ),
         },
       }));
+      updatePlanningFixtureSource(useStore.getState().data);
       await useStore.getState().refreshPlanning();
     });
     expect(useStore.getState().planning.revision).toBe((revision ?? 0) + 1);

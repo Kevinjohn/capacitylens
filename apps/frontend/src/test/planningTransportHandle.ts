@@ -5,6 +5,7 @@ interface TestPlanningTransportHandle {
   transport: PlanningTransport;
   readData: () => AppData;
   reset: (companyId: string, data: AppData) => void;
+  updateSource: (data: AppData) => void;
 }
 
 let handle: TestPlanningTransportHandle | undefined;
@@ -30,4 +31,12 @@ export function resetPlanningTransport(
     throw new Error('The planning transport does not belong to this fixture store.');
   }
   handle.reset(companyId, data);
+}
+
+/** Update fixture data visible to future reads without clearing planning history. */
+export function updatePlanningFixtureSource(data: AppData, currentData: AppData): void {
+  if (!handle || handle.readData() !== currentData) {
+    throw new Error('The planning transport does not belong to this fixture store.');
+  }
+  handle.updateSource(data);
 }

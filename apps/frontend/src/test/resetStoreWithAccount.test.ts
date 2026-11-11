@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getPlanningTransportHandle } from '@/test/planningTransportHandle';
-import { makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  makeAccount,
+  makeAppData,
+  makeResource,
+  makeResourceDraft,
+  replaceFixtureData,
+  resetStoreWithAccount,
+  resetStoreWithData,
+} from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 
 afterEach(() => vi.restoreAllMocks());
@@ -56,5 +64,27 @@ describe('resetStoreWithAccount', () => {
     expect(useStore.getState().data.resources).toHaveLength(0);
     await useStore.getState().updateAccount(accountId, { name: 'New Company' });
     expect(useStore.getState().data.accounts[0]?.name).toBe('New Company');
+  });
+
+  it('re-enters the original company after visiting another company and the picker', async () => {
+    const firstAccount = makeAccount({ id: 'acct-first' });
+    const secondAccount = makeAccount({ id: 'acct-second', name: 'Stark Industries' });
+    const firstResource = makeResource({ id: 'resource-first', accountId: firstAccount.id });
+    const secondResource = makeResource({ id: 'resource-second', accountId: secondAccount.id });
+    const data = makeAppData({
+      accounts: [firstAccount, secondAccount],
+      resources: [firstResource, secondResource],
+    });
+    await resetStoreWithData(data, firstAccount.id);
+    replaceFixtureData(data);
+
+    useStore.getState().setActiveAccount(secondAccount.id);
+    await expect(useStore.getState().refreshPlanning({ fresh: true })).resolves.toBe(true);
+    expect(useStore.getState().data.resources.map(({ id }) => id)).toContain(secondResource.id);
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setActiveAccount(firstAccount.id);
+    await expect(useStore.getState().refreshPlanning({ fresh: true })).resolves.toBe(true);
+
+    expect(useStore.getState().data.resources.map(({ id }) => id)).toContain(firstResource.id);
   });
 });

@@ -3,7 +3,13 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import {
+  makeAccount,
+  makeAppData,
+  DEFAULT_ACCOUNT_ID,
+  resetStoreWithData,
+  replaceFixtureData,
+} from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { AppShell } from './AppShell';
 import { AuthContext } from '@/auth/authContext';
@@ -23,10 +29,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   serverFlag.on = false;
-  useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
-  useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+  await resetStoreWithData(makeAppData({ accounts: [makeAccount()] }), DEFAULT_ACCOUNT_ID);
   useStore.getState().setHydrated(true);
   localStorage.setItem('capacitylens/productOrientation/v1/demo/acct-test', 'dismissed');
 });
@@ -199,7 +204,7 @@ describe('AppShell product orientation', () => {
   it('follows company A to B to A without leaking dismissal between companies', async () => {
     const accountA = makeAccount({ id: 'acct-a', name: 'Wayne Enterprises' });
     const accountB = makeAccount({ id: 'acct-b', name: 'Stark Industries' });
-    useStore.getState().replaceAll(makeAppData({ accounts: [accountA, accountB] }));
+    replaceFixtureData(makeAppData({ accounts: [accountA, accountB] }));
     useStore.getState().setAccountSummaries({
       list: [
         { id: accountA.id, name: accountA.name, role: 'owner' },

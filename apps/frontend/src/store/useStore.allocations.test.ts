@@ -6,6 +6,7 @@ import {
   makeResourceDraft,
   requireValue,
   resetStoreWithAccount,
+  updatePlanningFixtureSource,
   WORKDAYS,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
@@ -92,6 +93,7 @@ function registerAtomicAllocationPart3(): void {
     const secondAccount = state().addAccount({ name: 'Other', color: '#2d75da' });
     expect(secondAccount).not.toBeNull();
     if (!secondAccount) throw new Error('Expected second account');
+    updatePlanningFixtureSource(state().data);
     state().setActiveAccount(secondAccount.id);
     await state().refreshPlanning();
     const otherResource = await requireCreated(

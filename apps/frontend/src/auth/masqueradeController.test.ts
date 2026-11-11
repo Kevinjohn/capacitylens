@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
-import { makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  makeAccount,
+  makeAppData,
+  resetStoreWithAccount,
+  replaceFixtureData,
+} from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { FlushPendingWritesResult } from './masqueradeController';
 import { MasqueradeController } from './masqueradeController';
@@ -370,11 +375,9 @@ describe('MasqueradeController', () => {
   });
 
   it('publishes the company name from the loaded account projection, not the member name', async () => {
-    useStore
-      .getState()
-      .replaceAll(
-        makeAppData({ accounts: [makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
-      );
+    replaceFixtureData(
+      makeAppData({ accounts: [makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
+    );
     useStore.getState().setActiveAccount('a-studio');
     await useStore.getState().refreshPlanning();
     const { controller } = harness();

@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
-import { makeAccount, makeAppData } from '@/test/fixtures';
+import { makeAccount, makeAppData, replaceFixtureData } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { PlanningPendingMutation } from '@/data/planning/planningCacheController';
 import { createVolatilePlanningTransport } from '@/data/planning/volatilePlanningTransport';
@@ -41,11 +42,10 @@ const state: MasqueradeState & { contextToken: string } = {
 const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
 function controllerWithNativeSlice(bootstrapFailure = false) {
-  useStore.setState({
-    data: makeAppData({
-      accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })],
-    }),
+  const data = makeAppData({
+    accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })],
   });
+  replaceFixtureData(data);
   const bootstrapTransport = createVolatilePlanningTransport(() =>
     makeAppData({ accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })] }),
   );
@@ -90,6 +90,7 @@ it('keeps a failed bootstrap read gated while allowing a confirmed cold End', as
 beforeEach(() => {
   reads.fail = false;
   reads.count = 0;
+  replaceFixtureData(emptyAppData());
   useStore.getState().clearPlanning();
   useStore.getState().setActiveAccount(null);
   useStore.getState().setMasquerade({ kind: 'inactive' });

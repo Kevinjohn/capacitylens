@@ -5,7 +5,7 @@ import { useStore } from './useStore';
 import { scopeData } from './selectors';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
-import { makeAccount, WORKDAYS } from '@/test/fixtures';
+import { makeAccount, WORKDAYS, replaceFixtureData } from '@/test/fixtures';
 
 const s = () => useStore.getState();
 
@@ -222,7 +222,7 @@ describe('scopeData', () => {
 });
 
 describe('account CRUD', () => {
-  beforeEach(() => s().replaceAll(emptyAppData()));
+  beforeEach(() => replaceFixtureData(emptyAppData()));
 
   it('addAccount works with no active account (bootstraps the first tenant)', () => {
     expect(s().activeAccountId).toBeNull();
@@ -265,7 +265,7 @@ describe('account CRUD', () => {
 
 describe('setActiveAccount resets per-account view state', () => {
   beforeEach(async () => {
-    s().replaceAll(twoAccountData());
+    replaceFixtureData(twoAccountData());
     s().setActiveAccount('a1');
     await s().refreshPlanning();
   });
@@ -466,7 +466,7 @@ function registerScopedImportPart2(): void {
 
 describe('importData (account-scoped)', () => {
   beforeEach(async () => {
-    s().replaceAll(twoAccountData());
+    replaceFixtureData(twoAccountData());
     s().setActiveAccount('a1');
     await s().refreshPlanning();
   });

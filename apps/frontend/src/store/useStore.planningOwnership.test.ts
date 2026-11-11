@@ -5,7 +5,13 @@ import {
   readPlanningProblem,
 } from '@/data/planning/planningCacheController';
 import { useStore } from '@/store/useStore';
-import { makeAccount, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  makeAccount,
+  makeResourceDraft,
+  resetStoreWithAccount,
+  replaceFixtureData,
+  updatePlanningFixtureSource,
+} from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 
 // Lets a test make the planning transport fail like the server would, over the demo transport.
@@ -181,7 +187,7 @@ describe('planning ownership of allocations', () => {
   });
 
   it('opens the planning context for a company as soon as it becomes active', async () => {
-    useStore.getState().replaceAll({
+    replaceFixtureData({
       ...useStore.getState().data,
       accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
     });
@@ -211,6 +217,7 @@ describe('planning ownership of allocations', () => {
     useStore.setState((state) => ({
       data: { ...state.data, clients: state.data.clients.filter((row) => row.id !== oldClient.id) },
     }));
+    updatePlanningFixtureSource(useStore.getState().data);
     const afterChange = useStore.getState().refreshPlanning({ fresh: true });
     expect(afterChange).not.toBe(beforeChange);
     expect(await afterChange).toBe(true);
@@ -221,7 +228,7 @@ describe('planning ownership of allocations', () => {
 
   it('retires a held demo read while visiting the picker, then re-enters a new company incarnation', async () => {
     const account = makeAccount({ id: 'a2' });
-    useStore.getState().replaceAll({
+    replaceFixtureData({
       ...useStore.getState().data,
       accounts: [...useStore.getState().data.accounts, account],
     });

@@ -2,7 +2,7 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useStore } from './useStore';
-import { makeAccount, makeAppData, WORKDAYS } from '@/test/fixtures';
+import { makeAccount, makeAppData, WORKDAYS, replaceFixtureData } from '@/test/fixtures';
 import type { AppData } from '@capacitylens/shared/types/entities';
 
 // The store is the strict per-account write boundary: an update/delete must own
@@ -82,7 +82,7 @@ function twoAccountData(): AppData {
 }
 
 beforeEach(async () => {
-  s().replaceAll(twoAccountData());
+  replaceFixtureData(twoAccountData());
   s().setActiveAccount(A);
   s().setActiveRole(null);
   await s().refreshPlanning();
@@ -118,7 +118,7 @@ describe('active-account replacement invariant', () => {
       if (state.activeAccountId === null) fallbackStates.push(state);
     });
 
-    s().replaceAll(replacement);
+    replaceFixtureData(replacement);
     unsubscribe();
 
     expect(fallbackStates.length).toBeGreaterThan(0);
@@ -267,7 +267,7 @@ function registerEntityOwnershipTests(): void {
       createdAt: 't',
       updatedAt: 't',
     });
-    s().replaceAll(withAlloc);
+    replaceFixtureData(withAlloc);
     s().setActiveAccount(A);
     await expect(s().updateAllocation('aB', { status: 'tentative' })).rejects.toThrow(
       /does not belong to the active company/i,

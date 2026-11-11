@@ -15,6 +15,7 @@ import {
   makeTimeOff,
   makeClosure,
   DEFAULT_ACCOUNT_ID,
+  resetStoreWithData,
 } from '@/test/fixtures';
 import { ClientList } from '@/components/clients/ClientList';
 import { ProjectList } from '@/components/projects/ProjectList';
@@ -114,11 +115,9 @@ beforeEach(async () => {
       }),
     ],
   });
-  useStore.getState().replaceAll(data);
-  useStore.getState().setActiveAccount(accountId);
+  await resetStoreWithData(data, accountId);
   useStore.getState().clearFilters();
   useStore.getState().goToDate('2026-06-01');
-  await useStore.getState().refreshPlanning();
 });
 afterEach(() => {
   vi.useRealTimers();

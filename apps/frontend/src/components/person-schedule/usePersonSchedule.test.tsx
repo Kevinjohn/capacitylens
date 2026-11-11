@@ -14,6 +14,8 @@ import {
   makeAppData,
   makeResource,
   makeTimeOff,
+  resetStoreWithData,
+  updatePlanningFixtureSource,
 } from '@/test/fixtures';
 import { usePersonSchedule } from './usePersonSchedule';
 
@@ -64,25 +66,28 @@ function withoutName(value: Resource): Resource {
 
 const activity = withoutProjectId(makeActivity({ id: 't1', accountId: 'a1', kind: 'internal' }));
 
-function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
-  useStore.getState().replaceAll(
-    makeAppData({
-      accounts: [makeAccount({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 1 })],
-      resources: [resource],
-      activities: [activity],
-      allocations: [
-        makeAllocation({ accountId: 'a1', resourceId: resource.id, activityId: activity.id }),
-      ],
-      ...overrides,
-    }),
-  );
-  useStore.getState().setActiveAccount('a1');
+function fixtureData(overrides: Parameters<typeof makeAppData>[0] = {}) {
+  return makeAppData({
+    accounts: [makeAccount({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 1 })],
+    resources: [resource],
+    activities: [activity],
+    allocations: [
+      makeAllocation({ accountId: 'a1', resourceId: resource.id, activityId: activity.id }),
+    ],
+    ...overrides,
+  });
 }
 
-beforeEach(() => {
+function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
+  const data = fixtureData(overrides);
+  useStore.getState().replaceAll(data);
+  updatePlanningFixtureSource(data);
+}
+
+beforeEach(async () => {
   calendarToday.today = '2026-09-10';
   calendarToday.timeZone = '';
-  seed();
+  await resetStoreWithData(fixtureData(), 'a1');
 });
 
 describe('usePersonSchedule availability', () => {
