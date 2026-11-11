@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { m } from '@/i18n';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
 import { resetStoreWithAccount } from '@/test/fixtures';
+import { holdCalls } from '@/test/holdCalls';
 import {
   expectNotice,
   mockApi,
@@ -67,22 +68,6 @@ function makeRead(
 
 const bruce = { resourceId: 'r-bruce', revision: 'rev-2' };
 const diana = { resourceId: 'r-diana', revision: 'rev-3' };
-
-// Holds each call until the test settles it, oldest first, so reads and writes can race on cue.
-function holdCalls<T>(): { calls: ((result: T) => void)[]; settleNext(result: T): Promise<void> } {
-  const calls: ((result: T) => void)[] = [];
-  return {
-    calls,
-    async settleNext(result) {
-      await waitFor(() => expect(calls.length).toBeGreaterThan(0));
-      const settle = calls.shift();
-      await act(async () => {
-        settle?.(result);
-        await Promise.resolve();
-      });
-    },
-  };
-}
 
 function controlRequests(initialRead = makeRead()) {
   const reads = holdCalls<MembersRead>();

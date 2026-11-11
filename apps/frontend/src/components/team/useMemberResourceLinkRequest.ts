@@ -155,9 +155,7 @@ export function useMemberResourceLinkRequests({
     const request = requests.get(member.userId) ?? IDLE_REQUEST;
     const pending = request.sending || acceptedReadGeneration < request.requiredReadGeneration;
     const reconciled =
-      !pending &&
-      request.expectedResourceId !== undefined &&
-      (member.resourceLink?.resourceId ?? null) === request.expectedResourceId;
+      !pending && (member.resourceLink?.resourceId ?? null) === request.expectedResourceId;
     return {
       pending,
       error: request.error,

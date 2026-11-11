@@ -6,6 +6,7 @@ import { teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
 import { AuthContext } from '@/auth/authContext';
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { holdCalls } from '@/test/holdCalls';
 import { authValue } from './MembersSection.testSupport';
 import { useTeamDirectory } from './useTeamDirectory';
 
@@ -36,27 +37,17 @@ function makeDirectory(
 
 // Resolves the first members read at once and holds every later read until the test settles it.
 function controlMemberReads() {
-  const held: ((result: MembersRead) => void)[] = [];
+  const reads = holdCalls<MembersRead>();
   const listMembers = vi
     .spyOn(teamAccessClient, 'listMembers')
     .mockResolvedValueOnce({ kind: 'ok', status: 200, value: makeDirectory(null) })
-    .mockImplementation(() => new Promise((resolve) => held.push(resolve)));
+    .mockImplementation(() => new Promise((resolve) => reads.calls.push(resolve)));
   vi.spyOn(teamAccessClient, 'listInvitations').mockResolvedValue({
     kind: 'ok',
     status: 200,
     value: [],
   });
-  return {
-    listMembers,
-    async settleNext(result: MembersRead) {
-      await waitFor(() => expect(held.length).toBeGreaterThan(0));
-      const settle = held.shift();
-      await act(async () => {
-        settle?.(result);
-        await Promise.resolve();
-      });
-    },
-  };
+  return { listMembers, settleNext: reads.settleNext };
 }
 
 function renderDirectory(
