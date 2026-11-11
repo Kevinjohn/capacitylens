@@ -14,8 +14,30 @@ const accountId = 'a-studio';
 const owner = { email: 'bruce.wayne@wayne.example', password: 'batman-secret-2026' };
 const editor = { email: 'dick.grayson@wayne.example', password: 'nightwing-secret-2026' };
 
-const deleteAccount = (client: ApiClient, cookie: string, currentPassword: string) =>
-  asDataOwner(client.post('/api/auth/delete-account'), cookie).json({ currentPassword }).send();
+const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
+
+const requestConfirmation = (client: ApiClient, cookie: string, body: object) =>
+  asDataOwner(client.post('/api/auth/password-confirmation'), cookie).json(body).send();
+
+async function confirm(client: ApiClient, cookie: string, password: string) {
+  const response = await requestConfirmation(client, cookie, {
+    action: 'delete-account',
+    intent: {},
+    password,
+  });
+  response.assertStatus(200);
+  return (response.body() as { confirmationId: string }).confirmationId;
+}
+
+const deleteAccount = (
+  client: ApiClient,
+  cookie: string,
+  currentPassword: string,
+  confirmationId: string
+) =>
+  asDataOwner(client.post('/api/auth/delete-account'), cookie)
+    .json({ currentPassword, confirmationId })
+    .send();
 const accounts = (client: ApiClient, cookie: string) =>
   asDataOwner(client.get('/api/accounts'), cookie).send();
 
@@ -79,6 +101,7 @@ test.group('account deletion', (group) => {
   group.each.setup(async () => {
     await resetState(false);
     await clearIdentities();
+    await db.from('account_member_resources').delete();
     await limiter.clear();
   });
 
@@ -95,7 +118,8 @@ test.group('account deletion', (group) => {
     assert.lengthOf(before.admissions, 1);
     assert.lengthOf(before.sessions, 1);
 
-    const deleted = await deleteAccount(client, cookie, editor.password);
+    const confirmationId = await confirm(client, cookie, editor.password);
+    const deleted = await deleteAccount(client, cookie, editor.password, confirmationId);
     deleted.assertStatus(200);
     deleted.assertBodyContains({ ok: true, signedOut: true });
 
@@ -122,7 +146,8 @@ test.group('account deletion', (group) => {
     const ownerId = await company();
     const { cookie } = await signIn(client, owner.email, owner.password);
 
-    const refused = await deleteAccount(client, cookie, owner.password);
+    const confirmationId = await confirm(client, cookie, owner.password);
+    const refused = await deleteAccount(client, cookie, owner.password, confirmationId);
     refused.assertStatus(409);
     refused.assertBodyContains({ code: 'LAST_OWNER' });
 
@@ -138,13 +163,33 @@ test.group('account deletion', (group) => {
     const userId = await editorMember();
     const { cookie } = await signIn(client, editor.email, editor.password);
 
-    const wrong = await deleteAccount(client, cookie, 'not-the-password-2026');
+    const refusedConfirmation = await requestConfirmation(client, cookie, {
+      action: 'delete-account',
+      intent: {},
+      password: 'not-the-password-2026',
+    });
+    refusedConfirmation.assertStatus(403);
+    refusedConfirmation.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' });
+    const confirmationId = await confirm(client, cookie, editor.password);
+    const wrong = await deleteAccount(client, cookie, 'not-the-password-2026', confirmationId);
     wrong.assertStatus(403);
     wrong.assertBodyContains({ code: 'CURRENT_PASSWORD_INCORRECT' });
-    const malformed = await asDataOwner(client.post('/api/auth/delete-account'), cookie)
-      .json({ currentPassword: editor.password, extra: true })
-      .send();
-    malformed.assertStatus(400);
+    for (const body of [
+      { currentPassword: editor.password },
+      { currentPassword: editor.password, confirmationId, extra: true },
+    ]) {
+      const malformed = await asDataOwner(client.post('/api/auth/delete-account'), cookie)
+        .json(body)
+        .send();
+      malformed.assertStatus(400);
+    }
+    const companyScoped = await requestConfirmation(client, cookie, {
+      action: 'delete-account',
+      accountId,
+      intent: {},
+      password: editor.password,
+    });
+    companyScoped.assertStatus(400);
 
     const after = await rowsFor(userId);
     assert.lengthOf(after.users, 1);
@@ -153,12 +198,52 @@ test.group('account deletion', (group) => {
     await expectStatus(accounts(client, cookie), 200);
   });
 
+  test('a missing, other-purpose or spent confirmation is refused', async ({ client, assert }) => {
+    await company();
+    const userId = await editorMember();
+    const { cookie } = await signIn(client, editor.email, editor.password);
+
+    const missing = await deleteAccount(client, cookie, editor.password, '');
+    missing.assertStatus(403);
+    assert.deepEqual(missing.body(), required);
+
+    const ownerSession = await signIn(client, owner.email, owner.password);
+    const anonymise = await requestConfirmation(client, ownerSession.cookie, {
+      action: 'anonymise',
+      accountId,
+      intent: {},
+      password: owner.password,
+    });
+    anonymise.assertStatus(200);
+    const otherPurpose = await deleteAccount(
+      client,
+      ownerSession.cookie,
+      owner.password,
+      (anonymise.body() as { confirmationId: string }).confirmationId
+    );
+    otherPurpose.assertStatus(403);
+    assert.deepEqual(otherPurpose.body(), required);
+
+    // A wrong current password still spends the confirmation, so it cannot be replayed.
+    const spent = await confirm(client, cookie, editor.password);
+    const wrong = await deleteAccount(client, cookie, 'not-the-password-2026', spent);
+    wrong.assertStatus(403);
+    const replayed = await deleteAccount(client, cookie, editor.password, spent);
+    replayed.assertStatus(403);
+    assert.deepEqual(replayed.body(), required);
+
+    const after = await rowsFor(userId);
+    assert.lengthOf(after.users, 1);
+    assert.lengthOf(after.memberships, 1);
+    await expectStatus(accounts(client, cookie), 200);
+  });
+
   test('a signed-out request is refused', async ({ client }) => {
     await company();
     const response = await client
       .post('/api/auth/delete-account')
       .header('sec-fetch-site', 'same-origin')
-      .json({ currentPassword: owner.password })
+      .json({ currentPassword: owner.password, confirmationId: 'none' })
       .send();
     response.assertStatus(401);
   });

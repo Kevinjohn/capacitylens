@@ -9,6 +9,7 @@ import { SecuritySection } from './SecuritySection';
 
 const changePassword = vi.fn();
 const deleteAccount = vi.fn();
+const confirmAccountDeletion = vi.fn();
 const readIdentityProvider = vi.fn();
 const googleProvider = {
   id: 'google',
@@ -26,6 +27,7 @@ vi.mock('@/auth/authClient', () => ({
   authClient: {
     changePassword: (...args: unknown[]) => changePassword(...args),
     deleteAccount: (...args: unknown[]) => deleteAccount(...args),
+    confirmAccountDeletion: (...args: unknown[]) => confirmAccountDeletion(...args),
   },
 }));
 vi.mock('@/account/accountClient', async (importOriginal) => {
@@ -42,6 +44,9 @@ vi.mock('@/account/accountClient', async (importOriginal) => {
 beforeEach(() => {
   changePassword.mockReset();
   deleteAccount.mockReset();
+  confirmAccountDeletion
+    .mockReset()
+    .mockResolvedValue({ data: { confirmationId: 'confirmation-1' }, error: null });
   readIdentityProvider
     .mockReset()
     .mockImplementation(() =>
@@ -431,8 +436,12 @@ it('deletes the account through its dialog and returns to sign-in', async () => 
   });
   fireEvent.click(submit);
   await waitFor(() =>
-    expect(deleteAccount).toHaveBeenCalledWith({ currentPassword: 'current-password' }),
+    expect(deleteAccount).toHaveBeenCalledWith({
+      currentPassword: 'current-password',
+      confirmationId: 'confirmation-1',
+    }),
   );
+  expect(confirmAccountDeletion).toHaveBeenCalledWith('current-password');
   await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
   expect(changePassword).not.toHaveBeenCalled();
   vi.unstubAllGlobals();
@@ -473,6 +482,20 @@ it('shows a wrong deletion password against the field and sends nothing else', a
   expect(await screen.findByRole('alert')).toHaveTextContent('Current password is incorrect.');
   expect(current).toHaveAttribute('aria-invalid', 'true');
   expect(deleteAccount).toHaveBeenCalledOnce();
+});
+
+it('shows a refused password confirmation against the field and never deletes', async () => {
+  confirmAccountDeletion.mockResolvedValue({
+    data: null,
+    error: { code: 'PASSWORD_CONFIRMATION_DENIED', message: 'Incorrect password.', status: 403 },
+  });
+  renderSecurity({ deleteOpen: true });
+  const current = screen.getByLabelText(m.settings_security_current_password());
+  fireEvent.change(current, { target: { value: 'wrong-password' } });
+  fireEvent.click(screen.getByRole('button', { name: m.settings_security_delete_account() }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Incorrect password.');
+  expect(current).toHaveAttribute('aria-invalid', 'true');
+  expect(deleteAccount).not.toHaveBeenCalled();
 });
 
 it('returns to sign-in after a committed deletion whose follow-up failed', async () => {

@@ -11,7 +11,8 @@ import { parseRequestDocument } from '#services/beta_account_transfer';
 
 type ConfirmationRequest = {
   action: PasswordConfirmationKind;
-  accountId: string;
+  /** The company the action applies to; absent for `delete-account`, which is scoped to the caller. */
+  accountId?: string;
   intent: unknown;
   password: string;
 };
@@ -19,10 +20,13 @@ type ConfirmationRequest = {
 function requestBody(value: unknown): ConfirmationRequest | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const body = value as Record<string, unknown>;
-  const fields = ['action', 'accountId', 'intent', 'password'];
-  if (Object.keys(body).some((key) => !fields.includes(key))) return null;
   if (!PASSWORD_CONFIRMATION_KINDS.includes(body.action as PasswordConfirmationKind)) return null;
-  if (typeof body.accountId !== 'string' || !body.accountId) return null;
+  const ownAccount = body.action === 'delete-account';
+  const fields = ownAccount
+    ? ['action', 'intent', 'password']
+    : ['action', 'accountId', 'intent', 'password'];
+  if (Object.keys(body).some((key) => !fields.includes(key))) return null;
+  if (!ownAccount && (typeof body.accountId !== 'string' || !body.accountId)) return null;
   if (typeof body.password !== 'string') return null;
   if (!body.intent || typeof body.intent !== 'object' || Array.isArray(body.intent)) return null;
   const intent = body.intent as Record<string, unknown>;
@@ -56,16 +60,19 @@ export default class PasswordConfirmationsController {
   async password(ctx: HttpContext) {
     const body = requestBody(ctx.request.body());
     if (!body) return ctx.response.badRequest({ error: 'Invalid password confirmation.' });
-    await withActor(ctx, async (_actor, trx) => passwordConfirmationActor(body.accountId, trx));
-    const { confirmationId } = await passwordConfirmations.confirmPassword(
-      await accountInput(ctx),
-      {
-        action: body.action,
-        scope: body.accountId,
-        intent: body.intent,
-        password: body.password,
-      }
-    );
+    const accountId = body.accountId;
+    if (accountId !== undefined) {
+      await withActor(ctx, async (_actor, trx) => passwordConfirmationActor(accountId, trx));
+    }
+    const input = await accountInput(ctx);
+    // A `delete-account` confirmation is scoped to the caller; `authorize` refuses any other scope.
+    const scope = accountId ?? String(input.userId);
+    const { confirmationId } = await passwordConfirmations.confirmPassword(input, {
+      action: body.action,
+      scope,
+      intent: body.intent,
+      password: body.password,
+    });
     try {
       await passwordConfirmations.prune();
     } catch (error) {

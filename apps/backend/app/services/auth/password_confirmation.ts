@@ -2,7 +2,12 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { activeCompanyRole } from './authorization.js';
 import { actorIn, type CurrentActor } from './current_actor.js';
 
-export const PASSWORD_CONFIRMATION_KINDS = ['transfer-ownership', 'import', 'anonymise'] as const;
+export const PASSWORD_CONFIRMATION_KINDS = [
+  'transfer-ownership',
+  'import',
+  'anonymise',
+  'delete-account',
+] as const;
 export type PasswordConfirmationKind = (typeof PASSWORD_CONFIRMATION_KINDS)[number];
 
 export class PasswordConfirmationError extends Error {
