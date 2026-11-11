@@ -138,22 +138,23 @@ function registerPinsTeamAccessSettingsBelowTest() {
   }) => {
     await openApp(page);
 
-    const hrefs = await page
-      .locator('nav a')
-      .evaluateAll((links) => links.map((l) => l.getAttribute('href')));
-    expect(hrefs).toEqual([
-      '/overview',
-      '/',
-      '/resources',
-      '/disciplines',
-      '/clients',
-      '/projects',
-      '/activities',
-      '/timeoff',
-      '/team',
-      '/settings',
-      '/diagnostics',
-    ]);
+    await expect
+      .poll(() =>
+        page.locator('nav a').evaluateAll((links) => links.map((l) => l.getAttribute('href'))),
+      )
+      .toEqual([
+        '/overview',
+        '/',
+        '/resources',
+        '/disciplines',
+        '/clients',
+        '/projects',
+        '/activities',
+        '/timeoff',
+        '/team',
+        '/settings',
+        '/diagnostics',
+      ]);
 
     // The one-company footer keeps Help directly above Account.
     await expect(page.getByRole('button', { name: 'Switch company' })).toHaveCount(0);
