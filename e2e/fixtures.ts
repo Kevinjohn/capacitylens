@@ -6,18 +6,24 @@ import type {
   Locator,
   Page,
 } from '@playwright/test';
+import { createBrowserErrorObserver, formatObserverMessage } from './browserErrorObserver';
 import { clearAuthE2ECompanies, waitForAuthE2EBaseline } from './authTestSupport';
 
 export { expect, type APIRequestContext, type Locator, type Page };
 
-type PageErrorObserver = { observePage: (page: Page) => void };
+type BrowserErrorObserver = {
+  registerContext: (context: BrowserContext) => Promise<void>;
+  observePage: (page: Page) => void;
+  waitForPage: (page: Page) => Promise<void>;
+  assertContextReady: (context: BrowserContext) => Promise<void>;
+};
 type CapacityLensFixtures = {
   authCompanyIsolation: void;
   newObservedContext: (options?: BrowserContextOptions) => Promise<BrowserContext>;
-  pageErrorObserver: PageErrorObserver;
+  pageErrorObserver: BrowserErrorObserver;
 };
 
-/** Every browser spec fails if application code raises on any page registered with the fixture. */
+/** Browser specs fail when a registered context emits an uncaught browser error event. */
 export const test = base.extend<CapacityLensFixtures>({
   authCompanyIsolation: [
     // Playwright requires a destructuring pattern for an automatic fixture with no inputs.
@@ -38,55 +44,75 @@ export const test = base.extend<CapacityLensFixtures>({
   pageErrorObserver: [
     // Playwright requires a destructuring pattern even when an automatic fixture has no inputs.
     // eslint-disable-next-line no-empty-pattern
-    async ({}, use) => {
-      const errors: Error[] = [];
-      const observedPages = new Set<Page>();
-      const recordError = (error: Error) => errors.push(error);
-      const observePage = (page: Page) => {
-        if (observedPages.has(page)) return;
-        observedPages.add(page);
-        page.on('pageerror', recordError);
-      };
-      await use({ observePage });
-      observedPages.forEach((page) => page.off('pageerror', recordError));
+    async ({}, use, testInfo) => {
+      const observer = createBrowserErrorObserver();
+      const {
+        errors,
+        driverPageErrors,
+        registerContext,
+        observePage,
+        waitForPage,
+        assertContextReady,
+      } = observer;
+      try {
+        await use({ observePage, registerContext, waitForPage, assertContextReady });
+      } finally {
+        await observer.dispose();
+      }
+      if (driverPageErrors.length > 0) {
+        await testInfo.attach('browser-pageerror-diagnostics', {
+          body: Buffer.from(
+            driverPageErrors.map((error) => error.stack ?? error.message).join('\n\n'),
+          ),
+          contentType: 'text/plain',
+        });
+      }
       if (errors.length > 0) {
-        const details = errors
-          .map((error, index) => `${index + 1}. ${error.stack ?? error.message}`)
-          .join('\n\n');
+        await testInfo.attach('browser-observer-lifecycle-diagnostics', {
+          body: Buffer.from(JSON.stringify(observer.lifecycleDiagnostics, null, 2)),
+          contentType: 'application/json',
+        });
+        if (
+          testInfo.annotations.some((annotation) => annotation.type.startsWith('browser-error-'))
+        ) {
+          testInfo.annotations.push({
+            type: 'browser-error-observer-records',
+            description: JSON.stringify(errors),
+          });
+        }
+        const details = errors.map((message, index) => {
+          const error = formatObserverMessage(message);
+          return `${index + 1}. ${error.stack ?? error.message}`;
+        });
+        const coverageFailure = errors.some((message) => message.kind === 'coverage-failure');
         throw new Error(
-          `Uncaught browser exception${errors.length === 1 ? '' : 's'}:\n\n${details}`,
+          `${coverageFailure ? 'Browser error observer coverage failure' : 'Uncaught browser error event'}${errors.length === 1 ? '' : 's'}:\n\n${details.join('\n\n')}`,
         );
       }
     },
     { auto: true },
   ],
   context: async ({ context, pageErrorObserver }, use) => {
-    const observePage = pageErrorObserver.observePage;
-    context.pages().forEach(observePage);
-    context.on('page', observePage);
+    await pageErrorObserver.registerContext(context);
     try {
       await use(context);
     } finally {
-      context.off('page', observePage);
+      await pageErrorObserver.assertContextReady(context);
     }
   },
   newObservedContext: async ({ browser, pageErrorObserver }, use) => {
     const contexts = new Set<BrowserContext>();
-    const listeners = new Map<BrowserContext, (page: Page) => void>();
     try {
       await use(async (options) => {
         const context = await browser.newContext(options);
-        const observePage = pageErrorObserver.observePage;
-        context.pages().forEach(observePage);
-        context.on('page', observePage);
         contexts.add(context);
-        listeners.set(context, observePage);
+        await pageErrorObserver.registerContext(context);
         return context;
       });
     } finally {
       await Promise.all(
         [...contexts].map(async (context) => {
-          context.off('page', listeners.get(context)!);
+          await pageErrorObserver.assertContextReady(context);
           await context.close();
         }),
       );
