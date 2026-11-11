@@ -10,6 +10,6 @@ As a company member, I want to minimise weekend columns so that working days hav
 
 ## Acceptance criteria
 
-| Field             | Control | Required/default/conditions                                                 |
-| ----------------- | ------- | --------------------------------------------------------------------------- |
-| Minimise weekends | Switch  | On by default; this device only. Narrows weekend columns at day-level zoom. |
+| Field             | Control | Required/default/conditions                                                                                                                                      |
+| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Minimise weekends | Switch  | On by default; this device only. Narrows the Saturday and Sunday columns whenever day columns are wider than the narrow weekend width; weekend work still shows. |

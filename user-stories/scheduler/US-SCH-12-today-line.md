@@ -14,4 +14,5 @@ As an Editor, I want today marked on the timeline so that I can orient myself wi
 
 ## Acceptance criteria
 
-- A today marker appears when today is in view and disappears outside the visible range.
+- When today, in the company time zone, falls within the loaded timeline range, a vertical line marks it on every resource row; when day columns are shown, the date header also highlights today. After navigating to a range that excludes today, neither appears.
+- At midnight in the company time zone, the marker moves to the new date.

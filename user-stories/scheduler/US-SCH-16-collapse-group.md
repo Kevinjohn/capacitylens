@@ -14,5 +14,5 @@ As an Editor, I want to collapse and expand discipline groups so that I can focu
 
 ## Acceptance criteria
 
-- Selecting a discipline header collapses its resource rows and shows a hidden-row count.
+- Selecting a group header collapses its resource rows and shows **{count} hidden**.
 - Selecting it again restores the rows.

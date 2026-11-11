@@ -4,7 +4,7 @@ As an Editor, I want to drag an allocation along its lane so that I can change i
 
 **Status:** Current
 
-**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
+**Access:** Editor, Admin or Owner
 
 **Entry:** Schedule (`/`)
 
@@ -14,5 +14,5 @@ As an Editor, I want to drag an allocation along its lane so that I can change i
 
 ## Acceptance criteria
 
-- Dragging an allocation body moves it by whole days on the same resource.
+- Dragging an allocation body moves it by whole days on the same resource. Unless Ignore working days is set, a moved start that falls on a non-working day moves on to the next working day in the drag direction, and the allocation keeps its working-day length.
 - The resulting bar shows the updated dates.

@@ -14,4 +14,5 @@ As a company Owner, I want permitted non-Owner edits to preserve private identit
 
 ## Acceptance criteria
 
-- Non-Owner writes preserve protected identity fields and responses redact them; Owner writes may change privacy fields.
+- When an Admin or Editor saves a client or project that uses a code name, the server keeps its real name, Use code name and code name as stored and applies only the other fields; nothing is refused.
+- A non-Owner cannot turn on Use code name for a public record. Responses to non-Owners show the code name in place of the real name. Owners can change every privacy field.

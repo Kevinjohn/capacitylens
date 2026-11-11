@@ -2,11 +2,11 @@
 
 As a company member, I want to retry loading the active company so that I can continue if its planning data becomes available.
 
-**Status:** Current
+**Status:** Hidden — retained screen with no current error-state producer.
 
 **Access:** Owner, Admin, Editor, Viewer; Choose another is available only in demo mode.
 
-**Entry:** Active company load failure screen → Retry; demo mode also offers Choose another.
+**Entry:** No current entry; retained company-load recovery screen.
 
 **Documentation:** [When something goes wrong](../../docs-src/self-hosting/incidents.md)
 

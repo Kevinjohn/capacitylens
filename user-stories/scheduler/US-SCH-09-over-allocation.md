@@ -14,4 +14,6 @@ As an Editor, I want over-capacity days marked on the Schedule so that I can see
 
 ## Acceptance criteria
 
-- A day is marked over capacity only when allocated hours exceed available hours.
+- With Hours or Days scheduling input, a resource day gets the over-capacity marker (red top border and red fill) only when its allocated hours exceed its available hours; at or below availability, no marker appears.
+- With Blocks, allocations carry no hours, so a day is marked only when an allocation falls on a time-off day.
+- On a day with time off, the marker uses a stronger red fill. External resources are not capacity-tracked and show no marker.

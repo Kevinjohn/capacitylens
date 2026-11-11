@@ -14,5 +14,5 @@ As a company member, I want current and future time off grouped by resource so t
 
 ## Acceptance criteria
 
-- The Time off page groups current and future entries by resource.
-- Past entries are hidden without being deleted.
+- The Time off page groups entries by resource under **Personal time off**.
+- Entries that ended before the start of the current week are hidden without being deleted; entries for placeholders are hidden while Show placeholders is off.

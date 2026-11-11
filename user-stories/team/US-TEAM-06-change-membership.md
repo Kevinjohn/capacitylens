@@ -14,6 +14,6 @@ As an Owner or Admin, I want to change an eligible member's role or active statu
 | ----------- | ------- | ------------------------------------------------------------------------ |
 | Member role | Select  | Required; starts with the member's current role. Owner is not an option. |
 
-- **Save role** applies the selected role after the role dialog; the dialog shows a summary of that role.
+- **Edit {member}** opens **Change member role?** with the Member role select and a summary of the selected role; **Save role** applies it and **Cancel** keeps the current role.
 - **Suspend** asks for confirmation and explains that access stops while role and history remain. **Restore membership** asks for confirmation and restores the member with the previous role.
 - Active members appear in Members; suspended members appear under **No longer active**. Nobody can change their own membership or the Owner through these controls.

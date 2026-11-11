@@ -4,7 +4,7 @@ As an Editor, I want to draw a date range in Time off mode so that I can start a
 
 **Status:** Current
 
-**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
+**Access:** Editor, Admin or Owner
 
 **Entry:** Schedule (`/`)
 

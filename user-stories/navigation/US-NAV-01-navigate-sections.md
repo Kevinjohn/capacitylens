@@ -14,4 +14,4 @@ As an Owner, Admin, Editor, or Viewer, I want to open the sections available to 
 
 ## Acceptance criteria
 
-- Selecting a permitted destination renders its page and preserves valid deep links; unknown routes show the not-found page.
+- Selecting a permitted destination renders its page and preserves valid deep links; unknown routes show the not-found page. A direct link to Overview or Diagnostics without access, or to Disciplines while disciplines are off, returns to the Schedule.

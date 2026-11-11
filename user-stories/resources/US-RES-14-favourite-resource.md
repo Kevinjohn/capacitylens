@@ -11,5 +11,5 @@ As an Editor, I want to favourite or unfavourite a resource so that priority peo
 ## Acceptance criteria
 
 - The accessible favourite button toggles the selected resource's favourite state.
-- Favourited people are ordered before other people in their roster section; external-party favourites remain available without adding capacity.
+- The toggle reads **Add {name} to favourites** or **Remove {name} from favourites**. Favourites sort first within People (or Studio and Supplementary) and within External; favouriting does not change capacity.
 - The button is not shown for placeholders or viewers.

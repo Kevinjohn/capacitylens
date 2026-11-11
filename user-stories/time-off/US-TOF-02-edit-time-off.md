@@ -10,12 +10,12 @@ As an Editor, I want to edit one time-off entry so that its dates and type stay 
 
 ## Acceptance criteria
 
-| Field    | Control    | Required/default/conditions                                                                 |
-| -------- | ---------- | ------------------------------------------------------------------------------------------- |
-| Resource | Select     | Required; defaults from the entry point when supplied; excludes external parties.           |
-| Start    | Date input | Required; defaults to today unless a date is supplied by the entry point.                   |
-| End      | Date input | Required; defaults to Start unless supplied; cannot precede Start.                          |
-| Type     | Select     | Required; defaults to Holiday; options Holiday, Sick, Unpaid or Other.                      |
-| Note     | Text input | Optional; editable and visible only to roles permitted to see time-off notes (Owner/Admin). |
+| Field    | Control    | Required/default/conditions                                            |
+| -------- | ---------- | ---------------------------------------------------------------------- |
+| Resource | Select     | Required; prefilled with the saved resource; excludes external parties |
+| Start    | Date input | Required; prefilled with the saved start date                          |
+| End      | Date input | Required; prefilled with the saved end date; cannot precede Start      |
+| Type     | Select     | Prefilled with the saved type; options Holiday, Sick, Unpaid or Other  |
+| Note     | Text input | Optional; prefilled; shown only to Owners and Admins                   |
 
 - Save updates this entry only; repeating occurrences remain independent.

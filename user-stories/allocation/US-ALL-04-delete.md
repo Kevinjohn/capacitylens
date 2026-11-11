@@ -1,6 +1,6 @@
 # US-ALL-04 — Delete an allocation
 
-As an Editor, I want to delete a cancelled allocation safely so that I can restore it if the deletion was a mistake.
+As an Editor, I want to delete an allocation that is no longer needed so that the Schedule stays current, with undo if I delete it by mistake.
 
 **Status:** Current
 
@@ -14,5 +14,6 @@ As an Editor, I want to delete a cancelled allocation safely so that I can resto
 
 ## Acceptance criteria
 
-- **Delete** asks for confirmation; Cancel preserves the allocation.
-- Confirming deletion removes the chosen allocation or permitted repeat tail; Undo restores it.
+- In the Edit allocation dialog, **Delete** opens **Delete allocation?** with **Delete** and **Cancel**.
+- For an allocation in a repeating series it opens **Delete repeated allocation?** with **Delete this occurrence**, **Delete this and future occurrences** and **Cancel**.
+- **Cancel** keeps the allocation. A confirmed deletion removes the chosen allocation, or it and the later occurrences in its series; ⌘Z / Ctrl+Z (or **Undo**) restores it.

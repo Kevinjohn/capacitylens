@@ -14,4 +14,6 @@ As a company member, I want failed or uncertain server operations shown clearly 
 
 ## Acceptance criteria
 
-- A failed planning read shows an unavailable banner, blocks planning writes, and remains failed until a new canonical read succeeds. Failed or uncertain writes show a failure banner; planning-error banners provide no Retry control. The separate Connection failure screen has Retry (US-NAV-19).
+- A failed planning read shows **The schedule couldn’t be loaded from the server. Reload to try again.**, blocks planning changes and stays until a later read succeeds.
+- A change the server refuses with 403 shows **That schedule change was refused, so it wasn’t saved.**; the loaded rows stay readable.
+- While an earlier change’s outcome is still unconfirmed, further changes are refused. Neither banner has a Retry control.

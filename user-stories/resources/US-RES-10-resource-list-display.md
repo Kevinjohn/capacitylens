@@ -10,6 +10,6 @@ As an Editor, I want a scannable resource roster so that I can find people and p
 
 ## Acceptance criteria
 
-- The Resources screen shows people, placeholders and external parties in their separate sections; Studio/Supplementary sections appear when Supplementary people exist.
-- People and external-party rows show **Favourite**; placeholders do not. Favourites sort first in their eligible section.
-- With no resources, the list shows **No resources yet.**
+- The Resources screen lists people first; **Placeholders** appears only when Show placeholders is on and **External** only when Show external resources is on. People split into **Studio** and **Supplementary** when an active Supplementary person exists.
+- For Editors, Admins and Owners, people and external-party rows show a favourite toggle; placeholders do not. Favourites sort first within People (or Studio and Supplementary) and within External.
+- With no people, the list shows **No resources yet.**; when no resources of any kind are visible it adds **Add your first resource** for Editors and above.

@@ -10,9 +10,9 @@ As an Editor, I want to create a finite batch of repeating time-off entries so t
 
 ## Acceptance criteria
 
-| Field        | Control    | Required/default/conditions                                                                                                       |
-| ------------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Repeat       | Select     | Defaults to Doesn’t repeat; offers weekly, every two/three/four weeks, monthly on date or monthly on last weekday.                |
-| Repeat until | Date input | Required when repeating; suggested from Start; maximum is limited from Start; includes an occurrence starting on the cutoff date. |
+| Field        | Control    | Required/default/conditions                                                                                                                                     |
+| ------------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repeat       | Select     | Defaults to Doesn’t repeat; Weekly, Every 2 weeks, Every 3 weeks, Every 4 weeks, Monthly on day {day} or Monthly on the last {weekday}                          |
+| Repeat until | Date input | Required when repeating; suggested and capped at the end of the eleventh calendar month after Start’s month; includes an occurrence starting on the cutoff date |
 
 - Saving creates independent dated entries; each occurrence can be edited or deleted on its own.

@@ -6,7 +6,7 @@ As a company member, I want an unmatched address to explain that the page was no
 
 **Access:** Owner, Admin, Editor, Viewer; sign-in wall still applies to protected routes.
 
-**Entry:** Unmatched extensionless URL → Page not found → Schedule link.
+**Entry:** Unmatched extensionless URL → Page not found → Go to schedule.
 
 **Documentation:** [FAQ](../../docs-src/using/faq.md)
 
@@ -14,4 +14,4 @@ As a company member, I want an unmatched address to explain that the page was no
 
 ## Acceptance criteria
 
-- An unmatched application route renders a branded not-found page with a Schedule link. Missing assets and API routes remain HTTP errors; valid invitation and reset paths retain their route handling.
+- An unmatched application route renders **Page not found** (“That page does not exist or may have moved.”) with a **Go to schedule** link. Missing assets and API routes remain HTTP errors; valid invitation and reset paths retain their route handling.

@@ -11,4 +11,4 @@ As an Editor, I want resource colour to follow its discipline so that the schedu
 ## Acceptance criteria
 
 - Add/Edit resource has no Colour control.
-- The resource avatar and schedule cues use the assigned discipline colour, or the neutral fallback when no discipline is assigned.
+- With disciplines enabled, the Resources list swatch and the Schedule group use the assigned discipline’s colour; a person with no discipline uses neutral grey. With disciplines off, the list uses the resource’s stored colour.

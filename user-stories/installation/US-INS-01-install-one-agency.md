@@ -14,4 +14,4 @@ As a hosting operator, I want to install and maintain the release on a host so t
 
 ## Acceptance criteria
 
-- A native release archive runs with configured secrets, database and HTTPS origin; upgrades back up before migration, readiness checks database health, and initial Owner admission uses the bootstrap invitation. No Docker task is included in this story.
+- A native release archive runs with configured secrets, database and HTTPS origin; `app:upgrade` backs up an existing database before migrating, `/health/ready` checks database readiness, and initial Owner admission uses the bootstrap invitation. No Docker task is included in this story.

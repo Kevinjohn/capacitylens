@@ -14,5 +14,5 @@ As an Editor, I want to confirm before deleting time off so that an accidental r
 
 ## Acceptance criteria
 
-- **Delete** opens a confirmation; Cancel preserves the entry.
+- **Delete {name} time off from {start} to {end}** opens **Delete time off?** (“Remove this time-off entry?”) with **Delete** and **Cancel**; Cancel preserves the entry.
 - Confirming Delete removes the entry from the list and Schedule.

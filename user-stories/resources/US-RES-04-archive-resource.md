@@ -11,6 +11,7 @@ As an Editor, I want to archive a resource so that it leaves active views while 
 ## Acceptance criteria
 
 - Selecting **Archive {name}** opens **Archive resource?** with **Archive** and **Cancel** controls.
-- After confirmation, the resource leaves its active section. Its allocations and time off remain retained; when allocations exist, the dialog states their count.
+- The dialog reads **Archive "{name}"? They will be hidden from the schedule.** and notes that Editors, Admins and Owners can restore them and only Owners and Admins can anonymise them. It shows no count of affected records.
+- After confirmation, the resource leaves its active section and the Schedule. Its allocations and time off are kept, not deleted.
 - **Cancel** closes the dialog without archiving. **Archive** archives the record.
 - The archived record appears in its archived section with a **Restore** control.

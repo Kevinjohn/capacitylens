@@ -14,5 +14,5 @@ As a company member, I want to filter allocations by client while keeping capaci
 
 ## Acceptance criteria
 
-- **Filter by client** limits visible allocations to that client; capacity still includes all work.
-- Show unallocated can reveal resources without matching work.
+- **Filter by client** lists Internal first, then clients by name. Choosing one limits visible allocations to that client and hides resources without matching work; capacity figures still include all work.
+- **Show unallocated** reveals the hidden resources as dimmed rows.

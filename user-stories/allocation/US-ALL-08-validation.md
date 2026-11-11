@@ -14,10 +14,12 @@ As an Editor, I want invalid allocation fields to be identified so that I can co
 
 ## Acceptance criteria
 
-| Field        | Control      | Required/default/conditions                           |
-| ------------ | ------------ | ----------------------------------------------------- |
-| Activity     | Select       | Required.                                             |
-| Start        | Date input   | Required; valid date.                                 |
-| End          | Date input   | Required; same date or later than Start.              |
-| Hours / day  | Select       | Required for capacity-based modes; greater than zero. |
-| Days of work | Number input | Required in Days mode; greater than zero.             |
+| Field        | Control      | Required/default/conditions                                                                                                  |
+| ------------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Activity     | Select       | Required (“Choose (or add) an activity.”); for a placeholder, must belong to its bound project                               |
+| Start Date   | Date input   | Required; a new or reassigned allocation must start on an effective working day of the person and not on their time off      |
+| End          | Date input   | Hours mode and external resources: required; not before Start; span up to 36,500 calendar days                               |
+| Hours / day  | Select       | Hours mode: greater than 0 and at most 24                                                                                    |
+| Days of work | Number input | Days mode: greater than 0; at most 24 hours per day over Days over                                                           |
+| Days over    | Number input | Days and Blocks modes: whole number from 1 to the supported maximum                                                          |
+| Repeat until | Date input   | When repeating: required; not before today or Start; at most six calendar months after Start; must allow at least one repeat |

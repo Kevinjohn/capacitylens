@@ -14,4 +14,4 @@ As an Editor, I want time off shown as a labelled block so that absence is disti
 
 ## Acceptance criteria
 
-- Time off appears as a distinct labelled block on the resource lane.
+- Each time-off entry appears as a hatched block across its dates on the resource lane, behind the allocation bars. The block shows its type (Holiday, Sick, Unpaid or Other) when it is wider than 44 px; the type is always available to screen readers.

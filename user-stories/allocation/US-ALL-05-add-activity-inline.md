@@ -14,4 +14,4 @@ As an Editor, I want to add an activity from the allocation form so that I can a
 | ----------------- | ---------- | ---------------------------------------------------------------------------------------------- |
 | New activity name | Text input | Required to add an activity; available only when the company enables inline activity creation. |
 
-- **Add activity** creates an activity in the selected scope and selects it in the Activity control.
+- **Add activity** (or Enter in the field) creates an activity matching the selected Project: Internal creates an internal activity, No specific project an all-projects activity, and a project a project-specific activity. The new activity is selected in the Activity control; the allocation is saved only by **Save**.

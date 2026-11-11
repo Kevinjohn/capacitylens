@@ -14,5 +14,5 @@ As a company member, I want a clear empty state when filters match no resources 
 
 ## Acceptance criteria
 
-- When no resource matches, the Schedule shows a clear empty state with a Clear filters action.
+- When filters leave no resource rows, the Schedule shows **No resources match the current filters.** with a **Clear filters** action.
 - Clearing the filters restores the schedule rows.

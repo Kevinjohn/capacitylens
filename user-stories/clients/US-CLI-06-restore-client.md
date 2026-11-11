@@ -11,4 +11,4 @@ As an Editor, I want to restore an archived client so that its active work retur
 ## Acceptance criteria
 
 - A directly archived client has an accessible **Restore** control. Selecting it returns the client to active status and active views.
-- A row hidden only by an archived parent links to **Restore archived parent**; restoring the parent reveals descendants that remain active.
+- Clients have no parent record. While a client is archived, its projects and activities appear on the Projects and Activities archived lists with **Hidden because Client {name} is archived.** and **View archived parent**, which opens this client’s archived row; restoring the client reveals those that were not archived on their own.

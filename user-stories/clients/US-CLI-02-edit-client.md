@@ -10,11 +10,11 @@ As an Editor, I want to edit a client name and colour so that the updated detail
 
 ## Acceptance criteria
 
-| Field         | Control         | Required/default/conditions                   |
-| ------------- | --------------- | --------------------------------------------- |
-| Name          | Text field      | Required; current value prefilled             |
-| Use code name | Switch          | Owner only; current value prefilled           |
-| Code name     | Text field      | Owner only; required when Use code name is on |
-| Colour        | Preset swatches | Current colour preselected                    |
+| Field         | Control         | Required/default/conditions                                                                  |
+| ------------- | --------------- | -------------------------------------------------------------------------------------------- |
+| Name          | Text field      | Required; current value prefilled; read-only for non-Owners when the client uses a code name |
+| Use code name | Switch          | Owner only (anyone in demo mode); current value prefilled                                    |
+| Code name     | Text field      | Owner only; shown and required when Use code name is on                                      |
+| Colour        | Preset swatches | Current colour preselected                                                                   |
 
 - **Save** updates the client; invalid required values keep the form open with an error. **Cancel** closes without saving.

@@ -10,4 +10,4 @@ As a company member, I want to keep display preferences on my device so that the
 
 ## Acceptance criteria
 
-- Device display preferences stay outside company exports. Scheduling records are never browser-persisted as a failed-read fallback; there is no clear-storage action.
+- Device display preferences stay outside company exports. Scheduling records are never browser-persisted as a failed-read fallback; Settings has no clear-storage action.

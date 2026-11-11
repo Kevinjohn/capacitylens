@@ -10,11 +10,11 @@ As an Editor, I want to add a placeholder bound to a project so that reserved ca
 
 ## Acceptance criteria
 
-| Field           | Control    | Required/default/conditions                                                |
-| --------------- | ---------- | -------------------------------------------------------------------------- |
-| Name (optional) | Text field | Optional; role may identify the placeholder                                |
-| Role            | Text field | Optional                                                                   |
-| Discipline      | Picker     | Shown when disciplines are enabled and at least one is available; optional |
-| Bound project   | Picker     | Required; active projects                                                  |
+| Field           | Control    | Required/default/conditions                                                                 |
+| --------------- | ---------- | ------------------------------------------------------------------------------------------- |
+| Name (optional) | Text field | Optional; the role may identify the placeholder                                             |
+| Role            | Text field | Optional                                                                                    |
+| Discipline      | Picker     | Optional; "— None —" by default; shown when disciplines are enabled and at least one exists |
+| Bound project   | Picker     | Required; active projects, labelled Client / Project                                        |
 
-- **Save** adds the placeholder to its project and the Placeholder section. Placeholders have no Engagement, availability-date or working-day controls.
+- The Placeholders section and **Add placeholder** appear only when the company enables Show placeholders. **Save** adds the placeholder, bound to its project, to the Placeholders section. Placeholders have no Engagement, availability-date or working-day controls.

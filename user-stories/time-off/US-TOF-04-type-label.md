@@ -14,5 +14,5 @@ As a company member, I want the time-off list to show who is away and for how lo
 
 ## Acceptance criteria
 
-- The Time off list shows each resource, a start date and duration.
-- The time-off type label remains on the matching Schedule block.
+- The Time off list groups entries under each resource and shows each entry’s start date and length in days; it does not show the type.
+- The Schedule block shows the type (Holiday, Sick, Unpaid or Other) when the block is wider than 44 pixels, and always exposes it to assistive technology.

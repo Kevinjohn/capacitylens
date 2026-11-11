@@ -4,7 +4,7 @@ As an Editor, I want a mismatched placeholder reassignment to be rejected so tha
 
 **Status:** Current
 
-**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
+**Access:** Editor, Admin or Owner
 
 **Entry:** Schedule (`/`)
 

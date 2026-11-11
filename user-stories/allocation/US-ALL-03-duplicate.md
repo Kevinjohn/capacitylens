@@ -14,5 +14,6 @@ As an Editor, I want to duplicate an allocation so that I can reuse its resource
 
 ## Acceptance criteria
 
-- **Duplicate** creates an independent copy of an eligible allocation.
-- Undo removes the copy; the original remains unchanged.
+- The Edit allocation dialog shows **Duplicate** only for an allocation that is not part of a repeating series.
+- **Duplicate** immediately creates a separate allocation from the form’s current values and closes the dialog; the original allocation keeps its saved values.
+- An invalid form or a refused save keeps the dialog open with an error and creates no copy. Undo removes a created copy.

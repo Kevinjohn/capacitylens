@@ -14,5 +14,5 @@ As an Editor, I want to remove a company closure so that its dates no longer red
 
 ## Acceptance criteria
 
-- **Delete** asks for confirmation; Cancel keeps the closure.
+- **Delete {name} closure, {range}** opens **Delete closure?** (“Remove this company closure?”) with **Delete** and **Cancel**; Cancel keeps the closure.
 - Confirming Delete removes the closure band and restores availability on its dates.

@@ -10,11 +10,11 @@ As an Editor, I want to add a client with a name and preset colour so that proje
 
 ## Acceptance criteria
 
-| Field         | Control         | Required/default/conditions                   |
-| ------------- | --------------- | --------------------------------------------- |
-| Name          | Text field      | Required; initially blank                     |
-| Use code name | Switch          | Owner only; off by default                    |
-| Code name     | Text field      | Owner only; required when Use code name is on |
-| Colour        | Preset swatches | Defaults to client colour #2d75da             |
+| Field         | Control         | Required/default/conditions                             |
+| ------------- | --------------- | ------------------------------------------------------- |
+| Name          | Text field      | Required; initially blank                               |
+| Use code name | Switch          | Owner only (anyone in demo mode); off by default        |
+| Code name     | Text field      | Owner only; shown and required when Use code name is on |
+| Colour        | Preset swatches | Defaults to client colour #2d75da                       |
 
 - **Save** adds the client. Invalid required values keep the form open with an error. **Cancel** closes without saving.

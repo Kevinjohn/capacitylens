@@ -10,9 +10,9 @@ As an Owner or Admin, I want to link a member to a person Resource so that their
 
 ## Acceptance criteria
 
-| Field            | Control | Required/default/conditions                                                                       |
-| ---------------- | ------- | ------------------------------------------------------------------------------------------------- |
-| Scheduled person | Select  | Optional; shows the current link or None. Choices are active people not linked to another member. |
+| Field            | Control | Required/default/conditions                                                                                                 |
+| ---------------- | ------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Link to Resource | Select  | Optional; shows the current link, otherwise **No Resource linked**. Choices are active people not linked to another member. |
 
 - Selecting a person links or changes the link immediately. **Remove link to resource** unlinks immediately.
-- A retained link to an inactive person is shown and can be removed. Linking a member does not change their access or create schedule data.
+- A retained link to an archived or deleted person is shown as **{name} (inactive — unlink only)** and can only be removed. Linking a member does not change their access or create schedule data.

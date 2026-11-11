@@ -10,19 +10,19 @@ As an Editor, I want to change an allocation in place so that an updated plan ke
 
 ## Acceptance criteria
 
-| Field               | Control           | Required/default/conditions                                                                                                   |
-| ------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Assignee            | Select            | Required; prefilled with the current resource.                                                                                |
-| Project             | Select            | Prefilled with current scope; choices follow resource and activity constraints.                                               |
-| Activity            | Select            | Required; prefilled with the current activity.                                                                                |
-| Task                | Text input        | Optional; shown only when the company enables Show task field in schedule; prefilled when available.                          |
-| Start               | Date input        | Required; prefilled with the saved start date.                                                                                |
-| End                 | Date input        | Required in Hours mode and for external resources; otherwise derived from the span fields for capacity-counting resources.    |
-| Hours / day         | Select            | Hours mode for capacity-counting resources; options 1, 2, 4 or 8 hours; hidden for external resources.                        |
-| Days of work        | Number input      | Days mode for capacity-counting resources; required, positive value, 0.5 step.                                                |
-| Days over           | Number input      | Days and Blocks modes for capacity-counting resources; optional, step 1; disabled if no effective working days are available. |
-| Status              | Segmented control | Prefilled with the saved status; Confirmed, Tentative or Completed.                                                           |
-| Note                | Text input        | Optional; prefilled with the saved note.                                                                                      |
-| Ignore working days | Checkbox          | Prefilled with the saved value; hidden for external resources.                                                                |
+| Field               | Control           | Required/default/conditions                                                                                                                                                   |
+| ------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Assignee            | Select            | Required; prefilled with the current resource                                                                                                                                 |
+| Project             | Select            | Prefilled with the saved project scope; options: Internal, No specific project, then projects sorted by client and name; a placeholder limits the choice to its bound project |
+| Activity            | Select            | Required; prefilled with the current activity; choices follow the selected Project                                                                                            |
+| Task                | Text input        | Optional; up to 100 characters; shown only when the company enables Show task field in schedule; prefilled                                                                    |
+| Start Date          | Date input        | Required; prefilled with the saved start date                                                                                                                                 |
+| End                 | Date input        | Hours mode and external resources only; required; prefilled with the saved end date                                                                                           |
+| Hours / day         | Select            | Hours mode, not for external resources; prefilled; 1 h, 2 h - quarter day, 4 h - half day or 8 h - full day                                                                   |
+| Days of work        | Number input      | Days mode, not for external resources; required; greater than 0; 0.5 step; prefilled                                                                                          |
+| Days over           | Number input      | Days and Blocks modes, not for external resources; prefilled; whole number from 1 to the supported maximum; disabled when the person has no effective working days            |
+| Status              | Segmented control | Prefilled with the saved status; Confirmed, Tentative or Completed                                                                                                            |
+| Note                | Text input        | Optional; prefilled with the saved note                                                                                                                                       |
+| Ignore working days | Checkbox          | Prefilled with the saved value; hidden for external resources                                                                                                                 |
 
 - Save updates the existing allocation; Cancel leaves its saved values unchanged.

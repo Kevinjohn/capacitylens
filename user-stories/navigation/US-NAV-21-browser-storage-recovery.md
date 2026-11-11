@@ -2,11 +2,11 @@
 
 As a demo user, I want to download the browser data and confirm a reset when local data cannot be read so that I can preserve a copy before recovery.
 
-**Status:** Current
+**Status:** Hidden — retained screen with no current error-state producer.
 
 **Access:** Anyone whose local browser data triggers the storage recovery screen; no company role applies.
 
-**Entry:** Browser storage recovery screen → Download data or Reset stored data.
+**Entry:** No current entry; retained browser-storage recovery screen.
 
 **Documentation:** [When something goes wrong](../../docs-src/self-hosting/incidents.md)
 

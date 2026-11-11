@@ -15,4 +15,4 @@ As an Editor, I want keyboard shortcuts for Undo and Redo so that I can reverse 
 ## Acceptance criteria
 
 - ⌘Z / Ctrl+Z undo and ⌘⇧Z / Ctrl+Shift+Z redo planning changes.
-- Shortcuts do not run while text entry, IME composition or a modal owns input.
+- The shortcuts work on every app screen. They do not run while text entry, IME composition or a modal owns input, or while a form has unsaved changes.

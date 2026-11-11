@@ -2,11 +2,11 @@
 
 As a company member, I want to retry when the application cannot connect to the server so that I can resume after service returns.
 
-**Status:** Current
+**Status:** Hidden — retained screen with no current error-state producer.
 
 **Access:** Owner, Admin, Editor, Viewer
 
-**Entry:** Connection failure screen → Retry
+**Entry:** No current entry; retained connection-failure recovery screen.
 
 **Documentation:** [When something goes wrong](../../docs-src/self-hosting/incidents.md)
 

@@ -10,6 +10,6 @@ As an Editor, I want to add a short task description so that an allocation can c
 
 ## Acceptance criteria
 
-| Field | Control    | Required/default/conditions                                                |
-| ----- | ---------- | -------------------------------------------------------------------------- |
-| Task  | Text input | Optional; shown only when the company enables Show task field in schedule. |
+| Field | Control    | Required/default/conditions                                                                                                                        |
+| ----- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Task  | Text input | Optional; up to 100 characters; shown only when the company enables Show task field in schedule. Hidden task text is kept when the setting is off. |

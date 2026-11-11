@@ -10,12 +10,12 @@ As an Owner, I want to set a project code name so that non-Owners see the safe n
 
 ## Acceptance criteria
 
-| Field         | Control         | Required/default/conditions                   |
-| ------------- | --------------- | --------------------------------------------- |
-| Name          | Text field      | Required                                      |
-| Client        | Picker          | Required; active clients and Internal         |
-| Use code name | Switch          | Owner only; off by default for public records |
-| Code name     | Text field      | Owner only; required when Use code name is on |
-| Colour        | Preset swatches | Required; hidden for Internal projects        |
+| Field         | Control         | Required/default/conditions                                          |
+| ------------- | --------------- | -------------------------------------------------------------------- |
+| Client        | Picker          | Required; Internal first, then active clients by name                |
+| Name          | Text field      | Required; read-only for non-Owners when the project uses a code name |
+| Use code name | Switch          | Owner only (anyone in demo mode); current value prefilled            |
+| Code name     | Text field      | Owner only; shown and required when Use code name is on              |
+| Colour        | Preset swatches | Current colour preselected; hidden when the client is Internal       |
 
 - **Save** updates the real name or code name. Non-Owners continue to see the code name. Missing code name keeps the form open with an error. **Cancel** closes without saving.

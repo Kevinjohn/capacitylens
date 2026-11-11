@@ -11,4 +11,4 @@ As an Editor, I want to restore an archived project so that its active work retu
 ## Acceptance criteria
 
 - A directly archived project has an accessible **Restore** control. Selecting it returns the project to active status and active views.
-- A row hidden only by an archived parent links to **Restore archived parent**; restoring the parent reveals descendants that remain active.
+- A row hidden only by an archived parent reads **Hidden because {type} {name} is archived.** and offers **View archived parent**, which opens the parent’s archived row; restoring the parent reveals descendants that remain active. A row whose parent was permanently deleted reads **Hidden because {type} {name} is deleted.** with no link.

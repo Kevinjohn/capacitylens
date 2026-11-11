@@ -14,4 +14,4 @@ As a company member, I want consistent semantic colours so that I can recognize 
 
 ## Acceptance criteria
 
-- Brand, positive, neutral, warning, and destructive actions use consistent high-contrast semantic styling.
+- Buttons share one semantic variant set: green for primary and confirming actions; neutral outline, secondary or ghost styles for secondary and cancel actions; red destructive or soft-danger styles for destructive actions; and the brand colour for link-styled actions.

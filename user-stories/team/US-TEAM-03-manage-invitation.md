@@ -11,5 +11,5 @@ As an Owner or Admin, I want to resend or revoke an outstanding invitation so th
 ## Acceptance criteria
 
 - Each invitation shows its email, offered role and expiry date or expired status.
-- **Resend** emails a fresh link and replaces the previous invitation.
+- **Resend** emails a fresh link that replaces the previous one; it is refused when email delivery is not configured.
 - **Revoke** cancels an unexpired invitation; expired invitations do not show the Revoke control.

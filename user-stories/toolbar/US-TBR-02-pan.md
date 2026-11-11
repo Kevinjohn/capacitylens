@@ -14,5 +14,5 @@ As an Editor, I want to pan one week backward or forward so that I can move thro
 
 ## Acceptance criteria
 
-- **Prev** and **Next** move the schedule window by one week.
-- The icon-only controls have accessible names.
+- **Prev** ("Back one week") and **Next** ("Forward one week") move the schedule window by seven days.
+- The icon-only controls are named **Prev** and **Next** for assistive technology.
