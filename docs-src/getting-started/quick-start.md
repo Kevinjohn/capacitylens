@@ -22,9 +22,9 @@ may provide controls for these steps; check that they support the required proce
    [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 
 2. **Run the install command** from the archive unpacked into `/opt/capacitylens`, with
-   `sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs`. It asks for the public HTTPS
-   address, the Owner's email address and the email delivery settings, then sets up the service,
-   HTTPS at a same-machine Caddy and daily backups. The
+   `sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com`,
+   giving your domain name and the Owner's email address. It sets up the service, HTTPS at a
+   same-machine Caddy and daily backups. The
    [installation guide](/self-hosting/install-without-docker#install-with-one-command) gives the
    exact commands and the manual steps.
 

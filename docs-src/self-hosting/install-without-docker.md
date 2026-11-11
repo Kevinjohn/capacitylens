@@ -19,64 +19,39 @@ addresses with your own.
 ## Install with one command
 
 Before you start, install Node 24 system-wide, point your domain name's DNS at the host and open
-ports 80 and 443. Unless the host already runs another HTTPS proxy (see `--proxy none` below), also
-install [Caddy](https://caddyserver.com/docs/install), which obtains and renews the HTTPS
-certificate. The archive contains a native SQLite addon and must match the host operating
-system and architecture.
+ports 80 and 443. Install [Caddy](https://caddyserver.com/docs/install) too, unless the host
+already runs another HTTPS proxy. The archive contains a native SQLite addon and must match the
+host operating system and architecture.
 
-Download the archive and its checksum from the same GitHub release, verify and unpack it, then run
-the install command it contains:
+Download the archive and its checksum from the same GitHub release, verify and unpack it into
+`/opt/capacitylens`, then run its install command with your domain name and the Owner's email
+address:
 
 ```bash
 sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
 sudo install -d -m 0755 /opt/capacitylens
 sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
-sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs
+sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com
 ```
 
-The release must be unpacked into `/opt/capacitylens` so the service user can read it. The
-command asks for the public HTTPS address, the Owner's email address and the SMTP mail settings;
-the password is not shown as you type it. Leave the mail host blank to set up mail later; see
-[step 3](#_3-configure-the-installation) for what works without it. Then it:
+The command runs the steps under [Install by hand](#install-by-hand):
 
-- creates the `capacitylens` service user and `/var/lib/capacitylens` with its `backups` folder
-- writes `/etc/capacitylens.env`, readable by root only, with a generated `APP_KEY` and
-  `CAPACITYLENS_SECRET`
-- points `/opt/capacitylens/current` at the release, installs the systemd unit, runs the database
-  upgrade and starts the service
-- writes `/etc/caddy/capacitylens.caddy`, imports it from `/etc/caddy/Caddyfile`, validates the
-  result and reloads Caddy; if Caddy refuses it, both files are put back as they were
-- waits for the service, and then the HTTPS address, to report ready, and prints the one-time
-  setup link for the Owner. If HTTPS is not serving yet, usually because of DNS or a closed port,
-  it still prints the link but ends with an error saying so
+- creates the `capacitylens` service user and `/var/lib/capacitylens` if they are missing
+- writes `/etc/capacitylens.env`, readable by root only, with your address and a generated
+  `APP_KEY` and `CAPACITYLENS_SECRET`; an existing file is kept unchanged
+- points `/opt/capacitylens/current` at the release, runs the database upgrade, then installs and
+  starts the systemd unit
+- when Caddy is installed, writes `/etc/caddy/capacitylens.caddy`, imports it from
+  `/etc/caddy/Caddyfile`, validates the result and reloads Caddy; otherwise it prints the address
+  to point your proxy at
+- prints the one-time setup link for the Owner
 
-Verified backups then run when the service starts and every 24 hours; see
-[Backups and restore](/self-hosting/backups-and-restore). Open the setup link and continue at
-[step 5](#_5-open).
-
-To run without prompts, pass the answers as options. The SMTP password comes from a file readable
-only by root, so it never appears on the command line:
-
-```bash
-sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs \
-  --public-url https://capacity.example.com --owner-email owner@example.com \
-  --mail-host smtp.example.com --mail-port 587 --mail-user capacity \
-  --mail-password-file /root/smtp-password --mail-from capacity@example.com
-```
-
-With an existing nginx or other HTTPS proxy on the same machine, add `--proxy none`: the command
-then leaves Caddy alone and prints the address to proxy to, with the equivalent Caddy site. The
-choice is recorded in `/etc/capacitylens.install` and reused by later runs. Use
-`--dry-run` to see every step without changing anything, and `--help` for all options.
-
-Running the command again is safe. It keeps `/etc/capacitylens.env` and its secrets and refuses
-an option that would change a setting in it, unless you add `--update-env`, which replaces only
-the settings you pass. If a first install stopped before printing the setup link, the next run
-finishes it and asks for the Owner's email address again. After that, it prints a new setup link
-only when you pass `--owner-email`. Only one run at a time is allowed. If a run was killed, wait
-until `systemctl is-active capacitylens-upgrade` no longer reports `active`, so no database
-migration is still running, then remove `/run/capacitylens-install.lock` and try again. The same
-command upgrades the installation; see [Upgrades](/self-hosting/upgrades).
+Verified backups run when the service starts and every 24 hours; see
+[Backups and restore](/self-hosting/backups-and-restore). Mail is left unset: add the
+`CAPACITYLENS_MAIL_*` settings with `sudoedit /etc/capacitylens.env` and restart the service before
+inviting anyone else ([step 3](#_3-configure-the-installation) says what works without them). Open
+the setup link and continue at [step 5](#_5-open). Running the command again is safe, and running
+a newer release's command without arguments upgrades; see [Upgrades](/self-hosting/upgrades).
 
 ## Install by hand
 

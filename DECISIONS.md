@@ -345,12 +345,12 @@ framework defaults; any other departure needs a decision recorded here first.
 ## Installation
 
 - Installation is one runnable release archive, and the server takes production defaults when
-  `NODE_ENV=production`. Its `install.mjs` command, run as root on a systemd host, is the default
-  path: it generates the secrets into the environment file, installs the unit, configures a
-  same-machine Caddy site (or prints the settings for another proxy) and ends by printing the setup
-  link. It never rewrites an existing environment file without `--update-env` and never regenerates
-  its secrets; re-running it from a newer release is the upgrade. Backup scheduling stays in the
-  web provider, so the command only enables it. The manual steps remain the documented fallback.
+  `NODE_ENV=production`. Its `install.sh` script, run as root on a systemd host with a domain name
+  and the Owner's email address, is the default path: it runs the manual steps, generating the
+  secrets into a new environment file, installing the unit, configuring a same-machine Caddy site
+  when Caddy is installed and printing the setup link. It never rewrites an existing environment
+  file; running a newer release's script without arguments is the upgrade. Backup scheduling stays
+  in the web provider. The manual steps remain the documented fallback.
   Company naming then happens in the browser. The hosting operator owns upgrades, backups and service
   maintenance; the company Owner is not expected to maintain hosting alone.
 - Native Node with a loopback TLS proxy on the same machine is the expected installation. The

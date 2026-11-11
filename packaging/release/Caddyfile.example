@@ -1,4 +1,4 @@
-# CapacityLens behind Caddy. install.mjs writes this block, with your hostname, to
+# CapacityLens behind Caddy. install.sh writes this block, with your hostname, to
 # /etc/caddy/capacitylens.caddy and imports it from /etc/caddy/Caddyfile. By hand, add it to
 # /etc/caddy/Caddyfile with your own hostname, then run: sudo systemctl reload caddy
 # Caddy obtains and renews the certificate itself and overwrites the forwarded headers the server

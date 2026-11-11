@@ -6,21 +6,17 @@ SQLite addon for the host architecture on which it was packaged. Use Node 24.19.
 
 ## One command
 
-On a Linux systemd host with Node 24 installed, and DNS for your domain pointing at it, unpack the
-archive into `/opt/capacitylens` and run the command below. Install Caddy first unless another
-same-machine HTTPS proxy is used with `--proxy none`.
+On a Linux systemd host with Node 24 (and Caddy, unless another HTTPS proxy runs there) and DNS
+for your domain pointing at it, unpack the archive into `/opt/capacitylens` and run:
 
 ```bash
-sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs
+sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com
 ```
 
-It asks for the public HTTPS address, the Owner's email address and SMTP settings (the password
-hidden, or from `--mail-password-file`), writes `/etc/capacitylens.env` with generated secrets,
-installs and starts the systemd unit, configures Caddy for automatic HTTPS, enables the daily
-verified backups and prints the setup link. Use `--proxy none` with another same-machine proxy
-(remembered for later runs), `--dry-run` to preview and `--help` for the options that replace the
-questions. Running the same command from a newer release upgrades the
-installation; it keeps the environment file and backs up the database before migrating.
+It runs the steps below: it writes `/etc/capacitylens.env` with generated secrets, upgrades the
+database, installs and starts the systemd unit, configures Caddy for automatic HTTPS and prints
+the setup link. Mail is left unset until you add it. Run a newer release's `install.sh` without
+arguments to upgrade; it keeps the environment file and backs up the database before migrating.
 
 ## By hand
 

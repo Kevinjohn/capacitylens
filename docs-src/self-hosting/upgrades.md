@@ -12,22 +12,18 @@ process and stop it before replacing files or running the migration command.
 ## Upgrade with the install command
 
 If you installed with the [install command](/self-hosting/install-without-docker#install-with-one-command),
-verify and unpack the new archive next to the current release, then run the new release's command:
+verify and unpack the new archive next to the current release, then run the new release's command
+without arguments:
 
 ```bash
 sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
 sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
-sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs
+sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh
 ```
 
-It keeps `/etc/capacitylens.env` and the proxy choice from the first run, stops the service,
-points `current` at the new release and runs `app:upgrade`, which backs up the existing database
-before migrating. If the migration fails, the service stays stopped; read the refusal and see
-[Roll back](#roll-back). After a successful migration the service starts again, and a later failure
-in the Caddy reload or the readiness checks leaves it running on the new release; the error says
-which step to fix before running the command again. An installation set up by hand has no
-recorded proxy choice: add `--proxy none` when it does not use Caddy. The steps below are the same
-upgrade by hand.
+It keeps `/etc/capacitylens.env`, stops the service, points `current` at the new release and runs
+`app:upgrade`, which backs up the existing database before migrating. If the migration fails, the
+service stays stopped; see [Roll back](#roll-back). The steps below are the same upgrade by hand.
 
 ## Install the new release
 
