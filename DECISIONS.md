@@ -249,8 +249,8 @@ This is the short, present-tense record of decisions that constrain future work.
   Upgrades end legacy projections without converting their tokens into new authority.
 - Cross-site writes are refused by the Origin / Sec-Fetch-Site check, with one exemption for a
   same-host Origin that claims `https` behind a TLS-terminating proxy. Shield owns HSTS, `nosniff`
-  and frame protection; HSTS is sent only when the public URL is HTTPS. There is no CSP report
-  route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
+  and frame protection, and the CSP. HSTS is sent only when the public URL is HTTPS. There is no
+  CSP report route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.
 - Validation and domain errors use the flat `{ error, code? }` contract. Vine runs behind one
   response adapter; the SPA keys its presentation on `code`.
