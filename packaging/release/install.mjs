@@ -196,7 +196,7 @@ function serviceCommand(...args) {
     '--collect',
     '--quiet',
     `--uid=${user}`,
-    `-p`,
+    '-p',
     `WorkingDirectory=${paths.current}/backend`,
     '-p',
     `EnvironmentFile=${paths.env}`,
@@ -262,10 +262,12 @@ function printSetupLink(output, ownerEmail) {
   let url;
   try {
     url = JSON.parse(line).url;
-  } catch {
-    url = undefined;
+  } catch (error) {
+    // Show the command's own output rather than lose a link that was issued.
+    console.log(output);
+    throw new Error('The bootstrap output was not the expected JSON line.', { cause: error });
   }
-  if (!url) throw new Error('The setup link was not printed; run the bootstrap command by hand.');
+  if (!url) throw new Error('The bootstrap command printed no setup link.');
   console.log(`\nSetup link for ${ownerEmail}. It works once; send it privately:\n\n  ${url}\n`);
 }
 
