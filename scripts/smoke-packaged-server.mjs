@@ -277,7 +277,14 @@ export async function runPackagedSmoke({
   const databasePath = join(workDir, 'live.db');
   const backupDir = join(workDir, 'backups');
   const port = await reservePort();
-  const environment = buildSmokeEnvironment(process.env, { backupDir, databasePath, port });
+  // Browser acceptance writes through its own HTTPS edge, so that edge origin must be trusted.
+  const edgePort = acceptBrowser ? await reservePort() : undefined;
+  const environment = buildSmokeEnvironment(process.env, {
+    backupDir,
+    databasePath,
+    port,
+    ...(edgePort ? { corsOrigin: `https://127.0.0.1:${edgePort}` } : {}),
+  });
   const baseUrl = `http://127.0.0.1:${port}`;
   let log = '';
   let child;
@@ -557,6 +564,7 @@ export async function runPackagedSmoke({
       headers: {
         cookie: secondOwnerCookie,
         'content-type': 'application/json',
+        'sec-fetch-site': 'same-origin',
         'X-Masquerade-Context': activeMode.contextToken,
       },
       body: JSON.stringify({ token: activeMode.contextToken, reason: 'explicit' }),
@@ -620,7 +628,13 @@ export async function runPackagedSmoke({
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
     assertAllocationInDatabase(databasePath, accountId, allocation);
     if (acceptBrowser)
-      await acceptBrowser({ baseUrl, credentials, workDir, resourceName: resource.name });
+      await acceptBrowser({
+        baseUrl,
+        credentials,
+        workDir,
+        resourceName: resource.name,
+        edgePort,
+      });
 
     const beforeExplicit = await backupBundles(backupDir);
     const explicit = runAce(backend, environment, ['db:backup', 'create']);

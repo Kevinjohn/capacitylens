@@ -31,7 +31,7 @@ export function assertNoStyleViolations(violations) {
   assert.deepEqual(violations, [], 'The production browser blocked an application stylesheet.');
 }
 
-async function startTlsEdge(baseUrl, workDir) {
+async function startTlsEdge(baseUrl, workDir, port) {
   const keyPath = join(workDir, 'browser-key.pem');
   const certificatePath = join(workDir, 'browser-certificate.pem');
   const certificate = spawnSync(
@@ -65,7 +65,7 @@ async function startTlsEdge(baseUrl, workDir) {
     { key: await readFile(keyPath), cert: await readFile(certificatePath) },
     createLoopbackHttpProxyHandler(new URL(baseUrl).port),
   );
-  edge.listen(0, '127.0.0.1');
+  edge.listen(port, '127.0.0.1');
   await once(edge, 'listening');
   const address = edge.address();
   assert.ok(address && typeof address !== 'string');
@@ -328,8 +328,14 @@ async function launchBrowser(workDir) {
 }
 
 /** Exercise native production dialogs through a disposable HTTPS edge and real Chromium. */
-export async function acceptPackagedDialogs({ baseUrl, credentials, workDir, resourceName }) {
-  const { edge, origin } = await startTlsEdge(baseUrl, workDir);
+export async function acceptPackagedDialogs({
+  baseUrl,
+  credentials,
+  workDir,
+  resourceName,
+  edgePort,
+}) {
+  const { edge, origin } = await startTlsEdge(baseUrl, workDir, edgePort);
   let browser;
   let violations = [];
   const failures = [];
