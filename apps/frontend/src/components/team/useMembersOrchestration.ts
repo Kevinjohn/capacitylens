@@ -255,6 +255,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     workspaceId: activeAccountId,
     reload: directoryState.reload,
     acceptedReadGeneration: directoryState.acceptedReadGeneration,
+    members: directoryState.members,
   });
   const setActionStatusElement = useActionStatusFocus(directoryState.busyAction);
   return {

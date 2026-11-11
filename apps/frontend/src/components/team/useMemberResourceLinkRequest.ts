@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamMember } from '@/account/teamAccessClient';
@@ -10,6 +10,8 @@ interface MemberResourceLinkRequestsInput {
   reload(): number;
   /** Generation of the newest successful directory read the members come from. */
   acceptedReadGeneration: number;
+  /** Members of the current authorized directory, or null before it loads. */
+  members: readonly TeamMember[] | null;
 }
 
 type ResolveResourceStatusOptions = {
@@ -81,6 +83,7 @@ export function useMemberResourceLinkRequests({
   workspaceId,
   reload,
   acceptedReadGeneration,
+  members,
 }: MemberResourceLinkRequestsInput): (member: TeamMember) => MemberResourceLinkRequest {
   const [requests, setRequests] = useState<ReadonlyMap<string, MemberResourceLinkRequestState>>(
     () => new Map(),
@@ -92,6 +95,22 @@ export function useMemberResourceLinkRequests({
     currentWorkspace.current = workspaceId;
     latestRequestByMember.current.clear();
   }, [workspaceId]);
+  // Each newly accepted members read drops settled requests for members it no longer lists.
+  const prunedAtGeneration = useRef(acceptedReadGeneration);
+  useEffect(() => {
+    if (members === null || prunedAtGeneration.current === acceptedReadGeneration) return;
+    prunedAtGeneration.current = acceptedReadGeneration;
+    const listed = new Set(members.map((member) => member.userId));
+    setRequests((previous) => {
+      const next = new Map(previous);
+      for (const [userId, request] of previous) {
+        const settled =
+          !request.sending && request.requiredReadGeneration <= acceptedReadGeneration;
+        if (settled && !listed.has(userId)) next.delete(userId);
+      }
+      return next.size === previous.size ? previous : next;
+    });
+  }, [members, acceptedReadGeneration]);
   const update = (userId: string, patch: Partial<MemberResourceLinkRequestState>) => {
     setRequests((previous) =>
       new Map(previous).set(userId, { ...(previous.get(userId) ?? IDLE_REQUEST), ...patch }),
