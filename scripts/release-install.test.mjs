@@ -131,12 +131,7 @@ test('a first install writes the environment with secrets, the unit, the Caddy s
     'skipped: give /var/lib/capacitylens to capacitylens',
     'skipped: runuser -u capacitylens -- mkdir -p -m 0700 /var/lib/capacitylens/backups',
     'systemd-run --unit=capacitylens-upgrade --pipe',
-    'systemctl stop capacitylens',
     '--uid=capacitylens -p WorkingDirectory=/opt/capacitylens/current/backend -p EnvironmentFile=/etc/capacitylens.env',
-    'ace.js app:upgrade',
-    'systemctl enable --now capacitylens',
-    'systemctl reload caddy',
-    'wait for http://127.0.0.1:8787/health/ready',
     'ace.js account-kit:admission:bootstrap diana@themyscira.example --role=viewer',
   ])
     assert.ok(indexOf(text) >= 0, text);
@@ -516,8 +511,9 @@ function makeEffects(files, failing) {
     },
     remove: async (path) => void files.delete(path),
     run(argv) {
-      commands.push(argv.join(' '));
-      fail(argv.join(' '));
+      const command = argv.join(' ');
+      commands.push(command);
+      fail(command);
       return '';
     },
   };

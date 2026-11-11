@@ -673,14 +673,16 @@ async function installRelease({ flags, effects, release }) {
       CAPACITYLENS_SECRET: randomBytes(32).toString('base64url'),
     };
     envText = buildEnvironmentFile(example, { ...secrets, ...given });
-  } else if (Object.keys(given).some((key) => existing[key] !== given[key])) {
+  } else {
     const changed = Object.keys(given).filter((key) => existing[key] !== given[key]);
-    if (!flags['update-env'])
-      throw new InstallRefusal(
-        `${paths.env} already sets ${changed.join(', ')} differently. Nothing was changed. ` +
-          'Re-run with --update-env to replace those settings; secrets are always kept.',
-      );
-    envText = buildEnvironmentFile(existingText, given);
+    if (changed.length > 0) {
+      if (!flags['update-env'])
+        throw new InstallRefusal(
+          `${paths.env} already sets ${changed.join(', ')} differently. Nothing was changed. ` +
+            'Re-run with --update-env to replace those settings; secrets are always kept.',
+        );
+      envText = buildEnvironmentFile(existingText, given);
+    }
   }
   const environment = envText === null ? existing : parseEnvironmentFile(envText, paths.env);
   const publicUrl = parsePublicUrl(environment.CAPACITYLENS_PUBLIC_URL);
