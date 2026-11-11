@@ -150,7 +150,7 @@ function createE2eProxyDrainProbe() {
         await controlServer.ready;
       }
 
-      server.middlewares.use((request, response, next) => {
+      server.middlewares.use((request, _response, next) => {
         if (listenerControl?.shouldReject(request.socket)) {
           request.socket.destroy();
           return;
