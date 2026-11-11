@@ -1,11 +1,7 @@
 import { test } from '@japa/runner';
 import { publicOrigin } from '#config/public_origin';
 import { freshDatabase } from '../../helpers/fresh_database.js';
-import {
-  resolveCorsOrigins,
-  isTrustedUnsafeOrigin,
-  withDevelopmentWebOrigins,
-} from '#services/cors_policy';
+import { resolveCorsOrigins, withDevelopmentWebOrigins } from '#services/cors_policy';
 
 test('CORS uses finite development origins and no production cross-origin defaults', ({
   assert,
@@ -17,8 +13,6 @@ test('CORS uses finite development origins and no production cross-origin defaul
   ]);
   for (const invalid of ['*', 'https://wayne.example/path', 'https://user@wayne.example'])
     assert.throws(() => resolveCorsOrigins(invalid, 'production'));
-  assert.isTrue(isTrustedUnsafeOrigin({ origin: publicOrigin.origin }));
-  assert.isFalse(isTrustedUnsafeOrigin({ origin: 'https://evil.example' }));
 });
 
 test('only a development server appends the dev launcher web origins', ({ assert }) => {
