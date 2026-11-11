@@ -44,8 +44,9 @@ Routine request-completion and sign-in outcome logs are off unless `CAPACITYLENS
 Authentication records use the event `auth.sign_in` and an outcome of `success`, `failure` or
 `throttled`; their `request_id` is shared with the HTTP completion record. They contain no email,
 address, client IP, user-agent, password, session or bearer value. CapacityLens generates the
-`request_id` for every request, returns it in the `X-Request-Id` response header and ignores any
-`X-Request-Id` a client or proxy sends. For example, filter
+`request_id` for every request that reaches the application, returns it in the `X-Request-Id`
+response header and ignores any `X-Request-Id` a client or proxy sends. A request with a malformed
+URL is refused with 400 before that point and has no `request_id`. For example, filter
 the systemd journal with `journalctl -u capacitylens --since "30 min ago" | grep 'auth.sign_in'`.
 Unexpected failures remain visible, with private messages and request/response payloads redacted.
 Do not enable verbose request-body logging in a proxy or collect invitation, sign-in or
