@@ -187,6 +187,7 @@ test.group('authentication outcome events', (group) => {
     const authEvent = entries.find((entry) => entry.event === 'auth.sign_in');
     assert.isDefined(authEvent);
     assert.equal(authEvent.outcome, 'success');
+    assert.match(authEvent.request_id, UUID);
     assert.isTrue(
       entries.some(
         (entry) =>
@@ -232,6 +233,7 @@ test.group('authentication outcome events', (group) => {
     const authEvent = entries.find((entry) => entry.event === 'auth.sign_in');
     assert.isDefined(authEvent);
     assert.equal(authEvent.outcome, 'success');
+    assert.match(authEvent.request_id, UUID);
     assert.isTrue(
       entries.some(
         (entry) =>
