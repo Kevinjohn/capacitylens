@@ -29,11 +29,15 @@ async function confirm(client: ApiClient, cookie: string, password: string) {
   return (response.body() as { confirmationId: string }).confirmationId;
 }
 
+interface DeleteAccountInput {
+  cookie: string;
+  currentPassword: string;
+  confirmationId: string;
+}
+
 const deleteAccount = (
   client: ApiClient,
-  cookie: string,
-  currentPassword: string,
-  confirmationId: string
+  { cookie, currentPassword, confirmationId }: DeleteAccountInput
 ) =>
   asDataOwner(client.post('/api/auth/delete-account'), cookie)
     .json({ currentPassword, confirmationId })
@@ -119,7 +123,11 @@ test.group('account deletion', (group) => {
     assert.lengthOf(before.sessions, 1);
 
     const confirmationId = await confirm(client, cookie, editor.password);
-    const deleted = await deleteAccount(client, cookie, editor.password, confirmationId);
+    const deleted = await deleteAccount(client, {
+      cookie,
+      currentPassword: editor.password,
+      confirmationId,
+    });
     deleted.assertStatus(200);
     deleted.assertBodyContains({ ok: true, signedOut: true });
 
@@ -147,7 +155,11 @@ test.group('account deletion', (group) => {
     const { cookie } = await signIn(client, owner.email, owner.password);
 
     const confirmationId = await confirm(client, cookie, owner.password);
-    const refused = await deleteAccount(client, cookie, owner.password, confirmationId);
+    const refused = await deleteAccount(client, {
+      cookie,
+      currentPassword: owner.password,
+      confirmationId,
+    });
     refused.assertStatus(409);
     refused.assertBodyContains({ code: 'LAST_OWNER' });
 
@@ -171,7 +183,11 @@ test.group('account deletion', (group) => {
     refusedConfirmation.assertStatus(403);
     refusedConfirmation.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' });
     const confirmationId = await confirm(client, cookie, editor.password);
-    const wrong = await deleteAccount(client, cookie, 'not-the-password-2026', confirmationId);
+    const wrong = await deleteAccount(client, {
+      cookie,
+      currentPassword: 'not-the-password-2026',
+      confirmationId,
+    });
     wrong.assertStatus(403);
     wrong.assertBodyContains({ code: 'CURRENT_PASSWORD_INCORRECT' });
     for (const body of [
@@ -203,7 +219,11 @@ test.group('account deletion', (group) => {
     const userId = await editorMember();
     const { cookie } = await signIn(client, editor.email, editor.password);
 
-    const missing = await deleteAccount(client, cookie, editor.password, '');
+    const missing = await deleteAccount(client, {
+      cookie,
+      currentPassword: editor.password,
+      confirmationId: '',
+    });
     missing.assertStatus(403);
     assert.deepEqual(missing.body(), required);
 
@@ -215,20 +235,27 @@ test.group('account deletion', (group) => {
       password: owner.password,
     });
     anonymise.assertStatus(200);
-    const otherPurpose = await deleteAccount(
-      client,
-      ownerSession.cookie,
-      owner.password,
-      (anonymise.body() as { confirmationId: string }).confirmationId
-    );
+    const otherPurpose = await deleteAccount(client, {
+      cookie: ownerSession.cookie,
+      currentPassword: owner.password,
+      confirmationId: (anonymise.body() as { confirmationId: string }).confirmationId,
+    });
     otherPurpose.assertStatus(403);
     assert.deepEqual(otherPurpose.body(), required);
 
     // A wrong current password still spends the confirmation, so it cannot be replayed.
     const spent = await confirm(client, cookie, editor.password);
-    const wrong = await deleteAccount(client, cookie, 'not-the-password-2026', spent);
+    const wrong = await deleteAccount(client, {
+      cookie,
+      currentPassword: 'not-the-password-2026',
+      confirmationId: spent,
+    });
     wrong.assertStatus(403);
-    const replayed = await deleteAccount(client, cookie, editor.password, spent);
+    const replayed = await deleteAccount(client, {
+      cookie,
+      currentPassword: editor.password,
+      confirmationId: spent,
+    });
     replayed.assertStatus(403);
     assert.deepEqual(replayed.body(), required);
 

@@ -274,6 +274,12 @@ boundary. The forward-only migration replaces outstanding legacy proofs without 
 `scope -> accounts.id ON DELETE CASCADE`. Credential writes remain Account Kit-owned. Global pruning
 runs after successful issuance outside every transaction and cannot fail the issuance response.
 
+Account deletion is the exception (11 November 2026, #1792): its `delete-account` confirmation is
+scoped to the person's own id, needs no company authority, and is spent just before Account Kit's
+own deletion transaction, so a refused deletion needs a new confirmation. The Kit's own
+current-password check stays because it cannot be turned off. The `scope -> accounts.id` foreign
+key is dropped for this; confirmations last five minutes and are pruned globally.
+
 The product calls these password confirmations, not action proofs (9 November 2026): the endpoint is
 `POST /api/auth/password-confirmation`, requests carry `confirmationId`, and refusals use
 `PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`. Behaviour is unchanged. The old
