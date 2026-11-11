@@ -43,8 +43,8 @@ async function finishClientAndProjectMilestones(page: Page): Promise<void> {
 }
 
 function registerDismissalTest() {
-  test('No keeps guidance and Yes dismisses it', async ({ page, request }) => {
-    await openFirstCompanySetup(page, request);
+  test('No keeps guidance and Yes dismisses it', async ({ page }) => {
+    await openFirstCompanySetup(page);
     await finishFirstCompanySetup(page, 'Queen Consolidated');
     await page.getByTestId('getting-started-dismiss').click();
     await expect(page.getByText('Do you really want to hide this forever?')).toBeVisible();
@@ -61,8 +61,8 @@ function registerDismissalTest() {
 }
 
 test.describe('getting started', () => {
-  test('shows five independent milestones and progress across pages', async ({ page, request }) => {
-    await openFirstCompanySetup(page, request);
+  test('shows five independent milestones and progress across pages', async ({ page }) => {
+    await openFirstCompanySetup(page);
     await finishFirstCompanySetup(page, 'Queen Consolidated');
     const card = page.getByTestId('getting-started');
     await expect(card).toBeVisible();
@@ -116,8 +116,8 @@ test.describe('getting started', () => {
 
   registerDismissalTest();
 
-  test('"Show me around" runs the authenticated Owner tour', async ({ page, request }) => {
-    await openFirstCompanySetup(page, request);
+  test('"Show me around" runs the authenticated Owner tour', async ({ page }) => {
+    await openFirstCompanySetup(page);
     await finishFirstCompanySetup(page, 'Queen Consolidated');
     await page.getByRole('link', { name: 'Settings', exact: true }).click();
     await page.getByRole('button', { name: 'Show checklist' }).click();

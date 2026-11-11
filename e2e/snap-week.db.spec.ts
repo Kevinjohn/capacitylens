@@ -48,11 +48,10 @@ test.describe('Week snap', () => {
 
   test('with a Sunday week-start, the free-scroll snap floors to Sunday (not a hardcoded Monday)', async ({
     page,
-    request,
   }) => {
     // Set Sunday as the new company week start during creation, since this setting is fixed afterwards.
     // The free-scroll snap should return a midweek nudge to Sunday.
-    await openFirstCompanySetup(page, request);
+    await openFirstCompanySetup(page);
     await page.getByLabel('Week starts on').selectOption('0');
     await finishFirstCompanySetup(page, 'Sunday Co');
 

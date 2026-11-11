@@ -231,7 +231,6 @@ export async function prepareServerTemplate(target: ServerTarget): Promise<void>
 }
 
 type ResetServerOptions = {
-  request?: APIRequestContext;
   withSeed?: boolean;
   target?: ServerTarget;
 };

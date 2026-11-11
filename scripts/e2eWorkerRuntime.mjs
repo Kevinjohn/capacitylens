@@ -330,21 +330,6 @@ async function assertRequestsDrained(apiOrigin) {
   }
 }
 
-/** Wait briefly for cancelled clients' proxy sockets and backend handlers to complete. */
-async function waitForWorkerDrain(target, timeoutMs = 5_000) {
-  const deadline = Date.now() + timeoutMs;
-  while (true) {
-    try {
-      await assertProxyDrained(target.web);
-      await assertRequestsDrained(target.api);
-      return;
-    } catch (error) {
-      if (!(error instanceof BusyWorkerError) || Date.now() >= deadline) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 25));
-    }
-  }
-}
-
 /** Starts an isolated API/Vite pair for one Playwright parallelIndex and owns their lifecycle. */
 export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 0) {
   const ports = workerPorts(lane, slot);
@@ -501,7 +486,6 @@ export async function recoverE2eWorker(target, lane = resolveLane(), slot = 0) {
 }
 
 export {
-  waitForWorkerDrain as waitForE2eWorkerDrain,
   acquireLease as acquireE2eWorkerLease,
   releaseLease as releaseE2eWorkerLease,
   assertProxyDrained as assertE2eProxyDrained,

@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { resolveLane, workerPorts } from './ports.mjs';
-import { assertE2eProxyDrained, waitForE2eWorkerDrain } from './e2eWorkerRuntime.mjs';
+import { assertE2eProxyDrained } from './e2eWorkerRuntime.mjs';
 import {
   createResetControlToken,
   requestResetControl,
@@ -235,47 +235,5 @@ test('the Vite drain probe refuses open upstream sockets even when no proxy requ
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     }
-  }
-});
-
-test('worker drain waits for staged activity, bounds busy responses and propagates malformed probes', async () => {
-  let requests = 1;
-  let malformed = false;
-  let observed;
-  const busyObserved = new Promise((done) => {
-    observed = done;
-  });
-  const server = http.createServer((request, response) => {
-    response.setHeader('content-type', 'application/json');
-    response.end(
-      JSON.stringify(
-        malformed
-          ? {}
-          : request.url.startsWith('/__e2e')
-            ? { activeRequests: 0, openSockets: 0, pendingUpstreamRequests: 0 }
-            : { activeRequests: requests },
-      ),
-    );
-    if (!request.url.startsWith('/__e2e') && requests > 0) observed();
-  });
-  await new Promise((done) => server.listen(0, '127.0.0.1', done));
-  const origin = `http://127.0.0.1:${server.address().port}`;
-  const target = { api: origin, web: origin };
-  try {
-    let settled = false;
-    const draining = waitForE2eWorkerDrain(target).then(() => {
-      settled = true;
-    });
-    await busyObserved;
-    assert.equal(settled, false, 'busy handler cannot be mistaken for a completed reset boundary');
-    requests = 0;
-    await draining;
-    assert.equal(settled, true);
-    requests = 1;
-    await assert.rejects(waitForE2eWorkerDrain(target, 0), /API has 1 active requests/);
-    malformed = true;
-    await assert.rejects(waitForE2eWorkerDrain(target), /invalid active request count/);
-  } finally {
-    await new Promise((done) => server.close(done));
   }
 });
