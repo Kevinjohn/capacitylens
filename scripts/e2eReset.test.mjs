@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { spawn, spawnSync } from 'node:child_process';
+import { fork, spawnSync } from 'node:child_process';
+import http from 'node:http';
 import { existsSync, rmSync } from 'node:fs';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { resolveLane, WORKER_SLOTS_PER_LANE } from './ports.mjs';
 import { acquireExclusiveFile, portInUse, terminateProcessTree } from './devProcesses.mjs';
 import {
@@ -13,6 +14,71 @@ import {
   resetServer,
   serverTarget,
 } from '../e2e/serverTestState.ts';
+import { assertE2eRequestsDrained } from './e2eWorkerRuntime.mjs';
+
+function waitForChildMessage(child, type, timeoutMs = 10_000) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => finish(new Error(`Timed out waiting for child message: ${type}`)),
+      timeoutMs,
+    );
+    const onMessage = (message) => {
+      if (message?.type === type) finish(undefined, message);
+    };
+    const onExit = (code, signal) =>
+      finish(new Error(`Fixture child exited (${code ?? signal}) while waiting for ${type}.`));
+    function finish(error, value) {
+      clearTimeout(timeout);
+      child.off('message', onMessage);
+      child.off('exit', onExit);
+      if (error) reject(error);
+      else resolve(value);
+    }
+    child.on('message', onMessage);
+    child.once('exit', onExit);
+  });
+}
+
+function requestPendingConfirmation(target, cookie, contextToken) {
+  const url = new URL('/api/auth/password-confirmation', target.api);
+  const request = http.request(url, {
+    method: 'POST',
+    headers: {
+      cookie,
+      origin: target.api,
+      'sec-fetch-site': 'same-origin',
+      'x-masquerade-context': contextToken,
+      'content-type': 'application/json',
+    },
+  });
+  request.on('error', () => {});
+  const socketClosed = new Promise((resolve) => {
+    request.once('socket', (socket) => socket.once('close', resolve));
+  });
+  request.end(
+    JSON.stringify({
+      action: 'anonymise',
+      accountId: 'a-studio',
+      intent: {},
+      password: 'auth-e2e-password-2026',
+    }),
+  );
+  return { request, socketClosed };
+}
+
+async function waitForApiIdle(apiOrigin) {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    try {
+      await assertE2eRequestsDrained(apiOrigin);
+      return;
+    } catch (error) {
+      if (!/API has \d+ active requests/.test(error.message)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
+  throw new Error('Timed out waiting for the API request counter to reach zero.');
+}
 
 test(
   'company template resets preserve identities and sessions, clear history and honor request drain',
@@ -33,6 +99,7 @@ test(
       CAPACITYLENS_DB: target.databasePath,
       CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
       CAPACITYLENS_PUBLIC_URL: target.api,
+      CAPACITYLENS_ALLOW_RESET: 'true',
       CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: 'auth-e2e-password-2026',
       CAPACITYLENS_BACKUP_DIR: '',
@@ -70,10 +137,11 @@ test(
         if (result.error) throw result.error;
         assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
       }
-      server = spawn(process.execPath, ['ace.js', 'serve'], {
+      server = fork(join(dirname(target.databasePath), 'scripts/e2e-pending-handler.mjs'), [], {
+        execArgv: ['--import=@poppinss/ts-exec'],
         cwd: dirname(target.databasePath),
         env: environment,
-        stdio: 'ignore',
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
         detached: true,
       });
       const deadline = Date.now() + 30_000;
@@ -88,12 +156,15 @@ test(
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       assert.equal(ready, true, 'the fixture server bootstraps the admitted development identity');
-      await terminateProcessTree(server);
-      assert.equal(await portInUse(Number(new URL(target.api).port)), false);
+      const instrumented = waitForChildMessage(server, 'instrumented');
+      server.send({ type: 'install' });
+      await instrumented;
       let drains = 0;
       configureServerTarget(target, async () => {
         drains += 1;
+        await assertE2eRequestsDrained(target.api);
       });
+      await waitForApiIdle(target.api);
       await prepareServerTemplate(target);
       database = new DatabaseSync(target.databasePath);
       const admin = database.prepare("SELECT id FROM users WHERE email='admin@admin.admin'").get();
@@ -145,6 +216,69 @@ test(
           'INSERT INTO account_getting_started_dismissals (id, account_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
         )
         .run('dismissed', 'a-studio', now, now);
+
+      const signedIn = await fetch(`${target.api}/api/auth/sign-in`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: target.api,
+          'sec-fetch-site': 'same-origin',
+        },
+        body: JSON.stringify({
+          email: 'admin@admin.admin',
+          password: 'auth-e2e-password-2026',
+        }),
+      });
+      assert.equal(signedIn.status, 200, 'the seeded administrator signs in through HTTP');
+      const cookie = signedIn.headers
+        .getSetCookie()
+        .map((value) => value.split(';', 1)[0])
+        .join('; ');
+      assert.notEqual(cookie, '', 'the administrator receives a session cookie');
+      const contextResponse = await fetch(`${target.api}/api/masquerade?accountId=a-studio`, {
+        headers: { cookie },
+      });
+      assert.equal(contextResponse.status, 200);
+      const context = await contextResponse.json();
+      assert.equal(typeof context.contextToken, 'string');
+      await waitForApiIdle(target.api);
+      for (const table of ['adonis_sessions', 'account_sessions'])
+        preserved[table] = database.prepare(`SELECT * FROM "${table}"`).all();
+
+      const entered = waitForChildMessage(server, 'entered-verification');
+      server.send({ type: 'arm' });
+      const pending = requestPendingConfirmation(target, cookie, context.contextToken);
+      await entered;
+      pending.request.destroy();
+      await pending.socketClosed;
+      await assert.rejects(
+        assertE2eRequestsDrained(target.api),
+        /API has 1 active requests/,
+        'the API counter observes the handler after its client socket closes',
+      );
+      await assert.rejects(
+        resetServer({ target }),
+        /API has 1 active requests/,
+        'reset refuses before opening SQLite while the handler is pending',
+      );
+      assert.equal(
+        database.prepare("SELECT name FROM clients WHERE id='c-acme'").get().name,
+        'Changed client',
+      );
+      assert.equal(
+        database.prepare('SELECT COUNT(*) AS count FROM password_confirmations').get().count,
+        0,
+      );
+
+      server.send({ type: 'release' });
+      await waitForApiIdle(target.api);
+      assert.equal(
+        database.prepare('SELECT COUNT(*) AS count FROM password_confirmations').get().count,
+        1,
+        'the cancelled client request commits its proof after password verification resumes',
+      );
+      for (const table of ['adonis_sessions', 'account_sessions'])
+        preserved[table] = database.prepare(`SELECT * FROM "${table}"`).all();
       await resetServer({ target });
       assert.deepEqual(database.prepare('SELECT * FROM clients ORDER BY id').all(), clients);
       assert.equal(
@@ -199,7 +333,7 @@ test(
           p95Ms: samples[18],
         }),
       );
-      assert.equal(drains, 23);
+      assert.equal(drains, 24);
       database.prepare('DELETE FROM memberships WHERE user_id = ?').run(admin.id);
       database.prepare('DELETE FROM users WHERE id = ?').run(admin.id);
       await assert.rejects(resetServer({ target }), /administrator is unavailable; restart/);
@@ -224,7 +358,7 @@ test(
         database.prepare('SELECT COUNT(*) AS count FROM users WHERE id = ?').get(admin.id).count,
         0,
       );
-      assert.equal(drains, 25);
+      assert.equal(drains, 26);
     } finally {
       database?.close();
       if (server) await terminateProcessTree(server);

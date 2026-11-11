@@ -37,3 +37,5 @@ export function releaseE2eWorkerLease(paths: E2eWorkerLease['paths']): Promise<v
 
 /** Refuse a reset while the worker Vite has requests or upstream sockets open. */
 export function assertE2eProxyDrained(webOrigin: string): Promise<void>;
+/** Refuse a reset while the disposable API has handlers still completing. */
+export function assertE2eRequestsDrained(apiOrigin: string): Promise<void>;

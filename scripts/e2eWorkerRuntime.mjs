@@ -294,6 +294,20 @@ async function assertProxyDrained(webOrigin) {
     );
 }
 
+async function assertRequestsDrained(apiOrigin) {
+  const response = await fetch(`${apiOrigin}/api/health/e2e-idle`, {
+    signal: AbortSignal.timeout(1_000),
+  });
+  if (!response.ok) throw new Error(`Worker API drain probe returned HTTP ${response.status}.`);
+  const value = await response.json();
+  if (!Number.isInteger(value.activeRequests) || value.activeRequests < 0)
+    throw new Error('Worker API drain probe returned an invalid active request count.');
+  if (value.activeRequests !== 0)
+    throw new Error(
+      `Refusing database reset while the API has ${value.activeRequests} active requests.`,
+    );
+}
+
 /** Starts an isolated API/Vite pair for one Playwright parallelIndex and owns their lifecycle. */
 export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 0) {
   const ports = workerPorts(lane, slot);
@@ -393,6 +407,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
       baseURL: target.web,
       async assertDrained() {
         await assertProxyDrained(target.web);
+        await assertRequestsDrained(target.api);
       },
       async stop() {
         await stop();
@@ -432,4 +447,5 @@ export {
   acquireLease as acquireE2eWorkerLease,
   releaseLease as releaseE2eWorkerLease,
   assertProxyDrained as assertE2eProxyDrained,
+  assertRequestsDrained as assertE2eRequestsDrained,
 };
