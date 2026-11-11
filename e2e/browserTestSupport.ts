@@ -202,14 +202,47 @@ export async function showScheduleFilters(page: Page): Promise<void> {
  * just need placeholders visible rather than testing the toggle itself. */
 export async function showPlaceholders(page: Page): Promise<void> {
   const toggle = page.getByRole('switch', { name: 'Show placeholders' });
-  if ((await toggle.getAttribute('aria-checked')) !== 'true') await toggle.click();
+  if ((await toggle.getAttribute('aria-checked')) !== 'true')
+    await changeCompanySetting(page, () => toggle.click());
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
+}
+
+/** Wait for a settings receipt and its canonical read before starting another planning change. */
+export async function changeCompanySetting(
+  page: Page,
+  action: () => Promise<unknown>,
+): Promise<void> {
+  const written = page
+    .waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        /\/api\/accounts\/[^/]+\/settings$/.test(new URL(response.url()).pathname),
+    )
+    .then(async (response) => {
+      expect(response.ok(), await response.text()).toBe(true);
+      const receipt = await response.json();
+      expect(Number.isInteger(receipt.revision)).toBe(true);
+      return receipt;
+    });
+  const canonical = page.waitForResponse(async (response) => {
+    if (
+      response.request().method() !== 'GET' ||
+      !/\/api\/accounts\/[^/]+\/planning$/.test(new URL(response.url()).pathname) ||
+      !response.ok()
+    )
+      return false;
+    const receipt = await written;
+    const snapshot = await response.json();
+    return snapshot.revision >= receipt.revision;
+  });
+  await Promise.all([action(), written, canonical]);
 }
 
 /** Turn on workspace inline activity creation from Settings for flows that exercise the opt-in UI. */
 export async function enableInlineActivityCreation(page: Page): Promise<void> {
   const toggle = page.getByRole('switch', { name: 'Inline activity creation' });
-  if ((await toggle.getAttribute('aria-checked')) !== 'true') await toggle.click();
+  if ((await toggle.getAttribute('aria-checked')) !== 'true')
+    await changeCompanySetting(page, () => toggle.click());
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
 }
 

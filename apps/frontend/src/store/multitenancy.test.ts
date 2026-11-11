@@ -5,7 +5,12 @@ import { useStore } from './useStore';
 import { scopeData } from './selectors';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
-import { makeAccount, WORKDAYS, replaceFixtureData } from '@/test/fixtures';
+import {
+  makeAccount,
+  WORKDAYS,
+  replaceFixtureData,
+  updatePlanningFixtureSource,
+} from '@/test/fixtures';
 
 const s = () => useStore.getState();
 
@@ -251,6 +256,7 @@ describe('account CRUD', () => {
 
   it('updateAccount renames', async () => {
     const a = present(s().addAccount({ name: 'Old', color: '#2d75da' }));
+    updatePlanningFixtureSource(s().data);
     await selectAccount(a.id);
     await s().updateAccount(a.id, { name: 'New' });
     expect(s().data.accounts[0]?.name).toBe('New');

@@ -3,6 +3,7 @@ import { expect, test } from './dbFixtures';
 import {
   dismissLandscapeHint,
   enableInlineActivityCreation,
+  changeCompanySetting,
   openApp,
   resetSchedulerScroll,
   selectShadOption,
@@ -237,7 +238,9 @@ async function assertDaysAndBlocks(page: Page) {
 
 async function assertExternalVariants(page: Page, testInfo: TestInfo) {
   await page.getByRole('link', { name: 'Settings', exact: true }).click();
-  await page.getByRole('switch', { name: 'Show external resources' }).click();
+  const external = page.getByRole('switch', { name: 'Show external resources' });
+  await changeCompanySetting(page, () => external.click());
+  await expect(external).toHaveAttribute('aria-checked', 'true');
   await showPlaceholders(page);
   await page.getByRole('link', { name: 'Schedule', exact: true }).click();
   await setZoom(page, 4);

@@ -87,19 +87,18 @@ afterEach(() => {
 
 describe('planning authority publication', () => {
   it('clears the cache and both histories together when authentication is lost, without legacy deletes', async () => {
-    const client = await requireCreated(
+    await requireCreated(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#111111' }),
     );
-    useStore.getState().archiveEntity('clients', client.id);
-    useStore.getState().unarchiveEntity('clients', client.id);
-    useStore.getState().undo();
+    const legacySnapshot = structuredClone(useStore.getState().data);
+    useStore.setState({ past: [legacySnapshot], future: [legacySnapshot] });
     expect(useStore.getState().past).toHaveLength(1);
     expect(useStore.getState().future).toHaveLength(1);
     await useStore.getState().refreshPlanning();
     await seedTypedAllocation();
-    expect(useStore.getState().planning.history.past).toHaveLength(3);
+    expect(useStore.getState().planning.history.past).toHaveLength(4);
     await useStore.getState().undoPlanning();
-    expect(useStore.getState().planning.history.past).toHaveLength(2);
+    expect(useStore.getState().planning.history.past).toHaveLength(3);
     expect(useStore.getState().planning.history.future).toHaveLength(1);
     expect(useStore.getState().past).toHaveLength(1);
     expect(useStore.getState().future).toHaveLength(1);

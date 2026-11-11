@@ -33,23 +33,24 @@ async function markerOnFirstTimeOff(lane: Locator) {
   const marker = markers.nth(markerIndex);
   await expect(marker).toHaveClass(/bg-danger\/55/);
 
-  const order = await lane.evaluate((element, expectedLeft) => {
-    const blockElement = element.querySelector<HTMLElement>('[data-testid="timeoff-block"]');
-    const markerElement = [
-      ...element.querySelectorAll<HTMLElement>('[data-testid="over-marker"]'),
-    ].find((candidate) => candidate.style.left === expectedLeft);
-    const barElement = element.querySelector<HTMLElement>('[data-testid="allocation-bar"]');
-    if (!blockElement || !markerElement || !barElement) return null;
-    return {
-      blockBeforeMarker: Boolean(
-        blockElement.compareDocumentPosition(markerElement) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ),
-      markerBeforeBar: Boolean(
-        markerElement.compareDocumentPosition(barElement) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ),
-    };
-  }, left);
-  expect(order).toEqual({ blockBeforeMarker: true, markerBeforeBar: true });
+  const readOrder = () =>
+    lane.evaluate((element, expectedLeft) => {
+      const blockElement = element.querySelector<HTMLElement>('[data-testid="timeoff-block"]');
+      const markerElement = [
+        ...element.querySelectorAll<HTMLElement>('[data-testid="over-marker"]'),
+      ].find((candidate) => candidate.style.left === expectedLeft);
+      const barElement = element.querySelector<HTMLElement>('[data-testid="allocation-bar"]');
+      if (!blockElement || !markerElement || !barElement) return null;
+      return {
+        blockBeforeMarker: Boolean(
+          blockElement.compareDocumentPosition(markerElement) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ),
+        markerBeforeBar: Boolean(
+          markerElement.compareDocumentPosition(barElement) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ),
+      };
+    }, left);
+  await expect.poll(readOrder).toEqual({ blockBeforeMarker: true, markerBeforeBar: true });
   return marker;
 }
 

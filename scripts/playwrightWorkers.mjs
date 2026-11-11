@@ -46,3 +46,18 @@ export function browserWorkerCount(
   }
   return Math.min(testShare(environment), WORKER_SLOTS_PER_LANE, memorySlots);
 }
+
+const ADMITTED_WORKERS = 'CAPACITYLENS_E2E_ADMITTED_WORKERS';
+
+/** Admit once in the coordinator; worker config reloads reuse that decision after servers start. */
+export function configurationWorkerCount(environment = process.env, memory) {
+  if (environment.TEST_WORKER_INDEX !== undefined) {
+    const admitted = environment[ADMITTED_WORKERS];
+    if (!admitted || !/^[1-9]\d*$/.test(admitted) || Number(admitted) > WORKER_SLOTS_PER_LANE)
+      throw new Error('Playwright worker is missing a valid coordinator memory admission.');
+    return Number(admitted);
+  }
+  const count = browserWorkerCount(environment, memory);
+  environment[ADMITTED_WORKERS] = String(count);
+  return count;
+}

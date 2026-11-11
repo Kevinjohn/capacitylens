@@ -45,6 +45,7 @@ async function configureHalfDays(page: Page) {
   await editor.getByRole('radio', { name: 'Tuesday Half day' }).click();
   await editor.getByRole('radio', { name: 'Wednesday Half day' }).click();
   await editor.getByRole('button', { name: 'Save' }).click();
+  await expect(editor).toBeHidden();
   await page.getByRole('link', { name: 'Schedule', exact: true }).click();
   await setZoom(page, 1);
   await goToSeedWeek(page);

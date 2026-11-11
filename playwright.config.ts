@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { parseReportPhaseName } from './scripts/playwrightServerScope';
 import { resolvePlaywrightRunMode } from './scripts/playwrightRunMode.mjs';
-import { browserWorkerCount } from './scripts/playwrightWorkers.mjs';
+import { configurationWorkerCount } from './scripts/playwrightWorkers.mjs';
 import { ports } from './scripts/ports.mjs';
 
 const lanePorts = ports();
@@ -35,7 +35,7 @@ export default defineConfig({
   forbidOnly: true,
   timeout: 30_000,
   expect: { timeout: 5_000 },
-  workers: browserWorkerCount(),
+  workers: configurationWorkerCount(),
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI
     ? [

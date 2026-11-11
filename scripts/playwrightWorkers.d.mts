@@ -9,3 +9,9 @@ export function browserWorkerCount(
   environment?: Readonly<Record<string, string | undefined>>,
   memory?: { freeBytes?: number; workerBytes?: number; reservedBytes?: number },
 ): number;
+
+/** Publish coordinator memory admission for inherited worker configuration reloads. */
+export function configurationWorkerCount(
+  environment?: Record<string, string | undefined>,
+  memory?: { freeBytes?: number; workerBytes?: number; reservedBytes?: number },
+): number;
