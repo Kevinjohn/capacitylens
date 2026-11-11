@@ -248,7 +248,9 @@ This is the short, present-tense record of decisions that constrain future work.
   classifications. Control state and events stay in database backups, outside scheduling exports.
   Upgrades end legacy projections without converting their tokens into new authority.
 - Unsafe requests are accepted only from the public URL's origin or a `CAPACITYLENS_CORS_ORIGIN`
-  entry; with no Origin, only `Sec-Fetch-Site: same-origin`. Shield owns HSTS, `nosniff`
+  entry; when that is unset outside production, the built-in `localhost` and `127.0.0.1` origins on
+  ports 5173 and 5273 are trusted. With no Origin, only `Sec-Fetch-Site: same-origin` is accepted.
+  Shield owns HSTS, `nosniff`
   and frame protection; HSTS is sent only when the public URL is HTTPS. There is no CSP report
   route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.

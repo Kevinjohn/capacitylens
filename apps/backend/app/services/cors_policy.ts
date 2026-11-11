@@ -44,11 +44,6 @@ interface TrustedOriginInput {
 /** Resolves whether an unsafe browser request comes from the public origin or an explicit CORS origin. */
 export function isTrustedUnsafeOrigin({ origin, fetchSite }: TrustedOriginInput) {
   if (!origin) return fetchSite === 'same-origin';
-  let normalizedOrigin: string;
-  try {
-    normalizedOrigin = new URL(origin).origin;
-  } catch {
-    return false;
-  }
-  return normalizedOrigin === publicOrigin.origin || corsOrigins.includes(normalizedOrigin);
+  // Browsers send the serialized origin, the same form as the configured origins.
+  return origin === publicOrigin.origin || corsOrigins.includes(origin);
 }

@@ -10,7 +10,7 @@ private interface and serves both the web app and API. Internal TLS generation a
 part of the current application. Do not expose the application port directly to the internet.
 
 Set both `APP_URL` and `CAPACITYLENS_PUBLIC_URL` to the exact public HTTPS origin. The proxy must
-forward the original host and overwrite the forwarded scheme and client address headers. Set
+forward the original host and overwrite the forwarded client address headers. Set
 `CAPACITYLENS_TRUST_PROXY_HEADERS=1` only when the application listener accepts connections solely
 from that trusted proxy. The application trusts forwarded headers from loopback connections only,
 so the proxy must run on the same host. The provided native archive includes Caddy and nginx examples; review them

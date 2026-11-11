@@ -55,6 +55,12 @@ test('trusts the public origin, explicit CORS origins and same-origin fetches on
   );
   for (const fetchSite of [undefined, 'same-site', 'cross-site', 'none'])
     assert.isFalse(isTrustedUnsafeOrigin({ fetchSite }));
-  for (const origin of ['null', 'not a url', publicOrigin.origin.replace(/^http:/, 'https:')])
+  for (const origin of [
+    'null',
+    'not a url',
+    publicOrigin.origin.replace(/^http:/, 'https:'),
+    `${publicOrigin.origin}/`,
+    publicOrigin.origin.toUpperCase(),
+  ])
     assert.isFalse(isTrustedUnsafeOrigin({ origin, fetchSite: 'same-origin' }));
 });
