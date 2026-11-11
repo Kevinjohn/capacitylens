@@ -31,6 +31,7 @@ type ObserverMessage = {
   eventType?: string;
   name?: string;
   message?: string;
+  reason?: string;
   eventMessage?: string;
   stack?: string;
   url?: string;
@@ -38,6 +39,51 @@ type ObserverMessage = {
   line?: number;
   column?: number;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function observerMessageIssue(value: unknown): string | undefined {
+  if (value === null) return 'expected an object envelope, received null';
+  if (Array.isArray(value)) return 'expected an object envelope, received an array';
+  if (!isRecord(value)) return `expected an object envelope, received ${typeof value}`;
+  if (typeof value.channel !== 'string') return 'channel must be a string';
+  if (typeof value.token !== 'string') return 'token must be a string';
+  if (value.kind !== 'ready' && value.kind !== 'error' && value.kind !== 'observer-failure') {
+    return 'kind must be ready, error, or observer-failure';
+  }
+  if (value.kind === 'ready') {
+    return typeof value.url === 'string' ? undefined : 'ready url must be a string';
+  }
+  if (value.kind === 'observer-failure') {
+    return typeof value.message === 'string'
+      ? undefined
+      : 'observer-failure message must be a string';
+  }
+  if (value.eventType !== 'error' && value.eventType !== 'unhandledrejection') {
+    return 'eventType must be error or unhandledrejection';
+  }
+  if (typeof value.name !== 'string') return 'name must be a string';
+  if (typeof value.message !== 'string') return 'message must be a string';
+  if (typeof value.url !== 'string') return 'url must be a string';
+  if (value.eventMessage !== undefined && typeof value.eventMessage !== 'string') {
+    return 'eventMessage must be a string when present';
+  }
+  if (value.stack !== undefined && typeof value.stack !== 'string') {
+    return 'stack must be a string when present';
+  }
+  if (value.filename !== undefined && typeof value.filename !== 'string') {
+    return 'filename must be a string when present';
+  }
+  if (value.line !== undefined && typeof value.line !== 'number') {
+    return 'line must be a number when present';
+  }
+  if (value.column !== undefined && typeof value.column !== 'number') {
+    return 'column must be a number when present';
+  }
+  return undefined;
+}
 
 function installBrowserErrorObserver(token: string) {
   const nativeDebug = console.debug.bind(console);
@@ -82,7 +128,8 @@ function installBrowserErrorObserver(token: string) {
       // A failed console transport cannot be reported over that same transport.
     }
   };
-  const onError = (event: ErrorEvent) => {
+  const onError = (event: Event) => {
+    if (!(event instanceof ErrorEvent)) return;
     try {
       const details = errorDetails(event.error);
       emit('error', {
@@ -124,6 +171,7 @@ function formatObserverMessage(message: ObserverMessage) {
   const detail = [
     `BROWSER_ERROR_OBSERVER_SENTINEL:${message.eventType ?? message.kind}`,
     message.message ? `message=${message.message}` : undefined,
+    message.reason ? `reason=${message.reason}` : undefined,
     message.eventMessage ? `eventMessage=${message.eventMessage}` : undefined,
     message.name ? `name=${message.name}` : undefined,
     message.url ? `url=${message.url}` : undefined,
@@ -144,30 +192,41 @@ function consumeObserverMessage(
   const text = consoleMessage.text();
   if (!text.startsWith(observerPrefix)) return;
 
-  let message: ObserverMessage;
+  let value: unknown;
+  const envelope = text.slice(observerPrefix.length);
   try {
-    message = JSON.parse(text.slice(observerPrefix.length)) as ObserverMessage;
+    value = JSON.parse(envelope) as unknown;
   } catch (error) {
     recordError({
       channel: observerPrefix.slice(0, -1),
       token,
       kind: 'observer-failure',
-      message: `invalid transport: ${String(error)}`,
+      message: `BROWSER_ERROR_OBSERVER_ENVELOPE_SENTINEL:${envelope}: ${String(error)}`,
     });
     return;
   }
+  const issue = observerMessageIssue(value);
+  if (issue) {
+    const message =
+      isRecord(value) && typeof value.message === 'string'
+        ? value.message
+        : `BROWSER_ERROR_OBSERVER_ENVELOPE_SENTINEL:${envelope}`;
+    recordError({
+      channel: observerPrefix.slice(0, -1),
+      token,
+      kind: 'observer-failure',
+      message,
+      reason: issue,
+    });
+    return;
+  }
+  const message = value as ObserverMessage;
   if (message.channel !== observerPrefix.slice(0, -1) || message.token !== token) return;
   if (message.kind === 'ready') return;
   if (message.kind === 'error' || message.kind === 'observer-failure') {
     recordError(message);
     return;
   }
-  recordError({
-    channel: observerPrefix.slice(0, -1),
-    token,
-    kind: 'observer-failure',
-    message: `unknown transport kind ${String(message.kind)}`,
-  });
 }
 
 /** Browser specs fail when a registered context emits an uncaught browser error event. */
