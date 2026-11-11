@@ -11,7 +11,10 @@ export async function startWorkerServer(parallelIndex: number): Promise<E2eWorke
   const target = serverTarget(lane, parallelIndex);
   const runtime = await startE2eWorkerServer(target, lane, parallelIndex);
   try {
-    configureServerTarget(target, runtime.assertDrained);
+    configureServerTarget(target, {
+      controlToken: runtime.controlToken,
+      stop: runtime.stop,
+    });
     await prepareServerTemplate(target);
     return runtime;
   } catch (error) {

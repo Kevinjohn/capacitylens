@@ -26,7 +26,6 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   baseURL: [async ({ dbServer }, use) => use(dbServer.baseURL), { scope: 'test' }],
   dbReset: [
     async ({ dbServer }, use) => {
-      await dbServer.waitUntilDrained();
       await resetServer({ target: dbServer.target });
       await use();
     },

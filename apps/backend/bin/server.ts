@@ -16,6 +16,8 @@ await import('reflect-metadata');
 const { Ignitor, prettyPrintError } = await import('@adonisjs/core/ignitor');
 const { createServer } = await import('node:http');
 const { configureNodeServer } = await import('#start/resource_limits');
+const { installE2eRequestActivity } = await import('#start/e2e_request_activity');
+const { default: env } = await import('#start/env');
 
 /**
  * URL to the application root. AdonisJS need it to resolve
@@ -36,10 +38,14 @@ const IMPORTER = (filePath: string) => {
 
 let logConnectionDrop: (entry: Record<string, unknown>) => void = () => {};
 let terminateApplication: (() => Promise<void>) | undefined;
+let resetControl: ReturnType<typeof installE2eRequestActivity>;
 
 new Ignitor(APP_ROOT, { importer: IMPORTER })
   .tap((app) => {
     terminateApplication = () => app.terminate();
+    app.terminating(async () => {
+      await resetControl?.close();
+    });
     app.booting(async () => {
       await import('#start/env');
     });
@@ -51,7 +57,17 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
     app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate());
   })
   .httpServer()
-  .start((handler) => configureNodeServer(createServer(handler), logConnectionDrop))
+  .start((handler) => {
+    const server = createServer();
+    resetControl = installE2eRequestActivity(server, handler, {
+      enabled: Boolean(env.get('CAPACITYLENS_ALLOW_RESET')),
+      token: process.env.CAPACITYLENS_E2E_RESET_TOKEN,
+      host: env.get('HOST'),
+      port: env.get('PORT'),
+    });
+    return configureNodeServer(server, logConnectionDrop);
+  })
+  .then(async () => resetControl?.ready)
   .catch(async (error) => {
     process.exitCode = 1;
     prettyPrintError(error);

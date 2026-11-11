@@ -23,7 +23,6 @@ server.errorHandler(() => import('#exceptions/handler'));
  * the request URL.
  */
 server.use([
-  () => import('#middleware/e2e_request_activity_middleware'),
   () => import('#middleware/request_logging_middleware'),
   // Security headers must exist even when logging, throttling or origin checks short-circuit.
   () => import('@adonisjs/session/session_middleware'),

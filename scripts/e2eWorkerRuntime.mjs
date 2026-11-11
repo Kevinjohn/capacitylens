@@ -7,6 +7,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workerPorts, resolveLane } from './ports.mjs';
 import { portInUse } from './devProcesses.mjs';
+import {
+  cleanupResetControlEndpoints,
+  createResetControlToken,
+  requestResetControl,
+} from '../apps/backend/start/e2e_reset_control.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const backend = join(root, 'apps/backend');
@@ -53,7 +58,8 @@ async function readOwner(ownerPath) {
       !Number.isInteger(owner.pid) ||
       owner.pid <= 0 ||
       !Array.isArray(owner.groups) ||
-      owner.groups.some((group) => !Number.isInteger(group) || group <= 0)
+      owner.groups.some((group) => !Number.isInteger(group) || group <= 0) ||
+      (owner.resetToken !== undefined && !/^[a-f0-9]{32}$/.test(owner.resetToken))
     )
       throw new Error(`Worker lease owner record is invalid: ${ownerPath}`);
     return owner;
@@ -143,6 +149,7 @@ async function acquireLease(lane, slot) {
             cause: error,
           });
         await waitForRecordedGroups(owner.groups);
+        if (owner.resetToken) await cleanupResetControlEndpoints(owner.resetToken);
         // A delayed reaper removes only this dead owner's unique filename. A successor's
         // distinct owner keeps its directory nonempty and therefore cannot be removed.
         await releaseLease(oldPaths);
@@ -259,6 +266,23 @@ async function assertPortsFree(apiPort, webPort) {
   }
 }
 
+async function waitForControlServer(token, role) {
+  const deadline = Date.now() + 5_000;
+  let lastError;
+  while (Date.now() < deadline) {
+    try {
+      await requestResetControl(token, role, 'status', 1_000);
+      return;
+    } catch (error) {
+      lastError = error;
+      await sleep(25);
+    }
+  }
+  throw new Error(`${role} reset control did not become ready within 5,000 ms.`, {
+    cause: lastError,
+  });
+}
+
 async function removeDatabaseFiles(target) {
   for (const suffix of ['', '-wal', '-shm'])
     await rm(`${target.databasePath}${suffix}`, { force: true });
@@ -277,12 +301,14 @@ async function assertProxyDrained(webOrigin) {
     !Number.isInteger(value.activeRequests) ||
     value.activeRequests < 0 ||
     !Number.isInteger(value.openSockets) ||
-    value.openSockets < 0
+    value.openSockets < 0 ||
+    !Number.isInteger(value.pendingUpstreamRequests) ||
+    value.pendingUpstreamRequests < 0
   )
     throw new Error('Worker Vite drain probe returned an invalid active request count.');
-  if (value.activeRequests !== 0 || value.openSockets !== 0)
+  if (value.activeRequests !== 0 || value.openSockets !== 0 || value.pendingUpstreamRequests !== 0)
     throw new BusyWorkerError(
-      `Refusing database reset while Vite has ${value.activeRequests} active API requests and ${value.openSockets} open upstream sockets.`,
+      `Refusing database reset while Vite has ${value.activeRequests} active API requests, ${value.openSockets} open upstream sockets and ${value.pendingUpstreamRequests} pending upstream requests.`,
     );
 }
 
@@ -325,6 +351,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
   const viteCachePath = cachePath(lane, slot);
   const lease = await acquireLease(lane, slot);
   const { paths } = lease;
+  const resetToken = createResetControlToken();
   const processes = [];
   let stopped = false;
   let databaseOwned = false;
@@ -334,6 +361,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
     const contents = JSON.stringify({
       pid: process.pid,
       groups: processes.map(({ group }) => group).filter((group) => Number.isInteger(group)),
+      resetToken,
     });
     writeFileSync(ownerTmp, contents, { mode: 0o600 });
     renameSync(ownerTmp, paths.owner);
@@ -355,6 +383,13 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
       await waitForRecordedGroups(processes.map(({ group }) => group).filter(Number.isInteger));
     } catch (error) {
       terminationError ??= error;
+    }
+    if (!terminationError) {
+      try {
+        await cleanupResetControlEndpoints(resetToken);
+      } catch (error) {
+        terminationError ??= error;
+      }
     }
     if (!terminationError) {
       if (removeDatabase) await removeDatabaseFiles(target);
@@ -382,6 +417,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
           ...process.env,
           CAPACITYLENS_PORT_LANE: String(lane),
           CAPACITYLENS_E2E_WORKER_API: '1',
+          CAPACITYLENS_E2E_RESET_TOKEN: resetToken,
         },
       },
     );
@@ -410,6 +446,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
           ...process.env,
           CAPACITYLENS_PORT_LANE: String(lane),
           CAPACITYLENS_E2E_WORKER: '1',
+          CAPACITYLENS_E2E_RESET_TOKEN: resetToken,
           CAPACITYLENS_VITE_PORT: String(ports.web),
           CAPACITYLENS_VITE_CACHE_DIR: viteCachePath,
           CAPACITYLENS_DEV_API_PORT: String(ports.api),
@@ -420,15 +457,16 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
       },
     );
     await waitReady(vite, `${target.web}/health/ready`, 'E2E Vite proxy', processes);
+    await Promise.all([
+      waitForControlServer(resetToken, 'api'),
+      waitForControlServer(resetToken, 'vite'),
+    ]);
 
     return {
       target,
       baseURL: target.web,
+      controlToken: resetToken,
       async assertDrained() {
-        await assertProxyDrained(target.web);
-        await assertRequestsDrained(target.api);
-      },
-      async waitUntilDrained() {
         await waitForWorkerDrain(target);
       },
       async stop() {

@@ -1,6 +1,6 @@
 import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -8,6 +8,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { resolveLane, workerPorts } from './ports.mjs';
 import { startE2eWorkerServer, recoverE2eWorker } from './e2eWorkerRuntime.mjs';
+import {
+  cleanupResetControlEndpoints,
+  createResetControlToken,
+  resetControlEndpoint,
+} from '../apps/backend/start/e2e_reset_control.ts';
 
 const lane = resolveLane();
 const slot = E2E_SCRIPT_TEST_SLOTS.runtime;
@@ -244,6 +249,7 @@ test(
     await mkdir(cache, { recursive: true });
     await writeFile(db, 'stale');
     await writeFile(`${db}.template`, 'stale template');
+    let resetToken;
     const runtime = await import('./e2eWorkerRuntime.mjs');
     const guardianScript = new URL('./e2eProcessGuardian.mjs', import.meta.url);
     const waitExit = (child) =>
@@ -265,12 +271,31 @@ test(
       return guardian;
     };
     const resetLease = async () => rm(lock, { recursive: true, force: true });
-    const putOwner = async (groups) => {
+    const putOwner = async (groups, resetToken) => {
       await mkdir(lock, { recursive: true });
-      await writeFile(owner, JSON.stringify({ pid: 999_999_999, groups }));
+      await writeFile(owner, JSON.stringify({ pid: 999_999_999, groups, resetToken }));
     };
     try {
+      // A crashed worker may leave its private control socket behind after its process group exits.
+      resetToken = createResetControlToken();
+      const endpoint = resetControlEndpoint(resetToken, 'api');
+      const crash = spawnSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          `import { createResetControlServer } from ${JSON.stringify(new URL('../apps/backend/start/e2e_reset_control.ts', import.meta.url).href)}; const server = createResetControlServer(${JSON.stringify(resetToken)}, 'api', { status: () => ({}), pause: async () => ({}), resume: async () => ({}) }); await server.ready; process.exit(0);`,
+        ],
+        { cwd: process.cwd(), encoding: 'utf8' },
+      );
+      assert.equal(crash.status, 0, crash.stderr);
+      await access(endpoint);
+      await putOwner([], resetToken);
+      await runtime.recoverE2eWorker(target(db, 1, 2), lane, slot);
+      await assert.rejects(access(endpoint), { code: 'ENOENT' });
+
       // Crash after spawn but before recording the guardian: no service has been STARTed.
+      await resetLease();
       await putOwner([]);
       const unrecorded = await makeGuardian();
       const unrecordedExit = waitExit(unrecorded);
@@ -334,6 +359,7 @@ test(
         false,
       );
     } finally {
+      if (resetToken) await cleanupResetControlEndpoints(resetToken);
       await rm(db, { force: true });
       await rm(`${db}.template`, { force: true });
       await rm(cache, { recursive: true, force: true });

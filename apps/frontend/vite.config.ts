@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import { loadEnv } from 'vite';
 import type { Plugin, ProxyOptions } from 'vite';
 import { Agent } from 'node:http';
+import type { ClientRequest, RequestOptions } from 'node:http';
 import type { Socket } from 'node:net';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -15,6 +16,10 @@ import { parseClientApiOrigin } from '../../scripts/render-client-nginx.mjs';
 import { STATIC_SPA_ROUTES } from '../../scripts/staticSpaRoutes.mjs';
 import { ENTRY_RAW_LIMIT_KB } from '../../scripts/bundleBudget.mjs';
 import { isAccountEmail } from '../../packages/shared/src/account/validation.ts';
+import {
+  createResetControlServer,
+  createRetirableListener,
+} from '../../apps/backend/start/e2e_reset_control.ts';
 
 // Lane-derived ports keep concurrent worktrees on disjoint service endpoints.
 const lanePorts = ports();
@@ -34,6 +39,7 @@ if (!Object.hasOwn(lanePorts, viteService)) {
 }
 const servicePort = lanePorts[viteService as keyof typeof lanePorts];
 const e2eWorker = process.env.CAPACITYLENS_E2E_WORKER === '1';
+const e2eResetToken = process.env.CAPACITYLENS_E2E_RESET_TOKEN;
 /**
  * Emit real directory index documents for fixed client routes. The packaged nginx image still
  * provides the normal SPA fallback, while these aliases also survive a static outer proxy that
@@ -63,8 +69,34 @@ export function staticSpaRouteDocuments(): Plugin {
 /** Track pending proxy requests and their actual upstream sockets before a worker resets SQLite. */
 function createE2eProxyDrainProbe() {
   let activeRequests = 0;
+  let pendingUpstreamRequests = 0;
   const sockets = new Set<Socket>();
   const agent = new Agent({ keepAlive: false });
+  let listenerControl: ReturnType<typeof createRetirableListener> | undefined;
+  let controlServer: ReturnType<typeof createResetControlServer> | undefined;
+  // The configured proxies have no async bypass hook, so proxy.web reaches Agent admission
+  // synchronously before pause control can interleave; this also covers requests queued for sockets.
+  const dispatchingAgent = agent as Agent & {
+    addRequest(request: ClientRequest, options: RequestOptions): void;
+  };
+  const addRequest = dispatchingAgent.addRequest.bind(agent);
+  dispatchingAgent.addRequest = (request, options) => {
+    pendingUpstreamRequests += 1;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      pendingUpstreamRequests -= 1;
+    };
+    request.once('close', finish);
+    try {
+      addRequest(request, options);
+    } catch (error) {
+      request.off('close', finish);
+      finish();
+      throw error;
+    }
+  };
   const configure: NonNullable<ProxyOptions['configure']> = (proxy) => {
     proxy.on('proxyReq', (request) => {
       const observe = (socket: Socket) => {
@@ -78,13 +110,61 @@ function createE2eProxyDrainProbe() {
   };
   const plugin: Plugin = {
     name: 'capacitylens-e2e-proxy-drain-probe',
-    configureServer(server) {
+    async configureServer(server) {
+      const httpServer = server.httpServer;
+      if (e2eResetToken && httpServer) {
+        listenerControl = createRetirableListener(httpServer, {
+          role: 'vite',
+          listen: async () => {
+            await server.listen();
+          },
+          async waitForQuiescence(timeoutMs) {
+            const deadline = Date.now() + timeoutMs;
+            while (activeRequests || pendingUpstreamRequests || sockets.size) {
+              if (Date.now() >= deadline)
+                throw new Error(
+                  `Vite pause timed out with ${activeRequests} active API requests, ${pendingUpstreamRequests} pending upstream requests and ${sockets.size} open upstream sockets.`,
+                );
+              await new Promise((resolve) => setTimeout(resolve, 10));
+            }
+            return {
+              activeRequests,
+              pendingUpstreamRequests,
+              openUpstreamSockets: sockets.size,
+            };
+          },
+          status: () => ({
+            activeRequests,
+            pendingUpstreamRequests,
+            openUpstreamSockets: sockets.size,
+          }),
+        });
+        controlServer = createResetControlServer(e2eResetToken, 'vite', {
+          status: listenerControl.status,
+          pause(timeoutMs) {
+            agent.destroy();
+            return listenerControl!.pause(timeoutMs);
+          },
+          resume: listenerControl.resume,
+        });
+        await controlServer.ready;
+      }
+
+      server.middlewares.use((request, response, next) => {
+        if (listenerControl?.shouldReject(request.socket)) {
+          request.socket.destroy();
+          return;
+        }
+        next();
+      });
       server.httpServer?.once('close', () => agent.destroy());
       server.middlewares.use((request, response, next) => {
         if (request.url === '/__e2e/active-proxies') {
           response.statusCode = 200;
           response.setHeader('content-type', 'application/json');
-          response.end(JSON.stringify({ activeRequests, openSockets: sockets.size }));
+          response.end(
+            JSON.stringify({ activeRequests, openSockets: sockets.size, pendingUpstreamRequests }),
+          );
           return;
         }
         if (!request.url?.startsWith('/api/') && !request.url?.startsWith('/health')) return next();
@@ -99,6 +179,9 @@ function createE2eProxyDrainProbe() {
         response.once('close', finish);
         next();
       });
+    },
+    async closeServer() {
+      await controlServer?.close();
     },
   };
   return { plugin, proxyOptions: { agent, configure } };
