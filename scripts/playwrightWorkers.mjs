@@ -5,7 +5,11 @@ import { resolvePlaywrightRunMode } from './playwrightRunMode.mjs';
 
 // Baseline full-stack RSS in KiB: API tree, warmed Vite tree and largest representative browser worker/tree (WebKit).
 export const AUTH_SERVER_MEMORY_BYTES = (671568 + 890832) * 1024;
-export const WORKER_MEMORY_BYTES = AUTH_SERVER_MEMORY_BYTES + 1537376 * 1024;
+// Two measured E2E guardians were 59,436 and 59,348 KiB at API/Vite readiness;
+// reserve 64 MiB each for runtime and platform variation.
+export const E2E_GUARDIAN_MEMORY_BYTES = 2 * 64 * 1024 ** 2;
+export const WORKER_MEMORY_BYTES =
+  AUTH_SERVER_MEMORY_BYTES + 1537376 * 1024 + E2E_GUARDIAN_MEMORY_BYTES;
 
 /** Read usable RAM, including reclaimable caches on Linux; other platforms use free RAM. */
 export function availableMemoryBytes() {

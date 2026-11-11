@@ -5,6 +5,14 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 
 /** Generate the localization modules once before any worker Vite starts. */
 export default function globalSetup(): void {
+  const codegen = spawnPnpmSync(['--dir', 'apps/backend', 'codegen'], {
+    cwd: root,
+    stdio: 'inherit',
+  });
+  if (codegen.error) throw codegen.error;
+  if (codegen.status !== 0)
+    throw new Error(`Backend code generation failed (${codegen.status ?? codegen.signal}).`);
+
   const result = spawnPnpmSync(['run', 'paraglide:compile'], {
     cwd: root,
     stdio: 'inherit',

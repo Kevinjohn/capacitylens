@@ -1,8 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { browserWorkerCount, configurationWorkerCount } from './playwrightWorkers.mjs';
+import {
+  browserWorkerCount,
+  configurationWorkerCount,
+  E2E_GUARDIAN_MEMORY_BYTES,
+  WORKER_MEMORY_BYTES,
+} from './playwrightWorkers.mjs';
 
 const share = (value) => ({ CAPACITYLENS_TEST_SHARE: String(value) });
+test('worker admission includes memory reserved for both runtime guardians', () => {
+  assert.equal(E2E_GUARDIAN_MEMORY_BYTES, 2 * 64 * 1024 ** 2);
+  assert.equal(WORKER_MEMORY_BYTES, (671568 + 890832 + 1537376) * 1024 + E2E_GUARDIAN_MEMORY_BYTES);
+});
+
 test('memory, CPU reservation and worker endpoints each bound the count', () => {
   assert.equal(
     browserWorkerCount(share(8), { freeBytes: 9_000, workerBytes: 1_000, reservedBytes: 0 }),

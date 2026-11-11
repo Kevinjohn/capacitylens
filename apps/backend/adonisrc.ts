@@ -144,7 +144,9 @@ export default defineConfig({
         transformers: { enabled: true },
       }),
       // Validation refusals use our flat 400 adapter, rather than Vine's default 422 body.
-      generateRegistry({ validationErrorType: false }),
+      ...(process.env.CAPACITYLENS_E2E_WORKER_API === '1'
+        ? []
+        : [generateRegistry({ validationErrorType: false })]),
     ],
   },
 });

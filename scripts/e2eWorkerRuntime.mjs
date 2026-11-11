@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { mkdir, readdir, readFile, rm, rmdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { renameSync, writeFileSync } from 'node:fs';
@@ -6,8 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workerPorts, resolveLane } from './ports.mjs';
-import { portInUse, terminateProcessTree } from './devProcesses.mjs';
-import { spawnPnpm } from './pnpmSpawn.mjs';
+import { portInUse } from './devProcesses.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const backend = join(root, 'apps/backend');
@@ -66,36 +65,14 @@ async function readOwner(ownerPath) {
   }
 }
 
-function signalGroup(group, signal) {
-  if (process.platform === 'win32') {
-    if (!processExists(group)) return;
-    const result = spawnSync(
-      'taskkill',
-      ['/pid', String(group), '/T', ...(signal === 'SIGKILL' ? ['/F'] : [])],
-      { stdio: 'ignore' },
-    );
-    if (result.error) throw result.error;
-    if (result.status !== 0 && processExists(group))
-      throw new Error(`taskkill could not terminate stale E2E process ${group}.`);
-    return;
-  }
-  try {
-    process.kill(-group, signal);
-  } catch (error) {
-    if (error.code !== 'ESRCH') throw error;
-  }
-}
-
-async function terminateRecordedGroups(groups) {
-  for (const group of groups) signalGroup(group, 'SIGTERM');
-  const deadline = Date.now() + 2_000;
+async function waitForRecordedGroups(groups) {
+  const deadline = Date.now() + 5_000;
   while (groups.some(processGroupExists) && Date.now() < deadline) await sleep(25);
-  for (const group of groups) if (processGroupExists(group)) signalGroup(group, 'SIGKILL');
-  const forceDeadline = Date.now() + 1_000;
-  while (groups.some(processGroupExists) && Date.now() < forceDeadline) await sleep(25);
   const survivors = groups.filter(processGroupExists);
   if (survivors.length)
-    throw new Error(`Stale E2E worker process groups remain alive: ${survivors.join(', ')}.`);
+    throw new Error(
+      `Stale E2E worker process groups remain alive; preserving the lease and worker files: ${survivors.join(', ')}.`,
+    );
 }
 
 /** Release only the unique owner record held by this lease. */
@@ -165,7 +142,7 @@ async function acquireLease(lane, slot) {
           throw new Error(`E2E worker slot is already owned by live process ${owner.pid}.`, {
             cause: error,
           });
-        await terminateRecordedGroups(owner.groups);
+        await waitForRecordedGroups(owner.groups);
         // A delayed reaper removes only this dead owner's unique filename. A successor's
         // distinct owner keeps its directory nonempty and therefore cannot be removed.
         await releaseLease(oldPaths);
@@ -177,18 +154,23 @@ async function acquireLease(lane, slot) {
   }
 }
 
-function makeChild(label, command, args, options) {
-  const childOptions = {
-    ...options,
+function makeChild(label) {
+  const child = spawn(process.execPath, [join(root, 'scripts/e2eProcessGuardian.mjs')], {
     detached: process.platform !== 'win32',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  };
-  const child =
-    command === 'pnpm' ? spawnPnpm(args, childOptions) : spawn(command, args, childOptions);
+    stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+  });
   let stderr = '';
   let stdout = '';
   let spawnError;
   const outputsClosed = new Promise((resolveClose) => child.once('close', resolveClose));
+  const childExited = new Promise((resolveExit) => child.once('exit', resolveExit));
+  const waitForClose = () =>
+    Promise.race([
+      childExited,
+      sleep(5_000).then(() => {
+        throw new Error(`${label} guardian did not stop within 5,000 ms.`);
+      }),
+    ]);
   const keepTail = (current, chunk) => `${current}${chunk}`.slice(-12_000);
   child.stdout.setEncoding('utf8').on('data', (chunk) => {
     stdout = keepTail(stdout, chunk);
@@ -215,6 +197,14 @@ function makeChild(label, command, args, options) {
     get group() {
       return child.pid;
     },
+    start(command, args, options) {
+      if (!child.connected) throw new Error(`${label} guardian disconnected before START.`);
+      child.send({ type: 'START', command, args, options });
+    },
+    requestStop() {
+      if (child.connected) child.send({ type: 'STOP' });
+    },
+    waitForClose,
     closeOutputs() {
       return Promise.race([outputsClosed, sleep(100)]);
     },
@@ -351,16 +341,17 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
     let terminationError;
     for (const record of [...processes].reverse()) {
       try {
-        await terminateProcessTree(record.child, { graceMs: 2_000, forceMs: 1_000 });
+        record.requestStop();
+        await record.waitForClose();
       } catch (error) {
         terminationError ??= error;
       }
     }
-    const running = processes.filter(({ group }) => processGroupExists(group));
-    if (running.length)
-      terminationError ??= new Error(
-        `E2E worker processes did not exit: ${running.map(({ label }) => label).join(', ')}.`,
-      );
+    try {
+      await waitForRecordedGroups(processes.map(({ group }) => group).filter(Number.isInteger));
+    } catch (error) {
+      terminationError ??= error;
+    }
     if (!terminationError) {
       if (removeDatabase) await removeDatabaseFiles(target);
       if (removeCache) await rm(viteCachePath, { recursive: true, force: true });
@@ -375,19 +366,28 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
       await removeDatabaseFiles(target);
       await rm(viteCachePath, { recursive: true, force: true });
     }
-    const api = makeChild(
-      'E2E API server',
-      process.execPath,
-      [join(backend, 'scripts/e2e-server.mjs'), 'db', '--slot', String(slot)],
-      { cwd: root, env: { ...process.env, CAPACITYLENS_PORT_LANE: String(lane) } },
-    );
+    const api = makeChild('E2E API server');
     processes.push(api);
     writeOwner();
+    api.start(
+      process.execPath,
+      [join(backend, 'scripts/e2e-server.mjs'), 'db', '--slot', String(slot)],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          CAPACITYLENS_PORT_LANE: String(lane),
+          CAPACITYLENS_E2E_WORKER_API: '1',
+        },
+      },
+    );
     await waitReady(api, `${target.api}/health/ready`, 'E2E API server');
     databaseOwned = true;
 
-    const vite = makeChild(
-      'E2E Vite server',
+    const vite = makeChild('E2E Vite server');
+    processes.push(vite);
+    writeOwner();
+    vite.start(
       'pnpm',
       [
         '--dir',
@@ -415,8 +415,6 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
         },
       },
     );
-    processes.push(vite);
-    writeOwner();
     await waitReady(vite, `${target.web}/health/ready`, 'E2E Vite proxy', processes);
 
     return {
