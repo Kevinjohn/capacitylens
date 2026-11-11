@@ -271,6 +271,7 @@ type FrameEpoch = {
   generation: number;
   origin: 'attached' | 'existing' | 'navigation';
   retiredUnverified: boolean;
+  baselineNonce?: string;
   nonce?: string;
   state?: BrowserObserverState;
   verified: boolean;
@@ -284,6 +285,8 @@ type ObservedFrame = {
   page: Page;
   terminal: boolean;
   observedNavigation: boolean;
+  lastVerifiedNonce?: string;
+  pending: Set<FrameEpoch>;
   epoch?: FrameEpoch;
 };
 type LifecycleDiagnostic = {
@@ -384,6 +387,7 @@ export function createBrowserErrorObserver() {
       state.ready.get(record.page)?.has(epoch.nonce)
     ) {
       epoch.verified = true;
+      record.lastVerifiedNonce = epoch.nonce;
       diagnose(record, epoch, 'verified');
       settle(epoch);
     }
@@ -401,6 +405,22 @@ export function createBrowserErrorObserver() {
     current: BrowserObserverState | undefined,
   ) => {
     if (!isCurrent(record, epoch, state) || epoch.settled) {
+      if (
+        !record.terminal &&
+        !state.terminal &&
+        !epoch.settled &&
+        epoch.baselineNonce &&
+        current?.token === state.token &&
+        current.status === 'ready' &&
+        current.nonce === epoch.baselineNonce
+      ) {
+        epoch.verified = true;
+        epoch.nonce = current.nonce;
+        diagnose(record, epoch, 'repeated-document-verified');
+        settle(epoch);
+        return;
+      }
+      if (!epoch.settled) coverage(state, epoch, 'document-superseded-before-ready');
       diagnose(record, epoch, 'stale-read-discarded', {
         ...(current?.nonce ? { observedNonce: current.nonce } : {}),
         ...(current?.status ? { observedStatus: current.status } : {}),
@@ -443,7 +463,11 @@ export function createBrowserErrorObserver() {
   ) => {
     if (record.terminal || state.terminal) return;
     const previous = record.epoch;
-    if (previous && !previous.settled)
+    if (
+      previous &&
+      !previous.settled &&
+      (!previous.baselineNonce || (previous.nonce && previous.nonce !== previous.baselineNonce))
+    )
       coverage(state, previous, 'document-superseded-before-ready');
     let finish!: () => void;
     const completion = new Promise<void>((resolve) => {
@@ -453,30 +477,33 @@ export function createBrowserErrorObserver() {
       generation: ++generation,
       origin,
       retiredUnverified: false,
+      ...(record.lastVerifiedNonce ? { baselineNonce: record.lastVerifiedNonce } : {}),
       verified: false,
       settled: false,
       completion,
       finish,
       timer: setTimeout(() => {
-        if (isCurrent(record, epoch, state) && !epoch.settled)
-          coverage(state, epoch, 'readiness-timeout');
+        if (!epoch.settled) coverage(state, epoch, 'readiness-timeout');
       }, 5000),
     };
     // Publish the new generation before starting any asynchronous state read.
     record.epoch = epoch;
+    record.pending.add(epoch);
+    void completion.then(() => record.pending.delete(epoch));
     diagnose(record, epoch, 'epoch-started');
     void readState(frame, state.stateKey).then(
       (current) => acceptState(record, epoch, state, current),
       (error: unknown) => {
-        if (isCurrent(record, epoch, state) && !epoch.settled)
-          coverage(state, epoch, 'installer-state-read-failed', String(error));
+        if (!epoch.settled) coverage(state, epoch, 'installer-state-read-failed', String(error));
       },
     );
   };
   const terminate = (record: ObservedFrame, state: ContextState, code: string) => {
     record.terminal = true;
     if (record.epoch) diagnose(record, record.epoch, 'terminal', { reason: code });
-    if (record.epoch && !record.epoch.settled) coverage(state, record.epoch, code);
+    for (const epoch of record.pending) {
+      if (!epoch.settled) coverage(state, epoch, code);
+    }
   };
   const observePage = (page: Page) => {
     if (pages.has(page)) return;
@@ -485,7 +512,7 @@ export function createBrowserErrorObserver() {
     const seedFrame = (frame: Frame, origin: FrameEpoch['origin']) => {
       let record = frames.get(frame);
       if (!record) {
-        record = { frame, page, terminal: false, observedNavigation: false };
+        record = { frame, page, terminal: false, observedNavigation: false, pending: new Set() };
         frames.set(frame, record);
         startEpoch(frame, record, state, origin);
       }
@@ -577,7 +604,7 @@ export function createBrowserErrorObserver() {
     for (const [frame, record] of frames) {
       if (record.page.context() !== context || record.terminal || !record.epoch) continue;
       const epoch = record.epoch;
-      await epoch.completion;
+      await Promise.all([...record.pending].map((pending) => pending.completion));
       if (!isCurrent(record, epoch, state) || !epoch.verified) continue;
       let timeout!: ReturnType<typeof setTimeout>;
       const expired = Symbol('expired');
