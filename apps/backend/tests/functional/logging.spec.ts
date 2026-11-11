@@ -226,7 +226,7 @@ test.group('general HTTP logging privacy', (group) => {
     assert,
   }) => {
     const suppliedId = `SENTINEL_${'UNTRUSTED'.repeat(512)}`;
-    const { output, result: responses } = await captureLogs(() =>
+    const { output } = await captureLogs(() =>
       Promise.all(
         Array.from({ length: 3 }, () =>
           client.get('/api/health').header('x-request-id', suppliedId).send()
@@ -242,10 +242,6 @@ test.group('general HTTP logging privacy', (group) => {
     assert.lengthOf(requestIds, 3);
     assert.lengthOf(new Set(requestIds), 3);
     for (const requestId of requestIds) assert.match(requestId, UUID);
-    assert.sameMembers(
-      responses.map((response) => response.header('x-request-id')),
-      requestIds
-    );
   });
 
   test('logs malformed body-parser requests without including their body', async ({

@@ -344,8 +344,6 @@ framework defaults; any other departure needs a decision recorded here first.
 8. CSRF is the Origin / Sec-Fetch-Site check, not Shield's XSRF token.
 9. The TanStack Query cache is used for account and admin reads only; planning data lives in the
    Zustand planning slice (see Browser data).
-10. An incoming `X-Request-Id` header is discarded; the request id is always server-generated
-    (see Accounts, admission and security).
 
 ## Installation
 
