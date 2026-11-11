@@ -23,6 +23,8 @@ const input = (baseRevision: number, intent: Record<string, unknown>) => ({
 const body = (response: { body(): unknown }) =>
   response.body() as {
     code?: string;
+    status?: string;
+    mutationId?: string;
     revision?: number;
     projection?: { mode: string; history: string };
   };
@@ -277,7 +279,7 @@ test.group('independent typed planning operations', (group) => {
     );
   });
 
-  test('the built-in Internal client rejects rename and client-supplied creation', async ({
+  test('the built-in Internal client rejects rename and strips client-supplied flags', async ({
     client,
     assert,
     cleanup,
@@ -300,27 +302,120 @@ test.group('independent typed planning operations', (group) => {
     renamed.assertStatus(400);
     assert.equal(body(renamed).code, 'VALIDATION_ERROR');
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
+    const refusedSnapshot = await session(client.get(planningUrl), cookie).send();
+    assert.equal(refusedSnapshot.body().revision, 0);
+    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.lengthOf(
+      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      0
+    );
 
     const spoofedId = randomUUID();
+    const createInput = input(0, {
+      operation: 'catalogue.create',
+      entity: {
+        entity: 'clients',
+        id: spoofedId,
+        fields: { name: 'Second Internal', color: internal.color, builtin: true },
+      },
+    });
     const spoofed = await session(client.post(route('clients')), cookie)
-      .json(
-        input(0, {
-          operation: 'catalogue.create',
-          entity: {
-            entity: 'clients',
-            id: spoofedId,
-            fields: { name: 'Second Internal', color: internal.color, builtin: true },
-          },
-        })
-      )
+      .json(createInput)
       .send();
-    spoofed.assertStatus(400);
-    assert.equal(body(spoofed).code, 'VALIDATION_ERROR');
-    assert.isNull(await db.from('clients').where({ id: spoofedId }).first());
+    spoofed.assertStatus(200);
+    assert.equal(body(spoofed).status, 'committed');
+    assert.equal(body(spoofed).mutationId, createInput.mutationId);
+    assert.equal(body(spoofed).revision, 1);
+    const ordinary = await db.from('clients').where({ id: spoofedId }).first();
+    assert.deepInclude(ordinary!, {
+      id: spoofedId,
+      name: 'Second Internal',
+      color: internal.color,
+      builtin: null,
+    });
+    assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
+    const createdSnapshot = await session(client.get(planningUrl), cookie).send();
+    assert.equal(createdSnapshot.body().revision, 1);
+    const createdClients = createdSnapshot.body().data.clients as Array<{
+      id: string;
+      name: string;
+      builtin?: boolean;
+    }>;
+    assert.equal(createdClients.find((row) => row.id === spoofedId)?.name, 'Second Internal');
+    assert.notEqual(createdClients.find((row) => row.id === spoofedId)?.builtin, true);
+    assert.deepEqual(
+      createdClients.filter((row) => row.builtin).map((row) => row.id),
+      [internal.id]
+    );
+    const createdMarker = await db.from('planning_mutations').where('account_id', accountId);
+    assert.lengthOf(createdMarker, 1);
+    assert.equal(createdMarker[0].mutation_id, createInput.mutationId);
+    assert.equal(Number(createdMarker[0].revision), 1);
+    const createdAudit = await db
+      .from('audit_entries')
+      .where({ account_id: accountId, entity: 'planning' });
+    assert.lengthOf(createdAudit, 1);
+    assert.equal(createdAudit[0].entity_id, createInput.mutationId);
+    assert.equal(createdAudit[0].action, 'catalogue.create');
+
+    const renameInput = input(1, {
+      operation: 'catalogue.update',
+      entity: {
+        entity: 'clients',
+        id: spoofedId,
+        changes: { name: 'Ordinary renamed', builtin: true },
+      },
+    });
+    const normalRename = await session(client.patch(route(`clients/${spoofedId}`)), cookie)
+      .json(renameInput)
+      .send();
+    normalRename.assertStatus(200);
+    assert.equal(body(normalRename).status, 'committed');
+    assert.equal(body(normalRename).mutationId, renameInput.mutationId);
+    assert.equal(body(normalRename).revision, 2);
+    const ordinaryRenamed = await db.from('clients').where({ id: spoofedId }).first();
+    assert.equal(ordinaryRenamed!.name, 'Ordinary renamed');
+    assert.isNull(ordinaryRenamed!.builtin);
+
+    const flagOnlyInput = input(2, {
+      operation: 'catalogue.update',
+      entity: { entity: 'clients', id: spoofedId, changes: { builtin: true } },
+    });
+    const flagOnly = await session(client.patch(route(`clients/${spoofedId}`)), cookie)
+      .json(flagOnlyInput)
+      .send();
+    flagOnly.assertStatus(400);
+    assert.equal(body(flagOnly).code, 'VALIDATION_ERROR');
+    assert.deepEqual(await db.from('clients').where({ id: spoofedId }).first(), ordinaryRenamed);
+    assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
 
     const snapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(snapshot.body().revision, 0);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.equal(snapshot.body().revision, 2);
+    const canonicalClients = snapshot.body().data.clients as typeof createdClients;
+    assert.equal(canonicalClients.find((row) => row.id === spoofedId)?.name, 'Ordinary renamed');
+    assert.notEqual(canonicalClients.find((row) => row.id === spoofedId)?.builtin, true);
+    assert.deepEqual(
+      canonicalClients.filter((row) => row.builtin).map((row) => row.id),
+      [internal.id]
+    );
+    const markers = await db.from('planning_mutations').where('account_id', accountId);
+    assert.lengthOf(markers, 2);
+    assert.sameMembers(
+      markers.map((row) => row.mutation_id),
+      [createInput.mutationId, renameInput.mutationId]
+    );
+    const renamedMarker = markers.find((row) => row.mutation_id === renameInput.mutationId);
+    assert.equal(Number(renamedMarker!.revision), 2);
+    const audits = await db
+      .from('audit_entries')
+      .where({ account_id: accountId, entity: 'planning' });
+    assert.lengthOf(audits, 2);
+    assert.deepInclude(
+      audits.find((row) => row.entity_id === renameInput.mutationId)!,
+      {
+        action: 'catalogue.update',
+      }
+    );
   });
 
   test('refuses to archive a row owned by another company without changing it', async ({

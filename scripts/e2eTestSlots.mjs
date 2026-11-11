@@ -5,4 +5,5 @@ export const E2E_SCRIPT_TEST_SLOTS = Object.freeze({
   runtime: WORKER_SLOTS_PER_LANE - 1,
   proxy: WORKER_SLOTS_PER_LANE - 2,
   reset: WORKER_SLOTS_PER_LANE - 3,
+  serverBoundary: WORKER_SLOTS_PER_LANE - 4,
 });
