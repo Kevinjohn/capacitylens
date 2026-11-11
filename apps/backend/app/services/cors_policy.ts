@@ -31,8 +31,20 @@ export function resolveCorsOrigins(configured: string | undefined, environment: 
     });
 }
 
-export const corsOrigins = resolveCorsOrigins(
-  env.get('CAPACITYLENS_CORS_ORIGIN'),
+/** Appends the full-stack dev launcher's lane web origins, which only a development server trusts. */
+export function withDevelopmentWebOrigins(
+  origins: string[],
+  devWebOrigins: string | undefined,
+  environment: string
+) {
+  return environment === 'development' && devWebOrigins
+    ? [...origins, ...resolveCorsOrigins(devWebOrigins, environment)]
+    : origins;
+}
+
+export const corsOrigins = withDevelopmentWebOrigins(
+  resolveCorsOrigins(env.get('CAPACITYLENS_CORS_ORIGIN'), env.get('NODE_ENV')),
+  env.get('CAPACITYLENS_DEV_WEB_ORIGINS'),
   env.get('NODE_ENV')
 );
 

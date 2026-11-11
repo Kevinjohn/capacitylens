@@ -1,6 +1,11 @@
 import { test } from '@japa/runner';
 import { publicOrigin } from '#config/public_origin';
-import { resolveCorsOrigins, isTrustedUnsafeOrigin } from '#services/cors_policy';
+import { freshDatabase } from '../../helpers/fresh_database.js';
+import {
+  resolveCorsOrigins,
+  isTrustedUnsafeOrigin,
+  withDevelopmentWebOrigins,
+} from '#services/cors_policy';
 
 test('CORS uses finite development origins and no production cross-origin defaults', ({
   assert,
@@ -16,8 +21,22 @@ test('CORS uses finite development origins and no production cross-origin defaul
   assert.isFalse(isTrustedUnsafeOrigin({ origin: 'https://evil.example' }));
 });
 
+test('only a development server appends the dev launcher web origins', ({ assert }) => {
+  const configured = ['https://wayne.example'];
+  const lane = 'http://localhost:5176,http://127.0.0.1:5176';
+  assert.deepEqual(withDevelopmentWebOrigins(configured, lane, 'development'), [
+    'https://wayne.example',
+    'http://localhost:5176',
+    'http://127.0.0.1:5176',
+  ]);
+  for (const environment of ['production', 'test'])
+    assert.deepEqual(withDevelopmentWebOrigins(configured, lane, environment), configured);
+  assert.deepEqual(withDevelopmentWebOrigins(configured, undefined, 'development'), configured);
+});
+
 // An unmatched route answers 404 once the origin guard admits the write, and 403 when it refuses.
-test.group('unsafe-request origin guard', () => {
+test.group('unsafe-request origin guard', (group) => {
+  group.setup(() => freshDatabase());
   test('{name}')
     .with<{ name: string; headers: Record<string, string>; status: number }[]>([
       { name: 'admits the public origin', headers: { origin: publicOrigin.origin }, status: 404 },

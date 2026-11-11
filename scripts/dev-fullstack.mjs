@@ -1,7 +1,5 @@
 // Start the API and web server together because server-backed app mode needs the Vite proxy's API.
 
-import { existsSync, readFileSync } from 'node:fs';
-import { parseEnv } from 'node:util';
 import { parsePort } from './parsePort.mjs';
 import { spawnPnpm } from './pnpmSpawn.mjs';
 import { ports } from './ports.mjs';
@@ -86,19 +84,12 @@ function start(label, args, env) {
 }
 
 // Browser writes reach the API through the Vite proxy carrying this lane's web origin, which the
-// API's built-in development origins cover only on lane 0. The process value hides the backend
-// .env value from the API, so both configured lists are kept alongside the lane origins.
-const backendEnvFile = new URL('../apps/backend/.env', import.meta.url);
-const fileCorsOrigin = existsSync(backendEnvFile)
-  ? parseEnv(readFileSync(backendEnvFile, 'utf8')).CAPACITYLENS_CORS_ORIGIN
-  : undefined;
-const webOrigins = `http://localhost:${WEB_PORT},http://127.0.0.1:${WEB_PORT}`;
+// API's built-in development origins cover only on lane 0. The API appends these to its own
+// resolved CAPACITYLENS_CORS_ORIGIN, so the operator's environment files keep their meaning.
 start('api', ['--filter', '@capacitylens/backend', 'run', 'dev'], {
   PORT: String(API_PORT),
   CAPACITYLENS_SEED_DEMO: '1',
-  CAPACITYLENS_CORS_ORIGIN: [process.env.CAPACITYLENS_CORS_ORIGIN, fileCorsOrigin, webOrigins]
-    .filter(Boolean)
-    .join(','),
+  CAPACITYLENS_DEV_WEB_ORIGINS: `http://localhost:${WEB_PORT},http://127.0.0.1:${WEB_PORT}`,
 });
 start('web', ['run', 'dev:web'], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) });
 
