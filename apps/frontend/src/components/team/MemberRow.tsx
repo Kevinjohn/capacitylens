@@ -180,6 +180,7 @@ export function MemberRow({
   resourceCandidates,
   workspaceId,
   reload,
+  acceptedReadGeneration,
 }: {
   member: TeamMember;
   myRole: Role | undefined;
@@ -191,7 +192,8 @@ export function MemberRow({
   linkedResourceIds: ReadonlySet<string>;
   resourceCandidates: readonly { resourceId: string; label: string }[];
   workspaceId: string | null;
-  reload(): void;
+  reload(): number;
+  acceptedReadGeneration: number;
 }) {
   const affordances = buildMemberAffordances(myRole, member);
   const memberLabel = resolveMemberLabel(member);
@@ -216,8 +218,6 @@ export function MemberRow({
         myRole={myRole}
         linkedResourceIds={linkedResourceIds}
         resourceCandidates={resourceCandidates}
-        workspaceId={workspaceId}
-        reload={reload}
       />
       <MemberPrimaryActions
         member={member}
@@ -235,6 +235,7 @@ export function MemberRow({
             resourceCandidates={resourceCandidates}
             workspaceId={workspaceId}
             reload={reload}
+            acceptedReadGeneration={acceptedReadGeneration}
             busy={busy}
           />
         }

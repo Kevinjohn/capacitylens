@@ -100,6 +100,7 @@ type MemberTableCapabilities = Pick<
   | 'setRoleEdit'
   | 'chooseMemberAction'
   | 'reload'
+  | 'acceptedReadGeneration'
   | 'activeAccountId'
   | 'resourceCandidates'
   | 'error'
@@ -193,6 +194,7 @@ function MembersTable({
               resourceCandidates={memberActions.resourceCandidates}
               workspaceId={memberActions.activeAccountId}
               reload={memberActions.reload}
+              acceptedReadGeneration={memberActions.acceptedReadGeneration}
             />
           ))}
         </tbody>

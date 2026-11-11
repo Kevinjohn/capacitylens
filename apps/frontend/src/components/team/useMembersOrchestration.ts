@@ -261,6 +261,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     errorId,
     clear,
     reload: directoryState.reload,
+    acceptedReadGeneration: directoryState.acceptedReadGeneration,
     members: directoryState.members,
     resourceCandidates,
     ...buildMemberDirectoryPresentation(directoryState.members),

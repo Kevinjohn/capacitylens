@@ -31,9 +31,10 @@ describe('useMemberResourceLinkRequest', () => {
         settle = resolve;
       }),
     );
-    const reload = vi.fn();
+    const reload = vi.fn(() => 1);
     const { result, rerender } = renderHook(
-      ({ workspaceId }) => useMemberResourceLinkRequest({ member, workspaceId, reload }),
+      ({ workspaceId }) =>
+        useMemberResourceLinkRequest({ member, workspaceId, reload, acceptedReadGeneration: 0 }),
       { initialProps: { workspaceId: 'a-studio' as string | null } },
     );
 
@@ -49,15 +50,22 @@ describe('useMemberResourceLinkRequest', () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
-  it('reports an uncertain outcome for the current company and reloads', async () => {
+  it('reports an uncertain outcome and stays pending until its requested read is accepted', async () => {
     vi.spyOn(teamAccessClient, 'setMemberResourceLink').mockResolvedValue({
       kind: 'unknown',
       status: 409,
       message: 'The operation may have completed.',
     });
-    const reload = vi.fn();
-    const { result } = renderHook(() =>
-      useMemberResourceLinkRequest({ member, workspaceId: 'a-studio', reload }),
+    const reload = vi.fn(() => 3);
+    const { result, rerender } = renderHook(
+      ({ acceptedReadGeneration }) =>
+        useMemberResourceLinkRequest({
+          member,
+          workspaceId: 'a-studio',
+          reload,
+          acceptedReadGeneration,
+        }),
+      { initialProps: { acceptedReadGeneration: 1 } },
     );
 
     await act(async () => {
@@ -66,7 +74,11 @@ describe('useMemberResourceLinkRequest', () => {
     });
 
     expect(result.current.error).not.toBeNull();
-    expect(result.current.pending).toBe(false);
     expect(reload).toHaveBeenCalledOnce();
+    expect(result.current.pending).toBe(true);
+    rerender({ acceptedReadGeneration: 2 });
+    expect(result.current.pending).toBe(true);
+    rerender({ acceptedReadGeneration: 3 });
+    expect(result.current.pending).toBe(false);
   });
 });

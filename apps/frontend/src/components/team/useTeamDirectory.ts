@@ -118,6 +118,8 @@ function useMemberQueryEffects({
   setDirectory,
   membersQuery,
   scopeId,
+  readGeneration,
+  acceptReadGeneration,
 }: {
   activeAccountId: string | null;
   fail: FieldError['fail'];
@@ -125,6 +127,9 @@ function useMemberQueryEffects({
   setDirectory: SetDirectory;
   membersQuery: ReturnType<typeof useScopedDirectoryQueries>['membersQuery'];
   scopeId: string;
+  /** The reload generation whose members query produced `membersQuery.data`. */
+  readGeneration: number;
+  acceptReadGeneration: Dispatch<SetStateAction<number>>;
 }) {
   useEffect(() => {
     if (!activeAccountId || !membersQuery.data) return;
@@ -166,7 +171,17 @@ function useMemberQueryEffects({
         invites: directorySnapshot(previous, activeAccountId)?.invites ?? [],
       },
     }));
-  }, [activeAccountId, membersQuery.data, fail, authorizedAccountRef, setDirectory, scopeId]);
+    acceptReadGeneration(readGeneration);
+  }, [
+    activeAccountId,
+    membersQuery.data,
+    fail,
+    authorizedAccountRef,
+    setDirectory,
+    scopeId,
+    readGeneration,
+    acceptReadGeneration,
+  ]);
   useEffect(() => {
     if (membersQuery.error && activeAccountId) {
       setDirectory((previous) => errorDirectory(previous, activeAccountId));
@@ -238,9 +253,17 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
   );
   // Remember which principal projection returned an authorized company directory.
   const authorizedAccountRef = useRef<{ scopeId: string; accountId: string } | null>(null);
+  // Each reload requests a new read generation. Only a successful members read applied for that
+  // generation accepts it; failures and other snapshot replacements leave it unaccepted.
+  const requestedReadGeneration = useRef(0);
   const [reloadKey, setReloadKey] = useState(0);
+  const [acceptedReadGeneration, setAcceptedReadGeneration] = useState(0);
   const [inviteReloadKey, setInviteReloadKey] = useState(0);
-  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
+  const reload = useCallback((): number => {
+    requestedReadGeneration.current += 1;
+    setReloadKey(requestedReadGeneration.current);
+    return requestedReadGeneration.current;
+  }, []);
   const reloadInvites = useCallback(async () => setInviteReloadKey((key) => key + 1), []);
   const { membersQuery, invitationsQuery } = useScopedDirectoryQueries({
     options: { ...options, enabled: options.enabled && !masqueradeActive },
@@ -255,6 +278,8 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     setDirectory,
     membersQuery,
     scopeId,
+    readGeneration: reloadKey,
+    acceptReadGeneration: setAcceptedReadGeneration,
   });
   useInvitationQueryEffects({
     activeAccountId,
@@ -271,6 +296,7 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
         : ({ kind: 'loading', accountId: activeAccountId } satisfies DirectoryState),
     setDirectory,
     reload,
+    acceptedReadGeneration,
     reloadInvites,
   };
 }
@@ -295,7 +321,8 @@ function useActionState() {
 /** Owns authoritative directory reads, self-gating, reload generations and action exclusion. */
 export function useTeamDirectory(options: TeamDirectoryOptions) {
   const { activeAccountId } = options;
-  const { directory, setDirectory, reload, reloadInvites } = useDirectoryRead(options);
+  const { directory, setDirectory, reload, acceptedReadGeneration, reloadInvites } =
+    useDirectoryRead(options);
   const { busyAction, beginAction, endAction } = useActionState();
   const currentAccountLoaded = directory.accountId === activeAccountId;
   const replaceAuthorizedDirectory = useCallback(
@@ -323,6 +350,7 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
         : ({ kind: 'loading', accountId: activeAccountId } satisfies DirectoryState),
     replaceAuthorizedDirectory,
     reload,
+    acceptedReadGeneration,
     reloadInvites,
     busyAction,
     beginAction,

@@ -7,7 +7,10 @@ import { invalidateResourceAvatars } from '@/account/useResourceAvatars';
 interface MemberResourceLinkRequestInput {
   member: TeamMember;
   workspaceId: string | null;
-  reload(): void;
+  /** Requests a fresh directory read and returns its generation. */
+  reload(): number;
+  /** Generation of the newest successful directory read that `member` comes from. */
+  acceptedReadGeneration: number;
 }
 
 type ResolveResourceStatusOptions = {
@@ -44,9 +47,11 @@ function requestResourceLinkChange(member: TeamMember, workspaceId: string, reso
 }
 
 // A request owns effects only while it is newest in the same company; reject late
-// replies so they cannot overwrite a newer choice or cross tenants.
-function useGuardedRequest(workspaceId: string | null, reload: () => void) {
-  const [pending, setPending] = useState(false);
+// replies so they cannot overwrite a newer choice or cross tenants. A finished write stays
+// pending until a read requested after it is accepted, so the next change sends a fresh revision.
+function useGuardedRequest(workspaceId: string | null, reload: () => number) {
+  const [sending, setSending] = useState(false);
+  const [requiredReadGeneration, setRequiredReadGeneration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const requestGeneration = useRef(0);
   const currentWorkspace = useRef(workspaceId);
@@ -56,18 +61,18 @@ function useGuardedRequest(workspaceId: string | null, reload: () => void) {
   }, [workspaceId]);
   const beginRequest = (activeWorkspaceId: string) => {
     const generation = ++requestGeneration.current;
-    setPending(true);
+    setSending(true);
     setError(null);
     return () =>
       generation === requestGeneration.current && currentWorkspace.current === activeWorkspaceId;
   };
   const finishRequest = (current: () => boolean) => {
     if (current()) {
-      reload();
-      setPending(false);
+      setRequiredReadGeneration(reload());
+      setSending(false);
     }
   };
-  return { pending, error, setError, beginRequest, finishRequest };
+  return { sending, requiredReadGeneration, error, setError, beginRequest, finishRequest };
 }
 
 /**
@@ -78,11 +83,11 @@ export function useMemberResourceLinkRequest({
   member,
   workspaceId,
   reload,
+  acceptedReadGeneration,
 }: MemberResourceLinkRequestInput) {
-  const { pending, error, setError, beginRequest, finishRequest } = useGuardedRequest(
-    workspaceId,
-    reload,
-  );
+  const { sending, requiredReadGeneration, error, setError, beginRequest, finishRequest } =
+    useGuardedRequest(workspaceId, reload);
+  const pending = sending || acceptedReadGeneration < requiredReadGeneration;
   const [expectedResourceId, setExpectedResourceId] = useState<string | null | undefined>(
     undefined,
   );
