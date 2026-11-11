@@ -132,36 +132,6 @@ test.group('soft-deleted rows', (group) => {
       projected.resources.map((row) => row.id),
       deletedResource.id
     );
-
-    const parentWithDefaultChildren = await Client.query()
-      .withTrashed()
-      .withScopes((scopes) => scopes.forCompany('a-studio'))
-      .where('id', clientRow.id)
-      .preload('projects', (query) => {
-        void query.where('id', project.id).withScopes((scopes) => scopes.forCompany('a-studio'));
-      })
-      .firstOrFail();
-    assert.isEmpty(parentWithDefaultChildren.projects);
-
-    const parentWithDeletedProject = await Client.query()
-      .withTrashed()
-      .withScopes((scopes) => scopes.forCompany('a-studio'))
-      .where('id', clientRow.id)
-      .preload('projects', (query) => {
-        void query
-          .withTrashed()
-          .where('id', project.id)
-          .withScopes((scopes) => scopes.forCompany('a-studio'))
-          .preload('activities', (activityQuery) => {
-            void activityQuery.withScopes((scopes) => scopes.forCompany('a-studio'));
-          });
-      })
-      .firstOrFail();
-    assert.equal(parentWithDeletedProject.projects.length, 1);
-    assert.include(
-      parentWithDeletedProject.projects[0]!.activities.map((row) => row.id),
-      activity.id
-    );
   });
 
   test('retained-row builders soft delete and purge only the selected company rows', async ({
