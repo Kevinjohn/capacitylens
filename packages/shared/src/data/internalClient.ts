@@ -1,10 +1,11 @@
 import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import type { Client, ID, ISOTimestamp } from '../types/entities.js';
 
-// Each account has one persisted Internal client, identified by `builtin` because import remapping changes IDs.
-// Public CRUD strips the flag, imports reconcile duplicates, and server writes reject a second built-in client.
+// Each account has one persisted Internal client, identified by `builtin` rather than by id.
+// Ordinary writes cannot modify or duplicate it. The portable import requires exactly one
+// canonical Internal client and keeps its exported id.
 
-/** The display name of the built-in Internal client (also recognised on import). */
+/** The display name of the built-in Internal client (also required on import). */
 export const INTERNAL_CLIENT_NAME = 'Internal';
 
 /** A preset swatch colour for the Internal client (Blue bright, a valid `#rrggbb` from the
@@ -12,7 +13,8 @@ export const INTERNAL_CLIENT_NAME = 'Internal';
 export const INTERNAL_CLIENT_COLOR = '#2d75da';
 
 /** The deterministic id an account's Internal client is created with. Identification at runtime
- * is still by the `builtin` flag. This formula never survives an import-remap (see the module doc). */
+ * is still by the `builtin` flag: an imported Internal client keeps its exported id, which need not
+ * match this formula. */
 export function internalClientIdFor(accountId: ID): ID {
   return `internal:${accountId}`;
 }
@@ -42,8 +44,8 @@ function isObjectValue(value: unknown): value is object {
 }
 
 /** The account's built-in Internal client, or undefined if none exists yet. Identifies it by the
- * `builtin` flag (id-independent so it survives import-remap). First match wins; seed,
- * addAccount and imports guarantee at most one per account. */
+ * `builtin` flag, so an imported id still matches. First match wins; seed, company creation and
+ * import validation guarantee at most one per account. */
 export function internalClientFor(clients: Client[], accountId: ID): Client | undefined {
   return clients.find(
     (client) => isObjectValue(client) && isBuiltinClient(client) && client.accountId === accountId,
