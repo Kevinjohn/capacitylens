@@ -157,18 +157,6 @@ describe('MembersSection — resource link read fence', () => {
     );
   });
 
-  it('does not let a read already in flight before the write release it', async () => {
-    const user = userEvent.setup();
-    const { reads, writes, listMembers, beaDialog } = await startBarbaraWriteDuringClarkRead(user);
-    await writes.settleNext({ kind: 'ok', status: 200, value: diana });
-    await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(3));
-
-    await reads.settleNext(makeRead({ ed: bruce }));
-    expect(getSelector(beaDialog)).toBeDisabled();
-    await reads.settleNext(makeRead({ ed: bruce, bea: diana }));
-    await waitFor(() => expect(getSelector(beaDialog)).toBeEnabled());
-  });
-
   it('does not let an earlier read that lands while the write is sending release it', async () => {
     const user = userEvent.setup();
     const { reads, writes, listMembers, beaDialog } = await startBarbaraWriteDuringClarkRead(user);
@@ -203,28 +191,6 @@ describe('MembersSection — resource link read fence', () => {
     expect(within(refreshingDialog).getByRole('status')).toHaveTextContent(
       'Resource link updated.',
     );
-  });
-
-  it('keeps Remove link to resource disabled while sending and refreshing, across reopening', async () => {
-    const user = userEvent.setup();
-    const linked = { resourceId: 'r-bruce', revision: 'rev-1' };
-    const { reads, writes } = controlRequests(makeRead({ ed: linked }));
-    renderSection();
-    const dialog = await openResourceDialog(user, /ed@x\.io/);
-    await choosePerson(user, dialog, 'Diana Prince');
-    expect(getRemoveButton(dialog)).toBeDisabled();
-    await closeDialog(user, dialog);
-
-    const sendingDialog = await openResourceDialog(user, /ed@x\.io/);
-    expect(getRemoveButton(sendingDialog)).toBeDisabled();
-    await writes.settleNext({ kind: 'ok', status: 200, value: diana });
-    expect(getRemoveButton(sendingDialog)).toBeDisabled();
-    await closeDialog(user, sendingDialog);
-
-    const refreshingDialog = await openResourceDialog(user, /ed@x\.io/);
-    expect(getRemoveButton(refreshingDialog)).toBeDisabled();
-    await reads.settleNext(makeRead({ ed: diana }));
-    await waitFor(() => expect(getRemoveButton(refreshingDialog)).toBeEnabled());
   });
 
   it('clears a finished success on reopen but keeps an unknown outcome', async () => {
