@@ -1,11 +1,11 @@
 import { expect } from '@playwright/test';
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { freezeBrowserDate, waitForAppLanding } from './browserTestSupport';
 import { resetServer } from './serverTestState';
 
 /** Opens first-install setup for the fixture's sole admitted identity. */
-export async function openFirstCompanySetup(page: Page, request: APIRequestContext): Promise<void> {
-  await resetServer({ request, withSeed: false });
+export async function openFirstCompanySetup(page: Page): Promise<void> {
+  await resetServer({ withSeed: false });
   await freezeBrowserDate(page);
   await page.goto('/');
   await expect(page.getByTestId('company-setup')).toBeVisible();
