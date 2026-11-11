@@ -126,6 +126,7 @@ async function dragByOneDay(page: Page, target: Locator, xOffset: number) {
 async function persistedAllocations(request: APIRequestContext, cookie: string, accountId: string) {
   const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
     headers: { cookie },
+    maxRetries: 1,
   });
   expect(response.status()).toBe(200);
   return ((await response.json()) as { allocations: Allocation[] }).allocations;
