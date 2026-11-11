@@ -22,7 +22,7 @@ As an Editor, I want to archive a resource so that it leaves active views while 
 flowchart TD
   A["Resources screen"] --> B["Archive resource row"] --> C["Archive resource? confirmation"]
   C -->|Cancel| A
-  C -->|Archive| D["Resource leaves active section"] --> E["Resource appears under Archived resources"]
+  C -->|Archive| D["Resource leaves active section"] --> E["Resource appears in its archived section, such as Archived Studio"]
   C -->|Action refused| F["Notice explains the archive failed"]
 ```
 
