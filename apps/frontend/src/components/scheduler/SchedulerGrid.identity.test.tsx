@@ -3,12 +3,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { PermissionContext } from '@/auth/permissionContext';
-import {
-  DEFAULT_ACCOUNT_ID,
-  makeResource,
-  resetStoreWithData,
-  replaceFixtureData,
-} from '@/test/fixtures';
+import { DEFAULT_ACCOUNT_ID, makeResource } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 import { useResourceAvatars } from '@/account/useResourceAvatars';
@@ -16,9 +11,10 @@ import { SchedulerGrid } from './SchedulerGrid';
 
 vi.mock('@/account/useResourceAvatars', () => ({ useResourceAvatars: vi.fn() }));
 
-beforeEach(async () => {
+beforeEach(() => {
   vi.mocked(useResourceAvatars).mockReturnValue(new Map());
-  await resetStoreWithData(schedulerDataset(), DEFAULT_ACCOUNT_ID);
+  useStore.getState().replaceAll(schedulerDataset());
+  useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().setOriginDate('2026-06-01');
   useStore.getState().setZoom(1);
   useStore.getState().setDrawMode('work');
@@ -146,7 +142,7 @@ describe('SchedulerGrid individual schedule drawer', () => {
 
   it('preserves the dimmed placeholder surface and work-mode creation affordance', async () => {
     await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { placeholdersEnabled: true });
-    replaceFixtureData({
+    useStore.getState().replaceAll({
       ...useStore.getState().data,
       resources: [
         makeResource({ accountId: DEFAULT_ACCOUNT_ID, kind: 'placeholder', disciplineId: 'd1' }),

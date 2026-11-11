@@ -5,13 +5,7 @@ import {
   readPlanningProblem,
 } from '@/data/planning/planningCacheController';
 import { useStore } from '@/store/useStore';
-import {
-  makeAccount,
-  makeResourceDraft,
-  resetStoreWithAccount,
-  replaceFixtureData,
-  updatePlanningFixtureSource,
-} from '@/test/fixtures';
+import { makeAccount, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 
 // Lets a test make the planning transport fail like the server would, over the demo transport.
@@ -24,12 +18,13 @@ const failure = vi.hoisted(() => ({
 const lookups = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const actual = await vi.importActual<typeof import('@/test/createTestPlanningTransport')>(
-    '@/test/createTestPlanningTransport',
+  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
+    '@/data/planning/volatilePlanningTransport',
   );
   return {
     createStorePlanningTransport: (readData: () => AppData) => {
-      return actual.createTestPlanningTransport(readData, (transport) => ({
+      const transport = actual.createVolatilePlanningTransport(readData);
+      return {
         ...transport,
         read: async (...args: Parameters<typeof transport.read>) => {
           if (failure.read) throw failure.read;
@@ -48,7 +43,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
           lookups.count += 1;
           return transport.lookup(...args);
         },
-      }));
+      };
     },
   };
 });
@@ -87,18 +82,19 @@ afterEach(() => {
 
 describe('planning authority publication', () => {
   it('clears the cache and both histories together when authentication is lost, without legacy deletes', async () => {
-    await requireCreated(
+    const client = await requireCreated(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#111111' }),
     );
-    const legacySnapshot = structuredClone(useStore.getState().data);
-    useStore.setState({ past: [legacySnapshot], future: [legacySnapshot] });
+    useStore.getState().archiveEntity('clients', client.id);
+    useStore.getState().unarchiveEntity('clients', client.id);
+    useStore.getState().undo();
     expect(useStore.getState().past).toHaveLength(1);
     expect(useStore.getState().future).toHaveLength(1);
     await useStore.getState().refreshPlanning();
     await seedTypedAllocation();
-    expect(useStore.getState().planning.history.past).toHaveLength(4);
-    await useStore.getState().undoPlanning();
     expect(useStore.getState().planning.history.past).toHaveLength(3);
+    await useStore.getState().undoPlanning();
+    expect(useStore.getState().planning.history.past).toHaveLength(2);
     expect(useStore.getState().planning.history.future).toHaveLength(1);
     expect(useStore.getState().past).toHaveLength(1);
     expect(useStore.getState().future).toHaveLength(1);
@@ -186,7 +182,7 @@ describe('planning ownership of allocations', () => {
   });
 
   it('opens the planning context for a company as soon as it becomes active', async () => {
-    replaceFixtureData({
+    useStore.getState().replaceAll({
       ...useStore.getState().data,
       accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
     });
@@ -216,7 +212,6 @@ describe('planning ownership of allocations', () => {
     useStore.setState((state) => ({
       data: { ...state.data, clients: state.data.clients.filter((row) => row.id !== oldClient.id) },
     }));
-    updatePlanningFixtureSource(useStore.getState().data);
     const afterChange = useStore.getState().refreshPlanning({ fresh: true });
     expect(afterChange).not.toBe(beforeChange);
     expect(await afterChange).toBe(true);
@@ -227,7 +222,7 @@ describe('planning ownership of allocations', () => {
 
   it('retires a held demo read while visiting the picker, then re-enters a new company incarnation', async () => {
     const account = makeAccount({ id: 'a2' });
-    replaceFixtureData({
+    useStore.getState().replaceAll({
       ...useStore.getState().data,
       accounts: [...useStore.getState().data.accounts, account],
     });

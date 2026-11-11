@@ -8,7 +8,7 @@ import {
 } from '@capacitylens/shared/domain/mutations';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
 import { newId } from '@capacitylens/shared/lib/id';
-import { emptyAppData, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
+import { emptyAppData, MAX_HOURS_PER_DAY, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import type { Allocation, AppData, ID } from '@capacitylens/shared/types/entities';
@@ -16,7 +16,10 @@ import {
   createPlanningCacheController,
   createPlanningCacheState,
 } from '@/data/planning/planningCacheController';
-import type { PlanningTransport } from '@/data/planning/planningCacheController';
+import type {
+  PlanningCacheState,
+  PlanningTransport,
+} from '@/data/planning/planningCacheController';
 import {
   buildAllocationCreate,
   buildAllocationDuplicate,
@@ -25,7 +28,6 @@ import {
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 import type { StoreInternals } from '@/store/storeInternal';
 import type { Draft, StoreState } from '@/store/types';
-import { publishPlanning } from '@/store/planningPublication';
 
 type AllocationSlice = Pick<
   StoreState,
@@ -66,6 +68,68 @@ function assertSuppliedHours(hours: number): void {
   if (!Number.isFinite(hours) || hours < 0 || hours > MAX_HOURS_PER_DAY) {
     throw new Error(`Hours per day must be a finite number between 0 and ${MAX_HOURS_PER_DAY}.`);
   }
+}
+
+/**
+ * Publishes the controller's company slice without replacing rows belonging to other companies.
+ * Losing authority clears the whole cache and both histories.
+ */
+function publishPlanning(
+  state: StoreState,
+  next: Partial<PlanningCacheState>,
+  preserveOtherCompanies: boolean,
+): Partial<StoreState> {
+  const planning = next.planning ?? state.planning;
+  if (!next.data) return { planning };
+  if (planning.context === null) {
+    if (preserveOtherCompanies) return { planning, past: [], future: [] };
+    return {
+      data: emptyAppData(),
+      planning,
+      past: [],
+      future: [],
+      activeAccountId: null,
+      previousAccountId: null,
+      accountSummaries: [],
+      accountSummariesComplete: false,
+      accountSummariesRequestId: state.accountSummariesRequestId + 1,
+    };
+  }
+  // A new context publishes nothing yet: its first canonical read replaces its scoped rows.
+  if (state.planning.context?.companyId !== planning.context.companyId) {
+    return preserveOtherCompanies
+      ? { planning }
+      : { planning, data: emptyAppData(), past: [], future: [] };
+  }
+  const companyId = planning.context.companyId;
+  const data = preserveOtherCompanies ? { ...state.data } : emptyAppData();
+  data.accounts = [
+    ...(preserveOtherCompanies
+      ? state.data.accounts.filter((account) => account.id !== companyId)
+      : []),
+    ...next.data.accounts.filter((account) => account.id === companyId),
+  ];
+  for (const key of SCOPED_KEYS) {
+    const rows = [
+      ...(preserveOtherCompanies
+        ? state.data[key].filter((row) => row.accountId !== companyId)
+        : []),
+      ...next.data[key].filter((row) => row.accountId === companyId),
+    ];
+    Object.assign(data, { [key]: rows });
+  }
+  const account = data.accounts.find((row) => row.id === companyId);
+  return {
+    planning,
+    data,
+    ...(account
+      ? {
+          accountSummaries: state.accountSummaries.map((summary) =>
+            summary.id === companyId ? { ...summary, name: account.name } : summary,
+          ),
+        }
+      : {}),
+  };
 }
 
 function validateNewAllocations(

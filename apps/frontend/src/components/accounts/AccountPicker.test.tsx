@@ -8,7 +8,7 @@ import { AccountPicker } from './AccountPicker';
 import { AuthContext } from '@/auth/authContext';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID, replaceFixtureData } from '@/test/fixtures';
+import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 
 const serverFlag = vi.hoisted(() => ({ on: false }));
@@ -43,7 +43,7 @@ function withCanCreateAccount({ canCreateAccount, ui }: WithCanCreateAccountOpti
 }
 
 function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
-  replaceFixtureData(makeAppData({ accounts }));
+  useStore.getState().replaceAll(makeAppData({ accounts }));
   useStore.getState().setAccountSummaries({
     list: accounts.map((a) => ({ id: a.id, name: a.name, role: 'owner' as const })),
   });
@@ -62,7 +62,7 @@ afterEach(() => {
 
 beforeEach(() => {
   serverFlag.on = false;
-  replaceFixtureData(emptyAppData());
+  useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
   useStore.getState().setAccountSummaries({ list: [] });
   useStore.getState().setHydrated(true);

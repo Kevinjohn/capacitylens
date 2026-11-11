@@ -1,12 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '@/store/useStore';
-import {
-  DEFAULT_ACCOUNT_ID,
-  makeAccount,
-  resetStoreWithAccount,
-  replaceFixtureData,
-} from '@/test/fixtures';
+import { DEFAULT_ACCOUNT_ID, makeAccount, resetStoreWithAccount } from '@/test/fixtures';
 import { useLifecycleActions } from './useLifecycleActions';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 
@@ -97,7 +92,7 @@ describe('named lifecycle actions', () => {
   });
 
   it('blocks another anonymisation after a failed canonical refresh, including after remount', async () => {
-    replaceFixtureData({
+    useStore.getState().replaceAll({
       ...useStore.getState().data,
       accounts: [makeAccount({ id: 'a-recovery-failed' })],
     });

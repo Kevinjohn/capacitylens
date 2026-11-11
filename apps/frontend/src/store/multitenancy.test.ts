@@ -5,12 +5,7 @@ import { useStore } from './useStore';
 import { scopeData } from './selectors';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
-import {
-  makeAccount,
-  WORKDAYS,
-  replaceFixtureData,
-  updatePlanningFixtureSource,
-} from '@/test/fixtures';
+import { makeAccount, WORKDAYS } from '@/test/fixtures';
 
 const s = () => useStore.getState();
 
@@ -227,7 +222,7 @@ describe('scopeData', () => {
 });
 
 describe('account CRUD', () => {
-  beforeEach(() => replaceFixtureData(emptyAppData()));
+  beforeEach(() => s().replaceAll(emptyAppData()));
 
   it('addAccount works with no active account (bootstraps the first tenant)', () => {
     expect(s().activeAccountId).toBeNull();
@@ -256,7 +251,6 @@ describe('account CRUD', () => {
 
   it('updateAccount renames', async () => {
     const a = present(s().addAccount({ name: 'Old', color: '#2d75da' }));
-    updatePlanningFixtureSource(s().data);
     await selectAccount(a.id);
     await s().updateAccount(a.id, { name: 'New' });
     expect(s().data.accounts[0]?.name).toBe('New');
@@ -271,7 +265,7 @@ describe('account CRUD', () => {
 
 describe('setActiveAccount resets per-account view state', () => {
   beforeEach(async () => {
-    replaceFixtureData(twoAccountData());
+    s().replaceAll(twoAccountData());
     s().setActiveAccount('a1');
     await s().refreshPlanning();
   });
@@ -472,7 +466,7 @@ function registerScopedImportPart2(): void {
 
 describe('importData (account-scoped)', () => {
   beforeEach(async () => {
-    replaceFixtureData(twoAccountData());
+    s().replaceAll(twoAccountData());
     s().setActiveAccount('a1');
     await s().refreshPlanning();
   });

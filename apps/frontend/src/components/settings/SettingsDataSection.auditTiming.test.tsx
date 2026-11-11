@@ -18,12 +18,13 @@ const hold = vi.hoisted(() => ({
   fail: false,
 }));
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const actual = await vi.importActual<typeof import('@/test/createTestPlanningTransport')>(
-    '@/test/createTestPlanningTransport',
+  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
+    '@/data/planning/volatilePlanningTransport',
   );
   return {
     createStorePlanningTransport: (read: () => AppData) => {
-      return actual.createTestPlanningTransport(read, (transport) => ({
+      const transport = actual.createVolatilePlanningTransport(read);
+      return {
         ...transport,
         read: async (...args: Parameters<typeof transport.read>) => {
           const snapshot = await transport.read(...args);
@@ -34,7 +35,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
           }
           return snapshot;
         },
-      }));
+      };
     },
   };
 });

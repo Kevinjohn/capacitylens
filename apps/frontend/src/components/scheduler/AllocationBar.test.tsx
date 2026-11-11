@@ -11,15 +11,13 @@ import {
   makeAccount,
   makeAllocation as makeAllocationBase,
   makeBar as makeBarBase,
-  resetStoreWithData,
-  replaceFixtureData,
 } from '@/test/fixtures';
 import { renderWithTooltip as render, GEOM, indexAtClientX } from './__tests__/schedulerTestKit';
 import { buildAllocationBarInset } from './layout';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
 
 beforeEach(() => {
-  replaceFixtureData(emptyAppData());
+  useStore.getState().replaceAll(emptyAppData());
   useStore.getState().clearFilters();
   // Device-global prefs persist across tests via localStorage, reset to defaults.
   useStore.getState().setBarLabelPref({ key: 'showClient', value: true });
@@ -50,19 +48,21 @@ function makeBar(allocation: Allocation, labelOverride?: string): BarLayout {
 }
 
 type SetTaskFieldVisibilityOptions = { enabled: boolean };
-async function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions) {
-  await resetStoreWithData(
-    { ...emptyAppData(), accounts: [makeAccount({ showTaskFieldInSchedule: enabled })] },
-    'acct-test',
-  );
+function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions) {
+  useStore.getState().replaceAll({
+    ...emptyAppData(),
+    accounts: [makeAccount({ showTaskFieldInSchedule: enabled })],
+  });
+  useStore.getState().setActiveAccount('acct-test');
 }
 
 describe('AllocationBar rendering', () => {
   it('re-reads its accessible name when the date style changes with a stable bar', async () => {
-    await resetStoreWithData(
-      { ...emptyAppData(), accounts: [makeAccount({ dateStyle: 'day-month' })] },
-      'acct-test',
-    );
+    useStore
+      .getState()
+      .replaceAll({ ...emptyAppData(), accounts: [makeAccount({ dateStyle: 'day-month' })] });
+    useStore.getState().setActiveAccount('acct-test');
+    await useStore.getState().refreshPlanning();
     const bar = makeBar(makeAllocation());
     render(
       <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
@@ -199,7 +199,7 @@ function registerAllocationBarRenderingModeTests() {
     expect(el.textContent).toMatch(/^My Activity/);
   });
 
-  it('hides hours in blocks mode, showing the activity name only', async () => {
+  it('hides hours in blocks mode, showing the activity name only', () => {
     const data = emptyAppData();
     data.accounts = [
       {
@@ -212,7 +212,8 @@ function registerAllocationBarRenderingModeTests() {
         schedulingMode: 'blocks',
       },
     ];
-    await resetStoreWithData(data, 'acct-test');
+    useStore.getState().replaceAll(data);
+    useStore.getState().setActiveAccount('acct-test');
 
     const bar = makeBar(makeAllocation());
     render(
@@ -340,9 +341,9 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
     );
   });
 
-  it('announces task text to a viewer only when the account setting enables it', async () => {
+  it('announces task text to a viewer only when the account setting enables it', () => {
     const allocation = makeAllocation({ task: 'Review a deliberately long task description' });
-    await setTaskFieldVisibility({ enabled: true });
+    setTaskFieldVisibility({ enabled: true });
     const { rerender } = render(
       <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
         <AllocationBar
@@ -357,7 +358,7 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
       /task: Review a deliberately long task description/i,
     );
 
-    await setTaskFieldVisibility({ enabled: false });
+    setTaskFieldVisibility({ enabled: false });
     rerender(
       <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
         <AllocationBar
@@ -371,8 +372,8 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
     expect(screen.getByTestId('allocation-bar')).not.toHaveAccessibleName(/task:/i);
   });
 
-  it('wraps a long task token in the fixed-width popover', async () => {
-    await setTaskFieldVisibility({ enabled: true });
+  it('wraps a long task token in the fixed-width popover', () => {
+    setTaskFieldVisibility({ enabled: true });
     const task = 'a'.repeat(180);
     const allocation = makeAllocation({ task });
     render(

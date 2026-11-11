@@ -1,4 +1,3 @@
-import { replaceFixtureData } from '@/test/fixtures';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
 import {
@@ -22,7 +21,7 @@ beforeEach(async () => {
 describe('volatile lifecycle', () => {
   it('archives and restores the same resource without removing it', () => {
     const resource = makeResource({ id: 'r-lifecycle', accountId, name: 'Diana Prince' });
-    replaceFixtureData(makeAppData({ resources: [resource] }));
+    s().replaceAll(makeAppData({ resources: [resource] }));
     s().setActiveAccount(accountId);
     s().archiveEntity('resources', resource.id);
     expect(lifecycleStatus(requireValue(s().data.resources[0], 'archived resource'))).toBe(
@@ -55,7 +54,7 @@ describe('volatile lifecycle', () => {
       resourceId: resource.id,
       note: 'Private leave',
     });
-    replaceFixtureData(
+    s().replaceAll(
       makeAppData({ resources: [resource], allocations: [allocation], timeOff: [timeOff] }),
     );
     s().setActiveAccount(accountId);
@@ -92,7 +91,7 @@ describe('volatile lifecycle', () => {
       resourceId: other.id,
       note: 'Other private note',
     });
-    replaceFixtureData(
+    s().replaceAll(
       makeAppData({ resources: [target, other], allocations: [privateBooking, otherBooking] }),
     );
     s().setActiveAccount(accountId);
@@ -115,7 +114,7 @@ describe('volatile lifecycle', () => {
 
   it('does not republish a pre-scrub planning completion after the reset generation changes', async () => {
     const resource = makeResource({ id: 'r-racing', accountId, name: 'Diana Prince' });
-    replaceFixtureData(makeAppData({ resources: [resource] }));
+    s().replaceAll(makeAppData({ resources: [resource] }));
     s().setActiveAccount(accountId);
     await s().refreshPlanning();
     const pending = s().sendPlanningCommand({

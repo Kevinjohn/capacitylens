@@ -3,7 +3,7 @@ import { act, fireEvent, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID, resetStoreWithData } from '@/test/fixtures';
+import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { stubMatchMedia } from '@/test/stubMatchMedia';
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 
@@ -17,9 +17,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-beforeEach(async () => {
+beforeEach(() => {
   localStorage.setItem('capacitylens/productOrientation/v1/demo/acct-test', 'dismissed');
-  await resetStoreWithData(makeAppData({ accounts: [makeAccount()] }), DEFAULT_ACCOUNT_ID);
+  useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
+  useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().setHydrated(true);
 });
 

@@ -15,7 +15,6 @@ import {
   makeTimeOff,
   makeClosure,
   DEFAULT_ACCOUNT_ID,
-  resetStoreWithData,
 } from '@/test/fixtures';
 import { ClientList } from '@/components/clients/ClientList';
 import { ProjectList } from '@/components/projects/ProjectList';
@@ -38,12 +37,13 @@ function requirePlanningMutationSuccess(value: unknown): PlanningMutationSuccess
 }
 
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const actual = await vi.importActual<typeof import('@/test/createTestPlanningTransport')>(
-    '@/test/createTestPlanningTransport',
+  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
+    '@/data/planning/volatilePlanningTransport',
   );
   return {
     createStorePlanningTransport: (read: () => AppData) => {
-      return actual.createTestPlanningTransport(read, (transport) => ({
+      const transport = actual.createVolatilePlanningTransport(read);
+      return {
         ...transport,
         execute: async (...args: Parameters<typeof transport.execute>) => {
           const receipt: PlanningMutationSuccess = requirePlanningMutationSuccess(
@@ -57,7 +57,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
           }
           return receipt;
         },
-      }));
+      };
     },
   };
 });
@@ -115,9 +115,11 @@ beforeEach(async () => {
       }),
     ],
   });
-  await resetStoreWithData(data, accountId);
+  useStore.getState().replaceAll(data);
+  useStore.getState().setActiveAccount(accountId);
   useStore.getState().clearFilters();
   useStore.getState().goToDate('2026-06-01');
+  await useStore.getState().refreshPlanning();
 });
 afterEach(() => {
   vi.useRealTimers();

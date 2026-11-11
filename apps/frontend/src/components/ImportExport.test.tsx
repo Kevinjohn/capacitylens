@@ -11,7 +11,7 @@ import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
-import { replaceFixtureData, resetStoreWithData } from '@/test/fixtures';
+import { resetStoreWithAccount } from '@/test/fixtures';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
 
@@ -109,8 +109,8 @@ beforeEach(async () => {
   refreshOverride.result = { kind: 'reloaded' };
   planningProbe.suspends = 0;
   planningProbe.releases = 0;
-  await resetStoreWithData(seed(), accountId);
-  replaceFixtureData(seed());
+  await resetStoreWithAccount(accountId);
+  useStore.getState().replaceAll(seed());
   sessionStorage.clear();
   window.history.replaceState(null, '', '/settings');
 });

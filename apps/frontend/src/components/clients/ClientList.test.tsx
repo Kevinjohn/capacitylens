@@ -6,12 +6,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClientList } from './ClientList';
 import { useStore } from '@/store/useStore';
-import {
-  resetStoreWithAccount,
-  requireValue,
-  replaceFixtureData,
-  updatePlanningFixtureSource,
-} from '@/test/fixtures';
+import { resetStoreWithAccount, requireValue } from '@/test/fixtures';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { internalClientFor } from '@capacitylens/shared/data/internalClient';
 import { PermissionContext } from '@/auth/permissionContext';
@@ -150,7 +145,7 @@ describe('ClientList archive flow', () => {
       useStore.getState().addClient({ name: 'Real client', color: '#111111' }),
     );
     const client = { ...created, name: '"Nightwing"', isPrivate: true };
-    replaceFixtureData({ ...useStore.getState().data, clients: [client] });
+    useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
     render(<ClientList />);
 
     await user.click(screen.getByRole('button', { name: 'Archive "Nightwing"' }));
@@ -165,7 +160,6 @@ describe('ClientList archive flow', () => {
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
     useStore.getState().archiveEntity('clients', client.id);
-    updatePlanningFixtureSource(useStore.getState().data);
     await useStore.getState().refreshPlanning();
     render(
       <QueryClientProvider client={new QueryClient()}>
@@ -189,7 +183,6 @@ describe('ClientList archive flow', () => {
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
     useStore.getState().archiveEntity('clients', client.id);
-    updatePlanningFixtureSource(useStore.getState().data);
 
     render(
       <PermissionContext.Provider value={{ role, status: 'resolved' }}>
@@ -207,7 +200,6 @@ describe('ClientList archive flow', () => {
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
     useStore.getState().archiveEntity('clients', client.id);
-    updatePlanningFixtureSource(useStore.getState().data);
     await useStore.getState().refreshPlanning();
     render(<ClientList />);
 
@@ -222,10 +214,9 @@ describe('ClientList archive flow', () => {
 // The built-in Internal client is a persisted project bucket, so ordinary client management must neither list nor archive it.
 describe('ClientList withholds the Archive affordance for the built-in Internal client', () => {
   it('renders no row and no Archive control for the Internal client (only normal clients show)', async () => {
-    replaceFixtureData(emptyAppData());
+    useStore.getState().replaceAll(emptyAppData());
     const a = useStore.getState().addAccount({ name: 'Ferris Co', color: FALLBACK_PRESET_COLOR });
     if (!a) throw new Error('Expected account');
-    updatePlanningFixtureSource(useStore.getState().data);
     useStore.getState().setActiveAccount(a.id);
     await useStore.getState().refreshPlanning();
     const internal = requireValue(

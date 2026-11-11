@@ -1,4 +1,3 @@
-import { replaceFixtureData } from '@/test/fixtures';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -969,7 +968,7 @@ function registerMergedRow2(): void {
       ],
       allocations: [alloc],
     });
-    replaceFixtureData(data);
+    s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
     await expect(s().updateAllocation(alloc.id, { note: 'just a note' })).rejects.toThrow(
@@ -994,7 +993,7 @@ function registerMergedRow3(): void {
       note: null,
     };
     const data: AppData = makeAppData({ resources: [ext], timeOff: [timeOff] });
-    replaceFixtureData(data);
+    s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
     await s().refreshPlanning();
 
@@ -1037,7 +1036,7 @@ function registerMergedRow4(): void {
         },
       ],
     });
-    replaceFixtureData(data);
+    s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
     await s().refreshPlanning();
 

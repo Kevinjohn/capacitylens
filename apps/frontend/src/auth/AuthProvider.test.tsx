@@ -45,15 +45,8 @@ const me = (status: number, body: unknown) =>
     },
   );
 
-async function freshProvider(planningTransport: 'fixture' | 'server' = 'fixture') {
+async function freshProvider() {
   vi.resetModules();
-  if (planningTransport === 'fixture') {
-    // Re-register against the same fresh module graph as this provider and its fixture store.
-    vi.doMock('@/data/planning/storePlanningTransport', async () => {
-      const { createTestPlanningTransport } = await import('@/test/createTestPlanningTransport');
-      return { createStorePlanningTransport: createTestPlanningTransport };
-    });
-  }
   const { AuthProvider } = await import('./AuthProvider');
   const { useStore } = await import('@/store/useStore');
   const { resetStoreWithAccount } = await import('@/test/fixtures');
@@ -341,7 +334,7 @@ function registerServerModeTest06() {
       return { createStorePlanningTransport: () => createPlanningTransport() };
     });
     try {
-      const { AuthProvider, useStore } = await freshProvider('server');
+      const { AuthProvider, useStore } = await freshProvider();
       const { makeAccount, makeAppData } = await import('@/test/fixtures');
       const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
         const url = input instanceof Request ? input.url : String(input);
@@ -384,8 +377,9 @@ function registerServerModeTest06() {
       expect(fetchSpy).toHaveBeenCalled();
     } finally {
       vi.doMock('@/data/planning/storePlanningTransport', async () => {
-        const { createTestPlanningTransport } = await import('@/test/createTestPlanningTransport');
-        return { createStorePlanningTransport: createTestPlanningTransport };
+        const { createVolatilePlanningTransport } =
+          await import('@/data/planning/volatilePlanningTransport');
+        return { createStorePlanningTransport: createVolatilePlanningTransport };
       });
     }
   });

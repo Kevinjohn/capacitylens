@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
-import { makeAccount, makeAppData, replaceFixtureData } from '@/test/fixtures';
+import { makeAccount, makeAppData } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { PlanningPendingMutation } from '@/data/planning/planningCacheController';
 import { createVolatilePlanningTransport } from '@/data/planning/volatilePlanningTransport';
@@ -12,19 +11,20 @@ import { MasqueradeController } from './masqueradeController';
 const reads = vi.hoisted(() => ({ fail: false, count: 0 }));
 
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const actual = await vi.importActual<typeof import('@/test/createTestPlanningTransport')>(
-    '@/test/createTestPlanningTransport',
+  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
+    '@/data/planning/volatilePlanningTransport',
   );
   return {
     createStorePlanningTransport: (readData: () => AppData) => {
-      return actual.createTestPlanningTransport(readData, (transport) => ({
+      const transport = actual.createVolatilePlanningTransport(readData);
+      return {
         ...transport,
         read: async (...args: Parameters<typeof transport.read>) => {
           reads.count += 1;
           if (reads.fail) throw new Error('Canonical planning read failed');
           return transport.read(...args);
         },
-      }));
+      };
     },
   };
 });
@@ -42,10 +42,11 @@ const state: MasqueradeState & { contextToken: string } = {
 const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
 function controllerWithNativeSlice(bootstrapFailure = false) {
-  const data = makeAppData({
-    accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })],
+  useStore.setState({
+    data: makeAppData({
+      accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })],
+    }),
   });
-  replaceFixtureData(data);
   const bootstrapTransport = createVolatilePlanningTransport(() =>
     makeAppData({ accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })] }),
   );
@@ -90,7 +91,6 @@ it('keeps a failed bootstrap read gated while allowing a confirmed cold End', as
 beforeEach(() => {
   reads.fail = false;
   reads.count = 0;
-  replaceFixtureData(emptyAppData());
   useStore.getState().clearPlanning();
   useStore.getState().setActiveAccount(null);
   useStore.getState().setMasquerade({ kind: 'inactive' });

@@ -8,7 +8,6 @@ import {
   makeResourceDraft,
   requireValue,
   WORKDAYS,
-  replaceFixtureData,
 } from '@/test/fixtures';
 import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
 import { readActiveDateStyle, formatDayMonth } from '@/lib/dateDisplay';
@@ -34,7 +33,7 @@ function registerStoreCrudPart1(): void {
   it('generates a bounded revision when an existing timestamp has no representable successor', async () => {
     const client = await requireCreated(s().addClient({ name: 'Boundary', color: '#111111' }));
     const data = s().data;
-    replaceFixtureData({
+    s().replaceAll({
       ...data,
       clients: data.clients.map((row) =>
         row.id === client.id ? { ...row, updatedAt: '+275760-09-12T23:59:59.999Z' } : row,
@@ -47,7 +46,7 @@ function registerStoreCrudPart1(): void {
     );
 
     const atMaximum = s().data;
-    replaceFixtureData({
+    s().replaceAll({
       ...atMaximum,
       clients: atMaximum.clients.map((row) =>
         row.id === client.id ? { ...row, updatedAt: '+275760-09-13T00:00:00.000Z' } : row,
@@ -192,7 +191,7 @@ function registerSchedulerUiPart7(): void {
 
   it('goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday', () => {
     const sunStart = 'acct-sun';
-    replaceFixtureData(
+    useStore.getState().replaceAll(
       makeAppData({
         accounts: [makeAccount({ id: sunStart, weekStartsOn: 0 })],
       }),
@@ -215,7 +214,7 @@ function registerSchedulerUiPart2(): void {
       focusDate: s().ui.focusDate,
     };
 
-    replaceFixtureData(makeAppData({ accounts: [makeAccount()] }));
+    s().replaceAll(makeAppData({ accounts: [makeAccount()] }));
 
     expect({
       originDate: s().ui.originDate,
@@ -228,7 +227,7 @@ function registerSchedulerUiPart2(): void {
     await s().undoPlanning();
     expect(s().planning.history.future).toHaveLength(1);
 
-    replaceFixtureData(structuredClone(s().data));
+    s().replaceAll(structuredClone(s().data));
 
     expect(s().planning.history.future).toHaveLength(1);
     await s().redoPlanning();
@@ -253,7 +252,7 @@ function registerSchedulerUiPart2(): void {
         : row,
     );
 
-    replaceFixtureData(replacement);
+    s().replaceAll(replacement);
 
     expect(s().past).toEqual([]);
     expect(s().future).toEqual([]);
@@ -267,7 +266,7 @@ function registerSchedulerUiPart2(): void {
     s().setActiveAccount(accountId);
     s().goToDate('2031-09-10');
 
-    replaceFixtureData(
+    s().replaceAll(
       makeAppData({
         accounts: [makeAccount({ id: accountId, weekStartsOn: 0 })],
       }),

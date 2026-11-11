@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { internalClientFor } from '@capacitylens/shared/data/internalClient';
-import { replaceFixtureData, updatePlanningFixtureSource } from '@/test/fixtures';
 
 const s = () => useStore.getState();
 
@@ -35,7 +34,6 @@ async function rejectsBuiltinRename(): Promise<void> {
     s().addAccount({ name: 'Ferris Co', color: '#2d75da' }),
     'Expected the test account to be created.',
   );
-  updatePlanningFixtureSource(s().data);
   s().setActiveAccount(a.id);
   await s().refreshPlanning();
   const internal = expectPresent(
@@ -56,7 +54,6 @@ async function renamesNormalClient(): Promise<void> {
     s().addAccount({ name: 'Ferris Co', color: '#2d75da' }),
     'Expected the test account to be created.',
   );
-  updatePlanningFixtureSource(s().data);
   s().setActiveAccount(a.id);
   await s().refreshPlanning();
   const c = await requireCreated(s().addClient({ name: 'Globex', color: '#3b82f6' }));
@@ -73,7 +70,6 @@ async function stripsAddedBuiltinFlag(): Promise<void> {
     s().addAccount({ name: 'Ferris Co', color: '#2d75da' }),
     'Expected the test account to be created.',
   );
-  updatePlanningFixtureSource(s().data);
   s().setActiveAccount(a.id);
   await s().refreshPlanning();
   // A cast payload smuggling builtin:true must not mint a second Internal, the store strips it.
@@ -94,7 +90,6 @@ async function stripsPromotedBuiltinFlag(): Promise<void> {
     s().addAccount({ name: 'Ferris Co', color: '#2d75da' }),
     'Expected the test account to be created.',
   );
-  updatePlanningFixtureSource(s().data);
   s().setActiveAccount(a.id);
   await s().refreshPlanning();
   const c = await requireCreated(s().addClient({ name: 'Globex', color: '#3b82f6' }));
@@ -109,7 +104,7 @@ async function stripsPromotedBuiltinFlag(): Promise<void> {
 }
 
 describe('built-in Internal client in the store', () => {
-  beforeEach(() => replaceFixtureData(emptyAppData()));
+  beforeEach(() => s().replaceAll(emptyAppData()));
 
   it(
     'addAccount creates exactly one builtin Internal client for the new account',

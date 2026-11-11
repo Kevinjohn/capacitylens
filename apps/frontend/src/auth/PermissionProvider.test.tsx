@@ -5,12 +5,7 @@ import { PermissionProvider } from './PermissionProvider';
 import { AuthContext } from './authContext';
 import type { AuthContextValue } from './authContext';
 import { useCanEdit, usePermissionStatus, useRole } from './permissionContext';
-import {
-  makeAccount,
-  makeAppData,
-  resetStoreWithAccount,
-  updatePlanningFixtureSource,
-} from '@/test/fixtures';
+import { makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { useAccountSummaries } from './useAccountSummaries';
 import * as accountTransition from './accountTransition';
@@ -94,14 +89,14 @@ function accountResponse(id: string, role: string) {
 }
 
 function addSecondAccount() {
-  const data = makeAppData({
-    accounts: [
-      makeAccount({ id: 'acct-test' }),
-      makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' }),
-    ],
-  });
-  useStore.getState().replaceAll(data);
-  updatePlanningFixtureSource(data);
+  useStore.getState().replaceAll(
+    makeAppData({
+      accounts: [
+        makeAccount({ id: 'acct-test' }),
+        makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' }),
+      ],
+    }),
+  );
   useStore.getState().setActiveAccount('acct-test');
 }
 
@@ -446,7 +441,6 @@ describe('PermissionProvider fail-closed responses', () => {
     expect(useStore.getState().activeRole).toBeNull();
     expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
 
-    updatePlanningFixtureSource(useStore.getState().data);
     act(() => useStore.getState().setActiveAccount('acct-test'));
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();

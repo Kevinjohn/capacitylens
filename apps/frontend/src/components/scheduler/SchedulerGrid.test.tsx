@@ -11,7 +11,6 @@ import {
   makeClosure,
   makeResource,
   makeTimeOff,
-  resetStoreWithData,
 } from '@/test/fixtures';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 import { LAYOUT, laneLayout, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
@@ -63,7 +62,8 @@ function dataset(): AppData {
 }
 
 beforeEach(async () => {
-  await resetStoreWithData(dataset(), ACC);
+  useStore.getState().replaceAll(dataset());
+  useStore.getState().setActiveAccount(ACC);
   useStore.getState().setOriginDate('2026-06-01');
 
   useStore.getState().setZoom(1);
@@ -71,6 +71,7 @@ beforeEach(async () => {
   useStore.getState().setUtilizationPref({ key: 'showTotal', value: true });
   useStore.getState().clearFilters();
   useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }));
+  await useStore.getState().refreshPlanning();
 });
 
 describe('SchedulerGrid', () => {
@@ -399,8 +400,9 @@ describe('SchedulerGrid visible-window utilisation', () => {
   }
 
   // Pin origin and focus dates because jsdom leaves the container unmeasured and the visible window otherwise falls back to the current focus date.
-  const renderAtZoom = async (zoom: 1 | 2 | 4 | 8) => {
-    await resetStoreWithData(densityDataset(), ACC);
+  const renderAtZoom = (zoom: 1 | 2 | 4 | 8) => {
+    useStore.getState().replaceAll(densityDataset());
+    useStore.getState().setActiveAccount(ACC);
     useStore.getState().clearFilters();
     useStore.setState((st) => ({
       ui: {
@@ -416,23 +418,23 @@ describe('SchedulerGrid visible-window utilisation', () => {
   const overallPct = () =>
     Number.parseInt(screen.getByTestId('overall-utilization').textContent, 10);
 
-  it('the week-range toggle changes the overall % to reflect EXACTLY the visible span', async () => {
-    const v1 = await renderAtZoom(1);
+  it('the week-range toggle changes the overall % to reflect EXACTLY the visible span', () => {
+    const v1 = renderAtZoom(1);
     expect(overallPct()).toBe(100);
     v1.unmount();
-    const v2 = await renderAtZoom(2);
+    const v2 = renderAtZoom(2);
     expect(overallPct()).toBe(75);
     v2.unmount();
-    const v4 = await renderAtZoom(4);
+    const v4 = renderAtZoom(4);
     expect(overallPct()).toBe(50);
     v4.unmount();
-    const v8 = await renderAtZoom(8);
+    const v8 = renderAtZoom(8);
     expect(overallPct()).toBe(25);
     v8.unmount();
   });
 
-  it('the label tracks the zoom (no longer a fixed "next 2w")', async () => {
-    const v = await renderAtZoom(4);
+  it('the label tracks the zoom (no longer a fixed "next 2w")', () => {
+    const v = renderAtZoom(4);
     expect(screen.getByText('Utilisation · 4w')).toBeInTheDocument();
     v.unmount();
   });
@@ -459,10 +461,12 @@ describe('SchedulerGrid account-local day rollover', () => {
       hoursPerDay: 9,
       status: 'confirmed',
     });
-    await resetStoreWithData(data, ACC);
+    useStore.getState().replaceAll(data);
+    useStore.getState().setActiveAccount(ACC);
     useStore.setState((state) => ({
       ui: { ...state.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom: 1 },
     }));
+    await useStore.getState().refreshPlanning();
   });
 
   afterEach(() => {

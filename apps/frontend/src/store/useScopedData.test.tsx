@@ -12,7 +12,6 @@ import {
   makeResource,
   makeTimeOff,
   requireValue,
-  replaceFixtureData,
 } from '@/test/fixtures';
 import {
   resolveSharedActiveData,
@@ -131,7 +130,7 @@ function twoAccountData(): AppData {
 }
 
 beforeEach(() => {
-  replaceFixtureData(emptyAppData());
+  useStore.getState().replaceAll(emptyAppData());
   useStore.getState().setActiveAccount(null);
 });
 
@@ -169,7 +168,7 @@ describe('scoped data', () => {
 
 describe('scoped data hooks', () => {
   it('updates useScopedData on account changes without retaining the previous account rows', () => {
-    replaceFixtureData(twoAccountData());
+    useStore.getState().replaceAll(twoAccountData());
     useStore.getState().setActiveAccount(ACCOUNT_A);
     const { result } = renderHook(() => useScopedData());
 
@@ -204,7 +203,7 @@ describe('scoped data hooks', () => {
       archivedAt: '2026-01-01T00:00:00.000Z',
     };
     data.clients[0] = { ...requireValue(data.clients[0]), deletedAt: '2026-01-02T00:00:00.000Z' };
-    replaceFixtureData(data);
+    useStore.getState().replaceAll(data);
     useStore.getState().setActiveAccount(ACCOUNT_A);
     const { result } = renderHook(() => ({
       active: useActiveScopedData(),
@@ -226,7 +225,7 @@ describe('scoped data hooks', () => {
   });
 
   it('preserves the hook projection reference across unrelated store changes', () => {
-    replaceFixtureData(twoAccountData());
+    useStore.getState().replaceAll(twoAccountData());
     useStore.getState().setActiveAccount(ACCOUNT_A);
     const { result } = renderHook(() => useScopedData());
     const before = result.current;

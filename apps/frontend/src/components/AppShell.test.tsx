@@ -5,13 +5,7 @@ import { PlanningControllerError } from '@/data/planning/planningCacheController
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
-import {
-  makeAppData,
-  makeAccount,
-  DEFAULT_ACCOUNT_ID,
-  resetStoreWithData,
-  replaceFixtureData,
-} from '@/test/fixtures';
+import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { stubMatchMedia } from '@/test/stubMatchMedia';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
@@ -36,12 +30,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-beforeEach(async () => {
+beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
   runtimeFlags.serverMode = false;
   // Seed an active account so these tests exercise the shell.
   localStorage.setItem('capacitylens/productOrientation/v1/demo/acct-test', 'dismissed');
-  await resetStoreWithData(makeAppData({ accounts: [makeAccount()] }), DEFAULT_ACCOUNT_ID);
+  useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
+  useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().clearFilters();
   // Clear any leftover transient notice so a prior test's Sonner toast can't bleed in (the
   // toast layer is module-global; the store notice is the source of truth the bridge reads).
@@ -228,7 +223,7 @@ it('waits for initial hydration before consuming a joined-account handoff', asyn
 it('does not reactivate a consumed joined-account handoff after a later account-list refresh', async () => {
   const otherAccountId = 'acct-other';
   const accounts = [makeAccount(), makeAccount({ id: otherAccountId, name: 'Other Co' })];
-  replaceFixtureData(makeAppData({ accounts }));
+  useStore.getState().replaceAll(makeAppData({ accounts }));
   useStore
     .getState()
     .setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: 'owner' })) });
@@ -302,7 +297,7 @@ it('reopens the sole valid company on reload without changing the requested rout
 it('keeps the picker on a multi-company reload', async () => {
   mockNavigationType('reload');
   const accounts = [makeAccount(), makeAccount({ id: 'acct-other', name: 'Other Co' })];
-  replaceFixtureData(makeAppData({ accounts }));
+  useStore.getState().replaceAll(makeAppData({ accounts }));
   useStore.setState({
     activeAccountId: null,
     previousAccountId: null,
@@ -317,7 +312,7 @@ it('keeps the picker on a multi-company reload', async () => {
 
 it('keeps the picker when one valid company came from an incomplete directory', async () => {
   mockNavigationType('reload');
-  replaceFixtureData(emptyAppData());
+  useStore.getState().replaceAll(emptyAppData());
   useStore.setState({
     activeAccountId: null,
     previousAccountId: null,
@@ -432,7 +427,7 @@ it('keeps an explicit Switch company action on the picker after a reload', async
 
 it('does not mistake an unavailable sole membership for a valid reload destination', async () => {
   mockNavigationType('reload');
-  replaceFixtureData(emptyAppData());
+  useStore.getState().replaceAll(emptyAppData());
   useStore.setState({
     activeAccountId: null,
     previousAccountId: null,
@@ -474,7 +469,7 @@ it('does not reactivate a sole company after its loaded slice proves missing', a
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
 
   act(() => {
-    replaceFixtureData(emptyAppData());
+    useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setAccountSummaries({ list: [summary] });
   });
 
@@ -554,7 +549,7 @@ function registerLoadingAccountLocaleTest(): void {
   it("preserves the last locale while a selected company's slice is still loading", async () => {
     const currentAccount = makeAccount({ language: 'en' });
     const destinationAccount = makeAccount({ id: 'acct-other', name: 'Other Co' });
-    replaceFixtureData(makeAppData({ accounts: [currentAccount] }));
+    useStore.getState().replaceAll(makeAppData({ accounts: [currentAccount] }));
     renderAppShell({});
     await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith('en'));
     i18nMocks.syncLocaleFromAccount.mockClear();

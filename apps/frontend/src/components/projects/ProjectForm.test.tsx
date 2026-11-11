@@ -1,4 +1,3 @@
-import { replaceFixtureData } from '@/test/fixtures';
 import { RestorationCleanupDialog } from '@/data/planning/RestorationCleanupDialog';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -121,7 +120,7 @@ describe('ProjectForm', () => {
         .addProject({ name: 'Real project', clientId: client.id, color: '#ec4899' }),
     );
     const project = { ...created, name: '"Aurora"', isPrivate: true };
-    replaceFixtureData({ ...useStore.getState().data, projects: [project] });
+    useStore.getState().replaceAll({ ...useStore.getState().data, projects: [project] });
     render(
       <PermissionContext.Provider value={{ role: 'admin' }}>
         <ProjectForm project={project} onClose={vi.fn()} />
@@ -298,7 +297,7 @@ describe('ProjectForm', () => {
     render(<ProjectForm project={project} onClose={onClose} />);
 
     const data = useStore.getState().data;
-    replaceFixtureData({
+    useStore.getState().replaceAll({
       ...data,
       projects: data.projects.filter((candidate) => candidate.id !== project.id),
     });
