@@ -52,12 +52,25 @@ async function assertReflow(page: Page) {
     expect(target!.height).toBeGreaterThanOrEqual(48);
   }
   const saturdayLabel = group.getByText('Sat', { exact: true });
+  const firstSave = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' &&
+      new URL(response.url()).pathname.endsWith('/settings'),
+  );
   await saturdayLabel.click();
+  const firstResponse = await firstSave;
+  expect(firstResponse.ok(), await firstResponse.text()).toBe(true);
   const saturdayCheckbox = group.getByRole('checkbox', { name: 'Saturday' });
   await expect(saturdayCheckbox).toBeChecked();
   await expect(saturdayCheckbox).toBeEnabled();
-  await saturdayCheckbox.focus();
-  await page.keyboard.press('Space');
+  const secondSave = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' &&
+      new URL(response.url()).pathname.endsWith('/settings'),
+  );
+  await saturdayCheckbox.press('Space');
+  const secondResponse = await secondSave;
+  expect(secondResponse.ok(), await secondResponse.text()).toBe(true);
   await expect(saturdayCheckbox).not.toBeChecked();
   await expect(saturdayCheckbox).toBeEnabled();
   const switches = await page.getByRole('switch').all();

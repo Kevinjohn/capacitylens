@@ -155,7 +155,8 @@ export async function writeRow(
   if (
     table === 'allocations' &&
     !options.permissiveRepeatStart &&
-    (!existing || existing.resourceId !== clean.resourceId)
+    (!existing || existing.resourceId !== clean.resourceId) &&
+    (!existing || clean.ignoreWeekends !== true)
   ) {
     const resource = lookup.row('resources', String(clean.resourceId)) as Resource | undefined;
     if (resource && typeof clean.startDate === 'string') {
