@@ -9,13 +9,19 @@ import {
   readlink,
   readdir,
   rm,
+  symlink,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { configureCaddy, readSetupLink } from '../packaging/release/install.mjs';
+import {
+  configureCaddy,
+  issueSetupLink,
+  readSetupLink,
+  waitUntilReady,
+} from '../packaging/release/install.mjs';
 
 const release = fileURLToPath(new URL('../packaging/release/', import.meta.url));
 const installer = join(release, 'install.mjs');
@@ -57,6 +63,15 @@ async function makeMail(context) {
   ];
 }
 
+// Everything a run left behind, except the empty folder that held its lock.
+async function listWritten(root) {
+  const names = await readdir(root);
+  if (names.includes('run')) assert.deepEqual(await readdir(join(root, 'run')), []);
+  return names.filter((name) => name !== 'run');
+}
+
+const readState = (root) => readFile(join(root, 'etc', 'capacitylens.install'), 'utf8');
+
 const readEnv = async (root) =>
   Object.fromEntries(
     (await readFile(join(root, 'etc', 'capacitylens.env'), 'utf8'))
@@ -67,6 +82,10 @@ const readEnv = async (root) =>
 
 test('a first install writes the environment with secrets, the unit, the Caddy site and the release link', async (context) => {
   const root = await makeRoot(context);
+  // An existing Caddyfile keeps its restricted mode.
+  await mkdir(join(root, 'etc', 'caddy'), { recursive: true });
+  await writeFile(join(root, 'etc', 'caddy', 'Caddyfile'), '');
+  await chmod(join(root, 'etc', 'caddy', 'Caddyfile'), 0o640);
   const result = runInstaller(['--root', root, ...firstInstall, ...(await makeMail(context))]);
   assert.equal(result.status, 0, result.stderr);
 
@@ -97,6 +116,9 @@ test('a first install writes the environment with secrets, the unit, the Caddy s
     await readFile(join(root, 'etc', 'caddy', 'Caddyfile'), 'utf8'),
     'import /etc/caddy/capacitylens.caddy\n',
   );
+  assert.equal((await lstat(join(root, 'etc', 'caddy', 'Caddyfile'))).mode & 0o777, 0o640);
+  assert.match(await readState(root), /^proxy=caddy\nsetup=complete$/m);
+  assert.deepEqual(await readdir(join(root, 'run')), [], 'The lock is released.');
   assert.equal(await readlink(join(root, 'opt', 'capacitylens', 'current')), release.slice(0, -1));
   assert.equal(
     (await lstat(join(root, 'var', 'lib', 'capacitylens', 'backups'))).mode & 0o777,
@@ -107,7 +129,7 @@ test('a first install writes the environment with secrets, the unit, the Caddy s
   const indexOf = (text) => commands.findIndex((line) => line.includes(text));
   for (const text of [
     'useradd --system',
-    'chown capacitylens:capacitylens /var/lib/capacitylens /var/lib/capacitylens/backups',
+    'chown -h capacitylens:capacitylens /var/lib/capacitylens /var/lib/capacitylens/backups',
     'systemctl stop capacitylens',
     '--uid=capacitylens -p WorkingDirectory=/opt/capacitylens/current/backend -p EnvironmentFile=/etc/capacitylens.env',
     'ace.js app:upgrade',
@@ -126,8 +148,10 @@ test('a first install writes the environment with secrets, the unit, the Caddy s
     'caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile',
     'systemctl reload caddy',
     'wait for http://127.0.0.1:8787/health/ready',
+    'wait for https://capacity.example.com/health/ready',
     'admission:bootstrap',
   ].map(indexOf);
+  assert.ok(!order.includes(-1), String(order));
   assert.deepEqual(
     order,
     [...order].sort((a, b) => a - b),
@@ -149,7 +173,103 @@ test('a re-run keeps the environment and its secrets and adds the Caddy import o
     ':80 {\n\tfile_server\n}\nimport /etc/caddy/capacitylens.caddy\n',
   );
   assert.match(again.stdout, /kept \/etc\/capacitylens\.env/);
-  assert.doesNotMatch(again.stdout, /setup link|admission:bootstrap/i);
+  assert.doesNotMatch(again.stdout, /setup link|admission:bootstrap|chown/i);
+  assert.match(again.stdout, /wait for http:\/\/127\.0\.0\.1:8787\/health\/ready/);
+});
+
+test('a first install that stopped before its setup link is finished by the next run', async (context) => {
+  const root = await makeRoot(context);
+  assert.equal(runInstaller(['--root', root, ...firstInstall]).status, 0);
+  await writeFile(join(root, 'etc', 'capacitylens.install'), 'proxy=caddy\nsetup=pending\n');
+
+  const refused = runInstaller(['--root', root]);
+  assert.equal(refused.status, 2);
+  assert.match(
+    refused.stderr,
+    /first install did not finish\. Run the command again with --owner-email/,
+  );
+
+  const finished = runInstaller(['--root', root, '--owner-email', 'diana@themyscira.example']);
+  assert.equal(finished.status, 0, finished.stderr);
+  assert.match(finished.stdout, /Finishing the first installation/);
+  assert.match(finished.stdout, /admission:bootstrap diana@themyscira\.example/);
+  assert.match(await readState(root), /^setup=complete$/m);
+});
+
+test('an existing-proxy choice is remembered by later runs', async (context) => {
+  const root = await makeRoot(context);
+  assert.equal(runInstaller(['--root', root, '--proxy', 'none', ...firstInstall]).status, 0);
+  const again = runInstaller(['--root', root]);
+  assert.equal(again.status, 0, again.stderr);
+  assert.match(again.stdout, /Point your HTTPS proxy/);
+  assert.doesNotMatch(again.stdout, /caddy validate|wrote \/etc\/caddy/);
+  assert.match(await readState(root), /^proxy=none$/m);
+});
+
+test('a partial mail update is checked against the existing settings and changes only what is given', async (context) => {
+  const root = await makeRoot(context);
+  assert.equal(
+    runInstaller(['--root', root, ...firstInstall, ...(await makeMail(context))]).status,
+    0,
+  );
+  const before = await readEnv(root);
+  const port = runInstaller(['--root', root, '--update-env', '--mail-port', '2525']);
+  assert.equal(port.status, 0, port.stderr);
+  const password = join(await makeRoot(context), 'new-password');
+  await writeFile(password, 'n3w\n');
+  const changed = runInstaller(['--root', root, '--update-env', '--mail-password-file', password]);
+  assert.equal(changed.status, 0, changed.stderr);
+  assert.deepEqual(await readEnv(root), {
+    ...before,
+    CAPACITYLENS_MAIL_PORT: '2525',
+    CAPACITYLENS_MAIL_PASSWORD: 'n3w',
+  });
+  const invalid = runInstaller(['--root', root, '--update-env', '--mail-port', '70000']);
+  assert.equal(invalid.status, 2);
+  assert.match(invalid.stderr, /mail port must be a number/);
+});
+
+test('an environment file outside the supported format is refused before anything changes', async (context) => {
+  const root = await makeRoot(context);
+  await mkdir(join(root, 'etc'));
+  const text =
+    'APP_URL=https://capacity.example.com\nCAPACITYLENS_PUBLIC_URL= "https://capacity.example.com"\n';
+  await writeFile(join(root, 'etc', 'capacitylens.env'), text);
+  const result = runInstaller(['--root', root]);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /Line 2 of \/etc\/capacitylens\.env is not KEY=value/);
+  assert.equal(await readFile(join(root, 'etc', 'capacitylens.env'), 'utf8'), text);
+  assert.deepEqual(await listWritten(root), ['etc']);
+});
+
+test('refuses links in place of service folders and links out of the staging root', async (context) => {
+  const outside = await makeRoot(context);
+  const linked = await makeRoot(context);
+  await mkdir(join(linked, 'var', 'lib', 'capacitylens'), { recursive: true });
+  await mkdir(join(linked, 'elsewhere'));
+  await symlink(join(linked, 'elsewhere'), join(linked, 'var', 'lib', 'capacitylens', 'backups'));
+  const backups = runInstaller(['--root', linked, ...firstInstall]);
+  assert.equal(backups.status, 2);
+  assert.match(backups.stderr, /\/var\/lib\/capacitylens\/backups must be a directory, not a link/);
+  assert.deepEqual((await listWritten(linked)).sort(), ['elsewhere', 'var']);
+
+  const escaping = await makeRoot(context);
+  await symlink(outside, join(escaping, 'etc'));
+  const etc = runInstaller(['--root', escaping, ...firstInstall]);
+  assert.equal(etc.status, 2);
+  assert.match(etc.stderr, /leads outside the staging root/);
+  assert.deepEqual(await readdir(outside), []);
+});
+
+test('a second run is refused while the lock is held', async (context) => {
+  const root = await makeRoot(context);
+  await mkdir(join(root, 'run'));
+  await writeFile(join(root, 'run', 'capacitylens-install.lock'), '1\n');
+  const result = runInstaller(['--root', root, ...firstInstall]);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /Another install is running .*remove that file and run again/);
+  assert.deepEqual(await readdir(root), ['run']);
+  assert.deepEqual(await readdir(join(root, 'run')), ['capacitylens-install.lock']);
 });
 
 test('a changed setting is refused unless --update-env, which keeps the secrets', async (context) => {
@@ -252,7 +372,7 @@ test('refuses incomplete or unsafe input without writing anything', async (conte
     const result = runInstaller(['--root', root, ...args]);
     assert.equal(result.status, 2, args.join(' '));
     assert.match(result.stderr, message);
-    assert.deepEqual(await readdir(root), [], args.join(' '));
+    assert.deepEqual(await listWritten(root), [], args.join(' '));
   }
 });
 
@@ -310,6 +430,7 @@ test('a dry run writes nothing and an existing proxy gets the settings printed',
   assert.match(proxied.stdout, /reverse_proxy 127\.0\.0\.1:8787/);
   assert.deepEqual(await readdir(join(root, 'etc')).then((names) => names.sort()), [
     'capacitylens.env',
+    'capacitylens.install',
     'systemd',
   ]);
 });
@@ -323,16 +444,26 @@ test('reads the setup link from the bootstrap result line', () => {
   assert.equal(readSetupLink(''), null);
 });
 
+// Fails the named write or command once, as a real failure would not repeat on restore.
 function makeEffects(files, failing) {
   const commands = [];
+  let failed = false;
+  const fail = (action) => {
+    if (failed || !action.startsWith(failing)) return;
+    failed = true;
+    throw new Error(`${failing} failed`);
+  };
   return {
     commands,
     read: async (path) => files.get(path) ?? null,
-    write: async (path, content) => void files.set(path, String(content)),
+    async write(path, content) {
+      fail(`write ${path}`);
+      files.set(path, String(content));
+    },
     remove: async (path) => void files.delete(path),
     run(argv) {
       commands.push(argv.join(' '));
-      if (argv.join(' ').startsWith(failing)) throw new Error(`${failing} failed`);
+      fail(argv.join(' '));
       return '';
     },
   };
@@ -340,7 +471,11 @@ function makeEffects(files, failing) {
 
 test('Caddy is validated before reload, and a refused configuration is put back', async () => {
   const stock = ':80 {\n\tfile_server\n}\n';
-  for (const failing of ['caddy validate', 'systemctl reload caddy']) {
+  for (const failing of [
+    'write /etc/caddy/Caddyfile',
+    'caddy validate',
+    'systemctl reload caddy',
+  ]) {
     const files = new Map([['/etc/caddy/Caddyfile', stock]]);
     const effects = makeEffects(files, failing);
     await assert.rejects(() => configureCaddy(effects, 'site {}\n'), /were restored/);
@@ -356,4 +491,58 @@ test('Caddy is validated before reload, and a refused configuration is put back'
   ]);
   assert.equal(files.get('/etc/caddy/capacitylens.caddy'), 'site {}\n');
   assert.equal(files.get('/etc/caddy/Caddyfile'), 'import /etc/caddy/capacitylens.caddy\n');
+});
+
+test('readiness polling waits through pending answers and gives up at its deadline', async () => {
+  const answers = [
+    Promise.reject(new Error('connection refused')),
+    Promise.resolve({ ok: false, status: 503 }),
+    Promise.resolve({ ok: true, status: 200 }),
+  ];
+  let calls = 0;
+  await waitUntilReady('http://127.0.0.1:8787/health/ready', {
+    timeoutMs: 5_000,
+    intervalMs: 1,
+    fetch: () => answers[calls++],
+  });
+  assert.equal(calls, 3);
+
+  await assert.rejects(
+    () =>
+      waitUntilReady('http://127.0.0.1:8787/health/ready', {
+        timeoutMs: 40,
+        intervalMs: 5,
+        fetch: async () => ({ ok: false, status: 503 }),
+      }),
+    /http:\/\/127\.0\.0\.1:8787\/health\/ready was not ready after 0\.04 seconds \(status 503\)/,
+  );
+});
+
+test('a setup link printed before a failing exit is shown once and kept out of the error', () => {
+  const url = 'https://capacity.example.com/invite/secret-bearer';
+  const logged = [];
+  const capture = () => ({ status: 1, stdout: `{"result":"printed","url":"${url}","fault":{}}\n` });
+  assert.throws(
+    () => issueSetupLink(capture, 'diana@themyscira.example', (line) => logged.push(line)),
+    (error) => {
+      assert.match(error.message, /failed with status 1; the link above was still issued/);
+      assert.ok(!JSON.stringify(error).includes('secret-bearer') && !error.message.includes(url));
+      assert.equal(error.stdout, undefined);
+      return true;
+    },
+  );
+  assert.equal(logged.length, 1);
+  assert.ok(logged[0].includes(url));
+
+  const silent = [];
+  assert.throws(
+    () =>
+      issueSetupLink(
+        () => ({ status: 0, stdout: '' }),
+        'diana@themyscira.example',
+        (line) => silent.push(line),
+      ),
+    /printed no setup link/,
+  );
+  assert.deepEqual(silent, []);
 });
