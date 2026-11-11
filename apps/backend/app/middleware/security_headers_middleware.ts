@@ -20,8 +20,6 @@ export default class SecurityHeadersMiddleware {
       !isTrustedUnsafeOrigin({
         origin: request.header('origin'),
         fetchSite: request.header('sec-fetch-site'),
-        host: request.header('host'),
-        protocol: request.protocol(),
       })
     ) {
       return response.forbidden({ error: 'Cross-site request rejected.' });

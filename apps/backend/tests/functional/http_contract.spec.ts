@@ -136,17 +136,6 @@ const limitedRead = (server: Booted, forwardedFor: string) =>
     .send('GET', '/api/auth/me', { 'x-forwarded-for': forwardedFor })
     .then(({ status }) => status);
 
-// The protected reset route yields 401 without a session after an accepted origin, while the
-// origin guard returns 403 first when a forwarded https protocol makes the origin cross-site.
-const plainOriginReset = (server: Booted, forwardedProto?: string) =>
-  server
-    .send('POST', '/api/test/reset', {
-      origin: 'http://capacity.example.test',
-      host: 'capacity.example.test',
-      ...(forwardedProto ? { 'x-forwarded-proto': forwardedProto } : {}),
-    })
-    .then(({ status }) => status);
-
 test.group('HTTP proxy, transport and cookie contract', (group) => {
   group.each.timeout(90_000);
 
@@ -237,39 +226,6 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
           429,
           'both requests are keyed by the peer 203.0.113.50'
         );
-      }
-    );
-  });
-
-  test('trusted proxy headers: the origin guard uses a loopback proxy forwarded protocol', async ({
-    assert,
-  }) => {
-    await withServer({ CAPACITYLENS_TRUST_PROXY_HEADERS: 'true' }, {}, async (server) => {
-      assert.equal(await plainOriginReset(server), 401);
-      assert.equal(
-        await plainOriginReset(server, 'https'),
-        403,
-        'the forwarded https protocol no longer matches the http origin'
-      );
-    });
-  });
-
-  test('untrusted proxy headers: the origin guard ignores a forwarded protocol', async ({
-    assert,
-  }) => {
-    await withServer({ CAPACITYLENS_TRUST_PROXY_HEADERS: 'false' }, {}, async (server) => {
-      assert.equal(await plainOriginReset(server, 'https'), 401);
-    });
-  });
-
-  test('trusted proxy headers: a non-loopback peer cannot supply a forwarded protocol', async ({
-    assert,
-  }) => {
-    await withServer(
-      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'true' },
-      { peer: '10.0.0.9' },
-      async (server) => {
-        assert.equal(await plainOriginReset(server, 'https'), 401);
       }
     );
   });

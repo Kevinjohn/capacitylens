@@ -1,4 +1,5 @@
 import env from '#start/env';
+import { publicOrigin } from '#config/public_origin';
 
 const defaultOrigins =
   'http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273';
@@ -38,34 +39,16 @@ export const corsOrigins = resolveCorsOrigins(
 interface TrustedOriginInput {
   origin?: string;
   fetchSite?: string;
-  host?: string;
-  protocol?: string;
 }
 
-/** Resolves whether an unsafe browser request comes from an explicitly trusted origin. */
-export function isTrustedUnsafeOrigin({ origin, fetchSite, host, protocol }: TrustedOriginInput) {
-  if (!origin) return fetchSite !== 'cross-site';
+/** Resolves whether an unsafe browser request comes from the public origin or an explicit CORS origin. */
+export function isTrustedUnsafeOrigin({ origin, fetchSite }: TrustedOriginInput) {
+  if (!origin) return fetchSite === 'same-origin';
   let normalizedOrigin: string;
   try {
     normalizedOrigin = new URL(origin).origin;
   } catch {
     return false;
   }
-  if (corsOrigins.includes(normalizedOrigin)) return true;
-  if (fetchSite === 'same-origin') return true;
-  if (!host || (protocol !== 'http' && protocol !== 'https')) return false;
-  let parsedOrigin: URL;
-  let reconstructed: URL;
-  try {
-    parsedOrigin = new URL(origin);
-    reconstructed = new URL(`${protocol}://${host}`);
-  } catch {
-    return false;
-  }
-  if (parsedOrigin.origin === reconstructed.origin) return true;
-  return (
-    parsedOrigin.protocol === 'https:' &&
-    reconstructed.protocol === 'http:' &&
-    parsedOrigin.host === reconstructed.host
-  );
+  return normalizedOrigin === publicOrigin.origin || corsOrigins.includes(normalizedOrigin);
 }

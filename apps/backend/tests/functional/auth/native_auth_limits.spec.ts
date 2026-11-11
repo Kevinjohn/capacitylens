@@ -45,7 +45,7 @@ async function signIn(
   forwardedIp?: string,
   email = 'private-limit@example.test'
 ) {
-  const request = client.post('/api/auth/sign-in');
+  const request = client.post('/api/auth/sign-in').header('sec-fetch-site', 'same-origin');
   if (forwardedIp) request.header('x-forwarded-for', forwardedIp);
   return request.json({ email, password: 'never-store-this-password-012345' }).send();
 }

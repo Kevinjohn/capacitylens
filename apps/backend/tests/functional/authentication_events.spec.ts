@@ -69,6 +69,7 @@ test.group('authentication outcome events', (group) => {
     const { lines } = await captureLogs(async () => {
       const success = await client
         .post('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
         .json({ email, password })
@@ -76,6 +77,7 @@ test.group('authentication outcome events', (group) => {
       success.assertStatus(200);
       const failure = await client
         .post('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
         .json({ email, password: 'incorrect-private-password' })
@@ -115,6 +117,7 @@ test.group('authentication outcome events', (group) => {
     const request = () =>
       client
         .post('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
         .json({ email: 'private-throttle@example.test', password: 'never-store-this-password' })
         .send();
     const { lines, result } = await captureLogs(async () => {
@@ -177,6 +180,7 @@ test.group('authentication outcome events', (group) => {
     const { lines, result } = await captureLogs(async () =>
       client
         .post('/api/auth/sign-up')
+        .header('sec-fetch-site', 'same-origin')
         .json({ email: signupEmail, password, name: 'Clark Kent' })
         .send()
     );
@@ -223,7 +227,11 @@ test.group('authentication outcome events', (group) => {
     cleanup(() => db.rawQuery('DROP TRIGGER IF EXISTS fail_sign_in_tracking'));
 
     const { lines, result } = await captureLogs(() =>
-      client.post('/api/auth/sign-in').json({ email, password }).send()
+      client
+        .post('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
+        .json({ email, password })
+        .send()
     );
 
     result.assertStatus(500);

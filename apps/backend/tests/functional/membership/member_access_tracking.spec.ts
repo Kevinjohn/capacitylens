@@ -81,6 +81,7 @@ test.group('company member access and tracking', (group) => {
     enabled.assertStatus(200);
     const signedIn = await client
       .post('/api/auth/sign-in')
+      .header('sec-fetch-site', 'same-origin')
       .json({ email: 'clark.kent@wayne.example', password })
       .send();
     signedIn.assertStatus(200);
@@ -179,6 +180,7 @@ test.group('company member access and tracking', (group) => {
     suspended.assertStatus(200);
     const signedIn = await client
       .post('/api/auth/sign-in')
+      .header('sec-fetch-site', 'same-origin')
       .json({ email: 'clark.kent@wayne.example', password })
       .send();
     signedIn.assertStatus(200);

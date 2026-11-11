@@ -1,5 +1,6 @@
 import { test } from '@japa/runner';
 import SecurityHeadersMiddleware from '#middleware/security_headers_middleware';
+import { publicOrigin } from '#config/public_origin';
 import { isTrustedUnsafeOrigin } from '#services/cors_policy';
 
 const strictPolicy =
@@ -41,76 +42,19 @@ test('uses one CSP policy for API and application responses', async ({ assert })
   assert.equal(await policyFor('/schedule', '<html>app</html>'), strictPolicy);
 });
 
-test('trusts explicit CORS and same-origin proxy writes while rejecting sibling origins', ({
+test('trusts the public origin, explicit CORS origins and same-origin fetches only', ({
   assert,
 }) => {
+  assert.isTrue(isTrustedUnsafeOrigin({ origin: publicOrigin.origin, fetchSite: 'same-origin' }));
   assert.isTrue(
-    isTrustedUnsafeOrigin({
-      origin: 'http://localhost:5173',
-      fetchSite: 'cross-site',
-    })
+    isTrustedUnsafeOrigin({ origin: 'http://localhost:5173', fetchSite: 'cross-site' })
   );
-  assert.isTrue(
-    isTrustedUnsafeOrigin({
-      origin: 'https://capacity.example.com',
-      host: 'capacity.example.com',
-      protocol: 'https',
-    })
-  );
-  assert.isTrue(
-    isTrustedUnsafeOrigin({
-      origin: 'https://capacity.example.com',
-      host: 'capacity.example.com',
-      protocol: 'http',
-    })
-  );
-  assert.isTrue(
-    isTrustedUnsafeOrigin({
-      origin: 'http://capacity.example.com',
-      host: 'capacity.example.com',
-      protocol: 'http',
-    })
-  );
-  assert.isTrue(
-    isTrustedUnsafeOrigin({
-      origin: 'http://capacity.example.com',
-      host: 'CAPACITY.EXAMPLE.COM:80',
-      protocol: 'http',
-    })
-  );
-  assert.isTrue(
-    isTrustedUnsafeOrigin({
-      origin: 'https://capacity.example.com',
-      fetchSite: 'same-origin',
-    })
-  );
+  assert.isTrue(isTrustedUnsafeOrigin({ fetchSite: 'same-origin' }));
   assert.isFalse(
-    isTrustedUnsafeOrigin({
-      origin: 'https://sibling.example.com',
-      fetchSite: 'same-site',
-    })
+    isTrustedUnsafeOrigin({ origin: 'https://sibling.example.com', fetchSite: 'same-site' })
   );
-  assert.isFalse(isTrustedUnsafeOrigin({ fetchSite: 'cross-site' }));
-  for (const host of ['exa mple.com', '[', 'capacity.example.com:8443:9000'])
-    assert.isFalse(
-      isTrustedUnsafeOrigin({
-        origin: 'https://capacity.example.com',
-        host,
-        protocol: 'http',
-      })
-    );
-  assert.isFalse(
-    isTrustedUnsafeOrigin({
-      origin: 'http://capacity.example.com',
-      host: 'capacity.example.com',
-      protocol: 'https',
-    })
-  );
-  assert.isFalse(
-    isTrustedUnsafeOrigin({
-      origin: 'https://other.example.com',
-      host: 'capacity.example.com',
-      protocol: 'http',
-    })
-  );
+  for (const fetchSite of [undefined, 'same-site', 'cross-site', 'none'])
+    assert.isFalse(isTrustedUnsafeOrigin({ fetchSite }));
+  for (const origin of ['null', 'not a url', publicOrigin.origin.replace(/^http:/, 'https:')])
+    assert.isFalse(isTrustedUnsafeOrigin({ origin, fetchSite: 'same-origin' }));
 });
