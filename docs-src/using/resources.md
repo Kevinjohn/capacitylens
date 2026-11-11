@@ -82,8 +82,8 @@ one person and each person to one member. A link doesn't grant access or create 
 Only active members and active people can be newly linked. A link to an inactive member or person
 can still be removed. To move a person's link to another member, remove the old link first.
 
-To invite someone and link them at once, use **Invite someone** and its **Link to Resource**
-selector. See [Invite teammates](/admin/invite-teammates).
+An invitation doesn't link a person. Once the invited teammate has joined and appears in the
+members table, link them here. See [Invite teammates](/admin/invite-teammates).
 
 ## Find people quickly
 
