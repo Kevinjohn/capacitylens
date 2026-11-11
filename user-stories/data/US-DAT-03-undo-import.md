@@ -10,8 +10,7 @@ As an Owner, I want imports to stay outside undo history so that an accidental u
 
 ## Acceptance criteria
 
-- A confirmed import has no page-local inverse.
-- Undo and Redo leave the imported company data in place.
+- Completing an import clears the Undo and Redo history, so neither can reverse the import or any earlier change.
 
 ## User flow
 

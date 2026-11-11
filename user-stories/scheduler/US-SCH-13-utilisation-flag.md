@@ -14,8 +14,9 @@ As an Editor, I want a near-term utilisation warning so that I can see over-capa
 
 ## Acceptance criteria
 
-- A resource’s utilisation flag turns red when the fixed 14-day forward window contains over-capacity.
-- The flag does not change when the visible date range changes.
+- With Show Personal Utilisation on, a tracked resource’s row shows its utilisation percentage for the visible window.
+- The percentage turns red and bold, with hover text beginning **Overbooked within the next 14 days**, when the resource is over capacity on any day in the 14 days from today.
+- The red state depends only on that fixed 14-day window; changing the visible range changes the percentage, not the flag.
 
 ## User flow
 

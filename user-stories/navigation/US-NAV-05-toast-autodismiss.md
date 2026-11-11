@@ -14,7 +14,7 @@ As a company member, I want action feedback announced without blocking the page 
 
 ## Acceptance criteria
 
-- Notices are announced in a polite live region; informational notices clear automatically and errors remain until dismissed.
+- Notices appear at the bottom centre and are announced in a polite live region. Informational notices close after 4 seconds; warnings and errors stay until closed with **Close toast**.
 
 ## User flow
 

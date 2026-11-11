@@ -4,7 +4,7 @@ As an Editor, I want to start an allocation from a resource row so that the corr
 
 **Status:** Current
 
-**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
+**Access:** Editor, Admin or Owner
 
 **Entry:** Schedule (`/`)
 
@@ -14,8 +14,9 @@ As an Editor, I want to start an allocation from a resource row so that the corr
 
 ## Acceptance criteria
 
-- The row **+** opens a new allocation form with that resource selected.
-- The form title identifies the resource.
+- In Work draw mode, the row **+** (**Add allocation for {name}**) opens **New allocation for {name}** with that resource fixed and the visible start date as Start and End.
+- In Time off draw mode the same control is **Add time off for {name}** and opens the time-off form instead; external resources have no **+** in Time off mode.
+- The control appears only for Editors, Admins and Owners.
 
 ## User flow
 

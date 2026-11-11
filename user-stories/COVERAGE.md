@@ -67,9 +67,9 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 ## Capacity Overview
 
-| Story                                                                 | Action                                       | Access                                                                                      | Status  | Catalogue |
-| --------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------- | ------- | --------- |
-| [US-CAP-01](capacity-overview/US-CAP-01-review-four-week-capacity.md) | Review four-, eight- or twelve-week capacity | Owners and Admins configure access; default is Owner/Admin, with Editor or Everyone options | Current | Existing  |
+| Story                                                                 | Action                                       | Access                                                                                       | Status  | Catalogue |
+| --------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | ------- | --------- |
+| [US-CAP-01](capacity-overview/US-CAP-01-review-four-week-capacity.md) | Review four-, eight- or twelve-week capacity | Owner and Admin by default; Overview access can add Editors or Everyone; anyone in demo mode | Current | Existing  |
 
 ## Clients
 
@@ -195,12 +195,12 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | Story                                                           | Action                                                             | Access                                                                   | Status  | Catalogue |
 | --------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------- | --------- |
 | [US-SCH-01](scheduler/US-SCH-01-grouped-capacity-cues.md)       | Resources grouped by discipline, with capacity cues                | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
-| [US-SCH-02](scheduler/US-SCH-02-draw-allocation.md)             | Draw a new allocation across empty lane space                      | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
-| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off directly on a lane                                   | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
-| [US-SCH-04](scheduler/US-SCH-04-move-drag.md)                   | Move an allocation by dragging its body                            | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
-| [US-SCH-05](scheduler/US-SCH-05-resize.md)                      | Resize an allocation with its grip handles                         | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
-| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign an allocation onto another resource                       | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
-| [US-SCH-07](scheduler/US-SCH-07-placeholder-reassign-reject.md) | Reassigning onto a mismatched placeholder is rejected              | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
+| [US-SCH-02](scheduler/US-SCH-02-draw-allocation.md)             | Draw a new allocation across empty lane space                      | Editor, Admin or Owner                                                   | Current | Existing  |
+| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off directly on a lane                                   | Editor, Admin or Owner                                                   | Current | Existing  |
+| [US-SCH-04](scheduler/US-SCH-04-move-drag.md)                   | Move an allocation by dragging its body                            | Editor, Admin or Owner                                                   | Current | Existing  |
+| [US-SCH-05](scheduler/US-SCH-05-resize.md)                      | Resize an allocation with its grip handles                         | Editor, Admin or Owner                                                   | Current | Existing  |
+| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign an allocation onto another resource                       | Editor, Admin or Owner                                                   | Current | Existing  |
+| [US-SCH-07](scheduler/US-SCH-07-placeholder-reassign-reject.md) | Reassigning onto a mismatched placeholder is rejected              | Editor, Admin or Owner                                                   | Current | Existing  |
 | [US-SCH-08](scheduler/US-SCH-08-lane-stacking.md)               | Overlapping allocations stack into separate lanes                  | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
 | [US-SCH-09](scheduler/US-SCH-09-over-allocation.md)             | Over-allocated days are flagged with an over-marker                | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
 | [US-SCH-10](scheduler/US-SCH-10-unavailable-days.md)            | Unavailable days are greyed (weekends, non-working days, time off) | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
@@ -210,8 +210,8 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | [US-SCH-14](scheduler/US-SCH-14-utilisation-summary.md)         | Overall and per-discipline utilisation summary                     | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
 | [US-SCH-15](scheduler/US-SCH-15-bar-popover.md)                 | Allocation detail popover on hover/focus                           | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
 | [US-SCH-16](scheduler/US-SCH-16-collapse-group.md)              | Collapse and expand a discipline group                             | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
-| [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md)            | Quick-create an allocation from a row's "+" button                 | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
-| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to the date you're looking at                | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
+| [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md)            | Quick-create an allocation from a row's "+" button                 | Editor, Admin or Owner                                                   | Current | Existing  |
+| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to the date you're looking at                | Editor, Admin or Owner                                                   | Current | Existing  |
 | [US-SCH-19](scheduler/US-SCH-19-status-and-note-distinct.md)    | Allocation status and notes are visually distinct on the bar       | Viewer, Editor, Admin or Owner; editing actions require Editor or higher | Current | Existing  |
 | [US-SCH-20](scheduler/US-SCH-20-person-schedule-drawer.md)      | Open a read-only person schedule                                   | Viewer, Editor, Admin or Owner                                           | Current | New       |
 
@@ -221,8 +221,8 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | ----------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------- | ------- | --------- |
 | [US-SET-01](settings/US-SET-01-calendar-settings.md)        | Company details                          | Owner, Admin, Editor, Viewer                             | Current | Existing  |
 | [US-SET-02](settings/US-SET-02-bar-labels.md)               | Choose allocation bar labels             | Owner, Admin, Editor, Viewer                             | Current | Existing  |
-| [US-SET-03](settings/US-SET-03-build-stamp.md)              | Read build details                       | Owner, Admin                                             | Current | Existing  |
-| [US-SET-04](settings/US-SET-04-send-feedback.md)            | Open a feedback email                    | Owner, Admin                                             | Current | Existing  |
+| [US-SET-03](settings/US-SET-03-build-stamp.md)              | Read build details                       | Owner, Admin; anyone in demo mode                        | Current | Existing  |
+| [US-SET-04](settings/US-SET-04-send-feedback.md)            | Open a feedback email                    | Owner, Admin; anyone in demo mode                        | Current | Existing  |
 | [US-SET-05](settings/US-SET-05-minimise-weekends.md)        | Minimise weekend columns                 | Owner, Admin, Editor, Viewer                             | Current | Existing  |
 | [US-SET-06](settings/US-SET-06-show-placeholders.md)        | Show placeholders                        | Editor and above; Viewers can read the setting.          | Current | Existing  |
 | [US-SET-07](settings/US-SET-07-show-external.md)            | Show external resources                  | Editor and above; Viewers can read the setting.          | Current | Existing  |

@@ -14,26 +14,25 @@ As an Editor, I want to duplicate an allocation so that I can reuse its resource
 
 ## Acceptance criteria
 
-- **Duplicate** creates an independent copy of an eligible allocation.
-- Undo removes the copy; the original remains unchanged.
+- The Edit allocation dialog shows **Duplicate** only for an allocation that is not part of a repeating series.
+- **Duplicate** immediately creates a separate allocation from the form’s current values and closes the dialog; the original allocation keeps its saved values.
+- An invalid form or a refused save keeps the dialog open with an error and creates no copy. Undo removes a created copy.
 
 ## User flow
 
 ```mermaid
 flowchart TD
-  N1["Open an eligible allocation"]
-  N2["choose Duplicate"]
-  N3["review copied fields"]
-  N4["confirm"]
-  N5["independent copy appears"]
-  B1["Invalid draft or write error ; then  form reports error; original is unchanged"]
-  B2["Cancel/close ; then  no copy"]
+  N1["Open an allocation that is not part of a repeating series"]
+  N2["optionally adjust the form"]
+  N3["choose Duplicate"]
+  N4["a separate copy appears; the dialog closes"]
+  B1["Invalid form or refused save: error shown, no copy created"]
+  B2["Cancel: no copy"]
   N1 --> N2
   N2 --> N3
   N3 --> N4
-  N4 --> N5
-  N4 -.-> B1
-  N4 -.-> B2
+  N3 -.-> B1
+  N2 -.-> B2
 ```
 
 ## Code flow

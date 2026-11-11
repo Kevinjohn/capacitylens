@@ -1,6 +1,6 @@
 # US-ALL-04 — Delete an allocation
 
-As an Editor, I want to delete a cancelled allocation safely so that I can restore it if the deletion was a mistake.
+As an Editor, I want to delete an allocation that is no longer needed so that the Schedule stays current, with undo if I delete it by mistake.
 
 **Status:** Current
 
@@ -14,22 +14,23 @@ As an Editor, I want to delete a cancelled allocation safely so that I can resto
 
 ## Acceptance criteria
 
-- **Delete** asks for confirmation; Cancel preserves the allocation.
-- Confirming deletion removes the chosen allocation or permitted repeat tail; Undo restores it.
+- In the Edit allocation dialog, **Delete** opens **Delete allocation?** with **Delete** and **Cancel**.
+- For an allocation in a repeating series it opens **Delete repeated allocation?** with **Delete this occurrence**, **Delete this and future occurrences** and **Cancel**.
+- **Cancel** keeps the allocation. A confirmed deletion removes the chosen allocation, or it and the later occurrences in its series; ⌘Z / Ctrl+Z (or **Undo**) restores it.
 
 ## User flow
 
 ```mermaid
 flowchart TD
-  N1["Open allocation"]
+  N1["Open an allocation"]
   N2["choose Delete"]
-  N3["confirmation asks which occurrence scope when repeated"]
-  B1["Cancel ; then  keep allocation"]
-  B2["Confirm one / this and future ; then  delete selected scope ; then  Schedule updates; undo can restore"]
+  N3["confirm; a repeated allocation offers this occurrence or this and future occurrences"]
+  N4["the chosen allocations leave the Schedule; Undo can restore them"]
+  B1["Cancel: keep the allocation"]
   N1 --> N2
   N2 --> N3
-  N2 -.-> B1
-  N2 -.-> B2
+  N3 --> N4
+  N3 -.-> B1
 ```
 
 ## Code flow

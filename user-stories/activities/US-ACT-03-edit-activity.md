@@ -10,11 +10,11 @@ As an Editor, I want to edit an activity name, kind or project so that its catal
 
 ## Acceptance criteria
 
-| Field   | Control          | Required/default/conditions                                                                      |
-| ------- | ---------------- | ------------------------------------------------------------------------------------------------ |
-| Name    | Text field       | Required; current value prefilled                                                                |
-| Kind    | Segmented choice | Required; current kind prefilled                                                                 |
-| Project | Picker           | Required for Project-specific only; active projects plus selected archived project if applicable |
+| Field   | Control          | Required/default/conditions                                                                                                                        |
+| ------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name    | Text field       | Required; current value prefilled                                                                                                                  |
+| Kind    | Segmented choice | Current kind prefilled; options in order: Internal, All projects, Project-specific                                                                 |
+| Project | Picker           | Shown and required for Project-specific only; active projects plus the current archived project if applicable; switching to another kind clears it |
 
 - **Save** updates the activity. Invalid required values keep the form open with an error. **Cancel** closes without saving.
 

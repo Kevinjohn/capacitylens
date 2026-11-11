@@ -14,7 +14,7 @@ As an Editor, I want to remove a company closure so that its dates no longer red
 
 ## Acceptance criteria
 
-- **Delete** asks for confirmation; Cancel keeps the closure.
+- **Delete {name} closure, {range}** opens **Delete closure?** (“Remove this company closure?”) with **Delete** and **Cancel**; Cancel keeps the closure.
 - Confirming Delete removes the closure band and restores availability on its dates.
 
 ## User flow
@@ -23,8 +23,8 @@ As an Editor, I want to remove a company closure so that its dates no longer red
 flowchart TD
   N1["Choose Delete on a company closure"]
   N2["confirmation appears"]
-  B1["Cancel ; then  keep closure"]
-  B2["Confirm ; then  closure band is removed and capacity recalculates"]
+  B1["Cancel: keep closure"]
+  B2["Confirm: closure band is removed and capacity recalculates"]
   N1 --> N2
   N1 -.-> B1
   N1 -.-> B2

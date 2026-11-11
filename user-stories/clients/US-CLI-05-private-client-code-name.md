@@ -10,12 +10,12 @@ As an Owner, I want to set a client code name so that non-Owners see the safe na
 
 ## Acceptance criteria
 
-| Field         | Control         | Required/default/conditions                   |
-| ------------- | --------------- | --------------------------------------------- |
-| Name          | Text field      | Required                                      |
-| Use code name | Switch          | Owner only; off by default for public records |
-| Code name     | Text field      | Owner only; required when Use code name is on |
-| Colour        | Preset swatches | Current colour preselected                    |
+| Field         | Control         | Required/default/conditions                                         |
+| ------------- | --------------- | ------------------------------------------------------------------- |
+| Name          | Text field      | Required; read-only for non-Owners when the client uses a code name |
+| Use code name | Switch          | Owner only (anyone in demo mode); current value prefilled           |
+| Code name     | Text field      | Owner only; shown and required when Use code name is on             |
+| Colour        | Preset swatches | Current colour preselected                                          |
 
 - **Save** updates the real name or code name and preset colour. Non-Owners continue to see the code name. Missing code name keeps the form open with an error. **Cancel** closes without saving.
 

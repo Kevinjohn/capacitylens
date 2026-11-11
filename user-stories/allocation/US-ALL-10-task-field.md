@@ -10,9 +10,9 @@ As an Editor, I want to add a short task description so that an allocation can c
 
 ## Acceptance criteria
 
-| Field | Control    | Required/default/conditions                                                |
-| ----- | ---------- | -------------------------------------------------------------------------- |
-| Task  | Text input | Optional; shown only when the company enables Show task field in schedule. |
+| Field | Control    | Required/default/conditions                                                                                                                        |
+| ----- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Task  | Text input | Optional; up to 100 characters; shown only when the company enables Show task field in schedule. Hidden task text is kept when the setting is off. |
 
 ## User flow
 
@@ -21,9 +21,9 @@ flowchart TD
   N1["When task details are enabled, enter optional task text in allocation form"]
   N2["Save"]
   N3["task appears with the booking"]
-  B1["Task field disabled ; then  no task control shown"]
-  B2["Invalid text ; then  field error; correct and retry"]
-  B3["Cancel ; then  discard task draft"]
+  B1["Task field disabled: no task control shown"]
+  B2["Invalid text: field error; correct and retry"]
+  B3["Cancel: discard task draft"]
   N1 --> N2
   N2 --> N3
   N2 -.-> B1

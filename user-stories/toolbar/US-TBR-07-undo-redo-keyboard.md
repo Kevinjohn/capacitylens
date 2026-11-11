@@ -15,7 +15,7 @@ As an Editor, I want keyboard shortcuts for Undo and Redo so that I can reverse 
 ## Acceptance criteria
 
 - ⌘Z / Ctrl+Z undo and ⌘⇧Z / Ctrl+Shift+Z redo planning changes.
-- Shortcuts do not run while text entry, IME composition or a modal owns input.
+- The shortcuts work on every app screen. They do not run while text entry, IME composition or a modal owns input, or while a form has unsaved changes.
 
 ## User flow
 
@@ -23,7 +23,7 @@ As an Editor, I want keyboard shortcuts for Undo and Redo so that I can reverse 
 flowchart TD
   A["Editor presses Undo or Redo shortcut"]
   B["Outside text entry and modal: planning history action runs"]
-  C["While typing or a modal is open: shortcut is ignored"]
+  C["While typing, a modal is open or a form has unsaved changes: shortcut is ignored"]
   A --> B
   A --> C
 ```
@@ -32,7 +32,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useAppShellController installs useGlobalShortcuts key listener"] --> B["applyHistoryShortcutEffect checks key, text entry, composition and modal"]
+  A["useAppShellController installs useGlobalShortcuts key listener"] --> B["applyHistoryShortcutEffect checks key, composition, text entry, open modal and unsaved form"]
   B -->|blocked| C["No history action runs"]
   B -->|allowed| D["undoPlanning or redoPlanning"]
   D --> E["planningCacheController executes history intent through PlanningTransport"]

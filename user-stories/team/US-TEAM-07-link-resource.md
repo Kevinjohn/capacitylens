@@ -10,20 +10,20 @@ As an Owner or Admin, I want to link a member to a person Resource so that their
 
 ## Acceptance criteria
 
-| Field            | Control | Required/default/conditions                                                                       |
-| ---------------- | ------- | ------------------------------------------------------------------------------------------------- |
-| Scheduled person | Select  | Optional; shows the current link or None. Choices are active people not linked to another member. |
+| Field            | Control | Required/default/conditions                                                                                                 |
+| ---------------- | ------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Link to Resource | Select  | Optional; shows the current link, otherwise **No Resource linked**. Choices are active people not linked to another member. |
 
 - Selecting a person links or changes the link immediately. **Remove link to resource** unlinks immediately.
-- A retained link to an inactive person is shown and can be removed. Linking a member does not change their access or create schedule data.
+- A retained link to an archived or deleted person is shown as **{name} (inactive — unlink only)** and can only be removed. Linking a member does not change their access or create schedule data.
 
 ## User flow
 
 ```mermaid
 flowchart TD
-    Open["Owner or Admin opens a member's Link to Resource dialog"] --> Choose{"Choose a person or None"}
+    Open["Owner or Admin opens a member's Link to Resource dialog"] --> Choose{"Choose a person or No Resource linked"}
     Choose -->|"Choose a person"| Link["Member is linked or changed to that person"]
-    Choose -->|"Choose None for a linked member"| Unlink["Member's Resource link is removed"]
+    Choose -->|"Choose No Resource linked for a linked member"| Unlink["Member's Resource link is removed"]
     Link --> Refresh["Member row refreshes with the current link"]
     Unlink --> Refresh
 ```

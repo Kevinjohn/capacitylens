@@ -4,7 +4,7 @@ As an Editor, I want to drag an allocation onto another resource so that I can r
 
 **Status:** Current
 
-**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
+**Access:** Editor, Admin or Owner
 
 **Entry:** Schedule (`/`)
 

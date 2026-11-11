@@ -32,9 +32,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerGridModel supplies allocation status and note"] --> B["AllocationBar derives label and status presentation"]
+  A["useSchedulerGridModel supplies allocation status and note"] --> B["AllocationBar derives label and status presentation"]
   B --> C["AllocationBarView renders status class and note marker"]
-  C --> D["Viewer reads visual state on the Schedule"]
+  C --> D["Status and note cues show on the Schedule"]
 ```
 
 **Code references:** [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx)

@@ -15,7 +15,7 @@ As an Editor, I want toolbar Undo and Redo controls so that I can reverse or rea
 ## Acceptance criteria
 
 - **Undo** and **Redo** reverse and reapply acknowledged planning changes.
-- Each button is disabled when its corresponding history stack is empty.
+- The buttons appear only for Editor or higher. Each is disabled while planning history is not ready or when it has nothing to undo or redo.
 
 ## User flow
 

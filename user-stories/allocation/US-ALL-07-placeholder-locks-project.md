@@ -27,8 +27,8 @@ flowchart TD
   N2["project is fixed to its bound project"]
   N3["choose compatible activity"]
   N4["Save"]
-  B1["Incompatible activity ; then  correct selection; validation blocks write"]
-  B2["Cancel ; then  no allocation change"]
+  B1["Incompatible activity: correct selection; validation blocks write"]
+  B2["Cancel: no allocation change"]
   N1 --> N2
   N2 --> N3
   N3 --> N4

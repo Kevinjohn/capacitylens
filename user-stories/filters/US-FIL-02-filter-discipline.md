@@ -14,8 +14,8 @@ As a company member, I want to filter resources by discipline so that I can focu
 
 ## Acceptance criteria
 
-- **Filter by discipline** lists the company disciplines.
-- Selecting a discipline shows only its resource group; All disciplines restores the groups.
+- **Filter by discipline** appears only when disciplines are enabled and at least one exists; it lists the disciplines in schedule order after **All disciplines**.
+- Selecting a discipline shows only the resources in that discipline; **All disciplines** restores every group.
 
 ## User flow
 

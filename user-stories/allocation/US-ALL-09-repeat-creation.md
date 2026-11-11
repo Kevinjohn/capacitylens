@@ -10,11 +10,12 @@ As an Editor, I want to create linked repeating allocations so that a recurring 
 
 ## Acceptance criteria
 
-| Field        | Control    | Required/default/conditions                                                                                      |
-| ------------ | ---------- | ---------------------------------------------------------------------------------------------------------------- |
-| Repeat       | Select     | Create only; defaults to Doesn’t repeat; Weekly, Every 2 weeks, Every 3 weeks, Every 4 weeks or Monthly.         |
-| Repeat until | Date input | Required when repeating; cutoff cannot precede today or Start and is limited to six calendar months after Start. |
+| Field        | Control    | Required/default/conditions                                                                                                                                |
+| ------------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repeat       | Select     | Create only; defaults to Doesn’t repeat; Weekly, Every 2 weeks, Every 3 weeks, Every 4 weeks or Monthly                                                    |
+| Repeat until | Date input | Required when repeating; suggested as the end of the second calendar month after Start; not before today or Start; at most six calendar months after Start |
 
+- The form previews **Creates {count} linked allocations through {repeatUntil}. Last start: {lastStart}.** and warns, without blocking, when occurrences may exceed capacity, overlap time off or start on a non-working day.
 - Save creates the previewed occurrences as one undoable action; each occurrence remains separately editable.
 
 ## User flow
@@ -23,12 +24,12 @@ As an Editor, I want to create linked repeating allocations so that a recurring 
 flowchart TD
   N1["Choose a repeat pattern"]
   N2["set Repeat until"]
-  N3["review projected dates"]
+  N3["review the preview of count and last start"]
   N4["Save"]
   N5["linked occurrences are created together"]
-  B1["Invalid cutoff or dates ; then  correct repeat fields"]
-  B2["Save failure ; then  error shown; dialog remains open"]
-  B3["Cancel ; then  no occurrences created"]
+  B1["Invalid cutoff or dates: correct repeat fields"]
+  B2["Save failure: error shown; dialog remains open"]
+  B3["Cancel: no occurrences created"]
   N1 --> N2
   N2 --> N3
   N3 --> N4

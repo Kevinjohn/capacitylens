@@ -11,7 +11,7 @@ As an Owner or Admin, I want to add example data to an empty company so that I c
 ## Acceptance criteria
 
 - **Add example data** is available to Owner/Admin on an empty server-backed company, excluding the built-in Internal client. It adds the fictional example dataset.
-- The action is unavailable when company planning records already exist, including archived records.
+- The action is unavailable once the company has any resource, client other than Internal, project or allocation, including archived ones; the server refuses the request in that case.
 
 ## User flow
 

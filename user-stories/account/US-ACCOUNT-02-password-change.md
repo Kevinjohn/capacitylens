@@ -33,13 +33,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  dialog["SecuritySection renders password dialog"] --> submit["usePasswordChange.submit checks fields"]
+  dialog["SecuritySection renders PasswordDialog"] --> submit["usePasswordChange.submit checks fields"]
   submit --> client["authClient.changePassword sends credentials"]
   client --> route["auth_routes maps change-password to CredentialController.changePassword"]
   route --> kit["Account Kit emailPasswordManagement.changePassword"]
   kit --> sessions["Account Kit changePassword call owns password and other-session effects"]
   sessions --> session["CredentialController invokes sessionGuard.terminate for this session"]
-  session --> reload["SecuritySection reloads to sign in with the new password"]
+  session --> reload["usePasswordChange.submit navigates to / to sign in with the new password"]
   kit --> error["Rejected credential returns a visible field error"]
 ```
 

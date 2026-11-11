@@ -14,7 +14,7 @@ As an Editor, I want to choose how many weeks are visible so that I can trade ti
 
 ## Acceptance criteria
 
-- **Weeks visible** offers 1, 2, 4, 6 or 8 weeks.
+- The **Weeks visible** select offers 1 week, 2 weeks, 4 weeks, 6 weeks or 8 weeks; it starts at 2 weeks.
 - Choosing a span resizes the visible timeline without changing allocations.
 
 ## User flow

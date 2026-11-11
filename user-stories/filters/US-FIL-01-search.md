@@ -23,8 +23,8 @@ As a company member, I want to search resources by name or role so that I can fi
 flowchart TD
   N1["Enter a name or role in Schedule search"]
   N2["matching resources remain"]
-  B1["No matches ; then  see the empty state and clear filters"]
-  B2["Clear the query ; then  matching rows return"]
+  B1["No matches: see the empty state and clear filters"]
+  B2["Clear the query: matching rows return"]
   N1 --> N2
   N1 -.-> B1
   N1 -.-> B2

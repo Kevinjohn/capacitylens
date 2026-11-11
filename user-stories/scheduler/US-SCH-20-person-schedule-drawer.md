@@ -14,7 +14,7 @@ As a company member, I want to open a person’s read-only schedule so that I ca
 
 ## Acceptance criteria
 
-- The resource avatar opens a read-only side sheet with a fixed 28-day schedule and dated allocation/time-off entries.
+- The resource avatar opens a read-only side sheet listing the person’s dated allocations and time off for 28 days from the start of the current company week.
 - Closing the sheet returns focus to its avatar.
 
 ## User flow

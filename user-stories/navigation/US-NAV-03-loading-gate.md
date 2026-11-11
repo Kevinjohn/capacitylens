@@ -14,7 +14,7 @@ As a company member, I want a loading state while company data is read so that i
 
 ## Acceptance criteria
 
-- Content remains in Loading until the selected data source finishes hydration.
+- The page content area shows **Loading…** until the selected data source finishes loading, and again while a member view is starting or ending.
 
 ## User flow
 

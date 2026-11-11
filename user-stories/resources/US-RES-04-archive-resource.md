@@ -11,7 +11,8 @@ As an Editor, I want to archive a resource so that it leaves active views while 
 ## Acceptance criteria
 
 - Selecting **Archive {name}** opens **Archive resource?** with **Archive** and **Cancel** controls.
-- After confirmation, the resource leaves its active section. Its allocations and time off remain retained; when allocations exist, the dialog states their count.
+- The dialog reads **Archive "{name}"? They will be hidden from the schedule.** and notes that Editors, Admins and Owners can restore them and only Owners and Admins can anonymise them. It shows no count of affected records.
+- After confirmation, the resource leaves its active section and the Schedule. Its allocations and time off are kept, not deleted.
 - **Cancel** closes the dialog without archiving. **Archive** archives the record.
 - The archived record appears in its archived section with a **Restore** control.
 
@@ -21,7 +22,7 @@ As an Editor, I want to archive a resource so that it leaves active views while 
 flowchart TD
   A["Resources screen"] --> B["Archive resource row"] --> C["Archive resource? confirmation"]
   C -->|Cancel| A
-  C -->|Archive| D["Resource leaves active section"] --> E["Resource appears in its Archived group"]
+  C -->|Archive| D["Resource leaves active section"] --> E["Resource appears under Archived resources"]
   C -->|Action refused| F["Notice explains the archive failed"]
 ```
 
@@ -36,4 +37,4 @@ flowchart TD
   F2 --> H["ArchivedEntitySection / ArchiveRecoverySection refresh"]
 ```
 
-**Code references:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [ArchiveRecoverySection.tsx](../../apps/frontend/src/components/common/ArchiveRecoverySection.tsx) · [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+**Code references:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [ArchiveRecoverySection.tsx](../../apps/frontend/src/components/common/ArchiveRecoverySection.tsx) · [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [useScopedData.ts](../../apps/frontend/src/store/useScopedData.ts)

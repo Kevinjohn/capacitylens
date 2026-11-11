@@ -30,8 +30,8 @@ flowchart TD
   N2["edit its name or dates"]
   N3["Save"]
   N4["closure band updates"]
-  B1["Invalid range or save error ; then  show error; keep form open"]
-  B2["Cancel ; then  original closure remains"]
+  B1["Invalid range or save error: show error; keep form open"]
+  B2["Cancel: original closure remains"]
   N1 --> N2
   N2 --> N3
   N3 --> N4

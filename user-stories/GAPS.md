@@ -41,7 +41,7 @@ recovery remain separately documented as available.
   toggle nor its column; the [existing visibility test](../apps/frontend/src/components/team/MembersSection.lifecycle.test.tsx#L536)
   explicitly expects them to be hidden. The retained team story is Hidden, not a claim of a
   current menu action.
-- **Open self-registration:** [auth routes](../apps/backend/start/auth_routes.ts#L12) expose
+- **Open self-registration:** [auth routes](../apps/backend/start/auth_routes.ts#L11) expose
   password signup under the configured admission policy, but the current
   [sign-in screen](../apps/frontend/src/auth/LoginScreen.tsx) has no registration form or link.
   The available account-creation journey is the emailed invitation. The agreed signup policy

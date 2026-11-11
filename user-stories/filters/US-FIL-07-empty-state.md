@@ -14,7 +14,7 @@ As a company member, I want a clear empty state when filters match no resources 
 
 ## Acceptance criteria
 
-- When no resource matches, the Schedule shows a clear empty state with a Clear filters action.
+- When filters leave no resource rows, the Schedule shows **No resources match the current filters.** with a **Clear filters** action.
 - Clearing the filters restores the schedule rows.
 
 ## User flow
@@ -23,7 +23,7 @@ As a company member, I want a clear empty state when filters match no resources 
 flowchart TD
   N1["Apply filters with no matching resources"]
   N2["empty state explains the view"]
-  B1["Clear filters ; then  schedule rows return"]
+  B1["Clear filters: schedule rows return"]
   N1 --> N2
   N1 -.-> B1
 ```

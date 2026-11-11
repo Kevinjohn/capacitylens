@@ -4,7 +4,7 @@ As an Editor, I want to draw a date range on an empty resource lane so that I ca
 
 **Status:** Current
 
-**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
+**Access:** Editor, Admin or Owner
 
 **Entry:** Schedule (`/`)
 

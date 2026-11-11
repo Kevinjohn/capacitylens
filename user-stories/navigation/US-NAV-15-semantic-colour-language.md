@@ -14,14 +14,14 @@ As a company member, I want consistent semantic colours so that I can recognize 
 
 ## Acceptance criteria
 
-- Brand, positive, neutral, warning, and destructive actions use consistent high-contrast semantic styling.
+- Buttons share one semantic variant set: green for primary and confirming actions; neutral outline, secondary or ghost styles for secondary and cancel actions; red destructive or soft-danger styles for destructive actions; and the brand colour for link-styled actions.
 
 ## User flow
 
 ```mermaid
 flowchart TD
   human1["Scan navigation and actions"]
-  human2["Brand, positive, neutral, warning, or destructive intent is conveyed"]
+  human2["Positive, neutral, destructive or link intent is conveyed"]
   human3["Text and controls remain legible"]
   human1 --> human2
   human2 --> human3

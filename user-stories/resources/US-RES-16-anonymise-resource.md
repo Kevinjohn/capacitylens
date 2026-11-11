@@ -10,9 +10,9 @@ As an Owner or Admin, I want to anonymise an archived resource so that identifyi
 
 ## Acceptance criteria
 
-- Selecting **Anonymise** opens a confirmation dialog with **Anonymise** and **Cancel** controls; no action-specific password proof is requested.
-- **Cancel** leaves the resource unchanged. **Anonymise** removes identifying details and dependent notes while retaining the resource and its links. The dialog asks for ordinary confirmation only; it does not ask for a password.
-- The action appears only for Owner/Admin and only for archived resources.
+- Selecting **Anonymise** opens **Anonymise resource?** (“Anonymise {name} and remove their personal details? This cannot be undone.”) with **Anonymise** and **Cancel**; no password is requested.
+- **Cancel** leaves the resource unchanged. **Anonymise** replaces the name with **Removed person #{id tag}** and the role with **Removed resource**, clears the avatar and clears the notes on its allocations and time off, while keeping the resource and its links.
+- The action appears only for Owners and Admins, and only on a directly archived resource row.
 
 ## User flow
 
@@ -29,7 +29,7 @@ flowchart TD
 flowchart TD
   A["ArchivedEntitySection Owner/Admin Anonymise control"] --> B["ConfirmDialog onConfirm → useLifecycleActions.anonymise"]
   B --> C{{"Persisted server or demo"}}
-  C -->|server| D["POST resources/:id/anonymise → AnonymiseController.resource"] --> E["anonymiseResources transaction"] --> F["reloadPlanning refreshes canonical view"]
+  C -->|server| D["POST resources/:id/anonymise → AnonymiseController.resource"] --> E["anonymiseResources transaction"] --> F["reloadFromServer calls refreshPlanning({ fresh: true })"]
   C -->|demo| G["dispatchLocalLifecycle → lifecycleSlice.anonymiseResource"]
   G --> H["obfuscateResource and clear linked notes"]
   H --> I["Archived resource view refreshes"]

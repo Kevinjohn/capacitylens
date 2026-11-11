@@ -14,7 +14,7 @@ As a company member, I want help and guidance suited to my role so that I can le
 
 ## Acceptance criteria
 
-- Help is directly reachable and the tour presents guidance for the active role.
+- The sidebar **Help** link opens Help, which offers **Show tour** and a **Browse the user guides** link. **Show tour** opens the Schedule and steps through guidance for the active role; it is disabled until the role is known.
 
 ## User flow
 

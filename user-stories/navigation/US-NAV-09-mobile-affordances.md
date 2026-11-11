@@ -14,7 +14,7 @@ As a company member viewing a narrow screen, I want compact navigation and a usa
 
 ## Acceptance criteria
 
-- Navigation opens as a labelled sheet on narrow portrait layouts and closes after destination selection; mobile scheduling workflows are out of scope.
+- At viewport widths up to 767 px, navigation opens as a labelled sheet from the top-bar sidebar toggle and closes after a destination is chosen; mobile scheduling workflows are out of scope.
 
 ## User flow
 

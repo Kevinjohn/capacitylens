@@ -14,8 +14,9 @@ As an Editor, I want to switch between Work and Time off draw modes so that a la
 
 ## Acceptance criteria
 
-- The draw-mode control switches between **Work** and **Time off**.
-- A lane draw opens the matching allocation or time-off form.
+- Editors see a **Draw mode** control with **Work** (the default) and **Time off**.
+- In Work mode, drawing across a resource lane opens the allocation form with that resource and date range. In Time off mode it opens the time-off form instead, allocation bars cannot be selected or dragged, and drawing on an external resource opens nothing.
+- A draw that starts on a day the resource does not work or has time off opens nothing; in Work mode a closure day also blocks it.
 
 ## User flow
 

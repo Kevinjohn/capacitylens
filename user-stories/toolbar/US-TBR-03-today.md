@@ -14,7 +14,7 @@ As an Editor, I want Today to recenter the timeline so that I can return to the 
 
 ## Acceptance criteria
 
-- **Today** returns the visible schedule window to the current date.
+- **Today** returns the schedule to the start of the current week in the company time zone.
 
 ## User flow
 

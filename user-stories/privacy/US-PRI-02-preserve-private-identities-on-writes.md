@@ -14,15 +14,16 @@ As a company Owner, I want permitted non-Owner edits to preserve private identit
 
 ## Acceptance criteria
 
-- Non-Owner writes preserve protected identity fields and responses redact them; Owner writes may change privacy fields.
+- When an Admin or Editor saves a client or project that uses a code name, the server keeps its real name, Use code name and code name as stored and applies only the other fields; nothing is refused.
+- A non-Owner cannot turn on Use code name for a public record. Responses to non-Owners show the code name in place of the real name. Owners can change every privacy field.
 
 ## User flow
 
 ```mermaid
 flowchart TD
-  edit["Admin or Editor changes an ordinary field"] --> submit["Submit update without protected identity fields"]
-  submit -->|allowed| response["Server preserves private identity and returns projected row"]
-  submit -->|protected fields supplied by non-Owner| refused["Server refuses the request"]
+  edit["Admin or Editor saves a client or project"] --> submit["Server applies the ordinary fields"]
+  submit --> keep["Real name, Use code name and code name stay as stored"]
+  keep --> response["Response shows the code name to non-Owners"]
 ```
 
 ## Code flow
@@ -31,7 +32,7 @@ flowchart TD
 flowchart TD
   ui["ClientForm or ProjectForm builds ordinary update"] --> client["typed planning client sends mutation"]
   client --> server["mutatePlanning resolves authority and executes intent"]
-  server --> policy["entity_policy preserves hidden fields and checks privacy edits"]
+  server --> policy["entity_policy keeps stored private-name fields for non-Owners"]
   policy --> writer["planning writer persists allowed changes"]
   server --> response["transformState redacts private response"]
 ```

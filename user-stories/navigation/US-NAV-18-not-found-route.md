@@ -6,7 +6,7 @@ As a company member, I want an unmatched address to explain that the page was no
 
 **Access:** Owner, Admin, Editor, Viewer; sign-in wall still applies to protected routes.
 
-**Entry:** Unmatched extensionless URL → Page not found → Schedule link.
+**Entry:** Unmatched extensionless URL → Page not found → Go to schedule.
 
 **Documentation:** [FAQ](../../docs-src/using/faq.md)
 
@@ -14,7 +14,7 @@ As a company member, I want an unmatched address to explain that the page was no
 
 ## Acceptance criteria
 
-- An unmatched application route renders a branded not-found page with a Schedule link. Missing assets and API routes remain HTTP errors; valid invitation and reset paths retain their route handling.
+- An unmatched application route renders **Page not found** (“That page does not exist or may have moved.”) with a **Go to schedule** link. Missing assets and API routes remain HTTP errors; valid invitation and reset paths retain their route handling.
 
 ## User flow
 
@@ -22,7 +22,7 @@ As a company member, I want an unmatched address to explain that the page was no
 flowchart TD
   human1["Open an unmatched address"]
   human2["Page not found appears"]
-  human3["Select Schedule"]
+  human3["Select Go to schedule"]
   human4["Schedule opens"]
   human1 --> human2
   human2 --> human3
@@ -35,7 +35,7 @@ flowchart TD
 flowchart TD
   url["Browser requests unmatched path"] --> route["router wildcard route"]
   route --> page["NotFound renders branded message"]
-  page --> link["Schedule link navigates to /"]
+  page --> link["Go to schedule navigates to /"]
   root["router index route"] --> schedule["SchedulerView renders schedule"]
 ```
 

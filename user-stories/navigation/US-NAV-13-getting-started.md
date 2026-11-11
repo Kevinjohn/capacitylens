@@ -15,7 +15,7 @@ As an Owner, Admin, or Editor, I want visible first-schedule milestones so that 
 ## Acceptance criteria
 
 - Five milestones reflect current company data. Each unfinished milestone links to its relevant screen; completed milestones are shown as done.
-- The card can be hidden and shown with its toggle. Owner/Admin can dismiss it; when fewer than five milestones are complete, dismissal requires confirmation. Editor can use the card but has no dismiss action.
+- **Hide checklist** and **Show checklist** collapse and expand the card. Owners and Admins see **Dismiss**, which hides the card for everyone in the company; with fewer than five milestones complete it first asks **Do you really want to hide this forever?** (**Yes** / **No**). Editors can use the card but have no **Dismiss**.
 - Show me around starts the role-aware schedule tour when available. The Help page provides a separate, persistent route to start that tour.
 
 ## User flow

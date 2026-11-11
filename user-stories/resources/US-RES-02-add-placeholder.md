@@ -10,14 +10,14 @@ As an Editor, I want to add a placeholder bound to a project so that reserved ca
 
 ## Acceptance criteria
 
-| Field           | Control    | Required/default/conditions                                                |
-| --------------- | ---------- | -------------------------------------------------------------------------- |
-| Name (optional) | Text field | Optional; role may identify the placeholder                                |
-| Role            | Text field | Optional                                                                   |
-| Discipline      | Picker     | Shown when disciplines are enabled and at least one is available; optional |
-| Bound project   | Picker     | Required; active projects                                                  |
+| Field           | Control    | Required/default/conditions                                                                 |
+| --------------- | ---------- | ------------------------------------------------------------------------------------------- |
+| Name (optional) | Text field | Optional; the role may identify the placeholder                                             |
+| Role            | Text field | Optional                                                                                    |
+| Discipline      | Picker     | Optional; "— None —" by default; shown when disciplines are enabled and at least one exists |
+| Bound project   | Picker     | Required; active projects, labelled Client / Project                                        |
 
-- **Save** adds the placeholder to its project and the Placeholder section. Placeholders have no Engagement, availability-date or working-day controls.
+- The Placeholders section and **Add placeholder** appear only when the company enables Show placeholders. **Save** adds the placeholder, bound to its project, to the Placeholders section. Placeholders have no Engagement, availability-date or working-day controls.
 
 ## User flow
 
@@ -43,4 +43,4 @@ flowchart TD
   E -->|demo| I["createVolatilePlanningTransport.execute → apply in page memory"] --> J
 ```
 
-**Code references:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+**Code references:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts)

@@ -10,13 +10,13 @@ As an Editor, I want to edit one time-off entry so that its dates and type stay 
 
 ## Acceptance criteria
 
-| Field    | Control    | Required/default/conditions                                                                 |
-| -------- | ---------- | ------------------------------------------------------------------------------------------- |
-| Resource | Select     | Required; defaults from the entry point when supplied; excludes external parties.           |
-| Start    | Date input | Required; defaults to today unless a date is supplied by the entry point.                   |
-| End      | Date input | Required; defaults to Start unless supplied; cannot precede Start.                          |
-| Type     | Select     | Required; defaults to Holiday; options Holiday, Sick, Unpaid or Other.                      |
-| Note     | Text input | Optional; editable and visible only to roles permitted to see time-off notes (Owner/Admin). |
+| Field    | Control    | Required/default/conditions                                            |
+| -------- | ---------- | ---------------------------------------------------------------------- |
+| Resource | Select     | Required; prefilled with the saved resource; excludes external parties |
+| Start    | Date input | Required; prefilled with the saved start date                          |
+| End      | Date input | Required; prefilled with the saved end date; cannot precede Start      |
+| Type     | Select     | Prefilled with the saved type; options Holiday, Sick, Unpaid or Other  |
+| Note     | Text input | Optional; prefilled; shown only to Owners and Admins                   |
 
 - Save updates this entry only; repeating occurrences remain independent.
 
@@ -28,8 +28,8 @@ flowchart TD
   N2["edit its resource, dates, type or permitted note"]
   N3["Save"]
   N4["only that entry changes"]
-  B1["Invalid values or save failure ; then  error shown; form stays open"]
-  B2["Cancel ; then  saved entry unchanged"]
+  B1["Invalid values or save failure: error shown; form stays open"]
+  B2["Cancel: saved entry unchanged"]
   N1 --> N2
   N2 --> N3
   N3 --> N4

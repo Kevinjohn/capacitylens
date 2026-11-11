@@ -14,7 +14,7 @@ As an Editor, I want to confirm before deleting time off so that an accidental r
 
 ## Acceptance criteria
 
-- **Delete** opens a confirmation; Cancel preserves the entry.
+- **Delete {name} time off from {start} to {end}** opens **Delete time off?** (“Remove this time-off entry?”) with **Delete** and **Cancel**; Cancel preserves the entry.
 - Confirming Delete removes the entry from the list and Schedule.
 
 ## User flow
@@ -23,8 +23,8 @@ As an Editor, I want to confirm before deleting time off so that an accidental r
 flowchart TD
   N1["Choose Delete on a time-off entry"]
   N2["confirmation appears"]
-  B1["Cancel ; then  keep entry"]
-  B2["Confirm Delete ; then  remove entry from list and schedule"]
+  B1["Cancel: keep entry"]
+  B2["Confirm Delete: remove entry from list and schedule"]
   N1 --> N2
   N1 -.-> B1
   N1 -.-> B2

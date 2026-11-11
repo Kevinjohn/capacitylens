@@ -4,7 +4,7 @@ As an Editor, I want quick-create to use the date at the left edge of the visibl
 
 **Status:** Current
 
-**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
+**Access:** Editor, Admin or Owner
 
 **Entry:** Schedule (`/`)
 
@@ -14,7 +14,7 @@ As an Editor, I want quick-create to use the date at the left edge of the visibl
 
 ## Acceptance criteria
 
-- The row **+** uses the visible timeline start date for the new allocation.
+- The row **+** uses the date at the left edge of the visible timeline as the new entry’s Start and End.
 
 ## User flow
 

@@ -11,7 +11,7 @@ As an Editor, I want to restore an archived resource so that it returns to activ
 ## Acceptance criteria
 
 - A directly archived resource has an accessible **Restore** control. Selecting it returns the resource to active status and active views.
-- A row hidden only by an archived parent links to **Restore archived parent**; restoring the parent reveals descendants that remain active.
+- A row hidden only by an archived parent reads **Hidden because {type} {name} is archived.** and offers **View archived parent**, which opens the parent’s archived row; restoring the parent reveals descendants that remain active. A row whose parent was permanently deleted reads **Hidden because {type} {name} is deleted.** with no link.
 
 ## User flow
 
@@ -19,7 +19,7 @@ As an Editor, I want to restore an archived resource so that it returns to activ
 flowchart TD
   A["Resources screen"] --> B["Archived resource row"]
   B -->|directly archived| C["Select Restore"] --> D["Resource becomes active"]
-  B -->|hidden by archived parent| E["Select Restore archived parent"] --> F["Parent route opens; restore parent there"]
+  B -->|hidden by archived parent| E["Select View archived parent"] --> F["Parent’s archived row opens; restore the parent there"]
   C -->|Action refused| G["Notice explains the restore failed"]
 ```
 

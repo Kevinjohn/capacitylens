@@ -4,7 +4,7 @@ As an Editor, I want to resize an allocation by its edge so that I can change it
 
 **Status:** Current
 
-**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
+**Access:** Editor, Admin or Owner
 
 **Entry:** Schedule (`/`)
 
@@ -14,7 +14,7 @@ As an Editor, I want to resize an allocation by its edge so that I can change it
 
 ## Acceptance criteria
 
-- Dragging either edge changes the allocation date range by whole days.
+- Dragging either edge changes the allocation date range by whole days. Unless Ignore working days is set, an edge dropped on a non-working day moves on to the next working day in the drag direction.
 - The allocation remains at least one day long.
 
 ## User flow

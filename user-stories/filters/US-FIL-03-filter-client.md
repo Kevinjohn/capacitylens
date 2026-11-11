@@ -14,8 +14,8 @@ As a company member, I want to filter allocations by client while keeping capaci
 
 ## Acceptance criteria
 
-- **Filter by client** limits visible allocations to that client; capacity still includes all work.
-- Show unallocated can reveal resources without matching work.
+- **Filter by client** lists Internal first, then clients by name. Choosing one limits visible allocations to that client and hides resources without matching work; capacity figures still include all work.
+- **Show unallocated** reveals the hidden resources as dimmed rows.
 
 ## User flow
 
@@ -23,7 +23,7 @@ As a company member, I want to filter allocations by client while keeping capaci
 flowchart TD
   N1["Choose a client"]
   N2["matching allocation bars remain while total capacity stays visible"]
-  B1["Show unallocated ; then  unmatched resources appear dimmed"]
+  B1["Show unallocated: unmatched resources appear dimmed"]
   N1 --> N2
   N1 -.-> B1
 ```

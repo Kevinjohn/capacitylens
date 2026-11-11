@@ -14,8 +14,8 @@ As a company member, I want to clear all active filters at once so that I can re
 
 ## Acceptance criteria
 
-- **Clear Filters** is enabled only when a filter is active.
-- Selecting it resets search, selection filters, Tentative and Show unallocated.
+- **Clear Filters** is enabled only when search, a discipline, client, project or activity filter is set, or Tentative is turned off.
+- Selecting it resets search, every selection filter, Tentative (back on) and Show unallocated (back off).
 
 ## User flow
 

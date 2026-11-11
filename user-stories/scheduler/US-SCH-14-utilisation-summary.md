@@ -14,8 +14,9 @@ As an Editor, I want overall and discipline utilisation summaries so that I can 
 
 ## Acceptance criteria
 
-- The Schedule shows overall and per-discipline utilisation for the visible window.
-- Changing Weeks visible recalculates those figures.
+- With Show Total Utilisation on, the Schedule header shows **Utilisation · {span}**, the average across tracked resources over the visible window.
+- With Show Discipline Utilisation on, each group header other than External shows **{percent}% avg utilisation** for the visible window.
+- Changing **Weeks visible** recalculates both figures.
 
 ## User flow
 

@@ -15,7 +15,7 @@ As a company member, I want to show or hide the filter row so that I can keep th
 ## Acceptance criteria
 
 - **Show filters** opens the filter row and changes to **Hide filters**; hiding it removes those controls from view.
-- The expanded row contains search, filter controls, draw mode and Clear Filters.
+- The expanded row contains **Search people…**, the discipline, client, project and activity filters that apply, **Tentative**, the Work / Time off draw mode for Editors and above, **Show unallocated** while a client, project or activity filter is set, and **Clear Filters**.
 
 ## User flow
 

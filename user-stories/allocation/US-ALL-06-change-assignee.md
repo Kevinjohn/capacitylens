@@ -26,8 +26,8 @@ flowchart TD
   N2["choose another assignee"]
   N3["Save"]
   N4["booking moves to that resource"]
-  B1["Invalid placement or save error ; then  form stays open with error"]
-  B2["Cancel ; then  original assignee remains"]
+  B1["Invalid placement or save error: form stays open with error"]
+  B2["Cancel: original assignee remains"]
   N1 --> N2
   N2 --> N3
   N3 --> N4

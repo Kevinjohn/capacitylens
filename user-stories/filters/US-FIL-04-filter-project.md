@@ -14,8 +14,8 @@ As a company member, I want to filter allocations by project so that I can focus
 
 ## Acceptance criteria
 
-- **Filter by project** limits visible allocations to the selected project.
-- Project choices follow the selected client when a client filter is active; Clear Filters restores the full schedule.
+- **Filter by project** limits visible allocations to the selected project; resources with no matching work are hidden unless **Show unallocated** is checked.
+- With a client selected, the choices are that client’s projects (a project already selected stays listed). Choosing a different client clears a project that does not belong to it; **Clear Filters** restores the full schedule.
 
 ## User flow
 
@@ -23,8 +23,8 @@ As a company member, I want to filter allocations by project so that I can focus
 flowchart TD
   N1["Choose a project"]
   N2["matching allocation bars remain"]
-  B1["Client selected ; then  project choices follow that client"]
-  B2["Clear Filters ; then  full schedule returns"]
+  B1["Client selected: project choices follow that client"]
+  B2["Clear Filters: full schedule returns"]
   N1 --> N2
   N1 -.-> B1
   N1 -.-> B2
