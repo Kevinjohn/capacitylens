@@ -5,7 +5,7 @@ import type { TeamMember } from '@/account/teamAccessClient';
 import { Modal, SelectField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { Link as LinkIcon } from 'lucide-react';
-import { useMemberResourceLinkRequest } from './useMemberResourceLinkRequest';
+import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
 
 interface MemberResourceLinkProps {
   member: TeamMember;
@@ -93,7 +93,7 @@ function MemberResourceEditor({
 }: {
   member: TeamMember;
   workspaceId: string | null;
-  request: ReturnType<typeof useMemberResourceLinkRequest>;
+  request: MemberResourceLinkRequest;
   view: MemberResourceView;
 }) {
   const { pending, error, statusMessage, change } = request;
@@ -156,23 +156,15 @@ export function MemberResourceDialog({
   linkedResourceIds,
   resourceCandidates,
   workspaceId,
-  reload,
-  acceptedReadGeneration,
+  request,
   busy,
 }: MemberResourceLinkProps & {
   workspaceId: string | null;
-  reload(): number;
-  acceptedReadGeneration: number;
+  /** Owned by the members section so it outlives this row and its dialog. */
+  request: MemberResourceLinkRequest;
   busy: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  // The row owns the request so its pending read survives closing and reopening the dialog.
-  const request = useMemberResourceLinkRequest({
-    member,
-    workspaceId,
-    reload,
-    acceptedReadGeneration,
-  });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
   useEffect(() => {

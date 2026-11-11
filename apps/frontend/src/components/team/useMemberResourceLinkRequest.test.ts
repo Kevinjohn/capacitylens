@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamMember } from '@/account/teamAccessClient';
-import { useMemberResourceLinkRequest } from './useMemberResourceLinkRequest';
+import { useMemberResourceLinkRequests } from './useMemberResourceLinkRequest';
 
 const member: TeamMember = {
   userId: 'ed',
@@ -34,7 +34,7 @@ describe('useMemberResourceLinkRequest', () => {
     const reload = vi.fn(() => 1);
     const { result, rerender } = renderHook(
       ({ workspaceId }) =>
-        useMemberResourceLinkRequest({ member, workspaceId, reload, acceptedReadGeneration: 0 }),
+        useMemberResourceLinkRequests({ workspaceId, reload, acceptedReadGeneration: 0 })(member),
       { initialProps: { workspaceId: 'a-studio' as string | null } },
     );
 
@@ -59,12 +59,9 @@ describe('useMemberResourceLinkRequest', () => {
     const reload = vi.fn(() => 3);
     const { result, rerender } = renderHook(
       ({ acceptedReadGeneration }) =>
-        useMemberResourceLinkRequest({
+        useMemberResourceLinkRequests({ workspaceId: 'a-studio', reload, acceptedReadGeneration })(
           member,
-          workspaceId: 'a-studio',
-          reload,
-          acceptedReadGeneration,
-        }),
+        ),
       { initialProps: { acceptedReadGeneration: 1 } },
     );
 

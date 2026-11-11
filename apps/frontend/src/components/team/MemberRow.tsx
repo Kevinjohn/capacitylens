@@ -12,6 +12,7 @@ import { resolveMemberLabel } from './memberConfirmationCopy';
 import type { MemberConfirmationAction } from './memberConfirmationCopy';
 import { MemberResourceDialog, MemberResourceLink } from './MemberResourceLink';
 import { MemberActionsDialog } from './MemberActionsDialog';
+import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
 
 // The server decides `manage` with the Access Control package and authorizes each operation again.
 function buildMemberAffordances(
@@ -179,8 +180,7 @@ export function MemberRow({
   linkedResourceIds,
   resourceCandidates,
   workspaceId,
-  reload,
-  acceptedReadGeneration,
+  resourceLinkRequest,
 }: {
   member: TeamMember;
   myRole: Role | undefined;
@@ -192,8 +192,7 @@ export function MemberRow({
   linkedResourceIds: ReadonlySet<string>;
   resourceCandidates: readonly { resourceId: string; label: string }[];
   workspaceId: string | null;
-  reload(): number;
-  acceptedReadGeneration: number;
+  resourceLinkRequest: MemberResourceLinkRequest;
 }) {
   const affordances = buildMemberAffordances(myRole, member);
   const memberLabel = resolveMemberLabel(member);
@@ -234,8 +233,7 @@ export function MemberRow({
             linkedResourceIds={linkedResourceIds}
             resourceCandidates={resourceCandidates}
             workspaceId={workspaceId}
-            reload={reload}
-            acceptedReadGeneration={acceptedReadGeneration}
+            request={resourceLinkRequest}
             busy={busy}
           />
         }

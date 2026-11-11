@@ -5,7 +5,14 @@ import { m } from '@/i18n';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
 import { resetStoreWithAccount } from '@/test/fixtures';
-import { mockApi, renderSection, waitForMemberRow } from './MembersSection.testSupport';
+import {
+  expectNotice,
+  mockApi,
+  openInactiveGroup,
+  renderSection,
+  saveRoleVia,
+  waitForMemberRow,
+} from './MembersSection.testSupport';
 import type { User } from './MembersSection.testSupport';
 
 vi.mock('@/data/apiConfig', () => ({
@@ -15,6 +22,8 @@ vi.mock('@/data/apiConfig', () => ({
 
 type MembersRead = Awaited<ReturnType<typeof teamAccessClient.listMembers>>;
 type LinkWrite = Awaited<ReturnType<typeof teamAccessClient.setMemberResourceLink>>;
+type UnlinkWrite = Awaited<ReturnType<typeof teamAccessClient.clearMemberResourceLink>>;
+type InvitationsRead = Awaited<ReturnType<typeof teamAccessClient.listInvitations>>;
 type ResourceLink = TeamMember['resourceLink'];
 
 function makeMember(userId: string, name: string, resourceLink: ResourceLink = null): TeamMember {
@@ -32,7 +41,14 @@ function makeMember(userId: string, name: string, resourceLink: ResourceLink = n
   };
 }
 
-function makeRead(links: { ed?: ResourceLink; bea?: ResourceLink } = {}): MembersRead {
+function makeRead(
+  links: { ed?: ResourceLink; bea?: ResourceLink; sam?: ResourceLink } = {},
+): MembersRead {
+  // Sam is suspended, so his row lives in the collapsible inactive group.
+  const suspended =
+    links.sam === undefined
+      ? []
+      : [{ ...makeMember('sam', 'Bruce Banner', links.sam), status: 'suspended' as const }];
   const value: TeamDirectory = {
     signInTrackingEnabled: false,
     resourceCandidates: [
@@ -43,6 +59,7 @@ function makeRead(links: { ed?: ResourceLink; bea?: ResourceLink } = {}): Member
       makeMember('me', 'Selina Kyle'),
       makeMember('ed', 'Clark Kent', links.ed),
       makeMember('bea', 'Barbara Gordon', links.bea),
+      ...suspended,
     ],
   };
   return { kind: 'ok', status: 200, value };
@@ -67,22 +84,28 @@ function holdCalls<T>(): { calls: ((result: T) => void)[]; settleNext(result: T)
   };
 }
 
-function controlRequests() {
+function controlRequests(initialRead = makeRead()) {
   const reads = holdCalls<MembersRead>();
   const writes = holdCalls<LinkWrite>();
+  const unlinks = holdCalls<UnlinkWrite>();
+  // Invitation reads answer at once unless a test holds them.
+  const invitations = { ...holdCalls<InvitationsRead>(), hold: false };
   const listMembers = vi
     .spyOn(teamAccessClient, 'listMembers')
-    .mockResolvedValueOnce(makeRead())
+    .mockResolvedValueOnce(initialRead)
     .mockImplementation(() => new Promise((resolve) => reads.calls.push(resolve)));
-  vi.spyOn(teamAccessClient, 'listInvitations').mockResolvedValue({
-    kind: 'ok',
-    status: 200,
-    value: [],
-  });
+  vi.spyOn(teamAccessClient, 'listInvitations').mockImplementation(() =>
+    invitations.hold
+      ? new Promise((resolve) => invitations.calls.push(resolve))
+      : Promise.resolve({ kind: 'ok', status: 200, value: [] }),
+  );
   const setLink = vi
     .spyOn(teamAccessClient, 'setMemberResourceLink')
     .mockImplementation(() => new Promise((resolve) => writes.calls.push(resolve)));
-  return { reads, writes, listMembers, setLink };
+  vi.spyOn(teamAccessClient, 'clearMemberResourceLink').mockImplementation(
+    () => new Promise((resolve) => unlinks.calls.push(resolve)),
+  );
+  return { reads, writes, unlinks, invitations, listMembers, setLink };
 }
 
 async function openResourceDialog(user: User, email: RegExp): Promise<HTMLElement> {
@@ -93,6 +116,10 @@ async function openResourceDialog(user: User, email: RegExp): Promise<HTMLElemen
 
 function getSelector(dialog: HTMLElement): HTMLElement {
   return within(dialog).getByRole('combobox', { name: /choose Resource/i });
+}
+
+function getRemoveButton(dialog: HTMLElement): HTMLElement {
+  return within(dialog).getByRole('button', { name: /remove Resource link/i });
 }
 
 async function choosePerson(user: User, dialog: HTMLElement, name: string): Promise<void> {
@@ -198,6 +225,28 @@ describe('MembersSection — resource link read fence', () => {
     );
   });
 
+  it('keeps Remove link to resource disabled while sending and refreshing, across reopening', async () => {
+    const user = userEvent.setup();
+    const linked = { resourceId: 'r-bruce', revision: 'rev-1' };
+    const { reads, writes } = controlRequests(makeRead({ ed: linked }));
+    renderSection();
+    const dialog = await openResourceDialog(user, /ed@x\.io/);
+    await choosePerson(user, dialog, 'Diana Prince');
+    expect(getRemoveButton(dialog)).toBeDisabled();
+    await closeDialog(user, dialog);
+
+    const sendingDialog = await openResourceDialog(user, /ed@x\.io/);
+    expect(getRemoveButton(sendingDialog)).toBeDisabled();
+    await writes.settleNext({ kind: 'ok', status: 200, value: diana });
+    expect(getRemoveButton(sendingDialog)).toBeDisabled();
+    await closeDialog(user, sendingDialog);
+
+    const refreshingDialog = await openResourceDialog(user, /ed@x\.io/);
+    expect(getRemoveButton(refreshingDialog)).toBeDisabled();
+    await reads.settleNext(makeRead({ ed: diana }));
+    await waitFor(() => expect(getRemoveButton(refreshingDialog)).toBeEnabled());
+  });
+
   it('clears a finished success on reopen but keeps an unknown outcome', async () => {
     const user = userEvent.setup();
     const { reads, writes } = controlRequests();
@@ -242,6 +291,89 @@ describe('MembersSection — resource link read fence', () => {
     expect(setLink).toHaveBeenCalledTimes(2);
     expect(setLink).toHaveBeenLastCalledWith(
       expect.objectContaining({ resourceId: 'r-bruce', expectedRevision: null }),
+    );
+  });
+
+  it('keeps an unlink pending after its row leaves and returns to the inactive group', async () => {
+    const user = userEvent.setup();
+    const linked = { resourceId: 'r-bruce', revision: 'rev-1' };
+    const { reads, unlinks } = controlRequests(makeRead({ sam: linked }));
+    renderSection();
+    await openInactiveGroup(user);
+    const dialog = await openResourceDialog(user, /sam@x\.io/);
+    await user.click(getRemoveButton(dialog));
+    await unlinks.settleNext({ kind: 'ok', status: 204, value: true });
+    await closeDialog(user, dialog);
+    await user.click(screen.getByTestId('members-inactive-toggle'));
+    await waitFor(() => expect(screen.queryByTestId('members-inactive-table')).toBeNull());
+
+    await openInactiveGroup(user);
+    const reopened = await openResourceDialog(user, /sam@x\.io/);
+    expect(getRemoveButton(reopened)).toBeDisabled();
+    await reads.settleNext(makeRead({ sam: null }));
+    await waitFor(() =>
+      expect(
+        within(reopened).queryByRole('button', { name: /remove Resource link/i }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it('keeps a write that is still sending pending across a failed member read', async () => {
+    const user = userEvent.setup();
+    const { reads, writes, listMembers } = controlRequests();
+    renderSection();
+    // Barbara's finished write requests the read that fails while Clark's write is sending.
+    const beaDialog = await openResourceDialog(user, /bea@x\.io/);
+    await choosePerson(user, beaDialog, 'Diana Prince');
+    await writes.settleNext({ kind: 'ok', status: 200, value: diana });
+    await closeDialog(user, beaDialog);
+    const edDialog = await openResourceDialog(user, /ed@x\.io/);
+    await choosePerson(user, edDialog, 'Bruce Wayne');
+    await closeDialog(user, edDialog);
+    await reads.settleNext({ kind: 'rejected', status: 500, message: null });
+    await user.click(await screen.findByRole('button', { name: m.settings_members_retry() }));
+    await reads.settleNext(makeRead({ bea: diana }));
+
+    const reopened = await openResourceDialog(user, /ed@x\.io/);
+    expect(getSelector(reopened)).toBeDisabled();
+    await writes.settleNext({ kind: 'ok', status: 200, value: bruce });
+    await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(4));
+    expect(getSelector(reopened)).toBeDisabled();
+    await reads.settleNext(makeRead({ ed: bruce, bea: diana }));
+    await waitFor(() => expect(getSelector(reopened)).toBeEnabled());
+  });
+
+  it('ignores a reconciliation read that began before a newer accepted read', async () => {
+    const user = userEvent.setup();
+    const { reads, writes, invitations, setLink } = controlRequests();
+    vi.spyOn(teamAccessClient, 'changeMemberRole').mockResolvedValue({
+      kind: 'unknown',
+      status: 500,
+      message: null,
+    });
+    renderSection();
+    const edDialog = await openResourceDialog(user, /ed@x\.io/);
+    await choosePerson(user, edDialog, 'Bruce Wayne');
+    await closeDialog(user, edDialog);
+
+    // Barbara's uncertain role change reconciles with a read taken before Clark's link lands.
+    invitations.hold = true;
+    await saveRoleVia(user, await waitForMemberRow(/bea@x\.io/), 'Viewer');
+    await waitFor(() => expect(invitations.calls).toHaveLength(1));
+    invitations.hold = false;
+    await reads.settleNext(makeRead());
+    await writes.settleNext({ kind: 'ok', status: 200, value: bruce });
+    await reads.settleNext(makeRead({ ed: bruce }));
+    await invitations.settleNext({ kind: 'ok', status: 200, value: [] });
+    await expectNotice(/./);
+
+    const edRow = await waitForMemberRow(/ed@x\.io/);
+    expect(within(edRow).getByTestId('member-resource-status')).toHaveTextContent('Bruce Wayne');
+    const reopened = await openResourceDialog(user, /ed@x\.io/);
+    await waitFor(() => expect(getSelector(reopened)).toBeEnabled());
+    await choosePerson(user, reopened, 'Diana Prince');
+    expect(setLink).toHaveBeenLastCalledWith(
+      expect.objectContaining({ resourceId: 'r-diana', expectedRevision: 'rev-2' }),
     );
   });
 });
