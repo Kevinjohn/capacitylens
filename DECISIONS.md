@@ -252,6 +252,9 @@ This is the short, present-tense record of decisions that constrain future work.
   and frame protection; HSTS is sent only when the public URL is HTTPS. There is no CSP report
   route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.
+- Logs correlate a request by the framework's `request_id`. The server always generates it (a
+  UUID, echoed in the `X-Request-Id` response header); a client-supplied `X-Request-Id` is
+  discarded before the framework reads it, so no client text becomes the id.
 - Validation and domain errors use the flat `{ error, code? }` contract. Vine runs behind one
   response adapter; the SPA keys its presentation on `code`.
 - Rate limits on authentication and the API use `@adonisjs/limiter`.
@@ -341,6 +344,8 @@ framework defaults; any other departure needs a decision recorded here first.
 8. CSRF is the Origin / Sec-Fetch-Site check, not Shield's XSRF token.
 9. The TanStack Query cache is used for account and admin reads only; planning data lives in the
    Zustand planning slice (see Browser data).
+10. An incoming `X-Request-Id` header is discarded; the request id is always server-generated
+    (see Accounts, admission and security).
 
 ## Installation
 
