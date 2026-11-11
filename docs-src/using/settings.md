@@ -64,8 +64,10 @@ works Monday to Friday and Bruce Wayne works Monday, Wednesday and Friday, his c
 Monday, Wednesday and Friday.
 
 Other days hold no capacity. Bookings skip them and they don't count towards utilisation. You
-can't start new work on them: the hover **+** doesn't appear, and a typed start date, duplicate
-or reassignment is rejected. A booking drawn from a working day may still cross them.
+can't start new work on them: the hover **+** doesn't appear, and new bookings or duplicates
+must start on a working day. Reassignment may start on a non-working day when the booking has
+**Ignore working days** enabled; availability limits still apply. A booking drawn from a working
+day may still cross non-working days.
 [Book on non-working days](/using/schedule-work#book-on-non-working-days) explains **Ignore
 working days**.
 

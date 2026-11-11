@@ -1,10 +1,18 @@
-import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render as renderTestingLibrary,
+  screen,
+  within,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { useStore } from '@/store/useStore';
+import { OwnerPermissions } from '@/test/ownerPermissions';
 import {
-  loadPlanningData,
   makeAppData,
   makeAccount,
   makeClient,
@@ -15,6 +23,7 @@ import {
   makeTimeOff,
   makeClosure,
   DEFAULT_ACCOUNT_ID,
+  resetStoreWithData,
 } from '@/test/fixtures';
 import { ClientList } from '@/components/clients/ClientList';
 import { ProjectList } from '@/components/projects/ProjectList';
@@ -61,6 +70,11 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
   };
 });
 const accountId = DEFAULT_ACCOUNT_ID;
+
+function render(ui: ReactNode) {
+  return renderTestingLibrary(ui, { wrapper: OwnerPermissions });
+}
+
 beforeAll(async () => {
   // Resolve the real lazy editor before testing the lifetime of an opening's pending Save.
   await import('@/components/scheduler/AllocationModal');
@@ -114,11 +128,9 @@ beforeEach(async () => {
       }),
     ],
   });
-  loadPlanningData(data);
-  useStore.getState().setActiveAccount(accountId);
+  await resetStoreWithData(data, accountId);
   useStore.getState().clearFilters();
   useStore.getState().goToDate('2026-06-01');
-  await useStore.getState().refreshPlanning();
 });
 afterEach(() => {
   vi.useRealTimers();

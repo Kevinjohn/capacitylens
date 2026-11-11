@@ -1,3 +1,4 @@
+import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -78,4 +79,12 @@ test('worker slots are bounded and keep each lane in its reserved range', () => 
   for (const slot of [-1, 0.5, 50, NaN, Infinity])
     assert.throws(() => workerPorts(0, slot), RangeError);
   assert.throws(() => workerPorts(10, 0), RangeError);
+});
+
+test('script fixtures use distinct slots within the claimed lane', () => {
+  const slots = Object.values(E2E_SCRIPT_TEST_SLOTS);
+  assert.equal(new Set(slots).size, slots.length);
+  for (const slot of slots) {
+    assert.ok(Number.isInteger(slot) && slot >= 0 && slot < WORKER_SLOTS_PER_LANE);
+  }
 });

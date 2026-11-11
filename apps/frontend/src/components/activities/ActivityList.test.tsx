@@ -1,7 +1,8 @@
-import { archiveForTest } from '@/test/fixtures';
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
+import { AuthContext } from '@/auth/authContext';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, expectTypeOf, vi } from 'vitest';
+import { afterEach, describe, it, expect, beforeEach, expectTypeOf, vi } from 'vitest';
 import {
   act,
   fireEvent,
@@ -22,12 +23,47 @@ import {
 } from '@/test/fixtures';
 import { MemoryRouter } from 'react-router-dom';
 import { OwnerPermissions } from '@/test/ownerPermissions';
+import type { ReactNode } from 'react';
+import { archiveForTest } from '@/test/fixtures';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+
+function TestProviders({ children }: { children: ReactNode }) {
+  return (
+    <AuthContext.Provider
+      value={{
+        authMode: 'password-only',
+        user: { id: 'test-principal' },
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
+    >
+      <OwnerPermissions>{children}</OwnerPermissions>
+    </AuthContext.Provider>
+  );
+}
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
-  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
+  renderTestingLibrary(ui, { wrapper: TestProviders });
+
+function mockInactiveRead() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      const data = structuredClone(useStore.getState().data);
+      const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-01-01T00:00:00.000Z');
+      return Response.json({
+        ...data,
+        clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+      });
+    }),
+  );
+}
+
+afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(async () => {
   await resetStoreWithAccount();
+  mockInactiveRead();
 });
 
 describe('ActivityList', () => {
@@ -65,10 +101,10 @@ describe('ActivityList', () => {
 
   it('focuses the activity selected by a command-palette deep link', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     const selected = await requireCreated(
       useStore.getState().addActivity({
@@ -176,10 +212,10 @@ describe('ActivityList', () => {
   it('adds a project-specific activity under one client and project heading', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     render(<ActivityList />);
 
@@ -207,25 +243,25 @@ describe('ActivityList', () => {
 
   it('groups and sorts project activities by client, project, then activity', async () => {
     const zuluClient = await requireCreated(
-      useStore.getState().addClient({ name: 'Zulu Client', color: '#111' }),
+      useStore.getState().addClient({ name: 'Zulu Client', color: '#2d75da' }),
     );
     const alphaClient = await requireCreated(
-      useStore.getState().addClient({ name: 'Alpha Client', color: '#222' }),
+      useStore.getState().addClient({ name: 'Alpha Client', color: '#76a5e7' }),
     );
     const zuluProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Zulu Project', clientId: alphaClient.id, color: '#333' }),
+        .addProject({ name: 'Zulu Project', clientId: alphaClient.id, color: '#da2d92' }),
     );
     const alphaProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Alpha Project', clientId: alphaClient.id, color: '#444' }),
+        .addProject({ name: 'Alpha Project', clientId: alphaClient.id, color: '#5c34d4' }),
     );
     const otherProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Other Project', clientId: zuluClient.id, color: '#555' }),
+        .addProject({ name: 'Other Project', clientId: zuluClient.id, color: '#9c3ace' }),
     );
     await useStore
       .getState()
@@ -262,9 +298,11 @@ describe('ActivityList', () => {
   it('rejects a project-specific activity with no project chosen', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
-    await useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' });
+    await useStore
+      .getState()
+      .addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' });
     render(<ActivityList />);
 
     await user.click(screen.getByRole('button', { name: 'Add activity' }));
@@ -282,15 +320,22 @@ describe('ActivityList', () => {
 
   it('hides an activity under an archived project', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     await useStore
       .getState()
       .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id });
-    await archiveForTest('projects', project.id);
+    loadPlanningData({
+      ...useStore.getState().data,
+      projects: useStore
+        .getState()
+        .data.projects.map((row) =>
+          row.id === project.id ? { ...row, archivedAt: '2026-01-01T00:00:00.000Z' } : row,
+        ),
+    });
 
     render(
       <MemoryRouter>
@@ -299,7 +344,7 @@ describe('ActivityList', () => {
     );
 
     expect(
-      within(screen.getByTestId('archived-activities-section')).getByText('My Activity'),
+      within(await screen.findByTestId('archived-activities-section')).getByText('My Activity'),
     ).toBeInTheDocument();
     expect(screen.getByText('Hidden because Project Lightning is archived.')).toBeInTheDocument();
     expect(screen.queryByTestId('project-specific-activities')).not.toBeInTheDocument();
@@ -307,15 +352,22 @@ describe('ActivityList', () => {
 
   it('hides an activity whose project belongs to an archived client', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     await useStore
       .getState()
       .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id });
-    await archiveForTest('clients', client.id);
+    loadPlanningData({
+      ...useStore.getState().data,
+      clients: useStore
+        .getState()
+        .data.clients.map((row) =>
+          row.id === client.id ? { ...row, archivedAt: '2026-01-01T00:00:00.000Z' } : row,
+        ),
+    });
 
     render(
       <MemoryRouter>
@@ -324,7 +376,7 @@ describe('ActivityList', () => {
     );
 
     expect(
-      within(screen.getByTestId('archived-activities-section')).getByText('My Activity'),
+      within(await screen.findByTestId('archived-activities-section')).getByText('My Activity'),
     ).toBeInTheDocument();
     expect(screen.getByText('Hidden because Client Ferris is archived.')).toBeInTheDocument();
   });
@@ -367,14 +419,16 @@ describe('ActivityList', () => {
   it('confirms before archiving and shows the activity in its archive section', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
-    await useStore
-      .getState()
-      .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id });
+    const activity = await requireCreated(
+      useStore
+        .getState()
+        .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id }),
+    );
     render(<ActivityList />);
 
     expect(screen.getByTestId('activity-row')).toBeInTheDocument();
@@ -387,6 +441,12 @@ describe('ActivityList', () => {
     expect(useStore.getState().data.activities).toHaveLength(1);
 
     await user.click(screen.getByRole('button', { name: 'Archive My Activity' }));
+    queuePlanningPatch(() => ({
+      upserts: [
+        { entity: 'activities', row: { ...activity, archivedAt: '2026-01-01T00:00:00.000Z' } },
+      ],
+      removed: [],
+    }));
     await user.click(
       within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Archive' }),
     );
@@ -395,17 +455,17 @@ describe('ActivityList', () => {
     expect(useStore.getState().data.activities[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByTestId('activity-row')).not.toBeInTheDocument();
     expect(
-      within(screen.getByTestId('archived-activities-section')).getByText('My Activity'),
+      within(await screen.findByTestId('archived-activities-section')).getByText('My Activity'),
     ).toBeInTheDocument();
   });
 
   it('warns how many allocations an archive would hide from the schedule', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     const activity = await requireCreated(
       useStore
@@ -422,7 +482,7 @@ describe('ActivityList', () => {
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
-        color: '#333333',
+        color: '#da2d92',
       }),
     );
     await useStore.getState().addAllocation({
@@ -462,6 +522,12 @@ describe('ActivityList', () => {
     expect(screen.getByRole('alertdialog')).toHaveTextContent(/Archive activity\?/i);
 
     // A record can become inactive while its archive dialog is open. Rendering the confirmation must then show the base message rather than throw an already-inactive error.
+    queuePlanningPatch(() => ({
+      upserts: [
+        { entity: 'activities', row: { ...activity, archivedAt: '2026-01-01T00:00:00.000Z' } },
+      ],
+      removed: [],
+    }));
     await act(async () => archiveForTest('activities', activity.id));
 
     const dialog = screen.getByRole('alertdialog');
@@ -508,10 +574,10 @@ describe('ActivityList', () => {
   it('keeps the edit form open when its activity vanished during editing', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     const activity = await requireCreated(
       useStore.getState().addActivity({ name: 'A1', kind: 'project', projectId: project.id }),

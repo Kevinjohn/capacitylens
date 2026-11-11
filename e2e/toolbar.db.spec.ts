@@ -230,6 +230,8 @@ function registerUndoesRedoesKeyboardIgnoresShortcutTests() {
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
     await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
+    const undoBtn = page.getByTestId('undo-button');
+    const redoBtn = page.getByTestId('redo-button');
     const before = await page.getByTestId('allocation-bar').count();
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click();
     await page
@@ -241,6 +243,7 @@ function registerUndoesRedoesKeyboardIgnoresShortcutTests() {
       .getByRole('button', { name: 'Delete' })
       .click();
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
+    await expect(undoBtn).toBeEnabled();
 
     await page.getByLabel('Search people').click();
     await page.keyboard.press('Meta+z');
@@ -249,8 +252,11 @@ function registerUndoesRedoesKeyboardIgnoresShortcutTests() {
     await page.getByTestId('scheduler-grid').click({ position: { x: 5, y: 5 } });
     await page.keyboard.press('Meta+z');
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before);
+    // Restored rows can repaint before the controller unlocks Redo.
+    await expect(redoBtn).toBeEnabled();
     await page.keyboard.press('Meta+Shift+z');
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
+    await expect(undoBtn).toBeEnabled();
   });
 }
 

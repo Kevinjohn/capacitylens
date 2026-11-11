@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { render as renderTestingLibrary, screen, within, fireEvent } from '@testing-library/react';
 import { resetStoreWithAccount, makeResource } from '@/test/fixtures';
 import { ExternalResourceSection } from './ExternalResourceSection';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(() => resetStoreWithAccount());
 

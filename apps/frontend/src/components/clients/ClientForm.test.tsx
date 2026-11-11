@@ -1,12 +1,16 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render as renderTestingLibrary, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClientForm } from './ClientForm';
 import { useStore } from '@/store/useStore';
 import { resolveColorName } from '@/lib/palette';
 import { loadPlanningData, resetStoreWithAccount } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -234,7 +238,7 @@ it('updates the client name in the store and calls onClose', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
   const client = await requireCreated(
-    useStore.getState().addClient({ name: 'Old Name', color: '#ff0000' }),
+    useStore.getState().addClient({ name: 'Old Name', color: '#2d75da' }),
   );
   render(<ClientForm client={client} onClose={onClose} />);
 

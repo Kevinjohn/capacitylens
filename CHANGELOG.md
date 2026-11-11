@@ -32,6 +32,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- The schedule applies the company’s first loaded week-start setting after sign-in, including Sunday, while later refreshes preserve the date you are viewing.
+
 - Reassigning a booking with **Ignore working days** now honors the override on the server while retaining availability limits. New bookings still require a working-day start (#1851).
 
 - In the Docker Compose stack, each client now has its own request limits (#1840). Previously every request reached the API from the nginx container, so one client using up the sign-in limit blocked everyone. `CAPACITYLENS_TRUST_PROXY_HEADERS` accepts `private`, which also trusts forwarded headers from private-network peers, and Compose sets it.

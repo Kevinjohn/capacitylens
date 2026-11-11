@@ -22,6 +22,8 @@ import {
 } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { OwnerPermissions } from '@/test/ownerPermissions';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { PlanningControllerError } from '@/data/planning/planningCacheController';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
@@ -454,6 +456,9 @@ it('rejects a stale edit instead of overwriting a concurrent change', async () =
   render(<TimeOffForm timeOff={entry} onClose={onClose} />);
 
   await useStore.getState().updateTimeOff(entry.id, { type: 'sick' });
+  getStubPlanningTransport().failNext(
+    new PlanningControllerError('Time off changed while you were editing.', 'STALE_REVISION', 409),
+  );
   await user.clear(screen.getByLabelText('Note'));
   await user.type(screen.getByLabelText('Note'), 'Edited note');
   await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -466,7 +471,7 @@ it('rejects a stale edit instead of overwriting a concurrent change', async () =
   });
 });
 
-it.each([null, 'owner', 'admin'] as const)('shows Note for role %s', (role) => {
+it.each(['owner', 'admin'] as const)('shows Note for role %s', (role) => {
   render(
     <PermissionContext.Provider value={{ role }}>
       <TimeOffForm onClose={() => {}} />
@@ -474,6 +479,30 @@ it.each([null, 'owner', 'admin'] as const)('shows Note for role %s', (role) => {
   );
 
   expect(screen.getByLabelText('Note')).toBeInTheDocument();
+});
+
+it('hides Note and leaves the existing note unchanged when no membership role applies', async () => {
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  const entry = await requireCreated(
+    useStore.getState().addTimeOff({
+      resourceId: resource.id,
+      startDate: '2026-09-01',
+      endDate: '2026-09-05',
+      type: 'holiday',
+      note: 'Protected note',
+    }),
+  );
+  const writesBeforeSave = getStubPlanningTransport().calls.length;
+  render(
+    <PermissionContext.Provider value={{ role: null }}>
+      <TimeOffForm timeOff={entry} onClose={() => {}} />
+    </PermissionContext.Provider>,
+  );
+
+  expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Save' }));
+  expect(getStubPlanningTransport().calls).toHaveLength(writesBeforeSave);
+  expect(useStore.getState().data.timeOff[0]?.note).toBe('Protected note');
 });
 
 it.each(['editor', 'viewer'] as const)('hides and omits Note for role %s', async (role) => {

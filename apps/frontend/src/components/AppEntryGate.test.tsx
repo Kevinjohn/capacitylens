@@ -1,8 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppEntryGate } from './AppEntryGate';
+import { useStore } from '@/store/useStore';
+
+beforeEach(() => {
+  useStore.setState({
+    accountSummaries: [],
+    accountSummariesComplete: false,
+    accountSummariesAmbiguous: false,
+  });
+});
 
 const baseProps = {
   hydrated: true,
@@ -87,6 +96,12 @@ describe('AppEntryGate connection failures', () => {
   });
 
   it('shows account-directory ambiguity even on the personal Account route', async () => {
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: 'a-studio', name: 'Wayne Enterprises', role: 'owner' },
+        { id: 'a-loft', name: 'Stark Industries', role: 'viewer' },
+      ],
+    });
     render(
       <AppEntryGate
         {...baseProps}

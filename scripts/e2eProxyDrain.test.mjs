@@ -1,3 +1,4 @@
+import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -12,7 +13,7 @@ import { assertE2eProxyDrained, waitForE2eWorkerDrain } from './e2eWorkerRuntime
 
 const frontend = join(process.cwd(), 'apps/frontend');
 const lane = resolveLane();
-const slot = 48;
+const slot = E2E_SCRIPT_TEST_SLOTS.proxy;
 const ports = workerPorts(lane, slot);
 
 test('the Vite drain probe refuses open upstream sockets even when no proxy request is active', async () => {

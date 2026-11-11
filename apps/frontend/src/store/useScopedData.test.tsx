@@ -124,6 +124,16 @@ function twoAccountData(): AppData {
   };
 }
 
+async function activateFixtureAccount(data: AppData, accountId: string): Promise<void> {
+  loadPlanningData(data);
+  useStore.getState().clearPlanning();
+  useStore.getState().setAccountSummaries({
+    list: data.accounts.map(({ id, name }) => ({ id, name, role: 'owner' })),
+  });
+  useStore.getState().setActiveAccount(accountId);
+  expect(await useStore.getState().refreshPlanning({ fresh: true })).toBe(true);
+}
+
 beforeEach(() => {
   loadPlanningData(emptyAppData());
   useStore.getState().setActiveAccount(null);
@@ -162,14 +172,17 @@ describe('scoped data', () => {
 });
 
 describe('scoped data hooks', () => {
-  it('updates useScopedData on account changes without retaining the previous account rows', () => {
-    loadPlanningData(twoAccountData());
-    useStore.getState().setActiveAccount(ACCOUNT_A);
+  it('updates useScopedData on account changes without retaining the previous account rows', async () => {
+    const data = twoAccountData();
+    await act(async () => activateFixtureAccount(data, ACCOUNT_A));
     const { result } = renderHook(() => useScopedData());
 
     expect(result.current.clients.map((client) => client.id)).toEqual(['c-a']);
 
-    act(() => useStore.getState().setActiveAccount(ACCOUNT_B));
+    await act(async () => {
+      useStore.getState().setActiveAccount(ACCOUNT_B);
+      expect(await useStore.getState().refreshPlanning({ fresh: true })).toBe(true);
+    });
 
     expect(result.current.clients.map((client) => client.id)).toEqual(['c-b']);
     expect(result.current.clients).not.toContainEqual(
@@ -177,7 +190,7 @@ describe('scoped data hooks', () => {
     );
   });
 
-  it('projects archived and soft-deleted rows out of active data', () => {
+  it('projects archived and soft-deleted rows out of active data', async () => {
     const data = twoAccountData();
     data.resources.push(
       makeResource({ id: 'r-a-active', accountId: ACCOUNT_A, name: 'Diana Prince' }),
@@ -198,8 +211,7 @@ describe('scoped data hooks', () => {
       archivedAt: '2026-01-01T00:00:00.000Z',
     };
     data.clients[0] = { ...requireValue(data.clients[0]), deletedAt: '2026-01-02T00:00:00.000Z' };
-    loadPlanningData(data);
-    useStore.getState().setActiveAccount(ACCOUNT_A);
+    await act(async () => activateFixtureAccount(data, ACCOUNT_A));
     const { result } = renderHook(() => useActiveScopedData());
 
     expect(result.current.resources.map((resource) => resource.id)).toEqual(['r-a-active']);
@@ -207,9 +219,8 @@ describe('scoped data hooks', () => {
     expect(result.current.projects.map((project) => project.id)).toEqual(['p-a-active']);
   });
 
-  it('preserves the hook projection reference across unrelated store changes', () => {
-    loadPlanningData(twoAccountData());
-    useStore.getState().setActiveAccount(ACCOUNT_A);
+  it('preserves the hook projection reference across unrelated store changes', async () => {
+    await act(async () => activateFixtureAccount(twoAccountData(), ACCOUNT_A));
     const { result } = renderHook(() => useScopedData());
     const before = result.current;
 

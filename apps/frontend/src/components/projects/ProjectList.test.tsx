@@ -1,8 +1,9 @@
-import { archiveForTest } from '@/test/fixtures';
+import type { ReactNode } from 'react';
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
+import { fireEvent, render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProjectList } from './ProjectList';
 import { useStore } from '@/store/useStore';
@@ -14,40 +15,77 @@ import {
   requireValue,
 } from '@/test/fixtures';
 import { MemoryRouter } from 'react-router-dom';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+import { AuthContext } from '@/auth/authContext';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+
+function TestProviders({ children }: { children: ReactNode }) {
+  return (
+    <AuthContext.Provider
+      value={{
+        authMode: 'password-only',
+        user: { id: 'test-principal' },
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
+    >
+      <OwnerPermissions>{children}</OwnerPermissions>
+    </AuthContext.Provider>
+  );
+}
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: TestProviders });
+
+function mockInactiveRead() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      const data = structuredClone(useStore.getState().data);
+      const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-01-01T00:00:00.000Z');
+      return Response.json({
+        ...data,
+        clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+      });
+    }),
+  );
+}
+
+afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(async () => {
   await resetStoreWithAccount();
   useStore.getState().clearFilters();
-  // This suite selects demo mode to exercise local archive mutations without server requests.
+  mockInactiveRead();
 });
 
 describe('ProjectList', () => {
   it('sorts by effective client then effective project name without changing stored order', async () => {
     const zuluClient = await requireCreated(
-      useStore.getState().addClient({ name: 'Zulu Client', color: '#111111' }),
+      useStore.getState().addClient({ name: 'Zulu Client', color: '#2d75da' }),
     );
     const alphaClient = await requireCreated(
-      useStore.getState().addClient({ name: 'Alpha Client', color: '#222222' }),
+      useStore.getState().addClient({ name: 'Alpha Client', color: '#76a5e7' }),
     );
     const alphaZuluProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Alpha Project', clientId: zuluClient.id, color: '#333333' }),
+        .addProject({ name: 'Alpha Project', clientId: zuluClient.id, color: '#da2d92' }),
     );
     const zuluBravoProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Zulu Project', clientId: zuluClient.id, color: '#444444' }),
+        .addProject({ name: 'Zulu Project', clientId: zuluClient.id, color: '#5c34d4' }),
     );
     const betaAlphaProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Beta Project', clientId: alphaClient.id, color: '#555555' }),
+        .addProject({ name: 'Beta Project', clientId: alphaClient.id, color: '#9c3ace' }),
     );
     const betaZuluProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Zulu Project', clientId: alphaClient.id, color: '#666666' }),
+        .addProject({ name: 'Zulu Project', clientId: alphaClient.id, color: '#f5bcbc' }),
     );
 
     loadPlanningData({
@@ -105,11 +143,11 @@ describe('ProjectList', () => {
 
   it('lists a seeded project with its client name', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris Corp', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris Corp', color: '#2d75da' }),
     );
     await useStore
       .getState()
-      .addProject({ name: 'Alpha Project', clientId: client.id, color: '#ec4899' });
+      .addProject({ name: 'Alpha Project', clientId: client.id, color: '#e776b8' });
 
     render(<ProjectList />);
 
@@ -119,10 +157,10 @@ describe('ProjectList', () => {
 
   it('gives repeated project edit controls distinct contextual names', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris Corp', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris Corp', color: '#2d75da' }),
     );
-    await useStore.getState().addProject({ name: 'Alpha', clientId: client.id, color: '#ec4899' });
-    await useStore.getState().addProject({ name: 'Beta', clientId: client.id, color: '#3b82f6' });
+    await useStore.getState().addProject({ name: 'Alpha', clientId: client.id, color: '#e776b8' });
+    await useStore.getState().addProject({ name: 'Beta', clientId: client.id, color: '#1b4f98' });
     render(<ProjectList />);
 
     expect(screen.getByRole('button', { name: 'Edit Alpha' })).toBeInTheDocument();
@@ -133,7 +171,7 @@ describe('ProjectList', () => {
   it('adds a project via the form and displays it with the client name', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris Corp', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris Corp', color: '#2d75da' }),
     );
 
     render(<ProjectList />);
@@ -160,16 +198,16 @@ describe('ProjectList', () => {
     expect(projects[0]?.clientId).toBe(client.id);
   });
 
-  // Archiving a project hides it from active views while retaining activities for restoration. The demo fixture exercises the store path.
+  // Active planning rows stay scoped separately from the server-shaped inactive slice.
   it('shows the Archive ConfirmDialog when the archive button is clicked', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris Corp', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris Corp', color: '#2d75da' }),
     );
     const project = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' }),
+        .addProject({ name: 'Doomed Project', clientId: client.id, color: '#e776b8' }),
     );
     await useStore.getState().addPhase({ name: 'Discovery', projectId: project.id });
 
@@ -189,12 +227,12 @@ describe('ProjectList', () => {
   it('keeps exactly one quote pair around a redacted private code name in confirmation copy', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris Corp', color: '#111111' }),
+      useStore.getState().addClient({ name: 'Ferris Corp', color: '#2d75da' }),
     );
     const created = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Real project', clientId: client.id, color: '#ec4899' }),
+        .addProject({ name: 'Real project', clientId: client.id, color: '#e776b8' }),
     );
     const project = { ...created, name: '"Aurora"', isPrivate: true };
     loadPlanningData({ ...useStore.getState().data, projects: [project] });
@@ -209,11 +247,11 @@ describe('ProjectList', () => {
   it('cancels archival and keeps the project active', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris Corp', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris Corp', color: '#2d75da' }),
     );
     await useStore
       .getState()
-      .addProject({ name: 'Kept Project', clientId: client.id, color: '#ec4899' });
+      .addProject({ name: 'Kept Project', clientId: client.id, color: '#e776b8' });
 
     render(<ProjectList />);
 
@@ -233,12 +271,12 @@ describe('ProjectList', () => {
   it('confirms archival and hides the project from the list (kept in the store)', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris Corp', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris Corp', color: '#2d75da' }),
     );
     const project = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' }),
+        .addProject({ name: 'Doomed Project', clientId: client.id, color: '#e776b8' }),
     );
     await useStore
       .getState()
@@ -249,6 +287,12 @@ describe('ProjectList', () => {
     await user.click(screen.getByRole('button', { name: 'Archive Doomed Project' }));
 
     const dialog = screen.getByRole('alertdialog', { name: 'Archive project?' });
+    queuePlanningPatch(() => ({
+      upserts: [
+        { entity: 'projects', row: { ...project, archivedAt: '2026-01-01T00:00:00.000Z' } },
+      ],
+      removed: [],
+    }));
     await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -258,19 +302,25 @@ describe('ProjectList', () => {
     expect(useStore.getState().data.activities).toHaveLength(1);
     expect(screen.queryByTestId('project-row')).not.toBeInTheDocument();
     expect(
-      within(screen.getByTestId('archived-projects-section')).getByText('Doomed Project'),
+      within(await screen.findByTestId('archived-projects-section')).getByText('Doomed Project'),
     ).toBeInTheDocument();
     expect(screen.getByText('No projects yet.')).toBeInTheDocument();
   });
 
   it('hides a project whose client is archived', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris Corp', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris Corp', color: '#2d75da' }),
     );
     await useStore
       .getState()
-      .addProject({ name: 'Alpha Project', clientId: client.id, color: '#ec4899' });
-    await archiveForTest('clients', client.id);
+      .addProject({ name: 'Alpha Project', clientId: client.id, color: '#e776b8' });
+    const data = useStore.getState().data;
+    loadPlanningData({
+      ...data,
+      clients: data.clients.map((row) =>
+        row.id === client.id ? { ...row, archivedAt: '2026-01-01T00:00:00.000Z' } : row,
+      ),
+    });
 
     render(
       <MemoryRouter>
@@ -280,16 +330,13 @@ describe('ProjectList', () => {
 
     expect(screen.queryByTestId('project-row')).not.toBeInTheDocument();
     expect(
-      within(screen.getByTestId('archived-projects-section')).getByText('Alpha Project'),
+      within(await screen.findByTestId('archived-projects-section')).getByText('Alpha Project'),
     ).toBeInTheDocument();
     expect(screen.getByText('Hidden because Client Ferris Corp is archived.')).toBeInTheDocument();
     expect(screen.getByText('No projects yet.')).toBeInTheDocument();
   });
 
-  // An unresolvable clientId means different things per mode: in server mode the per-account read
-  // strips archived parents from the slice, so it reads as "archived client"; in the demo build the
-  // raw slice retains archived clients, so it is genuinely dangling data and must not be dressed up
-  // as archival.
+  // A dangling client link remains unavailable planning data; it does not prove the parent is archived.
   const seedOrphanProject = () => {
     loadPlanningData(
       makeAppData({
@@ -302,7 +349,7 @@ describe('ProjectList', () => {
             updatedAt: 't',
             name: 'Orphan Project',
             clientId: 'nonexistent-client',
-            color: '#abc',
+            color: '#2d75da',
           },
         ],
       }),

@@ -1,3 +1,5 @@
+import { resetSchedulerView } from '@/store/storeConstants';
+import { readCurrentWeekAnchor } from './schedulerSlice';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator, StoreApi } from 'zustand';
@@ -101,6 +103,9 @@ function publishPlanning(
   return {
     planning,
     data,
+    ...(account && !state.data.accounts.some((row) => row.id === companyId)
+      ? { ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(data, companyId)) }
+      : {}),
     ...(account
       ? {
           accountSummaries: state.accountSummaries.map((summary) =>

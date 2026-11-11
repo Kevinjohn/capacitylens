@@ -135,17 +135,17 @@ export async function runDevelopmentStack({ demo = false } = {}) {
         CAPACITYLENS_MAIL_PASSWORD: '',
         CAPACITYLENS_MAIL_FROM: '',
       });
-      for (const args of [
+      const acePreparations = [
         ['migration:run', '--force', '--no-schema-generate'],
         ['capacitylens:demo:prepare'],
         ['capacitylens:demo:seed'],
+      ].map((args) => ['--dir', 'apps/backend', 'exec', 'node', 'ace.js', ...args]);
+      // A fresh frozen install has no compiled shared-package exports yet.
+      for (const args of [
+        ['--dir', 'packages/shared', 'exec', 'tsc', '--build', 'tsconfig.build.json', '--force'],
+        ...acePreparations,
       ]) {
-        const child = start(
-          'demo preparation',
-          ['--dir', 'apps/backend', 'exec', 'node', 'ace.js', ...args],
-          apiEnvironment,
-          true,
-        );
+        const child = start('demo preparation', args, apiEnvironment, true);
         await new Promise((done, reject) => {
           child.once('exit', (code) =>
             code === 0 ? done() : reject(new Error('Demo preparation failed')),

@@ -1,7 +1,26 @@
 import { test, expect } from './dbFixtures';
 import { API, serverState, requireStateRows } from './serverTestState';
 import { openFirstCompanySetup, finishFirstCompanySetup } from './firstCompanyTestSupport';
+import { settledSchedulerLeftDate } from './browserTestSupport';
+import type { Page } from '@playwright/test';
 import { masqueradeContextHeaders } from './authTestSupport';
+
+async function visibleScheduleWeekday(page: Page): Promise<number> {
+  await settledSchedulerLeftDate(page);
+  const date = await page
+    .getByTestId('scheduler-day-tier')
+    .locator('[data-date]')
+    .evaluateAll((cells) => {
+      const edge = document
+        .querySelector('[data-testid="scheduler-resource-header"]')
+        ?.getBoundingClientRect().right;
+      if (edge === undefined) throw new Error('Schedule header is missing');
+      const first = cells.find((cell) => cell.getBoundingClientRect().right > edge + 1);
+      return first?.getAttribute('data-date');
+    });
+  if (!date) throw new Error('Schedule has no visible date');
+  return new Date(`${date}T12:00:00Z`).getUTCDay();
+}
 
 // The server rejects direct typed updates to frozen account fields. The read-only Settings summary
 // is a convenience; server enforcement also applies when a client bypasses the UI.
@@ -122,6 +141,7 @@ test.describe('first-install calendar settings', () => {
     await zone.selectOption('Europe/London');
     await expect(page.getByRole('button', { name: 'New company', exact: true })).toHaveCount(0);
     await finishFirstCompanySetup(page, 'Queen Industries');
+    await expect.poll(async () => visibleScheduleWeekday(page)).toBe(0);
     await page.getByRole('link', { name: 'Settings', exact: true }).click();
     const summary = page
       .getByRole('heading', { name: 'Company details' })
@@ -133,5 +153,7 @@ test.describe('first-install calendar settings', () => {
     ).toBeVisible();
     await page.reload();
     await expect(summary.getByRole('row', { name: 'Week starts on Sunday' })).toBeVisible();
+    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+    await expect.poll(async () => visibleScheduleWeekday(page)).toBe(0);
   });
 });

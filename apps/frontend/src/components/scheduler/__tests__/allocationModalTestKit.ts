@@ -1,11 +1,15 @@
 import { requireCreated } from '@/test/requireCreated';
 
 import { expect } from 'vitest';
+import { render } from '@testing-library/react';
+import type { RenderOptions } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { OwnerPermissions } from '@/test/ownerPermissions';
 import type userEvent from '@testing-library/user-event';
 import { useStore } from '@/store/useStore';
 import type { AppData, Weekday } from '@capacitylens/shared/types/entities';
 import {
-  loadPlanningData,
+  resetStoreWithData,
   DEFAULT_ACCOUNT_ID,
   makeActivity,
   makeAppData,
@@ -32,6 +36,11 @@ export function closestForm(control: HTMLElement): HTMLFormElement {
   return required(control.closest('form'), 'Expected the allocation control to belong to a form.');
 }
 
+/** Render an ordinary modal as a resolved Owner; tests may still supply inner authority boundaries. */
+export function renderAsOwner(ui: ReactElement, options: Omit<RenderOptions, 'wrapper'> = {}) {
+  return render(ui, { ...options, wrapper: OwnerPermissions });
+}
+
 /** Account fixture ID used by allocation modal tests. */
 export const ACC = DEFAULT_ACCOUNT_ID;
 const originalAddAllocation = useStore.getState().addAllocation;
@@ -41,7 +50,7 @@ const originalAddActivity = useStore.getState().addActivity;
 /** Builds the base account data for allocation modal tests. */
 export function base(): AppData {
   return makeAppData({
-    clients: [makeClient({ accountId: ACC, color: '#111' })],
+    clients: [makeClient({ accountId: ACC, color: '#2d75da' })],
     projects: [
       makeProject({ accountId: ACC }),
       makeProject({ id: 'p2', accountId: ACC, name: 'Other', color: '#06b6d4' }),
@@ -67,15 +76,13 @@ export function restoreStoreAllocationActions(): void {
 /** Resets allocation modal fixtures and patched actions between tests. */
 export async function resetAllocationModalStore(): Promise<void> {
   restoreStoreAllocationActions();
-  loadPlanningData(base());
-  useStore.getState().setActiveAccount(ACC);
-  await useStore.getState().refreshPlanning();
+  await resetStoreWithData(base(), ACC);
   // Enable placeholders for assignment fixtures because the picker hides them by default. A current hidden assignee remains selectable while editing.
   await useStore.getState().updateAccount(ACC, { placeholdersEnabled: true });
 }
 
 /** Builds a person fixture with the supplied display name. */
-export const person = (name: string) => makeResourceDraft({ name, role: 'Dev', color: '#111' });
+export const person = (name: string) => makeResourceDraft({ name, role: 'Dev', color: '#2d75da' });
 
 /** Enables day scheduling for the test account. */
 export const enableDays = (workingDays?: Weekday[]) =>

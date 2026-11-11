@@ -6,7 +6,8 @@ import { existsSync, rmSync } from 'node:fs';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
-import { resolveLane, WORKER_SLOTS_PER_LANE } from './ports.mjs';
+import { resolveLane } from './ports.mjs';
+import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
 import { acquireExclusiveFile, portInUse, terminateProcessTree } from './devProcesses.mjs';
 import {
   configureServerTarget,
@@ -84,7 +85,7 @@ test(
   'company template resets preserve identities and sessions, clear history and honor request drain',
   { timeout: 90_000 },
   async () => {
-    const target = serverTarget(resolveLane(), WORKER_SLOTS_PER_LANE - 1);
+    const target = serverTarget(resolveLane(), E2E_SCRIPT_TEST_SLOTS.reset);
     const release = acquireExclusiveFile(`${target.databasePath}.reset-test.lock`);
 
     const environment = {
@@ -251,6 +252,13 @@ test(
       await entered;
       pending.request.destroy();
       await pending.socketClosed;
+      const activity = await (await fetch(`${target.api}/api/health/e2e-idle`)).json();
+      assert.deepEqual(
+        activity.pendingRequests.map(({ method, path }) => ({ method, path })),
+        [{ method: 'POST', path: '/api/auth/password-confirmation' }],
+        'the drain failure identifies the pending handler without exposing query or body data',
+      );
+      assert.ok(activity.pendingRequests[0].elapsedMs >= 0);
       await assert.rejects(
         assertE2eRequestsDrained(target.api),
         /API has 1 active requests/,

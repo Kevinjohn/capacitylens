@@ -2,28 +2,38 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { SchedulerGrid } from './SchedulerGrid';
 import { useStore } from '@/store/useStore';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
-  loadPlanningData,
   DEFAULT_ACCOUNT_ID,
   makeAllocation,
   makeClosure,
   makeResource,
   makeTimeOff,
+  resetStoreWithData,
 } from '@/test/fixtures';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 import { LAYOUT, laneLayout, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { resolveRowHeightForLanes } from '@/lib/lanePacking';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+function OwnerRouter({ children }: { children: ReactNode }) {
+  return (
+    <OwnerPermissions>
+      <MemoryRouter>{children}</MemoryRouter>
+    </OwnerPermissions>
+  );
+}
 
 const ACC = DEFAULT_ACCOUNT_ID;
 
 // SchedulerGrid calls useNavigate (the empty-state "Go to Resources" CTA), so every render must
 // sit inside a Router.
 function renderGrid() {
-  return render(<SchedulerGrid />, { wrapper: MemoryRouter });
+  return render(<SchedulerGrid />, { wrapper: OwnerRouter });
 }
 
 function scrollSchedulerGridTo(px: number) {
@@ -63,8 +73,7 @@ function dataset(): AppData {
 }
 
 beforeEach(async () => {
-  loadPlanningData(dataset());
-  useStore.getState().setActiveAccount(ACC);
+  await resetStoreWithData(dataset(), ACC);
   useStore.getState().setOriginDate('2026-06-01');
 
   useStore.getState().setZoom(1);
@@ -72,7 +81,6 @@ beforeEach(async () => {
   useStore.getState().setUtilizationPref({ key: 'showTotal', value: true });
   useStore.getState().clearFilters();
   useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }));
-  await useStore.getState().refreshPlanning();
 });
 
 describe('SchedulerGrid', () => {
@@ -106,7 +114,7 @@ describe('SchedulerGrid', () => {
 });
 
 describe('SchedulerGrid', () => {
-  it('keeps the dragged source mounted while vertical windowing exposes a distant target', () => {
+  it('keeps the dragged source mounted while vertical windowing exposes a distant target', async () => {
     const base = dataset();
     const baseResource = base.resources[0];
     const baseAllocation = base.allocations[0];
@@ -118,11 +126,17 @@ describe('SchedulerGrid', () => {
       id: `r${index}`,
       name: `Person ${index}`,
     }));
-    loadPlanningData({
-      ...base,
-      resources,
-      allocations: [{ ...baseAllocation, resourceId: 'r0' }],
-    });
+    await resetStoreWithData(
+      {
+        ...base,
+        resources,
+        allocations: [{ ...baseAllocation, resourceId: 'r0' }],
+      },
+      ACC,
+    );
+    useStore.getState().setOriginDate('2026-06-01');
+    useStore.getState().setZoom(1);
+    useStore.getState().clearFilters();
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
       configurable: true,
       get: () => 1200,
@@ -243,25 +257,30 @@ describe('SchedulerGrid', () => {
 describe('SchedulerGrid', () => {
   it('renders each closure once across tracked rows, alongside personal time off, and stops before External', async () => {
     await useStore.getState().updateAccount(ACC, { externalEnabled: true });
-    loadPlanningData({
-      ...useStore.getState().data,
-      closures: [
-        makeClosure({
-          accountId: ACC,
-          name: 'Long weekend',
-          startDate: '2026-06-05',
-          endDate: '2026-06-08',
-        }),
-      ],
-      timeOff: [
-        makeTimeOff({
-          accountId: ACC,
-          resourceId: 'r1',
-          startDate: '2026-06-05',
-          endDate: '2026-06-08',
-        }),
-      ],
-    });
+    await resetStoreWithData(
+      {
+        ...useStore.getState().data,
+        closures: [
+          makeClosure({
+            accountId: ACC,
+            name: 'Long weekend',
+            startDate: '2026-06-05',
+            endDate: '2026-06-08',
+          }),
+        ],
+        timeOff: [
+          makeTimeOff({
+            accountId: ACC,
+            resourceId: 'r1',
+            startDate: '2026-06-05',
+            endDate: '2026-06-08',
+          }),
+        ],
+      },
+      ACC,
+    );
+    useStore.getState().setOriginDate('2026-06-01');
+    useStore.getState().setZoom(1);
 
     renderGrid();
 
@@ -401,9 +420,8 @@ describe('SchedulerGrid visible-window utilisation', () => {
   }
 
   // Pin origin and focus dates because jsdom leaves the container unmeasured and the visible window otherwise falls back to the current focus date.
-  const renderAtZoom = (zoom: 1 | 2 | 4 | 8) => {
-    loadPlanningData(densityDataset());
-    useStore.getState().setActiveAccount(ACC);
+  const renderAtZoom = async (zoom: 1 | 2 | 4 | 8) => {
+    await resetStoreWithData(densityDataset(), ACC);
     useStore.getState().clearFilters();
     useStore.setState((st) => ({
       ui: {
@@ -419,23 +437,23 @@ describe('SchedulerGrid visible-window utilisation', () => {
   const overallPct = () =>
     Number.parseInt(screen.getByTestId('overall-utilization').textContent, 10);
 
-  it('the week-range toggle changes the overall % to reflect EXACTLY the visible span', () => {
-    const v1 = renderAtZoom(1);
+  it('the week-range toggle changes the overall % to reflect EXACTLY the visible span', async () => {
+    const v1 = await renderAtZoom(1);
     expect(overallPct()).toBe(100);
     v1.unmount();
-    const v2 = renderAtZoom(2);
+    const v2 = await renderAtZoom(2);
     expect(overallPct()).toBe(75);
     v2.unmount();
-    const v4 = renderAtZoom(4);
+    const v4 = await renderAtZoom(4);
     expect(overallPct()).toBe(50);
     v4.unmount();
-    const v8 = renderAtZoom(8);
+    const v8 = await renderAtZoom(8);
     expect(overallPct()).toBe(25);
     v8.unmount();
   });
 
-  it('the label tracks the zoom (no longer a fixed "next 2w")', () => {
-    const v = renderAtZoom(4);
+  it('the label tracks the zoom (no longer a fixed "next 2w")', async () => {
+    const v = await renderAtZoom(4);
     expect(screen.getByText('Utilisation · 4w')).toBeInTheDocument();
     v.unmount();
   });
@@ -462,12 +480,10 @@ describe('SchedulerGrid account-local day rollover', () => {
       hoursPerDay: 9,
       status: 'confirmed',
     });
-    loadPlanningData(data);
-    useStore.getState().setActiveAccount(ACC);
+    await resetStoreWithData(data, ACC);
     useStore.setState((state) => ({
       ui: { ...state.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom: 1 },
     }));
-    await useStore.getState().refreshPlanning();
   });
 
   afterEach(() => {

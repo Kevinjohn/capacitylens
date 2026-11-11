@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { requireCreated } from '@/test/requireCreated';
 import { useStore } from '@/store/useStore';
 import { CompanyClosureSection } from './CompanyClosureSection';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -100,18 +106,27 @@ describe('CompanyClosureSection', () => {
 
   it('confirms deletion and keeps the store mutation undoable', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    await useStore.getState().addClosure({
-      name: 'Summer shutdown',
-      startDate: '2026-08-01',
-      endDate: '2026-08-05',
-    });
+    const closure = await requireCreated(
+      useStore.getState().addClosure({
+        name: 'Summer shutdown',
+        startDate: '2026-08-01',
+        endDate: '2026-08-05',
+      }),
+    );
+    const restoreGroupId = 'closure-restore-group';
     render(<CompanyClosureSection />);
 
     await user.click(screen.getByRole('button', { name: /Delete Summer shutdown closure/ }));
     const dialog = screen.getByRole('alertdialog', { name: 'Delete closure?' });
+    queuePlanningPatch(() => ({ upserts: [], removed: [{ entity: 'closures', id: closure.id }] }), {
+      replacementGroupId: restoreGroupId,
+    });
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
     expect(useStore.getState().data.closures).toHaveLength(0);
 
+    queuePlanningPatch(() => ({ upserts: [{ entity: 'closures', row: closure }], removed: [] }), {
+      consumedGroupId: restoreGroupId,
+    });
     await useStore.getState().undoPlanning();
     expect(useStore.getState().data.closures).toHaveLength(1);
   });

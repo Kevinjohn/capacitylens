@@ -14,7 +14,12 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { PlanningControllerError } from '@/data/planning/planningCacheController';
 import { SchedulerToolbar } from './SchedulerToolbar';
 import { buildEmptyFilters, useStore } from '@/store/useStore';
-import { DEFAULT_ACCOUNT_ID, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  DEFAULT_ACCOUNT_ID,
+  makeResourceDraft,
+  resetStoreWithAccount,
+  resetStoreWithData,
+} from '@/test/fixtures';
 import { chooseOption } from './__tests__/schedulerTestKit';
 import { m } from '@/i18n';
 import { OwnerPermissions } from '@/test/ownerPermissions';
@@ -275,8 +280,10 @@ describe('SchedulerToolbar discipline and client ordering', () => {
 
   it('pins Internal before alphabetically ordered clients', async () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
-    useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
-    await useStore.getState().refreshPlanning();
+    await resetStoreWithData(
+      { ...useStore.getState().data, clients: [internal] },
+      DEFAULT_ACCOUNT_ID,
+    );
     await useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' });
     await useStore.getState().addClient({ name: 'LexCorp', color: '#222' });
     render(<SchedulerToolbar />);
@@ -294,8 +301,10 @@ describe('SchedulerToolbar discipline and client ordering', () => {
 describe('SchedulerToolbar project and activity ordering', () => {
   it('orders projects by effective client name, then effective project name', async () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
-    useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
-    await useStore.getState().refreshPlanning();
+    await resetStoreWithData(
+      { ...useStore.getState().data, clients: [internal] },
+      DEFAULT_ACCOUNT_ID,
+    );
     const queen = await requireCreated(
       useStore.getState().addClient({
         name: 'Queen Consolidated',

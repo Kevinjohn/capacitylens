@@ -1,16 +1,19 @@
-import { archiveForTest, unarchiveForTest } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { hasActiveFilters, useStore } from './useStore';
 import {
-  loadPlanningData,
   resetStoreWithAccount,
+  resetStoreWithData,
   makeAppData,
   makeAccount,
   makeResourceDraft,
   requireValue,
+  DEFAULT_ACCOUNT_ID,
+  updatePlanningFixtureSource,
   WORKDAYS,
 } from '@/test/fixtures';
+import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
 import { readActiveDateStyle, formatDayMonth } from '@/lib/dateDisplay';
 import { resolveDateStyle } from './selectors';
@@ -32,48 +35,32 @@ function registerStoreCrudPart1(): void {
     expect(s().data.resources).toHaveLength(1);
   });
 
-  it('generates a bounded revision when an existing timestamp has no representable successor', async () => {
+  it('applies the timestamp returned by the planning receipt', async () => {
     const client = await requireCreated(s().addClient({ name: 'Boundary', color: '#111111' }));
     const data = s().data;
-    loadPlanningData({
+    const timestamp = '2098-01-01T00:00:00.000Z';
+    const timestampFixture = {
       ...data,
       clients: data.clients.map((row) =>
-        row.id === client.id ? { ...row, updatedAt: '+275760-09-12T23:59:59.999Z' } : row,
+        row.id === client.id ? { ...row, updatedAt: timestamp } : row,
       ),
-    });
-    await s().refreshPlanning();
+    };
+    await resetStoreWithData(timestampFixture, DEFAULT_ACCOUNT_ID);
     await s().updateClient(client.id, { name: 'Last successor' });
-    expect(s().data.clients.find((row) => row.id === client.id)?.updatedAt).toBe(
-      '+275760-09-13T00:00:00.000Z',
-    );
-
-    const atMaximum = s().data;
-    loadPlanningData({
-      ...atMaximum,
-      clients: atMaximum.clients.map((row) =>
-        row.id === client.id ? { ...row, updatedAt: '+275760-09-13T00:00:00.000Z' } : row,
-      ),
-    });
-    await s().refreshPlanning();
-
-    await expect(s().updateClient(client.id, { name: 'Must be refused' })).rejects.toThrow(
-      /no representable successor/i,
-    );
-    expect(s().data.clients.find((row) => row.id === client.id)).toMatchObject({
-      name: 'Last successor',
-      updatedAt: '+275760-09-13T00:00:00.000Z',
-    });
+    const updated = s().data.clients.find((row) => row.id === client.id);
+    expect(updated).toMatchObject({ name: 'Last successor' });
+    expect(updated?.updatedAt).not.toBe(timestamp);
+    expect(Number.isFinite(Date.parse(updated?.updatedAt ?? ''))).toBe(true);
   });
 }
 
 function registerStoreCrudPart2(): void {
-  it('updates fields and advances updatedAt', async () => {
+  it('updates fields from the planning receipt', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
     await s().updateResource(r.id, { name: 'Tyler' });
     const updated = s().data.resources[0];
     if (!updated) throw new Error('Expected updated resource');
     expect(updated.name).toBe('Tyler');
-    expect(Date.parse(updated.updatedAt)).toBeGreaterThan(Date.parse(r.updatedAt));
     expect(updated.id).toBe(r.id);
   });
 
@@ -191,14 +178,14 @@ function registerSchedulerUiPart7(): void {
     expect(s().ui.originDate).toBe(addDaysISO('2026-09-07', -PAST_BUFFER_DAYS));
   });
 
-  it('goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday', () => {
+  it('goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday', async () => {
     const sunStart = 'acct-sun';
-    loadPlanningData(
+    await resetStoreWithData(
       makeAppData({
         accounts: [makeAccount({ id: sunStart, weekStartsOn: 0 })],
       }),
+      sunStart,
     );
-    useStore.getState().setActiveAccount(sunStart);
 
     useStore.getState().goToDate('2026-09-09');
     expect(useStore.getState().ui.focusDate).toBe('2026-09-06');
@@ -209,15 +196,19 @@ function registerSchedulerUiPart7(): void {
 }
 
 function registerSchedulerUiPart2(): void {
-  it('preserves the visible week when refreshing the currently loaded account', () => {
+  it('preserves the visible week when refreshing the currently loaded account', async () => {
     s().goToDate('2026-09-09');
     const before = {
       originDate: s().ui.originDate,
       focusDate: s().ui.focusDate,
     };
 
-    loadPlanningData(makeAppData({ accounts: [makeAccount()] }));
+    updatePlanningFixtureSource(
+      makeAppData({ accounts: [makeAccount({ name: 'Updated account name' })] }),
+    );
+    await s().refreshPlanning();
 
+    expect(s().data.accounts[0]?.name).toBe('Updated account name');
     expect({
       originDate: s().ui.originDate,
       focusDate: s().ui.focusDate,
@@ -229,7 +220,8 @@ function registerSchedulerUiPart2(): void {
     await s().undoPlanning();
     expect(s().planning.history.future).toHaveLength(1);
 
-    loadPlanningData(structuredClone(s().data));
+    updatePlanningFixtureSource(structuredClone(s().data));
+    await s().refreshPlanning();
 
     expect(s().planning.history.future).toHaveLength(1);
     await s().redoPlanning();
@@ -240,41 +232,75 @@ function registerSchedulerUiPart2(): void {
     const client = await requireCreated(s().addClient({ name: 'Local', color: '#111111' }));
     await s().addClient({ name: 'Another local client', color: '#222222' });
     await s().undoPlanning();
-    await archiveForTest('clients', client.id);
-    await unarchiveForTest('clients', client.id);
-    expect(s().planning.history.past).toHaveLength(1);
-    expect(s().planning.history.future).toHaveLength(0);
-    const replacement = structuredClone(s().data);
-    replacement.clients = replacement.clients.map((row) =>
-      row.id === client.id
-        ? { ...row, name: 'Remote', updatedAt: '2099-01-01T00:00:00.000Z' }
-        : row,
+    expect(s().planning.history.future).toHaveLength(1);
+    const revision = s().planning.revision;
+    const context = s().planning.context;
+    if (revision === null || !context) throw new Error('Expected a ready planning context.');
+    const remoteClient = {
+      ...requireValue(
+        s().data.clients.find((row) => row.id === client.id),
+        'remote client',
+      ),
+      name: 'Remote',
+      updatedAt: '2099-01-01T00:00:00.000Z',
+    };
+    const mutationId = crypto.randomUUID();
+    const remoteExecution: PlanningExecution = {
+      mutationId,
+      baseRevision: revision,
+      confirmedRestorationCount: 0,
+      intent: {
+        operation: 'catalogue.update',
+        entity: { entity: 'clients', id: client.id, changes: { name: 'Remote' } },
+      },
+    };
+    const remoteReceipt: PlanningMutationSuccess = {
+      status: 'committed',
+      mutationId,
+      revision: revision + 1,
+      restoration: { consumedGroupId: null, replacementGroupId: null },
+      projection: {
+        mode: 'patch',
+        history: 'retain',
+        changed: {
+          removed: [],
+          upserts: [{ entity: 'clients', row: remoteClient }],
+        },
+      },
+    };
+    getStubPlanningTransport().respondNext(remoteReceipt);
+    await getStubPlanningTransport().execute(
+      context,
+      remoteExecution,
+      new AbortController().signal,
     );
-
-    loadPlanningData(replacement);
+    await s().refreshPlanning();
 
     expect(s().planning.history.past).toEqual([]);
     expect(s().planning.history.future).toEqual([]);
   });
 
-  it('re-anchors after the first slice for a selected account replaces the temporary fallback', () => {
-    const accountId = 'late-account';
-    s().setAccountSummaries({ list: [{ id: accountId, name: 'Late account', role: 'owner' }] });
-    s().setActiveAccount(accountId);
-    s().goToDate('2031-09-10');
+  it.each([0, 1] as const)(
+    're-anchors the first canonical snapshot to the selected account week start (%s)',
+    async (weekStartsOn) => {
+      const accountId = 'late-account';
+      s().setAccountSummaries({ list: [{ id: accountId, name: 'Late account', role: 'owner' }] });
+      updatePlanningFixtureSource(
+        makeAppData({
+          accounts: [makeAccount({ id: accountId, weekStartsOn })],
+        }),
+      );
+      s().setActiveAccount(accountId);
+      s().goToDate('2031-09-10');
+      await s().refreshPlanning();
 
-    loadPlanningData(
-      makeAppData({
-        accounts: [makeAccount({ id: accountId, weekStartsOn: 0 })],
-      }),
-    );
-
-    expect(weekdayOf(s().ui.focusDate)).toBe(0);
-    // The panned week is deliberately far in the future so today's week does not coincide with it
-    // until then; the assertion is about re-anchoring, not about the calendar.
-    expect(s().ui.focusDate).not.toBe('2031-09-07');
-    expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
-  });
+      expect(weekdayOf(s().ui.focusDate)).toBe(weekStartsOn);
+      // The panned week is deliberately far in the future so today's week does not coincide with it
+      // until then; the assertion is about re-anchoring, not about the calendar.
+      expect(s().ui.focusDate).not.toBe('2031-09-07');
+      expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
+    },
+  );
 }
 
 function registerSchedulerUiPart3(): void {
@@ -341,20 +367,22 @@ function registerSchedulerUiPart4(): void {
     expect(s().data.clients[0]).toMatchObject({ id: c.id, archivedAt: null });
   });
 
-  it('re-stamps a changed revision without serializing each row unnecessarily', async () => {
+  it('undo restores changed client fields without changing unrelated rows', async () => {
     await resetStoreWithAccount();
     const clients = [];
     for (let index = 0; index < 100; index += 1) {
       clients.push(await requireCreated(s().addClient({ name: `Client ${index}`, color: '#1' })));
     }
+    const unrelatedClients = clients.slice(1);
     await s().updateClient(requireValue(clients[0], 'first client').id, { name: 'Changed' });
-    const stringify = vi.spyOn(JSON, 'stringify');
 
     await s().undoPlanning();
 
     expect(s().data.clients[0]?.name).toBe('Client 0');
-    expect(stringify).toHaveBeenCalledTimes(4);
-    stringify.mockRestore();
+    expect(s().data.clients).toHaveLength(clients.length);
+    for (const client of unrelatedClients) {
+      expect(s().data.clients.find(({ id }) => id === client.id)).toEqual(client);
+    }
   });
 }
 

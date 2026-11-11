@@ -12,6 +12,7 @@ import {
 } from '@/test/fixtures';
 import { useStore } from './useStore';
 import type { Draft } from './useStore';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import {
   queueAllocationDeleteGroupResponse,
   queueAllocationGroupResponse,
@@ -176,8 +177,12 @@ function registerAtomicAllocationPart4(): void {
     );
     expect(await state().undoPlanning()).toBe(true);
     expect(state().data.allocations).toHaveLength(0);
-    queueAllocationGroupResponse();
+    queueAllocationRestoreResponse(created, 'group-allocation-undo');
     expect(await state().redoPlanning()).toBe(true);
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'planning.restoreGroup',
+      restorationGroupId: 'group-allocation-undo',
+    });
     expect(state().data.allocations.map(({ id }) => id)).toEqual(created.map(({ id }) => id));
   });
 

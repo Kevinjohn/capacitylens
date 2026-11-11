@@ -87,7 +87,9 @@ beforeEach(() => {
 
 describe('usePersonSchedule availability', () => {
   it('builds the current account-local four-week window independently of grid dates', () => {
-    const monday = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }));
+    const monday = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+      wrapper: wrapper({ role: 'owner' }),
+    });
     expect(monday.result.current).toMatchObject({
       kind: 'available',
       model: { window: { startDate: '2026-09-07', endDate: '2026-10-04' } },
@@ -150,8 +152,9 @@ describe('usePersonSchedule calendar rollover', () => {
       allocations: [oldAllocation, newAllocation],
     });
 
-    const { result, rerender } = renderHook(() =>
-      usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }),
+    const { result, rerender } = renderHook(
+      () => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }),
+      { wrapper: wrapper({ role: 'owner' }) },
     );
     expect(calendarToday.timeZone).toBe('Pacific/Kiritimati');
     expect(result.current).toMatchObject({
@@ -212,7 +215,9 @@ describe('usePersonSchedule authorized projection', () => {
         },
       ],
     });
-    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }));
+    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+      wrapper: wrapper({ role: 'owner' }),
+    });
     expect(result.current).toMatchObject({
       kind: 'available',
       model: { title: 'Placeholder — Designer · Design' },
@@ -260,7 +265,9 @@ describe('usePersonSchedule lifecycle', () => {
         }),
       ],
     });
-    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }));
+    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+      wrapper: wrapper({ role: 'owner' }),
+    });
     expect(result.current).toMatchObject({
       kind: 'available',
       model: { entries: [{ note: 'Private' }] },

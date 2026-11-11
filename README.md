@@ -6,7 +6,7 @@
   <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is reassigned to a colleague, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
 </a>
 
-Illustrative October 2026 walkthrough with fictional data. The current server demo requires sign-in and opens one sample company; dates and bookings vary.
+Historical October 2026 walkthrough with fictional data. It shows the former demo’s company picker and switcher, which are absent from the current interface. The current server demo requires sign-in and opens one sample company; dates and bookings vary.
 
 Every small agency answers that question badly. It lives in someone's head, a colour-coded
 spreadsheet, or a group chat at 5pm on a Friday. So work gets promised to people who are already

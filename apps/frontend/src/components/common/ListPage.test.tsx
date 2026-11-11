@@ -1,10 +1,16 @@
 import { loadPlanningData } from '@/test/fixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { OwnerPermissions } from '@/test/ownerPermissions';
 import userEvent from '@testing-library/user-event';
 import { ListPage } from './ui';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
+
+function render(ui: ReactNode) {
+  return rtlRender(ui, { wrapper: OwnerPermissions });
+}
 
 beforeEach(() => {
   loadPlanningData(emptyAppData());

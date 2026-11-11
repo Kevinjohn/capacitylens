@@ -2,11 +2,19 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useStore } from './useStore';
 import { makeClient, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
+import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
   useStore.setState({ activeAccountLoadFailed: null });
 });
+
+function refuseNextPlanningMutation(): void {
+  getStubPlanningTransport().failNext(
+    new PlanningControllerError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
+  );
+}
 
 describe('typed planning domain rejections', () => {
   it("refuses a write while the active company's load failed", async () => {
@@ -59,16 +67,24 @@ describe('typed planning domain rejections', () => {
     ).toEqual([1, 3, 5]);
   });
 
-  it('rejects project attribution supplied for an internal activity', async () => {
+  it('surfaces a server refusal for project attribution on an internal activity', async () => {
+    refuseNextPlanningMutation();
     await expect(
       useStore
         .getState()
         .addActivity({ name: 'Operations', kind: 'internal', projectId: 'project-not-allowed' }),
-    ).rejects.toMatchObject({ code: 'ACTIVITY_PROJECT_FORBIDDEN' });
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'catalogue.create',
+      entity: {
+        entity: 'activities',
+        fields: { name: 'Operations', kind: 'internal', projectId: 'project-not-allowed' },
+      },
+    });
     expect(useStore.getState().data.activities).toHaveLength(0);
   });
 
-  it('rejects supplied placeholder fields outside the ordinary-write defaults', async () => {
+  it('surfaces server refusals for placeholder fields and preserves the prior row', async () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),
     );
@@ -76,16 +92,30 @@ describe('typed planning domain rejections', () => {
       useStore.getState().addProject({ name: 'Batcave', clientId: client.id, color: '#2d75da' }),
     );
     const draft = makeResourceDraft({ kind: 'placeholder', projectId: project.id });
+    refuseNextPlanningMutation();
     await expect(
       useStore.getState().addResource({ ...draft, engagement: 'supplementary' }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'resource.create',
+      fields: { kind: 'placeholder', engagement: 'supplementary' },
+    });
     const placeholder = await requireCreated(useStore.getState().addResource(draft));
+    const historyBefore = useStore.getState().planning.history.past.length;
+    refuseNextPlanningMutation();
     await expect(
       useStore.getState().updateResource(placeholder.id, { engagement: 'supplementary' }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'resource.update',
+      id: placeholder.id,
+      changes: { engagement: 'supplementary' },
+    });
+    refuseNextPlanningMutation();
     await expect(
       useStore.getState().updateResource(placeholder.id, { workingDays: [0, 6], halfDays: [6] }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    expect(useStore.getState().planning.history.past).toHaveLength(historyBefore);
     expect(
       useStore.getState().data.resources.find((row) => row.id === placeholder.id),
     ).toMatchObject({
@@ -107,12 +137,17 @@ describe('typed planning domain rejections', () => {
     expect(useStore.getState().data.timeOff).toHaveLength(0);
   });
 
-  it('keeps the closure-name code after a typed command is rejected', async () => {
+  it('surfaces a server refusal for a blank closure name', async () => {
+    refuseNextPlanningMutation();
     await expect(
       useStore
         .getState()
         .addClosure({ name: '  ', startDate: '2026-12-24', endDate: '2026-12-25' }),
-    ).rejects.toMatchObject({ code: 'CLOSURE_NAME_REQUIRED' });
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'closure.create',
+      fields: { name: '  ', startDate: '2026-12-24', endDate: '2026-12-25' },
+    });
     expect(useStore.getState().data.closures).toHaveLength(0);
   });
 });
