@@ -1,15 +1,11 @@
 import { test, expect } from './dbFixtures';
 import { openApp, selectShadOption } from './browserTestSupport';
-import { resetServer, serverState, requireStateRows } from './serverTestState';
+import { serverState, requireStateRows } from './serverTestState';
 
 // This database-backed project uses VITE_CAPACITYLENS_API, so typed writes persist in SQLite.
 // A record surviving a planning-read reload proves the full UI-to-database round trip.
 
-function registerBeforeEachHooks() {
-  test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: true });
-  });
-}
+function registerBeforeEachHooks() {}
 
 function registerHydratesSeededDatasetServerLoadTest() {
   test('hydrates the seeded dataset from the server on load', async ({ page }) => {

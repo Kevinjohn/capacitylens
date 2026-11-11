@@ -1,15 +1,12 @@
 import { test, expect } from './dbFixtures';
-import { API, resetServer, serverState, requireStateRows } from './serverTestState';
+import { API, serverState, requireStateRows } from './serverTestState';
+import { openFirstCompanySetup, finishFirstCompanySetup } from './firstCompanyTestSupport';
 import { masqueradeContextHeaders } from './authTestSupport';
 
 // The server rejects direct typed updates to frozen account fields. The read-only Settings summary
 // is a convenience; server enforcement also applies when a client bypasses the UI.
 
 test.describe('database-backed onboarding lock (P1.14)', () => {
-  test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: true });
-  });
-
   test('direct PATCHes of changeable frozen fields are rejected and unsupported language is rejected', async ({
     request,
   }) => {
@@ -23,7 +20,7 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
     ] as const;
     let revision = 0;
     for (const [field, initial, target] of changes) {
-      // The demo seed deliberately models legacy accounts with these nullable settings unset.
+      // The fixture deliberately models legacy accounts with these nullable settings unset.
       // Missing frozen fields may be initialized once; only a subsequent change is forbidden.
       const initialized = await request.patch(`${API}/api/accounts/${account.id}/settings`, {
         headers: await masqueradeContextHeaders(request, undefined, API),
@@ -73,10 +70,6 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
 // The E2E fixture contains one company. Production selects it from the server summary and exposes
 // no company picker or switching controls.
 test.describe('single-company production entry', () => {
-  test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: true });
-  });
-
   test('the server-selected company opens directly without a picker or switch control', async ({
     page,
   }) => {
@@ -105,5 +98,38 @@ test.describe('single-company production entry', () => {
 
     const after = await serverState(request);
     expect(requireStateRows(after, 'accounts')).toHaveLength(1);
+  });
+});
+
+// First-install setup captures the one company's fixed calendar convention.
+test.describe('first-install calendar settings', () => {
+  test.use({ contextOptions: { reducedMotion: 'reduce', timezoneId: 'Europe/London' } });
+
+  test('captures week start and time zone, then presents their read-only Settings summary', async ({
+    page,
+    request,
+  }) => {
+    await openFirstCompanySetup(page, request);
+    await expect(page.getByLabel('Week starts on')).toHaveValue('1');
+    const zone = page.getByLabel('Time zone', { exact: true });
+    await expect(zone.getByRole('option', { name: 'GMT (UTC+00:00)', exact: true })).toHaveCount(1);
+    await expect(zone.getByRole('option', { name: /London.*Europe\/London/ })).toHaveCount(1);
+    await zone.selectOption('America/New_York');
+    await expect(zone).toHaveValue('America/New_York');
+    await page.getByLabel('Week starts on').selectOption('0');
+    await zone.selectOption('Europe/London');
+    await expect(page.getByRole('button', { name: 'New company', exact: true })).toHaveCount(0);
+    await finishFirstCompanySetup(page, 'Queen Industries');
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    const summary = page
+      .getByRole('heading', { name: 'Company details' })
+      .locator('xpath=ancestor::*[@data-slot="settings-row"]');
+    await expect(summary.getByRole('row', { name: 'Company name Queen Industries' })).toBeVisible();
+    await expect(summary.getByRole('row', { name: 'Week starts on Sunday' })).toBeVisible();
+    await expect(
+      summary.getByRole('row', { name: /Time zone London.*Europe\/London.*(?:BST|GMT)/ }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(summary.getByRole('row', { name: 'Week starts on Sunday' })).toBeVisible();
   });
 });

@@ -1,13 +1,9 @@
 import { test, expect } from './dbFixtures';
-import { API, resetServer, serverState, requireStateRows } from './serverTestState';
+import { API, serverState, requireStateRows } from './serverTestState';
 import { failRequestsUntilReleased } from './failRequestsUntilReleased';
 import { waitForAppLanding, freezeBrowserDate, openApp } from './browserTestSupport';
 
-function registerBeforeEachHooks() {
-  test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: true });
-  });
-}
+function registerBeforeEachHooks() {}
 
 function registerInitialStateFailurePreventsEditingTest() {
   test('an initial planning read failure prevents a write until reload recovers the real server data', async ({
@@ -54,7 +50,7 @@ function registerFailedSaveStaysVisiblyUnsavedTest() {
     page,
     request,
   }) => {
-    await openApp(page, 'Wayne Enterprises', '/clients');
+    await openApp(page, '/clients');
     const clientPosts: string[] = [];
     page.on('request', (browserRequest) => {
       const path = new URL(browserRequest.url()).pathname;
@@ -98,7 +94,7 @@ function registerFailedSaveStaysVisiblyUnsavedTest() {
     ).toHaveLength(0);
 
     // An unknown commitment cannot be safely replayed. Reload authoritative state, then retry explicitly.
-    await openApp(page, 'Wayne Enterprises', '/clients');
+    await openApp(page, '/clients');
     await page.getByRole('button', { name: 'Add client' }).click();
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Retry Recovery Co');
     await page.getByRole('button', { name: 'Save' }).click();
@@ -113,7 +109,7 @@ function registerFailedSaveStaysVisiblyUnsavedTest() {
       .toBe(1);
     expect(clientPosts).toHaveLength(2);
 
-    await openApp(page, 'Wayne Enterprises', '/clients');
+    await openApp(page, '/clients');
     await expect(
       page.getByTestId('client-row').filter({ hasText: 'Retry Recovery Co' }),
     ).toHaveCount(1);
@@ -126,14 +122,14 @@ function registerStaleConcurrentEditRejectedExplainedTests() {
     request,
     newObservedContext,
   }) => {
-    await openApp(page, 'Wayne Enterprises', '/clients');
+    await openApp(page, '/clients');
     const secondContext = await newObservedContext({ baseURL: new URL(page.url()).origin });
     const secondSignIn = await secondContext.request.post(`${API}/api/auth/sign-in`, {
       data: { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' },
     });
     expect(secondSignIn.status()).toBe(200);
     const secondPage = await secondContext.newPage();
-    await openApp(secondPage, 'Wayne Enterprises', '/clients');
+    await openApp(secondPage, '/clients');
 
     const firstRow = page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' });
     const secondRow = secondPage

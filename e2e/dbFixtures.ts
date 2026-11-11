@@ -19,4 +19,4 @@ export const test = base.extend<{ dbAuthentication: void }>({
 });
 
 export { expect };
-export type { APIRequestContext, Page } from './fixtures';
+export type { APIRequestContext, Locator, Page } from './fixtures';

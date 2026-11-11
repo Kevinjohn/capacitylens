@@ -1,7 +1,7 @@
 import { expect, test } from './dbFixtures';
 import type { APIRequestContext, Page } from './dbFixtures';
 import { openApp } from './browserTestSupport';
-import { API, resetServer } from './serverTestState';
+import { API } from './serverTestState';
 
 type Availability = {
   id: string;
@@ -34,8 +34,7 @@ test('clearing, saving and reloading availability keeps explicit null values', a
   page,
   request,
 }) => {
-  await resetServer({ request, withSeed: true });
-  await openApp(page, 'Wayne Enterprises', '/resources');
+  await openApp(page, '/resources');
   await saveAvailability(page, '2026-06-01', '2026-06-30');
   await expect
     .poll(async () => {
@@ -51,7 +50,7 @@ test('clearing, saving and reloading availability keeps explicit null values', a
       return [row.firstAvailableDate, row.lastAvailableDate];
     })
     .toEqual([null, null]);
-  await openApp(page, 'Wayne Enterprises', '/resources');
+  await openApp(page, '/resources');
   await saveAvailability(page, '2026-06-05', '2026-06-25');
   await expect
     .poll(async () => {
@@ -84,7 +83,7 @@ test('clearing, saving and reloading availability keeps explicit null values', a
       return [row.firstAvailableDate, row.lastAvailableDate];
     })
     .toEqual([null, null]);
-  await openApp(page, 'Wayne Enterprises', '/resources');
+  await openApp(page, '/resources');
   await page
     .getByTestId('resource-row')
     .filter({ hasText: 'Bruce Wayne' })

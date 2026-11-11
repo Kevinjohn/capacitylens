@@ -10,7 +10,7 @@ As an accessibility reviewer, I want key schedule and form screens checked again
 
 **Documentation:** [Help](../../docs-src/using/help.md)
 
-**Source:** [a11y.spec.ts](../../e2e/a11y.spec.ts)
+**Source:** [a11y.spec.ts](../../e2e/a11y.db.spec.ts)
 
 ## Acceptance criteria
 
@@ -33,10 +33,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  spec["e2e/a11y.spec.ts audit cases"] --> render["Playwright opens schedule or Resource dialog"]
+  spec["e2e/a11y.db.spec.ts audit cases"] --> render["Playwright opens schedule or Resource dialog"]
   render --> axe["AxeBuilder scans rendered DOM with WCAG tags"]
   axe --> assert["test asserts no serious or critical violations"]
   ui["AppShell and scheduler render product UI"] -. audited by .-> render
 ```
 
-**Code references:** [a11y.spec.ts](../../e2e/a11y.spec.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx); [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx)
+**Code references:** [a11y.spec.ts](../../e2e/a11y.db.spec.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx); [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx)
