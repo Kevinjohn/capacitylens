@@ -957,3 +957,9 @@ addTimeOff working` → same test now queues `planning.restoreGroup` for redo.
 - `typed undo restores cascade bindings restores an activity phaseId after a phase delete` and
   `typed undo restores cascade bindings restores a resource disciplineId after a discipline
 delete` → same tests now assert canonical server delete/restore receipts and resulting bindings.
+
+## Canonical-load and recovery regressions
+
+`SchedulerView.test.tsx` and `drawModeRerender.test.tsx` retain toolbar, booking visibility and memoization assertions. Both await the canonical fixture read before setting their June viewport; the real first company snapshot may then apply its own week-start convention. The first-load store test covers Sunday and Monday, while later same-company refresh preserves a panned date. The existing first-install browser journey observes the actual visible Sunday date immediately after setup and again after reload.
+
+`AccountAccessRecovery.test.tsx` exercises the actual directory409 state (`complete:false`, `ambiguous:true`) and multiple memberships with both incomplete and complete directory states. Ambiguity takes precedence over loading. `auth-fixture.auth.spec.ts`, “native company fixtures preserve baseline data and unrelated principals across cleanup cycles”, verifies actual two-company native directory refusal renders the installation alert before and after browser reload, with no schedule or company picker.

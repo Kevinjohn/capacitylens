@@ -1,6 +1,7 @@
 import { expect, test } from './fixtures';
 import {
   AUTH_API,
+  AUTH_PASSWORD,
   assertAuthE2EFixturePath,
   bootstrapOrg,
   clearAuthE2ECompanies,
@@ -10,6 +11,7 @@ import {
 
 test('native company fixtures preserve baseline data and unrelated principals across cleanup cycles', async ({
   request,
+  page,
 }) => {
   expect(() => assertAuthE2EFixturePath('/tmp/capacitylens-other.db')).toThrow(
     'Auth E2E fixtures may only access apps/backend/.auth-e2e.db.',
@@ -71,6 +73,21 @@ test('native company fixtures preserve baseline data and unrelated principals ac
     headers: { cookie: first.cookie },
   });
   expect(foreignRead.status()).toBe(403);
+
+  const browserSignIn = await page.context().request.post(`${AUTH_API}/api/auth/sign-in`, {
+    data: { email: first.email, password: AUTH_PASSWORD },
+  });
+  expect(browserSignIn.status()).toBe(200);
+  await page.goto('/');
+  const ambiguity = page.getByRole('alert');
+  await expect(ambiguity).toHaveText(
+    'This installation has more than one company. Contact your administrator to resolve it.',
+  );
+  await expect(page.getByTestId('scheduler-grid')).toHaveCount(0);
+  await page.reload();
+  await expect(ambiguity).toHaveText(
+    'This installation has more than one company. Contact your administrator to resolve it.',
+  );
 
   for (let cycle = 0; cycle < 2; cycle += 1) {
     const baselineBeforeCycle = cycle === 0 ? undefined : readAuthE2EBaselineSnapshot();
