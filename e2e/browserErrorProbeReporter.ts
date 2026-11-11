@@ -105,6 +105,15 @@ const probeDefinitions = new Map<string, ProbeDefinition>([
     },
   ],
   [
+    'page-close-beforeunload-error',
+    {
+      title: 'a true page-close beforeunload ErrorEvent reaches the browser error gate',
+      kind: 'error',
+      eventType: 'error',
+      message: `${gateSentinelPrefix}page-close-beforeunload-error`,
+    },
+  ],
+  [
     'malformed-null-envelope',
     {
       title: 'null observer envelopes produce a structured observer failure',
@@ -244,7 +253,7 @@ export default class BrowserErrorProbeReporter implements Reporter {
         record?.reason !== definition.reason
       ) {
         this.failures.push(
-          `${test.title}: expected exactly one ${definition?.kind ?? 'valid'} record with message ${JSON.stringify(definition?.message)}, got ${records.length} record(s), status ${result.status}, and ${errors.length} result error(s).`,
+          `${test.title}: expected exactly one ${definition?.kind ?? 'valid'} record with message ${JSON.stringify(definition?.message)}, got ${records.length} record(s), status ${result.status}, and ${errors.length} result error(s). Records: ${JSON.stringify(records)}`,
         );
       }
     }
