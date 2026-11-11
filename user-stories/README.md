@@ -8,9 +8,9 @@ or controls they encounter. Historical stories stay discoverable when a feature 
 - [Template](TEMPLATE.md): how to write and maintain a story.
 - [Reference](REFERENCE.md): contexts, shared boundaries and source map.
 
-179 stories across 19 areas. All 132 pre-existing story files and identifiers are retained.
+178 stories across 19 areas. The retired demo company-switching story has been removed.
 
-Every story includes a plain-language user flowchart and a Mermaid diagram of the relevant code path,
+Every story includes a plain-language user flowchart and a Mermaid diagram of the relevant code path
 with links to its implementation sources.
 
 Status describes source-reviewed availability, not a browser test result. See the reference for
@@ -93,7 +93,7 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history   | Current |
 | [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files               | Current |
 | [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload          | Current |
-| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore temporary demo data               | Demo    |
+| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable sample data            | Demo    |
 | [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in transfer | Current |
 | [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation        | Current |
 
@@ -129,29 +129,28 @@ status definitions. Guide and implementation links live with each story; tests r
 
 ## Navigation
 
-| Story                                                          | Action                                           | Status  |
-| -------------------------------------------------------------- | ------------------------------------------------ | ------- |
-| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate permitted sections                      | Current |
-| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | See the active section                           | Current |
-| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Wait for company data                            | Current |
-| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | See planning read and save failures              | Current |
-| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Read and dismiss action notices                  | Current |
-| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Choose appearance                                | Current |
-| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                   | Current |
-| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                    | Current |
-| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen                | Current |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Enter the persisted application                  | Current |
-| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry                  | Current |
-| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                    | Current |
-| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company         | Current |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity    | Current |
-| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour                  | Current |
-| [US-NAV-17](navigation/US-NAV-17-demo-mode.md)                 | Create, switch between, and reset demo companies | Demo    |
-| [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address                | Current |
-| [US-NAV-19](navigation/US-NAV-19-connection-retry.md)          | Retry after a server connection failure          | Hidden  |
-| [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load    | Hidden  |
-| [US-NAV-21](navigation/US-NAV-21-browser-storage-recovery.md)  | Recover unreadable browser storage               | Hidden  |
-| [US-NAV-22](navigation/US-NAV-22-desktop-sidebar-toggle.md)    | Collapse or expand desktop navigation            | Current |
+| Story                                                          | Action                                        | Status  |
+| -------------------------------------------------------------- | --------------------------------------------- | ------- |
+| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate permitted sections                   | Current |
+| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | See the active section                        | Current |
+| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Wait for company data                         | Current |
+| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | See planning read and save failures           | Current |
+| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Read and dismiss action notices               | Current |
+| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Choose appearance                             | Current |
+| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                | Current |
+| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                 | Current |
+| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen             | Current |
+| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Enter the persisted application               | Current |
+| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry               | Current |
+| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                 | Current |
+| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company      | Current |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity | Current |
+| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour               | Current |
+| [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address             | Current |
+| [US-NAV-19](navigation/US-NAV-19-connection-retry.md)          | Retry after a server connection failure       | Hidden  |
+| [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Hidden  |
+| [US-NAV-21](navigation/US-NAV-21-browser-storage-recovery.md)  | Recover unreadable browser storage            | Hidden  |
+| [US-NAV-22](navigation/US-NAV-22-desktop-sidebar-toggle.md)    | Collapse or expand desktop navigation         | Current |
 
 ## Privacy
 

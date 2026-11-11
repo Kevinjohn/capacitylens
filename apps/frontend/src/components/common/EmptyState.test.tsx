@@ -1,3 +1,4 @@
+import { loadPlanningData } from '@/test/fixtures';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { createRef } from 'react';
@@ -7,7 +8,7 @@ import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData());
+  loadPlanningData(emptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setDirtyForm(false);
 });

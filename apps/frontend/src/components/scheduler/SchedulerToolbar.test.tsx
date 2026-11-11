@@ -1,6 +1,13 @@
+import { archiveForTest } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import {
+  render as renderTestingLibrary,
+  screen,
+  waitFor,
+  fireEvent,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
@@ -10,6 +17,10 @@ import { buildEmptyFilters, useStore } from '@/store/useStore';
 import { DEFAULT_ACCOUNT_ID, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
 import { chooseOption } from './__tests__/schedulerTestKit';
 import { m } from '@/i18n';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 function showFilters() {
   fireEvent.click(screen.getByRole('button', { name: 'Show filters' }));
@@ -347,7 +358,7 @@ describe('SchedulerToolbar project client filtering', () => {
     const archived = await requireCreated(
       useStore.getState().addProject({ name: 'Archived work', clientId: lex.id, color: '#666' }),
     );
-    await useStore.getState().archiveEntity('projects', archived.id);
+    await archiveForTest('projects', archived.id);
 
     render(<SchedulerToolbar />);
     showFilters();

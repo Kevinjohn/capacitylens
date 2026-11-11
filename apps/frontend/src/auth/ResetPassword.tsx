@@ -1,7 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
-import { isServerConfigured } from '@/data/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
@@ -18,12 +17,7 @@ import { authClient } from './authClient';
 
 // Password recovery must render before a session exists. The server enforces token consumption and password policy.
 
-type State =
-  | { kind: 'form' }
-  | { kind: 'working' }
-  | { kind: 'done' }
-  | { kind: 'unknown' }
-  | { kind: 'local' };
+type State = { kind: 'form' } | { kind: 'working' } | { kind: 'done' } | { kind: 'unknown' };
 
 interface ResetPasswordViewProps {
   state: State;
@@ -118,7 +112,7 @@ function ResetPasswordView(props: ResetPasswordViewProps) {
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
           <h1 className="text-lg font-semibold text-ink">{m.reset_title()}</h1>
-          {state.kind !== 'done' && state.kind !== 'local' && (
+          {state.kind !== 'done' && (
             <p className="text-sm text-muted-foreground">{m.reset_subtitle()}</p>
           )}
         </div>
@@ -143,11 +137,6 @@ function ResetPasswordView(props: ResetPasswordViewProps) {
                 </div>
               </div>
             )}
-            {state.kind === 'local' && (
-              <p className="text-sm text-muted-foreground">
-                {m.reset_local_mode({ app: APP_NAME })}
-              </p>
-            )}
           </CardContent>
         </Card>
       </main>
@@ -155,12 +144,10 @@ function ResetPasswordView(props: ResetPasswordViewProps) {
   );
 }
 
-/** Redeems a single-use password-reset token and shows the result. A successful reset returns to sign-in through a full reload so authentication is rechecked. Demo mode makes no request. */
+/** Redeems a single-use password-reset token and shows the result. A successful reset returns to sign-in through a full reload so authentication is rechecked. */
 export function ResetPassword() {
   const { token } = useParams<{ token: string }>();
-  const [state, setState] = useState<State>(() =>
-    isServerConfigured() ? { kind: 'form' } : { kind: 'local' },
-  );
+  const [state, setState] = useState<State>({ kind: 'form' });
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);

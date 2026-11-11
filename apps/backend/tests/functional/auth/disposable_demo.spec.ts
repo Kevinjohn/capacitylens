@@ -4,6 +4,7 @@ import type { ApplicationService } from '@adonisjs/core/types';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
 import { prepareDisposableDemo, seedDisposableDemo } from '#services/disposable_demo';
+import { readState } from '#services/state_repository';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { createIdentity, signIn } from '../../helpers/identities.js';
@@ -59,6 +60,12 @@ test.group('disposable development demo', (group) => {
       accounts.map((row) => row.id),
       ['a-studio']
     );
+    const graph = await readState('a-studio', true);
+    assert.deepEqual(
+      graph.accounts,
+      seedForCurrentWeek().accounts.filter((row) => row.id === 'a-studio')
+    );
+    assert.deepEqual(graph.accounts[0]!.workingDays, [1, 2, 3, 4, 5]);
     const membership = await db.from('memberships').firstOrFail();
     assert.equal(membership.scope_id, 'a-studio');
     assert.equal(membership.user_id, owner.id);

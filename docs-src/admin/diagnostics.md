@@ -10,8 +10,7 @@ next: false
 Copy a support report from here and paste it into your problem report.
 
 Only Owners and Admins see **Diagnostics**, below Settings in the left menu, or can find it in the
-command palette. Editors and Viewers who visit `/diagnostics` return to the schedule. When sign-in
-is off, as in the demo, everyone can open it.
+command palette. Editors and Viewers who visit `/diagnostics` return to the schedule. The disposable demo uses the same role checks.
 
 ## Copy a support report
 
@@ -31,8 +30,7 @@ The page shows exactly the text that is copied:
 
 A value the page cannot read shows **Unknown** or **unavailable**. The newest snapshot time is
 **Unknown** when it cannot be read or no snapshot is found. This recorded time does not establish that
-a backup completed successfully, is intact or can be restored. The demo has no server, so its
-server values are always unavailable. If the build provides a revision or feedback address,
+a backup completed successfully, is intact or can be restored. If the build provides a revision or feedback address,
 **Build details** shows it and may include a **Send feedback** link.
 
 Diagnostics does not verify backup health. Operators check service logs and completed snapshots as

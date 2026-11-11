@@ -1,11 +1,13 @@
+import { archiveForTest } from '@/test/fixtures';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProjectList } from './ProjectList';
 import { useStore } from '@/store/useStore';
 import {
+  loadPlanningData,
   DEFAULT_ACCOUNT_ID,
   makeAppData,
   resetStoreWithAccount,
@@ -17,10 +19,7 @@ beforeEach(async () => {
   await resetStoreWithAccount();
   useStore.getState().clearFilters();
   // This suite selects demo mode to exercise local archive mutations without server requests.
-  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
 });
-
-afterEach(() => vi.unstubAllEnvs());
 
 describe('ProjectList', () => {
   it('sorts by effective client then effective project name without changing stored order', async () => {
@@ -51,7 +50,7 @@ describe('ProjectList', () => {
         .addProject({ name: 'Zulu Project', clientId: alphaClient.id, color: '#666666' }),
     );
 
-    useStore.getState().replaceAll({
+    loadPlanningData({
       ...useStore.getState().data,
       clients: useStore
         .getState()
@@ -198,7 +197,7 @@ describe('ProjectList', () => {
         .addProject({ name: 'Real project', clientId: client.id, color: '#ec4899' }),
     );
     const project = { ...created, name: '"Aurora"', isPrivate: true };
-    useStore.getState().replaceAll({ ...useStore.getState().data, projects: [project] });
+    loadPlanningData({ ...useStore.getState().data, projects: [project] });
     render(<ProjectList />);
 
     await user.click(screen.getByRole('button', { name: 'Archive "Aurora"' }));
@@ -271,7 +270,7 @@ describe('ProjectList', () => {
     await useStore
       .getState()
       .addProject({ name: 'Alpha Project', clientId: client.id, color: '#ec4899' });
-    useStore.getState().archiveEntity('clients', client.id);
+    await archiveForTest('clients', client.id);
 
     render(
       <MemoryRouter>
@@ -292,7 +291,7 @@ describe('ProjectList', () => {
   // raw slice retains archived clients, so it is genuinely dangling data and must not be dressed up
   // as archival.
   const seedOrphanProject = () => {
-    useStore.getState().replaceAll(
+    loadPlanningData(
       makeAppData({
         projects: [
           {
@@ -311,16 +310,7 @@ describe('ProjectList', () => {
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   };
 
-  it('server mode retains a project whose client resolves nowhere', () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
-    seedOrphanProject();
-
-    render(<ProjectList />);
-
-    expect(screen.getByText('Orphan Project')).toBeInTheDocument();
-  });
-
-  it('demo mode also retains a project whose client resolves nowhere', () => {
+  it('retains a project whose client resolves nowhere', () => {
     seedOrphanProject();
 
     render(<ProjectList />);

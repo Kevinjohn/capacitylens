@@ -54,13 +54,12 @@ flowchart TD
   B -->|valid| C["allocationSlice.updateAllocation"]
   B -->|invalid or stale| I["Form error; saved row remains"]
   C --> D["Planning cache controller executes command"]
-  D --> E["createStorePlanningTransport selects server HTTP or demo memory transport"]
-  E -->|server| F["planningTransport sends api.planning.allocation.update"]
+  D --> E["createStorePlanningTransport uses the server HTTP transport"]
+  E --> F["planningTransport sends api.planning.allocation.update"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
   J --> I["Form error; draft remains available"]
   F --> G["PlanningController.mutatePlanning executes scoped writeRow"]
   G --> H["Acknowledgement reconciles store; Schedule redraws"]
-  E -->|demo| H
 ```
 
 **Code references:**
@@ -73,7 +72,6 @@ flowchart TD
 
 - [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
 - [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
-- [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts)
 - [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
 - [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
 - [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)

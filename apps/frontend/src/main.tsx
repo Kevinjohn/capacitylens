@@ -12,8 +12,6 @@ import { AuthProvider } from './auth/AuthProvider';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useStore } from './store/useStore';
 import { retireBrowserSnapshots } from './data/retireBrowserSnapshots';
-import { isDemoMode } from './data/apiConfig';
-import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { APP_NAME } from '@capacitylens/shared/brand';
 import { applyThemeToDom, watchSystemTheme } from './lib/theme';
 
@@ -31,7 +29,6 @@ let dataStarted = false;
 function startData(): void {
   if (dataStarted) return;
   dataStarted = true;
-  if (isDemoMode()) useStore.getState().replaceAll(seedForCurrentWeek());
   useStore.getState().setHydrated(true);
 }
 

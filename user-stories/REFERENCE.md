@@ -1,7 +1,7 @@
 # Story reference
 
 Stories describe user intent and the fields or controls a person encounters. The
-[coverage matrix](COVERAGE.md) inventories current and retained capabilities;
+[coverage matrix](COVERAGE.md) inventories current and retained capabilities
 [decision gaps](GAPS.md) distinguishes documentation omissions from differences against the
 agreed product. [DECISIONS.md](../DECISIONS.md) remains authoritative for the target behavior.
 
@@ -10,7 +10,7 @@ agreed product. [DECISIONS.md](../DECISIONS.md) remains authoritative for the ta
 - **Current**: exposed in the product, subject to its role, configuration and feature conditions.
 - **Hidden**: retained implementation with its ordinary entry point hidden.
 - **Removed**: historical capability with no current product entry point.
-- **Demo**: available only in the temporary in-memory demonstration.
+- **Demo**: available only through the disposable sample-data command.
 - **Operator**: hosting or recovery procedure outside the application UI.
 - **Planned**: agreed target for which an ordinary product journey is absent.
 
@@ -35,12 +35,12 @@ from missing controls. See [the template](TEMPLATE.md#diagram-conventions) for m
 - Signed-in people can manage their own account. Confirmation, admission and membership may limit
   access to company screens. A schedulable resource is separate from an account or membership.
 - View-as-member is read-only. Device display preferences and navigation do not grant write access.
-- The server-backed product has one company. Only the demo offers temporary company creation and
-  switching. Demo planning resets on reload and is not evidence for authentication or persistence.
-- Feature switches can hide disciplines, placeholders, external parties, inline activity creation,
+- The product serves one company. The disposable demo uses the real server and sign-in; changes
+  survive refresh and reset on command restart.
+- Feature switches can hide disciplines, placeholders, external parties, inline activity creation
   Task and Overview. An absence caused by a configured switch is not a removed feature.
 
-Source of role authority: [shared permissions](../packages/shared/src/domain/access.ts),
+Source of role authority: [shared permissions](../packages/shared/src/domain/access.ts)
 [company abilities](../apps/backend/app/services/auth/authorization.ts) and each action's server
 handler. A story's role label is descriptive; the server owns enforcement.
 
@@ -91,5 +91,5 @@ These apply across stories without repeating a technical checklist in every form
 - Password sign-in is the only method. Password change/reset ends every session. Sensitive
   company actions require their own password confirmation; it is not a generic freshness window.
 
-For full rules and any departures, follow [DECISIONS.md](../DECISIONS.md). For runnable validation,
+For full rules and any departures, follow [DECISIONS.md](../DECISIONS.md). For runnable validation
 use the existing tests and [testing guide](../docs-src/reference/how-it-is-tested.md).

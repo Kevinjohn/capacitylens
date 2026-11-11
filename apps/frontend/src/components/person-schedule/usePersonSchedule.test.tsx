@@ -8,6 +8,7 @@ import { PermissionContext } from '@/auth/permissionContext';
 import type { PermissionContextValue } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
 import {
+  loadPlanningData,
   makeAccount,
   makeActivity,
   makeAllocation,
@@ -29,15 +30,14 @@ vi.mock('@/components/scheduler/useCalendarToday', () => ({
 function wrapper({
   role = null,
   status = role === null ? 'not-applicable' : 'resolved',
-  authMode = 'off',
+  authMode = 'password-only',
 }: PermissionContextValue & { authMode?: AccountMode }) {
   return function Wrapper({ children }: PropsWithChildren) {
     return (
       <AuthContext.Provider
         value={{
           authMode,
-          user: authMode === 'off' ? null : { id: 'viewer' },
-          canCreateAccount: true,
+          user: { id: 'viewer' },
           refreshAuth: async () => {},
           signOut: async () => {},
         }}
@@ -65,7 +65,7 @@ function withoutName(value: Resource): Resource {
 const activity = withoutProjectId(makeActivity({ id: 't1', accountId: 'a1', kind: 'internal' }));
 
 function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
-  useStore.getState().replaceAll(
+  loadPlanningData(
     makeAppData({
       accounts: [makeAccount({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 1 })],
       resources: [resource],

@@ -3,7 +3,6 @@ import {
   clearJoinedAccountHandoff,
   buildJoinedAccountEntryPath,
   readJoinedAccountHandoff,
-  replaceWithAccountPicker,
   replaceWithJoinedAccount,
 } from './joinedAccountHandoff';
 
@@ -54,18 +53,5 @@ describe('navigation boundaries', () => {
 
     expect(replace).toHaveBeenCalledOnce();
     expect(replace).toHaveBeenCalledWith('/?joinedAccount=account-1');
-  });
-
-  it('replaces the current page with the root account picker', () => {
-    const replace = vi.fn();
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: { ...realLocation, replace },
-    });
-
-    replaceWithAccountPicker();
-
-    expect(replace).toHaveBeenCalledOnce();
-    expect(replace).toHaveBeenCalledWith('/');
   });
 });

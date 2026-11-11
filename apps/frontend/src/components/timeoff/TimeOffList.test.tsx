@@ -1,6 +1,14 @@
+import { archiveForTest } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { act, render, screen, within, fireEvent, waitFor } from '@testing-library/react';
+import {
+  act,
+  render as renderTestingLibrary,
+  screen,
+  within,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TimeOffList } from './TimeOffList';
 import { TimeOffForm } from './TimeOffForm';
@@ -13,6 +21,10 @@ import {
   setPlaceholdersEnabled,
 } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 const resourceDraft = {
   kind: 'person' as const,
@@ -207,7 +219,7 @@ it('hides archived resources and their retained time off', async () => {
     endDate: '2026-08-05',
     type: 'holiday',
   });
-  useStore.getState().archiveEntity('resources', resource.id);
+  await archiveForTest('resources', resource.id);
 
   render(<TimeOffList />);
 

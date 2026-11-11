@@ -4,7 +4,7 @@ As an Owner, Admin, or Editor, I want visible first-schedule milestones so that 
 
 **Status:** Current
 
-**Access:** Owner, Admin, Editor; demo/local mode has no membership role; Viewer does not see the Getting Started panel
+**Access:** Owner, Admin, Editor; Viewer does not see the Getting Started panel
 
 **Entry:** Getting Started panel and its milestone links
 

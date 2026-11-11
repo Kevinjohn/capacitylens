@@ -6,6 +6,7 @@ import { SchedulerGrid } from './SchedulerGrid';
 import { useStore } from '@/store/useStore';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
+  loadPlanningData,
   DEFAULT_ACCOUNT_ID,
   makeAllocation,
   makeClosure,
@@ -62,7 +63,7 @@ function dataset(): AppData {
 }
 
 beforeEach(async () => {
-  useStore.getState().replaceAll(dataset());
+  loadPlanningData(dataset());
   useStore.getState().setActiveAccount(ACC);
   useStore.getState().setOriginDate('2026-06-01');
 
@@ -117,7 +118,7 @@ describe('SchedulerGrid', () => {
       id: `r${index}`,
       name: `Person ${index}`,
     }));
-    useStore.getState().replaceAll({
+    loadPlanningData({
       ...base,
       resources,
       allocations: [{ ...baseAllocation, resourceId: 'r0' }],
@@ -242,7 +243,7 @@ describe('SchedulerGrid', () => {
 describe('SchedulerGrid', () => {
   it('renders each closure once across tracked rows, alongside personal time off, and stops before External', async () => {
     await useStore.getState().updateAccount(ACC, { externalEnabled: true });
-    useStore.getState().replaceAll({
+    loadPlanningData({
       ...useStore.getState().data,
       closures: [
         makeClosure({
@@ -401,7 +402,7 @@ describe('SchedulerGrid visible-window utilisation', () => {
 
   // Pin origin and focus dates because jsdom leaves the container unmeasured and the visible window otherwise falls back to the current focus date.
   const renderAtZoom = (zoom: 1 | 2 | 4 | 8) => {
-    useStore.getState().replaceAll(densityDataset());
+    loadPlanningData(densityDataset());
     useStore.getState().setActiveAccount(ACC);
     useStore.getState().clearFilters();
     useStore.setState((st) => ({
@@ -461,7 +462,7 @@ describe('SchedulerGrid account-local day rollover', () => {
       hoursPerDay: 9,
       status: 'confirmed',
     });
-    useStore.getState().replaceAll(data);
+    loadPlanningData(data);
     useStore.getState().setActiveAccount(ACC);
     useStore.setState((state) => ({
       ui: { ...state.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom: 1 },

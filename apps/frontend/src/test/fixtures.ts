@@ -13,9 +13,13 @@ import type {
   Weekday,
 } from '@capacitylens/shared/types/entities';
 import type { Draft } from '@/store/useStore';
+import type { LifecycleEntity } from '@/store/entityDrafts';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { resetPlanningTransport } from '@/test/planningTransportHandle';
+import {
+  resetPlanningTransport,
+  updatePlanningFixtureSource as updatePlanningFixtureSourceHandle,
+} from '@/test/planningTransportHandle';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
 
 // Shared fixtures establish an active account so scoped store mutations have a valid tenant.
@@ -194,26 +198,71 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
   };
 }
 
+/** Load test rows explicitly into both the response stub and the frontend cache. */
+export function loadPlanningData(data: AppData): void {
+  const companyId = useStore.getState().activeAccountId ?? data.accounts[0]?.id ?? 'unit-fixture';
+  resetPlanningTransport(companyId, data, useStore);
+  useStore.setState({ data: structuredClone(data) });
+}
+
+/** Reset test data and authority, then wait for the selected canonical company snapshot. */
+export function resetStoreWithData(
+  data: AppData,
+  accountId: ID = data.accounts[0]?.id ?? DEFAULT_ACCOUNT_ID,
+): Promise<boolean> {
+  const account = data.accounts.find(({ id }) => id === accountId);
+  if (!account) throw new Error(`The fixture data must contain account ${accountId}.`);
+  useStore.getState().clearPlanning();
+  resetPlanningTransport(accountId, data, useStore);
+  useStore.getState().setAccountSummaries({
+    list: [{ id: accountId, name: account.name, role: 'owner' }],
+  });
+  useStore.getState().setNotice(null);
+  useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
+  useStore.getState().setActiveAccount(accountId);
+  useStore.getState().setActiveRole('owner');
+  return useStore.getState().refreshPlanning({ fresh: true });
+}
+
+/** Exercise lifecycle presentation from a canonical typed-planning response. */
+export function archiveForTest(entity: LifecycleEntity, id: ID): Promise<void> {
+  const intent =
+    entity === 'resources'
+      ? { operation: 'resource.archive' as const, id }
+      : { operation: 'catalogue.archive' as const, entity: { entity, id } };
+  return useStore.getState().sendPlanningCommand({ intent, inverse: null });
+}
+
+/** Exercise lifecycle presentation from a canonical typed-planning response. */
+export function unarchiveForTest(entity: LifecycleEntity, id: ID): Promise<void> {
+  const intent =
+    entity === 'resources'
+      ? { operation: 'resource.unarchive' as const, id }
+      : { operation: 'catalogue.unarchive' as const, entity: { entity, id } };
+  return useStore.getState().sendPlanningCommand({ intent, inverse: null });
+}
+
 /** Reset the store to a clean single-account state with that account active.
  * Use in beforeEach so `add*` (which requires an active account) works. The returned promise
  * settles once the planning cache has read the account, so allocation writes can begin. */
 export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promise<boolean> {
   const account = makeAccount({ id: accountId });
-  const data = makeAppData({ accounts: [account] });
-  useStore.getState().clearPlanning();
-  resetPlanningTransport(accountId, data, useStore.getState().data);
-  useStore.getState().setAccountSummaries({
-    list: [{ id: accountId, name: account.name, role: 'owner' }],
-  });
-  useStore.getState().setActiveAccount(accountId);
-  // Clear transient notices so the singleton store cannot leak another test’s toast.
-  useStore.getState().setNotice(null);
-  // Clear transient announcements and membership state so singleton fixtures remain order-independent.
-  useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
-  // Likewise reset the transient access role so a prior viewer-guard test can't leave the
-  // singleton store in 'viewer' and silently no-op the next spec's mutations. Default = editable.
-  useStore.getState().setActiveRole(null);
-  return useStore.getState().refreshPlanning({ fresh: true });
+  return resetStoreWithData(makeAppData({ accounts: [account] }), accountId);
+}
+
+/** Change test-only canonical rows while preserving the store's planning revision and history. */
+export function updatePlanningFixtureSource(data: AppData): void {
+  updatePlanningFixtureSourceHandle(data, useStore);
+}
+
+/** Replace test fixture rows and synchronize the next canonical read source. */
+export function replaceFixtureData(data: AppData): void {
+  const state = useStore.getState();
+  useStore.setState({ data: structuredClone(data) });
+  updatePlanningFixtureSource(data);
+  if (state.activeAccountId && !data.accounts.some(({ id }) => id === state.activeAccountId)) {
+    useStore.getState().setActiveAccount(null);
+  }
 }
 
 type SetPlaceholdersEnabledOptions = { on: boolean; accountId?: ID };

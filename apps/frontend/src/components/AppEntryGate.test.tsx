@@ -8,14 +8,13 @@ const baseProps = {
   hydrated: true,
   connectionError: false,
   loadError: false,
-  demoAuthActive: false,
   hasActiveAccount: true,
+  ambiguousAccountDirectory: false,
   allowWithoutActiveAccount: false,
   activeAccountId: 'a-studio',
   activeAccountLoadFailed: null,
   activeAccountName: 'Wayne Enterprises',
   onRetryActiveAccountLoad: () => Promise.resolve(true),
-  onChooseAnotherAccount: () => undefined,
   children: <div>application shell</div>,
 };
 
@@ -87,17 +86,29 @@ describe('AppEntryGate connection failures', () => {
     expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
   });
 
+  it('shows account-directory ambiguity even on the personal Account route', async () => {
+    render(
+      <AppEntryGate
+        {...baseProps}
+        hasActiveAccount={false}
+        allowWithoutActiveAccount
+        ambiguousAccountDirectory
+      />,
+    );
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText('application shell')).not.toBeInTheDocument();
+  });
+
   it('shows production account recovery without a company chooser, including on the Account route', async () => {
     const user = userEvent.setup();
     const retry = vi.fn().mockResolvedValue(true);
-    const chooseAnother = vi.fn();
     render(
       <AppEntryGate
         {...baseProps}
         allowWithoutActiveAccount
         activeAccountLoadFailed="a-studio"
         onRetryActiveAccountLoad={retry}
-        onChooseAnotherAccount={chooseAnother}
       />,
     );
 
@@ -110,22 +121,6 @@ describe('AppEntryGate connection failures', () => {
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(retry).toHaveBeenCalledTimes(1);
-    expect(chooseAnother).not.toHaveBeenCalled();
-  });
-
-  it('keeps the company chooser available in the volatile demo recovery flow', () => {
-    const chooseAnother = vi.fn();
-    render(
-      <AppEntryGate
-        {...baseProps}
-        demoAuthActive
-        allowWithoutActiveAccount
-        activeAccountLoadFailed="a-studio"
-        onChooseAnotherAccount={chooseAnother}
-      />,
-    );
-
-    expect(screen.getByRole('button', { name: 'Choose another company' })).toBeInTheDocument();
   });
 
   it('shows an inline notice when a retry from account recovery fails', async () => {

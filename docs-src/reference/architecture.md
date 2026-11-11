@@ -182,10 +182,9 @@ in the browser, and nothing is persisted.
 
 - `apps/frontend/src/data/planning/planningCommands.ts` builds intent and inverse pairs from a
   gesture. A build with no difference returns `null` and nothing is sent.
-- Two transports implement one interface: HTTP in
-  `apps/frontend/src/data/planning/planningTransport.ts` and the volatile in-memory demo in
-  `apps/frontend/src/data/planning/volatilePlanningTransport.ts`, which reproduces the server's
-  revision, idempotency, refusal and lookup behaviour.
+- Runtime planning uses HTTP in `apps/frontend/src/data/planning/planningTransport.ts`. Unit tests
+  use an explicit response stub without planning rules; shared domain, backend and browser tests
+  cover scheduling and mutation rules against the server.
 - Wire types come from the generated Tuyau route registry through
   `apps/frontend/src/api/planningContracts.ts`. They are type aliases only; the backend Vine
   validators are the only runtime schema.
@@ -210,7 +209,6 @@ Controller statuses are `idle`, `loading`, `ready`, `pending`, `refused`, `uncer
 | uncertain | lookup `unknown` or lookup fails | `uncertain` |
 | uncertain | canonical read fails | `error`; the write stays `uncertain` and writes stay locked until a lookup proves the commit or the context changes |
 | ready, refused | Undo or Redo with an eligible entry | `pending` with a fresh `mutationId` |
-| any | demo import | `ready` at the imported revision |
 
 These transitions are pinned in `apps/frontend/src/data/planning/planningCacheController.test.ts`,
 `apps/frontend/src/data/planning/planningCacheController.access.test.ts`,
@@ -221,7 +219,7 @@ These transitions are pinned in `apps/frontend/src/data/planning/planningCacheCo
 `apps/frontend/src/data/planning/planningCacheController.writeTransitions.test.ts`,
 `apps/frontend/src/data/planning/restorationConfirmation.test.ts`,
 `apps/frontend/src/data/planning/typedPlanningFlow.test.ts`,
-`apps/frontend/src/data/planning/volatilePlanningTransport.test.ts`,
+`apps/frontend/src/test/createTestPlanningTransport.test.ts`,
 `apps/frontend/src/store/useStore.planningOwnership.test.ts` and
 `apps/frontend/src/components/ImportExport.test.tsx`.
 

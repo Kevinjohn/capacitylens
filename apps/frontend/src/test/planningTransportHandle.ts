@@ -1,10 +1,13 @@
 import type { PlanningTransport } from '@/data/planning/planningCacheController';
 import type { AppData } from '@capacitylens/shared/types/entities';
+import type { StubPlanningTransport } from './planning/stubPlanningTransport';
 
 interface TestPlanningTransportHandle {
   transport: PlanningTransport;
-  readData: () => AppData;
+  stub: StubPlanningTransport;
+  owner?: object;
   reset: (companyId: string, data: AppData) => void;
+  updateSource: (data: AppData) => void;
 }
 
 let handle: TestPlanningTransportHandle | undefined;
@@ -21,13 +24,25 @@ export function getPlanningTransportHandle(): PlanningTransport {
 }
 
 /** Reset the owned transport, refusing a handle from a different store module instance. */
-export function resetPlanningTransport(
-  companyId: string,
-  data: AppData,
-  currentData: AppData,
-): void {
-  if (!handle || handle.readData() !== currentData) {
+export function resetPlanningTransport(companyId: string, data: AppData, owner: object): void {
+  if (!handle || (handle.owner !== undefined && handle.owner !== owner)) {
     throw new Error('The planning transport does not belong to this fixture store.');
   }
+  handle.owner = owner;
   handle.reset(companyId, data);
+}
+
+/** Update the fixture transport's canonical rows without clearing history or queued responses. */
+export function updatePlanningFixtureSource(data: AppData, owner: object): void {
+  if (!handle || (handle.owner !== undefined && handle.owner !== owner)) {
+    throw new Error('The planning transport does not belong to this fixture store.');
+  }
+  handle.owner = owner;
+  handle.updateSource(data);
+}
+
+/** Return the fixture's explicit response controls. */
+export function getStubPlanningTransport(): StubPlanningTransport {
+  if (!handle) throw new Error('The planning transport has not been initialized.');
+  return handle.stub;
 }

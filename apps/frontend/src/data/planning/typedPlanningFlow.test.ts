@@ -1,54 +1,63 @@
 import { createStore } from 'zustand/vanilla';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   makeAccount,
   makeActivity,
   makeAppData,
   makeClient,
   makeProject,
-  makeResource,
+  requireValue,
 } from '@/test/fixtures';
-import {
-  buildCatalogueCreate,
-  buildClosureCreate,
-  buildResourceCreate,
-  buildSettingsUpdate,
-  buildTimeOffCreate,
-} from './planningCommands';
+import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
+import { buildResourceCreate, buildSettingsUpdate } from './planningCommands';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import type { PlanningCacheState } from './planningCacheController';
-import { createVolatilePlanningTransport } from './volatilePlanningTransport';
+import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 
 const companyId = 'a1';
-const context = { identity: 'demo-page', companyId };
+const context = { identity: 'test-page', companyId };
 
 function flow(initial: PlanningCacheState['data']) {
   const store = createStore<PlanningCacheState>(() => createPlanningCacheState(initial));
-  let visible = initial;
-  const transport = createVolatilePlanningTransport(() => visible);
+  const transport = new StubPlanningTransport();
+  transport.reset(companyId, initial);
   const controller = createPlanningCacheController({
     getState: store.getState,
     setState(update) {
-      store.setState((state) => {
-        const next = update(state);
-        if (next.data?.accounts.length) visible = next.data;
-        return next;
-      });
+      store.setState((state) => update(state));
     },
     transport,
   });
   controller.setContext(context);
-  return {
-    controller,
-    state: store.getState,
-    replaceVisible: (next: PlanningCacheState['data']) => {
-      visible = next;
-    },
-  };
+  return { controller, state: store.getState, transport };
 }
 
-describe('typed demo planning flow', () => {
-  it('publishes account settings and keeps their inverse through Undo and Redo', async () => {
+function respondWithPatch(
+  transport: StubPlanningTransport,
+  changed: Extract<PlanningMutationSuccess['projection'], { mode: 'patch' }>['changed'],
+  options: { consumedGroupId?: string | null; replacementGroupId?: string | null } = {},
+): void {
+  const consumedGroupId = options.consumedGroupId ?? null;
+  const replacementGroupId = options.replacementGroupId ?? null;
+  if (consumedGroupId !== null && replacementGroupId !== null) {
+    throw new Error('A planning restoration receipt cannot consume and replace a group together.');
+  }
+  transport.respondNext((execution: PlanningExecution) => ({
+    status: 'committed',
+    mutationId: execution.mutationId,
+    revision: execution.baseRevision + 1,
+    restoration:
+      consumedGroupId !== null
+        ? { consumedGroupId, replacementGroupId: null }
+        : replacementGroupId !== null
+          ? { consumedGroupId: null, replacementGroupId }
+          : { consumedGroupId: null, replacementGroupId: null },
+    projection: { mode: 'patch', history: 'retain', changed },
+  }));
+}
+
+describe('typed planning flow', () => {
+  it('publishes settings and keeps their inverse through Undo and Redo', async () => {
     const initial = makeAppData({
       accounts: [makeAccount({ id: companyId, dateStyle: null, timezone: null })],
     });
@@ -83,65 +92,17 @@ describe('typed demo planning flow', () => {
     expect(state().planning.revision).toBe(3);
   });
 
-  it('recreates a deleted phase and its link while preserving an unrelated child edit', async () => {
+  it('binds Undo to the restoration handle returned with a deletion receipt', async () => {
     const initial = makeAppData({
       accounts: [makeAccount({ id: companyId })],
-      projects: [makeProject({ accountId: companyId })],
-      phases: [
-        {
-          id: 'phase-1',
-          accountId: companyId,
-          projectId: 'p1',
-          name: 'Design',
-          createdAt: 't',
-          updatedAt: 't',
-        },
-      ],
-      activities: [makeActivity({ id: 'activity-1', accountId: companyId, phaseId: 'phase-1' })],
-    });
-    const { controller, state } = flow(initial);
-    await controller.refresh();
-    const deleteIntent = {
-      operation: 'catalogue.delete',
-      entity: { entity: 'phases', id: 'phase-1' },
-    } as const;
-    const restoreIntent = { operation: 'planning.restoreGroup', restorationGroupId: '' } as const;
-    await controller.execute(controller.begin(null), deleteIntent, restoreIntent);
-    expect(state().data.phases).toHaveLength(0);
-    expect(state().data.activities[0]?.phaseId).toBeNull();
-    const inverse = state().planning.history.past[0]?.inverse;
-    const deletedHandle =
-      inverse?.operation === 'planning.restoreGroup' ? inverse.restorationGroupId : null;
-    if (!deletedHandle) throw new Error('Expected restoration handle.');
-
-    // An unrelated edit after deletion survives a scoped link restoration.
-    await controller.execute(
-      controller.begin(null),
-      {
-        operation: 'catalogue.update',
-        entity: { entity: 'activities', id: 'activity-1', changes: { name: 'Updated activity' } },
-      },
-      null,
-    );
-    await controller.execute(
-      controller.begin(null),
-      { operation: 'planning.restoreGroup', restorationGroupId: deletedHandle },
-      null,
-    );
-    expect(state().data.phases[0]?.id).toBe('phase-1');
-    expect(state().data.activities[0]).toMatchObject({
-      name: 'Updated activity',
-      phaseId: 'phase-1',
-    });
-  });
-
-  it('keeps a deleted phase restorable after refusing a child relink to the wrong project', async () => {
-    const initial = makeAppData({
-      accounts: [makeAccount({ id: companyId })],
-      clients: [makeClient({ id: 'c1', accountId: companyId })],
       projects: [
-        makeProject({ id: 'p1', accountId: companyId }),
-        makeProject({ id: 'p2', accountId: companyId }),
+        makeProject({
+          id: 'p1',
+          accountId: companyId,
+          name: 'Planning',
+          clientId: 'c1',
+          color: '#da2d92',
+        }),
       ],
       phases: [
         {
@@ -157,121 +118,74 @@ describe('typed demo planning flow', () => {
         makeActivity({
           id: 'activity-1',
           accountId: companyId,
+          name: 'Wireframes',
+          kind: 'project',
           projectId: 'p1',
           phaseId: 'phase-1',
         }),
       ],
     });
-    const { controller, state } = flow(initial);
+    const { controller, state, transport } = flow(initial);
     await controller.refresh();
+    const activityForDelete = requireValue(
+      state().data.activities[0],
+      'activity after phase delete',
+    );
+    respondWithPatch(
+      transport,
+      {
+        removed: [{ entity: 'phases', id: 'phase-1' }],
+        upserts: [
+          {
+            entity: 'activities',
+            row: { ...activityForDelete, phaseId: null },
+          },
+        ],
+      },
+      { replacementGroupId: 'phase-delete-group' },
+    );
+
     await controller.execute(
       controller.begin(null),
       { operation: 'catalogue.delete', entity: { entity: 'phases', id: 'phase-1' } },
       { operation: 'planning.restoreGroup', restorationGroupId: '' },
     );
-    const inverse = state().planning.history.past[0]?.inverse;
-    const handle =
-      inverse?.operation === 'planning.restoreGroup' ? inverse.restorationGroupId : null;
-    if (!handle) throw new Error('Expected restoration handle.');
-    await controller.execute(
-      controller.begin(null),
-      {
-        operation: 'catalogue.update',
-        entity: { entity: 'activities', id: 'activity-1', changes: { projectId: 'p2' } },
-      },
-      null,
-    );
-    const revision = state().planning.revision;
-    const history = state().planning.history.past;
-
-    await expect(
-      controller.execute(
-        controller.begin(null),
-        { operation: 'planning.restoreGroup', restorationGroupId: handle },
-        null,
-      ),
-    ).rejects.toMatchObject({ status: 409 });
     expect(state().data.phases).toHaveLength(0);
-    expect(state().data.activities[0]).toMatchObject({ projectId: 'p2', phaseId: null });
-    expect(state().planning.revision).toBe(revision);
-    expect(state().planning.history.past).toBe(history);
+    expect(state().data.activities[0]?.phaseId).toBeNull();
+    expect(state().planning.history.past[0]?.inverse).toEqual({
+      operation: 'planning.restoreGroup',
+      restorationGroupId: 'phase-delete-group',
+    });
 
-    await controller.execute(
-      controller.begin(null),
+    const phase = requireValue(initial.phases[0], 'phase fixture');
+    const activityForRestore = requireValue(
+      state().data.activities[0],
+      'activity after phase delete',
+    );
+    respondWithPatch(
+      transport,
       {
-        operation: 'catalogue.update',
-        entity: { entity: 'activities', id: 'activity-1', changes: { projectId: 'p1' } },
+        removed: [],
+        upserts: [
+          { entity: 'phases', row: phase },
+          { entity: 'activities', row: { ...activityForRestore, phaseId: phase.id } },
+        ],
       },
-      null,
+      { consumedGroupId: 'phase-delete-group' },
     );
-    await controller.execute(
-      controller.begin(null),
-      { operation: 'planning.restoreGroup', restorationGroupId: handle },
-      null,
-    );
-    expect(state().data.phases[0]?.id).toBe('phase-1');
+    await controller.undo();
+
+    expect(transport.calls.at(-1)).toEqual({
+      operation: 'planning.restoreGroup',
+      restorationGroupId: 'phase-delete-group',
+    });
+    expect(state().data.phases).toMatchObject([{ id: 'phase-1' }]);
     expect(state().data.activities[0]?.phaseId).toBe('phase-1');
   });
 
-  it('refuses a deleted time-off restore while its resource is missing and retains the handle', async () => {
-    const resource = makeResource({ id: 'resource-1', accountId: companyId });
-    const initial = makeAppData({
-      accounts: [makeAccount({ id: companyId })],
-      resources: [resource],
-      timeOff: [
-        {
-          id: 'time-off-1',
-          accountId: companyId,
-          resourceId: resource.id,
-          type: 'holiday',
-          startDate: '2026-06-01',
-          endDate: '2026-06-02',
-          note: 'Private note',
-          createdAt: 't',
-          updatedAt: 't',
-        },
-      ],
-    });
-    const { controller, state, replaceVisible } = flow(initial);
-    await controller.refresh();
-    await controller.execute(
-      controller.begin(null),
-      { operation: 'timeOff.delete', id: 'time-off-1' },
-      { operation: 'planning.restoreGroup', restorationGroupId: '' },
-    );
-    const inverse = state().planning.history.past[0]?.inverse;
-    const handle =
-      inverse?.operation === 'planning.restoreGroup' ? inverse.restorationGroupId : null;
-    if (!handle) throw new Error('Expected restoration handle.');
-    replaceVisible({ ...state().data, resources: [] });
-    await controller.refresh();
-    const revision = state().planning.revision;
-    const history = state().planning.history.past;
-
-    await expect(
-      controller.execute(
-        controller.begin(null),
-        { operation: 'planning.restoreGroup', restorationGroupId: handle },
-        null,
-      ),
-    ).rejects.toMatchObject({ status: 409 });
-    expect(state().data.timeOff).toHaveLength(0);
-    expect(state().planning.revision).toBe(revision);
-    expect(state().planning.history.past).toBe(history);
-
-    replaceVisible({ ...state().data, resources: [resource] });
-    await controller.refresh();
-    await controller.execute(
-      controller.begin(null),
-      { operation: 'planning.restoreGroup', restorationGroupId: handle },
-      null,
-    );
-    expect(state().data.timeOff[0]).toMatchObject({ id: 'time-off-1', note: 'Private note' });
-  });
-
-  it('uses archive and unarchive for resource creation history without changing its id', async () => {
+  it('uses archive and unarchive intents for resource creation history without changing its id', async () => {
     const initial = makeAppData({ accounts: [makeAccount({ id: companyId })] });
-    const { controller, state } = flow(initial);
+    const { controller, state, transport } = flow(initial);
     await controller.refresh();
     const id = 'resource-1';
     const command = buildResourceCreate({
@@ -301,186 +215,82 @@ describe('typed demo planning flow', () => {
     expect(state().data.resources).toHaveLength(1);
     expect(state().data.resources[0]?.id).toBe(id);
     expect(state().data.resources[0]?.archivedAt).toBeNull();
+    expect(transport.calls.map(({ operation }) => operation)).toEqual([
+      'resource.create',
+      'resource.archive',
+      'resource.unarchive',
+    ]);
   });
 
-  it('deletes and restores newly created phase, time off and closure through receipts', async () => {
+  it('honors the server history directive after a privacy change', async () => {
+    const client = makeClient({
+      id: 'client-1',
+      accountId: companyId,
+      name: 'Wayne Enterprises',
+    });
     const initial = makeAppData({
       accounts: [makeAccount({ id: companyId })],
-      clients: [makeClient({ accountId: companyId })],
-      projects: [makeProject({ accountId: companyId })],
-      resources: [makeResource({ id: 'resource-1', accountId: companyId, name: 'Bruce Wayne' })],
+      clients: [client],
     });
-    const { controller, state } = flow(initial);
+    const { controller, state, transport } = flow(initial);
     await controller.refresh();
-    const commands = [
-      buildCatalogueCreate({
-        data: state().data,
-        accountId: companyId,
-        args: { entity: 'phases', id: 'phase-1', fields: { name: 'Design', projectId: 'p1' } },
+    const next = { ...client, isPrivate: true, codeName: 'Project Bat' };
+    transport.respondNext(
+      (execution) => ({
+        status: 'committed',
+        mutationId: execution.mutationId,
+        revision: execution.baseRevision + 1,
+        restoration: { consumedGroupId: null, replacementGroupId: null },
+        projection: { mode: 'refetch', history: 'clear' },
       }),
-      buildTimeOffCreate({
-        data: state().data,
-        accountId: companyId,
-        args: {
-          id: 'time-off-1',
-          fields: {
-            resourceId: 'resource-1',
-            startDate: '2026-10-26',
-            endDate: '2026-10-27',
-            type: 'holiday',
-          },
-        },
-      }),
-      buildClosureCreate({
-        data: state().data,
-        accountId: companyId,
-        args: {
-          id: 'closure-1',
-          fields: { name: 'Holiday', startDate: '2026-12-25', endDate: '2026-12-25' },
-        },
-      }),
-    ];
-    for (const [index, command] of commands.entries()) {
-      if (!command) throw new Error('Expected create command.');
-      const key = (['phases', 'timeOff', 'closures'] as const)[index];
-      if (!key) throw new Error('Expected entity table.');
-      await controller.execute(controller.begin(null), command.intent, command.inverse);
-      expect(state().data[key]).toHaveLength(1);
-      await controller.undo();
-      expect(state().data[key]).toHaveLength(0);
-      expect(state().planning.history.future).toHaveLength(1);
-      await controller.redo();
-      expect(state().data[key]).toHaveLength(1);
-      expect(state().data[key][0]?.id).toBe(['phase-1', 'time-off-1', 'closure-1'][index]);
-    }
-  });
+      { ...initial, clients: [next] },
+    );
 
-  it('clears history after a privacy change and reloads only the selected company', async () => {
-    const initial = makeAppData({
-      accounts: [makeAccount({ id: companyId })],
-      clients: [makeClient({ id: 'client-1', accountId: companyId, name: 'Wayne Enterprises' })],
-    });
-    const { controller, state } = flow(initial);
-    await controller.refresh();
     await controller.execute(
       controller.begin(null),
       {
         operation: 'catalogue.update',
         entity: {
           entity: 'clients',
-          id: 'client-1',
+          id: client.id,
           changes: { isPrivate: true, codeName: 'Project Bat' },
         },
       },
       null,
     );
+
     expect(state().data.clients[0]).toMatchObject({ isPrivate: true, codeName: 'Project Bat' });
     expect(state().planning.history.past).toHaveLength(0);
   });
 
-  it('rejects invalid demo references and dates before publishing a change', async () => {
-    const initial = makeAppData({ accounts: [makeAccount({ id: companyId })] });
-    const { controller, state } = flow(initial);
+  it('keeps a failed draft out of canonical rows while recording its sent intent', async () => {
+    const client = makeClient({ id: 'client-1', accountId: companyId });
+    const initial = makeAppData({
+      accounts: [makeAccount({ id: companyId })],
+      clients: [client],
+    });
+    const { controller, state, transport } = flow(initial);
     await controller.refresh();
-    const before = state().planning.revision;
-    await expect(
-      controller.execute(
-        controller.begin(null),
-        {
-          operation: 'catalogue.create',
-          entity: {
-            entity: 'phases',
-            id: 'phase-bad',
-            fields: { name: 'Design', projectId: 'missing' },
-          },
-        },
-        null,
-      ),
-    ).rejects.toThrow();
-    expect(state().data.phases).toHaveLength(0);
-    expect(state().planning.revision).toBe(before);
-    await expect(
-      controller.execute(
-        controller.begin(null),
-        {
-          operation: 'closure.create',
-          id: 'closure-bad',
-          fields: { name: 'Holiday', startDate: '2026-12-31', endDate: '2026-01-01' },
-        },
-        null,
-      ),
-    ).rejects.toThrow();
-    expect(state().data.closures).toHaveLength(0);
-    expect(state().planning.revision).toBe(before);
-    await controller.execute(
-      controller.begin(null),
-      {
-        operation: 'closure.create',
-        id: 'closure-valid',
-        fields: { name: 'Holiday', startDate: '2026-12-25', endDate: '2026-12-25' },
-      },
-      { operation: 'closure.delete', id: 'closure-valid' },
-    );
-    expect(state().data.closures[0]?.id).toBe('closure-valid');
-    expect(state().planning.revision).toBe(1);
-  });
+    transport.failNext(new Error('server refusal'));
 
-  it('projects only edited rows under a frozen clock and keeps failed drafts isolated', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-10-22T10:00:00.000Z'));
-    try {
-      const original = makeClient({
-        id: 'client-1',
-        accountId: companyId,
-        name: 'Wayne Enterprises',
-      });
-      const untouched = makeClient({
-        id: 'client-2',
-        accountId: companyId,
-        name: 'Queen Consolidated',
-      });
-      const initial = makeAppData({
-        accounts: [makeAccount({ id: companyId })],
-        clients: [original, untouched],
-      });
-      const { controller, state } = flow(initial);
-      await controller.refresh();
-      for (const name of ['Wayne Studio', 'Wayne Design']) {
-        const receipt = await controller.execute(
-          controller.begin(null),
-          {
-            operation: 'catalogue.update',
-            entity: { entity: 'clients', id: original.id, changes: { name } },
-          },
-          null,
-        );
-        expect(receipt?.projection.mode).toBe('patch');
-        if (receipt?.projection.mode !== 'patch') throw new Error('Expected patch receipt.');
-        expect(receipt.projection.changed.upserts).toHaveLength(1);
-        const upsert = receipt.projection.changed.upserts[0];
-        expect(upsert?.entity).toBe('clients');
-        expect(upsert?.row).toMatchObject({ id: original.id, name });
-      }
-      expect(initial.clients).toEqual([original, untouched]);
-      expect(state().data.clients.find((row) => row.id === untouched.id)).toBe(untouched);
-      await expect(
-        controller.execute(
-          controller.begin(null),
-          {
-            operation: 'catalogue.create',
-            entity: {
-              entity: 'phases',
-              id: 'invalid',
-              fields: { name: 'Design', projectId: 'missing' },
-            },
-          },
-          null,
-        ),
-      ).rejects.toThrow();
-      expect(initial.clients).toEqual([original, untouched]);
-      expect(state().data.clients.find((row) => row.id === original.id)?.name).toBe('Wayne Design');
-    } finally {
-      vi.useRealTimers();
-    }
+    await expect(
+      controller.execute(
+        controller.begin(client),
+        {
+          operation: 'catalogue.update',
+          entity: { entity: 'clients', id: client.id, changes: { name: 'Wayne Studio' } },
+        },
+        null,
+      ),
+    ).rejects.toThrow('server refusal');
+
+    expect(transport.calls).toEqual([
+      {
+        operation: 'catalogue.update',
+        entity: { entity: 'clients', id: client.id, changes: { name: 'Wayne Studio' } },
+      },
+    ]);
+    expect(state().data.clients[0]?.name).toBe('Ferris');
+    expect(state().planning.revision).toBe(0);
   });
 });

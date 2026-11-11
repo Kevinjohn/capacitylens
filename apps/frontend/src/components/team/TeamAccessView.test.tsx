@@ -10,10 +10,7 @@ import type { AdmissionRequest } from '@/account/teamAccessClient';
 import { TeamAccessView } from './TeamAccessView';
 import { useStore } from '@/store/useStore';
 
-const buildMode = vi.hoisted(() => ({ demo: false }));
 vi.mock('@/data/apiConfig', () => ({
-  isServerConfigured: () => true,
-  isDemoMode: () => buildMode.demo,
   API_BASE: 'http://api.test',
 }));
 
@@ -26,8 +23,7 @@ vi.mock('./OwnershipTransferCard', () => ({
 
 const auth = (authMode: AuthContextValue['authMode'], userId = 'me'): AuthContextValue => ({
   authMode,
-  user: authMode === 'off' ? null : { id: userId, email: 'me@example.com' },
-  canCreateAccount: true,
+  user: { id: userId, email: 'me@example.com' },
   refreshAuth: async () => {},
   signOut: async () => {},
 });
@@ -61,22 +57,12 @@ function showCapabilities(): void {
 }
 
 beforeEach(() => {
-  buildMode.demo = false;
   useStore.setState({ masquerade: { kind: 'inactive' } });
 });
 
 afterEach(() => vi.restoreAllMocks());
 
 describe('TeamAccessView access presentation', () => {
-  it('labels the demo honestly and says why there is no membership directory', () => {
-    buildMode.demo = true;
-    renderView({ role: null, authMode: 'off' });
-    expect(screen.getByTestId('current-access')).toHaveTextContent('Demo access');
-    expect(screen.getByText(/not a real company membership/)).toBeInTheDocument();
-    expect(screen.getByText(/people who sign in, not the resources/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
-  });
-
   it('keeps the capability list collapsed until it is asked for', async () => {
     renderView({ role: 'viewer', authMode: 'password-only' });
     const toggle = screen.getByTestId('capabilities-toggle');
@@ -92,7 +78,7 @@ describe('TeamAccessView access presentation', () => {
   });
 
   it('does not present a persisted server as open access', () => {
-    renderView({ role: null, authMode: 'off' });
+    renderView({ role: null, authMode: 'password-only', status: 'unavailable' });
 
     expect(screen.getByTestId('current-access')).toHaveTextContent('Your access');
     expect(screen.getByTestId('current-access')).not.toHaveTextContent('Open access');

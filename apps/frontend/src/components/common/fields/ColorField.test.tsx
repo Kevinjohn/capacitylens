@@ -1,3 +1,4 @@
+import { loadPlanningData } from '@/test/fixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -7,7 +8,7 @@ import { resolveColorName, SWATCHES } from '@/lib/palette';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData());
+  loadPlanningData(emptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setDirtyForm(false);
 });

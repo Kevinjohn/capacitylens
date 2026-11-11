@@ -5,7 +5,7 @@ import { PermissionProvider } from './PermissionProvider';
 import { AuthContext } from './authContext';
 import type { AuthContextValue } from './authContext';
 import { useCanEdit, usePermissionStatus, useRole } from './permissionContext';
-import { makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { useAccountSummaries } from './useAccountSummaries';
 import * as accountTransition from './accountTransition';
@@ -24,7 +24,6 @@ vi.mock('./masqueradeApi', () => ({
 const auth: AuthContextValue = {
   authMode: 'password-only',
   user: { id: 'u1' },
-  canCreateAccount: false,
   refreshAuth: async () => {},
   signOut: async () => {},
 };
@@ -89,7 +88,7 @@ function accountResponse(id: string, role: string) {
 }
 
 function addSecondAccount() {
-  useStore.getState().replaceAll(
+  loadPlanningData(
     makeAppData({
       accounts: [
         makeAccount({ id: 'acct-test' }),
@@ -106,7 +105,6 @@ beforeEach(async () => {
     .mockResolvedValue({ active: false, contextToken: 'idle' });
   await resetStoreWithAccount();
   useStore.setState({ masquerade: { kind: 'inactive' } });
-  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
 });
 
 afterEach(() => {
@@ -437,11 +435,13 @@ describe('PermissionProvider fail-closed responses', () => {
     renderProvider();
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
+    expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
     expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
 
-    act(() => useStore.getState().setActiveAccount('acct-test'));
+    // Simulate a stale active company selection after the complete directory proved the
+    // authenticated identity has no membership there.
+    act(() => useStore.setState({ activeAccountId: 'acct-test' }));
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
     expect(useStore.getState().activeAccountId).toBe('acct-test');
@@ -449,36 +449,13 @@ describe('PermissionProvider fail-closed responses', () => {
     expect(useStore.getState().activeRoleStatus).toBe('unavailable');
   });
 
-  it('does not request permissions in off, demo, or null-account modes', async () => {
+  it('does not request permissions until an active account is selected', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+    useStore.setState({ activeAccountId: null });
 
-    const offView = render(
-      <AuthContext.Provider value={{ ...auth, authMode: 'off' }}>
-        <PermissionProvider>
-          <Probe />
-        </PermissionProvider>
-      </AuthContext.Provider>,
-    );
-    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBeNull();
-    expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
-
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
-    const demoView = renderProvider();
-    expect(screen.getAllByText('not-applicable:none:edit')).toHaveLength(2);
-    expect(useStore.getState().activeRole).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
-
-    offView.unmount();
-    demoView.unmount();
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
-    act(() => useStore.getState().setActiveAccount(null));
     renderProvider();
-    expect(screen.getByText('not-applicable:none:edit')).toBeInTheDocument();
+    expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
     expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
     expect(fetchMock).not.toHaveBeenCalled();

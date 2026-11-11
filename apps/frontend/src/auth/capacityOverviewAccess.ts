@@ -16,7 +16,7 @@ export function resolveCapacityOverviewAccessDecision({
   status: PermissionStatus;
   access: CapacityOverviewAccess;
 }): CapacityOverviewAccessDecision {
-  if (status === 'not-applicable' && role === null) return 'allowed';
+  if (status === 'not-applicable' && role === null) return 'denied';
   if (status === 'pending') return 'pending';
   if (status !== 'resolved' || role === null) return 'denied';
   return canViewCapacityOverview(role, access) ? 'allowed' : 'denied';

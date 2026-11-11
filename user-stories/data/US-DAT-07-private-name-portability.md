@@ -10,7 +10,7 @@ As an Owner, I want private names preserved safely in export and import so that 
 
 ## Acceptance criteria
 
-- Owner and demo exports keep each private client’s or project’s real name and code name, so they can be imported. Other roles’ exports are marked redacted: a private record’s name is replaced by its quoted code name and the separate code name is left empty.
+- Owner exports keep each private client’s or project’s real name and code name, so they can be imported. Other roles’ exports are marked redacted: a private record’s name is replaced by its quoted code name and the separate code name is left empty.
 - A redacted export cannot replace company data; invalid private fields are rejected.
 
 ## User flow

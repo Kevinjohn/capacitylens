@@ -2,11 +2,11 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { Allocation, AppData, Resource, TimeOff } from '@capacitylens/shared/types/entities';
 import { PRESET_COLORS } from '@capacitylens/shared/lib/color';
 import type { PlanningControllerError } from '@/data/planning/planningCacheController';
 import {
+  loadPlanningData,
   DEFAULT_ACCOUNT_ID,
   makeAppData,
   makeResource,
@@ -57,26 +57,6 @@ function registerStoreCrudEntity2(): void {
       s().updateAccount(account.id, { workingDays: [1, 9] as Resource['workingDays'] }),
     ).rejects.toThrow(/working day/i);
     expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
-
-    expect(() =>
-      s().addAccount({ name: 'Empty-week company', color: '#2d75da', workingDays: [] }),
-    ).toThrow(/at least one working day/i);
-
-    const sundayStart = s().addAccount({
-      name: 'Sunday company',
-      color: '#2d75da',
-      weekStartsOn: 0,
-    });
-    expect(sundayStart?.workingDays).toEqual([0, 1, 2, 3, 4]);
-    expect(sundayStart?.schedulingMode).toBe('days');
-    expect(sundayStart?.inlineActivityCreateEnabled).toBe(false);
-    expect(() =>
-      s().addAccount({
-        name: 'Malformed company',
-        color: '#2d75da',
-        workingDays: [1, 9] as Resource['workingDays'],
-      }),
-    ).toThrow(/working day/i);
 
     await s().updateAccount(account.id, { workingDays: [2, 4] });
     await s().undoPlanning();
@@ -810,65 +790,6 @@ function registerDateRangeGuard8(): void {
   });
 }
 
-function registerDateRangeGuard9(): void {
-  it('importData replaces the active account slice and is undoable via ⌘Z', async () => {
-    await s().addClient({ name: 'Keep', color: '#111111' });
-    s().setFilters({
-      clientId: 'stale-client',
-      search: 'retained search',
-      hideTentative: true,
-      showUnmatched: true,
-    });
-    s().selectAllocation('stale-allocation');
-    s().toggleGroup('discipline:stale-discipline');
-
-    const incoming = {
-      ...emptyAppData(),
-      clients: [
-        {
-          ...NULLABLE_FIELDS.clients,
-          id: 'imp',
-          accountId: 'X',
-          createdAt: 't',
-          updatedAt: 't',
-          name: 'Imported',
-          color: '#222222',
-        },
-      ],
-    };
-    s().importData(incoming);
-    expect(
-      s()
-        .data.clients.filter((c) => !c.builtin)
-        .map((c) => c.name),
-    ).toEqual(['Imported']);
-    expect(s().data.clients.filter((c) => c.builtin)).toHaveLength(1);
-    expect(s().ui.selectedAllocationId).toBeNull();
-    expect(s().ui.collapsedGroups).toEqual([]);
-    expect(s().ui.filters).toMatchObject({
-      disciplineId: null,
-      clientId: null,
-      projectId: null,
-      activityId: null,
-      activityKind: null,
-      search: 'retained search',
-      hideTentative: true,
-      showUnmatched: true,
-    });
-    s().undo();
-    expect(s().data.clients.map((c) => c.name)).toEqual(['Keep']);
-  });
-}
-
-function registerDateRangeGuard10(): void {
-  it('importData refuses a zero-record import (no silent wipe)', async () => {
-    await s().addClient({ name: 'Keep', color: '#111111' });
-    const summary = s().importData(emptyAppData());
-    expect(summary.imported).toBe(0);
-    expect(s().data.clients.map((c) => c.name)).toEqual(['Keep']);
-  });
-}
-
 describe('date-range + reference guards at the store boundary', () => {
   registerDateRangeGuard1();
   registerDateRangeGuard2();
@@ -878,8 +799,6 @@ describe('date-range + reference guards at the store boundary', () => {
   registerDateRangeGuard6();
   registerDateRangeGuard7();
   registerDateRangeGuard8();
-  registerDateRangeGuard9();
-  registerDateRangeGuard10();
 });
 
 // Validate the complete row on every update so persisted invalid external allocations and time-off
@@ -968,7 +887,7 @@ function registerMergedRow2(): void {
       ],
       allocations: [alloc],
     });
-    s().replaceAll(data);
+    loadPlanningData(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
     await expect(s().updateAllocation(alloc.id, { note: 'just a note' })).rejects.toThrow(
@@ -993,7 +912,7 @@ function registerMergedRow3(): void {
       note: null,
     };
     const data: AppData = makeAppData({ resources: [ext], timeOff: [timeOff] });
-    s().replaceAll(data);
+    loadPlanningData(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
     await s().refreshPlanning();
 
@@ -1036,7 +955,7 @@ function registerMergedRow4(): void {
         },
       ],
     });
-    s().replaceAll(data);
+    loadPlanningData(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
     await s().refreshPlanning();
 
@@ -1197,13 +1116,4 @@ describe('colour snapping: shared helper, nearest-preset (not fixed fallback), n
   registerColourSnap5();
   registerColourSnap6();
   registerColourSnap7();
-});
-
-it('rejects invalid supplied company colours before publishing a new entity', () => {
-  const before = s().data;
-  for (const color of ['#123456', '#1', '', 'blue']) {
-    expect(() => s().addAccount({ name: 'Wayne', color })).toThrow(/colour/i);
-    expect(s().data).toBe(before);
-  }
-  expect(s().addAccount({ name: 'Wayne', color: ' #2D75DA ' })?.color).toBe('#2d75da');
 });

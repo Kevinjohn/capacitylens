@@ -43,9 +43,8 @@ export function ProjectForm({
   const update = useStore((state) => state.updateProject);
   const data = useActiveScopedData();
   const clients = data.clients;
-  // The raw scoped slice, for the archived-parent label only (see clientOptions below): in the demo
-  // build an archived client is still in the raw slice (so we can show its name); in server mode the
-  // per-account read strips it entirely, so the label degrades to the generic "(current, archived)".
+  // Keep the raw scoped slice for the archived-parent label when the server returns an archived
+  // parent alongside a child that still references it.
   const rawClients = useScopedData().clients;
 
   const [name, setName] = useState(project?.name ?? '');

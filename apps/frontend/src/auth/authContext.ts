@@ -14,21 +14,18 @@ export interface AuthUser {
 
 /** Authentication state and actions available to app screens. */
 export interface AuthContextValue {
-  authMode: AccountMode;
+  authMode: AccountMode | null;
   user: AuthUser | null;
-  /** Whether company creation is available under current server policy. Unavailable capability metadata keeps the affordance visible; the server independently authorizes the request. */
-  canCreateAccount: boolean;
   /** Rechecks server-owned authentication and company-creation capability. Unresolved refreshes preserve the previous snapshot and log a warning; the promise does not reject, so event callers may discard it. */
   refreshAuth: () => Promise<void>;
-  /** Ends the product session and restarts the app. Never surfaced when authMode is 'off'. */
+  /** Ends the product session and restarts the app. */
   signOut: () => Promise<void>;
 }
 
 /** Context supplying authentication state to the application. */
 export const AuthContext = createContext<AuthContextValue>({
-  authMode: 'off',
+  authMode: null,
   user: null,
-  canCreateAccount: true,
   refreshAuth: async () => {},
   signOut: async () => {},
 });

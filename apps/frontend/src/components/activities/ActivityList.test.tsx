@@ -1,18 +1,30 @@
+import { archiveForTest } from '@/test/fixtures';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, expectTypeOf, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render as renderTestingLibrary,
+  screen,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { ActivityList } from './ActivityList';
 import { useStore } from '@/store/useStore';
 import {
+  loadPlanningData,
   DEFAULT_ACCOUNT_ID,
   makeAppData,
   resetStoreWithAccount,
   requireValue,
 } from '@/test/fixtures';
 import { MemoryRouter } from 'react-router-dom';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -269,7 +281,6 @@ describe('ActivityList', () => {
   });
 
   it('hides an activity under an archived project', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
@@ -279,7 +290,7 @@ describe('ActivityList', () => {
     await useStore
       .getState()
       .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id });
-    useStore.getState().archiveEntity('projects', project.id);
+    await archiveForTest('projects', project.id);
 
     render(
       <MemoryRouter>
@@ -292,11 +303,9 @@ describe('ActivityList', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Hidden because Project Lightning is archived.')).toBeInTheDocument();
     expect(screen.queryByTestId('project-specific-activities')).not.toBeInTheDocument();
-    vi.unstubAllEnvs();
   });
 
   it('hides an activity whose project belongs to an archived client', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
@@ -306,7 +315,7 @@ describe('ActivityList', () => {
     await useStore
       .getState()
       .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id });
-    useStore.getState().archiveEntity('clients', client.id);
+    await archiveForTest('clients', client.id);
 
     render(
       <MemoryRouter>
@@ -318,15 +327,11 @@ describe('ActivityList', () => {
       within(screen.getByTestId('archived-activities-section')).getByText('My Activity'),
     ).toBeInTheDocument();
     expect(screen.getByText('Hidden because Client Ferris is archived.')).toBeInTheDocument();
-    vi.unstubAllEnvs();
   });
 
-  // An unresolvable projectId means different things per mode (mirrors ProjectList's clientName
-  // tests): in server mode the per-account read strips archived parents from the slice, so it
-  // reads as "(archived project)"; in the demo build the raw slice retains archived projects, so
-  // it is genuinely dangling data and must not be dressed up as archival.
+  // An unresolved project ID remains visible as unavailable planning data.
   const seedOrphanActivity = () => {
-    useStore.getState().replaceAll(
+    loadPlanningData(
       makeAppData({
         activities: [
           {
@@ -345,8 +350,7 @@ describe('ActivityList', () => {
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   };
 
-  it('server mode retains an activity whose project resolves nowhere', () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
+  it('retains an activity whose project resolves nowhere', () => {
     seedOrphanActivity();
 
     render(<ActivityList />);
@@ -358,27 +362,9 @@ describe('ActivityList', () => {
     expect(
       screen.getByRole('heading', { name: 'Unavailable project', level: 4 }),
     ).toBeInTheDocument();
-    vi.unstubAllEnvs();
-  });
-
-  it('demo mode also retains an activity whose project resolves nowhere', () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
-    seedOrphanActivity();
-
-    render(<ActivityList />);
-
-    expect(screen.getByText('Orphan Activity')).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Unavailable client', level: 3 }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Unavailable project', level: 4 }),
-    ).toBeInTheDocument();
-    vi.unstubAllEnvs();
   });
 
   it('confirms before archiving and shows the activity in its archive section', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const user = userEvent.setup();
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
@@ -411,11 +397,9 @@ describe('ActivityList', () => {
     expect(
       within(screen.getByTestId('archived-activities-section')).getByText('My Activity'),
     ).toBeInTheDocument();
-    vi.unstubAllEnvs();
   });
 
   it('warns how many allocations an archive would hide from the schedule', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const user = userEvent.setup();
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
@@ -465,11 +449,9 @@ describe('ActivityList', () => {
     expect(dialog).toHaveTextContent(
       'This also hides 2 allocations from the schedule; restore the activity to bring them back.',
     );
-    vi.unstubAllEnvs();
   });
 
   it('shows the base archive message instead of throwing when the row is archived while the dialog is open', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const user = userEvent.setup();
     const activity = await requireCreated(
       useStore.getState().addActivity({ name: 'My Activity', kind: 'internal' }),
@@ -480,20 +462,16 @@ describe('ActivityList', () => {
     expect(screen.getByRole('alertdialog')).toHaveTextContent(/Archive activity\?/i);
 
     // A record can become inactive while its archive dialog is open. Rendering the confirmation must then show the base message rather than throw an already-inactive error.
-    act(() => {
-      useStore.getState().archiveEntity('activities', activity.id);
-    });
+    await act(async () => archiveForTest('activities', activity.id));
 
     const dialog = screen.getByRole('alertdialog');
     expect(dialog).toHaveTextContent(
       'Archive "My Activity"? This hides it from scheduling while keeping its history.',
     );
     expect(dialog).not.toHaveTextContent('also hides');
-    vi.unstubAllEnvs();
   });
 
   it('surfaces an archive integrity failure without removing the activity', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const user = userEvent.setup();
     const activity = await requireCreated(
       useStore.getState().addActivity({ name: 'Internal sync', kind: 'internal' }),
@@ -524,7 +502,6 @@ describe('ActivityList', () => {
       );
     } finally {
       useStore.setState({ sendPlanningCommand: originalSend });
-      vi.unstubAllEnvs();
     }
   });
 
@@ -547,7 +524,7 @@ describe('ActivityList', () => {
     const dialog = screen.getByRole('dialog', { name: 'Edit activity' });
     act(() => {
       const data = useStore.getState().data;
-      useStore.getState().replaceAll({
+      loadPlanningData({
         ...data,
         activities: data.activities.filter((row) => row.id !== activity.id),
       });

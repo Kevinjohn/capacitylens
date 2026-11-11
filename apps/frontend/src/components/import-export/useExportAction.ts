@@ -3,7 +3,6 @@ import { useStore } from '@/store/useStore';
 import { buildBetaExport, serializeBetaExport } from '@capacitylens/shared/data/betaTransfer';
 import { downloadTextFile } from '@/lib/download';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { isServerConfigured } from '@/data/apiConfig';
 import {
   fetchInactiveSlice,
   InactiveSliceHttpError,
@@ -19,7 +18,6 @@ export function useExportAction() {
   const setNotice = useStore((state) => state.setNotice);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const role = useRole();
-  const serverMode = isServerConfigured();
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
 
@@ -29,14 +27,12 @@ export function useExportAction() {
     setBusy(true);
     try {
       let exported = data;
-      if (serverMode) {
-        if (!activeAccountId) throw new Error('Choose a company before exporting.');
-        if (role === null || can(role, 'resources:anonymise')) {
-          exported = await fetchInactiveSlice(activeAccountId);
-        }
+      if (!activeAccountId) throw new Error('An active company is required before exporting.');
+      if (role !== null && can(role, 'resources:anonymise')) {
+        exported = await fetchInactiveSlice(activeAccountId);
       }
-      if (!activeAccountId) throw new Error('Choose a company before exporting.');
-      const completeness = role === null || canSeePrivateNames(role) ? 'full' : 'redacted';
+      if (!activeAccountId) throw new Error('An active company is required before exporting.');
+      const completeness = role !== null && canSeePrivateNames(role) ? 'full' : 'redacted';
       downloadTextFile(
         'capacitylens-data.json',
         serializeBetaExport(

@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getPlanningTransportHandle } from '@/test/planningTransportHandle';
-import { makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  makeAccount,
+  makeAppData,
+  makeResource,
+  makeResourceDraft,
+  replaceFixtureData,
+  resetStoreWithAccount,
+  resetStoreWithData,
+} from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 
 afterEach(() => vi.restoreAllMocks());
@@ -56,5 +64,37 @@ describe('resetStoreWithAccount', () => {
     expect(useStore.getState().data.resources).toHaveLength(0);
     await useStore.getState().updateAccount(accountId, { name: 'New Company' });
     expect(useStore.getState().data.accounts[0]?.name).toBe('New Company');
+  });
+
+  it('re-enters the first company after visiting another and clearing the active context', async () => {
+    const first = makeAccount({ id: 'acct-first' });
+    const second = makeAccount({ id: 'acct-second', name: 'Stark Industries' });
+    const data = makeAppData({
+      accounts: [first, second],
+      resources: [
+        makeResource({ id: 'resource-first', accountId: first.id }),
+        makeResource({ id: 'resource-second', accountId: second.id }),
+      ],
+    });
+    await resetStoreWithData(data, first.id);
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: first.id, name: first.name, role: 'owner' },
+        { id: second.id, name: second.name, role: 'owner' },
+      ],
+    });
+    replaceFixtureData(data);
+
+    useStore.getState().setActiveAccount(second.id);
+    await expect(useStore.getState().refreshPlanning({ fresh: true })).resolves.toBe(true);
+    expect(useStore.getState().data.resources.map(({ id }) => id)).toEqual(['resource-second']);
+
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries({
+      list: [{ id: first.id, name: first.name, role: 'owner' }],
+    });
+    useStore.getState().setActiveAccount(first.id);
+    await expect(useStore.getState().refreshPlanning({ fresh: true })).resolves.toBe(true);
+    expect(useStore.getState().data.resources.map(({ id }) => id)).toEqual(['resource-first']);
   });
 });

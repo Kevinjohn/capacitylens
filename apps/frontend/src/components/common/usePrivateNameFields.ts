@@ -21,7 +21,7 @@ export function usePrivateNameFields(
   fail: FormFieldError['fail'],
 ) {
   const role = useRole();
-  const canManagePrivacy = role === null || canSeePrivateNames(role);
+  const canManagePrivacy = role !== null && canSeePrivateNames(role);
   const protectedName = source?.isPrivate === true && !canManagePrivacy;
   const [isPrivate, setIsPrivate] = useState(source?.isPrivate ?? false);
   const [codeName, setCodeName] = useState(source?.codeName ?? '');

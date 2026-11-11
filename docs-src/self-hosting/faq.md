@@ -19,7 +19,7 @@ Use Node 24.19.0 or later within the 24.x line. The service needs this runtime o
 
 ### Is the local demo an installation route?
 
-No. The demo keeps temporary in-memory data and resets when it reloads. Do not use it for company
+No. The demo uses disposable SQLite storage and resets when its command restarts. Do not use it for company
 records.
 
 ### Who creates the first company?

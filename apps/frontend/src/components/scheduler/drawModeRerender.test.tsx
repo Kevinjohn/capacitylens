@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useStore } from '@/store/useStore';
-import { DEFAULT_ACCOUNT_ID, makeAllocation } from '@/test/fixtures';
+import { loadPlanningData, DEFAULT_ACCOUNT_ID, makeAllocation } from '@/test/fixtures';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 
 // A draw-mode toggle updates the bars layer's inert state without rerendering memoized AllocationBar children. The fixture keeps the real grid and lane boundaries and replaces only the leaf bar with a render counter; it tests callback stability, not every possible geometry invalidation.
@@ -28,7 +28,7 @@ function dataset() {
 
 beforeEach(() => {
   barRenderCount.mockClear();
-  useStore.getState().replaceAll(dataset());
+  loadPlanningData(dataset());
   useStore.getState().setActiveAccount(ACC);
   useStore.getState().setOriginDate('2026-06-01');
   useStore.getState().setZoom(1);

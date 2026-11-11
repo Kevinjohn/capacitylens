@@ -8,6 +8,7 @@ import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import {
+  loadPlanningData,
   makeAccount,
   makeAllocation as makeAllocationBase,
   makeBar as makeBarBase,
@@ -17,7 +18,7 @@ import { buildAllocationBarInset } from './layout';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData());
+  loadPlanningData(emptyAppData());
   useStore.getState().clearFilters();
   // Device-global prefs persist across tests via localStorage, reset to defaults.
   useStore.getState().setBarLabelPref({ key: 'showClient', value: true });
@@ -49,7 +50,7 @@ function makeBar(allocation: Allocation, labelOverride?: string): BarLayout {
 
 type SetTaskFieldVisibilityOptions = { enabled: boolean };
 function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions) {
-  useStore.getState().replaceAll({
+  loadPlanningData({
     ...emptyAppData(),
     accounts: [makeAccount({ showTaskFieldInSchedule: enabled })],
   });
@@ -58,9 +59,7 @@ function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions) {
 
 describe('AllocationBar rendering', () => {
   it('re-reads its accessible name when the date style changes with a stable bar', async () => {
-    useStore
-      .getState()
-      .replaceAll({ ...emptyAppData(), accounts: [makeAccount({ dateStyle: 'day-month' })] });
+    loadPlanningData({ ...emptyAppData(), accounts: [makeAccount({ dateStyle: 'day-month' })] });
     useStore.getState().setActiveAccount('acct-test');
     await useStore.getState().refreshPlanning();
     const bar = makeBar(makeAllocation());
@@ -212,7 +211,7 @@ function registerAllocationBarRenderingModeTests() {
         schedulingMode: 'blocks',
       },
     ];
-    useStore.getState().replaceAll(data);
+    loadPlanningData(data);
     useStore.getState().setActiveAccount('acct-test');
 
     const bar = makeBar(makeAllocation());

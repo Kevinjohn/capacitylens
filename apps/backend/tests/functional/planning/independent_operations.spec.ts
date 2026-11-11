@@ -277,6 +277,84 @@ test.group('independent typed planning operations', (group) => {
     );
   });
 
+  test('the built-in Internal client rejects rename and client-supplied creation', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(accountId, true);
+    const { cookie } = await signIn(client);
+    const internal = data.clients.find((row) => row.accountId === accountId && row.builtin)!;
+    const before = await db.from('clients').where({ id: internal.id }).first();
+    assert.isDefined(before);
+
+    const renamed = await session(client.patch(route(`clients/${internal.id}`)), cookie)
+      .json(
+        input(0, {
+          operation: 'catalogue.update',
+          entity: { entity: 'clients', id: internal.id, changes: { name: 'Renamed Internal' } },
+        })
+      )
+      .send();
+    renamed.assertStatus(400);
+    assert.equal(body(renamed).code, 'VALIDATION_ERROR');
+    assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
+
+    const spoofedId = randomUUID();
+    const spoofed = await session(client.post(route('clients')), cookie)
+      .json(
+        input(0, {
+          operation: 'catalogue.create',
+          entity: {
+            entity: 'clients',
+            id: spoofedId,
+            fields: { name: 'Second Internal', color: internal.color, builtin: true },
+          },
+        })
+      )
+      .send();
+    spoofed.assertStatus(400);
+    assert.equal(body(spoofed).code, 'VALIDATION_ERROR');
+    assert.isNull(await db.from('clients').where({ id: spoofedId }).first());
+
+    const snapshot = await session(client.get(planningUrl), cookie).send();
+    assert.equal(snapshot.body().revision, 0);
+    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+  });
+
+  test('refuses to archive a row owned by another company without changing it', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const allCompanies = await readState();
+    const foreignProject = allCompanies.projects.find((row) => row.accountId === 'a-loft')!;
+    const before = await db.from('projects').where({ id: foreignProject.id }).first();
+    assert.isDefined(before);
+
+    const refused = await session(
+      client.post(route(`projects/${foreignProject.id}/archive`)),
+      cookie
+    )
+      .json(
+        input(0, {
+          operation: 'catalogue.archive',
+          entity: { entity: 'projects', id: foreignProject.id },
+        })
+      )
+      .send();
+
+    refused.assertStatus(400);
+    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    assert.deepEqual(await db.from('projects').where({ id: foreignProject.id }).first(), before);
+    const snapshot = await session(client.get(planningUrl), cookie).send();
+    assert.equal(snapshot.body().revision, 0);
+    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+  });
+
   test('anonymous planning cannot read or write persisted allocations', async ({
     client,
     assert,

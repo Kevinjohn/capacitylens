@@ -5,6 +5,7 @@ import type userEvent from '@testing-library/user-event';
 import { useStore } from '@/store/useStore';
 import type { AppData, Weekday } from '@capacitylens/shared/types/entities';
 import {
+  loadPlanningData,
   DEFAULT_ACCOUNT_ID,
   makeActivity,
   makeAppData,
@@ -66,7 +67,7 @@ export function restoreStoreAllocationActions(): void {
 /** Resets allocation modal fixtures and patched actions between tests. */
 export async function resetAllocationModalStore(): Promise<void> {
   restoreStoreAllocationActions();
-  useStore.getState().replaceAll(base());
+  loadPlanningData(base());
   useStore.getState().setActiveAccount(ACC);
   await useStore.getState().refreshPlanning();
   // Enable placeholders for assignment fixtures because the picker hides them by default. A current hidden assignee remains selectable while editing.

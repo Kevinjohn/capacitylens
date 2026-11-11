@@ -6,7 +6,7 @@
   <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is reassigned to a colleague, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
 </a>
 
-Illustrative October 2026 walkthrough with fictional data. Dates and sample bookings in the current demo vary; check each person’s capacity indicators when moving work.
+Illustrative October 2026 walkthrough with fictional data. The current server demo requires sign-in and opens one sample company; dates and bookings vary.
 
 Every small agency answers that question badly. It lives in someone's head, a colour-coded
 spreadsheet, or a group chat at 5pm on a Friday. So work gets promised to people who are already
@@ -40,10 +40,10 @@ Doing all of it yourself? [The whole setup on one page](https://kevinjohn.github
 
 ## Try it in two minutes
 
-For people comfortable with a terminal: the demo runs on your computer with sample data and no
-real sign-in, and needs the developer tools Node 24 and git. Its sample-account picker is cosmetic.
-Drag things about, book time off, break something: changes reset when you reload. Everyone else:
-watch the walkthrough above instead.
+For people comfortable with a terminal: the demo runs the full server and web app on your computer
+with sample data. It needs Node 24 or 26 and git. Sign in with the credentials printed in the
+terminal. Changes survive refresh and reset when you restart the command. Everyone else can watch
+the walkthrough above.
 
 ```bash
 corepack enable
@@ -51,8 +51,8 @@ pnpm install
 pnpm run dev:demo
 ```
 
-Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), then pick a company
-on **Choose a company**.
+Open the address printed in the terminal and sign in with the printed development account. The
+sample company's schedule opens automatically.
 
 ## What you get
 

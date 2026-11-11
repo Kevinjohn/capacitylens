@@ -70,24 +70,20 @@ async function freshProvider(planningTransport: 'fixture' | 'server' = 'fixture'
 }
 
 // Pass the hook as a prop so reset module instances do not split context identity.
-function Probe({ useAuth }: { useAuth: () => { canCreateAccount: boolean } }) {
-  const { canCreateAccount } = useAuth();
-  return <div>{`canCreateAccount:${canCreateAccount}`}</div>;
-}
-
 // Exercise fire-and-forget refresh because callers rely on its never-reject contract.
 function RefreshProbe({
   useAuth,
 }: {
   useAuth: () => {
-    canCreateAccount: boolean;
+    authMode: string | null;
+    user: { id: string } | null;
     refreshAuth: () => Promise<void>;
   };
 }) {
-  const { canCreateAccount, refreshAuth } = useAuth();
+  const { authMode, user, refreshAuth } = useAuth();
   return (
     <button type="button" onClick={() => void refreshAuth()}>
-      refresh<span>{`canCreateAccount:${canCreateAccount}`}</span>
+      refresh<span>{`authMode:${authMode ?? 'checking'} user:${user?.id ?? 'none'}`}</span>
     </button>
   );
 }
@@ -96,10 +92,10 @@ function RefreshProbe({
 function SessionProbe({
   useAuth,
 }: {
-  useAuth: () => { authMode: string; user: { id: string } | null };
+  useAuth: () => { authMode: string | null; user: { id: string } | null };
 }) {
   const { authMode, user } = useAuth();
-  return <div>{`authMode:${authMode} user:${user?.id ?? 'none'}`}</div>;
+  return <div>{`authMode:${authMode ?? 'checking'} user:${user?.id ?? 'none'}`}</div>;
 }
 
 function deferred<T>() {
@@ -109,25 +105,6 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
-
-describe('AuthProvider — demo mode (VITE_CAPACITYLENS_DEMO=1)', () => {
-  // Full coverage instruments the cold application graph on this first import; DOM waits retain their normal bounds.
-  it('renders children and performs no fetch at all', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy);
-    const onTenantAccessReady = vi.fn();
-    const { AuthProvider } = await freshProvider();
-    render(
-      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
-        <div>app-content</div>
-      </AuthProvider>,
-    );
-    expect(screen.getByText('app-content')).toBeInTheDocument();
-    expect(fetchSpy).not.toHaveBeenCalled();
-    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledTimes(1));
-  }, 10_000);
-});
 
 function registerServerModeTest01() {
   it('signals tenant-data access only after a successful auth check', async () => {
@@ -163,7 +140,7 @@ function registerServerModeTest01() {
     });
 
     expect(await screen.findByText('app-content')).toBeInTheDocument();
-    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledWith('live'));
+    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledOnce());
   });
 }
 
@@ -230,9 +207,8 @@ function registerServerModeTest03() {
 }
 
 function registerServerModeTest05() {
-  it('a TRULY empty env (no demo flag, no API origin) is server mode: same-origin /api/auth/me, NOT a pass-through', async () => {
-    // Guards the production same-origin deploy: an empty env must drive the credentialed auth check,
-    // never the demo pass-through (which would silently bypass auth). API_BASE='' → relative /api/auth/me.
+  it('uses the same-origin auth endpoint when no API origin is configured', async () => {
+    // An empty API origin in a same-origin deployment still performs the credentialed auth check.
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
@@ -403,7 +379,7 @@ function registerServerModeTest06() {
       token: 'session-token',
       contextToken: 'session-token',
       principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
-      authMode: 'off',
+      authMode: 'off' as never,
     });
     const { AuthProvider, useStore, resetStoreWithAccount } = await freshProvider();
     await resetStoreWithAccount('a-studio');
@@ -1037,75 +1013,6 @@ describe('AuthProvider — server mode', () => {
   registerServerModeTest31();
 });
 
-// Only the volatile demo may create a company from this client.
-function registerAccountPolicyTest01() {
-  it('parses canCreateAccount:false from a mocked /api/auth/me', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        me(200, {
-          authMode: 'password-only',
-          user: { id: 'setup-owner', email: 'owner@example.test' },
-          canCreateAccount: false,
-        }),
-      ),
-    );
-    const { AuthProvider, useAuth } = await freshProvider();
-    render(
-      <AuthProvider>
-        <Probe useAuth={useAuth} />
-      </AuthProvider>,
-    );
-    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
-  });
-}
-
-function registerAccountPolicyTest02() {
-  it('refuses persisted company creation even if a server claims canCreateAccount:true', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        me(200, {
-          authMode: 'password-only',
-          user: { id: 'setup-owner', email: 'owner@example.test' },
-          canCreateAccount: true,
-        }),
-      ),
-    );
-    const { AuthProvider, useAuth } = await freshProvider();
-    render(
-      <AuthProvider>
-        <Probe useAuth={useAuth} />
-      </AuthProvider>,
-    );
-    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
-  });
-}
-
-function registerAccountPolicyTest03() {
-  it('keeps persisted company creation unavailable when the server omits its old flag', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        me(200, {
-          authMode: 'password-only',
-          user: { id: 'setup-owner', email: 'owner@example.test' },
-        }),
-      ),
-    );
-    const { AuthProvider, useAuth } = await freshProvider();
-    render(
-      <AuthProvider>
-        <Probe useAuth={useAuth} />
-      </AuthProvider>,
-    );
-    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
-  });
-}
-
 function registerAccountPolicyTest04() {
   it('fails closed on a boot-time auth fetch failure', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
@@ -1113,10 +1020,10 @@ function registerAccountPolicyTest04() {
       'fetch',
       vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))),
     );
-    const { AuthProvider, useAuth } = await freshProvider();
+    const { AuthProvider } = await freshProvider();
     render(
       <AuthProvider>
-        <Probe useAuth={useAuth} />
+        <div>app-content</div>
       </AuthProvider>,
     );
     expect(
@@ -1135,10 +1042,10 @@ function registerAccountPolicyTest05() {
       'fetch',
       vi.fn(async () => me(200, { authMode: 'bogus', privateValue: 'SENTINEL_AUTH_PAYLOAD' })),
     );
-    const { AuthProvider, useAuth } = await freshProvider();
+    const { AuthProvider } = await freshProvider();
     render(
       <AuthProvider>
-        <Probe useAuth={useAuth} />
+        <div>app-content</div>
       </AuthProvider>,
     );
     expect(
@@ -1174,7 +1081,7 @@ function registerAccountPolicyTest09() {
 }
 
 function registerAccountPolicyTest06() {
-  it('refreshAuth re-asks /api/auth/me without enabling retired server company creation', async () => {
+  it('refreshAuth rechecks the session while preserving the verified identity', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi
       .fn()
@@ -1182,14 +1089,12 @@ function registerAccountPolicyTest06() {
         me(200, {
           authMode: 'password-only',
           user: { id: 'setup-owner', email: 'owner@example.test' },
-          canCreateAccount: false,
         }),
       )
       .mockResolvedValue(
         me(200, {
           authMode: 'password-only',
           user: { id: 'setup-owner', email: 'owner@example.test' },
-          canCreateAccount: true,
         }),
       );
     vi.stubGlobal('fetch', fetchSpy);
@@ -1199,10 +1104,10 @@ function registerAccountPolicyTest06() {
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
+    expect(await screen.findByText('authMode:password-only user:setup-owner')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /refresh/ }));
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
-    expect(screen.getByText('canCreateAccount:false')).toBeInTheDocument();
+    expect(screen.getByText('authMode:password-only user:setup-owner')).toBeInTheDocument();
   });
 }
 
@@ -1217,7 +1122,6 @@ function registerAccountPolicyTest07() {
         me(200, {
           authMode: 'password-only',
           user: { id: 'setup-owner', email: 'owner@example.test' },
-          canCreateAccount: false,
         }),
       )
       .mockRejectedValue(new Error('ECONNREFUSED'));
@@ -1228,7 +1132,7 @@ function registerAccountPolicyTest07() {
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument();
+    expect(await screen.findByText('authMode:password-only user:setup-owner')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /refresh/ }));
     await waitFor(() =>
       expect(warn).toHaveBeenCalledWith(
@@ -1236,40 +1140,20 @@ function registerAccountPolicyTest07() {
       ),
     );
 
-    expect(screen.getByText('canCreateAccount:false')).toBeInTheDocument();
+    expect(screen.getByText('authMode:password-only user:setup-owner')).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 }
 
-function registerAccountPolicyTest08() {
-  it('defaults to true in the demo build (no fetch at all)', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useAuth } = await freshProvider();
-    render(
-      <AuthProvider>
-        <Probe useAuth={useAuth} />
-      </AuthProvider>,
-    );
-    expect(await screen.findByText('canCreateAccount:true')).toBeInTheDocument();
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-}
-describe('AuthProvider — first-company setup policy', () => {
-  registerAccountPolicyTest01();
-  registerAccountPolicyTest02();
-  registerAccountPolicyTest03();
+describe('AuthProvider auth state', () => {
   registerAccountPolicyTest04();
   registerAccountPolicyTest05();
   registerAccountPolicyTest06();
   registerAccountPolicyTest07();
-  registerAccountPolicyTest08();
   registerAccountPolicyTest09();
 });
 
 it('gates tenant hydration behind authenticated company setup and opens scheduling after confirmation', async () => {
-  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '0');
   let created = false;
   const fetch = vi.fn(async (_url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
@@ -1302,7 +1186,6 @@ it('gates tenant hydration behind authenticated company setup and opens scheduli
 });
 
 it('adopts a same-principal company created in another browser only after confirming Owner access', async () => {
-  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '0');
   let createdElsewhere = false;
   const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
@@ -1335,7 +1218,6 @@ it('adopts a same-principal company created in another browser only after confir
 });
 
 it('keeps a conflicting setup refusal visible when the principal has no company access', async () => {
-  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '0');
   const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
       return me(409, { error: 'First company setup is unavailable for this installation.' });

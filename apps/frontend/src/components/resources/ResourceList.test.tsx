@@ -1,6 +1,7 @@
+import { archiveForTest } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ResourceList } from './ResourceList';
@@ -14,6 +15,10 @@ import {
   setPlaceholdersEnabled,
 } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -490,9 +495,6 @@ describe('ResourceList display', () => {
 
 // Archive hides a resource from active views while retaining it for restoration. The demo fixture exercises local state without requests.
 describe('ResourceList archive flow', () => {
-  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'));
-  afterEach(() => vi.unstubAllEnvs());
-
   it('shows an Archive confirm dialog and cancelling keeps the resource visible', async () => {
     const user = userEvent.setup();
     await useStore.getState().addResource(personDraft('Alice'));
@@ -533,9 +535,6 @@ describe('ResourceList archive flow', () => {
 });
 
 describe('ResourceList archived grouping', () => {
-  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'));
-  afterEach(() => vi.unstubAllEnvs());
-
   it('groups archived resources by kind and engagement, hides empty groups, and preserves placeholders', async () => {
     const studio = await requireCreated(
       useStore.getState().addResource(personDraft('Bruce Wayne')),
@@ -563,7 +562,7 @@ describe('ResourceList archived grouping', () => {
       }),
     );
     for (const id of [studio.id, supplementary.id, external.id, placeholder.id]) {
-      await useStore.getState().archiveEntity('resources', id);
+      await archiveForTest('resources', id);
     }
 
     render(<ResourceList />);
@@ -597,7 +596,7 @@ describe('ResourceList archived grouping', () => {
     const studio = await requireCreated(
       useStore.getState().addResource(personDraft('Bruce Wayne')),
     );
-    await useStore.getState().archiveEntity('resources', studio.id);
+    await archiveForTest('resources', studio.id);
 
     render(<ResourceList />);
 
@@ -618,9 +617,6 @@ describe('ResourceList archived grouping', () => {
 });
 
 describe('ResourceList archive flow', () => {
-  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'));
-  afterEach(() => vi.unstubAllEnvs());
-
   it('archives the correct resource when multiple exist', async () => {
     const user = userEvent.setup();
     await useStore.getState().addResource(personDraft('Alice'));
@@ -652,9 +648,6 @@ describe('ResourceList archive flow', () => {
 });
 
 describe('ResourceList archive flow', () => {
-  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'));
-  afterEach(() => vi.unstubAllEnvs());
-
   it('archives a freelancer resource', async () => {
     const user = userEvent.setup();
     await useStore.getState().addResource(freelancerDraft('Bob'));

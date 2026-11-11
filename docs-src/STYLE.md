@@ -138,9 +138,8 @@ to make it look substantial.
   `https://placehold.co/686x385?text=...` images. Their text and alt text describe the
   intended view. They are placeholders, never evidence of the application UI.
 - **Screenshots are real.** Every screenshot is captured from the running app, lives in
-  `docs-src/screenshots/`, and has alt text describing what it shows. Capture from the demo
-  (`VITE_CAPACITYLENS_DEMO=1 pnpm --dir apps/frontend exec vite --port 5199 --strictPort`) by default; use a disposable native test instance for screens that need a role, provider or sign-in state the
-  demo cannot show. Never mock up a screenshot. If the UI changes, recapture.
+  `docs-src/screenshots/`, and has alt text describing what it shows. Capture from `pnpm run dev:demo` with fictional data by default; use a disposable native test
+  instance for other roles or sign-in states. Never mock up a screenshot. If the UI changes, recapture.
 - **Bearer-bearing screens are publication reviewed.** Redact hosts and secret values before
   capture. Sensitive screenshots listed in `screenshots/publication-review.json` are SHA-256
   pinned; after changing one, inspect it at full size for usable credentials before updating its

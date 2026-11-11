@@ -13,6 +13,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- `pnpm run dev:demo` now starts the full server with one disposable sample company and a printed development Owner sign-in. Changes survive refresh and reset on command restart. The company picker and extra-company creation screen are removed; normal first-install company setup remains. Browser tests use isolated real SQLite servers.
+
 - The **Getting started** checklist now sits left-aligned in its drawer instead of in a card on the right, and no longer repeats the drawer's **Hide checklist** and **Dismiss** buttons.
 - **Breaking for API clients:** action proofs are now called password confirmations. `POST /api/auth/action-proof/password` is now `POST /api/auth/password-confirmation` and returns `confirmationId` instead of `proofId`; ownership transfer, import apply and company anonymisation accept `confirmationId`; the error codes `ACTION_PROOF_REQUIRED` and `ACTION_PROOF_DENIED` are now `PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`. Behaviour is unchanged, and the old path has no alias.
 - Every `@kevinjohn/*` package now installs from its own repository's GitHub release instead of an archive copied into `vendor/`, which is removed. The packages move to their latest releases, which change only examples and tooling: Account Kit 0.3.4, Access Control 0.1.7, Masquerade 0.2.8, password confirmation 0.1.1 and soft deletes 0.1.7.
@@ -23,6 +25,8 @@ new features and **patch** versions carry fixes.
 - Password checks for ownership transfer, import and company anonymisation use `@kevinjohn/adonisjs-confirm-action-with-password` 0.1.0 (#1784). Wrong passwords are limited to five a minute per account, then blocked for 20 minutes; the refusal says how long to wait and sends `Retry-After`. This replaces three per 10 seconds per client address. Confirmations issued before the upgrade are discarded.
 
 ### Removed
+
+- The in-memory planning engine, backend-free demo build and demo-only client container. Remote client images require a configured API origin.
 
 - **Breaking for API clients:** the unused public `GET /api/meta` route is removed (#1826). It loaded every planning table to report whether any company existed.
 

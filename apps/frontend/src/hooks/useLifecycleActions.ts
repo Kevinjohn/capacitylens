@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { API_BASE, isServerConfigured } from '@/data/apiConfig';
+import { API_BASE } from '@/data/apiConfig';
 import { useStore } from '@/store/useStore';
-import type { LifecycleEntity } from '@/store/useStore';
+import type { LifecycleEntity } from '@/store/entityDrafts';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { readApiError } from '@/lib/readApiError';
@@ -23,7 +23,7 @@ function isLifecycleOutcomeUnknown(response: Response): boolean {
 /**
  * The dispatch surface returned by {@link useLifecycleActions}. Each method runs one lifecycle
  * transition for one entity row. Planning operations use the shared typed command controller;
- * anonymisation uses the server or volatile demo store. The promise never rejects. A failure is surfaced as a notice and the promise still
+ * anonymisation uses the server. The promise never rejects. A failure is surfaced as a notice and the promise still
  * resolves, so a caller can `void` it without an unhandled rejection (the MembersSection idiom).
  */
 export interface LifecycleActions {
@@ -180,38 +180,14 @@ async function dispatchServerLifecycle(
   }
 }
 
-interface LocalLifecycleActions {
-  archive: (entity: LifecycleEntity, id: string) => void;
-  unarchive: (entity: LifecycleEntity, id: string) => void;
-  anonymise: (id: string) => void;
-}
-
-function dispatchLocalLifecycle(
-  actions: LocalLifecycleActions,
-  setNotice: SetNotice,
-  transition: { verb: LifecycleVerb; entity: LifecycleEntity; id: string },
-): void {
-  const { verb, entity, id } = transition;
-  try {
-    if (verb === 'anonymise') actions.anonymise(id);
-    else actions[verb](entity, id);
-  } catch (cause) {
-    // Surface local lifecycle rejection so the calling event does not throw without user feedback.
-    setNotice(resolveErrorMessage(cause), 'error');
-  }
-}
-
-/** Returns lifecycle actions that serialize server mutations with authoritative reloads
- * or apply domain transitions locally in demo builds. onReloaded fires after confirmed
+/** Returns lifecycle actions that serialize server mutations with authoritative reloads.
+ * onReloaded fires after confirmed
  * server mutation and refresh so an independently loaded inactive list can refetch.
  */
 export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const mutationQueue = useRef<Promise<void>>(Promise.resolve());
   const activeAccountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
-  const archiveEntity = useStore((state) => state.archiveEntity);
-  const unarchiveEntity = useStore((state) => state.unarchiveEntity);
-  const anonymiseResource = useStore((state) => state.anonymiseResource);
 
   const dispatchServer = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
@@ -229,17 +205,6 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
       }
     },
     [activeAccountId, setNotice, onReloaded],
-  );
-
-  const dispatchLocal = useCallback(
-    (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
-      dispatchLocalLifecycle(
-        { archive: archiveEntity, unarchive: unarchiveEntity, anonymise: anonymiseResource },
-        setNotice,
-        { verb, entity, id },
-      );
-    },
-    [archiveEntity, unarchiveEntity, anonymiseResource, setNotice],
   );
 
   const run = useCallback(
@@ -264,13 +229,11 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
                     };
             await useStore.getState().sendPlanningCommand(command);
             if (activeAccountId) notifyInactiveDataChanged(activeAccountId);
-          } else if (isServerConfigured()) {
-            await dispatchServer(verb, entity, id);
           } else {
-            dispatchLocal(verb, entity, id);
+            await dispatchServer(verb, entity, id);
           }
         } catch (e) {
-          // Preserve the never-reject contract if dispatch or configuration fails outside the inner operation boundary.
+          // Preserve the never-reject contract if dispatch fails outside the inner operation boundary.
           setNotice(resolveErrorMessage(e), 'error');
         }
       };
@@ -282,7 +245,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
       mutationQueue.current = scheduled;
       return scheduled;
     },
-    [activeAccountId, dispatchServer, dispatchLocal, setNotice],
+    [activeAccountId, dispatchServer, setNotice],
   );
 
   // Stabilize the returned surface so consumers do not rerender solely because its object identity changes.

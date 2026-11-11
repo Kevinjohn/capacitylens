@@ -43,7 +43,6 @@ type AllocationSlice = Pick<
   | 'clearPlanning'
   | 'suspendPlanningCommands'
   | 'planningReadyForReplacement'
-  | 'replaceAfterDemoImport'
   | 'undoPlanning'
   | 'redoPlanning'
 >;
@@ -70,26 +69,18 @@ function assertSuppliedHours(hours: number): void {
   }
 }
 
-/**
- * Publishes the controller's company slice without replacing rows belonging to other companies.
- * Losing authority clears the whole cache and both histories.
- */
+/** Publish only the active company's canonical snapshot; a new or cleared context publishes no rows. */
 function publishPlanning(
   state: StoreState,
   next: Partial<PlanningCacheState>,
-  preserveOtherCompanies: boolean,
 ): Partial<StoreState> {
   const planning = next.planning ?? state.planning;
   if (!next.data) return { planning };
   if (planning.context === null) {
-    if (preserveOtherCompanies) return { planning, past: [], future: [] };
     return {
       data: emptyAppData(),
       planning,
-      past: [],
-      future: [],
       activeAccountId: null,
-      previousAccountId: null,
       accountSummaries: [],
       accountSummariesComplete: false,
       accountSummariesRequestId: state.accountSummariesRequestId + 1,
@@ -97,25 +88,13 @@ function publishPlanning(
   }
   // A new context publishes nothing yet: its first canonical read replaces its scoped rows.
   if (state.planning.context?.companyId !== planning.context.companyId) {
-    return preserveOtherCompanies
-      ? { planning }
-      : { planning, data: emptyAppData(), past: [], future: [] };
+    return { planning, data: emptyAppData() };
   }
   const companyId = planning.context.companyId;
-  const data = preserveOtherCompanies ? { ...state.data } : emptyAppData();
-  data.accounts = [
-    ...(preserveOtherCompanies
-      ? state.data.accounts.filter((account) => account.id !== companyId)
-      : []),
-    ...next.data.accounts.filter((account) => account.id === companyId),
-  ];
+  const data = emptyAppData();
+  data.accounts = next.data.accounts.filter((account) => account.id === companyId);
   for (const key of SCOPED_KEYS) {
-    const rows = [
-      ...(preserveOtherCompanies
-        ? state.data[key].filter((row) => row.accountId !== companyId)
-        : []),
-      ...next.data[key].filter((row) => row.accountId === companyId),
-    ];
+    const rows = next.data[key].filter((row) => row.accountId === companyId);
     Object.assign(data, { [key]: rows });
   }
   const account = data.accounts.find((row) => row.id === companyId);
@@ -201,16 +180,11 @@ export function createAllocationSlice(
   return (set, get) => {
     const { requireAccount, blockedByViewer, assertAllocation, resolveOwnedRow, applyPatch } =
       internals;
-    const preserveOtherCompanies = typeof transport.resetAfterDemoImport === 'function';
     const controller = createPlanningCacheController({
       getState: () => ({ data: get().data, planning: get().planning }),
       setState: (update) =>
         set((state) =>
-          publishPlanning(
-            state,
-            update({ data: state.data, planning: state.planning }),
-            preserveOtherCompanies,
-          ),
+          publishPlanning(state, update({ data: state.data, planning: state.planning })),
         ),
       transport,
       onAuthLoss: () => clearPrivatePlanning(true),
@@ -233,10 +207,7 @@ export function createAllocationSlice(
       syncContext(null);
       set((state) => ({
         data: emptyAppData(),
-        past: [],
-        future: [],
         activeAccountId: null,
-        previousAccountId: null,
         accountSummaries: [],
         accountSummariesComplete: false,
         accountSummariesRequestId: state.accountSummariesRequestId + 1,
@@ -254,12 +225,14 @@ export function createAllocationSlice(
         companyId !== null &&
         commandLocks.size === 0 &&
         planning.context?.companyId === companyId &&
+        planning.canWrite &&
         planning.revision !== null &&
         planning.pending === null &&
         (planning.status === 'ready' || planning.status === 'refused')
       );
     };
     const send = async (command: PlanningCommand, original: unknown = null): Promise<void> => {
+      if (blockedByViewer()) return;
       if (commandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
       }
@@ -432,29 +405,6 @@ export function createAllocationSlice(
         };
       },
       planningReadyForReplacement: () => replacementReady(),
-      replaceAfterDemoImport: (data) => {
-        const companyId = get().activeAccountId;
-        const account = data.accounts.find((row) => row.id === companyId);
-        if (!companyId || !account || !transport.resetAfterDemoImport) {
-          throw new Error(
-            'A demo import requires the selected company and page-memory planning transport.',
-          );
-        }
-        const revision = transport.resetAfterDemoImport(companyId, data);
-        const planning = controller.invalidateAfterDemoImport(
-          { identity: PAGE_IDENTITY, companyId },
-          revision,
-        );
-        set((state) => ({
-          data,
-          past: [],
-          future: [],
-          planning,
-          accountSummaries: state.accountSummaries.map((summary) =>
-            summary.id === companyId ? { ...summary, name: account.name } : summary,
-          ),
-        }));
-      },
       undoPlanning: () =>
         blockedByViewer() || commandsSuspended() ? Promise.resolve(false) : controller.undo(),
       redoPlanning: () =>

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { emptyAppData, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
+  loadPlanningData,
   makeAccount,
   makeActivity,
   makeAllocation,
@@ -13,13 +14,7 @@ import {
   makeTimeOff,
   requireValue,
 } from '@/test/fixtures';
-import {
-  resolveSharedActiveData,
-  resolveSharedScopedData,
-  useActiveScopedData,
-  useInactiveScopedData,
-  useScopedData,
-} from './useScopedData';
+import { resolveSharedScopedData, useActiveScopedData, useScopedData } from './useScopedData';
 import { useStore } from './useStore';
 
 const ACCOUNT_A = 'a-studio';
@@ -130,7 +125,7 @@ function twoAccountData(): AppData {
 }
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData());
+  loadPlanningData(emptyAppData());
   useStore.getState().setActiveAccount(null);
 });
 
@@ -168,7 +163,7 @@ describe('scoped data', () => {
 
 describe('scoped data hooks', () => {
   it('updates useScopedData on account changes without retaining the previous account rows', () => {
-    useStore.getState().replaceAll(twoAccountData());
+    loadPlanningData(twoAccountData());
     useStore.getState().setActiveAccount(ACCOUNT_A);
     const { result } = renderHook(() => useScopedData());
 
@@ -182,7 +177,7 @@ describe('scoped data hooks', () => {
     );
   });
 
-  it('projects archived and soft-deleted rows out of active data while retaining them in inactive data', () => {
+  it('projects archived and soft-deleted rows out of active data', () => {
     const data = twoAccountData();
     data.resources.push(
       makeResource({ id: 'r-a-active', accountId: ACCOUNT_A, name: 'Diana Prince' }),
@@ -203,29 +198,17 @@ describe('scoped data hooks', () => {
       archivedAt: '2026-01-01T00:00:00.000Z',
     };
     data.clients[0] = { ...requireValue(data.clients[0]), deletedAt: '2026-01-02T00:00:00.000Z' };
-    useStore.getState().replaceAll(data);
+    loadPlanningData(data);
     useStore.getState().setActiveAccount(ACCOUNT_A);
-    const { result } = renderHook(() => ({
-      active: useActiveScopedData(),
-      inactive: useInactiveScopedData(),
-    }));
+    const { result } = renderHook(() => useActiveScopedData());
 
-    expect(result.current.active.resources.map((resource) => resource.id)).toEqual(['r-a-active']);
-    expect(result.current.active.clients.map((client) => client.id)).toEqual(['c-a-active']);
-    expect(result.current.active.projects.map((project) => project.id)).toEqual(['p-a-active']);
-    expect(result.current.inactive.resources.map((resource) => resource.id)).toEqual([
-      'r-a',
-      'r-a-active',
-    ]);
-    expect(result.current.inactive.clients.map((client) => client.id)).toEqual([
-      'c-a',
-      'c-a-active',
-    ]);
-    expect(resolveSharedActiveData(result.current.inactive)).toBe(result.current.active);
+    expect(result.current.resources.map((resource) => resource.id)).toEqual(['r-a-active']);
+    expect(result.current.clients.map((client) => client.id)).toEqual(['c-a-active']);
+    expect(result.current.projects.map((project) => project.id)).toEqual(['p-a-active']);
   });
 
   it('preserves the hook projection reference across unrelated store changes', () => {
-    useStore.getState().replaceAll(twoAccountData());
+    loadPlanningData(twoAccountData());
     useStore.getState().setActiveAccount(ACCOUNT_A);
     const { result } = renderHook(() => useScopedData());
     const before = result.current;

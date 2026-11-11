@@ -10,7 +10,7 @@ import {
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 
-// Only a genuine empty array may clear the picker. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
+// Only a genuine empty array may clear the directory. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
 
 afterEach(() => {
   useStore.setState({ activeAccountId: null, masquerade: { kind: 'inactive' } });
@@ -55,7 +55,7 @@ function createBasicResponseClassificationTests() {
     expect(useStore.getState().accountSummaries).toEqual([]);
     expect(useStore.getState().accountSummariesComplete).toBe(false);
     expect(useStore.getState().accountSummariesAmbiguous).toBe(true);
-    expect(useStore.getState().notice?.message).toBe(m.picker_multiple_companies_error());
+    expect(useStore.getState().notice?.message).toBe(m.account_directory_ambiguous());
   });
 
   it('a valid array -> validated summaries (off-spec rows dropped, not the whole list) + a warn per drop', async () => {
@@ -71,7 +71,7 @@ function createBasicResponseClassificationTests() {
     // Partial corruption is handled-but-logged (DEFENSIVE-CODING §5): the dropped row leaves a breadcrumb.
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'));
     expect(useStore.getState().notice).toEqual({
-      message: m.picker_accounts_incomplete(),
+      message: m.account_directory_incomplete(),
       tone: 'warning',
     });
   });
@@ -92,7 +92,7 @@ function createBasicResponseClassificationTests() {
     await expect(fetchAccountSummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate account identities'));
     expect(useStore.getState().notice).toEqual({
-      message: m.picker_accounts_incomplete(),
+      message: m.account_directory_incomplete(),
       tone: 'warning',
     });
   });
@@ -116,7 +116,7 @@ function createUnknownRoleResponseTest() {
 
 function createMalformedResponseClassificationTests() {
   it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {
-    // An array containing only invalid entries is a malformed response, not evidence that no companies exist. It must preserve the current picker list.
+    // An array containing only invalid entries is a malformed response, not evidence that no companies exist. It must preserve the current directory.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
@@ -125,7 +125,7 @@ function createMalformedResponseClassificationTests() {
     await expect(fetchAccountSummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'));
     expect(useStore.getState().notice).toEqual({
-      message: m.picker_accounts_incomplete(),
+      message: m.account_directory_incomplete(),
       tone: 'warning',
     });
   });
@@ -165,7 +165,7 @@ describe('fetchAccountSummaries — response classification', () => {
 });
 
 function createOrderedRefreshTests() {
-  it('returns an active user to the picker when a live directory no longer contains that company', async () => {
+  it('clears the active company when the live directory no longer contains its membership', async () => {
     useStore.setState({ activeAccountId: 'a1' });
     vi.stubGlobal(
       'fetch',
@@ -290,7 +290,7 @@ function createCompletenessRefreshTests() {
     expect(useStore.getState().accountSummariesComplete).toBe(false);
     expect(useStore.getState().activeAccountId).toBe('active');
     expect(useStore.getState().notice).toEqual({
-      message: m.picker_accounts_incomplete(),
+      message: m.account_directory_incomplete(),
       tone: 'warning',
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'));

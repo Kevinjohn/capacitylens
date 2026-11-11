@@ -1,15 +1,15 @@
 ---
 title: Try the demo
-description: See CapacityLens running with sample data in about two minutes, with nothing installed but the repo.
+description: See CapacityLens running with sample data in about two minutes, using a disposable local server.
 ---
 
 # Try the demo
 
-Run a sample agency's schedule on your own machine in about two minutes. Nothing is saved:
-schedule changes reset when you refresh, and there is no real sign-in. Display preferences may stay
-in your browser. To keep real data, [install CapacityLens](/self-hosting/install) instead.
+Run a sample agency's schedule on your own machine. The command starts the full server and web
+app with disposable SQLite storage. Schedule changes survive refresh and reset when you restart
+the command. Display preferences may stay in your browser. To keep real data, [install CapacityLens](/self-hosting/install) instead.
 
-You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x; check with
+You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x) or 26 (26.9.0 or newer within 26.x; check with
 `node --version`) and
 [pnpm](https://pnpm.io), which `corepack` in Node provides.
 
@@ -21,7 +21,7 @@ You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x; check w
    git clone https://github.com/Kevinjohn/capacitylens.git
    cd capacitylens
    git checkout vX.Y.Z
-   corepack enable && pnpm install
+   corepack enable && pnpm install --frozen-lockfile
    ```
 
    Replace `vX.Y.Z` with the newest tag on the
@@ -34,15 +34,15 @@ You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x; check w
    pnpm run dev:demo
    ```
 
-3. Open the **Local** address the command prints, usually
-   [http://127.0.0.1:5173](http://127.0.0.1:5173).
+3. Open the address printed when the demo is ready. Sign in with the development email and
+   password printed alongside it. The sample company opens automatically.
 
-No setup link, `.env` file or database is needed.
+No setup link or `.env` file is needed. The command creates its disposable database locally.
 
-## Open the sample company
+## Explore the sample company
 
-Pick a company on **Choose a company**; there is no sign-in. The schedule opens with people, clients, projects and bookings
-already in place.
+The schedule opens with people, clients, projects and bookings already in place. The development
+identity is its Owner, so the same server permissions and password confirmations apply.
 
 ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)
 

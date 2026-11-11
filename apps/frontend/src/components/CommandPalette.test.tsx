@@ -7,6 +7,7 @@ import { CommandPalette } from './CommandPalette';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore, buildEmptyFilters } from '@/store/useStore';
 import {
+  loadPlanningData,
   makeResourceDraft,
   DEFAULT_ACCOUNT_ID,
   resetStoreWithAccount,
@@ -48,7 +49,7 @@ async function addInternalSearchItems() {
   const internal =
     data.clients.find((client) => client.builtin === true) ??
     buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
-  useStore.getState().replaceAll({
+  loadPlanningData({
     ...data,
     clients: data.clients.some((client) => client.id === internal.id)
       ? data.clients

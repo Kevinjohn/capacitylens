@@ -52,8 +52,6 @@ export interface PlanningTransport {
     mutationId: string,
     signal: AbortSignal,
   ): Promise<PlanningMutationLookup>;
-  /** The page-memory demo uses this when an imported company replaces its planning history. */
-  resetAfterDemoImport?(companyId: string, data: AppData): number;
 }
 
 export interface PlanningHistory {
@@ -296,24 +294,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   function loseScope(): void {
     setContext(null);
     options.onAuthLoss?.();
-  }
-
-  function invalidateAfterDemoImport(
-    context: PlanningClientContext,
-    revision: number,
-  ): PlanningControllerMetadata {
-    generation += 1;
-    readSequence += 1;
-    lookupSequence += 1;
-    attempt = null;
-    accessKeyEstablished = false;
-    abortAll();
-    return {
-      ...initialMetadata(Object.freeze({ ...context })),
-      revision,
-      canWrite: true,
-      status: 'ready',
-    };
   }
 
   function acceptRead(snapshot: PlanningSnapshot): boolean {
@@ -900,7 +880,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
 
   return {
     setContext,
-    invalidateAfterDemoImport,
     refresh,
     begin,
     execute,

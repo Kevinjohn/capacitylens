@@ -1,15 +1,24 @@
+import { archiveForTest } from '@/test/fixtures';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClientList } from './ClientList';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, requireValue } from '@/test/fixtures';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { internalClientFor } from '@capacitylens/shared/data/internalClient';
+import {
+  DEFAULT_ACCOUNT_ID,
+  loadPlanningData,
+  makeClient,
+  resetStoreWithAccount,
+  requireValue,
+} from '@/test/fixtures';
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { PermissionContext } from '@/auth/permissionContext';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -60,11 +69,8 @@ it('gives repeated client edit controls distinct contextual names', async () => 
   expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
 });
 
-// Archiving hides a client and its descendants from active views while retaining them for restoration. This suite uses the demo so it exercises store mutations without server requests.
+// Archiving hides a client and its descendants from active views while retaining them for restoration.
 describe('ClientList archive flow', () => {
-  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'));
-  afterEach(() => vi.unstubAllEnvs());
-
   it('confirms before archiving and keeps the client + its children in the data', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
@@ -145,7 +151,7 @@ describe('ClientList archive flow', () => {
       useStore.getState().addClient({ name: 'Real client', color: '#111111' }),
     );
     const client = { ...created, name: '"Nightwing"', isPrivate: true };
-    useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
+    loadPlanningData({ ...useStore.getState().data, clients: [client] });
     render(<ClientList />);
 
     await user.click(screen.getByRole('button', { name: 'Archive "Nightwing"' }));
@@ -159,7 +165,7 @@ describe('ClientList archive flow', () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
-    useStore.getState().archiveEntity('clients', client.id);
+    await archiveForTest('clients', client.id);
     await useStore.getState().refreshPlanning();
     render(
       <QueryClientProvider client={new QueryClient()}>
@@ -182,7 +188,7 @@ describe('ClientList archive flow', () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
-    useStore.getState().archiveEntity('clients', client.id);
+    await archiveForTest('clients', client.id);
 
     render(
       <PermissionContext.Provider value={{ role, status: 'resolved' }}>
@@ -199,7 +205,7 @@ describe('ClientList archive flow', () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
-    useStore.getState().archiveEntity('clients', client.id);
+    await archiveForTest('clients', client.id);
     await useStore.getState().refreshPlanning();
     render(<ClientList />);
 
@@ -214,16 +220,15 @@ describe('ClientList archive flow', () => {
 // The built-in Internal client is a persisted project bucket, so ordinary client management must neither list nor archive it.
 describe('ClientList withholds the Archive affordance for the built-in Internal client', () => {
   it('renders no row and no Archive control for the Internal client (only normal clients show)', async () => {
-    useStore.getState().replaceAll(emptyAppData());
-    const a = useStore.getState().addAccount({ name: 'Ferris Co', color: FALLBACK_PRESET_COLOR });
-    if (!a) throw new Error('Expected account');
-    useStore.getState().setActiveAccount(a.id);
+    const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
+    loadPlanningData({
+      ...useStore.getState().data,
+      clients: [
+        internal,
+        makeClient({ id: 'normal-client', accountId: DEFAULT_ACCOUNT_ID, name: 'Globex' }),
+      ],
+    });
     await useStore.getState().refreshPlanning();
-    const internal = requireValue(
-      internalClientFor(useStore.getState().data.clients, a.id),
-      'internal client',
-    );
-    await useStore.getState().addClient({ name: 'Globex', color: '#3b82f6' });
 
     render(<ClientList />);
 

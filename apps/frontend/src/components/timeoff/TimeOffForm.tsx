@@ -148,10 +148,9 @@ function buildTimeOffRepeatFields(options: {
   );
 }
 
-// With identity authorization off, no server note projection needs enforcement.
 function useCanEditTimeOffNote(): boolean {
   const role = useRole();
-  return role === null || canSeeTimeOffNote(role);
+  return role !== null && canSeeTimeOffNote(role);
 }
 
 /** Creates or edits time off for an authorised resource. */

@@ -565,7 +565,7 @@ function registerKeyboardPinnedTest() {
     expect(after.data.allocations.find((candidate) => candidate.id === allocation.id)).toBe(
       storedBefore,
     );
-    expect(after.past).toBe(before.past);
+    expect(after.planning.history.past).toBe(before.planning.history.past);
     expect(after.srAnnouncement).toBeNull();
   });
 }

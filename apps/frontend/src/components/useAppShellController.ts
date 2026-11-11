@@ -12,24 +12,7 @@ import { hasOpenModal, isTextEntryShortcutOwner } from '@/lib/shortcutGuards';
 import { isShownByPlanningState } from '@/data/planning/planningCacheController';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
-import { useAuth } from '@/auth/authContext';
 import { transitionAccount } from '@/auth/accountTransition';
-import { isServerConfigured } from '@/data/apiConfig';
-
-function readReloadNavigationState(): boolean {
-  try {
-    return globalThis.performance
-      .getEntriesByType('navigation')
-      .some((entry) => (entry as PerformanceNavigationTiming).type === 'reload');
-  } catch (error) {
-    // An unavailable navigation hint may keep the picker visible; warn because the runtime failure would otherwise be hidden.
-    console.warn(
-      'The browser navigation type could not be read; keeping the company picker',
-      error,
-    );
-    return false;
-  }
-}
 
 type StoreState = ReturnType<typeof useStore.getState>;
 
@@ -80,7 +63,6 @@ interface SingleAccountReloadInput {
   accountSummaries: StoreState['accountSummaries'];
   accountSummariesComplete: boolean;
   activeAccountId: StoreState['activeAccountId'];
-  previousAccountId: StoreState['previousAccountId'];
   hydrated: boolean;
 }
 
@@ -88,15 +70,12 @@ interface ResolveSingleAccountForReloadInput {
   accountSummaries: StoreState['accountSummaries'];
   accountSummariesComplete: boolean;
   activeAccountId: StoreState['activeAccountId'];
-  previousAccountId: StoreState['previousAccountId'];
-  serverMode: boolean;
 }
 
 function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput) {
   const account = input.accountSummaries[0];
   if (
     input.activeAccountId !== null ||
-    (!input.serverMode && input.previousAccountId !== null) ||
     !input.accountSummariesComplete ||
     input.accountSummaries.length !== 1 ||
     account?.roleStatus === 'unavailable'
@@ -107,46 +86,24 @@ function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput
 }
 
 function useSingleAccountReload(input: SingleAccountReloadInput) {
-  const {
-    accountSummaries,
-    accountSummariesComplete,
-    activeAccountId,
-    previousAccountId,
-    hydrated,
-  } = input;
-  const [reloadNavigation] = useState(readReloadNavigationState);
+  const { accountSummaries, accountSummariesComplete, activeAccountId, hydrated } = input;
   const singleAccountReloadHandled = useRef(false);
-  const serverMode = isServerConfigured();
 
   useEffect(() => {
-    // Production has no picker to fall back on, so a later close of the sole company (for example a
-    // failed access refresh) must be able to enter it again instead of leaving a bare loading screen.
-    if (serverMode && activeAccountId !== null) singleAccountReloadHandled.current = false;
-    if ((!serverMode && !reloadNavigation) || !hydrated || singleAccountReloadHandled.current) {
-      return;
-    }
+    if (activeAccountId !== null) singleAccountReloadHandled.current = false;
+    if (!hydrated || singleAccountReloadHandled.current) return;
     if (accountSummaries.length === 0) return;
 
     const account = resolveSingleAccountForReload({
       accountSummaries,
       accountSummariesComplete,
       activeAccountId,
-      previousAccountId,
-      serverMode,
     });
     if (!account) return;
 
     singleAccountReloadHandled.current = true;
     void transitionAccount(account.id);
-  }, [
-    accountSummaries,
-    accountSummariesComplete,
-    activeAccountId,
-    previousAccountId,
-    serverMode,
-    hydrated,
-    reloadNavigation,
-  ]);
+  }, [accountSummaries, accountSummariesComplete, activeAccountId, hydrated]);
 }
 
 function useAccountLocale(
@@ -284,11 +241,8 @@ function useAuditWarning(setNotice: StoreState['setNotice']) {
 
 /** Owns AppShell's bootstrap handoff, global effects, shortcuts and notice bridge. */
 export function useAppShellController() {
-  const { authMode } = useAuth();
-  // In auth-on mode PermissionProvider owns the active-account refresh and publishes the same
-  // validated list to the store. The shell hook still owns picker reads; auth-off has no permission
-  // lookup, so it continues refreshing the active directory itself.
-  useAccountSummaries({ refreshActiveAccount: authMode === 'off' });
+  // PermissionProvider owns active-account refreshes and publishes the validated directory.
+  useAccountSummaries({ refreshActiveAccount: false });
   const notice = useStore((state) => state.notice);
   const setNotice = useStore((state) => state.setNotice);
   const dirtyForm = useStore((state) => state.dirtyForm);
@@ -299,7 +253,6 @@ export function useAppShellController() {
   const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
   const hydrated = useStore((state) => state.hydrated);
   const activeAccountId = useStore((state) => state.activeAccountId);
-  const previousAccountId = useStore((state) => state.previousAccountId);
   const { pathname, search, hash } = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -316,7 +269,6 @@ export function useAppShellController() {
     accountSummaries,
     accountSummariesComplete,
     activeAccountId,
-    previousAccountId,
     hydrated,
   });
   const { activeLanguage, activeLanguagePending } = useAccountLocale(accounts, activeAccountId);

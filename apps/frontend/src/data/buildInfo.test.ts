@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// buildStamp() reads VITE_CAPACITYLENS_BUILD_SHA at call time, but the server/demo suffix comes
-// from apiConfig (server is the default; the demo build sets VITE_CAPACITYLENS_DEMO=1), resolved at
-// import. So, like apiConfig.test, each case stubs the env, resets the module registry, and re-imports.
+// buildStamp() reads build provenance at call time.
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -39,20 +37,11 @@ describe('buildStamp', () => {
     expect(buildStamp()).toBeNull();
   });
 
-  it('reports demo mode when VITE_CAPACITYLENS_DEMO=1', async () => {
+  it('identifies the server deployment', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d');
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
-    const buildStamp = await freshBuildStamp();
-    expect(buildStamp()).toBe('build a1b2c3d · demo');
-  });
-
-  it('reports server mode by default (server is the default; no demo flag)', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d');
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
     const buildStamp = await freshBuildStamp();
     expect(buildStamp()).toBe('build a1b2c3d · server');
   });
-  // API_BASE does not affect the mode suffix, so an explicit origin would duplicate the server branch.
 });
 
 describe('feedbackMailto', () => {

@@ -45,7 +45,6 @@ describe('typed planning domain rejections', () => {
     const account = useStore.getState().data.accounts[0];
     if (!account) throw new Error('Expected account fixture.');
     await useStore.getState().updateAccount(account.id, { workingDays: [1, 3, 5] });
-    useStore.getState().addAccount({ name: 'Stark Industries', color: '#2d75da', weekStartsOn: 0 });
     expect(
       useStore.getState().data.accounts.find((row) => row.id === account.id)?.workingDays,
     ).toEqual([1, 3, 5]);

@@ -1,10 +1,10 @@
 import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import type { AppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { useStore } from '@/store/useStore';
 import {
+  loadPlanningData,
   makeAppData,
   makeAccount,
   makeClient,
@@ -41,8 +41,8 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
     '@/test/createTestPlanningTransport',
   );
   return {
-    createStorePlanningTransport: (read: () => AppData) => {
-      return actual.createTestPlanningTransport(read, (transport) => ({
+    createStorePlanningTransport: () => {
+      return actual.createTestPlanningTransport((transport) => ({
         ...transport,
         execute: async (...args: Parameters<typeof transport.execute>) => {
           const receipt: PlanningMutationSuccess = requirePlanningMutationSuccess(
@@ -114,7 +114,7 @@ beforeEach(async () => {
       }),
     ],
   });
-  useStore.getState().replaceAll(data);
+  loadPlanningData(data);
   useStore.getState().setActiveAccount(accountId);
   useStore.getState().clearFilters();
   useStore.getState().goToDate('2026-06-01');

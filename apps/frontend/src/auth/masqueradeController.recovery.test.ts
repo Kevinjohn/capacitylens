@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { AppData } from '@capacitylens/shared/types/entities';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { makeAccount, makeAppData } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { PlanningPendingMutation } from '@/data/planning/planningCacheController';
-import { createVolatilePlanningTransport } from '@/data/planning/volatilePlanningTransport';
+import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { reprojectAccess } from './reprojectAccess';
 import { MasqueradeController } from './masqueradeController';
 
@@ -15,8 +15,8 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
     '@/test/createTestPlanningTransport',
   );
   return {
-    createStorePlanningTransport: (readData: () => AppData) => {
-      return actual.createTestPlanningTransport(readData, (transport) => ({
+    createStorePlanningTransport: () => {
+      return actual.createTestPlanningTransport((transport) => ({
         ...transport,
         read: async (...args: Parameters<typeof transport.read>) => {
           reads.count += 1;
@@ -41,14 +41,13 @@ const state: MasqueradeState & { contextToken: string } = {
 const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
 function controllerWithNativeSlice(bootstrapFailure = false) {
-  useStore.setState({
-    data: makeAppData({
-      accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })],
-    }),
+  const nativeData = makeAppData({
+    accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })],
   });
-  const bootstrapTransport = createVolatilePlanningTransport(() =>
-    makeAppData({ accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })] }),
-  );
+  useStore.setState({ data: nativeData });
+  getStubPlanningTransport().reset(state.accountId, nativeData);
+  const bootstrapTransport = new StubPlanningTransport();
+  bootstrapTransport.reset(state.accountId, nativeData);
   const api = {
     status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
     start: vi.fn(async () => state),

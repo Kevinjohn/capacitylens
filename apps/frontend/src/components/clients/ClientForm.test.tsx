@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { ClientForm } from './ClientForm';
 import { useStore } from '@/store/useStore';
 import { resolveColorName } from '@/lib/palette';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, resetStoreWithAccount } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 
 beforeEach(async () => {
@@ -198,7 +198,7 @@ it('hides owner-only privacy controls and locks the redacted name for a non-owne
     useStore.getState().addClient({ name: 'Real client', color: '#ff0000' }),
   );
   const client = { ...created, name: '"Nightwing"', isPrivate: true };
-  useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
+  loadPlanningData({ ...useStore.getState().data, clients: [client] });
   render(
     <PermissionContext.Provider value={{ role: 'editor' }}>
       <ClientForm client={client} onClose={vi.fn()} />
@@ -309,7 +309,7 @@ it('keeps the form open when the client vanished during editing', async () => {
   render(<ClientForm client={client} onClose={onClose} />);
 
   const data = useStore.getState().data;
-  useStore.getState().replaceAll({
+  loadPlanningData({
     ...data,
     clients: data.clients.filter((candidate) => candidate.id !== client.id),
   });
