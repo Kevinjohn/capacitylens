@@ -10,8 +10,7 @@ export interface E2eWorkerTarget {
 export interface E2eWorkerServer {
   target: E2eWorkerTarget;
   baseURL: string;
-  assertDrained(): Promise<void>;
-  waitUntilDrained(): Promise<void>;
+  controlToken: string;
   stop(): Promise<void>;
 }
 

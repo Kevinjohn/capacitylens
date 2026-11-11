@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { existsSync, realpathSync, rmSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { requestResetControl } from '../apps/backend/start/e2e_reset_control.ts';
 
 const backendDirectory = fileURLToPath(new URL('../apps/backend/', import.meta.url));
 
@@ -33,15 +34,89 @@ export function serverTarget(lane: number, slot: number): ServerTarget {
 }
 
 let configuredTarget = serverTarget(resolveLane(), 0);
-let drain: (() => Promise<void>) | undefined;
+let resetControlToken: string | undefined;
+let stopOwnedPair: (() => Promise<void>) | undefined;
 /** Current worker API origin; imports observe configuration before a test starts. */
 export let API = configuredTarget.api;
 
 /** Bind this Playwright worker to its owned target and request-drain boundary. */
-export function configureServerTarget(target: ServerTarget, assertDrained: () => Promise<void>) {
+export function configureServerTarget(
+  target: ServerTarget,
+  control: { controlToken: string; stop: () => Promise<void> },
+) {
   configuredTarget = target;
   API = target.api;
-  drain = assertDrained;
+  resetControlToken = control.controlToken;
+  stopOwnedPair = control.stop;
+}
+
+const resetControlTimeoutMs = 5_000;
+
+async function resumePair(token: string, primary: unknown): Promise<never | void> {
+  const errors: unknown[] = [];
+  for (const role of ['api', 'vite'] as const) {
+    try {
+      await requestResetControl(token, role, 'resume', resetControlTimeoutMs);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length) {
+    let stopError: unknown;
+    try {
+      await stopOwnedPair?.();
+    } catch (error) {
+      stopError = error;
+    }
+    throw new AggregateError(
+      [primary, ...errors, ...(stopError ? [stopError] : [])],
+      'Reset failed and the owned API/Vite pair could not be safely resumed; the pair was stopped.',
+      { cause: primary },
+    );
+  }
+}
+
+async function withDataListenersPaused<T>(target: ServerTarget, restore: () => T): Promise<T> {
+  if (target !== configuredTarget)
+    throw new Error('A reset must use this worker’s configured target.');
+  if (!resetControlToken || !stopOwnedPair)
+    throw new Error('The worker reset control boundary is not configured.');
+
+  const token = resetControlToken;
+  const deadline = Date.now() + resetControlTimeoutMs;
+  try {
+    await requestResetControl(token, 'vite', 'pause', resetControlTimeoutMs);
+    await requestResetControl(token, 'api', 'pause', Math.max(1, deadline - Date.now()));
+  } catch (error) {
+    await resumePair(token, error);
+    throw error;
+  }
+
+  let result: T;
+  try {
+    result = restore();
+  } catch (error) {
+    await resumePair(token, error);
+    throw error;
+  }
+
+  try {
+    await requestResetControl(token, 'api', 'resume', resetControlTimeoutMs);
+    await requestResetControl(token, 'vite', 'resume', resetControlTimeoutMs);
+  } catch (error) {
+    let stopError: unknown;
+    try {
+      await stopOwnedPair();
+    } catch (cleanupError) {
+      stopError = cleanupError;
+    }
+    throw new AggregateError(
+      [error, ...(stopError ? [stopError] : [])],
+      'Reset completed but the owned API/Vite pair could not resume; the pair was stopped.',
+      { cause: error },
+    );
+  }
+  return result;
 }
 
 function assertDisposableDatabase(target: ServerTarget) {
@@ -128,33 +203,31 @@ function bindFixtureOwner(db: DatabaseSync) {
 
 /** Snapshot the worker's initial company once; identities are never restored from this template. */
 export async function prepareServerTemplate(target: ServerTarget): Promise<void> {
-  if (target !== configuredTarget)
-    throw new Error('Configure the worker target before preparing its template.');
-  if (!drain) throw new Error('The worker request-drain boundary is not configured.');
-  await drain();
-  ensureDbFixtureAdministrator(target);
-  const db = new DatabaseSync(target.databasePath);
-  try {
-    orderedCompanyTables(db);
-    db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
+  await withDataListenersPaused(target, () => {
+    ensureDbFixtureAdministrator(target);
+    const db = new DatabaseSync(target.databasePath);
     try {
-      db.exec(
-        "DELETE FROM audit_entries; DELETE FROM memberships; DELETE FROM accounts WHERE id <> 'a-studio'",
-      );
-      bindFixtureOwner(db);
-      db.exec(
-        "INSERT OR IGNORE INTO company_planning_revisions (account_id, revision) VALUES ('a-studio', 0)",
-      );
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
+      orderedCompanyTables(db);
+      db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
+      try {
+        db.exec(
+          "DELETE FROM audit_entries; DELETE FROM memberships; DELETE FROM accounts WHERE id <> 'a-studio'",
+        );
+        bindFixtureOwner(db);
+        db.exec(
+          "INSERT OR IGNORE INTO company_planning_revisions (account_id, revision) VALUES ('a-studio', 0)",
+        );
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+      rmSync(target.templatePath, { force: true });
+      db.prepare('VACUUM INTO ?').run(target.templatePath);
+    } finally {
+      db.close();
     }
-    rmSync(target.templatePath, { force: true });
-    db.prepare('VACUUM INTO ?').run(target.templatePath);
-  } finally {
-    db.close();
-  }
+  });
 }
 
 type ResetServerOptions = {
@@ -168,42 +241,40 @@ export async function resetServer({
   withSeed = true,
   target = configuredTarget,
 }: ResetServerOptions): Promise<void> {
-  if (target !== configuredTarget)
-    throw new Error('A reset must use this worker’s configured target.');
-  if (!drain) throw new Error('The worker request-drain boundary is not configured.');
-  await drain();
-  ensureDbFixtureAdministrator(target);
-  if (
-    !existsSync(target.templatePath) ||
-    realpathSync(target.templatePath) !== resolve(target.templatePath)
-  )
-    throw new Error('The disposable company template is unavailable.');
-  const db = new DatabaseSync(target.databasePath);
-  try {
-    db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000');
-    const tables = orderedCompanyTables(db);
-    db.prepare('ATTACH DATABASE ? AS fixture_template').run(target.templatePath);
+  await withDataListenersPaused(target, () => {
+    ensureDbFixtureAdministrator(target);
+    if (
+      !existsSync(target.templatePath) ||
+      realpathSync(target.templatePath) !== resolve(target.templatePath)
+    )
+      throw new Error('The disposable company template is unavailable.');
+    const db = new DatabaseSync(target.databasePath);
     try {
-      db.exec('BEGIN IMMEDIATE');
+      db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000');
+      const tables = orderedCompanyTables(db);
+      db.prepare('ATTACH DATABASE ? AS fixture_template').run(target.templatePath);
       try {
-        for (const table of tables.toReversed()) db.exec(`DELETE FROM "${table}"`);
-        if (withSeed) {
-          for (const table of tables) {
-            if (table === 'memberships') bindFixtureOwner(db);
-            else db.exec(`INSERT INTO "${table}" SELECT * FROM fixture_template."${table}"`);
+        db.exec('BEGIN IMMEDIATE');
+        try {
+          for (const table of tables.toReversed()) db.exec(`DELETE FROM "${table}"`);
+          if (withSeed) {
+            for (const table of tables) {
+              if (table === 'memberships') bindFixtureOwner(db);
+              else db.exec(`INSERT INTO "${table}" SELECT * FROM fixture_template."${table}"`);
+            }
           }
+          db.exec('COMMIT');
+        } catch (error) {
+          db.exec('ROLLBACK');
+          throw error;
         }
-        db.exec('COMMIT');
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
+      } finally {
+        db.exec('DETACH DATABASE fixture_template');
       }
     } finally {
-      db.exec('DETACH DATABASE fixture_template');
+      db.close();
     }
-  } finally {
-    db.close();
-  }
+  });
 }
 
 /** Read the real worker's company state for persistence assertions. */

@@ -2,10 +2,8 @@ import { test, expect } from './dbFixtures';
 import { openApp, selectShadOption } from './browserTestSupport';
 import { serverState, requireStateRows } from './serverTestState';
 
-// This database-backed project uses VITE_CAPACITYLENS_API, so typed writes persist in SQLite.
+// The worker Vite proxy sends typed writes to its isolated SQLite-backed server.
 // A record surviving a planning-read reload proves the full UI-to-database round trip.
-
-function registerBeforeEachHooks() {}
 
 function registerHydratesSeededDatasetServerLoadTest() {
   test('hydrates the seeded dataset from the server on load', async ({ page }) => {
@@ -230,7 +228,6 @@ function registerArchiveReloadArchivedClientRetainedTests() {
 }
 
 test.describe('database-backed persistence', () => {
-  registerBeforeEachHooks();
   registerHydratesSeededDatasetServerLoadTest();
   registerCreateReloadNewClientRoundTest();
   registerRepeatCreationPersistsAllAllocationTest();
