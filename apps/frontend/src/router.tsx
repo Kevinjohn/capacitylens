@@ -152,8 +152,6 @@ export const router = createBrowserRouter([
       { index: true, element: <SchedulerView /> },
       { path: 'overview', element: <CapacityOverviewRoute /> },
       { path: 'resources', element: <ResourceList /> },
-      // Preserve the legacy external-resource bookmark by redirecting it to Resources.
-      { path: 'external', element: <Navigate to="/resources" replace /> },
       { path: 'disciplines', element: <DisciplineRoute /> },
       { path: 'clients', element: <ClientList /> },
       { path: 'projects', element: <ProjectList /> },

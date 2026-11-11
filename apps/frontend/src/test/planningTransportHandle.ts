@@ -6,8 +6,6 @@ interface TestPlanningTransportHandle {
   transport: PlanningTransport;
   stub: StubPlanningTransport;
   owner?: object;
-  reset: (companyId: string, data: AppData) => void;
-  updateSource: (data: AppData) => void;
 }
 
 let handle: TestPlanningTransportHandle | undefined;
@@ -29,7 +27,7 @@ export function resetPlanningTransport(companyId: string, data: AppData, owner: 
     throw new Error('The planning transport does not belong to this fixture store.');
   }
   handle.owner = owner;
-  handle.reset(companyId, data);
+  handle.stub.reset(companyId, data);
 }
 
 /** Update the fixture transport's canonical rows without clearing history or queued responses. */
@@ -38,7 +36,7 @@ export function updatePlanningFixtureSource(data: AppData, owner: object): void 
     throw new Error('The planning transport does not belong to this fixture store.');
   }
   handle.owner = owner;
-  handle.updateSource(data);
+  handle.stub.updateSource(data);
 }
 
 /** Return the fixture's explicit response controls. */

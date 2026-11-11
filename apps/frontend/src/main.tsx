@@ -11,16 +11,11 @@ import { queryClient } from './api/queryClient';
 import { AuthProvider } from './auth/AuthProvider';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useStore } from './store/useStore';
-import { retireBrowserSnapshots } from './data/retireBrowserSnapshots';
 import { APP_NAME } from '@capacitylens/shared/brand';
 import { applyThemeToDom, watchSystemTheme } from './lib/theme';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error(`${APP_NAME} mount node #root not found in index.html`);
-
-void retireBrowserSnapshots().catch((error: unknown) =>
-  console.error('Browser snapshot retirement failed', error),
-);
 
 applyThemeToDom(useStore.getState().theme);
 const detachTheme = watchSystemTheme(() => useStore.getState().theme);

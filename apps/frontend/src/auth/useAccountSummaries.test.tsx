@@ -351,22 +351,6 @@ function createYieldingHookTest() {
     expect(fetchMock).not.toHaveBeenCalled();
     view.unmount();
   });
-
-  it('yields active-account reads when the permission provider owns that generation', async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    useStore.setState({ activeAccountId: 'a1' });
-
-    function YieldingHost() {
-      useAccountSummaries({ refreshActiveAccount: false });
-      return null;
-    }
-    const view = renderWithQuery(<YieldingHost />);
-    await act(async () => {});
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    view.unmount();
-  });
 }
 
 function createMalformedHookTests() {

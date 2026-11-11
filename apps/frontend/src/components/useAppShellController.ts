@@ -242,7 +242,7 @@ function useAuditWarning(setNotice: StoreState['setNotice']) {
 /** Owns AppShell's bootstrap handoff, global effects, shortcuts and notice bridge. */
 export function useAppShellController() {
   // PermissionProvider owns active-account refreshes and publishes the validated directory.
-  useAccountSummaries({ refreshActiveAccount: false });
+  useAccountSummaries();
   const notice = useStore((state) => state.notice);
   const setNotice = useStore((state) => state.setNotice);
   const dirtyForm = useStore((state) => state.dirtyForm);

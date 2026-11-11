@@ -46,7 +46,7 @@ function renderProvider() {
 }
 
 function SharedDirectoryProvider() {
-  useAccountSummaries({ refreshActiveAccount: false });
+  useAccountSummaries();
   return (
     <PermissionProvider>
       <Probe />

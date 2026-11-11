@@ -15,8 +15,6 @@ export function createTestPlanningTransport(
   setPlanningTransportHandle({
     transport,
     stub,
-    reset: stub.reset.bind(stub),
-    updateSource: stub.updateSource.bind(stub),
   });
   return transport;
 }

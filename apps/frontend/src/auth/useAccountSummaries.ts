@@ -169,13 +169,7 @@ export async function refreshAccountSummaries(requestOptions?: {
 }
 
 /** Keeps the account directory current. Active-company reads belong to PermissionProvider; failed reads preserve the previous list. */
-export function useAccountSummaries({
-  refreshActiveAccount = true,
-}: {
-  /** Authenticated app bodies delegate active-account refreshes to PermissionProvider so the
-   * directory and permission projection share one request. Directory reads remain owned by this hook. */
-  refreshActiveAccount?: boolean;
-} = {}): void {
+export function useAccountSummaries(): void {
   // Re-key the request owner on the active account so a sign-in or membership change re-pulls the list.
   const activeAccountId = useStore((state) => state.activeAccountId);
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
@@ -190,7 +184,7 @@ export function useAccountSummaries({
       { principalId: user?.id ?? null, accountId: activeAccountId, masqueradeGeneration },
       ['account-summaries', membershipRevision, ...accountRouteKey],
     ),
-    enabled: !masqueradeActive && (activeAccountId === null || refreshActiveAccount),
+    enabled: !masqueradeActive && activeAccountId === null,
     // Keep refresh triggers aligned with the existing effect dependencies; focus alone must not
     // silently change the company directory.
     refetchOnMount: 'always',
