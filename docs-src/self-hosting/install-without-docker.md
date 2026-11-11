@@ -18,9 +18,10 @@ addresses with your own.
 
 ## Install with one command
 
-Before you start, install Node 24 system-wide and [Caddy](https://caddyserver.com/docs/install),
-point your domain name's DNS at the host and open ports 80 and 443. Caddy obtains and renews the
-HTTPS certificate. The archive contains a native SQLite addon and must match the host operating
+Before you start, install Node 24 system-wide, point your domain name's DNS at the host and open
+ports 80 and 443. Unless the host already runs another HTTPS proxy (see `--proxy none` below), also
+install [Caddy](https://caddyserver.com/docs/install), which obtains and renews the HTTPS
+certificate. The archive contains a native SQLite addon and must match the host operating
 system and architecture.
 
 Download the archive and its checksum from the same GitHub release, verify and unpack it, then run
@@ -35,8 +36,8 @@ sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs
 
 The release must be unpacked into `/opt/capacitylens` so the service user can read it. The
 command asks for the public HTTPS address, the Owner's email address and the SMTP mail settings;
-the password is not shown as you type it. Leave the mail host blank to set up mail later; see [step 3](#_3-configure-the-installation)
-for what works without it. Then it:
+the password is not shown as you type it. Leave the mail host blank to set up mail later; see
+[step 3](#_3-configure-the-installation) for what works without it. Then it:
 
 - creates the `capacitylens` service user and `/var/lib/capacitylens` with its `backups` folder
 - writes `/etc/capacitylens.env`, readable by root only, with a generated `APP_KEY` and
@@ -45,7 +46,9 @@ for what works without it. Then it:
   upgrade and starts the service
 - writes `/etc/caddy/capacitylens.caddy`, imports it from `/etc/caddy/Caddyfile`, validates the
   result and reloads Caddy; if Caddy refuses it, both files are put back as they were
-- waits for the service to report ready, then prints the one-time setup link for the Owner
+- waits for the service, and then the HTTPS address, to report ready, and prints the one-time
+  setup link for the Owner. If HTTPS is not serving yet, usually because of DNS or a closed port,
+  it still prints the link but ends with an error saying so
 
 Verified backups then run when the service starts and every 24 hours; see
 [Backups and restore](/self-hosting/backups-and-restore). Open the setup link and continue at
@@ -62,13 +65,17 @@ sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs \
 ```
 
 With an existing nginx or other HTTPS proxy on the same machine, add `--proxy none`: the command
-then leaves Caddy alone and prints the address to proxy to, with the equivalent Caddy site. Use
+then leaves Caddy alone and prints the address to proxy to, with the equivalent Caddy site. The
+choice is recorded in `/etc/capacitylens.install` and reused by later runs. Use
 `--dry-run` to see every step without changing anything, and `--help` for all options.
 
 Running the command again is safe. It keeps `/etc/capacitylens.env` and its secrets and refuses
 an option that would change a setting in it, unless you add `--update-env`, which replaces only
-the settings you pass. It prints a new setup link only when you pass `--owner-email`. The same
-command upgrades the installation; see [Upgrades](/self-hosting/upgrades).
+the settings you pass. If a first install stopped before printing the setup link, the next run
+finishes it and asks for the Owner's email address again. After that, it prints a new setup link
+only when you pass `--owner-email`. Only one run at a time is allowed; if a run was killed, remove
+`/run/capacitylens-install.lock` before trying again. The same command upgrades the installation;
+see [Upgrades](/self-hosting/upgrades).
 
 ## Install by hand
 
