@@ -290,6 +290,9 @@ function registerDeletesAllocationEditDialogRestoresTest() {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
     await expect(page.locator(`[data-alloc-id="${allocationId}"]`)).toHaveCount(0);
 
+    // The delete is optimistic; the keyboard shortcut can undo it only after the server has
+    // acknowledged the write and the toolbar exposes the acknowledged history entry.
+    await expect(page.getByTestId('undo-button')).toBeEnabled();
     await page.keyboard.press('ControlOrMeta+z');
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before);
     const restored = page.locator(`[data-alloc-id="${allocationId}"]`);

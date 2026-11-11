@@ -182,11 +182,22 @@ function registerRejectsVerticalReassignmentOntoNonTest() {
     await page.mouse.down();
     await page.mouse.move(ignoredBarBox.x + ignoredBarBox.width / 2, targetY, { steps: 10 });
     await expect(barryLane).toHaveAttribute('data-droptarget', '');
+    const committed = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        /\/api\/accounts\/[^/]+\/allocations\/[^/]+$/.test(new URL(response.url()).pathname),
+    );
     await page.mouse.up();
-
+    const receipt = await committed;
+    expect(receipt.ok(), await receipt.text()).toBe(true);
+    await expect(page.getByTestId('undo-button')).toBeEnabled();
     await expect(
       barryLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ }),
     ).toBeVisible();
+    await expect(
+      page.getByText('That allocation cannot start there because it is not a working day.'),
+    ).toBeHidden({ timeout: 15_000 });
+    await page.mouse.move(0, 0);
     await page.screenshot({ path: testInfo.outputPath('reassignment_working_day_after.png') });
   });
 }

@@ -1,3 +1,4 @@
+import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
@@ -9,7 +10,7 @@ import { resolveLane, workerPorts } from './ports.mjs';
 import { startE2eWorkerServer, recoverE2eWorker } from './e2eWorkerRuntime.mjs';
 
 const lane = resolveLane();
-const slot = 49;
+const slot = E2E_SCRIPT_TEST_SLOTS.runtime;
 const target = (databasePath, apiPort, webPort) => ({
   lane,
   slot,

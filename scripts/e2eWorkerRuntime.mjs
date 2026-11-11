@@ -294,10 +294,14 @@ async function assertRequestsDrained(apiOrigin) {
   const value = await response.json();
   if (!Number.isInteger(value.activeRequests) || value.activeRequests < 0)
     throw new Error('Worker API drain probe returned an invalid active request count.');
-  if (value.activeRequests !== 0)
+  if (value.activeRequests !== 0) {
+    const pending = Array.isArray(value.pendingRequests)
+      ? ` Pending handlers: ${JSON.stringify(value.pendingRequests)}.`
+      : '';
     throw new BusyWorkerError(
-      `Refusing database reset while the API has ${value.activeRequests} active requests.`,
+      `Refusing database reset while the API has ${value.activeRequests} active requests.${pending}`,
     );
+  }
 }
 
 /** Wait briefly for cancelled clients' proxy sockets and backend handlers to complete. */

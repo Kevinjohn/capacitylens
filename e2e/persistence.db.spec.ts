@@ -152,11 +152,20 @@ function registerEditFreshHydrationEngagementHalfTest() {
       })
       .toEqual({ engagement: 'supplementary', halfDays: [2] });
 
-    // Start again from the document root so the client discards its in-memory snapshot and hydrates
-    // a new account slice from GET /api/state, matching a later browser session.
+    // Start again from the document root, then wait for the server's canonical planning snapshot
+    // before checking that a later browser session receives the saved resource fields.
+    const planningHydration = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        response.request().method() === 'GET' &&
+        url.pathname === '/api/accounts/a-studio/planning' &&
+        response.ok()
+      );
+    });
     await openApp(page);
+    await planningHydration;
     await page.getByRole('link', { name: 'Resources' }).click();
-    const supplementary = page.getByRole('heading', { name: 'Supplementary' }).locator('..');
+    const supplementary = page.getByRole('region', { name: 'Supplementary' });
     await expect(supplementary.getByTestId('resource-row')).toContainText('Bruce Wayne');
 
     await page
