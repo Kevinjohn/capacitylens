@@ -16,3 +16,34 @@ As an Editor, I want to remove a company closure so that its dates no longer red
 
 - **Delete {name} closure, {range}** opens **Delete closure?** (“Remove this company closure?”) with **Delete** and **Cancel**; Cancel keeps the closure.
 - Confirming Delete removes the closure band and restores availability on its dates.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Choose Delete on a company closure"]
+  N2["confirmation appears"]
+  B1["Cancel: keep closure"]
+  B2["Confirm: closure band is removed and capacity recalculates"]
+  N1 --> N2
+  N1 -.-> B1
+  N1 -.-> B2
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["CompanyClosureSection: Delete closure"] --> B["useConfirmDelete: confirmation dialog"]
+  B -->|cancel| C["Keep closure"]
+  B -->|confirm| D["deleteClosure(id)"]
+  D --> E["typedPlanningActions.deleteClosure; planning reconciliation"]
+  E --> F["List and schedule refresh"]
+```
+
+**Code references:**
+
+- [CompanyClosureSection.tsx](../../apps/frontend/src/components/timeoff/CompanyClosureSection.tsx)
+- [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
+- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)

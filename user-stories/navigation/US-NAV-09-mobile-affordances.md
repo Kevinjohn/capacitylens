@@ -15,3 +15,28 @@ As a company member viewing a narrow screen, I want compact navigation and a usa
 ## Acceptance criteria
 
 - At viewport widths up to 767 px, navigation opens as a labelled sheet from the top-bar sidebar toggle and closes after a destination is chosen; mobile scheduling workflows are out of scope.
+
+## User flow
+
+```mermaid
+flowchart TD
+  human1["On a narrow screen"]
+  human2["Open Sidebar sheet"]
+  human3["Choose a destination"]
+  human4["Sheet closes and destination appears"]
+  human1 --> human2
+  human2 --> human3
+  human3 --> human4
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  shell["AppShell SidebarProvider sets responsive context"] --> sidebar["AppSidebar renders Sidebar"]
+  sidebar --> trigger["SidebarTrigger toggles mobile open state"]
+  sidebar --> nav["NavMenu invokes closeOnMobile after navigation"]
+  nav --> route["NavLink changes route"]
+```
+
+**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [sidebar.tsx](../../apps/frontend/src/components/ui/sidebar.tsx)

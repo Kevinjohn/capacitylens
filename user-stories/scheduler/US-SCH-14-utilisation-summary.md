@@ -17,3 +17,26 @@ As an Editor, I want overall and discipline utilisation summaries so that I can 
 - With Show Total Utilisation on, the Schedule header shows **Utilisation · {span}**, the average across tracked resources over the visible window.
 - With Show Discipline Utilisation on, each group header other than External shows **{percent}% avg utilisation** for the visible window.
 - Changing **Weeks visible** recalculates both figures.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer changes Weeks visible"]
+  B["Overall and discipline utilisation update for that visible span"]
+  C["Collapsing a group shows its hidden-row count"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["SchedulerToolbar calls setZoom"] --> B["useSchedulerViewport recalculates visible dates"]
+  B --> C["useSchedulerGridModel resolves visible window"]
+  C --> D["applyVisibleUtilization derives resource percentages"]
+  D --> E["SchedulerGridHeader and SchedulerGridGroupHeader render summaries"]
+```
+
+**Code references:** [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx), [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridHeader.tsx), [SchedulerGridGroupHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridGroupHeader.tsx)

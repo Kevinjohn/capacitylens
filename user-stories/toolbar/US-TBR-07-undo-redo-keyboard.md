@@ -16,3 +16,27 @@ As an Editor, I want keyboard shortcuts for Undo and Redo so that I can reverse 
 
 - ⌘Z / Ctrl+Z undo and ⌘⇧Z / Ctrl+Shift+Z redo planning changes.
 - The shortcuts work on every app screen. They do not run while text entry, IME composition or a modal owns input, or while a form has unsaved changes.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Editor presses Undo or Redo shortcut"]
+  B["Outside text entry and modal: planning history action runs"]
+  C["While typing, a modal is open or a form has unsaved changes: shortcut is ignored"]
+  A --> B
+  A --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["useAppShellController installs useGlobalShortcuts key listener"] --> B["applyHistoryShortcutEffect checks key, composition, text entry, open modal and unsaved form"]
+  B -->|blocked| C["No history action runs"]
+  B -->|allowed| D["undoPlanning or redoPlanning"]
+  D --> E["planningCacheController executes history intent through PlanningTransport"]
+  E --> F["Accepted result updates planning history and Schedule"]
+```
+
+**Code references:** [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts)

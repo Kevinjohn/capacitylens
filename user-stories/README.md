@@ -10,6 +10,9 @@ or controls they encounter. Historical stories stay discoverable when a feature 
 
 179 stories across 19 areas. All 132 pre-existing story files and identifiers are retained.
 
+Every story includes a plain-language user flowchart and a Mermaid diagram of the relevant code path,
+with links to its implementation sources.
+
 Status describes source-reviewed availability, not a browser test result. See the reference for
 status definitions. Guide and implementation links live with each story; tests remain in the test suite.
 

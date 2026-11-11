@@ -24,15 +24,15 @@ The matrix keeps every historical story discoverable by status.
 
 ## Retained recovery screens without current triggers
 
-Source review found no current producers for three legacy error-state flags:
+The diagram trace found no current producers for three legacy error-state flags:
 `connectionError`, `activeAccountLoadFailed` and `loadError`. They are initialized false/null in
 [runtimeSlice](../apps/frontend/src/store/slices/runtimeSlice.ts), and
 [AppEntryGate](../apps/frontend/src/components/AppEntryGate.tsx) only consumes them.
 The named setters have no current application callers; the account-load marker is cleared but
 never assigned a failed company. The connection, company-load and browser-storage recovery
-stories remain, with status **Hidden** and an Entry line stating there is no current entry. Their
-retained components are not evidence of reachable user journeys. Current planning-error notices
-and session-verification recovery remain separately documented as available.
+stories remain, with status **Hidden** and explicitly intended flows. Their retained components
+are not evidence of reachable user journeys. Current planning-error notices and session-verification
+recovery remain separately documented as available.
 
 ## Source capabilities without an ordinary UI
 

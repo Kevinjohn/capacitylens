@@ -16,3 +16,26 @@ As an Editor, I want toolbar Undo and Redo controls so that I can reverse or rea
 
 - **Undo** and **Redo** reverse and reapply acknowledged planning changes.
 - The buttons appear only for Editor or higher. Each is disabled while planning history is not ready or when it has nothing to undo or redo.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Editor selects a history action"]
+  B["Undo reverses or Redo reapplies a planning change"]
+  C["Rejected action appears as an error notice"]
+  A --> B
+  A --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["SchedulerToolbarSections button calls runHistoryAction"] --> B["SchedulerToolbar passes undoPlanning or redoPlanning"]
+  B --> C["allocationSlice delegates to planningCacheController.undo/redo"]
+  C --> D["planningTransport executes typed history command"]
+  D --> E["Store publishes response; SchedulerGrid rerenders or Toolbar shows error"]
+```
+
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)

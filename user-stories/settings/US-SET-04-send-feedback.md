@@ -11,3 +11,23 @@ As an Owner or Admin, I want to open a preaddressed feedback email so that I can
 ## Acceptance criteria
 
 - With a configured valid feedback address, **Send feedback** opens a mail draft to that address with the subject `CapacityLens feedback`, followed by the build stamp when one is configured. Without a valid address the link is absent.
+
+## User flow
+
+```mermaid
+flowchart TD
+A["Open Diagnostics"] --> B{"Feedback address configured?"}
+B -->|yes| C["Select Send feedback"] --> D["Review the draft in the email application"]
+B -->|no| E["No feedback action is shown"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  view["DiagnosticsBuildDetails calls readFeedbackMailto"] --> info["buildInfo builds configured mailto and optional stamp"]
+  info --> link["DiagnosticsBuildDetails renders mailto anchor when configured"]
+  link --> mail["Browser opens the user's mail app"]
+```
+
+**Code references:** [DiagnosticsBuildDetails.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx), [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts)

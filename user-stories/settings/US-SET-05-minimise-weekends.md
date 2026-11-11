@@ -13,3 +13,22 @@ As a company member, I want to minimise weekend columns so that working days hav
 | Field             | Control | Required/default/conditions                                                                                                                                      |
 | ----------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Minimise weekends | Switch  | On by default; this device only. Narrows the Saturday and Sunday columns whenever day columns are wider than the narrow weekend width; weekend work still shows. |
+
+## User flow
+
+```mermaid
+flowchart TD
+A["Open Settings: Schedule on this device"] --> B["Switch Minimise weekends on or off"]
+B --> C["Weekend columns change width without hiding dates"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  view["SettingsSchedulingSection renders ScheduleViewSection"] --> setter["runtimeSlice.setMinimiseWeekends updates state"]
+  setter --> pref["displayPrefs writes device preference"]
+  setter --> viewport["useSchedulerViewport consumes minimiseWeekends for column geometry"]
+```
+
+**Code references:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx), [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts), [displayPrefs.ts](../../apps/frontend/src/lib/displayPrefs.ts), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts)
