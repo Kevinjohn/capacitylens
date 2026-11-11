@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- The native release archive installs with one command (#1835). `sudo node install.mjs` writes `/etc/capacitylens.env` with generated secrets, asking only for the public address, the Owner's email and mail settings; installs and starts the systemd unit; configures a same-machine Caddy site for automatic HTTPS (or prints the settings for another proxy with `--proxy none`); enables scheduled backups and prints the setup link. Re-running it from a newer release upgrades in place and never rewrites the environment file without `--update-env`. The manual steps remain documented.
 - A person can delete their own account from **Account** after re-entering their password (#1791). Their sign-in, sessions, company memberships and member/person link are removed in one transaction; an Owner must transfer ownership first. Invitations they sent stay valid, and audit entries keep the former user id.
 
 ### Changed

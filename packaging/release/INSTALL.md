@@ -4,6 +4,24 @@ This archive contains the built web app, compiled AdonisJS backend, production d
 SQLite addon for the host architecture on which it was packaged. Use Node 24.19.0 or newer within
 24.x. The `VERSION` file identifies the release and source revision.
 
+## One command
+
+On a Linux systemd host with Node 24 and Caddy installed, and DNS for your domain pointing at it,
+unpack the archive into `/opt/capacitylens` and run:
+
+```bash
+sudo node /opt/capacitylens/capacitylens-X.Y.Z/install.mjs
+```
+
+It asks for the public HTTPS address, the Owner's email address and SMTP settings, writes
+`/etc/capacitylens.env` with generated secrets, installs and starts the systemd unit, configures
+Caddy for automatic HTTPS, enables the daily verified backups and prints the setup link. Use
+`--proxy none` with another same-machine proxy, `--dry-run` to preview and `--help` for the
+options that replace the questions. Running the same command from a newer release upgrades the
+installation; it keeps the environment file and backs up the database before migrating.
+
+## By hand
+
 The backend supports password authentication and native database sessions. The environment example
 keeps open access disabled. Set `APP_KEY`, a random `CAPACITYLENS_SECRET` of at least 32 characters,
 matching HTTPS `APP_URL` / `CAPACITYLENS_PUBLIC_URL` origins and SMTP delivery before starting.

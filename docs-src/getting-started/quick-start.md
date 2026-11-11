@@ -21,18 +21,13 @@ may provide controls for these steps; check that they support the required proce
 1. **Download** the release archive from the
    [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
 
-2. **Pick a folder** for the data. The database upgrade initializes its SQLite file there.
+2. **Run the install command** in the unpacked archive with `sudo node install.mjs`. It asks for
+   the public HTTPS address, the Owner's email address and the email delivery settings, then sets
+   up the service, HTTPS at a same-machine Caddy and daily backups. The
+   [installation guide](/self-hosting/install-without-docker#install-with-one-command) gives the
+   exact commands and the manual steps.
 
-3. **Configure** the private environment file from the archive's example. Fill in the public
-   HTTPS address, database path, application key, account secret and email delivery settings.
-   Follow the [native installation guide](/self-hosting/install-without-docker) for the exact commands.
-
-4. **Start it** after the initial database upgrade, as a background process with HTTPS at the
-   same-machine proxy. The [installation guide](/self-hosting/install-without-docker#_4-upgrade-the-database-and-start-the-service)
-   gives the exact upgrade and service commands.
-
-5. **Print the setup link** for the Owner's email address. The
-   [installation guide](/self-hosting/install-without-docker) gives the command.
+3. **Open the setup link** the command prints at the end.
 
 </div>
 
