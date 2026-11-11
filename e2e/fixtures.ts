@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { expect, test as base } from '@playwright/test';
 import type {
   APIRequestContext,
   BrowserContext,
   BrowserContextOptions,
+  ConsoleMessage,
   Locator,
   Page,
 } from '@playwright/test';
@@ -10,14 +12,165 @@ import { clearAuthE2ECompanies, waitForAuthE2EBaseline } from './authTestSupport
 
 export { expect, type APIRequestContext, type Locator, type Page };
 
-type PageErrorObserver = { observePage: (page: Page) => void };
+type BrowserErrorObserver = {
+  registerContext: (context: BrowserContext) => Promise<void>;
+  observePage: (page: Page) => void;
+};
 type CapacityLensFixtures = {
   authCompanyIsolation: void;
   newObservedContext: (options?: BrowserContextOptions) => Promise<BrowserContext>;
-  pageErrorObserver: PageErrorObserver;
+  pageErrorObserver: BrowserErrorObserver;
 };
 
-/** Every browser spec fails if application code raises on any page registered with the fixture. */
+const observerPrefix = '__capacitylens_browser_error_observer__:';
+
+type ObserverMessage = {
+  channel: string;
+  token: string;
+  kind: 'ready' | 'error' | 'observer-failure';
+  eventType?: string;
+  name?: string;
+  message?: string;
+  eventMessage?: string;
+  stack?: string;
+  url?: string;
+  filename?: string;
+  line?: number;
+  column?: number;
+};
+
+function installBrowserErrorObserver(token: string) {
+  const nativeDebug = console.debug.bind(console);
+  const channel = '__capacitylens_browser_error_observer__';
+
+  const safeString = (value: unknown) => {
+    try {
+      if (typeof value === 'string') return value;
+      if (value instanceof Error) return value.message;
+      return String(value);
+    } catch {
+      return '<unprintable>';
+    }
+  };
+  const readString = (value: object, key: 'name' | 'message' | 'stack') => {
+    try {
+      const property = (value as Record<string, unknown>)[key];
+      return property === undefined || property === null ? undefined : safeString(property);
+    } catch {
+      return '<unreadable>';
+    }
+  };
+  const errorDetails = (value: unknown) => {
+    const isObject = (typeof value === 'object' && value !== null) || typeof value === 'function';
+    const details = isObject ? (value as object) : undefined;
+    const name = details ? readString(details, 'name') : undefined;
+    const message = details ? readString(details, 'message') : undefined;
+    const stack = details ? readString(details, 'stack') : undefined;
+    return {
+      name: name ?? (value instanceof Error ? 'Error' : typeof value),
+      message: message ?? safeString(value),
+      ...(stack ? { stack } : {}),
+    };
+  };
+  const emit = (kind: ObserverMessage['kind'], fields: Partial<ObserverMessage> = {}) => {
+    nativeDebug(`${channel}:${JSON.stringify({ channel, token, kind, ...fields })}`);
+  };
+  const reportFailure = (error: unknown) => {
+    try {
+      emit('observer-failure', errorDetails(error));
+    } catch {
+      // A failed console transport cannot be reported over that same transport.
+    }
+  };
+  const onError = (event: ErrorEvent) => {
+    try {
+      const details = errorDetails(event.error);
+      emit('error', {
+        eventType: 'error',
+        ...details,
+        message: details.message || event.message,
+        eventMessage: event.message,
+        url: window.location.href,
+        filename: event.filename,
+        line: event.lineno,
+        column: event.colno,
+      });
+    } catch (error) {
+      reportFailure(error);
+    }
+  };
+  const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+    try {
+      emit('error', {
+        eventType: 'unhandledrejection',
+        ...errorDetails(event.reason),
+        url: window.location.href,
+      });
+    } catch (error) {
+      reportFailure(error);
+    }
+  };
+
+  window.addEventListener('error', onError, true);
+  window.addEventListener('unhandledrejection', onUnhandledRejection, true);
+  try {
+    emit('ready', { url: window.location.href });
+  } catch (error) {
+    reportFailure(error);
+  }
+}
+
+function formatObserverMessage(message: ObserverMessage) {
+  const detail = [
+    `BROWSER_ERROR_OBSERVER_SENTINEL:${message.eventType ?? message.kind}`,
+    message.message ? `message=${message.message}` : undefined,
+    message.eventMessage ? `eventMessage=${message.eventMessage}` : undefined,
+    message.name ? `name=${message.name}` : undefined,
+    message.url ? `url=${message.url}` : undefined,
+    message.filename ? `filename=${message.filename}` : undefined,
+    message.line !== undefined ? `line=${message.line}` : undefined,
+    message.column !== undefined ? `column=${message.column}` : undefined,
+    message.stack ? `stack=${message.stack}` : undefined,
+  ].filter(Boolean);
+  return new Error(detail.join('\n'));
+}
+
+function consumeObserverMessage(
+  consoleMessage: ConsoleMessage,
+  token: string,
+  recordError: (message: ObserverMessage) => void,
+) {
+  if (consoleMessage.type() !== 'debug') return;
+  const text = consoleMessage.text();
+  if (!text.startsWith(observerPrefix)) return;
+
+  let message: ObserverMessage;
+  try {
+    message = JSON.parse(text.slice(observerPrefix.length)) as ObserverMessage;
+  } catch (error) {
+    recordError({
+      channel: observerPrefix.slice(0, -1),
+      token,
+      kind: 'observer-failure',
+      message: `invalid transport: ${String(error)}`,
+    });
+    return;
+  }
+  if (message.channel !== observerPrefix.slice(0, -1) || message.token !== token) return;
+  if (message.kind === 'ready') return;
+  if (message.kind === 'error' || message.kind === 'observer-failure') {
+    recordError(message);
+    return;
+  }
+  recordError({
+    channel: observerPrefix.slice(0, -1),
+    token,
+    kind: 'observer-failure',
+    message: `unknown transport kind ${String(message.kind)}`,
+  });
+}
+
+/** Browser specs fail when a registered context emits an uncaught browser error event. */
 export const test = base.extend<CapacityLensFixtures>({
   authCompanyIsolation: [
     // Playwright requires a destructuring pattern for an automatic fixture with no inputs.
@@ -38,23 +191,53 @@ export const test = base.extend<CapacityLensFixtures>({
   pageErrorObserver: [
     // Playwright requires a destructuring pattern even when an automatic fixture has no inputs.
     // eslint-disable-next-line no-empty-pattern
-    async ({}, use) => {
-      const errors: Error[] = [];
-      const observedPages = new Set<Page>();
-      const recordError = (error: Error) => errors.push(error);
+    async ({}, use, testInfo) => {
+      const errors: ObserverMessage[] = [];
+      const driverPageErrors: Error[] = [];
+      const pageErrorListeners = new Map<Page, (error: Error) => void>();
+      const contextListeners = new Map<BrowserContext, (message: ConsoleMessage) => void>();
+      const recordError = (message: ObserverMessage) => errors.push(message);
       const observePage = (page: Page) => {
-        if (observedPages.has(page)) return;
-        observedPages.add(page);
-        page.on('pageerror', recordError);
+        if (pageErrorListeners.has(page)) return;
+        const listener = (error: Error) => driverPageErrors.push(error);
+        pageErrorListeners.set(page, listener);
+        page.on('pageerror', listener);
       };
-      await use({ observePage });
-      observedPages.forEach((page) => page.off('pageerror', recordError));
+      const registerContext = async (context: BrowserContext) => {
+        if (contextListeners.has(context)) return;
+        const token = randomUUID();
+        const listener = (message: ConsoleMessage) =>
+          consumeObserverMessage(message, token, recordError);
+        contextListeners.set(context, listener);
+        context.on('console', listener);
+        await context.addInitScript(installBrowserErrorObserver, token);
+      };
+      try {
+        await use({ observePage, registerContext });
+      } finally {
+        contextListeners.forEach((listener, context) => context.off('console', listener));
+        pageErrorListeners.forEach((listener, page) => page.off('pageerror', listener));
+      }
       if (errors.length > 0) {
-        const details = errors
-          .map((error, index) => `${index + 1}. ${error.stack ?? error.message}`)
-          .join('\n\n');
+        if (testInfo.annotations.some((annotation) => annotation.type === 'browser-error-probe')) {
+          testInfo.annotations.push({
+            type: 'browser-error-observer-records',
+            description: JSON.stringify(errors),
+          });
+        }
+        const details = errors.map((message, index) => {
+          const error = formatObserverMessage(message);
+          return `${index + 1}. ${error.stack ?? error.message}`;
+        });
+        if (driverPageErrors.length > 0) {
+          details.push(
+            `Playwright pageerror diagnostics:\n${driverPageErrors
+              .map((error) => error.stack ?? error.message)
+              .join('\n\n')}`,
+          );
+        }
         throw new Error(
-          `Uncaught browser exception${errors.length === 1 ? '' : 's'}:\n\n${details}`,
+          `Uncaught browser error event${errors.length === 1 ? '' : 's'}:\n\n${details.join('\n\n')}`,
         );
       }
     },
@@ -62,6 +245,7 @@ export const test = base.extend<CapacityLensFixtures>({
   ],
   context: async ({ context, pageErrorObserver }, use) => {
     const observePage = pageErrorObserver.observePage;
+    await pageErrorObserver.registerContext(context);
     context.pages().forEach(observePage);
     context.on('page', observePage);
     try {
@@ -76,11 +260,12 @@ export const test = base.extend<CapacityLensFixtures>({
     try {
       await use(async (options) => {
         const context = await browser.newContext(options);
+        contexts.add(context);
         const observePage = pageErrorObserver.observePage;
+        listeners.set(context, observePage);
+        await pageErrorObserver.registerContext(context);
         context.pages().forEach(observePage);
         context.on('page', observePage);
-        contexts.add(context);
-        listeners.set(context, observePage);
         return context;
       });
     } finally {

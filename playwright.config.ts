@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import type { ReporterDescription } from '@playwright/test';
 import { parseReportPhaseName } from './scripts/playwrightServerScope';
 import { resolvePlaywrightRunMode } from './scripts/playwrightRunMode.mjs';
 import { configurationWorkerCount } from './scripts/playwrightWorkers.mjs';
@@ -8,6 +9,14 @@ const lanePorts = ports();
 const runMode = resolvePlaywrightRunMode(process.env);
 const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name);
 const reportPhase = parseReportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
+const reporters: ReporterDescription[] = process.env.CI
+  ? [
+      ['github'],
+      ['html', { outputFolder: `playwright-report/${reportPhase}`, open: 'never' }],
+      ['junit', { outputFile: `test-results/${reportPhase}.xml` }],
+      ['./e2e/browserErrorProbeReporter.ts'],
+    ]
+  : [['list'], ['./e2e/browserErrorProbeReporter.ts']];
 const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
 const dbSpec = new RegExp(String.raw`\.db\.spec\.${specExtension}$`, 'i');
 const authSpec = new RegExp(String.raw`\.auth\.spec\.${specExtension}$`, 'i');
@@ -37,13 +46,7 @@ export default defineConfig({
   expect: { timeout: 5_000 },
   workers: configurationWorkerCount(),
   retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI
-    ? [
-        ['github'],
-        ['html', { outputFolder: `playwright-report/${reportPhase}`, open: 'never' }],
-        ['junit', { outputFile: `test-results/${reportPhase}.xml` }],
-      ]
-    : 'list',
+  reporter: reporters,
   outputDir: `test-results/artifacts/${reportPhase}`,
   use: { trace: 'on-first-retry' },
   projects: [
