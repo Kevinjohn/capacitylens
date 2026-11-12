@@ -11,9 +11,6 @@ export default class GettingStartedController {
     const { params, response } = ctx;
     return withActor(ctx, async (_actor, trx) => {
       await assertCompanyAction(params.accountId, 'planning:read', trx);
-      if (!(await trx.from('accounts').where('id', params.accountId).first())) {
-        return response.notFound({ error: 'Company not found.' });
-      }
       const row = await trx
         .from('account_getting_started_dismissals')
         .where('account_id', params.accountId)
@@ -31,12 +28,11 @@ export default class GettingStartedController {
       return response.badRequest({ error: 'dismissed must be true.' });
     }
     const now = new Date().toISOString();
-    const exists = await withActor(ctx, async (_actor, trx) => {
+    await withActor(ctx, async (_actor, trx) => {
       const { role } = await assertCompanyAction(params.accountId, 'planning:write', trx);
       if (!isOwnerOrAdmin(role)) {
         throw new IdentityAuthorityError('Forbidden.');
       }
-      if (!(await trx.from('accounts').where('id', params.accountId).first())) return false;
       await trx
         .table('account_getting_started_dismissals')
         .insert({
@@ -47,9 +43,7 @@ export default class GettingStartedController {
         })
         .onConflict('account_id')
         .ignore();
-      return true;
     });
-    if (!exists) return response.notFound({ error: 'Company not found.' });
     return response.ok({ dismissed: true });
   }
 }

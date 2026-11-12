@@ -235,8 +235,10 @@ test.group('atomic ownership transfer', (group) => {
     self.assertStatus(409);
     const absent = await post(ownerCookie, 'a-studio', 'missing-principal');
     absent.assertStatus(404);
+    // An unknown company answers exactly like a company the caller holds no authority in.
     const wrongCompany = await post(ownerCookie, 'a-missing', adminId);
-    wrongCompany.assertStatus(404);
+    wrongCompany.assertStatus(403);
+    assert.deepEqual(wrongCompany.body(), nonOwner.body());
     const legacyBody = await signed(
       client.post('/api/accounts/a-studio/ownership-transfer'),
       ownerCookie
