@@ -22,11 +22,10 @@ ARG VITE_CAPACITYLENS_FEEDBACK_MAILTO=""
 ENV VITE_CAPACITYLENS_API=${VITE_CAPACITYLENS_API}
 ENV VITE_CAPACITYLENS_BUILD_SHA=${VITE_CAPACITYLENS_BUILD_SHA}
 ENV VITE_CAPACITYLENS_FEEDBACK_MAILTO=${VITE_CAPACITYLENS_FEEDBACK_MAILTO}
-# The build boots the production configuration, which needs an HTTPS origin and a secret. These
+# The build boots the production configuration, which needs an HTTPS origin and an application key. These
 # build-only values never reach the runtime images.
 RUN NODE_ENV=production HOST=127.0.0.1 PORT=0 LOG_LEVEL=error APP_KEY=capacitylens-build-key-0123456789abcdef \
-    APP_URL=https://127.0.0.1 SESSION_DRIVER=memory CAPACITYLENS_SECRET=capacitylens-build-secret-0123456789abcdef \
-    CAPACITYLENS_PUBLIC_URL=https://127.0.0.1 pnpm run build
+    APP_URL=https://127.0.0.1 CAPACITYLENS_PUBLIC_URL=https://127.0.0.1 pnpm run build
 
 FROM web-build AS web-client-build
 # The client-only runtime has no same-origin proxy. Bake its validated remote API origin
@@ -41,7 +40,7 @@ RUN pnpm --filter @capacitylens/backend deploy --prod --legacy --no-optional /ru
 FROM docker.io/library/node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS api
 WORKDIR /app/backend
 ENV NODE_ENV=production
-ENV HOST=0.0.0.0 PORT=8787 SESSION_DRIVER=database
+ENV HOST=0.0.0.0 PORT=8787
 COPY --from=server-deploy /prod/backend ./
 # Apply Debian security updates and remove package managers that the runtime does not need.
 RUN apt-get update \
