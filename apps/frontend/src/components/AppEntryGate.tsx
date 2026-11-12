@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { AccountAccessRecovery } from './accounts/AccountAccessRecovery';
-import { AccountLoadRecovery } from './accounts/AccountLoadRecovery';
+import { AccountAccessRecovery } from './company/AccountAccessRecovery';
+import { AccountLoadRecovery } from './company/AccountLoadRecovery';
 import { RotateHint } from './RotateHint';
 import { m } from '@/i18n';
 
