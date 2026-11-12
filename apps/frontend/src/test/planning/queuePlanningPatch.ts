@@ -22,7 +22,12 @@ export function queuePlanningPatch(
     status: 'committed',
     mutationId: execution.mutationId,
     revision: execution.baseRevision + 1,
-    restoration: { consumedGroupId, replacementGroupId },
+    restoration:
+      consumedGroupId !== null
+        ? { consumedGroupId, replacementGroupId: null }
+        : replacementGroupId !== null
+          ? { consumedGroupId: null, replacementGroupId }
+          : { consumedGroupId: null, replacementGroupId: null },
     projection: {
       mode: 'patch',
       history: 'retain',
