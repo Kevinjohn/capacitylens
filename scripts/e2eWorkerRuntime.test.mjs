@@ -100,7 +100,8 @@ async function waitForProcessGroupExit(group, timeoutMs = 15_000) {
       process.kill(-group, 0);
     } catch (error) {
       if (error.code === 'ESRCH') return;
-      throw error;
+      // macOS reports EPERM for a group whose only members are unreaped zombies; it is not gone yet.
+      if (error.code !== 'EPERM') throw error;
     }
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
