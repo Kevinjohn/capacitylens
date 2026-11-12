@@ -35,7 +35,7 @@ The remaining assessment retains its original review date.
 | Which licence covers the project? | `AGPL-3.0-only`; see [`LICENSE`](https://github.com/Kevinjohn/capacitylens/blob/main/LICENSE). |
 | Which implementation languages are used? | TypeScript, JavaScript, CSS and HTML. BadgeApp may group TypeScript under JavaScript. |
 | What is the Common Platform Enumeration name? | None. CapacityLens has no assigned CPE. |
-| Are there other relevant comments? | The security set includes a threat model, control inventories, an OWASP ASVS 5.0.0 ledger and dated reviews. CI includes CodeQL, dependency review, secret scanning, SBOM generation, container scanning and OWASP ZAP. |
+| Are there other relevant comments? | The security set includes a threat model, control inventories, an OWASP ASVS 5.0.0 ledger and a dated verification record. CI includes CodeQL, dependency review, secret scanning, SBOM generation, container scanning and OWASP ZAP. |
 
 ## Baseline Level 1
 
@@ -85,7 +85,7 @@ The remaining assessment retains its original review date.
 | `OSPS-QA-06.01` — Does CI run an automated test suite before every commit is accepted? | Unmet | Contributors run the complete local gates and CodeQL analyzes pull requests, but application and browser suites currently report after merge rather than blocking every merge. |
 | `OSPS-SA-01.01` — Does design documentation describe system actors and actions? | Met | The [account-boundary design](https://github.com/Kevinjohn/capacitylens/blob/main/docs-src/decisions/account-boundary.md) and [threat model](threat-model.md) describe people, trust boundaries, components and operations. |
 | `OSPS-SA-02.01` — Are the released software's external interfaces documented? | Met | Self-hosting, password sign-in, SMTP configuration, account-boundary and test references describe browser, HTTP, configuration and persistence interfaces. |
-| `OSPS-SA-03.01` — Has the project performed a security assessment? | Met | The [dated security review](reviews/security-review-2026-08-18.md), ASVS ledger, threat model and control inventories identify likely and high-impact risks. |
+| `OSPS-SA-03.01` — Has the project performed a security assessment? | Met | The ASVS ledger, threat model and control inventories identify likely and high-impact risks. |
 | `OSPS-VM-01.01` — Is there a coordinated-disclosure policy with a response timeframe? | Met | `SECURITY.md` requests private reports, targets acknowledgement within five working days and explains validation, repair and advisory publication. |
 | `OSPS-VM-03.01` — Can reporters contact the project privately about vulnerabilities? | Met | GitHub Private Vulnerability Reporting is the primary documented route. |
 | `OSPS-VM-04.01` — Will discovered vulnerabilities be published publicly? | Met | `SECURITY.md` commits to publishing an advisory after a patched release; release notes and the changelog record relevant fixes. |
@@ -110,7 +110,7 @@ Level 2 is not currently claimable because `OSPS-QA-06.01` remains unmet.
 | `OSPS-QA-06.02` — Is it documented when and how tests run? | Met | `CONTRIBUTING.md` and the [test reference](../reference/how-it-is-tested.md) describe local commands, CI jobs, coverage expectations and affected-risk checks. |
 | `OSPS-QA-06.03` — Must major changes add or update automated tests? | Met | `CONTRIBUTING.md` requires tests that fail without a behavior change and names extra threat-oriented suites for sensitive changes. |
 | `OSPS-QA-07.01` — Does every change require approval from a human other than its author? | Unmet | CapacityLens currently has one active maintainer and branch protection deliberately requires no non-author approval. |
-| `OSPS-SA-03.02` — Has the project performed threat modelling and attack-surface analysis? | Met | The [threat model](threat-model.md), attack inventory, ASVS ledger and dated reviews cover trust boundaries, critical paths, threats and mitigations. |
+| `OSPS-SA-03.02` — Has the project performed threat modelling and attack-surface analysis? | Met | The [threat model](threat-model.md), attack inventory and ASVS ledger cover trust boundaries, critical paths, threats and mitigations. |
 | `OSPS-VM-04.02` — Are non-exploitable component findings accounted for in VEX documents? | Unmet | The project produces SBOMs and reviews dependency findings but does not publish a VEX feed. |
 | `OSPS-VM-05.01` — Is there a documented remediation threshold for dependency and licence findings? | Unmet | CI has audit and vulnerability thresholds, but one public policy does not yet define both vulnerability and licence remediation thresholds. |
 | `OSPS-VM-05.02` — Must applicable composition-analysis violations be resolved before release? | Unmet | Security scans run on `main` and on demand, but the release workflow does not enforce a documented SCA decision gate before publication. |

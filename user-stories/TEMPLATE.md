@@ -1,8 +1,17 @@
 # Story format
 
-A story records one meaningful user action and why it matters. Use actual permission roles
+A story records one meaningful user action and why it matters. Use actual permission roles,
 visible control names and current form fields. Keep implementation contracts in
 [DECISIONS.md](../DECISIONS.md), instructions in the guides, and test scripts in the test suite.
+
+Copy only the story example when creating a story; replace its content with source-backed details.
+Keep the writing and maintenance guidance in this template, outside individual stories. The example
+shows a form excerpt; a completed story must cover every relevant field. Its guide, source and test
+paths are relative to the story's area folder. Omit the optional Coverage line when no useful test
+link exists. For actions without input fields, use the controls/results alternative below and adapt
+both diagrams to the actual journey.
+
+## Story example
 
 ````markdown
 # US-XXX-NN — Action title
@@ -14,13 +23,14 @@ As an Editor, I want to create a project and assign it to a client so that I can
 **Entry:** Projects → Add project.
 **Documentation:** [Clients and projects](../../docs-src/using/projects.md)
 **Source:** [Project form](../../apps/frontend/src/components/projects/ProjectForm.tsx)
+**Coverage:** [Project form tests](../../apps/frontend/src/components/projects/ProjectForm.test.tsx)
 
 ## Acceptance criteria
 
-| Field  | Control       | Required/default/conditions |
-| ------ | ------------- | --------------------------- |
-| Name   | Text input    | Required.                   |
-| Client | Client picker | Required; active clients.   |
+| Field  | Control       | Required/default/conditions                                              |
+| ------ | ------------- | ------------------------------------------------------------------------ |
+| Name   | Text input    | Required; initially blank.                                               |
+| Client | Client picker | Required; no default; Internal first, then other active clients by name. |
 
 ## User flow
 
@@ -51,8 +61,26 @@ flowchart TD
 **Code references:** [ProjectList](../../apps/frontend/src/components/projects/ProjectList.tsx), [ProjectForm](../../apps/frontend/src/components/projects/ProjectForm.tsx)
 ````
 
+## Actions without input fields
+
+Replace the field table with a short list of controls and their visible results. Do not create
+empty or artificial field rows. For example, the Today action uses:
+
+```markdown
+## Acceptance criteria
+
+- **Today** returns the schedule to the start of the current week in the company time zone.
+```
+
+Include confirmation controls and relevant cancellation or failure results when they affect the
+action. Keep both diagrams in these stories; navigation and read-only actions do not imply a save.
+
+## Writing and maintenance rules
+
 - Include every field in the relevant form, including conditional and read-only fields.
-  Record required/optional, defaults and important field limits. Use the exact UI labels.
+  Record required/optional state, defaults, important field limits, available options and dependent
+  choices. For dynamic choices, describe their source and filtering rules rather than listing
+  transient data. Use the exact UI labels.
 - Create and edit are distinct actions. Link an identical shared field list and describe only
   differences; do not make a reader chase several links to discover a form.
 - For actions without input fields, use a short list of controls and their visible result.
@@ -64,9 +92,17 @@ flowchart TD
 - Use **Current**, **Hidden**, **Removed**, **Demo**, **Operator** or **Planned**.
   Explain why a feature is unavailable and identify its historical or intended controls clearly.
   Retention is a record of interest, not a commitment to reintroduce the feature.
-- Add an optional **Coverage:** test link when useful; a link does not claim a test was run.
-- Update the [index](README.md), [coverage matrix](COVERAGE.md) and
-  [decision gaps](GAPS.md) alongside the story. Verify the source rather than inheriting stale copy.
+- Read status together with Access and Entry; use the [status definitions](REFERENCE.md#reading-the-catalogue).
+  A configured feature switch is a condition, not proof of removal. Current describes source-reviewed
+  availability, not a browser test result.
+- Add an optional **Coverage:** test link when useful; omit it when no useful link exists.
+  The link identifies supporting tests and does not claim they were run. Report runtime results
+  separately from source review.
+- Update the [index](README.md), [coverage matrix](COVERAGE.md),
+  [shared reference](REFERENCE.md) and [decision gaps](GAPS.md) alongside affected stories.
+  Verify the source rather than inheriting stale copy. In the matrix, New means newly documented,
+  not newly implemented. Record differences between agreed decisions and current implementation
+  without silently changing either.
 
 ## Diagram conventions
 
