@@ -82,7 +82,7 @@ function requirePrivacyPermission(
 ) {
   if (
     (table === 'clients' || table === 'projects') &&
-    capabilities.role !== 'owner' &&
+    !capabilities.canSeePrivateNames &&
     ((mode === 'create' &&
       (fields.isPrivate === true || (fields.codeName !== null && fields.codeName !== undefined))) ||
       (mode === 'update' &&

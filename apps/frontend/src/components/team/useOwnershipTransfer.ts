@@ -7,6 +7,7 @@ import { resolveRejectionMessage } from '@/account/accessResult';
 import type { TeamAccessResult } from '@/account/accessResult';
 import { api, queryClient, scopeQueryKey } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
+import { can } from '@capacitylens/shared/domain/access';
 import { useAuth } from '@/auth/authContext';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { reprojectAccess } from '@/auth/reprojectAccess';
@@ -192,7 +193,8 @@ export function useOwnershipTransfer(
   };
   const available =
     user !== null &&
-    role === 'owner' &&
+    role !== null &&
+    can(role, 'ownership:transfer') &&
     permissionStatus === 'resolved' &&
     masquerade.kind === 'inactive';
   const directory = useOwnerDirectory({

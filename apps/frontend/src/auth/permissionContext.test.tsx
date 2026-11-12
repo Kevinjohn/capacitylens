@@ -18,7 +18,8 @@ const ACTIONS = [
   'invitations:manage',
   'viewAs:use',
   'resources:anonymise',
-  'catalogue:manage',
+  'company:import',
+  'company:anonymise',
   'ownership:transfer',
 ] as const satisfies readonly PermissionKey[];
 

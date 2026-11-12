@@ -1,6 +1,7 @@
 import { CircleHelpIcon, EyeIcon, MoonIcon, SunIcon } from 'lucide-react';
 import { matchPath, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/authContext';
+import { can } from '@capacitylens/shared/domain/access';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { resolveAccessLabel } from '@/lib/accessCopy';
 import { DEFAULT_COLORS } from '@/lib/palette';
@@ -324,9 +325,9 @@ function ActiveRoleBadge() {
     permissionStatus,
     role: resolvedRole,
   });
-  const viewOnly = resolvedRole === 'viewer';
+  const viewOnly = resolvedRole !== null && !can(resolvedRole, 'planning:write');
   let roleContent: React.ReactNode = label;
-  if (resolvedRole === 'viewer') {
+  if (viewOnly) {
     roleContent = (
       <>
         {label} · <span data-testid="view-only">{m.nav_view_only()}</span>

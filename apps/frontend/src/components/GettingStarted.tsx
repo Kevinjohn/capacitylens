@@ -1,4 +1,4 @@
-import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
+import { can, isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Check } from 'lucide-react';
@@ -82,7 +82,9 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
     if (done < 5) setConfirmOpen(true);
     else void dismiss();
   };
-  if (!loaded || dismissed || activeRole === 'viewer') return null;
+  if (!loaded || dismissed || (activeRole !== null && !can(activeRole, 'planning:write'))) {
+    return null;
+  }
   const canDismiss = isOwnerOrAdmin(activeRole);
 
   return (

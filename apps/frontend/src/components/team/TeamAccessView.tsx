@@ -177,7 +177,9 @@ export function TeamAccessView() {
       )}
 
       {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}
-      {!masqueradeActive && resolvedRole === 'owner' && <OwnershipTransferCard />}
+      {!masqueradeActive && resolvedRole !== null && can(resolvedRole, 'ownership:transfer') && (
+        <OwnershipTransferCard />
+      )}
     </div>
   );
 }

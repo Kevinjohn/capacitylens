@@ -4,6 +4,7 @@ import {
   getOwned as findOwnedIn,
 } from '@capacitylens/shared/domain/mutations';
 import { m } from '@/i18n';
+import { can } from '@capacitylens/shared/domain/access';
 import { isBuiltinClient } from '@capacitylens/shared/data/internalClient';
 import type { AppData, ID, ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
 import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
@@ -39,13 +40,7 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
       state.setNotice(m.notice_masquerade_read_only(), 'error');
       return true;
     }
-    if (
-      state.activeRole === 'owner' ||
-      state.activeRole === 'admin' ||
-      state.activeRole === 'editor'
-    ) {
-      return false;
-    }
+    if (state.activeRole !== null && can(state.activeRole, 'planning:write')) return false;
     let message = m.notice_viewer_read_only();
     if (state.activeRoleStatus === 'pending') message = m.access_checking_summary();
     if (state.activeRoleStatus === 'unavailable' || state.activeRole === null) {

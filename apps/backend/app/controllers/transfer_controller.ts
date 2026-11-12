@@ -57,7 +57,7 @@ export default class TransferController {
     if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer document.' });
     try {
       const result = await withActor(ctx, async (_actor, trx) => {
-        await passwordConfirmationActor(body.accountId as string, trx);
+        await passwordConfirmationActor(body.accountId as string, trx, 'import');
         return previewBetaAccountTransfer(trx, body.accountId as string, body.document);
       });
       return ctx.response.ok(result);
@@ -71,7 +71,7 @@ export default class TransferController {
     if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' });
     try {
       const result = await withActor(ctx, async (_actor, trx) => {
-        const actor = await passwordConfirmationActor(body.accountId as string, trx);
+        const actor = await passwordConfirmationActor(body.accountId as string, trx, 'import');
         await passwordConfirmations.consume(kitContextIn(trx), {
           confirmationId: body.confirmationId as string,
           action: 'import',
