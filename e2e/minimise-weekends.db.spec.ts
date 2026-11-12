@@ -144,7 +144,15 @@ function registerBarDraggedAcrossNarrowedWeekendTest() {
     await page.mouse.move(b0.x + b0.width / 2, cy);
     await page.mouse.down();
     await page.mouse.move(b0.x + b0.width / 2 + 300, cy, { steps: 10 });
+    // The server applies the move; reopening the bar before its receipt reads the old dates.
+    const moveCommitted = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        /\/api\/accounts\/[^/]+\/allocations\/[^/]+$/.test(new URL(response.url()).pathname),
+    );
     await page.mouse.up();
+    expect((await moveCommitted).ok()).toBe(true);
+    await expect(page.getByTestId('undo-button')).toBeEnabled();
 
     await bar.click();
     dialog = page.getByRole('dialog', { name: 'Edit allocation' });
