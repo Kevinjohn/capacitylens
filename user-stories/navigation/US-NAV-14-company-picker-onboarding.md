@@ -6,11 +6,11 @@ As an initial admitted person, I want to initialize the empty installation’s c
 
 **Access:** Initial admitted identity only during empty-install setup; subsequent entry requires membership
 
-**Entry:** Production: Set up your company screen; demo: company picker and temporary company creation ([US-NAV-17](US-NAV-17-demo-mode.md))
-
 **Documentation:** [Create Your Company](../../docs-src/owner/create-your-company.md)
 
-**Source:** [CompanySetup.tsx](../../apps/frontend/src/auth/CompanySetup.tsx); [AccountPicker.tsx](../../apps/frontend/src/components/accounts/AccountPicker.tsx)
+**Entry:** Set up your company on an empty installation
+
+**Source:** [CompanySetup.tsx](../../apps/frontend/src/auth/CompanySetup.tsx)
 
 ## Acceptance criteria
 

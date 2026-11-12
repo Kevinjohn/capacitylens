@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { makeAccount, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  loadPlanningData,
+  makeAccount,
+  makeResourceDraft,
+  resetStoreWithAccount,
+} from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { useStore } from './useStore';
 
@@ -43,7 +48,7 @@ describe('planning command suspension', () => {
   });
 
   it('does not let an old company release unlock a later context incarnation', async () => {
-    useStore.getState().replaceAll({
+    loadPlanningData({
       ...useStore.getState().data,
       accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
     });
@@ -51,6 +56,7 @@ describe('planning command suspension', () => {
     if (!releaseA) throw new Error('Company A did not acquire its replacement lock.');
     useStore.getState().setActiveAccount('a2');
     await useStore.getState().refreshPlanning();
+    useStore.getState().setActiveRole('owner');
     const releaseB = useStore.getState().suspendPlanningCommands();
     if (!releaseB) throw new Error('Company B did not acquire its replacement lock.');
     releaseA();
@@ -63,6 +69,7 @@ describe('planning command suspension', () => {
     releaseB();
     useStore.getState().setActiveAccount('acct-test');
     await useStore.getState().refreshPlanning();
+    useStore.getState().setActiveRole('owner');
     const releaseSecondA = useStore.getState().suspendPlanningCommands();
     if (!releaseSecondA) throw new Error('The new company A incarnation did not acquire its lock.');
     releaseA();
@@ -75,8 +82,8 @@ describe('planning command suspension', () => {
     releaseSecondA();
   });
 
-  it('retires a demo company lock across picker selection without erasing other demo companies', async () => {
-    useStore.getState().replaceAll({
+  it('retires a lock after context clear and requires a fresh directory and canonical read', async () => {
+    loadPlanningData({
       ...useStore.getState().data,
       accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
     });
@@ -84,13 +91,18 @@ describe('planning command suspension', () => {
     if (!releaseOldA) throw new Error('The first company A context was not ready.');
     useStore.getState().setActiveAccount(null);
     expect(useStore.getState().planning.context).toBeNull();
-    expect(useStore.getState().data.accounts.map((account) => account.id)).toEqual([
-      'acct-test',
-      'a2',
-    ]);
+    expect(useStore.getState().data.accounts).toEqual([]);
+
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: 'acct-test', name: 'Test Co', role: 'owner' },
+        { id: 'a2', name: 'Test Co', role: 'owner' },
+      ],
+    });
 
     useStore.getState().setActiveAccount('acct-test');
     await useStore.getState().refreshPlanning();
+    useStore.getState().setActiveRole('owner');
     const releaseNewA = useStore.getState().suspendPlanningCommands();
     if (!releaseNewA) throw new Error('The re-entered company A context was not ready.');
     releaseOldA();

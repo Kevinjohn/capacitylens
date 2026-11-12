@@ -16,11 +16,10 @@ of every implementation guarantee.
 These are availability records, not automatically defects or commitments to bring a feature back.
 The matrix keeps every historical story discoverable by status.
 
-| Capability                                                | Availability | Evidence and treatment                                                                                                                                                                                                                                                                                                                                                                           |
-| --------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Project phases and assigning an activity to a phase       | Hidden       | The current [project form](../apps/frontend/src/components/projects/ProjectForm.tsx) has no phase-management entry; the [activity form](../apps/frontend/src/components/activities/ActivityForm.tsx) preserves phase attribution but renders no phase picker. Keep the existing project and activity stories. The decision permits phase references; it does not promise a current phase editor. |
-| Jump to date                                              | Hidden       | [DECISIONS.md](../DECISIONS.md#scheduling-invariants) explicitly hides this picker while retaining its code. Keep the toolbar story with historical controls labelled unavailable.                                                                                                                                                                                                               |
-| Company picker, additional company creation and switching | Demo         | The [company picker](../apps/frontend/src/components/accounts/AccountPicker.tsx) remains in the temporary demo. Production has one company and no ordinary switcher or additional-company action. Keep this distinction in the navigation stories.                                                                                                                                               |
+| Capability                                          | Availability | Evidence and treatment                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Project phases and assigning an activity to a phase | Hidden       | The current [project form](../apps/frontend/src/components/projects/ProjectForm.tsx) has no phase-management entry; the [activity form](../apps/frontend/src/components/activities/ActivityForm.tsx) preserves phase attribution but renders no phase picker. Keep the existing project and activity stories. The decision permits phase references; it does not promise a current phase editor. |
+| Jump to date                                        | Hidden       | [DECISIONS.md](../DECISIONS.md#scheduling-invariants) explicitly hides this picker while retaining its code. Keep the toolbar story with historical controls labelled unavailable.                                                                                                                                                                                                               |
 
 ## Retained recovery screens without current triggers
 
@@ -45,7 +44,7 @@ recovery remain separately documented as available.
   password signup under the configured admission policy, but the current
   [sign-in screen](../apps/frontend/src/auth/LoginScreen.tsx) has no registration form or link.
   The available account-creation journey is the emailed invitation. The agreed signup policy
-  is enforced on the server; a self-service registration entry is a UI availability gap,
+  is enforced on the server; a self-service registration entry is a UI availability gap
   not evidence that signup bypasses the policy. No new entry point is introduced here.
 - **Admission reversal:** the [approval panel](../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx)
   offers Approve and Decline for the applicable states, with no revocation control. Stories
@@ -63,7 +62,7 @@ current archive/restore vocabulary.
 - The review covers user-facing capabilities and the agreed product rules relevant to their
   availability, roles and fields. It is not a fresh audit of every security or transaction invariant.
 - Readable source and existing tests are evidence for the catalogue; linked tests are not claims
-  of new runtime execution. Validation for this change checks document structure, links,
+  of new runtime execution. Validation for this change checks document structure, links
   identifiers and matrix/index consistency.
 - Operator installation remains a separate context. The catalogue does not expand product scope
   to include hosting controls in the application.

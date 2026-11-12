@@ -8,7 +8,6 @@ import { useStore } from '@/store/useStore';
 vi.mock('./accountClient', () => ({ accountClient: { listResourceAvatars: vi.fn() } }));
 vi.mock('@/data/apiConfig', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/data/apiConfig')>()),
-  isServerConfigured: () => true,
 }));
 
 function response(avatars: unknown[]): Response {
@@ -86,7 +85,6 @@ describe('useResourceAvatars', () => {
     const authValue = (image: string) => ({
       authMode: 'password-only' as const,
       user: { id: 'u1', image },
-      canCreateAccount: true,
       refreshAuth: async () => {},
       signOut: async () => {},
     });

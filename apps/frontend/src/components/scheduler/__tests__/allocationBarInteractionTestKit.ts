@@ -1,7 +1,7 @@
 import { act } from '@testing-library/react';
 import { requireCreated } from '@/test/requireCreated';
 import type { Allocation } from '@capacitylens/shared/types/entities';
-import { makeResourceDraft } from '@/test/fixtures';
+import { archiveForTest, makeResourceDraft } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
 
@@ -88,7 +88,7 @@ export async function seedVisibleAllocationWithHiddenCapacity(): Promise<Allocat
       status: 'confirmed',
     }),
   );
-  await st.archiveEntity('clients', hiddenClient.id);
+  await archiveForTest('clients', hiddenClient.id);
   return visible;
 }
 

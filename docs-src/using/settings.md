@@ -64,8 +64,10 @@ works Monday to Friday and Bruce Wayne works Monday, Wednesday and Friday, his c
 Monday, Wednesday and Friday.
 
 Other days hold no capacity. Bookings skip them and they don't count towards utilisation. You
-can't start new work on them: the hover **+** doesn't appear, and a typed start date, duplicate
-or reassignment is rejected. A booking drawn from a working day may still cross them.
+can't start new work on them: the hover **+** doesn't appear, and new bookings or duplicates
+must start on a working day. Reassignment may start on a non-working day when the booking has
+**Ignore working days** enabled; availability limits still apply. A booking drawn from a working
+day may still cross non-working days.
 [Book on non-working days](/using/schedule-work#book-on-non-working-days) explains **Ignore
 working days**.
 
@@ -177,9 +179,7 @@ preview again before retrying.
 Import replaces the selected company's scheduling records and supported settings atomically. It
 keeps scheduling IDs in the file and existing member-to-person links, which means every linked person
 must still be present. Another company's data stays in place. An import cannot be undone. Export
-before replacing data if you may need the current version. The temporary demo performs the same
-strict file checks in page memory and refuses scheduling IDs already used by another demo
-company; refreshing restores the demo seed.
+before replacing data if you may need the current version. The disposable demo uses the same server validation and password proof; restarting its command restores the sample data.
 
 A full beta export also restores into a fresh installation. Create its Owner and company first,
 then import the unchanged file while signed in as that Owner. The company ID and every row's
@@ -196,8 +196,7 @@ An Owner can select **Anonymise all people** to remove personal details and depe
 time-off notes across the company, including placeholders and external people. Clients, projects
 and activities stay unchanged. The company,
 its members and planning links remain. This cannot be undone. A signed-in Owner confirms the exact
-action with their password. In the editable demo, the same change stays
-in temporary page memory and does not require sign-in. Refreshing resets the demo.
+action with their password. The disposable demo requires the same password confirmation. Restarting its command resets the sample data.
 
 ### Company details {#calendar}
 
@@ -220,4 +219,4 @@ Your signed-in identity, password controls and **Sign out** are on the
 ## If a company won't load
 
 If a selected company can't be loaded, a recovery screen hides the previous company's data.
-Select **Retry** to load it again. The temporary demo also offers a return to its company picker.
+Select **Retry** to load it again. The server also reports an explicit error if the installation contains more than one company.

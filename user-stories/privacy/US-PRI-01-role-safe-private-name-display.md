@@ -4,7 +4,7 @@ As a company Owner, I want private client and project names visible only to Owne
 
 **Status:** Current
 
-**Access:** Owner sees real name and code name; Admin, Editor, Viewer receive only quoted code name; demo is owner-equivalent
+**Access:** Owner sees real name and code name; Admin, Editor, Viewer receive only quoted code name
 
 **Entry:** Client and Project lists, selectors, schedule, search, forms, and archived views
 

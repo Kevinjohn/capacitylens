@@ -86,7 +86,13 @@ test.group('authenticated first company setup', (group) => {
       role: 'owner',
       status: 'active',
     });
-    assert.equal((await db.from('clients').first())!.builtin, 'true');
+    const clients = await db.from('clients');
+    assert.lengthOf(clients, 1);
+    assert.deepInclude(clients[0]!, {
+      account_id: accountId,
+      name: 'Internal',
+      builtin: 'true',
+    });
     assert.equal((await db.from('company_planning_revisions').first())!.revision, 1);
     assert.deepInclude((await db.from('audit_entries').first())!, {
       actor_id: userId,

@@ -1,21 +1,69 @@
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
+import { AuthContext } from '@/auth/authContext';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, expectTypeOf, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, it, expect, beforeEach, expectTypeOf, vi } from 'vitest';
+import {
+  act,
+  fireEvent,
+  render as renderTestingLibrary,
+  screen,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { ActivityList } from './ActivityList';
 import { useStore } from '@/store/useStore';
 import {
+  loadPlanningData,
   DEFAULT_ACCOUNT_ID,
   makeAppData,
   resetStoreWithAccount,
   requireValue,
 } from '@/test/fixtures';
 import { MemoryRouter } from 'react-router-dom';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+import type { ReactNode } from 'react';
+import { archiveForTest } from '@/test/fixtures';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+
+function TestProviders({ children }: { children: ReactNode }) {
+  return (
+    <AuthContext.Provider
+      value={{
+        authMode: 'password-only',
+        user: { id: 'test-principal' },
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
+    >
+      <OwnerPermissions>{children}</OwnerPermissions>
+    </AuthContext.Provider>
+  );
+}
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: TestProviders });
+
+function mockInactiveRead() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      const data = structuredClone(useStore.getState().data);
+      const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-01-01T00:00:00.000Z');
+      return Response.json({
+        ...data,
+        clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+      });
+    }),
+  );
+}
+
+afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(async () => {
   await resetStoreWithAccount();
+  mockInactiveRead();
 });
 
 describe('ActivityList', () => {
@@ -53,10 +101,10 @@ describe('ActivityList', () => {
 
   it('focuses the activity selected by a command-palette deep link', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     const selected = await requireCreated(
       useStore.getState().addActivity({
@@ -164,10 +212,10 @@ describe('ActivityList', () => {
   it('adds a project-specific activity under one client and project heading', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     render(<ActivityList />);
 
@@ -195,25 +243,25 @@ describe('ActivityList', () => {
 
   it('groups and sorts project activities by client, project, then activity', async () => {
     const zuluClient = await requireCreated(
-      useStore.getState().addClient({ name: 'Zulu Client', color: '#111' }),
+      useStore.getState().addClient({ name: 'Zulu Client', color: '#2d75da' }),
     );
     const alphaClient = await requireCreated(
-      useStore.getState().addClient({ name: 'Alpha Client', color: '#222' }),
+      useStore.getState().addClient({ name: 'Alpha Client', color: '#76a5e7' }),
     );
     const zuluProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Zulu Project', clientId: alphaClient.id, color: '#333' }),
+        .addProject({ name: 'Zulu Project', clientId: alphaClient.id, color: '#da2d92' }),
     );
     const alphaProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Alpha Project', clientId: alphaClient.id, color: '#444' }),
+        .addProject({ name: 'Alpha Project', clientId: alphaClient.id, color: '#5c34d4' }),
     );
     const otherProject = await requireCreated(
       useStore
         .getState()
-        .addProject({ name: 'Other Project', clientId: zuluClient.id, color: '#555' }),
+        .addProject({ name: 'Other Project', clientId: zuluClient.id, color: '#9c3ace' }),
     );
     await useStore
       .getState()
@@ -250,9 +298,11 @@ describe('ActivityList', () => {
   it('rejects a project-specific activity with no project chosen', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
-    await useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' });
+    await useStore
+      .getState()
+      .addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' });
     render(<ActivityList />);
 
     await user.click(screen.getByRole('button', { name: 'Add activity' }));
@@ -269,17 +319,23 @@ describe('ActivityList', () => {
   });
 
   it('hides an activity under an archived project', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     await useStore
       .getState()
       .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id });
-    useStore.getState().archiveEntity('projects', project.id);
+    loadPlanningData({
+      ...useStore.getState().data,
+      projects: useStore
+        .getState()
+        .data.projects.map((row) =>
+          row.id === project.id ? { ...row, archivedAt: '2026-01-01T00:00:00.000Z' } : row,
+        ),
+    });
 
     render(
       <MemoryRouter>
@@ -288,25 +344,30 @@ describe('ActivityList', () => {
     );
 
     expect(
-      within(screen.getByTestId('archived-activities-section')).getByText('My Activity'),
+      within(await screen.findByTestId('archived-activities-section')).getByText('My Activity'),
     ).toBeInTheDocument();
     expect(screen.getByText('Hidden because Project Lightning is archived.')).toBeInTheDocument();
     expect(screen.queryByTestId('project-specific-activities')).not.toBeInTheDocument();
-    vi.unstubAllEnvs();
   });
 
   it('hides an activity whose project belongs to an archived client', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     await useStore
       .getState()
       .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id });
-    useStore.getState().archiveEntity('clients', client.id);
+    loadPlanningData({
+      ...useStore.getState().data,
+      clients: useStore
+        .getState()
+        .data.clients.map((row) =>
+          row.id === client.id ? { ...row, archivedAt: '2026-01-01T00:00:00.000Z' } : row,
+        ),
+    });
 
     render(
       <MemoryRouter>
@@ -315,18 +376,14 @@ describe('ActivityList', () => {
     );
 
     expect(
-      within(screen.getByTestId('archived-activities-section')).getByText('My Activity'),
+      within(await screen.findByTestId('archived-activities-section')).getByText('My Activity'),
     ).toBeInTheDocument();
     expect(screen.getByText('Hidden because Client Ferris is archived.')).toBeInTheDocument();
-    vi.unstubAllEnvs();
   });
 
-  // An unresolvable projectId means different things per mode (mirrors ProjectList's clientName
-  // tests): in server mode the per-account read strips archived parents from the slice, so it
-  // reads as "(archived project)"; in the demo build the raw slice retains archived projects, so
-  // it is genuinely dangling data and must not be dressed up as archival.
+  // An unresolved project ID remains visible as unavailable planning data.
   const seedOrphanActivity = () => {
-    useStore.getState().replaceAll(
+    loadPlanningData(
       makeAppData({
         activities: [
           {
@@ -345,8 +402,7 @@ describe('ActivityList', () => {
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   };
 
-  it('server mode retains an activity whose project resolves nowhere', () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '');
+  it('retains an activity whose project resolves nowhere', () => {
     seedOrphanActivity();
 
     render(<ActivityList />);
@@ -358,37 +414,21 @@ describe('ActivityList', () => {
     expect(
       screen.getByRole('heading', { name: 'Unavailable project', level: 4 }),
     ).toBeInTheDocument();
-    vi.unstubAllEnvs();
-  });
-
-  it('demo mode also retains an activity whose project resolves nowhere', () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
-    seedOrphanActivity();
-
-    render(<ActivityList />);
-
-    expect(screen.getByText('Orphan Activity')).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Unavailable client', level: 3 }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Unavailable project', level: 4 }),
-    ).toBeInTheDocument();
-    vi.unstubAllEnvs();
   });
 
   it('confirms before archiving and shows the activity in its archive section', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
-    await useStore
-      .getState()
-      .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id });
+    const activity = await requireCreated(
+      useStore
+        .getState()
+        .addActivity({ name: 'My Activity', kind: 'project', projectId: project.id }),
+    );
     render(<ActivityList />);
 
     expect(screen.getByTestId('activity-row')).toBeInTheDocument();
@@ -401,6 +441,12 @@ describe('ActivityList', () => {
     expect(useStore.getState().data.activities).toHaveLength(1);
 
     await user.click(screen.getByRole('button', { name: 'Archive My Activity' }));
+    queuePlanningPatch(() => ({
+      upserts: [
+        { entity: 'activities', row: { ...activity, archivedAt: '2026-01-01T00:00:00.000Z' } },
+      ],
+      removed: [],
+    }));
     await user.click(
       within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Archive' }),
     );
@@ -409,19 +455,17 @@ describe('ActivityList', () => {
     expect(useStore.getState().data.activities[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByTestId('activity-row')).not.toBeInTheDocument();
     expect(
-      within(screen.getByTestId('archived-activities-section')).getByText('My Activity'),
+      within(await screen.findByTestId('archived-activities-section')).getByText('My Activity'),
     ).toBeInTheDocument();
-    vi.unstubAllEnvs();
   });
 
   it('warns how many allocations an archive would hide from the schedule', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     const activity = await requireCreated(
       useStore
@@ -438,7 +482,7 @@ describe('ActivityList', () => {
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
-        color: '#333333',
+        color: '#da2d92',
       }),
     );
     await useStore.getState().addAllocation({
@@ -465,11 +509,9 @@ describe('ActivityList', () => {
     expect(dialog).toHaveTextContent(
       'This also hides 2 allocations from the schedule; restore the activity to bring them back.',
     );
-    vi.unstubAllEnvs();
   });
 
   it('shows the base archive message instead of throwing when the row is archived while the dialog is open', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const user = userEvent.setup();
     const activity = await requireCreated(
       useStore.getState().addActivity({ name: 'My Activity', kind: 'internal' }),
@@ -480,20 +522,22 @@ describe('ActivityList', () => {
     expect(screen.getByRole('alertdialog')).toHaveTextContent(/Archive activity\?/i);
 
     // A record can become inactive while its archive dialog is open. Rendering the confirmation must then show the base message rather than throw an already-inactive error.
-    act(() => {
-      useStore.getState().archiveEntity('activities', activity.id);
-    });
+    queuePlanningPatch(() => ({
+      upserts: [
+        { entity: 'activities', row: { ...activity, archivedAt: '2026-01-01T00:00:00.000Z' } },
+      ],
+      removed: [],
+    }));
+    await act(async () => archiveForTest('activities', activity.id));
 
     const dialog = screen.getByRole('alertdialog');
     expect(dialog).toHaveTextContent(
       'Archive "My Activity"? This hides it from scheduling while keeping its history.',
     );
     expect(dialog).not.toHaveTextContent('also hides');
-    vi.unstubAllEnvs();
   });
 
   it('surfaces an archive integrity failure without removing the activity', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
     const user = userEvent.setup();
     const activity = await requireCreated(
       useStore.getState().addActivity({ name: 'Internal sync', kind: 'internal' }),
@@ -524,17 +568,16 @@ describe('ActivityList', () => {
       );
     } finally {
       useStore.setState({ sendPlanningCommand: originalSend });
-      vi.unstubAllEnvs();
     }
   });
 
   it('keeps the edit form open when its activity vanished during editing', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#76a5e7' }),
     );
     const activity = await requireCreated(
       useStore.getState().addActivity({ name: 'A1', kind: 'project', projectId: project.id }),
@@ -547,7 +590,7 @@ describe('ActivityList', () => {
     const dialog = screen.getByRole('dialog', { name: 'Edit activity' });
     act(() => {
       const data = useStore.getState().data;
-      useStore.getState().replaceAll({
+      loadPlanningData({
         ...data,
         activities: data.activities.filter((row) => row.id !== activity.id),
       });

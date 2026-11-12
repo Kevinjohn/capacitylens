@@ -1,7 +1,6 @@
 import { orderedWeekdays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { useId } from 'react';
 import { useCanEdit, useRole } from '@/auth/permissionContext';
-import { isServerConfigured } from '@/data/apiConfig';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import {
   canCreateInlineActivity,
@@ -63,7 +62,6 @@ export function useSettingsViewController() {
   const updateAccount = useStore((state) => state.updateAccount);
   const setNotice = useStore((state) => state.setNotice);
   const display = useDisplayPreferences();
-  const serverMode = isServerConfigured();
   const scheduling = readSchedulingSettings(data, activeAccountId);
   const updateSetting = async (patch: Parameters<typeof updateAccount>[1]) => {
     if (!activeAccount) return;
@@ -81,8 +79,7 @@ export function useSettingsViewController() {
     scheduling,
     workingDaysMinimumId,
     canEdit,
-    canManageCapacityOverviewAccess: role === null || role === 'owner' || role === 'admin',
+    canManageCapacityOverviewAccess: role === 'owner' || role === 'admin',
     updateSetting,
-    serverMode,
   };
 }

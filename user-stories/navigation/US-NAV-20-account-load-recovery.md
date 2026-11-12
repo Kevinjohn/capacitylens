@@ -4,7 +4,7 @@ As a company member, I want to retry loading the active company so that I can co
 
 **Status:** Hidden — retained screen with no current error-state producer.
 
-**Access:** Owner, Admin, Editor, Viewer; Choose another is available only in demo mode.
+**Access:** Owner, Admin, Editor, Viewer.
 
 **Entry:** No current entry; retained company-load recovery screen.
 
@@ -14,7 +14,7 @@ As a company member, I want to retry loading the active company so that I can co
 
 ## Acceptance criteria
 
-- Retry attempts to refresh the failed active company's planning data and reports a failed retry. In demo mode only, Choose another returns to the company picker; persisted installations do not offer that action.
+- Retry attempts to refresh the failed active company's planning data and reports a failed retry.
 
 ## User flow
 
@@ -25,7 +25,6 @@ flowchart TD
 A["Company-load recovery screen, if made reachable"] --> B{"Choose a recovery action"}
 B -->|retry| C["Refresh company data"]
 C -->|still failing| D["Read the retry error"]
-B -->|temporary demo only| E["Choose another company from the picker"]
 ```
 
 ## Code flow
@@ -36,7 +35,6 @@ flowchart TD
   clear -. "No current failure assignment found" .-> shell["AppShell passes marker to AppEntryGate"]
   shell --> gate["AccountLoadRecovery branch remains gated"]
   gate --> retry["Retry calls refreshPlanning"]
-  gate -->|demoAuthActive only| choose["Choose another navigates to picker"]
 ```
 
-**Code references:** [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts); [accountSlice.ts](../../apps/frontend/src/store/slices/accountSlice.ts); [useStore.ts](../../apps/frontend/src/store/useStore.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [AppEntryGate.tsx](../../apps/frontend/src/components/AppEntryGate.tsx); [AccountLoadRecovery.tsx](../../apps/frontend/src/components/accounts/AccountLoadRecovery.tsx); [accountLoadRecoveryActions.ts](../../apps/frontend/src/components/accountLoadRecoveryActions.ts)
+**Code references:** [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts); [accountSlice.ts](../../apps/frontend/src/store/slices/accountSlice.ts); [useStore.ts](../../apps/frontend/src/store/useStore.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [AppEntryGate.tsx](../../apps/frontend/src/components/AppEntryGate.tsx); [AccountLoadRecovery.tsx](../../apps/frontend/src/components/accounts/AccountLoadRecovery.tsx)

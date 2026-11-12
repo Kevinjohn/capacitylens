@@ -11,7 +11,6 @@ import {
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { m } from '@/i18n';
 import { accountClient } from '@/account/accountClient';
-import { isServerConfigured } from '@/data/apiConfig';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 import { readApiError, readApiErrorCode } from '@/lib/readApiError';
 import { Button } from '@/components/ui/button';
@@ -66,16 +65,13 @@ export function InviteAccept() {
 }
 
 function initialState(token: string | undefined): State {
-  if (!isServerConfigured()) {
-    return { kind: 'failed', message: m.invite_local_mode({ app: APP_NAME }) };
-  }
   return token ? { kind: 'checking' } : { kind: 'failed', message: m.invite_err_missing_token() };
 }
 
 function useInvitePreview(token: string | undefined) {
   const [state, setState] = useState<State>(() => initialState(token));
   useEffect(() => {
-    if (!token || !isServerConfigured()) return;
+    if (!token) return;
     let current = true;
     accountClient
       .previewInvitation(token)

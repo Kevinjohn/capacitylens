@@ -2,25 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { useAuth } from '@/auth/authContext';
 import { useCan, useRole } from '@/auth/permissionContext';
-import { isServerConfigured } from '@/data/apiConfig';
 import {
   fetchInactiveSlice,
   InactiveSliceHttpError,
   InactiveSliceShapeError,
 } from '@/data/fetchInactiveSlice';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { useInactiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
 
-/** Keeps inactive data outside the ordinary hydrated store in server mode. */
+/** Keeps inactive data outside the active planning store. */
 export function useInactiveAccountData(): {
   data: AppData | null;
   mayViewInactive: boolean;
   reload: () => void;
 } {
-  const server = isServerConfigured();
   const mayViewInactive = useCan('resources:anonymise');
   const role = useRole();
   const { user } = useAuth();
@@ -28,7 +25,6 @@ export function useInactiveAccountData(): {
   const masquerade = useStore((state) => state.masquerade);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
-  const localData = useInactiveScopedData();
   const [serverData, setServerData] = useState<{
     accountId: string;
     reloadKey: number;
@@ -73,7 +69,7 @@ export function useInactiveAccountData(): {
   );
 
   useEffect(() => {
-    if (!server || !mayViewInactive || !activeAccountId) {
+    if (!mayViewInactive || !activeAccountId) {
       generation.current += 1;
       return;
     }
@@ -102,10 +98,9 @@ export function useInactiveAccountData(): {
         } else setNotice(m.settings_err_server({ error: resolveErrorMessage(error) }), 'error');
       });
     return () => controller.abort();
-  }, [activeAccountId, mayViewInactive, reloadKey, requestIdentity, server, setNotice]);
+  }, [activeAccountId, mayViewInactive, reloadKey, requestIdentity, setNotice]);
 
   if (!mayViewInactive) return { data: null, mayViewInactive, reload };
-  if (!server) return { data: localData, mayViewInactive, reload };
   if (serverData?.accountId !== activeAccountId || serverData.requestIdentity !== requestIdentity) {
     return { data: null, mayViewInactive, reload };
   }

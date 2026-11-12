@@ -126,10 +126,11 @@ describe('Diagnostics route access', () => {
     expect(await screen.findByText('Diagnostics content')).toBeInTheDocument();
   });
 
-  it('opens without a membership role when sign-in is off', async () => {
+  it('keeps Diagnostics closed without a resolved membership role', () => {
     renderRoute(null, 'resolved');
 
-    expect(await screen.findByText('Diagnostics content')).toBeInTheDocument();
+    expect(screen.getByText('Schedule content')).toBeInTheDocument();
+    expect(screen.queryByText('Diagnostics content')).not.toBeInTheDocument();
   });
 
   it.each(['editor', 'viewer'] as const)('redirects an %s to the schedule', (role) => {

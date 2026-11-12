@@ -11,7 +11,6 @@ import { useArchiveRecovery } from './useArchiveRecovery';
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
-  isServerConfigured: () => true,
 }));
 vi.mock('@/api/queryClient', async (original) => ({
   ...(await original<typeof import('@/api/queryClient')>()),
@@ -41,7 +40,6 @@ function view(cache: QueryClient, role: Role = 'editor', principal: string | nul
         value={{
           authMode: 'password-only',
           user: principal ? { id: principal } : null,
-          canCreateAccount: true,
           refreshAuth: async () => {},
           signOut: async () => {},
         }}

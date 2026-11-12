@@ -4,7 +4,6 @@ import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessClient';
 import { useAuth } from '@/auth/authContext';
-import { isServerConfigured } from '@/data/apiConfig';
 import { useDeadlineClock } from '@/hooks/useDeadlineClock';
 import { useFieldError } from '@/hooks/useFieldError';
 import { useStore } from '@/store/useStore';
@@ -220,7 +219,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const viewState = useMemberViewState();
   const memberInvites = useMemberInvites();
   const { resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
-  const enabled = authMode !== 'off' && isServerConfigured();
+  const enabled = authMode !== null;
   const directoryState = useMemberDirectoryState({
     activeAccountId,
     enabled,

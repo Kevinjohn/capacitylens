@@ -26,8 +26,6 @@ C -->|no or uncertain| E["Read the visible error and resolve it before continuin
 
 ## Code flow
 
-The persisted server path is shown; the temporary demo applies these planning commands in memory.
-
 ```mermaid
 flowchart TD
   control["CompanyFeaturesSection calls updateSetting({ showTaskFieldInSchedule })"] --> view["useSettingsViewController.updateSetting checks active company and catches failure"]

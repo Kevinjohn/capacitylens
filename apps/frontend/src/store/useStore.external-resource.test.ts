@@ -2,14 +2,22 @@ import { requireCreated } from '@/test/requireCreated';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from './useStore';
+import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const s = () => useStore.getState();
 const personDraft = makeResourceDraft({ name: 'Person', role: 'Dev', color: '#1' });
 
+function refuseNextPlanningMutation(): void {
+  getStubPlanningTransport().failNext(
+    new PlanningControllerError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
+  );
+}
+
 beforeEach(() => resetStoreWithAccount());
 
 function registerExternalFlip1(): void {
-  it('flipping a person with a loaded allocation to external THROWS and does not mutate', async () => {
+  it('preserves a server refusal when an external conversion would hide a loaded allocation', async () => {
     const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
     const p = await requireCreated(s().addProject({ name: 'P', clientId: c.id, color: '#2' }));
     const t = await requireCreated(
@@ -25,15 +33,24 @@ function registerExternalFlip1(): void {
       status: 'confirmed',
     });
 
-    await expect(s().updateResource(r.id, { kind: 'external' })).rejects.toThrow(
-      /kind cannot change/i,
-    );
+    const before = s().planning.history.past.length;
+    refuseNextPlanningMutation();
+    await expect(s().updateResource(r.id, { kind: 'external' })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+    });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'resource.update',
+      id: r.id,
+      changes: { kind: 'external' },
+    });
     expect(s().data.resources[0]?.kind).toBe('person');
+    expect(s().planning.history.past).toHaveLength(before);
   });
 }
 
 function registerExternalFlip2(): void {
-  it('flipping a person with time off to external THROWS', async () => {
+  it('preserves a server refusal when an external conversion would hide time off', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
     await s().addTimeOff({
       resourceId: r.id,
@@ -42,15 +59,24 @@ function registerExternalFlip2(): void {
       type: 'holiday',
     });
 
-    await expect(s().updateResource(r.id, { kind: 'external' })).rejects.toThrow(
-      /kind cannot change/i,
-    );
+    const before = s().planning.history.past.length;
+    refuseNextPlanningMutation();
+    await expect(s().updateResource(r.id, { kind: 'external' })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+    });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'resource.update',
+      id: r.id,
+      changes: { kind: 'external' },
+    });
     expect(s().data.resources[0]?.kind).toBe('person');
+    expect(s().planning.history.past).toHaveLength(before);
   });
 }
 
 function registerExternalFlip3(): void {
-  it('rejects flipping a person with no dependents or a zero-load allocation to external', async () => {
+  it('preserves a server refusal for an immutable kind with and without dependents', async () => {
     const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
     const p = await requireCreated(s().addProject({ name: 'P', clientId: c.id, color: '#2' }));
     const t = await requireCreated(
@@ -62,10 +88,19 @@ function registerExternalFlip3(): void {
         name: 'Free',
       }),
     );
-    await expect(s().updateResource(free.id, { kind: 'external' })).rejects.toThrow(
-      /kind cannot change/i,
-    );
+    const beforeFree = s().planning.history.past.length;
+    refuseNextPlanningMutation();
+    await expect(s().updateResource(free.id, { kind: 'external' })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+    });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'resource.update',
+      id: free.id,
+      changes: { kind: 'external' },
+    });
     expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe('person');
+    expect(s().planning.history.past).toHaveLength(beforeFree);
 
     const z = await requireCreated(
       s().addResource({
@@ -81,10 +116,19 @@ function registerExternalFlip3(): void {
       hoursPerDay: 0,
       status: 'confirmed',
     });
-    await expect(s().updateResource(z.id, { kind: 'external' })).rejects.toThrow(
-      /kind cannot change/i,
-    );
+    const beforeZero = s().planning.history.past.length;
+    refuseNextPlanningMutation();
+    await expect(s().updateResource(z.id, { kind: 'external' })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+    });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'resource.update',
+      id: z.id,
+      changes: { kind: 'external' },
+    });
     expect(s().data.resources.find((r) => r.id === z.id)?.kind).toBe('person');
+    expect(s().planning.history.past).toHaveLength(beforeZero);
   });
 }
 
@@ -133,10 +177,19 @@ describe('parent edits cannot invalidate existing placeholder allocations', () =
       status: 'confirmed',
     });
 
-    await expect(s().updateResource(ph.id, { projectId: p2.id })).rejects.toThrow(
-      /placeholder’s work/i,
-    );
+    const historyBefore = s().planning.history.past.length;
+    refuseNextPlanningMutation();
+    await expect(s().updateResource(ph.id, { projectId: p2.id })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+    });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'resource.update',
+      id: ph.id,
+      changes: { projectId: p2.id },
+    });
     expect(s().data.resources.find((resource) => resource.id === ph.id)?.projectId).toBe(p1.id);
+    expect(s().planning.history.past).toHaveLength(historyBefore);
   });
 
   it('rejects an activity project change atomically', async () => {
@@ -162,11 +215,19 @@ describe('parent edits cannot invalidate existing placeholder allocations', () =
       status: 'confirmed',
     });
 
-    await expect(s().updateActivity(t.id, { projectId: p2.id })).rejects.toThrow(
-      /placeholder work/i,
-    );
+    const historyBefore = s().planning.history.past.length;
+    refuseNextPlanningMutation();
+    await expect(s().updateActivity(t.id, { projectId: p2.id })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+    });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'catalogue.update',
+      entity: { entity: 'activities', id: t.id, changes: { projectId: p2.id } },
+    });
     expect(s().data.activities.find((activityRow) => activityRow.id === t.id)?.projectId).toBe(
       p1.id,
     );
+    expect(s().planning.history.past).toHaveLength(historyBefore);
   });
 });

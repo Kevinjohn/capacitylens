@@ -1,13 +1,18 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { act, render, screen, fireEvent, within } from '@testing-library/react';
+import { act, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
 import { makeResourceDraft } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { chooseOption } from './__tests__/schedulerTestKit';
-import { first, ACC, resetAllocationModalStore } from './__tests__/allocationModalTestKit';
+import {
+  first,
+  ACC,
+  resetAllocationModalStore,
+  renderAsOwner,
+} from './__tests__/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
@@ -32,7 +37,7 @@ beforeEach(async () => {
 });
 
 async function addInlineActivityTestPerson() {
-  await useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' }));
+  await useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' }));
   return first(useStore.getState().data.resources).id;
 }
 
@@ -57,7 +62,7 @@ describe('AllocationModal inline activity creation pref', () => {
         return pendingCreation;
       });
 
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -116,7 +121,7 @@ describe('AllocationModal inline activity creation pref', () => {
       return pendingCreation;
     });
 
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -147,7 +152,7 @@ describe('AllocationModal inline activity creation pref', () => {
   it('renders the inline "Add activity" input + button when explicitly enabled', async () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -163,7 +168,7 @@ describe('AllocationModal inline activity creation pref', () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -190,7 +195,7 @@ describe('AllocationModal inline activity creation pref', () => {
   });
   it('hides the inline "Add activity" controls by default while retaining the Activity picker', async () => {
     const resourceId = await addInlineActivityTestPerson();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -205,7 +210,7 @@ describe('AllocationModal inline activity creation pref', () => {
   it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', async () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -223,7 +228,7 @@ describe('AllocationModal inline activity creation pref', () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
-    const view = render(
+    const view = renderAsOwner(
       <PermissionContext.Provider value={{ role: 'editor' }}>
         <AllocationModal
           kind="create"
@@ -255,7 +260,7 @@ describe('AllocationModal task field', () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -283,7 +288,7 @@ describe('AllocationModal task field', () => {
     );
     await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();
-    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     await user.clear(screen.getByLabelText('Task'));
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(useStore.getState().data.allocations[0]).toHaveProperty('task', null);
@@ -313,7 +318,7 @@ describe('AllocationModal task field', () => {
     );
     await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: false });
     const user = userEvent.setup();
-    const view = render(
+    const view = renderAsOwner(
       <AllocationModal kind="edit" allocationId={unrelated.id} onClose={vi.fn()} />,
     );
     expect(screen.queryByLabelText('Task')).not.toBeInTheDocument();
@@ -322,7 +327,9 @@ describe('AllocationModal task field', () => {
     view.unmount();
 
     await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
-    render(<AllocationModal kind="edit" allocationId={taskAllocation.id} onClose={vi.fn()} />);
+    renderAsOwner(
+      <AllocationModal kind="edit" allocationId={taskAllocation.id} onClose={vi.fn()} />,
+    );
     expect(screen.getByLabelText('Task')).toHaveValue('Keep this task');
     expect(
       useStore.getState().data.allocations.find(({ id }) => id === taskAllocation.id)?.task,

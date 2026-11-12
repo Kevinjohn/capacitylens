@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import { accountClient } from './accountClient';
-import { isServerConfigured } from '@/data/apiConfig';
 import { useStore } from '@/store/useStore';
 import { useAuth } from '@/auth/authContext';
 
@@ -58,7 +57,7 @@ export function useResourceAvatars(accountId: string | null): ReadonlyMap<string
   const refresh = useCallback(() => {
     const epoch = ++requestEpoch.current;
     setProjection(null);
-    if (!accountId || !isServerConfigured() || !navigator.onLine) return;
+    if (!accountId || !navigator.onLine) return;
     void accountClient
       .listResourceAvatars(accountId)
       .then(async (response) => {

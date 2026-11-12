@@ -19,7 +19,7 @@ As an invited company member, I want to sign in before accessing persisted compa
 | Email    | Email input    | Submitted for password sign-in; browser email autofill enabled                                                     |
 | Password | Password input | Submitted for password sign-in; current-password autofill; overlong input is rejected and associated with an error |
 
-- Sign in submits credentials; Account → Sign out ends the session and returns to sign-in. Demo mode has no sign-in.
+- Sign in submits credentials; Account → Sign out ends the session and returns to sign-in. The disposable demo uses its printed development sign-in.
 
 ## User flow
 

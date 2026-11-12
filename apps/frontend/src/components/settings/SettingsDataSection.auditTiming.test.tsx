@@ -3,12 +3,13 @@ import { queryClient } from '@/api/queryClient';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import type { AppData } from '@capacitylens/shared/types/entities';
 import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
+import type { PlanningSnapshot } from '@/data/planning/planningCacheController';
 import { useAppShellController } from '@/components/useAppShellController';
 import { useStore } from '@/store/useStore';
 import { makeResource, resetStoreWithAccount, requireValue } from '@/test/fixtures';
+import { getPlanningTransportHandle } from '@/test/planningTransportHandle';
 import { m } from '@/i18n';
 import { SettingsDataSection } from './SettingsDataSection';
 
@@ -18,26 +19,10 @@ const hold = vi.hoisted(() => ({
   fail: false,
 }));
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
-    '@/data/planning/volatilePlanningTransport',
+  const actual = await vi.importActual<typeof import('@/test/createTestPlanningTransport')>(
+    '@/test/createTestPlanningTransport',
   );
-  return {
-    createStorePlanningTransport: (read: () => AppData) => {
-      const transport = actual.createVolatilePlanningTransport(read);
-      return {
-        ...transport,
-        read: async (...args: Parameters<typeof transport.read>) => {
-          const snapshot = await transport.read(...args);
-          if (hold.promise) {
-            hold.entered = true;
-            await hold.promise;
-            if (hold.fail) throw new Error('Planning read failed');
-          }
-          return snapshot;
-        },
-      };
-    },
-  };
+  return { createStorePlanningTransport: actual.createTestPlanningTransport };
 });
 function ShellListener() {
   useAppShellController();
@@ -71,18 +56,18 @@ it.each(
       'planning revision',
     );
     const writes = vi.fn();
+    let finishPost!: (response: Response) => void;
+    const postResponse = new Promise<Response>((resolve) => {
+      finishPost = resolve;
+    });
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (String(url).endsWith('/example-data') && init?.method === 'POST') {
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input instanceof Request ? input.url : String(input);
+        const method = init?.method ?? (input instanceof Request ? input.method : undefined);
+        if (url.endsWith('/example-data') && method === 'POST') {
           writes();
-          useStore.setState((state) => ({
-            data: { ...state.data, resources: [makeResource({ accountId, name: 'Bruce Wayne' })] },
-          }));
-          return Response.json(
-            { added: true },
-            { headers: warning ? { 'x-capacitylens-audit-warning': 'true' } : {} },
-          );
+          return postResponse;
         }
         return Response.json([]);
       }),
@@ -106,14 +91,13 @@ it.each(
             value={{
               authMode: 'password-only',
               user: { id: 'bruce' },
-              canCreateAccount: false,
               refreshAuth: async () => {},
               signOut: async () => {},
             }}
           >
             <PermissionContext.Provider value={{ role: 'owner' }}>
               <ShellListener />
-              <SettingsDataSection serverMode />
+              <SettingsDataSection />
             </PermissionContext.Provider>
           </AuthContext.Provider>
         </MemoryRouter>
@@ -121,6 +105,26 @@ it.each(
     );
     try {
       fireEvent.click(screen.getByTestId('add-example-data'));
+      await waitFor(() => expect(writes).toHaveBeenCalledOnce());
+      const canonicalData = structuredClone(useStore.getState().data);
+      canonicalData.resources = [makeResource({ accountId, name: 'Bruce Wayne' })];
+      const canonicalSnapshot: PlanningSnapshot = {
+        data: canonicalData,
+        revision: revision + 1,
+        canWrite: true,
+      };
+      vi.spyOn(getPlanningTransportHandle(), 'read').mockImplementationOnce(async () => {
+        hold.entered = true;
+        await hold.promise;
+        if (hold.fail) throw new Error('Planning read failed');
+        return canonicalSnapshot;
+      });
+      finishPost(
+        Response.json(
+          { added: true },
+          { headers: warning ? { 'x-capacitylens-audit-warning': 'true' } : {} },
+        ),
+      );
       await waitFor(() => expect(hold.entered).toBe(true));
       if (warning) {
         await waitFor(() =>

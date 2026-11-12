@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import { test } from '@japa/runner';
 import { portInUse, terminateProcessTree } from '../../../../../scripts/devProcesses.mjs';
-import { ports } from '../../../../../scripts/ports.mjs';
+import { ports, resolveLane, workerPorts } from '../../../../../scripts/ports.mjs';
+import { E2E_SCRIPT_TEST_SLOTS } from '../../../../../scripts/e2eTestSlots.mjs';
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -65,8 +66,11 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
 }) => {
   for (const flavour of ['db', 'auth'] as const) {
     const lane = ports();
-    const port = flavour === 'db' ? lane.dbApi : lane.authApi;
-    const child = spawn(process.execPath, ['scripts/e2e-server.mjs', flavour], {
+    const slot = E2E_SCRIPT_TEST_SLOTS.serverBoundary;
+    const port = flavour === 'db' ? workerPorts(resolveLane(), slot).api : lane.authApi;
+    const args = ['scripts/e2e-server.mjs', flavour];
+    if (flavour === 'db') args.push('--slot', String(slot));
+    const child = spawn(process.execPath, args, {
       cwd: new URL('../../../', import.meta.url),
       detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -140,6 +144,9 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
           403,
           'an authenticated administrator cannot reset the fixture over HTTP'
         );
+        assert.deepEqual(await memberlessReset.json(), {
+          error: 'Installation reset is unavailable with authentication enabled.',
+        });
       }
     } finally {
       await stop(child, port);

@@ -6,11 +6,8 @@ const PRODUCT_ORIENTATION_PREFIX = `capacitylens/productOrientation/${PRODUCT_OR
 export const NO_ACTIVE_COMPANY_SEGMENT = 'no-company';
 
 /** Selects the stable identity scope for the product-orientation preference. */
-export function resolveProductOrientationSubject(input: {
-  userId: string | null;
-  demo: boolean;
-}): string {
-  return input.userId ?? (input.demo ? 'demo' : 'local');
+export function resolveProductOrientationSubject(input: { userId: string | null }): string {
+  return input.userId ?? 'local';
 }
 
 /** Builds the browser-storage key for one user and company. */

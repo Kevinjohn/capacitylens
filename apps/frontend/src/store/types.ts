@@ -1,4 +1,4 @@
-import type { Draft, Patch } from './entityDrafts';
+import type { Patch } from './entityDrafts';
 import type { Filters } from './filters';
 import type { StoreEntityActions } from './StoreEntityActions';
 export * from './entityDrafts';
@@ -33,22 +33,14 @@ export interface Notice {
   tone: 'info' | 'warning' | 'error';
 }
 
-/** A directory entry for a company the current identity may open. Server entries stay
- * separate from the active-only tenant slice; demo entries derive from data.accounts.
- * An unavailable role keeps the company selectable without claiming Viewer access.
+/** A directory entry for a company the current identity may access. Entries stay separate
+ * from the active company slice. An unavailable role stays unresolved until refreshed.
  */
 export interface AccountSummary {
   id: ID;
   name: string;
   role: Role;
   roleStatus?: 'resolved' | 'unavailable';
-}
-
-/** Outcome of an import: how many records landed vs. were dropped as invalid
- * (broken date range / dangling ref). Lets the UI report the delta honestly. */
-export interface ImportSummary {
-  imported: number;
-  skipped: number;
 }
 
 export type { WeeksZoom };
@@ -94,30 +86,22 @@ export interface StoreState extends StoreEntityActions {
   data: AppData;
   ui: SchedulerUI;
   hydrated: boolean;
-  /** The tenant currently in view. Null = no account chosen (show the picker). Never persisted. */
+  /** The company currently in view, or null when no company is active. Never persisted. */
   activeAccountId: ID | null;
   /** Account whose selected slice failed to hydrate. Transient and never persisted. */
   activeAccountLoadFailed: ID | null;
-  /** The account that was active before switching to the picker, lets the picker
-   * offer a "back" escape after an accidental "Switch company". Never persisted. */
-  previousAccountId: ID | null;
-  /** The server-sourced list of accounts this login may open, the AccountPicker's data
-   * source. Set by useAccountSummaries: in server mode from `GET /api/accounts` (the login's
-   * memberships); in the demo build derived from `data.accounts`. Separate from `data` because in
-   * server mode `data` holds only the active account's slice, so it can't list the other tenants.
+  /** The server-sourced directory of companies this login may access. Set by useAccountSummaries
+   * from the login’s memberships. Separate from `data` because `data` holds only the active slice.
    * Never persisted. */
   accountSummaries: AccountSummary[];
-  /** Whether the published directory was wholly valid. A partial response may populate the picker,
-   * but cannot prove that exactly one company exists. Transient and never persisted. */
+  /** Whether the published directory was wholly valid. A partial response cannot prove uniqueness.
+   * Transient and never persisted. */
   accountSummariesComplete: boolean;
   /** A server directory read found multiple installation companies. Kept until an authoritative refresh/reset. */
   accountSummariesAmbiguous: boolean;
   /** Latest issued server-directory read. Direct list mutations advance this too, so an older
    * response cannot overwrite a create/delete/join result. Transient and never persisted. */
   accountSummariesRequestId: number;
-  /** Legacy whole-data history for writers that still use batch persistence; not shown in the UI. */
-  past: AppData[];
-  future: AppData[];
   /** Planning cache metadata, including the typed allocation Undo/Redo history. Page-local. */
   planning: PlanningControllerMetadata;
   /** Advances only when a current planning request confirms that sign-in authority was lost. */
@@ -189,23 +173,16 @@ export interface StoreState extends StoreEntityActions {
    * controller establishes or removes the authoritative server projection. */
   masquerade: MasqueradeRuntimeState;
 
-  /** Create a company with its built-in Internal client and list it for the picker. Null when a Viewer is blocked. */
-  addAccount: (input: Draft<Account>) => Account | null;
   /** Patch a company's settings; undoable. Throws a display-safe `Error` on invalid working days. */
   updateAccount: (id: ID, patch: Patch<Account>) => Promise<void>;
-  /** Enter a company, or pass null for the picker. Clears undo history; an unknown id returns to the picker with a notice. */
+  /** Enter a company, or clear the active company. An unknown id clears selection with a notice. */
   setActiveAccount: (id: ID | null) => void;
   /** Start one server-directory read and return its monotonic identity. */
   beginAccountSummariesRequest: () => number;
-  /** Replace the picker list. A request-bound result applies only while it is still the latest;
+  /** Replace the company directory. A request-bound result applies only while it is still the latest;
    * an unbound direct mutation invalidates every in-flight request. Returns whether it applied. */
   setAccountSummaries: (options: SetAccountSummariesOptions) => boolean;
 
-  /** Publish freshly loaded data. Leaves the company, with a notice, when the active one is no longer present. */
-  replaceAll: (data: AppData) => void;
-  /** Replace the active account's slice from an import; undoable via ⌘Z. Returns a
-   * summary of how many records were brought in vs. dropped as invalid. */
-  importData: (data: AppData) => ImportSummary;
   /** Record whether the initial load has finished. */
   setHydrated: (value: boolean) => void;
   /** Record whether the latest save failed. */
@@ -248,12 +225,6 @@ export interface StoreState extends StoreEntityActions {
   invalidateMemberships: () => void;
   /** Replace the view-as-member runtime state. */
   setMasquerade: (state: MasqueradeRuntimeState) => void;
-  /** Empty both undo and redo stacks. */
-  clearUndoHistory: () => void;
-  /** Restore the previous data snapshot, if any. */
-  undo: () => void;
-  /** Re-apply the most recently undone snapshot, if any. */
-  redo: () => void;
   /** Load the active company's canonical planning snapshot, entering its planning context first. */
   refreshPlanning: (options?: { fresh?: boolean }) => Promise<boolean>;
   /** End the current planning context and discard private planning rows. */
@@ -262,8 +233,6 @@ export interface StoreState extends StoreEntityActions {
   suspendPlanningCommands: () => (() => void) | null;
   /** Whether the active canonical planning view is settled enough for a bulk replacement. */
   planningReadyForReplacement: () => boolean;
-  /** Publish a strict demo import and invalidate page-local planning history in one store change. */
-  replaceAfterDemoImport: (data: AppData) => void;
   /** Undo the latest typed allocation change as one typed planning write. */
   undoPlanning: () => Promise<boolean>;
   /** Redo the latest undone typed allocation change as one typed planning write. */

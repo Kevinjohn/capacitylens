@@ -9,8 +9,8 @@ import type { Route } from '@capacitylens/backend/registry';
  * with real numbers and booleans; the server validates and normalizes every one, and a wrongly
  * typed field is refused there rather than caught here.
  *
- * The volatile demo transport (`volatilePlanningTransport.ts`) executes these intents in the browser
- * without a server, so any new demo-only intent builder must construct real numbers and booleans.
+ * The frontend constructs typed intents with real numbers and booleans; the server validator
+ * remains authoritative for every persisted mutation.
  */
 type PlanningMutationBody = Route.Body<'api.planning.restoreGroup'>;
 

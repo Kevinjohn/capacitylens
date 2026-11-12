@@ -7,7 +7,6 @@ import { useStore } from '@/store/useStore';
 import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from '@/store/selectors';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { resolveCapacityOverviewAccessDecision } from '@/auth/capacityOverviewAccess';
-import { useDemoAuthActive } from '@/lib/fakeAuth';
 import { CommandPalette } from './CommandPalette';
 import { PermissionProvider } from '@/auth/PermissionProvider';
 import { RotateHint } from './RotateHint';
@@ -22,7 +21,6 @@ import { SidebarProvider, SidebarTrigger, useSidebar } from './ui/sidebar';
 import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors';
 import { useDiagnosticsAccessDecision } from './diagnostics/useDiagnosticsAccessDecision';
 import { readPlanningProblem } from '@/data/planning/planningCacheController';
-import { chooseAnotherAccountAfterLoadFailure } from './accountLoadRecoveryActions';
 import { useAuth } from '@/auth/authContext';
 import { ProductOrientation } from './ProductOrientation';
 import { MasqueradeBanner } from './MasqueradeBanner';
@@ -74,8 +72,8 @@ type GatedAppProps = {
   hydrated: boolean;
   connectionError: ReturnType<typeof useStore.getState>['connectionError'];
   loadError: ReturnType<typeof useStore.getState>['loadError'];
-  demoAuthActive: boolean;
   hasActiveAccount: boolean;
+  ambiguousAccountDirectory: boolean;
   allowWithoutActiveAccount: boolean;
   activeAccountId: ReturnType<typeof useStore.getState>['activeAccountId'];
   activeAccountLoadFailed: ReturnType<typeof useStore.getState>['activeAccountLoadFailed'];
@@ -98,8 +96,8 @@ function GatedApp({
   hydrated,
   connectionError,
   loadError,
-  demoAuthActive,
   hasActiveAccount,
+  ambiguousAccountDirectory,
   allowWithoutActiveAccount,
   activeAccountId,
   activeAccountLoadFailed,
@@ -118,7 +116,6 @@ function GatedApp({
   const { user } = useAuth();
   const orientation = useProductOrientation({
     userId: user?.id ?? null,
-    demo: demoAuthActive,
     accountId: activeAccountId,
   });
 
@@ -127,20 +124,14 @@ function GatedApp({
       hydrated={hydrated}
       connectionError={connectionError}
       loadError={loadError}
-      demoAuthActive={demoAuthActive}
       hasActiveAccount={hasActiveAccount}
+      ambiguousAccountDirectory={ambiguousAccountDirectory}
       allowWithoutActiveAccount={allowWithoutActiveAccount}
       activeAccountId={activeAccountId}
       activeAccountLoadFailed={activeAccountLoadFailed}
       activeAccountName={activeAccount?.name ?? m.account_load_fallback_name()}
       onRetryActiveAccountLoad={() =>
         activeAccountId ? useStore.getState().refreshPlanning() : Promise.resolve(false)
-      }
-      onChooseAnotherAccount={() =>
-        void chooseAnotherAccountAfterLoadFailure({
-          accountRoute: allowWithoutActiveAccount,
-          navigate: navigate,
-        })
       }
     >
       <PermissionProvider>
@@ -153,7 +144,6 @@ function GatedApp({
           <GatedSidebar
             activeAccount={activeAccount}
             navLinks={navLinks}
-            demoAuthActive={demoAuthActive}
             sidebarOpen={sidebarOpen}
             onShowOrientation={(trigger, mobile) =>
               orientation.show(mobile ? (mobileSidebarTrigger.current ?? trigger) : trigger)
@@ -179,15 +169,11 @@ function GatedApp({
 function GatedSidebar({
   activeAccount,
   navLinks,
-  demoAuthActive,
   sidebarOpen,
   onShowOrientation,
-}: Pick<GatedAppProps, 'activeAccount' | 'navLinks' | 'demoAuthActive' | 'sidebarOpen'> & {
+}: Pick<GatedAppProps, 'activeAccount' | 'navLinks' | 'sidebarOpen'> & {
   onShowOrientation: (trigger: HTMLButtonElement, mobile: boolean) => void;
 }) {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const overviewAccess = useStore((state) =>
@@ -216,14 +202,7 @@ function GatedSidebar({
       <AppSidebar
         activeAccount={activeAccount}
         adminLinks={adminLinks}
-        demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}
-        onSwitchAccount={() =>
-          void chooseAnotherAccountAfterLoadFailure({
-            accountRoute: accountRoute,
-            navigate: navigate,
-          })
-        }
         onShowOrientation={onShowOrientation}
         open={sidebarOpen}
       />
@@ -301,13 +280,13 @@ export function AppShell() {
   const themePreference = useStore((state) => state.theme);
   const accounts = useStore((state) => state.data.accounts);
   const accountSummaries = useStore((state) => state.accountSummaries);
+  const accountSummariesAmbiguous = useStore((state) => state.accountSummariesAmbiguous);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const activeAccountLoadFailed = useStore((state) => state.activeAccountLoadFailed);
   // Account summaries keep the tenant gate valid while the selected company's authoritative slice is still loading. Child content remains behind its hydration boundary.
   const activeAccount =
     accounts.find((account) => account.id === activeAccountId) ??
     accountSummaries.find((a) => a.id === activeAccountId);
-  const demoAuthActive = useDemoAuthActive();
   const disciplinesEnabled = useStore((state) =>
     hasDisciplinesEnabled(state.data, state.activeAccountId),
   );
@@ -326,8 +305,8 @@ export function AppShell() {
         hydrated={hydrated}
         connectionError={connectionError}
         loadError={loadError}
-        demoAuthActive={demoAuthActive}
         hasActiveAccount={activeAccount !== undefined}
+        ambiguousAccountDirectory={accountSummariesAmbiguous || accountSummaries.length > 1}
         allowWithoutActiveAccount={
           accountRoute || (masquerade.kind !== 'inactive' && masquerade.state !== undefined)
         }

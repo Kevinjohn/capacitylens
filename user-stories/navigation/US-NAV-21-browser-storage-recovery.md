@@ -1,6 +1,6 @@
 # US-NAV-21 — Recover unreadable browser storage
 
-As a demo user, I want to download the browser data and confirm a reset when local data cannot be read so that I can preserve a copy before recovery.
+As a browser user, I want to download the browser data and confirm a reset when local data cannot be read so that I can preserve a copy before recovery.
 
 **Status:** Hidden — retained screen with no current error-state producer.
 

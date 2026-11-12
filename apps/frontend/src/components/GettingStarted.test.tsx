@@ -10,14 +10,17 @@ import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 
 const tourMock = vi.hoisted(() => ({ startTour: vi.fn<() => Promise<void>>() }));
-const apiMode = vi.hoisted(() => ({ demo: true }));
 vi.mock('@/lib/tour', () => ({ startTour: tourMock.startTour }));
-vi.mock('@/data/apiConfig', () => ({ API_BASE: '', isDemoMode: () => apiMode.demo }));
 
 beforeEach(async () => {
   await resetStoreWithAccount();
   useStore.getState().setMasquerade({ kind: 'inactive' });
-  apiMode.demo = true;
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => new Response(JSON.stringify({ dismissed: false }))),
+  );
   tourMock.startTour.mockReset().mockResolvedValue(undefined);
 });
 afterEach(() => {
@@ -141,7 +144,6 @@ describe('Getting started', () => {
   it.each(['starting', 'active', 'ending'] as const)(
     'omits privileged onboarding requests while masquerade is %s',
     (kind) => {
-      apiMode.demo = false;
       const fetchMock = vi
         .fn<typeof fetch>()
         .mockResolvedValue(new Response(JSON.stringify({ dismissed: false })));
@@ -174,7 +176,6 @@ describe('Getting started', () => {
   );
 
   it('aborts pre-projection guidance and reloads normal Editor onboarding after view-as ends', async () => {
-    apiMode.demo = false;
     let rejectRead!: (error: Error) => void;
     const pending = new Promise<Response>((_resolve, reject) => {
       rejectRead = reject;
@@ -212,7 +213,6 @@ describe('Getting started', () => {
   });
 
   it('ignores the legacy device flag and keeps guidance after a failed server save', async () => {
-    apiMode.demo = false;
     localStorage.setItem('capacitylens/gettingStartedDismissed', 'on');
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -235,7 +235,6 @@ describe('Getting started', () => {
   });
 
   it('shows guidance after a read failure and retries without logging error details', async () => {
-    apiMode.demo = false;
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -261,7 +260,6 @@ describe('Getting started', () => {
     ['a missing dismissal flag', {}],
     ['an array body', []],
   ])('shows the load failure and retry for %s', async (_description, body) => {
-    apiMode.demo = false;
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
@@ -276,7 +274,6 @@ describe('Getting started', () => {
   });
 
   it('does not restore the bar when an earlier navigation read finishes after dismissal', async () => {
-    apiMode.demo = false;
     let finishRead!: (response: Response) => void;
     const pendingRead = new Promise<Response>((resolve) => {
       finishRead = resolve;

@@ -1,11 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type { ID, ISODate } from '@capacitylens/shared/types/entities';
-import { DEFAULT_ACCOUNT_ID, makeAccount, makeClosure, makeTimeOff } from '@/test/fixtures';
+import {
+  DEFAULT_ACCOUNT_ID,
+  makeAccount,
+  makeClosure,
+  makeTimeOff,
+  resetStoreWithData,
+} from '@/test/fixtures';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 import { useStore } from '@/store/useStore';
 import { SchedulerGrid } from './SchedulerGrid';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+function OwnerRouter({ children }: { children: ReactNode }) {
+  return (
+    <OwnerPermissions>
+      <MemoryRouter>{children}</MemoryRouter>
+    </OwnerPermissions>
+  );
+}
 
 vi.mock('./ResourceLane', () => ({
   ResourceLane: ({
@@ -24,8 +40,8 @@ vi.mock('./ResourceLane', () => ({
 const ACTIVE_ACCOUNT_ID = DEFAULT_ACCOUNT_ID;
 const INACTIVE_ACCOUNT_ID = 'a-loft';
 
-beforeEach(() => {
-  useStore.getState().replaceAll(
+beforeEach(async () => {
+  await resetStoreWithData(
     schedulerDataset({
       accounts: [
         makeAccount({ id: ACTIVE_ACCOUNT_ID }),
@@ -39,8 +55,8 @@ beforeEach(() => {
         }),
       ],
     }),
+    ACTIVE_ACCOUNT_ID,
   );
-  useStore.getState().setActiveAccount(ACTIVE_ACCOUNT_ID);
   useStore.getState().setDrawMode('work');
   useStore.getState().clearFilters();
   useStore.setState((state) => ({ ui: { ...state.ui, collapsedGroups: [] } }));
@@ -48,7 +64,7 @@ beforeEach(() => {
 
 describe('SchedulerGrid draw gate', () => {
   it('opens for the active account when only an inactive account has a closure on the date', async () => {
-    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    render(<SchedulerGrid />, { wrapper: OwnerRouter });
 
     fireEvent.click(screen.getByRole('button', { name: 'Draw on 3 June' }));
 
@@ -67,7 +83,7 @@ describe('SchedulerGrid draw gate', () => {
       data: { ...state.data, closures: [...state.data.closures, corrupt] },
     }));
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    render(<SchedulerGrid />, { wrapper: OwnerRouter });
 
     fireEvent.click(screen.getByRole('button', { name: 'Draw on 3 June' }));
 
@@ -88,7 +104,7 @@ describe('SchedulerGrid draw gate', () => {
       data: { ...state.data, timeOff: [...state.data.timeOff, corrupt] },
     }));
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    render(<SchedulerGrid />, { wrapper: OwnerRouter });
 
     fireEvent.click(screen.getByRole('button', { name: 'Draw on 3 June' }));
 
