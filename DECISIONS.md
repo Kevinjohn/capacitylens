@@ -39,6 +39,8 @@ This is the short, present-tense record of decisions that constrain future work.
   product, one repository and one set of releases.
 - The global sidebar shortcut (⌘B / Ctrl+B) yields while text entry or IME composition owns the
   keyboard and while any modal is open; those contexts keep both the chord and page layout stable.
+- English is the only locale. The message layer and the company `language` field stay: the field
+  selects the runtime locale, is shown when a company is created and cannot be changed afterwards.
 
 ## Scheduling invariants
 
