@@ -849,8 +849,6 @@
   "app_planning_unavailable": "The schedule couldn’t be loaded from the server. Reload to try again.",
   "data_err_invalid_json": "Could not import that file — it is not valid {app} JSON.",
   "data_no_records": "No records imported{why}.",
-  "data_imported_one": "Imported {count} record{skipped}.",
-  "data_imported_other": "Imported {count} records{skipped}.",
   "data_imported_server_one": "Imported {count} record{skipped}.",
   "data_imported_server_other": "Imported {count} records{skipped}.",
   "data_import_failed": "The import failed ({status}). Nothing was changed.",

@@ -74,11 +74,6 @@ export interface ProductValidationFailure {
   body: { error: string; code: 'VALIDATION_ERROR' };
 }
 
-/** Recognises only the codes the product explicitly models. */
-export function isProductErrorCode(value: unknown): value is ProductErrorCode {
-  return typeof value === 'string' && (PRODUCT_ERROR_CODES as readonly string[]).includes(value);
-}
-
 /** Narrows untrusted HTTP JSON without changing status or mistaking transport failures for responses. */
 export function readHttpErrorBody(value: unknown, fallback: string): HttpErrorBody {
   if (!isRecord(value)) return { error: fallback };

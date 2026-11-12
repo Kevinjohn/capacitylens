@@ -2,7 +2,6 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { m } from '@/i18n';
 import {
   DEFAULT_TIME_ZONE,
-  resolveBrowserTimeZone,
   resolveTimeZoneAbbreviation,
   resolveTimeZoneOffsetLabel,
   resolveTimeZoneOptionLabel,
@@ -58,39 +57,9 @@ describe('supportedTimeZones', () => {
     expect(engine).toHaveBeenCalledTimes(1);
     expect(Object.isFrozen(first)).toBe(true);
   });
-
-  it("uses the browser's IANA zone when it is in the supported set", () => {
-    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
-      locale: 'en-GB',
-      timeZone: 'Europe/London',
-    } as Intl.ResolvedDateTimeFormatOptions);
-    expect(resolveBrowserTimeZone(['Etc/GMT', 'Europe/London'])).toBe('Europe/London');
-  });
-
-  it('falls back to the stable default for an unavailable browser zone', () => {
-    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
-      locale: 'en-GB',
-      timeZone: 'Mars/Olympus',
-    } as Intl.ResolvedDateTimeFormatOptions);
-    expect(resolveBrowserTimeZone(['Etc/GMT', 'Europe/London'])).toBe(DEFAULT_TIME_ZONE);
-  });
 });
 
 describe('supportedTimeZones runtime fallbacks', () => {
-  it('warns when browser zone detection fails and keeps the stable default', () => {
-    const error = new Error('browser zone lookup failed');
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockImplementation(() => {
-      throw error;
-    });
-
-    expect(resolveBrowserTimeZone(['Etc/GMT', 'Europe/London'])).toBe(DEFAULT_TIME_ZONE);
-    expect(warnSpy).toHaveBeenCalledWith(
-      'timezones: browser zone detection failed; using Etc/GMT',
-      error,
-    );
-  });
-
   it('warns when the engine zone list is unavailable and uses the hand-list', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(Intl, 'supportedValuesOf').mockImplementation(() => {

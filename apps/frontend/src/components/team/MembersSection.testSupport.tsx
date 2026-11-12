@@ -282,18 +282,6 @@ export async function expectAccessibleMemberControls({
   await user.keyboard('{Escape}');
 }
 
-/** Stubs `window.location.reload` and returns its mock function. */
-export function stubPageReload(): ReturnType<typeof vi.fn> {
-  const reload = vi.fn();
-  const windowStub = Object.create(window) as Window;
-  Object.defineProperty(windowStub, 'location', {
-    configurable: true,
-    value: { ...window.location, reload },
-  });
-  vi.stubGlobal('window', windowStub);
-  return reload;
-}
-
 /** Waits until the store notice matches the supplied message. */
 export async function expectNotice(message: RegExp): Promise<void> {
   await waitFor(() => expect(useStore.getState().notice?.message).toMatch(message));

@@ -1,19 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { readHttpErrorBody, isProductErrorCode } from './httpErrors.js';
+import { readHttpErrorBody } from './httpErrors.js';
 import type { ProductHttpErrorBody, ProductValidationFailure } from './httpErrors.js';
 
 describe('flat HTTP failure boundary', () => {
-  it('preserves unknown codes without claiming they are product codes', () => {
-    expect(
-      readHttpErrorBody({ error: 'Refused', code: 'FUTURE_DEPENDENCY_CODE' }, 'Fallback'),
-    ).toEqual({
-      error: 'Refused',
-      code: 'FUTURE_DEPENDENCY_CODE',
-    });
-    expect(isProductErrorCode('FUTURE_DEPENDENCY_CODE')).toBe(false);
-    expect(isProductErrorCode('VALIDATION_ERROR')).toBe(true);
-    expect(isProductErrorCode('EMAIL_REGISTERED')).toBe(true);
-  });
   it('retains committed and admission metadata without trusting malformed values', () => {
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
     expect(

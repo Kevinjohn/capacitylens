@@ -30,9 +30,3 @@ export function buildSkippedMessage(skipped: number, variant: 'why' | 'note'): s
   if (skipped === 1) return m.data_skipped_note_one({ count: skipped });
   return m.data_skipped_note_other({ count: skipped });
 }
-
-export function buildImportedMessage(imported: number, skipped: number): string {
-  const values = { count: imported, skipped: buildSkippedMessage(skipped, 'note') };
-  if (imported === 1) return m.data_imported_one(values);
-  return m.data_imported_other(values);
-}

@@ -36,11 +36,6 @@ export function setActiveDateStyle(style: DateStyle): void {
   activeDateStyle = DATE_STYLES.includes(style) ? style : DEFAULT_DATE_STYLE;
 }
 
-/** Reads the active date style used by synchronous formatters. */
-export function readActiveDateStyle(): DateStyle {
-  return activeDateStyle;
-}
-
 function resolveDescriptor(): DateStyleDescriptor {
   return DATE_STYLE_DESCRIPTORS[activeDateStyle];
 }
@@ -226,11 +221,6 @@ const scheduleParts = (descriptor: DateStyleDescriptor): DateParts => ({
   year: true,
 });
 
-/** A standalone calendar date with an explicit year for schedule details: "9 Sep 2026". */
-export function formatScheduleDate(date: ISODate): string {
-  return formatSingle(date, scheduleParts);
-}
-
 /**
  * An unambiguous schedule range. A same-month range collapses the month to a single mention; a
  * same-year range carries the year once, while a range crossing a year boundary carries a full
@@ -268,21 +258,6 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
 // Render server instants on the viewer’s wall clock with the browser’s locale.
 // Company calendar date style does not apply to these timestamps. An invalid
 // timestamp degrades one row to the platform fallback rather than throwing.
-
-/**
- * An instant as local date and time: "14/07/2026, 13:00:00" (browser-default locale).
- *
- * The hour matters for security deadlines such as password-reset links and session expiry.
- * A date-only string both
- * misleads by up to a day in a non-UTC zone and hides the hour the thing dies. Use this whenever the
- * reader may need to act before the deadline today.
- *
- * @param instant - an ISO 8601 instant or numeric epoch milliseconds.
- * @returns the instant on the viewer's wall clock, date + time.
- */
-export function formatInstant(instant: string | number): string {
-  return new Date(instant).toLocaleString();
-}
 
 /** Formats a server instant as a date on the viewer’s local calendar using the browser locale. */
 export function formatInstantDate(instant: string): string {

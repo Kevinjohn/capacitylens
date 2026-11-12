@@ -5,20 +5,9 @@ import {
 } from '@capacitylens/shared/domain/mutations';
 import { m } from '@/i18n';
 import { isBuiltinClient } from '@capacitylens/shared/data/internalClient';
-import { NEUTRAL_COLOR, snapToPresetColor } from '@capacitylens/shared/lib/color';
 import type { AppData, ID, ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
 import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
 import type { StoreState } from './types';
-
-interface SnapColorInput {
-  color: unknown;
-  allowNeutral?: boolean | undefined;
-}
-
-interface ApplySnappedColorInput<T extends { color?: unknown }> {
-  patch: T;
-  allowNeutral?: boolean | undefined;
-}
 
 /** Create guards that enforce account scoping and entity invariants. */
 export function createGuards(get: StoreApi<StoreState>['getState']) {
@@ -112,22 +101,6 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
       );
     }
   };
-  // Use the shared mapper so client and server persist the same preset colour. `allowNeutral` preserves the
-  // one deliberate exception: NEUTRAL_COLOR is not itself a preset (see shared/lib/color.ts), but
-  // an external resource's grey must round-trip unchanged rather than snap to its nearest preset.
-  //
-  // Apply colour repair only after rejection checks so a failed write cannot alter an unsaved entity.
-  const snapColor = ({ color, allowNeutral = false }: SnapColorInput): string =>
-    allowNeutral && color === NEUTRAL_COLOR ? color : snapToPresetColor(color);
-
-  const applySnappedColor = <T extends { color?: unknown }>({
-    patch,
-    allowNeutral = false,
-  }: ApplySnappedColorInput<T>): T =>
-    patch.color === undefined
-      ? patch
-      : { ...patch, color: snapColor({ color: patch.color, allowNeutral: allowNeutral }) };
-
   return {
     requireAccount,
     blockedByViewer,
@@ -136,7 +109,5 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
     assertNotBuiltinClient,
     assertWorkingDays,
     assertHalfDays,
-    snapColor,
-    applySnappedColor,
   };
 }

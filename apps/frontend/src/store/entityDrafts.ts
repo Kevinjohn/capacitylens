@@ -29,15 +29,6 @@ export type Patch<T extends Entity> = {
 
 /** A row type selected from an account-scoped entity table. */
 export type ScopedRow<K extends ScopedEntityKey> = AppData[K][number];
-/** Mutable fields for one account-scoped table row. */
-export type ScopedPatch<K extends ScopedEntityKey> = {
-  [P in keyof Omit<ScopedRow<K>, keyof Entity>]?: object extends Pick<
-    Omit<ScopedRow<K>, keyof Entity>,
-    P
-  >
-    ? Omit<ScopedRow<K>, keyof Entity>[P] | undefined
-    : Omit<ScopedRow<K>, keyof Entity>[P];
-};
 
 /** Resource and catalogue tables with archive/restore actions. Retained deletion of other planning rows is separate. */
 export type LifecycleEntity = 'resources' | 'clients' | 'projects' | 'activities';

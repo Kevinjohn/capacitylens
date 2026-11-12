@@ -19,7 +19,6 @@ export function createStoreInternals(get: () => StoreState) {
     assertAllocation,
     assertNotBuiltinClient,
     assertWorkingDays,
-    snapColor,
   } = createGuards(get);
 
   return {
@@ -30,7 +29,6 @@ export function createStoreInternals(get: () => StoreState) {
     assertAllocation,
     assertNotBuiltinClient,
     assertWorkingDays,
-    snapColor,
   };
 }
 

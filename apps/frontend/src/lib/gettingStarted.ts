@@ -78,13 +78,6 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   };
 }
 
-/**
- * Decide whether all five company-data milestones are complete.
- */
-export function isGettingStartedComplete(steps: GettingStartedSteps): boolean {
-  return hasCompletedAllSteps(steps);
-}
-
 /** Returns true when every GettingStartedSteps field is complete; new steps participate automatically. */
 export function hasCompletedAllSteps(steps: GettingStartedSteps): boolean {
   return Object.values(steps).every(Boolean);

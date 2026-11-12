@@ -14,7 +14,7 @@ import { resourceMutationValidator } from '#validators/planning/resource';
 import { timeOffMutationValidator } from '#validators/planning/time_off';
 import { closureMutationValidator } from '#validators/planning/closure';
 import { settingsMutationValidator } from '#validators/planning/settings';
-import { mutationLookupValidator, mutationLookupReplyValidator } from '#validators/planning/lookup';
+import { mutationLookupValidator } from '#validators/planning/lookup';
 import {
   planningMutationFailureValidator,
   type PlanningMutationInput,
@@ -469,22 +469,10 @@ test.group('planning operation contracts', () => {
     );
   });
 
-  test('models committed and unknown mutation lookup separately', async ({ assert }) => {
+  test('validates the mutation lookup request and planning failure bodies', async ({ assert }) => {
     assert.deepEqual(await mutationLookupValidator.validate({ mutationId: uuid }), {
       mutationId: uuid,
     });
-    const committed = await mutationLookupReplyValidator.validate({
-      status: 'committed',
-      mutationId: uuid,
-      revision: 6,
-      restorationGroupId: otherUuid,
-    });
-    const unknown = await mutationLookupReplyValidator.validate({
-      status: 'unknown',
-      mutationId: uuid,
-    });
-    assert.equal(committed.status, 'committed');
-    assert.equal(unknown.status, 'unknown');
 
     const stale = await planningMutationFailureValidator.validate({
       error: 'The planning revision changed.',

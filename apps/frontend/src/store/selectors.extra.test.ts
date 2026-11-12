@@ -1,13 +1,6 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { describe, it, expect } from 'vitest';
-import {
-  listResourceAllocations,
-  byDisciplineOrder,
-  clientById,
-  projectById,
-  resourceById,
-  activityById,
-} from './selectors';
+import { byDisciplineOrder, resourceById, activityById } from './selectors';
 import type { Discipline } from '@capacitylens/shared/types/entities';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
@@ -110,22 +103,14 @@ function assertDefined<T>(value: T | undefined, label: string): T {
   return value;
 }
 
-describe('lookup + relation selectors', () => {
+describe('lookup selectors', () => {
   it('by-id selectors find entities (and return undefined for misses)', () => {
-    const client = assertDefined(clientById(data, 'c1'), 'client c1');
-    const project = assertDefined(projectById(data, 'p1'), 'project p1');
     const activity = assertDefined(activityById(data, 't1'), 'activity t1');
     const resource = assertDefined(resourceById(data, 'r1'), 'resource r1');
 
-    expect(client.name).toBe('Ferris');
-    expect(project.name).toBe('P1');
     expect(activity.name).toBe('T1');
     expect(resource.name).toBe('A');
-    expect(clientById(data, 'nope')).toBeUndefined();
-  });
-
-  it('relation selectors filter children', () => {
-    expect(listResourceAllocations(data, 'r1').map((a) => a.id)).toEqual(['a1']);
+    expect(resourceById(data, 'nope')).toBeUndefined();
   });
 });
 
