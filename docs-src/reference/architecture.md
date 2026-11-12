@@ -140,15 +140,15 @@ Then, in order:
 | `NO_CHANGE` | 400 | The intent would change nothing; no revision, marker or audit |
 | `RESTORATION_CONFIRMATION_REQUIRED` | 409 | Pending restoration groups would be cleared; body has `restorableItemCount` |
 | `RESTORATION_CONFIRMATION_STALE` | 409 | The confirmed count no longer matches; body has the new count |
-| No code (`conflict` and others) | 409 | Built-in client, frozen setting or restoration conflict; an error message without a code |
+| No code | 409 | Built-in client, frozen setting or restoration conflict; an error message without a code |
 | `MASQUERADE_*` | 403, 409, 428 | Refused by the view-as middleware before the controller |
 | Account Kit codes | Kit | Session, address or admission refusals (`ADMISSION_REQUIRED` 403) pass through |
 | No code | 401 | No valid session (trusted-local middleware) |
 | None | 500 | Unexpected fault; the transaction rolled back |
 
 The forwarded codes are listed in `planningMutationErrorCodes` in
-`apps/backend/app/validators/planning/contracts.ts`; any other `PlanningOperationError` code is
-sent with its status and no `code`.
+`apps/backend/app/validators/planning/contracts.ts`; a `PlanningOperationError` states one of them
+or none, and is sent with its own status.
 
 A request that times out or loses its response is not a failure. The browser marks it
 `uncertain`, sends nothing new, and asks
@@ -244,7 +244,7 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 | Admission | `/api/admission*`; limited screens | Kit `AccountAdmission`; `app/services/account_kit/policy.ts`, `app/services/membership/admission_membership.ts` | Kit admission transaction; completion in `withActor` | Live role holds `invitations:manage`; admission rechecked in `withActor` on the next request | `decision` in `/api/auth/me` and `/api/admission` | `ADMISSION_REQUIRED`, `COMPANY_SETUP_REQUIRED`, `MEMBERSHIP_SUSPENDED` | `tests/functional/auth/admission.spec.ts` |
 | Invitations | `/api/invites*`; Team & access, invite screen | Kit invitations; `app/controllers/invitations_controller.ts` | Kit transactions; acceptance inserts the membership inside the Kit's; mail after commit | `assertCompanyAction` `invitations:manage`, re-checked by Kit callbacks; Owner never invitable | Controller `projection`; `no-store` on token routes | `MAIL_UNAVAILABLE`, `INVALID_TOKEN`, `IDENTITY_AUTHORITY_DENIED`, 202 committed | `tests/functional/auth/invitations.spec.ts` |
 | Membership and roles | `…/members*`; Team & access | `app/services/membership/member_mutations.ts` | `withActor` with `@kevinjohn/adonisjs-duplicate-request-guard` receipts | `assertCompanyAction` `members:manage`; Access Control management rules | `readMemberDirectory` | `FORBIDDEN`, `OWNER_TRANSFER_REQUIRED`, `IDENTITY_AUTHORITY_DENIED` | `tests/functional/membership/member_administration.spec.ts`, `tests/functional/membership/member_access_tracking.spec.ts` |
-| Member↔resource links | `…/members/:userId/resource-link`; Team & access | `app/services/member_resources/links.ts` | `withActor` with `@kevinjohn/adonisjs-duplicate-request-guard` receipts | `members:manage`; active member; available person; occupancy | `{ resourceId, revision }` | `CONFLICT`, `FORBIDDEN`, `INVALID_INPUT` | `tests/functional/auth/admission_resource_links.spec.ts` |
+| Member↔resource links | `…/members/:userId/resource-link`; Team & access | `app/services/member_resources/links.ts` | `withActor` with `@kevinjohn/adonisjs-duplicate-request-guard` receipts | `members:manage`; active member; available person; occupancy | `{ resourceId, revision }` | `CONFLICT`, `FORBIDDEN`, `VALIDATION_ERROR` | `tests/functional/auth/admission_resource_links.spec.ts` |
 | First company | `POST /api/installation/company`; setup screen | `app/services/first_company_setup.ts`, `app/services/initial_company_defaults.ts` | `withActor` plus `account_transaction_lock`; all rows in one transaction | Admitted sole principal, no company or membership, checked under the lock | `companySetupRequired`; 201 `{ accountId }` | `COMPANY_SETUP_UNAVAILABLE`, `FIRST_COMPANY_PENDING`, `SIGN_UP_CLOSED` | `tests/functional/auth/first_company_setup.spec.ts` |
 | Ownership transfer | `POST …/ownership-transfer`; Team & access | `app/services/membership/ownership_transfer.ts` | One `withActor`: receipt, password confirmation, Access Control ownership transfer, revision, audit | Live single Owner, not viewing as; Admin target; single-use password confirmation | Receipt `{ fromUserId, toUserId }` | `TARGET_INELIGIBLE`, `PASSWORD_CONFIRMATION_REQUIRED`, `IDENTITY_AUTHORITY_DENIED` | `tests/functional/membership/ownership_transfer.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
 | View-as | `/api/masquerade`, `…/masquerade`; Team & access | `@kevinjohn/adonisjs-masquerade`; `app/services/auth/masquerade.ts` | Package control-store transaction, outside product transactions | Package policy; middleware refuses writes; target role re-checked in each product transaction | `currentMasquerade` | `MASQUERADE_READ_ONLY`, `MASQUERADE_CONTEXT_CHANGED`, `MASQUERADE_CONTEXT_REQUIRED` | `tests/functional/auth/masquerade.spec.ts` |

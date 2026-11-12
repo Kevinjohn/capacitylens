@@ -362,11 +362,9 @@ export async function executePlanningIntent(
   } catch (error) {
     if (error instanceof PlanningOperationError) throw error;
     if (error instanceof EntityWriteError) {
-      throw new PlanningOperationError(
-        error.status,
-        error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',
-        error.message
-      );
+      throw error.status === 403
+        ? new PlanningOperationError(403, 'AUTHORIZATION_DENIED', error.message)
+        : new PlanningOperationError(400, 'VALIDATION_ERROR', error.message);
     }
     if (error instanceof DomainError) {
       throw new PlanningOperationError(400, 'VALIDATION_ERROR', error.message);
