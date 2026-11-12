@@ -603,3 +603,19 @@ test(
     }
   },
 );
+
+test('a dead owner interrupted before publishing a record update is recovered', async () => {
+  const lock = join(tmpdir(), 'capacitylens-e2e-workers', `l${lane}-w${slot}.lock`);
+  const ownerPath = join(lock, 'owner-999999999-dead.json');
+  await mkdir(lock, { recursive: true });
+  try {
+    await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [] }));
+    await writeFile(`${ownerPath}.999999999.tmp`, JSON.stringify({ pid: 999_999_999, groups: [] }));
+    const { acquireE2eWorkerLease, releaseE2eWorkerLease } = await import('./e2eWorkerRuntime.mjs');
+    const lease = await acquireE2eWorkerLease(lane, slot);
+    assert.deepEqual(await readdir(lease.paths.lock), [lease.paths.owner.split('/').at(-1)]);
+    await releaseE2eWorkerLease(lease.paths);
+  } finally {
+    await rm(lock, { recursive: true, force: true });
+  }
+});

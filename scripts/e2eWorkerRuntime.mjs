@@ -150,6 +150,8 @@ async function acquireLease(lane, slot) {
           });
         await waitForRecordedGroups(owner.groups);
         if (owner.resetToken) await cleanupResetControlEndpoints(owner.resetToken);
+        // An owner that died between writing and publishing a record update leaves its temporary file.
+        await rm(`${oldPaths.owner}.${owner.pid}.tmp`, { force: true });
         // A delayed reaper removes only this dead owner's unique filename. A successor's
         // distinct owner keeps its directory nonempty and therefore cannot be removed.
         await releaseLease(oldPaths);
