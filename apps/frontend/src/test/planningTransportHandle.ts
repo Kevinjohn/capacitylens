@@ -21,22 +21,23 @@ export function getPlanningTransportHandle(): PlanningTransport {
   return handle.transport;
 }
 
-/** Reset the owned transport, refusing a handle from a different store module instance. */
-export function resetPlanningTransport(companyId: string, data: AppData, owner: object): void {
+/** Claim the handle for this fixture store, refusing one owned by a different module instance. */
+function ownedStub(owner: object): StubPlanningTransport {
   if (!handle || (handle.owner !== undefined && handle.owner !== owner)) {
     throw new Error('The planning transport does not belong to this fixture store.');
   }
   handle.owner = owner;
-  handle.stub.reset(companyId, data);
+  return handle.stub;
+}
+
+/** Reset the owned transport, refusing a handle from a different store module instance. */
+export function resetPlanningTransport(companyId: string, data: AppData, owner: object): void {
+  ownedStub(owner).reset(companyId, data);
 }
 
 /** Update the fixture transport's canonical rows without clearing history or queued responses. */
 export function updatePlanningFixtureSource(data: AppData, owner: object): void {
-  if (!handle || (handle.owner !== undefined && handle.owner !== owner)) {
-    throw new Error('The planning transport does not belong to this fixture store.');
-  }
-  handle.owner = owner;
-  handle.stub.updateSource(data);
+  ownedStub(owner).updateSource(data);
 }
 
 /** Return the fixture's explicit response controls. */

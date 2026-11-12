@@ -9,10 +9,10 @@ import {
   requireValue,
 } from '@/test/fixtures';
 import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { buildResourceCreate, buildSettingsUpdate } from './planningCommands';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import type { PlanningCacheState } from './planningCacheController';
-import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 
 const companyId = 'a1';
 const context = { identity: 'test-page', companyId };
@@ -30,30 +30,6 @@ function flow(initial: PlanningCacheState['data']) {
   });
   controller.setContext(context);
   return { controller, state: store.getState, transport };
-}
-
-function respondWithPatch(
-  transport: StubPlanningTransport,
-  changed: Extract<PlanningMutationSuccess['projection'], { mode: 'patch' }>['changed'],
-  options: { consumedGroupId?: string | null; replacementGroupId?: string | null } = {},
-): void {
-  const consumedGroupId = options.consumedGroupId ?? null;
-  const replacementGroupId = options.replacementGroupId ?? null;
-  if (consumedGroupId !== null && replacementGroupId !== null) {
-    throw new Error('A planning restoration receipt cannot consume and replace a group together.');
-  }
-  transport.respondNext((execution: PlanningExecution) => ({
-    status: 'committed',
-    mutationId: execution.mutationId,
-    revision: execution.baseRevision + 1,
-    restoration:
-      consumedGroupId !== null
-        ? { consumedGroupId, replacementGroupId: null }
-        : replacementGroupId !== null
-          ? { consumedGroupId: null, replacementGroupId }
-          : { consumedGroupId: null, replacementGroupId: null },
-    projection: { mode: 'patch', history: 'retain', changed },
-  }));
 }
 
 describe('typed planning flow', () => {
@@ -131,9 +107,8 @@ describe('typed planning flow', () => {
       state().data.activities[0],
       'activity after phase delete',
     );
-    respondWithPatch(
-      transport,
-      {
+    queuePlanningPatch(
+      () => ({
         removed: [{ entity: 'phases', id: 'phase-1' }],
         upserts: [
           {
@@ -141,8 +116,9 @@ describe('typed planning flow', () => {
             row: { ...activityForDelete, phaseId: null },
           },
         ],
-      },
+      }),
       { replacementGroupId: 'phase-delete-group' },
+      transport,
     );
 
     await controller.execute(
@@ -162,16 +138,16 @@ describe('typed planning flow', () => {
       state().data.activities[0],
       'activity after phase delete',
     );
-    respondWithPatch(
-      transport,
-      {
+    queuePlanningPatch(
+      () => ({
         removed: [],
         upserts: [
           { entity: 'phases', row: phase },
           { entity: 'activities', row: { ...activityForRestore, phaseId: phase.id } },
         ],
-      },
+      }),
       { consumedGroupId: 'phase-delete-group' },
+      transport,
     );
     await controller.undo();
 

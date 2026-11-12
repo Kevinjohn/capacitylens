@@ -1,5 +1,7 @@
 // Start the API and web server together because server-backed app mode needs the Vite proxy's API.
 
+import { once } from 'node:events';
+import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { parsePort } from './parsePort.mjs';
@@ -146,12 +148,8 @@ export async function runDevelopmentStack({ demo = false } = {}) {
         ...acePreparations,
       ]) {
         const child = start('demo preparation', args, apiEnvironment, true);
-        await new Promise((done, reject) => {
-          child.once('exit', (code) =>
-            code === 0 ? done() : reject(new Error('Demo preparation failed')),
-          );
-          child.once('error', reject);
-        });
+        const [code] = await once(child, 'exit');
+        if (code !== 0) throw new Error('Demo preparation failed');
         if (isProcessTreeRunning(child))
           throw new Error('Demo preparation left running descendants');
         children.splice(children.indexOf(child), 1);
@@ -189,7 +187,7 @@ export async function runDevelopmentStack({ demo = false } = {}) {
       } catch (error) {
         if (!(error instanceof TypeError) && error.name !== 'TimeoutError') throw error;
       }
-      await new Promise((done) => setTimeout(done, 100));
+      await delay(100);
     }
     console.error(`dev: readiness timed out for ${url}`);
     await shutdown(1);
