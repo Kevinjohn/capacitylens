@@ -77,7 +77,7 @@ function resolveAccessGate(fields: AuthResponseFields, admitted: boolean): Acces
   return undefined;
 }
 
-/** Reject identity responses whose mode cannot be trusted. */
+/** Reject identity responses that cannot be trusted. */
 export function invalidResponse(): AuthStatusResult {
   console.warn(
     'AuthProvider: /api/auth/me returned an unexpected body; nothing trustworthy learned',

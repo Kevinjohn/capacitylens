@@ -27,6 +27,9 @@ new features and **patch** versions carry fixes.
 
 ### Removed
 
+- **Breaking for API clients:** `GET /api/auth/me` and the view-as status response no longer include `authMode`, and `GET /api/auth/me` no longer includes `canCreateAccount` (#1895). Password sign-in is the only mode and neither field carried information. A browser tab opened before the upgrade must be reloaded.
+- The `SESSION_DRIVER`, `CAPACITYLENS_SECRET` and `CAPACITYLENS_AUDIT` settings (#1894). The server required or validated them but never used them: sessions always use the database registry, `APP_KEY` is the only key, and SQL audit records cannot be turned off. Existing environment files that still set them keep working; the values are ignored.
+- The browser-storage recovery and connection-error screens, which no code path could show (#1890).
 - The obsolete `/external` bookmark alias and startup cleanup for retired offline browser snapshots. External parties remain available in Resources.
 - The in-memory planning engine, backend-free demo build and demo-only client container. Remote client images require a configured API origin.
 - **Breaking for API clients:** the unused public `GET /api/meta` route is removed (#1826). It loaded every planning table to report whether any company existed.

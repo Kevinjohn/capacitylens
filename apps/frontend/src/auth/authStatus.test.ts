@@ -150,6 +150,31 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     }
   });
 
+  it('fails closed without adopting an active status whose principal is not a valid user', async () => {
+    const { fetchAuthStatus } = await import('./fetchAuthStatus');
+    const { masqueradeController } = await import('./masqueradeController');
+    const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
+      active: true,
+      accountId: 'a-studio',
+      targetUserId: 'u-viewer',
+      targetName: 'Selina Kyle',
+      effectiveRole: 'viewer',
+      startedAt: '2026-09-01T10:00:00.000Z',
+      expiresAt: '2026-09-01T10:15:00.000Z',
+      token: 'mode-token',
+      contextToken: 'mode-token',
+      principal: { id: '', email: 'real@example.test' },
+    });
+    const adopt = vi.spyOn(masqueradeController, 'adoptStatus');
+    try {
+      await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'error' });
+      expect(adopt).not.toHaveBeenCalled();
+    } finally {
+      status.mockRestore();
+      adopt.mockRestore();
+    }
+  });
+
   it('ignores an active status read that resolves after local identity invalidation', async () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { masqueradeController } = await import('./masqueradeController');

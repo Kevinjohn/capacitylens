@@ -71,7 +71,7 @@ export function isPresetColor(value: unknown): value is string {
   return typeof value === 'string' && PRESET_COLOR_SET.has(value.trim().toLowerCase());
 }
 
-/** Preset used when an input cannot be parsed as a six-digit hex colour. */
+/** Default preset colour for a newly created company. */
 export const FALLBACK_PRESET_COLOR = '#5c34d4';
 
 /** Id→entity maps for O(1) colour resolution. The scheduler model already builds

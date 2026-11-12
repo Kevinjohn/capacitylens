@@ -915,8 +915,6 @@
   "auth_verify_session_failed": "Unable to verify your session",
   "account_directory_ambiguous": "This installation has more than one company. Contact your administrator to resolve it.",
   "account_access_no_company_invite": "Ask an admin for an invite to join an existing company.",
-  "picker_timezone_search": "Search time zones",
-  "picker_timezone_no_results": "No time zones found.",
   "account_directory_incomplete": "Some companies could not be listed because the server returned invalid data. Reload or contact your administrator.",
   "boundary_title": "Something went wrong",
   "boundary_message": "An unexpected error occurred.",

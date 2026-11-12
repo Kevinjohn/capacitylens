@@ -28,8 +28,7 @@ const sessionConfig = defineConfig({
   age: SESSION_IDLE_EXPIRY,
 
   /**
-   * Configuration for session cookie and the
-   * cookie store.
+   * Configuration for the session cookie.
    */
   cookie: {
     /**
@@ -54,9 +53,7 @@ const sessionConfig = defineConfig({
   },
 
   /**
-   * The store to use. Make sure to validate the environment
-   * variable in order to infer the store name without any
-   * errors.
+   * Sessions always use the database registry.
    */
   store: 'database',
 
@@ -65,9 +62,6 @@ const sessionConfig = defineConfig({
    * list of available stores and their config.
    */
   stores: {
-    /**
-     * Store session data inside encrypted cookies.
-     */
     /**
      * Store session data inside the configured database.
      */
