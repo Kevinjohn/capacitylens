@@ -9,8 +9,6 @@ describe('Playwright fixture policy', () => {
     const directContextCreators = readdirSync(e2eRoot, { recursive: true, withFileTypes: true })
       .filter((entry) => entry.isFile() && entry.name.endsWith('.spec.ts'))
       .map((entry) => resolve(entry.parentPath, entry.name))
-      // Observer mechanism controls own registration so they can stage installation failures.
-      .filter((path) => path !== resolve(e2eRoot, 'browser-error-gate.db.spec.ts'))
       .filter((path) => readFileSync(path, 'utf8').includes('browser.newContext('));
 
     expect(directContextCreators).toEqual([]);

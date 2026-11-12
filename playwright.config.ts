@@ -14,9 +14,8 @@ const reporters: ReporterDescription[] = process.env.CI
       ['github'],
       ['html', { outputFolder: `playwright-report/${reportPhase}`, open: 'never' }],
       ['junit', { outputFile: `test-results/${reportPhase}.xml` }],
-      ['./e2e/browserErrorProbeReporter.ts'],
     ]
-  : [['list'], ['./e2e/browserErrorProbeReporter.ts']];
+  : [['list']];
 const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
 const dbSpec = new RegExp(String.raw`\.db\.spec\.${specExtension}$`, 'i');
 const authSpec = new RegExp(String.raw`\.auth\.spec\.${specExtension}$`, 'i');
