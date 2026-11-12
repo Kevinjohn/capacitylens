@@ -7,7 +7,7 @@ import {
   requireStoredRole,
 } from '#services/auth/authorization';
 import { effectiveReadPrincipal } from '#services/auth/masquerade';
-import type { BatchCapabilities } from '#services/planning/data_policy';
+import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
@@ -79,7 +79,7 @@ async function currentAuthority(
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   };
-  const capabilities: BatchCapabilities = {
+  const capabilities: PlanningCapabilities = {
     ...authority,
     canAnonymise: !masquerading && (await bouncer.allows('resources:anonymise')),
   };

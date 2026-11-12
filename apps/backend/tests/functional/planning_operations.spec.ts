@@ -9,9 +9,9 @@ import {
   PlanningOperationError,
 } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
-import type { BatchCapabilities } from '#services/planning/data_policy';
+import type { PlanningCapabilities } from '#services/planning/data_policy';
 
-const owner: BatchCapabilities = {
+const owner: PlanningCapabilities = {
   role: 'owner',
   canWrite: true,
   canAnonymise: true,
@@ -23,7 +23,7 @@ async function executePlanningIntent(
   trx: TransactionClientContract,
   accountId: string,
   intent: PlanningIntent,
-  capabilities: BatchCapabilities
+  capabilities: PlanningCapabilities
 ) {
   const data = await readStateWithClient(trx, accountId, true);
   return applyPlanningIntent(trx, accountId, intent, capabilities, data, {
@@ -134,7 +134,7 @@ test.group('typed planning writers', (group) => {
 
   test('permits Editor settings but reserves capacity access for Admin', async ({ assert }) => {
     await resetState('single');
-    const editor: BatchCapabilities = {
+    const editor: PlanningCapabilities = {
       ...owner,
       role: 'editor',
       canSeePrivateNames: false,
@@ -196,7 +196,7 @@ test.group('typed planning writers', (group) => {
         owner
       )
     );
-    const editor: BatchCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
+    const editor: PlanningCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -221,7 +221,7 @@ test.group('typed planning writers', (group) => {
     await resetState('single');
     const before = await readState('a-studio', true);
     const id = randomUUID();
-    const editor: BatchCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
+    const editor: PlanningCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,

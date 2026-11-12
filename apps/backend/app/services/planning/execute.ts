@@ -10,12 +10,12 @@ import {
   unarchive,
 } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
-import { BatchRequestError } from '#services/planning/errors';
+import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { encodeRow } from '#services/state_repository';
 import { TABLE_NAMES } from '#services/planning/entity_policy';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
-import type { BatchCapabilities } from '#services/planning/data_policy';
+import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js';
 import {
   deleteAllocations,
@@ -123,7 +123,7 @@ export async function executePlanningIntent(
   trx: TransactionClientContract,
   accountId: string,
   intent: PlanningIntent,
-  capabilities: BatchCapabilities,
+  capabilities: PlanningCapabilities,
   data: AppData,
   identity: RestorationIdentity
 ): Promise<PlanningMutationSuccess['restoration']> {
@@ -361,7 +361,7 @@ export async function executePlanningIntent(
     }
   } catch (error) {
     if (error instanceof PlanningOperationError) throw error;
-    if (error instanceof BatchRequestError) {
+    if (error instanceof EntityWriteError) {
       throw new PlanningOperationError(
         error.status,
         error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',

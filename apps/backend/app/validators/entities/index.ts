@@ -120,7 +120,7 @@ export const requiredFields: Record<AppDataKey, readonly string[]> = {
 
 const validators = new Map<string, ReturnType<typeof vine.compile>>();
 
-/** Validate one complete PUT body without coercing its supplied scalar values. */
+/** Validate one complete entity row without coercing its supplied scalar values. */
 export async function validateEntityRow(table: AppDataKey, row: Record<string, unknown>) {
   // Only these discriminators affect field rules. Reuse compiled schemas while preserving
   // row-dependent color validation for external resources and the built-in client.

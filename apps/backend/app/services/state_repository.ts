@@ -19,6 +19,8 @@ import Resource from '#models/resource';
 import TimeOff from '#models/time_off';
 import type { BaseModel } from '@adonisjs/lucid/orm';
 import type { QueryClientContract } from '@adonisjs/lucid/types/database';
+import type { ModelColumnOptions } from '@adonisjs/lucid/types/model';
+import { isJsonColumn } from '#models/json_column';
 
 const tables = {
   accounts: 'accounts',
@@ -36,48 +38,31 @@ export type ProductTable = (typeof tables)[keyof typeof tables];
 
 const snake = (key: string) => key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
-const jsonColumns = {
-  accounts: new Set([
-    'weekStartsOn',
-    'workingDays',
-    'disciplinesEnabled',
-    'placeholdersEnabled',
-    'externalEnabled',
-    'inlineActivityCreateEnabled',
-    'showTaskFieldInSchedule',
-    'capacityOverviewAccess',
-  ]),
-  clients: new Set(['isPrivate', 'builtin']),
-  disciplines: new Set<string>(),
-  projects: new Set(['isPrivate']),
-  phases: new Set<string>(),
-  resources: new Set(['workingDays', 'halfDays', 'isFavourite']),
-  activities: new Set<string>(),
-  allocations: new Set(['ignoreWorkingDays']),
-  time_off: new Set<string>(),
-  closures: new Set<string>(),
-} satisfies Record<(typeof tables)[keyof typeof tables], Set<string>>;
+const models = {
+  accounts: Account,
+  clients: Client,
+  disciplines: Discipline,
+  projects: Project,
+  phases: Phase,
+  resources: Resource,
+  activities: Activity,
+  allocations: Allocation,
+  time_off: TimeOff,
+  closures: Closure,
+} satisfies Record<
+  ProductTable,
+  { $columns: readonly string[]; $getColumn(name: string): ModelColumnOptions | undefined }
+>;
 
-const modelColumns = {
-  accounts: Account.$columns,
-  clients: Client.$columns,
-  disciplines: Discipline.$columns,
-  projects: Project.$columns,
-  phases: Phase.$columns,
-  resources: Resource.$columns,
-  activities: Activity.$columns,
-  allocations: Allocation.$columns,
-  time_off: TimeOff.$columns,
-  closures: Closure.$columns,
-} satisfies Record<ProductTable, readonly string[]>;
-
+/** Map a product row to its stored columns; `jsonColumn` model columns hold JSON text. */
 export function encodeRow(table: ProductTable, row: Record<string, unknown>) {
+  const model = models[table];
   return Object.fromEntries(
-    modelColumns[table].map((key) => {
+    model.$columns.map((key) => {
       const value = row[key];
       return [
         snake(key),
-        jsonColumns[table].has(key) && value !== undefined && value !== null
+        isJsonColumn(model.$getColumn(key)) && value !== undefined && value !== null
           ? JSON.stringify(value)
           : (value ?? null),
       ];
@@ -172,7 +157,7 @@ export async function readStateWithClient(
   return includeInactive ? data : activeOnly(data);
 }
 
-/** Reads through an explicit ordinary connection; batch callers pass their transaction instead. */
+/** Reads through an ordinary connection; transactional callers pass their transaction instead. */
 export function readState(accountId?: string, includeInactive = accountId === undefined) {
   return readStateWithClient(db.connection(), accountId, includeInactive);
 }
