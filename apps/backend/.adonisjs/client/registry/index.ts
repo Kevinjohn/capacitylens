@@ -502,14 +502,14 @@ const routes = {
   },
   'api.member-resources.set': {
     methods: ["PUT"],
-    pattern: '/api/accounts/:accountId/members/:principalId/resource-link',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"members"],[1,"principalId"],[0,"resource-link"]],
+    pattern: '/api/accounts/:accountId/members/:userId/resource-link',
+    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"members"],[1,"userId"],[0,"resource-link"]],
     types: placeholder as Registry['api.member-resources.set']['types'],
   },
   'api.member-resources.clear': {
     methods: ["DELETE"],
-    pattern: '/api/accounts/:accountId/members/:principalId/resource-link',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"members"],[1,"principalId"],[0,"resource-link"]],
+    pattern: '/api/accounts/:accountId/members/:userId/resource-link',
+    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"members"],[1,"userId"],[0,"resource-link"]],
     types: placeholder as Registry['api.member-resources.clear']['types'],
   },
   'api.member-resources.avatars': {

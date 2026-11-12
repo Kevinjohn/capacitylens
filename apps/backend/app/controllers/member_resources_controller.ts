@@ -27,7 +27,7 @@ export default class MemberResourcesController {
         invalidAdmission();
       }
       const command = readAccountCommand(ctx);
-      const { accountId, principalId } = ctx.params;
+      const { accountId, userId } = ctx.params;
       const result = await withActor(ctx, async (currentActor, trx) => {
         let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
         return runAccountCommand(trx, {
@@ -39,7 +39,7 @@ export default class MemberResourcesController {
             const { actorId } = actor;
             const link = await setMemberResourceLink(trx, {
               accountId,
-              userId: principalId,
+              userId,
               resourceId: body.resourceId as string,
               expectedRevision: body.expectedRevision as string | null,
             });
@@ -49,7 +49,7 @@ export default class MemberResourcesController {
                 actorId,
                 action: 'member-resource.linked',
                 entity: 'membership',
-                entityId: principalId,
+                entityId: userId,
                 fields: ['resourceLink'],
               });
             }
@@ -57,7 +57,7 @@ export default class MemberResourcesController {
           },
           actorId: currentActor.userId,
           scopeId: accountId,
-          payload: { principalId, ...body },
+          payload: { principalId: userId, ...body },
           command,
         });
       });
@@ -72,7 +72,7 @@ export default class MemberResourcesController {
       const body = bodyOf(ctx.request.body(), ['expectedRevision']);
       if (typeof body.expectedRevision !== 'string' || !body.expectedRevision) invalidAdmission();
       const command = readAccountCommand(ctx);
-      const { accountId, principalId } = ctx.params;
+      const { accountId, userId } = ctx.params;
       await withActor(ctx, async (currentActor, trx) => {
         let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
         return runAccountCommand(trx, {
@@ -84,7 +84,7 @@ export default class MemberResourcesController {
             const { actorId } = actor;
             await clearMemberResourceLink(trx, {
               accountId,
-              userId: principalId,
+              userId,
               expectedRevision: body.expectedRevision as string,
             });
             await writeAudit(trx, {
@@ -92,14 +92,14 @@ export default class MemberResourcesController {
               actorId,
               action: 'member-resource.unlinked',
               entity: 'membership',
-              entityId: principalId,
+              entityId: userId,
               fields: ['resourceLink'],
             });
             return { ok: true };
           },
           actorId: currentActor.userId,
           scopeId: accountId,
-          payload: { principalId, ...body },
+          payload: { principalId: userId, ...body },
           command,
         });
       });

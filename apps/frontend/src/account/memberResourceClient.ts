@@ -11,7 +11,7 @@ export function resourceAvatarsUrl(companyId: string): string {
 /** Build the account-owned URL for one member/person association. */
 export function memberResourceLinkUrl(companyId: string, principalId: string): string {
   return apiRouteUrl('api.member-resources.set', {
-    params: { accountId: companyId, principalId },
+    params: { accountId: companyId, userId: principalId },
   });
 }
 

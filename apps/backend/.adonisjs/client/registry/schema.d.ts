@@ -1076,11 +1076,11 @@ export interface Registry {
   }
   'api.member-resources.set': {
     methods: ["PUT"]
-    pattern: '/api/accounts/:accountId/members/:principalId/resource-link'
+    pattern: '/api/accounts/:accountId/members/:userId/resource-link'
     types: {
       body: {}
       paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; principalId: ParamValue }
+      params: { accountId: ParamValue; userId: ParamValue }
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['setLink']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['setLink']>>>
@@ -1089,11 +1089,11 @@ export interface Registry {
   }
   'api.member-resources.clear': {
     methods: ["DELETE"]
-    pattern: '/api/accounts/:accountId/members/:principalId/resource-link'
+    pattern: '/api/accounts/:accountId/members/:userId/resource-link'
     types: {
       body: {}
       paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; principalId: ParamValue }
+      params: { accountId: ParamValue; userId: ParamValue }
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
