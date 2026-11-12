@@ -1,13 +1,5 @@
-import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import '#start/planning_routes';
-import env from '#start/env';
-import db from '@adonisjs/lucid/services/db';
-import { listBundles } from '@kevinjohn/adonisjs-sqlite-backup';
 import router from '@adonisjs/core/services/router';
-import logger from '@adonisjs/core/services/logger';
-import { checkDatabase } from '#services/state_repository';
-import { withActor } from '#services/auth/current_actor';
-import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
 import { fileURLToPath } from 'node:url';
 import { healthChecks } from '#start/health';
 import { registerAuthRoutes } from '#start/auth_routes';
@@ -21,6 +13,7 @@ import { registerExportRoutes } from '#start/export_routes';
 import { registerAnonymiseRoutes } from '#start/anonymise_routes';
 import { registerExampleDataRoutes } from '#start/example_data_routes';
 import { registerGettingStartedRoutes } from '#start/getting_started_routes';
+import { registerDiagnosticsRoutes } from '#start/diagnostics_routes';
 
 // The Access Control package accepts string keys of 1 to 254 characters. A longer company, member
 // or principal identifier matches no route and answers 404 instead of reaching the package.
@@ -48,58 +41,7 @@ router.get('/health/ready', async ({ response }) => {
     return response.serviceUnavailable({ isHealthy: false, status: 'error', checks: [] });
   }
 });
-router
-  .get('/api/diagnostics', async (ctx) => {
-    const { response } = ctx;
-    // Release level and backup timing are administration facts: Owners and Admins only.
-    const administers = await withActor(ctx, async (actor, trx) => {
-      for (const accountId of await listActiveCompanyIds(actor.userId, trx)) {
-        const role = await activeCompanyRole(actor.userId, accountId, trx);
-        if (isOwnerOrAdmin(role)) return true;
-      }
-      return false;
-    });
-    if (!administers) {
-      return response.forbidden({ error: 'Diagnostics are limited to Owners and Admins.' });
-    }
-    try {
-      await checkDatabase();
-      const lastMigration = await db
-        .from('adonis_schema')
-        .select('name')
-        .orderBy('id', 'desc')
-        .first();
-      let newestSnapshotAt: string | null = null;
-      const backupDir = env.get('CAPACITYLENS_BACKUP_DIR');
-      if (backupDir) {
-        try {
-          const times = listBundles(backupDir).map((bundle) => Date.parse(bundle.createdAt));
-          newestSnapshotAt = times.length ? new Date(Math.max(...times)).toISOString() : null;
-        } catch {
-          logger.warn('Diagnostics could not inspect completed snapshots');
-        }
-      }
-      return {
-        server: {
-          connectivity: 'ok',
-          database: { status: 'ok' },
-          schema: { migration: lastMigration?.name ?? null },
-          backup: { newestSnapshotAt },
-        },
-      };
-    } catch {
-      logger.warn('Diagnostics could not read database state');
-      return response.serviceUnavailable({
-        server: {
-          connectivity: 'ok',
-          database: { status: 'unavailable' },
-          schema: { migration: null },
-          backup: { newestSnapshotAt: null },
-        },
-      });
-    }
-  })
-  .as('api.diagnostics');
+registerDiagnosticsRoutes();
 router.get('*', async ({ request, response }) => {
   const path = request.url().split('?', 1)[0];
   if (path.startsWith('/api/')) return response.notFound({ error: 'Not found' });

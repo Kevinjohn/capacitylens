@@ -1,9 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
-import { requiresFirstCompanySetup } from '#services/first_company_setup';
+import { parseFirstCompanyInput, requiresFirstCompanySetup } from '#services/first_company_setup';
 import { createInitialCompany } from '#services/initial_company_defaults';
-import { hasOnlyFields } from '#services/request_helpers';
-import { MAX_NAME_LENGTH, parseUserName } from '@capacitylens/shared/lib/strings';
+import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings';
 
 /**
  * Establishes company access only for the sole confirmed, admitted principal on an empty
@@ -12,25 +11,8 @@ import { MAX_NAME_LENGTH, parseUserName } from '@capacitylens/shared/lib/strings
 export default class FirstCompanySetupController {
   async store(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    // The same name rule as every later company-settings write, so the stored name can be re-saved.
-    const calendar = hasOnlyFields(body, ['name', 'weekStartsOn', 'timeZone']) ? body : null;
-    const name = calendar === null ? null : parseUserName(calendar.name);
-    // New calendar fields are additive: existing name-only callers keep the browser defaults.
-    // Supplied null or invalid values still fail validation rather than being defaulted.
-    const weekStartsOn =
-      calendar !== null && Object.hasOwn(calendar, 'weekStartsOn') ? calendar.weekStartsOn : 1;
-    const timeZone =
-      calendar !== null && Object.hasOwn(calendar, 'timeZone') ? calendar.timeZone : 'Etc/GMT';
-    let validTimeZone = false;
-    if (typeof timeZone === 'string' && timeZone.length <= 128 && !/^[+-]/.test(timeZone)) {
-      try {
-        new Intl.DateTimeFormat(undefined, { timeZone });
-        validTimeZone = true;
-      } catch {
-        // The supplied zone must be supported without falling back to the server's zone.
-      }
-    }
-    if (name === null || ![0, 1].includes(weekStartsOn as number) || !validTimeZone) {
+    const input = parseFirstCompanyInput(body);
+    if (input === null) {
       return ctx.response.badRequest({
         error: `Enter a company name of up to ${MAX_NAME_LENGTH} characters without unsupported characters, a Sunday or Monday week start, and a supported time zone.`,
         code: 'VALIDATION_ERROR',
@@ -40,11 +22,11 @@ export default class FirstCompanySetupController {
       await trx.from('account_transaction_lock').where('id', 1).increment('version', 1);
       if (!(await requiresFirstCompanySetup(actor.userId, trx))) return null;
       return createInitialCompany(trx, {
-        name,
+        name: input.name,
         ownerId: actor.userId,
         actorId: actor.userId,
-        weekStartsOn: weekStartsOn as 0 | 1,
-        timezone: timeZone as string,
+        weekStartsOn: input.weekStartsOn,
+        timezone: input.timeZone,
       });
     });
     if (!result) {

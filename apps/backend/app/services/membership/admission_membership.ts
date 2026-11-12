@@ -46,3 +46,11 @@ export async function completeMembership(userId: string, trx: TransactionClientC
   await advancePlanningRevision(trx, accountId);
   return { accountId, role, created: true };
 }
+
+/** Whether a company exists that this identity has not yet joined. */
+export async function lacksMembership(userId: string, trx: TransactionClientContract) {
+  return (
+    Boolean(await trx.from('accounts').select('id').first()) &&
+    !(await trx.from(access.config.membershipsTable).where('user_id', userId).first())
+  );
+}

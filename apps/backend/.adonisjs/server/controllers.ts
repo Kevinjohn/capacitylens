@@ -9,6 +9,7 @@ export const controllers = {
   Auth: () => import('#controllers/auth_controller'),
   Companies: () => import('#controllers/companies_controller'),
   Credential: () => import('#controllers/credential_controller'),
+  Diagnostics: () => import('#controllers/diagnostics_controller'),
   ExampleData: () => import('#controllers/example_data_controller'),
   Exports: () => import('#controllers/exports_controller'),
   FirstCompanySetup: () => import('#controllers/first_company_setup_controller'),
