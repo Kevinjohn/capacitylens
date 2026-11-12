@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
 import { requiresFirstCompanySetup } from '#services/first_company_setup';
 import { createInitialCompany } from '#services/initial_company_defaults';
+import { hasOnlyFields } from '#services/request_helpers';
 import { MAX_NAME_LENGTH, parseUserName } from '@capacitylens/shared/lib/strings';
 
 /**
@@ -12,17 +13,8 @@ export default class FirstCompanySetupController {
   async store(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
     // The same name rule as every later company-settings write, so the stored name can be re-saved.
-    const name =
-      body &&
-      typeof body === 'object' &&
-      !Array.isArray(body) &&
-      Object.keys(body).every((key) => ['name', 'weekStartsOn', 'timeZone'].includes(key))
-        ? parseUserName((body as { name?: unknown }).name)
-        : null;
-    const calendar =
-      body && typeof body === 'object' && !Array.isArray(body)
-        ? (body as { weekStartsOn?: unknown; timeZone?: unknown })
-        : null;
+    const calendar = hasOnlyFields(body, ['name', 'weekStartsOn', 'timeZone']) ? body : null;
+    const name = calendar === null ? null : parseUserName(calendar.name);
     // New calendar fields are additive: existing name-only callers keep the browser defaults.
     // Supplied null or invalid values still fail validation rather than being defaulted.
     const weekStartsOn =

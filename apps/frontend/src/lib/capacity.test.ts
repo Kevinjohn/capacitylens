@@ -97,7 +97,7 @@ interface ProposalTestInput {
   startDate: ISODate;
   endDate: ISODate;
   hoursPerDay: number;
-  ignoreWeekends: boolean;
+  ignoreWorkingDays: boolean;
 }
 
 const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
@@ -310,7 +310,7 @@ function registerNoneWeekTest(monday: ISODate) {
     const noneCompanyWeek: Weekday[] = [];
     const normal = [makeAlloc({ startDate: monday, endDate: monday, hoursPerDay: 8 })];
     const ignored = [
-      makeAlloc({ startDate: monday, endDate: monday, hoursPerDay: 8, ignoreWeekends: true }),
+      makeAlloc({ startDate: monday, endDate: monday, hoursPerDay: 8, ignoreWorkingDays: true }),
     ];
 
     expect(scheduledHoursOnDay(resource, monday, noneCompanyWeek)).toBe(0);
@@ -390,7 +390,7 @@ function buildCompanyDayOffCases(monday: ISODate, friday: ISODate): readonly Cap
   const normalMonday = [makeAlloc({ startDate: monday, endDate: monday, hoursPerDay: 8 })];
   const normalFriday = [makeAlloc({ startDate: friday, endDate: friday, hoursPerDay: 8 })];
   const ignoredFriday = [
-    makeAlloc({ startDate: friday, endDate: friday, hoursPerDay: 8, ignoreWeekends: true }),
+    makeAlloc({ startDate: friday, endDate: friday, hoursPerDay: 8, ignoreWorkingDays: true }),
   ];
   const blockMonday = applyCapacityMode({ allocations: normalMonday, blocksMode: true });
   const blockFriday = applyCapacityMode({ allocations: normalFriday, blocksMode: true });
@@ -445,13 +445,13 @@ function makeProposal(resource: Resource) {
     startDate,
     endDate,
     hoursPerDay,
-    ignoreWeekends,
+    ignoreWorkingDays,
   }: ProposalTestInput): CapacityAllocationInput => ({
     resourceId: resource.id,
     startDate,
     endDate,
     hoursPerDay,
-    ignoreWeekends,
+    ignoreWorkingDays,
   });
 }
 
@@ -514,13 +514,13 @@ function registerWeekendRuleTests() {
     expect(allocatedHoursOnDay({ resource: r, date: '2026-06-08', allocations: allocs })).toBe(8);
   });
 
-  it('an ignoreWeekends allocation places its hours on the weekend AND still on its working days', () => {
+  it('an ignoreWorkingDays allocation places its hours on the weekend AND still on its working days', () => {
     const allocs = [
       makeAlloc({
         startDate: '2026-06-05',
         endDate: '2026-06-08',
         hoursPerDay: 8,
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
     ];
     expect(allocatedHoursOnDay({ resource: r, date: '2026-06-05', allocations: allocs })).toBe(8);
@@ -582,7 +582,7 @@ function registerWeekendCapacityTests() {
     expect(cap).toMatchObject({ allocated: 0, available: 0, over: false });
   });
 
-  it('a weekend IS over when the allocation opts in via ignoreWeekends', () => {
+  it('a weekend IS over when the allocation opts in via ignoreWorkingDays', () => {
     // "Ignore working days" makes the hours land on Sat/Sun; a Mon–Fri person has
     // 0 weekend capacity, so that weekend work honestly reads as over.
     const allocs = [
@@ -590,7 +590,7 @@ function registerWeekendCapacityTests() {
         startDate: '2026-06-06',
         endDate: '2026-06-06',
         hoursPerDay: 2,
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
     ];
     const cap = dayCapacity({ resource: r, date: '2026-06-06', allocations: allocs, timeOff: [] });
@@ -834,7 +834,7 @@ function registerUtilizationWindowTests() {
   });
 
   it('does not count hours on a zero-availability day (a weekend an allocation opts into) toward the ratio', () => {
-    // Sat/Sun have 0 availability for a Mon-Fri resource. An ignoreWeekends allocation still puts
+    // Sat/Sun have 0 availability for a Mon-Fri resource. An ignoreWorkingDays allocation still puts
     // hours there, but those days must be skipped entirely (neither side counted), not just have
     // their availability zeroed, which would otherwise inflate the ratio via the numerator alone.
     const allocs = [
@@ -842,7 +842,7 @@ function registerUtilizationWindowTests() {
         startDate: '2026-06-06',
         endDate: '2026-06-07',
         hoursPerDay: 4,
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
     ];
     expect(
@@ -900,7 +900,7 @@ function registerAvailabilityAdvisoryTests() {
         startDate: '2026-06-01',
         endDate: '2026-06-05',
         hoursPerDay: 8,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
       otherAllocations: others,
       timeOff: [],
@@ -917,7 +917,7 @@ function registerAvailabilityAdvisoryTests() {
         startDate: '2026-06-01',
         endDate: '2026-06-03',
         hoursPerDay: 8,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
       otherAllocations: [],
       timeOff: [],
@@ -939,7 +939,7 @@ function registerAvailabilityAbsenceAdvisoryTests() {
         startDate: '2026-06-01',
         endDate: '2026-06-05',
         hoursPerDay: 8,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
       otherAllocations: others,
       timeOff: timeOff,
@@ -958,7 +958,7 @@ function registerAvailabilityAbsenceAdvisoryTests() {
           startDate: '2026-06-01',
           endDate: '2026-06-05',
           hoursPerDay: 8,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: [],
         timeOff: [],
@@ -979,7 +979,7 @@ function registerAvailabilityAbsenceAdvisoryTests() {
         startDate: '2026-06-01',
         endDate: '2026-06-07',
         hoursPerDay: 8,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
       otherAllocations: [],
       timeOff: timeOff,
@@ -999,7 +999,7 @@ function registerProposalBoundaryTests() {
           startDate: '2026-06-01',
           endDate: '2026-06-05',
           hoursPerDay: 8,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: [],
         timeOff: [],
@@ -1019,7 +1019,7 @@ function registerProposalBoundaryTests() {
           startDate: '2026-06-02',
           endDate: '2026-06-02',
           hoursPerDay: 4,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: [],
         timeOff: [],
@@ -1032,7 +1032,7 @@ function registerProposalBoundaryTests() {
           startDate: '2026-06-02',
           endDate: '2026-06-02',
           hoursPerDay: 4.01,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: [],
         timeOff: [],
@@ -1058,7 +1058,7 @@ function registerFractionalAdvisoryTest() {
           startDate: '2026-06-01',
           endDate: '2026-06-01',
           hoursPerDay: valueAt(fractional, 2),
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: others,
         timeOff: [],
@@ -1071,7 +1071,7 @@ function registerFractionalAdvisoryTest() {
           startDate: '2026-06-01',
           endDate: '2026-06-01',
           hoursPerDay: valueAt(fractional, 2) + 0.05,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: others,
         timeOff: [],
@@ -1083,7 +1083,7 @@ function registerFractionalAdvisoryTest() {
 function registerWeekendAdvisoryTests() {
   const r = makeResource();
   const proposal = makeProposal(r);
-  it('mirrors the over-marker for an ignoreWeekends weekend; weekend-aware does not', () => {
+  it('mirrors the over-marker for an ignoreWorkingDays weekend; weekend-aware does not', () => {
     // Fri–Sun: a weekend-aware proposal leaves Sat/Sun uncounted, but opting into weekends flags
     // them: a Mon–Fri person has 0 weekend capacity, so the advisory matches the red over-marker.
     expect(
@@ -1093,7 +1093,7 @@ function registerWeekendAdvisoryTests() {
           startDate: '2026-06-05',
           endDate: '2026-06-07',
           hoursPerDay: 8,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: [],
         timeOff: [],
@@ -1106,7 +1106,7 @@ function registerWeekendAdvisoryTests() {
           startDate: '2026-06-05',
           endDate: '2026-06-07',
           hoursPerDay: 8,
-          ignoreWeekends: true,
+          ignoreWorkingDays: true,
         }),
         otherAllocations: [],
         timeOff: [],
@@ -1122,7 +1122,7 @@ function registerWeekendAdvisoryTests() {
           startDate: '2026-06-05',
           endDate: '2026-06-01',
           hoursPerDay: 8,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: [],
         timeOff: [],
@@ -1142,7 +1142,7 @@ function registerWeekendAdvisoryTests() {
           startDate: start,
           endDate: addDaysISO(start, MAX_SPAN_DAYS),
           hoursPerDay: 8,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: [],
         timeOff: [],
@@ -1171,7 +1171,7 @@ function registerWindowClampTests() {
         startDate: '2026-06-01',
         endDate: '2026-06-03',
         hoursPerDay: 5,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
       otherAllocations: others,
       timeOff: [],
@@ -1193,7 +1193,7 @@ function registerWindowClampTests() {
         startDate: '2026-06-01',
         endDate: '2026-06-03',
         hoursPerDay: 5,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
       otherAllocations: others,
       timeOff: [],
@@ -1214,7 +1214,7 @@ function registerWindowClampTests() {
         startDate: '2026-06-01',
         endDate: '2026-06-05',
         hoursPerDay: 4,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
       otherAllocations: others,
       timeOff: [],
@@ -1235,7 +1235,7 @@ function registerBlocksAdvisoryTests() {
           startDate: '2026-06-01',
           endDate: '2026-06-05',
           hoursPerDay: 0,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: legacy,
         timeOff: [],
@@ -1249,7 +1249,7 @@ function registerBlocksAdvisoryTests() {
           startDate: '2026-06-01',
           endDate: '2026-06-05',
           hoursPerDay: 1,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: legacy,
         timeOff: [],
@@ -1263,7 +1263,7 @@ function registerBlocksAdvisoryTests() {
           startDate: '2026-06-01',
           endDate: '2026-06-05',
           hoursPerDay: 1,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: projected,
         timeOff: [],
@@ -1272,8 +1272,8 @@ function registerBlocksAdvisoryTests() {
   });
 
   it('does not count an existing weekend-aware allocation on a weekend day it merely spans', () => {
-    // The other allocation spans Fri-Mon but (weekend-aware, no ignoreWeekends) does no work on
-    // Sat. The proposal opts into the weekend via ignoreWeekends with 0 hours, so a spurious
+    // The other allocation spans Fri-Mon but (weekend-aware, no ignoreWorkingDays) does no work on
+    // Sat. The proposal opts into the weekend via ignoreWorkingDays with 0 hours, so a spurious
     // carry-over of the other allocation's hours onto Sat would wrongly flag it as over.
     const others = [
       makeAlloc({
@@ -1288,7 +1288,7 @@ function registerBlocksAdvisoryTests() {
         startDate: '2026-06-06',
         endDate: '2026-06-06',
         hoursPerDay: 0,
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
       otherAllocations: others,
       timeOff: [],
@@ -1535,13 +1535,13 @@ describe('over-allocated inside a window', () => {
     expect(overInWindow(allocs, '2026-06-01', '2026-06-14')).toBe(false);
   });
 
-  it('is true on a zero-capacity day when an ignoreWeekends allocation books hours there', () => {
+  it('is true on a zero-capacity day when an ignoreWorkingDays allocation books hours there', () => {
     const allocs = [
       makeAlloc({
         startDate: '2026-06-06',
         endDate: '2026-06-06',
         hoursPerDay: 5,
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
     ];
     expect(overInWindow(allocs, '2026-06-06', '2026-06-06')).toBe(true);
@@ -1617,7 +1617,7 @@ it('reports a real sub-nanohour overload in both the day marker and proposal adv
         startDate: '2026-06-01',
         endDate: '2026-06-01',
         hoursPerDay: 1e-10,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
       otherAllocations: [makeAlloc({ hoursPerDay: 8 })],
       timeOff: [],
@@ -1640,7 +1640,7 @@ it('does not mark a day over when days-mode bookings fit it exactly', () => {
         startDate: '2026-06-01',
         endDate: '2026-06-01',
         hoursPerDay: 1.6,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
       otherAllocations: allocations.slice(0, 4),
       timeOff: [],
@@ -1666,7 +1666,7 @@ it.each(
           startDate: '2026-06-01',
           endDate: '2026-06-01',
           hoursPerDay: proposalHours,
-          ignoreWeekends: false,
+          ignoreWorkingDays: false,
         }),
         otherAllocations: allocations.slice(0, -1),
         timeOff: [],

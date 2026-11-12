@@ -40,10 +40,18 @@ export function can(role: Role, key: PermissionKey): boolean {
   return lowest !== undefined && accessRoles.indexOf(role) >= accessRoles.indexOf(lowest);
 }
 
+/**
+ * Reports whether `role` is Owner or Admin. This is the one spelling of that pair for rules that
+ * sit beside the permission table; an absent or unknown role returns false.
+ */
+export function isOwnerOrAdmin(role: Role | null | undefined): boolean {
+  return role === 'owner' || role === 'admin';
+}
+
 /** Check whether the caller may see a time-off note.
  * Pure; only owners and admins may see it. This narrows an allowed read payload independently of route authorization. */
 export function canSeeTimeOffNote(role: Role): boolean {
-  return role === 'owner' || role === 'admin';
+  return isOwnerOrAdmin(role);
 }
 
 /**
@@ -67,7 +75,7 @@ export function canViewCapacityOverview(
 ): boolean {
   if (access === 'everyone') return true;
   if (access === 'owner_admin_editor') {
-    return role === 'owner' || role === 'admin' || role === 'editor';
+    return isOwnerOrAdmin(role) || role === 'editor';
   }
-  return role === 'owner' || role === 'admin';
+  return isOwnerOrAdmin(role);
 }

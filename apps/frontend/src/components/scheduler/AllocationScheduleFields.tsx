@@ -229,8 +229,8 @@ type DetailProps = Pick<
   | 'note'
   | 'setNote'
   | 'setNoteEdited'
-  | 'ignoreWeekends'
-  | 'setIgnoreWeekends'
+  | 'ignoreWorkingDays'
+  | 'setIgnoreWorkingDays'
   | 'advisory'
   | 'error'
   | 'errorField'
@@ -264,8 +264,8 @@ function DetailFields(props: DetailProps) {
       {!props.isExternal && (
         <CheckboxField
           label={m.form_allocation_ignore_working_days()}
-          checked={props.ignoreWeekends}
-          onChange={props.setIgnoreWeekends}
+          checked={props.ignoreWorkingDays}
+          onChange={props.setIgnoreWorkingDays}
           layout="label-control"
         />
       )}

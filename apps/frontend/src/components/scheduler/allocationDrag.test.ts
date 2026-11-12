@@ -18,7 +18,7 @@ interface ReconcileReassignedHoursTestInput {
 
 // The pure gesture suite covers invalid spans, clamping, no-op moves, and working-calendar placement independently of pointer events.
 
-const IGNORE = { ignoreWeekends: true };
+const IGNORE = { ignoreWorkingDays: true };
 const range = (startDate: string, endDate: string): DateRange => ({ startDate, endDate });
 const reconcileReassignedHours = ({
   current,

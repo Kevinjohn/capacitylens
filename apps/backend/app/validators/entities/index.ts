@@ -82,7 +82,7 @@ export const entityFields: Record<AppDataKey, Record<string, FieldKind>> = {
     status: 'choice',
     note: 'note',
     task: 'text',
-    ignoreWeekends: 'boolean',
+    ignoreWorkingDays: 'boolean',
     seriesId: 'identifier',
   },
   timeOff: { ...scoped, ...dates, resourceId: 'identifier', type: 'choice', note: 'note' },

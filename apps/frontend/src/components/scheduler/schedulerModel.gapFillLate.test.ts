@@ -108,7 +108,7 @@ function registerMovedSchedulerTests201022() {
 function registerMovedSchedulerTests201023() {
   it('overSoon follows strict allocated > available on an opted-in weekend', () => {
     const d = dataset();
-    // ignoreWeekends changes booked load, not availability, so opted-in work on a non-working day must report a capacity conflict.
+    // ignoreWorkingDays changes booked load, not availability, so opted-in work on a non-working day must report a capacity conflict.
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,
       id: 'a-sat',
@@ -121,7 +121,7 @@ function registerMovedSchedulerTests201023() {
       endDate: '2026-06-06',
       hoursPerDay: 8,
       status: 'confirmed',
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     });
     const model = buildSchedulerModel({
       data: d,
@@ -289,7 +289,7 @@ function buildBucketComparisonData() {
         endDate: '2026-06-07',
         hoursPerDay: 4,
       }),
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     },
     alloc({
       id: 'b6',

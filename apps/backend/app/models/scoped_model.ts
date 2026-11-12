@@ -9,8 +9,8 @@ export const forCompany = scope((query, accountId: string) => {
   void query.where('account_id', accountId);
 });
 
-/** Marks the trusted-local whole-database read used only when no tenant is selected. */
-export const forTrustedLocal = scope((query) => {
+/** Marks the whole-installation read used only when no tenant is selected. */
+export const forWholeInstallation = scope((query) => {
   scopedQueries.add(query);
 });
 

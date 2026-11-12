@@ -62,7 +62,6 @@ export const baselineTables = [
   'audit_entries',
   'memberships',
   'account_member_resources',
-  'ownership_transfers',
   'masquerade_modes',
   'masquerade_events',
   'request_receipts',

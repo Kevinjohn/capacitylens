@@ -67,7 +67,7 @@ describe('planning command builders', () => {
           status: 'confirmed',
           note: null,
           task: null,
-          ignoreWeekends: null,
+          ignoreWorkingDays: null,
         },
       },
       inverse: { operation: 'allocation.delete', id: stableId },
@@ -84,7 +84,7 @@ describe('planning command builders', () => {
       projectId: null,
       note: null,
       task: null,
-      ignoreWeekends: null,
+      ignoreWorkingDays: null,
     });
     const data = makeAppData({
       activities: [makeActivity({ id: 'activity', accountId, kind: 'internal', projectId: null })],
@@ -94,7 +94,7 @@ describe('planning command builders', () => {
       ...original,
       startDate: '2026-11-02',
       endDate: '2026-11-06',
-      ignoreWeekends: false,
+      ignoreWorkingDays: false,
     };
     const copy = buildAllocationDuplicate({
       data,

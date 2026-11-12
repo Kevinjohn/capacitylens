@@ -49,6 +49,12 @@ export default class extends BaseSchema {
           'deleted_rows.payload_json'
         )
         .orderBy('deleted_rows.id', 'asc')) as LegacyRow[];
+      const allocationColumns = (await trx.rawQuery('PRAGMA table_info(allocations)')) as Array<{
+        name: string;
+      }>;
+      const allocationsPredateRename = allocationColumns.some(
+        (column) => column.name === 'ignore_weekends'
+      );
       const latest = new Map<string, number>();
       for (const saved of snapshots) {
         if (!(saved.entity in models) || saved.consumed_at) continue;
@@ -67,7 +73,21 @@ export default class extends BaseSchema {
           const table = tables[entity];
           const existing = await trx.from(table).where('id', saved.row_id).first();
           if (!existing) {
-            const row = encodeRow(table, payload.row);
+            // The live model names a column that a later migration renames. Old snapshots carry the
+            // earlier field name, so map it before encoding to keep the value JSON-encoded.
+            const legacyOverride =
+              table === 'allocations' && 'ignoreWeekends' in payload.row
+                ? { ignoreWorkingDays: payload.row.ignoreWeekends }
+                : {};
+            const row: Record<string, unknown> = encodeRow(table, {
+              ...payload.row,
+              ...legacyOverride,
+            });
+            // When this step runs before that rename, the table still uses the earlier name.
+            if (table === 'allocations' && allocationsPredateRename) {
+              row.ignore_weekends = row.ignore_working_days;
+              delete row.ignore_working_days;
+            }
             if (row.account_id !== saved.account_id || row.id !== saved.row_id)
               throw new Error('Legacy deletion snapshot has mismatched ownership');
             let retained = true;

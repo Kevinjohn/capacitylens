@@ -1,3 +1,4 @@
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, AppDataKey, Resource, Weekday } from '@capacitylens/shared/types/entities';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
@@ -156,7 +157,7 @@ export async function writeRow(
     table === 'allocations' &&
     !options.permissiveRepeatStart &&
     (!existing || existing.resourceId !== clean.resourceId) &&
-    (!existing || clean.ignoreWeekends !== true)
+    (!existing || clean.ignoreWorkingDays !== true)
   ) {
     const resource = lookup.row('resources', String(clean.resourceId)) as Resource | undefined;
     if (resource && typeof clean.startDate === 'string') {
@@ -215,10 +216,7 @@ export async function updateSettings(
   changes: Record<string, unknown>,
   capabilities: PlanningCapabilities
 ) {
-  if (
-    Object.hasOwn(changes, 'capacityOverviewAccess') &&
-    !['owner', 'admin'].includes(capabilities.role)
-  ) {
+  if (Object.hasOwn(changes, 'capacityOverviewAccess') && !isOwnerOrAdmin(capabilities.role)) {
     throw new PlanningOperationError(
       403,
       'AUTHORIZATION_DENIED',

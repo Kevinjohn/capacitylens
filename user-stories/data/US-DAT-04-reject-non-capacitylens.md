@@ -10,7 +10,7 @@ As a company member, I want invalid import files rejected so that an accidental 
 
 ## Acceptance criteria
 
-- The importer accepts only a full (not redacted) `capacitylens-beta` schema version 1 export whose records all pass validation.
+- The importer accepts only a full (not redacted) `capacitylens-beta` schema version 2 export whose records all pass validation.
 - A file that is not valid JSON or fails these checks is refused with an error before anything is replaced; current company data remains intact.
 
 ## User flow

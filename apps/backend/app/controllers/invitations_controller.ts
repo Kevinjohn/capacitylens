@@ -8,8 +8,8 @@ import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { MAX_NAME_LENGTH, unicodeCharacterCount } from '@capacitylens/shared/lib/strings';
-import env from '#start/env';
-import { FirstCompanyPendingError } from '#models/user';
+import { isMailConfigured } from '#services/mail_delivery';
+import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { installationCompanyId, isInvitableRole } from '#services/account_kit/policy';
@@ -18,20 +18,6 @@ import { signInWithPassword } from '#services/auth/password_sign_in';
 import db from '@adonisjs/lucid/services/db';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-
-function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).every((key) => allowed.includes(key))
-  );
-}
-
-function proofHeaders(ctx: HttpContext) {
-  ctx.response.header('Cache-Control', 'no-store');
-  ctx.response.header('Referrer-Policy', 'no-referrer');
-}
 
 function invitationId(value: unknown) {
   const id = Number(value);
@@ -74,13 +60,13 @@ export default class InvitationsController {
 
   async create(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['accountId', 'role', 'email']) || !isInvitableRole(body.role)) {
+    if (!hasOnlyFields(body, ['accountId', 'role', 'email']) || !isInvitableRole(body.role)) {
       invalidAdmission();
     }
     const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : '';
     if (!isAccountEmail(email)) invalidAdmission('Invalid invitation email.');
     const actorId = await this.manager(ctx, body.accountId);
-    if (!env.get('CAPACITYLENS_MAIL_HOST')) return mailUnavailable(ctx);
+    if (!isMailConfigured()) return mailUnavailable(ctx);
     try {
       const invitation = await accountKit.invitations.send({ actorId, email, role: body.role });
       return ctx.response.created({ ...projection(invitation), emailed: true });
@@ -109,7 +95,7 @@ export default class InvitationsController {
     if (!id) invalidAdmission();
     const actorId = await this.manager(ctx, ctx.params.accountId);
     // Resending replaces the link, so without mail it would only invalidate a printed one.
-    if (!env.get('CAPACITYLENS_MAIL_HOST')) return mailUnavailable(ctx);
+    if (!isMailConfigured()) return mailUnavailable(ctx);
     try {
       const invitation = await accountKit.invitations.resend({ actorId, invitationId: id });
       return ctx.response.ok({ ...projection(invitation), emailed: true });
@@ -153,7 +139,7 @@ export default class InvitationsController {
   async signUp(ctx: HttpContext) {
     proofHeaders(ctx);
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['name', 'password'])) invalidAdmission();
+    if (!hasOnlyFields(body, ['name', 'password'])) invalidAdmission();
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     if (
       !name ||
@@ -178,9 +164,6 @@ export default class InvitationsController {
           error: 'An account already uses this email. Sign in instead.',
           code: 'EMAIL_REGISTERED',
         } satisfies ProductHttpErrorBody);
-      }
-      if (error instanceof FirstCompanyPendingError) {
-        return ctx.response.conflict({ error: error.message, code: error.code });
       }
       // The identity exists; only a follow-up failed, so the person signs in rather than retrying.
       if (isCommittedFailure(error)) {

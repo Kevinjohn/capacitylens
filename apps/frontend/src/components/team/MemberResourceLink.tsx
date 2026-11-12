@@ -1,3 +1,4 @@
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import { useEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
@@ -59,7 +60,7 @@ function buildMemberResourceView(
 /** Account-admin control linking a login member to one eligible person Resource. */
 export function MemberResourceLink(props: MemberResourceLinkProps) {
   const { member, myRole, linkedResourceIds, resourceCandidates } = props;
-  if (myRole !== 'owner' && myRole !== 'admin') return <td className="py-2 px-4" />;
+  if (!isOwnerOrAdmin(myRole)) return <td className="py-2 px-4" />;
   const view = buildMemberResourceView(member, linkedResourceIds, resourceCandidates);
   return <MemberResourceCell linked={Boolean(member.resourceLink)} view={view} />;
 }
@@ -171,7 +172,7 @@ export function MemberResourceDialog({
     if (wasOpen.current && !open) requestAnimationFrame(() => triggerRef.current?.focus());
     wasOpen.current = open;
   }, [open]);
-  if (myRole !== 'owner' && myRole !== 'admin') return null;
+  if (!isOwnerOrAdmin(myRole)) return null;
   const memberLabel = member.name ?? member.email ?? member.userId;
   return (
     <>

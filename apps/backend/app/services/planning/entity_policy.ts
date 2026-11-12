@@ -1,3 +1,4 @@
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import {
   APP_DATA_KEYS,
   CAPACITY_OVERVIEW_ACCESS_VALUES,
@@ -76,7 +77,7 @@ function pinHiddenFields(
       delete candidate.codeName;
     }
   }
-  if (table === 'accounts' && context.role !== 'owner' && context.role !== 'admin') {
+  if (table === 'accounts' && !isOwnerOrAdmin(context.role)) {
     if (CAPACITY_OVERVIEW_ACCESS_VALUES.includes(existing?.capacityOverviewAccess as never)) {
       candidate.capacityOverviewAccess = existing?.capacityOverviewAccess;
     } else delete candidate.capacityOverviewAccess;
@@ -250,7 +251,7 @@ function validationView(
     delete visible.codeName;
     if (existing?.isPrivate === true) delete visible.name;
   }
-  if (table === 'accounts' && context.role !== 'owner' && context.role !== 'admin') {
+  if (table === 'accounts' && !isOwnerOrAdmin(context.role)) {
     delete visible.capacityOverviewAccess;
   }
   return visible;

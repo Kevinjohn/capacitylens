@@ -1,3 +1,4 @@
+import { RefusalError } from '#exceptions/refusal_error';
 import { randomUUID } from 'node:crypto';
 import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
@@ -18,15 +19,7 @@ export interface AccountCommandIdentity {
   requestKey: string;
 }
 
-export class AccountCommandError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly code: string
-  ) {
-    super(message);
-  }
-}
+export class AccountCommandError extends RefusalError {}
 
 /** Parses the existing paired account-command headers, minting both for older callers. */
 export function readAccountCommand(ctx: HttpContext): AccountCommandIdentity {

@@ -37,7 +37,7 @@ export default {
     is_private: boolean,
     builtin: boolean,
     is_favourite: boolean,
-    ignore_weekends: boolean,
+    ignore_working_days: boolean,
   },
   tables: {
     accounts: {
@@ -90,13 +90,6 @@ export default {
         credentials_changed_at: {
           tsType: "import('luxon').DateTime | null",
           decorators: [{ name: '@column.dateTime' }],
-        },
-      },
-    },
-    ownership_transfers: {
-      columns: {
-        status: {
-          tsType: "import('@capacitylens/shared/account/ownershipTransfer').OwnershipTransferState",
         },
       },
     },

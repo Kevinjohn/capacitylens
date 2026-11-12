@@ -19,5 +19,5 @@ export interface EffectiveAllocationInput {
   hoursPerDay: number;
   daysOver: number;
   daysOfWork: number;
-  ignoreWeekends: boolean;
+  ignoreWorkingDays: boolean;
 }

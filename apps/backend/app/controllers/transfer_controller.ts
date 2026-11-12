@@ -3,6 +3,7 @@ import { BetaTransferError } from '@capacitylens/shared/data/betaTransfer';
 import { withActor, kitContextIn } from '#services/auth/current_actor';
 import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
+import { hasOnlyFields } from '#services/request_helpers';
 import { EntityWriteError } from '#services/planning/errors';
 import {
   applyBetaAccountTransfer,
@@ -11,12 +12,11 @@ import {
 } from '#services/beta_account_transfer';
 
 function input(value: unknown, apply: boolean) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const body = value as Record<string, unknown>;
   const expected = apply ? ['accountId', 'document', 'baseRevision'] : ['accountId', 'document'];
+  const body = value;
   if (
-    expected.some((key) => !Object.hasOwn(body, key)) ||
-    Object.keys(body).some((key) => !expected.includes(key) && !(apply && key === 'confirmationId'))
+    !hasOnlyFields(body, apply ? [...expected, 'confirmationId'] : expected) ||
+    expected.some((key) => !Object.hasOwn(body, key))
   ) {
     return null;
   }

@@ -102,7 +102,7 @@ test.group('typed resource availability', (group) => {
       .json(
         input(3, {
           operation: 'allocation.create',
-          allocation: { ...candidate, id: randomUUID(), ignoreWeekends: true },
+          allocation: { ...candidate, id: randomUUID(), ignoreWorkingDays: true },
         })
       )
       .send();

@@ -334,8 +334,8 @@ function validateAllocationRow(row: Row, path: string): void {
   assertNullableText(row, 'note', path, { multiline: true });
   assertNullableText(row, 'task', path);
   assert(
-    nullable(row.ignoreWeekends, isBoolean),
-    `${path}.ignoreWeekends`,
+    nullable(row.ignoreWorkingDays, isBoolean),
+    `${path}.ignoreWorkingDays`,
     'must be boolean or null',
   );
 }

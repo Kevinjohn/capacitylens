@@ -14,7 +14,7 @@ export { BetaTransferError };
 /** Stable identifier for the beta-native interchange format. */
 export const BETA_EXPORT_FORMAT = 'capacitylens-beta' as const;
 /** Beta interchange schema version, independent of database and legacy export versions. */
-export const BETA_EXPORT_SCHEMA_VERSION = 1 as const;
+export const BETA_EXPORT_SCHEMA_VERSION = 2 as const;
 
 export interface BetaExportDocument {
   format: typeof BETA_EXPORT_FORMAT;
