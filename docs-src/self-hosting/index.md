@@ -7,17 +7,17 @@ next: false
 
 # Install and run CapacityLens
 
-CapacityLens runs as one Node process and stores company data in SQLite. These five steps are for
+CapacityLens runs as one Node process and stores company data in SQLite. These steps are for
 whoever manages your hosting. That person also handles backups, upgrades and service health.
 The expected installation is the native release archive with an HTTPS proxy on the same machine.
 
 1. **Download** and unpack the archive for your host.
-2. **Choose a data folder** outside the release directory.
-3. **Configure** the private environment, secrets, public address and backups.
-4. **Start** the service after its database upgrade, with HTTPS at the same-machine proxy.
-5. **Open** the address and complete sign-in and company naming in the browser.
+2. **Run** its install command with your domain name. It configures the service, secrets,
+   backups and, when Caddy is installed, HTTPS, then prints the setup link.
+3. **Open** the link and complete sign-in and company naming in the browser.
 
-[Install without Docker](/self-hosting/install-without-docker) gives the exact Linux commands;
+[Install without Docker](/self-hosting/install-without-docker) gives the exact Linux commands and
+the manual steps;
 [Deploy on a managed host](/self-hosting/managed-vps/) explains the process-manager requirements.
 Existing [Docker support](/self-hosting/install-with-docker) remains optional. A proxy in a
 separate container or on another machine is not supported.
