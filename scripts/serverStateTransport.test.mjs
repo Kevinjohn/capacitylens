@@ -144,12 +144,13 @@ test('serverState does not retry when the API listener disappears after a reset'
   await withApi(
     (request) => {
       requests += 1;
+      // Close inside the request: from Node 26, closing on `connection` also drops the idle socket.
+      request.socket.server.close();
       request.socket.destroy();
     },
     async ({ context, target, server }) => {
       server.on('connection', () => {
         connections += 1;
-        if (connections === 1) server.close();
       });
       await assert.rejects(serverState(context, target), /Failed after 2 attempt.*ECONNREFUSED/s);
       assert.equal(requests, 1);
