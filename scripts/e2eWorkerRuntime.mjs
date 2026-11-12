@@ -354,7 +354,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
     renameSync(ownerTmp, paths.owner);
   };
 
-  const stop = async ({ removeDatabase = true, removeCache = true } = {}) => {
+  const stop = async ({ removeDatabase = true } = {}) => {
     if (stopped) return;
     stopped = true;
     let terminationError;
@@ -380,7 +380,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
     }
     if (!terminationError) {
       if (removeDatabase) await removeDatabaseFiles(target);
-      if (removeCache) await rm(viteCachePath, { recursive: true, force: true });
+      await rm(viteCachePath, { recursive: true, force: true });
       await releaseLease(paths);
     }
     if (terminationError) throw terminationError;

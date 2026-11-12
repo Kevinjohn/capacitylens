@@ -59,20 +59,15 @@ const env = {
   // minute a fast local run had fixture sign-ins refused with 429 midway through.
   ...(flavour === 'db' ? { CAPACITYLENS_RATE_LIMIT: '1000000' } : {}),
   PORT: String(port),
+  // The auth-backed server completes real first-company setup before it creates the
+  // membership-free administrator used by recovery/login scenarios.
+  CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
+  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+  CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
+  CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
+  CAPACITYLENS_CORS_ORIGIN: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
 };
-
-if (flavour === 'auth' || flavour === 'db') {
-  Object.assign(env, {
-    // The auth-backed server completes real first-company setup before it creates the
-    // membership-free administrator used by recovery/login scenarios.
-    CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
-    CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
-    CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
-    CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
-    CAPACITYLENS_CORS_ORIGIN: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
-  });
-}
 
 for (const suffix of ['', '-wal', '-shm']) {
   rmSync(new URL(`../${database}${suffix}`, import.meta.url), { force: true });
