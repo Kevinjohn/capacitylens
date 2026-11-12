@@ -147,8 +147,6 @@ test.group('M5 documentation and policy contracts', () => {
     for (const key of [
       'APP_KEY',
       'APP_URL',
-      'SESSION_DRIVER',
-      'CAPACITYLENS_SECRET',
       'CAPACITYLENS_PUBLIC_URL',
       'CAPACITYLENS_DB',
       'CAPACITYLENS_BACKUP_DIR',

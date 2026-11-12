@@ -18,8 +18,8 @@ edge proxy; there is no internal certificate authority.
 ## Configure the instance
 
 Download the source for the release you intend to run. Copy `.env.example` to `.env`, keep it
-private, and fill in `APP_KEY`, `CAPACITYLENS_SECRET` and the HTTPS `CAPACITYLENS_PUBLIC_URL`.
-Generate independent random values of at least 32 characters for both secrets. Fill in the
+private, and fill in `APP_KEY` and the HTTPS `CAPACITYLENS_PUBLIC_URL`.
+Generate a random value of at least 32 characters for `APP_KEY`. Fill in the
 `CAPACITYLENS_MAIL_*` settings: invitations and password resets are emailed.
 
 The published port binds to loopback by default. Configure your HTTPS proxy to forward to

@@ -659,11 +659,9 @@ function operatorFixtureEnvironment(): NodeJS.ProcessEnv {
     LOG_LEVEL: 'error',
     APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
     APP_URL: `http://127.0.0.1:${lane.authApi}`,
-    SESSION_DRIVER: 'database',
     CAPACITYLENS_DB: '.auth-e2e.db',
     CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
-    CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
     CAPACITYLENS_PUBLIC_URL: `http://localhost:${lane.authApi}`,
   };
 }

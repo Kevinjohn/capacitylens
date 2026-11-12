@@ -51,13 +51,11 @@ if [ -e "$env_file" ]; then
   echo "Keeping $env_file and its secrets."
 else
   app_key=$(secret)
-  account_secret=$(secret)
   (
     umask 077
     sed -e "s|^APP_URL=.*|APP_URL=https://$domain|" \
       -e "s|^CAPACITYLENS_PUBLIC_URL=.*|CAPACITYLENS_PUBLIC_URL=https://$domain|" \
       -e "s|^APP_KEY=.*|APP_KEY=$app_key|" \
-      -e "s|^CAPACITYLENS_SECRET=.*|CAPACITYLENS_SECRET=$account_secret|" \
       "$release/capacitylens.env.example" >"$env_file.new"
     mv "$env_file.new" "$env_file"
   )

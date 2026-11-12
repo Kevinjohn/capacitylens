@@ -80,14 +80,12 @@ jobs:
       - run: pnpm run build
         env:
           NODE_ENV: production
-          CAPACITYLENS_SECRET: capacitylens-build-secret-0123456789abcdef
           CAPACITYLENS_PUBLIC_URL: https://127.0.0.1
           HOST: 127.0.0.1
           PORT: '0'
           LOG_LEVEL: error
           APP_KEY: capacitylens-test-key-0123456789abcdef
           APP_URL: http://127.0.0.1
-          SESSION_DRIVER: memory
       - name: Package the web build
         run: |
           if [ -d apps/frontend/dist ]; then

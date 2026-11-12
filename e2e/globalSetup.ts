@@ -17,8 +17,6 @@ export default function globalSetup(): void {
       LOG_LEVEL: 'error',
       APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
       APP_URL: 'http://localhost',
-      SESSION_DRIVER: 'database',
-      CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
       CAPACITYLENS_PUBLIC_URL: 'http://localhost',
       CAPACITYLENS_CREATE_ADMIN_ADMIN: '0',
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',

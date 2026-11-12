@@ -22,8 +22,6 @@ Object.assign(process.env, {
   LOG_LEVEL: 'error',
   APP_KEY: 'capacitylens-test-key-0123456789abcdef',
   APP_URL: `http://127.0.0.1:${testHttpPort}`,
-  SESSION_DRIVER: 'database',
-  CAPACITYLENS_SECRET: 'capacitylens-test-secret-0123456789abcdef',
   CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${testHttpPort}`,
   CAPACITYLENS_RATE_LIMIT: '10000',
   CAPACITYLENS_ALLOW_RESET: 'true',

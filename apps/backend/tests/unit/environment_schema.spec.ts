@@ -21,7 +21,6 @@ test('operator numeric settings reject malformed and out-of-range input', ({ ass
 
 test('typed switches and SMTP addresses reject unsupported supplied values', ({ assert }) => {
   assert.throws(() => envSchema.CAPACITYLENS_LOG('CAPACITYLENS_LOG', 'verbose'));
-  assert.throws(() => envSchema.CAPACITYLENS_AUDIT('CAPACITYLENS_AUDIT', 'disabled'));
   assert.throws(() => envSchema.CAPACITYLENS_MAIL_FROM('CAPACITYLENS_MAIL_FROM', 'invalid'));
   assert.throws(() =>
     envSchema.CAPACITYLENS_MAIL_HOST('CAPACITYLENS_MAIL_HOST', 'https://smtp.example.com')

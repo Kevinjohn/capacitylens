@@ -68,8 +68,6 @@ const sessionConfig = defineConfig({
     /**
      * Store session data inside encrypted cookies.
      */
-    cookie: stores.cookie(),
-
     /**
      * Store session data inside the configured database.
      */

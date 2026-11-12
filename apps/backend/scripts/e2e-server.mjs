@@ -41,7 +41,6 @@ const env = {
   LOG_LEVEL: 'error',
   APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
   APP_URL: `http://127.0.0.1:${port}`,
-  SESSION_DRIVER: 'database',
   CAPACITYLENS_DB: database,
   CAPACITYLENS_ALLOW_RESET: '1',
   CAPACITYLENS_BACKUP_DIR: '',
@@ -60,7 +59,6 @@ const env = {
   CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
-  CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
   CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
   CAPACITYLENS_CORS_ORIGIN: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
 };

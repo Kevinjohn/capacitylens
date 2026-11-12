@@ -273,7 +273,6 @@ test("backend tests build the application first when its output is missing, with
     const build = step(steps, 'prepare: build application');
     assert.deepEqual(build?.args, ['run', 'build'], paths[0]);
     assert.equal(build.env.NODE_ENV, 'production');
-    assert.equal(build.env.SESSION_DRIVER, 'memory');
     assert.ok(
       labels(steps).indexOf('prepare: build application') <
         labels(steps).findIndex((label) => label.startsWith('test:')),

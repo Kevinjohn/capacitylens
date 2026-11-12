@@ -21,7 +21,7 @@ arguments to upgrade; it keeps the environment file and backs up the database be
 ## By hand
 
 The backend supports password authentication and native database sessions. The environment example
-keeps open access disabled. Set `APP_KEY`, a random `CAPACITYLENS_SECRET` of at least 32 characters,
+keeps open access disabled. Set `APP_KEY`,
 matching HTTPS `APP_URL` / `CAPACITYLENS_PUBLIC_URL` origins and SMTP delivery before starting.
 Invitations, address confirmation and password resets are emailed. After the first start, print the
 first-install link for the Owner's email address:

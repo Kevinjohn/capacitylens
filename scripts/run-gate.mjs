@@ -16,7 +16,6 @@ function main() {
           ? {
               ...process.env,
               NODE_ENV: 'production',
-              CAPACITYLENS_SECRET: 'capacitylens-build-secret-0123456789abcdef',
               CAPACITYLENS_PUBLIC_URL: 'https://127.0.0.1',
             }
           : process.env;

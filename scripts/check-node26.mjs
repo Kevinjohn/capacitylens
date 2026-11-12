@@ -34,14 +34,12 @@ export function runDetachedPackageProbe({ repositoryRoot = root, deployDir, runC
   runCommand('production build', 'pnpm', ['run', 'build'], {
     ...process.env,
     NODE_ENV: 'production',
-    CAPACITYLENS_SECRET: 'capacitylens-build-secret-0123456789abcdef',
     CAPACITYLENS_PUBLIC_URL: 'https://127.0.0.1',
     HOST: '127.0.0.1',
     PORT: '0',
     LOG_LEVEL: 'error',
     APP_KEY: 'capacitylens-build-key-0123456789abcdef',
     APP_URL: 'http://127.0.0.1',
-    SESSION_DRIVER: 'memory',
   });
   runCommand('production package', 'pnpm', ['run', 'package:managed-release']);
   const detached = join(deployDir, 'production');

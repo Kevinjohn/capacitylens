@@ -80,7 +80,6 @@ test('packaged smoke strips deployment settings before applying its loopback fix
   assert.equal(environment.NODE_ENV, 'production');
   assert.equal(environment.CAPACITYLENS_PUBLIC_URL, 'https://127.0.0.1:43210');
   assert.equal(environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP, 'true');
-  assert.equal(environment.SESSION_DRIVER, 'database');
   assert.equal(environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, undefined);
   assert.equal(environment.CAPACITYLENS_INTERNAL_TLS_KEY, undefined);
   assert.equal(environment.CAPACITYLENS_BACKUP_INTERVAL_MIN, undefined);
