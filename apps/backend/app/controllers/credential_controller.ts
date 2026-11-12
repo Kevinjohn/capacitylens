@@ -1,6 +1,7 @@
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import {
   IdentityNotConfirmedError,
   InvalidTokenError,
@@ -10,7 +11,7 @@ import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import env from '#start/env';
-import { currentAccount, sessionGuard } from '#services/auth/current_actor';
+import { accountInput, currentAccount, sessionGuard } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
 
 function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
@@ -150,18 +151,30 @@ export default class CredentialController {
 
   /**
    * Deletes the signed-in identity with its memberships and member links, then ends this sign-in.
-   * An Owner transfers ownership first.
+   * The password is checked by issuing and spending a `delete-account` password confirmation, which
+   * gives deletion the same wrong-password limit and refusal as other sensitive actions. An Owner
+   * transfers ownership first.
    */
   async deleteAccount(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
     if (!fields(body, ['currentPassword']) || typeof body.currentPassword !== 'string') {
       return ctx.response.badRequest({ error: 'Invalid credential request.' });
     }
-    const account = await currentAccount(ctx);
+    const input = await accountInput(ctx);
+    const request = { action: 'delete-account', scope: String(input.userId), intent: {} };
+    const { confirmationId } = await passwordConfirmations.confirmPassword(input, {
+      ...request,
+      password: body.currentPassword,
+    });
+    await passwordConfirmations.withConfirmation(
+      input,
+      { ...request, confirmationId },
+      async () => {}
+    );
     let outcome: 'deleted' | 'committed' = 'deleted';
     try {
       await accountKit.accountData.delete({
-        actorId: account.id,
+        actorId: input.userId,
         currentPassword: body.currentPassword,
       });
     } catch (error) {
