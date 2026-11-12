@@ -4,7 +4,6 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import { replaceWithSeed, resetState } from '#services/state_repository';
 import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
 import db from '@adonisjs/lucid/services/db';
-import env from '#start/env';
 
 const securityHeaders = [
   'content-security-policy',
@@ -66,7 +65,7 @@ test.group('M1 HTTP contract', (group) => {
       );
   });
 
-  test('disposable in-process reset works while HTTP reset refuses anonymous and signed-in callers', async ({
+  test('disposable in-process reset works while no HTTP reset route exists', async ({
     client,
     assert,
   }) => {
@@ -74,32 +73,14 @@ test.group('M1 HTTP contract', (group) => {
       .post('/api/test/reset')
       .header('sec-fetch-site', 'same-origin')
       .json({ seed: false });
-    assert.equal(anonymous.status(), 401);
+    assert.equal(anonymous.status(), 404);
     await resetState(false);
     client = await resetAuthenticatedClient(client, true);
     const signedIn = await client.post('/api/test/reset').json({ seed: false });
-    assert.equal(signedIn.status(), 403);
+    assert.equal(signedIn.status(), 404);
     // The retired metadata route is gone, not merely unadvertised.
     const retiredMeta = await client.get('/api/meta');
     assert.equal(retiredMeta.status(), 404);
-  });
-
-  test('reset remains forbidden even when the fixture flag is disabled', async ({
-    client,
-    assert,
-  }) => {
-    client = await resetAuthenticatedClient(client, true);
-    const enabled = env.get('CAPACITYLENS_ALLOW_RESET');
-    env.set('CAPACITYLENS_ALLOW_RESET', false);
-    try {
-      const response = await client.post('/api/test/reset').json({ seed: true });
-      assert.equal(response.status(), 403);
-      assert.deepEqual(response.body(), {
-        error: 'Installation reset is unavailable with authentication enabled.',
-      });
-    } finally {
-      env.set('CAPACITYLENS_ALLOW_RESET', enabled);
-    }
   });
 
   test('sets security headers on successful and early error responses', async ({
@@ -109,7 +90,7 @@ test.group('M1 HTTP contract', (group) => {
     for (const response of [
       await client.get('/api/health'),
       await client
-        .post('/api/test/reset')
+        .post('/api/auth/sign-in')
         .header('content-type', 'application/json')
         .setup((request) => {
           request.request.send('{');
@@ -139,7 +120,7 @@ test.group('M1 HTTP contract', (group) => {
     assert.equal(disallowed.status(), 200);
 
     const preflight = await client
-      .options('/api/test/reset')
+      .options('/api/accounts/a-studio/disciplines')
       .header('origin', allowed)
       .header('access-control-request-method', 'POST')
       .header('access-control-request-headers', 'content-type');
@@ -185,22 +166,13 @@ test.group('M1 HTTP contract', (group) => {
       .json(write);
     assert.equal(originlessCrossSite.status(), 403);
 
-    const nonBrowser = await client.post('/api/test/reset').json({ seed: true });
-    assert.equal(nonBrowser.status(), 403);
-
-    const tlsTerminatedSameHost = await client
-      .post('/api/test/reset')
-      .header('host', 'capacity.example.com')
-      .header('origin', 'https://capacity.example.com')
-      .json({ seed: true });
-    assert.equal(tlsTerminatedSameHost.status(), 403);
-
     const tlsTerminatedOtherHost = await client
-      .post('/api/test/reset')
+      .post(writePath)
       .header('host', 'capacity.example.com')
       .header('origin', 'https://other.example.com')
-      .json({ seed: true });
+      .json(write);
     assert.equal(tlsTerminatedOtherHost.status(), 403);
+    assert.deepEqual(tlsTerminatedOtherHost.body(), { error: 'Cross-site request rejected.' });
   });
 
   test('diagnostics preserves the unavailable database projection', async ({ client, assert }) => {

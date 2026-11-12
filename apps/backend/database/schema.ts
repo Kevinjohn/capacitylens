@@ -523,27 +523,6 @@ export class MembershipSchema extends BaseModel {
   declare userId: string
 }
 
-export class OwnershipTransferSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'fromUserId', 'id', 'revision', 'status', 'toUserId', 'updatedAt'] as const
-  $columns = OwnershipTransferSchema.$columns
-  @column()
-  declare accountId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare fromUserId: string
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare revision: number
-  @column()
-  declare status: import('@capacitylens/shared/account/ownershipTransfer').OwnershipTransferState
-  @column()
-  declare toUserId: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
 export class PasswordConfirmationSchema extends BaseModel {
   static $columns = ['action', 'consumedAt', 'credentialRevision', 'id', 'intentHash', 'issuedAt', 'scope', 'signInId', 'userId', 'verifiedAt'] as const
   $columns = PasswordConfirmationSchema.$columns

@@ -368,6 +368,8 @@ framework defaults; any other departure needs a decision recorded here first.
   optional. A proxy on a separate machine is unsupported for the first release. The Compose stack's
   own nginx hop is supported: its API trusts forwarded headers from private-network peers
   (`CAPACITYLENS_TRUST_PROXY_HEADERS=private`), so each client keeps its own request limits.
+- The empty `social_*` tables and `login_link_tokens` stay: Account Kit 0.3.4 visits them in its
+  hourly prune, account deletion and every credential change, whichever capabilities are enabled.
 
 ## Open source
 
@@ -394,6 +396,8 @@ framework defaults; any other departure needs a decision recorded here first.
   updates remain monthly and patch-only. A monthly workflow reports newer major versions for
   installed direct workspace dependencies in one standing issue; it uses the pinned Node/pnpm
   toolchain, makes no dependency changes, and closes the issue when no newer majors remain.
+- `CAPACITYLENS_ALLOW_RESET` stays: it is the only switch that loads the browser-test worker reset
+  harness, and production refuses to start with it set. There is no HTTP reset route.
 
 ## Module boundaries
 

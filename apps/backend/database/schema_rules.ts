@@ -93,13 +93,6 @@ export default {
         },
       },
     },
-    ownership_transfers: {
-      columns: {
-        status: {
-          tsType: "import('@capacitylens/shared/account/ownershipTransfer').OwnershipTransferState",
-        },
-      },
-    },
     audit_entries: {
       columns: {
         details: { tsType: 'unknown' },

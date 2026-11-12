@@ -23,7 +23,7 @@ test.group('M1 read path', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
   for (const expected of fixture.responses.filter(
-    (entry) => !['/api/test/reset', '/api/state', '/api/auth/me'].includes(entry.path)
+    (entry) => !['/api/state', '/api/auth/me'].includes(entry.path)
   )) {
     test(`${expected.method} ${expected.path} matches the main response`, async ({
       client,
@@ -76,17 +76,12 @@ test.group('M1 read path', (group) => {
     });
   }
 
-  test('refuses anonymous state and reset, then reports a real signed-in identity', async ({
+  test('refuses anonymous state, then reports a real signed-in identity', async ({
     client,
     assert,
   }) => {
     const state = await client.get('/api/state');
     state.assertStatus(401);
-    const reset = await client
-      .post('/api/test/reset')
-      .header('sec-fetch-site', 'same-origin')
-      .json({ seed: true });
-    reset.assertStatus(401);
     client = await resetAuthenticatedClient(client, true);
     const identity = await client.get('/api/auth/me');
     identity.assertStatus(200);
@@ -102,8 +97,6 @@ test.group('M1 read path', (group) => {
         .sort(),
       ['a-loft', 'a-studio']
     );
-    const signedReset = await client.post('/api/test/reset').json({ seed: true });
-    signedReset.assertStatus(403);
   });
 
   test('exposes liveness and readiness', async ({ client, assert }) => {
