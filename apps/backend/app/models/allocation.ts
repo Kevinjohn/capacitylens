@@ -7,14 +7,14 @@ import { jsonColumn } from '#models/json_column';
 import { isBoolean } from '#models/json_column';
 import { isoDateColumn, isoTimestampColumn } from '#models/scalar_column';
 import type { ISODate, ISOTimestamp } from '@capacitylens/shared/types/entities';
-import { forCompany, forTrustedLocal, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
 export default class Allocation extends SoftDeletes(AllocationSchema) {
   static forCompany = forCompany;
-  static forTrustedLocal = forTrustedLocal;
+  static forWholeInstallation = forWholeInstallation;
   @beforeFind() static requireFindScope = requireCompanyScope;
   @beforeFetch() static requireFetchScope = requireCompanyScope;
-  @column(jsonColumn('allocations', 'ignore_weekends', isBoolean))
-  declare ignoreWeekends: boolean | null;
+  @column(jsonColumn('allocations', 'ignore_working_days', isBoolean))
+  declare ignoreWorkingDays: boolean | null;
 
   @column(isoTimestampColumn('allocations', 'created_at')) declare createdAt: ISOTimestamp;
   @column.dateTime({ ...deletedAtColumn, serializeAs: null }) declare deletedAt: DateTime | null;

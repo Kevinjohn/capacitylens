@@ -63,7 +63,7 @@ and sign-in records remain local. Scheduling IDs and relationships are preserved
 and establish their person links as needed.
 
 Check all imported records and settings, make an allocation edit, and reload before retiring the
-source installation. This transfers only full `capacitylens-beta` version `1` documents. It does
+source installation. This transfers only full `capacitylens-beta` version `2` documents. It does
 not convert alpha exports or migrate authentication. Redacted and malformed documents are refused.
 
 ## Databases the upgrade refuses

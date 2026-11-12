@@ -215,7 +215,7 @@ export const FIXTURE_ALLOCATION: Allocation = {
   status: 'tentative',
   note: 'Fixture note',
   task: 'Fixture task',
-  ignoreWeekends: true,
+  ignoreWorkingDays: true,
   createdAt: TS1,
   updatedAt: TS2,
 };

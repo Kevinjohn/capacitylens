@@ -125,7 +125,7 @@ test.group('planning operation contracts', () => {
         ...validInput,
         intent: {
           ...validInput.intent,
-          allocation: { ...validInput.intent.allocation, ignoreWeekends: 'true' },
+          allocation: { ...validInput.intent.allocation, ignoreWorkingDays: 'true' },
         },
       })
     );

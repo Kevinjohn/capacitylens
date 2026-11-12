@@ -34,7 +34,7 @@ export interface AllocationModalSnapshot {
   daysOver: number;
   initialDaysOver: number;
   daysOfWork: number;
-  ignoreWeekends: boolean;
+  ignoreWorkingDays: boolean;
   status: AllocationStatus;
   note: string;
   noteEdited: boolean;

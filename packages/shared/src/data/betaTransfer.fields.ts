@@ -99,7 +99,7 @@ export const FIELDS = {
     'status',
     'note',
     'task',
-    'ignoreWeekends',
+    'ignoreWorkingDays',
   ],
   timeOff: [
     'id',

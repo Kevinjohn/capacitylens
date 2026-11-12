@@ -61,7 +61,7 @@ async function stop(child: ReturnType<typeof spawn>, port: number) {
   await waitForPortRelease(port);
 }
 
-test('both E2E server flavours require sign-in and refuse installation reset', async ({
+test('both E2E server flavours require sign-in and expose no installation reset route', async ({
   assert,
 }) => {
   for (const flavour of ['db', 'auth'] as const) {
@@ -90,7 +90,7 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
           method: 'POST',
           headers: { 'sec-fetch-site': 'same-origin' },
         });
-        assert.equal(anonymousReset.status, 401, 'reset rejects unauthenticated callers');
+        assert.equal(anonymousReset.status, 404, 'no reset route answers unauthenticated callers');
         const anonymousState = await fetch(`http://127.0.0.1:${port}/api/state`);
         assert.equal(anonymousState.status, 401, 'persistent state requires sign-in');
 
@@ -141,11 +141,12 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
         });
         assert.equal(
           memberlessReset.status,
-          403,
-          'an authenticated administrator cannot reset the fixture over HTTP'
+          404,
+          'no reset route answers an authenticated administrator'
         );
         assert.deepEqual(await memberlessReset.json(), {
-          error: 'Installation reset is unavailable with authentication enabled.',
+          code: 'NOT_FOUND',
+          error: 'Not found.',
         });
       }
     } finally {

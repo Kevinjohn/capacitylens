@@ -40,7 +40,7 @@ const changedPlacements = [
   },
   {
     field: 'weekend policy',
-    next: allocation({ startDate: '2026-06-13', endDate: '2026-06-14', ignoreWeekends: true }),
+    next: allocation({ startDate: '2026-06-13', endDate: '2026-06-14', ignoreWorkingDays: true }),
     existing: allocation({ startDate: '2026-06-13', endDate: '2026-06-14' }),
     resource: resource({ firstAvailableDate: '2026-06-15' }),
     code: 'allocation_before_resource_availability',

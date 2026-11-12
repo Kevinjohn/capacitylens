@@ -200,7 +200,7 @@ export class AdonisSessionSchema extends BaseModel {
 }
 
 export class AllocationSchema extends BaseModel {
-  static $columns = ['accountId', 'activityId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'hoursPerDay', 'id', 'ignoreWeekends', 'note', 'projectId', 'resourceId', 'seriesId', 'startDate', 'status', 'task', 'updatedAt'] as const
+  static $columns = ['accountId', 'activityId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'hoursPerDay', 'id', 'ignoreWorkingDays', 'note', 'projectId', 'resourceId', 'seriesId', 'startDate', 'status', 'task', 'updatedAt'] as const
   $columns = AllocationSchema.$columns
   @column()
   declare accountId: string
@@ -219,7 +219,7 @@ export class AllocationSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
   @column()
-  declare ignoreWeekends: boolean | null
+  declare ignoreWorkingDays: boolean | null
   @column()
   declare note: string | null
   @column()
@@ -521,27 +521,6 @@ export class MembershipSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column()
   declare userId: string
-}
-
-export class OwnershipTransferSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'fromUserId', 'id', 'revision', 'status', 'toUserId', 'updatedAt'] as const
-  $columns = OwnershipTransferSchema.$columns
-  @column()
-  declare accountId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare fromUserId: string
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare revision: number
-  @column()
-  declare status: import('@capacitylens/shared/account/ownershipTransfer').OwnershipTransferState
-  @column()
-  declare toUserId: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
 export class PasswordConfirmationSchema extends BaseModel {

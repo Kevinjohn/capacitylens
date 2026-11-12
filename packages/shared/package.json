@@ -13,11 +13,6 @@
       "types": "./src/account/errors.ts",
       "default": "./dist/account/errors.js"
     },
-    "./account/ownershipTransfer": {
-      "development": "./src/account/ownershipTransfer.ts",
-      "types": "./src/account/ownershipTransfer.ts",
-      "default": "./dist/account/ownershipTransfer.js"
-    },
     "./account/types": {
       "development": "./src/account/types.ts",
       "types": "./src/account/types.ts",

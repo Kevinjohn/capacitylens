@@ -44,7 +44,7 @@ function input(overrides: Partial<EffectiveAllocationInput> = {}): EffectiveAllo
     hoursPerDay: 8,
     daysOver: 5,
     daysOfWork: 5,
-    ignoreWeekends: false,
+    ignoreWorkingDays: false,
     ...overrides,
   };
 }
@@ -147,8 +147,8 @@ describe('buildEffectiveAllocationValues', () => {
   });
 
   it('flags a start so late that fewer than MAX_SPAN_DAYS calendar days remain', () => {
-    const atLimit = { startDate: LAST_UNLIMITED_START, ignoreWeekends: true };
-    const pastLimit = { startDate: addDaysISO(LAST_UNLIMITED_START, 1), ignoreWeekends: true };
+    const atLimit = { startDate: LAST_UNLIMITED_START, ignoreWorkingDays: true };
+    const pastLimit = { startDate: addDaysISO(LAST_UNLIMITED_START, 1), ignoreWorkingDays: true };
     expect(daysInclusive(LAST_UNLIMITED_START, MAX_ISO_DATE)).toBe(MAX_SPAN_DAYS);
     for (const mode of ['hourly', 'days'] as const) {
       expect(
@@ -190,11 +190,11 @@ describe('buildEffectiveAllocationValues', () => {
       spanFitsDateDomain: true,
       maximumDaysOver: maxSpanDaysForStart('2026-06-01', {
         workingDays: WORKDAYS,
-        ignoreWeekends: false,
+        ignoreWorkingDays: false,
       }),
     });
     expect(
-      buildEffectiveAllocationValues(input({ daysOver: 6, ignoreWeekends: true })).endDate,
+      buildEffectiveAllocationValues(input({ daysOver: 6, ignoreWorkingDays: true })).endDate,
     ).toBe('2026-06-06');
     expect(buildEffectiveAllocationValues(input({ mode: 'blocks' })).hoursPerDay).toBe(
       blockHoursPerDay(FULL_DAY_HOURS),
@@ -206,10 +206,10 @@ describe('buildEffectiveAllocationValues', () => {
     expect(buildEffectiveAllocationValues(input({ daysOver: 0 })).spanFitsDateDomain).toBe(false);
     expect(
       buildEffectiveAllocationValues(
-        input({ effectiveWeek: undefined, ignoreWeekends: true, daysOver: 6 }),
+        input({ effectiveWeek: undefined, ignoreWorkingDays: true, daysOver: 6 }),
       ).endDate,
     ).toBe('2026-06-06');
-    const lastDay = { startDate: MAX_ISO_DATE, ignoreWeekends: true };
+    const lastDay = { startDate: MAX_ISO_DATE, ignoreWorkingDays: true };
     expect(buildEffectiveAllocationValues(input({ ...lastDay, daysOver: 1 }))).toMatchObject({
       maximumDaysOver: 1,
       spanFitsDateDomain: true,

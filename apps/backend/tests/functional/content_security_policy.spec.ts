@@ -18,10 +18,10 @@ test.group('Shield content security policy', (group) => {
 
   test('a cross-site refusal carries the policy', async ({ client, assert }) => {
     const response = await client
-      .post('/api/test/reset')
+      .post('/api/auth/sign-in')
       .header('origin', 'https://attacker.example')
       .header('sec-fetch-site', 'cross-site')
-      .json({ seed: true });
+      .json({ email: 'bruce.wayne@wayne.example', password: 'not-checked' });
     assert.equal(response.status(), 403);
     assert.deepEqual(response.body(), { error: 'Cross-site request rejected.' });
     assert.equal(response.header('content-security-policy'), policy);

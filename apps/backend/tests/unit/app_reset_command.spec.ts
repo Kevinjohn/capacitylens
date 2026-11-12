@@ -76,6 +76,10 @@ test('app reset archives all account and credential state and initializes a sepa
       {
         name: 'database/migrations/202611110001_unbind_password_confirmation_scope_from_companies',
       },
+      {
+        name: 'database/migrations/202611120001_rename_ignore_weekends_to_ignore_working_days',
+      },
+      { name: 'database/migrations/202611120002_drop_ownership_transfers' },
     ]);
     fresh.close();
   } finally {

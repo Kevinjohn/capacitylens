@@ -17,7 +17,7 @@ type ProjectionInput = Pick<
   | 'daysOver'
   | 'effEndDate'
   | 'effHoursPerDay'
-  | 'ignoreWeekends'
+  | 'ignoreWorkingDays'
   | 'isBlocks'
   | 'isDays'
   | 'isExternal'
@@ -83,7 +83,7 @@ function buildProjection(
     daysOver,
     effEndDate: endDate,
     effHoursPerDay: hoursPerDay,
-    ignoreWeekends,
+    ignoreWorkingDays,
     isExternal,
     mode,
     note,
@@ -109,7 +109,7 @@ function buildProjection(
         status,
         ...(note ? { note } : {}),
         ...(task ? { task } : {}),
-        ignoreWeekends: isExternal ? true : ignoreWeekends,
+        ignoreWorkingDays: isExternal ? true : ignoreWorkingDays,
         ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
       },
       startDates,

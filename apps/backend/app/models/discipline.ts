@@ -4,11 +4,11 @@ import { deletedAtColumn } from '#models/scalar_column';
 import type { DateTime } from 'luxon';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
-import { forCompany, forTrustedLocal, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
 import { isoTimestampColumn } from '#models/scalar_column';
 export default class Discipline extends SoftDeletes(DisciplineSchema) {
   static forCompany = forCompany;
-  static forTrustedLocal = forTrustedLocal;
+  static forWholeInstallation = forWholeInstallation;
   @beforeFind() static requireFindScope = requireCompanyScope;
   @beforeFetch() static requireFetchScope = requireCompanyScope;
   @column(isoTimestampColumn('disciplines', 'created_at')) declare createdAt: ISOTimestamp;

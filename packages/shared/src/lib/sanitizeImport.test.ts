@@ -189,15 +189,15 @@ function registerImportedResourceTests(): void {
       sanitizeImportedRecord('resources', { kind: 'placeholder', name: 42, role: 'R' }).name,
     ).toBeNull();
     expect(
-      sanitizeImportedRecord('allocations', { note: {}, ignoreWeekends: 'false' }),
+      sanitizeImportedRecord('allocations', { note: {}, ignoreWorkingDays: 'false' }),
     ).toHaveProperty('note', null);
-    expect(sanitizeImportedRecord('allocations', { ignoreWeekends: 'false' })).toHaveProperty(
-      'ignoreWeekends',
+    expect(sanitizeImportedRecord('allocations', { ignoreWorkingDays: 'false' })).toHaveProperty(
+      'ignoreWorkingDays',
       null,
     );
-    expect(sanitizeImportedRecord('allocations', { ignoreWeekends: false }).ignoreWeekends).toBe(
-      false,
-    );
+    expect(
+      sanitizeImportedRecord('allocations', { ignoreWorkingDays: false }).ignoreWorkingDays,
+    ).toBe(false);
   });
 
   it('preserves a clean repeat-series id and drops malformed or blank values', () => {

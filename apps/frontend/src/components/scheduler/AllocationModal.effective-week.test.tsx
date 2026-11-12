@@ -217,7 +217,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
         endDate: '2026-06-05',
         hoursPerDay: 8,
         status: 'confirmed',
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
     );
     const user = userEvent.setup();

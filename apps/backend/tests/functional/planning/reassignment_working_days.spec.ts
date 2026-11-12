@@ -39,7 +39,7 @@ test.group('reassignment working-day override', (group) => {
     await db
       .from('allocations')
       .where('id', allocation.id)
-      .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_weekends: 'false' });
+      .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_working_days: 'false' });
     const { cookie } = await signIn(client);
     const patch = (revision: number, changes: Record<string, unknown>) =>
       session(client.patch(route(`allocations/${allocation.id}`)), cookie)
@@ -51,7 +51,7 @@ test.group('reassignment working-day override', (group) => {
     let state = await readState(accountId, true);
     assert.equal(state.allocations.find((row) => row.id === allocation.id)!.resourceId, 'r-pam');
 
-    const override = await patch(0, { ignoreWeekends: true });
+    const override = await patch(0, { ignoreWorkingDays: true });
     override.assertStatus(200);
     const reassigned = await patch(1, { resourceId: 'r-alex' });
     reassigned.assertStatus(200);
@@ -59,7 +59,7 @@ test.group('reassignment working-day override', (group) => {
     state = await readState(accountId, true);
     const saved = state.allocations.find((row) => row.id === allocation.id)!;
     assert.equal(saved.resourceId, 'r-alex');
-    assert.isTrue(saved.ignoreWeekends);
+    assert.isTrue(saved.ignoreWorkingDays);
     assert.equal(saved.startDate, '2026-06-05');
 
     const newRow = {
@@ -67,7 +67,7 @@ test.group('reassignment working-day override', (group) => {
       resourceId: 'r-alex',
       startDate: '2026-06-05',
       endDate: '2026-06-05',
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     };
     const newBooking = await session(client.post(route('allocations')), cookie)
       .json(input(2, { operation: 'allocation.create', allocation: newRow }))

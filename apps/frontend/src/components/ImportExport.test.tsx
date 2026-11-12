@@ -252,7 +252,7 @@ describe('beta import and export', () => {
   it.each([
     ['invalid JSON', '{ "format":', /valid JSON/i],
     ['unrelated JSON', '{ "hello": "world" }', /beta-native CapacityLens export/i],
-    ['unsupported version', JSON.stringify({ ...document(), schemaVersion: 2 }), /unsupported/i],
+    ['unsupported version', JSON.stringify({ ...document(), schemaVersion: 3 }), /unsupported/i],
   ])('refuses %s without changing server data', async (_case, contents, message) => {
     const before = structuredClone(useStore.getState().data);
     renderTools();

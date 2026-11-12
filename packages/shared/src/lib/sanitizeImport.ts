@@ -90,7 +90,7 @@ function sanitizeAllocation(record: Record<string, unknown>): void {
     if (value) record[field] = value;
     else delete record[field];
   }
-  if (typeof record.ignoreWeekends !== 'boolean') delete record.ignoreWeekends;
+  if (typeof record.ignoreWorkingDays !== 'boolean') delete record.ignoreWorkingDays;
   record.startDate = normalizeISODate(record.startDate);
   record.endDate = normalizeISODate(record.endDate);
   cleanField({ record, field: 'note', multiline: true });

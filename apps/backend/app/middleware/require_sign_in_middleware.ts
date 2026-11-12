@@ -3,7 +3,7 @@ import type { NextFn } from '@adonisjs/core/types/http';
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { currentAccount } from '#services/auth/current_actor';
 
-export default class TrustedLocalMiddleware {
+export default class RequireSignInMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     const pathname = ctx.request.url().split('?')[0];
     const publicAdmission =
@@ -17,11 +17,6 @@ export default class TrustedLocalMiddleware {
     ) {
       try {
         await currentAccount(ctx);
-        if (ctx.request.url().startsWith('/api/test/reset')) {
-          return ctx.response.forbidden({
-            error: 'Installation reset is unavailable with authentication enabled.',
-          });
-        }
       } catch (error) {
         if (error instanceof InvalidSessionError) {
           return ctx.response.unauthorized({ error: 'Sign-in required.' });

@@ -243,13 +243,13 @@ function endDateInput(overrides: Partial<EndDateInput> = {}): EndDateInput {
       resourceId: 'r1',
       startDate: '2027-01-04',
       endDate: '2027-01-08',
-      ignoreWeekends: null,
+      ignoreWorkingDays: null,
     }),
     isBlocks: true,
     isDays: false,
     resourceId: 'r1',
     startDate: '2027-01-04',
-    ignoreWeekends: false,
+    ignoreWorkingDays: false,
     daysOver: 5,
     initialDaysOver: 5,
     effectiveEndDate: '2027-01-11',
@@ -271,18 +271,18 @@ describe('resolveEndDate', () => {
   it('derives the end when anything the span depends on changed', () => {
     expect(resolveEndDate(endDateInput({ resourceId: 'r2' }))).toBe('2027-01-11');
     expect(resolveEndDate(endDateInput({ startDate: '2027-01-05' }))).toBe('2027-01-11');
-    expect(resolveEndDate(endDateInput({ ignoreWeekends: true }))).toBe('2027-01-11');
+    expect(resolveEndDate(endDateInput({ ignoreWorkingDays: true }))).toBe('2027-01-11');
     expect(resolveEndDate(endDateInput({ daysOver: 6 }))).toBe('2027-01-11');
   });
 
-  it('compares against a stored ignoreWeekends flag when one is present', () => {
+  it('compares against a stored ignoreWorkingDays flag when one is present', () => {
     const editing = makeAllocation({
       resourceId: 'r1',
       startDate: '2027-01-04',
       endDate: '2027-01-08',
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     });
-    expect(resolveEndDate(endDateInput({ editing, ignoreWeekends: true }))).toBe('2027-01-08');
+    expect(resolveEndDate(endDateInput({ editing, ignoreWorkingDays: true }))).toBe('2027-01-08');
     expect(resolveEndDate(endDateInput({ editing }))).toBe('2027-01-11');
   });
 });

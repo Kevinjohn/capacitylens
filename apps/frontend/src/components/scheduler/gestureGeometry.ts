@@ -5,7 +5,7 @@ import type { BarLayout } from './schedulerModel';
 import type { ColumnGeometry } from './columnGeometry';
 
 interface BuildGesturePreviewDatesInput {
-  allocation: Pick<Allocation, 'startDate' | 'endDate' | 'ignoreWeekends'>;
+  allocation: Pick<Allocation, 'startDate' | 'endDate' | 'ignoreWorkingDays'>;
   mode: DragMode;
   deltaDays: number;
   /** The lane the pointer is over: the week the previewed range is placed in, and the one the
@@ -32,7 +32,7 @@ export function buildGesturePreviewDates({
   isReassignment,
 }: BuildGesturePreviewDatesInput): GesturePreviewResult {
   // Resolve one preview range per frame so hit testing and painting use the same working-calendar snapshot. An empty week or no-op resize must not display a change that commit will refuse.
-  if (previewDays?.length === 0 && !allocation.ignoreWeekends) return { kind: 'blocked' };
+  if (previewDays?.length === 0 && !allocation.ignoreWorkingDays) return { kind: 'blocked' };
   // A no-op gesture must keep stored dates so changed working calendars do not produce a preview that snaps back on release.
   if (deltaDays === 0 && (mode !== 'move' || !isReassignment)) return { kind: 'unchanged' };
   return {
@@ -44,7 +44,7 @@ export function buildGesturePreviewDates({
       options: {
         ...(previewDays !== undefined ? { workingDays: previewDays } : {}),
         ...(sourceDays !== undefined ? { sourceWorkingDays: sourceDays } : {}),
-        ignoreWeekends: allocation.ignoreWeekends,
+        ignoreWorkingDays: allocation.ignoreWorkingDays,
       },
     }),
   };

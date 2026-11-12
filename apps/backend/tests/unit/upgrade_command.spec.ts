@@ -98,12 +98,12 @@ test('native upgrade initializes a fresh database without a snapshot', ({
     const dbPath = join(root, 'live.db');
     const result = ace(appRoot, dbPath, 'app:upgrade');
     assert.equal(result.status, 0, result.output);
-    assert.lengthOf(journal(dbPath), 7);
+    assert.lengthOf(journal(dbPath), 9);
     assert.isFalse(result.output.includes('Pre-upgrade backup written'));
     const repeated = ace(appRoot, dbPath, 'app:upgrade');
     assert.equal(repeated.status, 0, repeated.output);
     assert.match(repeated.output, /Already up to date/);
-    assert.lengthOf(journal(dbPath), 7);
+    assert.lengthOf(journal(dbPath), 9);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -128,19 +128,19 @@ test('native upgrade backs up an existing database before migrating and refuses 
     const blocked = ace(scratch, dbPath, 'app:upgrade', blockedDir);
     assert.notEqual(blocked.status, 0, blocked.output);
     assert.isNotNull(blocked.status, blocked.output);
-    assert.lengthOf(journal(dbPath), 7);
+    assert.lengthOf(journal(dbPath), 9);
     assert.notInclude(tables(dbPath), 'upgrade_added');
 
     const upgrade = ace(scratch, dbPath, 'app:upgrade');
     assert.equal(upgrade.status, 0, upgrade.output);
     assert.match(upgrade.output, /Pre-upgrade backup written/);
-    assert.lengthOf(journal(dbPath), 8);
+    assert.lengthOf(journal(dbPath), 10);
     assert.include(tables(dbPath), 'upgrade_added');
     const backups = join(root, 'live.db.backups');
     const [snapshot, ...others] = preMigrationSnapshots(backups);
     assert.isDefined(snapshot);
     assert.lengthOf(others, 0);
-    assert.lengthOf(journal(join(backups, snapshot!, 'db.sqlite')), 7);
+    assert.lengthOf(journal(join(backups, snapshot!, 'db.sqlite')), 9);
     assert.notInclude(tables(join(backups, snapshot!, 'db.sqlite')), 'upgrade_added');
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -299,12 +299,12 @@ test('a failing later migration rolls back its own DDL after an earlier file com
 
     const upgrade = ace(scratch, dbPath, 'app:upgrade');
     assert.notEqual(upgrade.status, 0, upgrade.output);
-    assert.lengthOf(journal(dbPath), 8);
+    assert.lengthOf(journal(dbPath), 10);
     assert.include(tables(dbPath), 'upgrade_committed');
     assert.notInclude(tables(dbPath), 'upgrade_rolled_back');
     const [snapshot] = preMigrationSnapshots(join(root, 'live.db.backups'));
     assert.isDefined(snapshot);
-    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!, 'db.sqlite')), 7);
+    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!, 'db.sqlite')), 9);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -361,7 +361,7 @@ test('upgrade prepares the configured pre-migration destination on first use', (
     const bundles = listBundles(actual);
     assert.lengthOf(bundles, 1);
     assert.equal(verifyBundle(actual, bundles[0]!.name).path, bundles[0]!.path);
-    assert.lengthOf(journal(join(bundles[0]!.path, 'db.sqlite')), 7);
+    assert.lengthOf(journal(join(bundles[0]!.path, 'db.sqlite')), 9);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
