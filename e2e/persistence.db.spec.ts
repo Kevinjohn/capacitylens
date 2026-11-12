@@ -1,15 +1,9 @@
 import { test, expect } from './dbFixtures';
 import { openApp, selectShadOption } from './browserTestSupport';
-import { resetServer, serverState, requireStateRows } from './serverTestState';
+import { serverState, requireStateRows } from './serverTestState';
 
-// This database-backed project uses VITE_CAPACITYLENS_API, so typed writes persist in SQLite.
+// The worker Vite proxy sends typed writes to its isolated SQLite-backed server.
 // A record surviving a planning-read reload proves the full UI-to-database round trip.
-
-function registerBeforeEachHooks() {
-  test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: true });
-  });
-}
 
 function registerHydratesSeededDatasetServerLoadTest() {
   test('hydrates the seeded dataset from the server on load', async ({ page }) => {
@@ -156,11 +150,20 @@ function registerEditFreshHydrationEngagementHalfTest() {
       })
       .toEqual({ engagement: 'supplementary', halfDays: [2] });
 
-    // Start again from the document root so the client discards its in-memory snapshot and hydrates
-    // a new account slice from GET /api/state, matching a later browser session.
+    // Start again from the document root, then wait for the server's canonical planning snapshot
+    // before checking that a later browser session receives the saved resource fields.
+    const planningHydration = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        response.request().method() === 'GET' &&
+        url.pathname === '/api/accounts/a-studio/planning' &&
+        response.ok()
+      );
+    });
     await openApp(page);
+    await planningHydration;
     await page.getByRole('link', { name: 'Resources' }).click();
-    const supplementary = page.getByRole('heading', { name: 'Supplementary' }).locator('..');
+    const supplementary = page.getByRole('region', { name: 'Supplementary' });
     await expect(supplementary.getByTestId('resource-row')).toContainText('Bruce Wayne');
 
     await page
@@ -225,7 +228,6 @@ function registerArchiveReloadArchivedClientRetainedTests() {
 }
 
 test.describe('database-backed persistence', () => {
-  registerBeforeEachHooks();
   registerHydratesSeededDatasetServerLoadTest();
   registerCreateReloadNewClientRoundTest();
   registerRepeatCreationPersistsAllAllocationTest();

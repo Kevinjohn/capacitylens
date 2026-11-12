@@ -57,3 +57,14 @@ test('a port that merely shares digits with a guarded one is left alone', () => 
     'import { ports } from "./ports.mjs";\nconst unrelated = 51730;\nconst other = 15173;\n';
   assert.deepEqual(evaluatePortUsage([{ path: 'x.ts', content }]), []);
 });
+
+test('worker ports must come from the registry as well', () => {
+  const errors = evaluatePortUsage([
+    {
+      path: 'worker.ts',
+      content: 'import { workerPorts } from "./ports.mjs"; const port = 10999;',
+    },
+  ]);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /hardcodes port 10999/);
+});

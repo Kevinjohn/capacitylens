@@ -1,14 +1,5 @@
-// `pnpm run e2e:browsers` runs the core in-memory demo specs on all three engines: Chromium +
-// WebKit/Safari first, then Firefox/Gecko second. Pure cross-browser rendering coverage. It does
-// not run the db-backed/auth-backed specs (those are Chromium-only server round-trips), so every
-// invocation is CAPACITYLENS_VITE_ONLY: it boots Vite alone and needs neither the SQLite/auth servers
-// nor Node 24. (`e2e:all` is the superset that also runs those server specs.)
-//
-// Same two-invocation shape and rationale as scripts/e2e-all.mjs: Firefox runs second and
-// unconditionally, even if the Chromium+WebKit pass fails, rather than via a Playwright
-// project `dependency` (which skips the dependent when its dependency fails, hiding a Firefox-only
-// regression). Exit code is non-zero if either invocation failed, but both always run first.
-//
+// Run real SQLite browser journeys on all three engines; Node24+ and the backend are required.
+// Authentication journeys remain Chromium-only in e2e:all. Both invocations always run.
 
 import {
   nonColourEnvironment,

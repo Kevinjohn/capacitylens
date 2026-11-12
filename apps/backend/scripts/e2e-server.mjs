@@ -2,7 +2,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { ports } from '../../../scripts/ports.mjs';
+import { ports, resolveLane, workerPorts } from '../../../scripts/ports.mjs';
+import { portInUse } from '../../../scripts/devProcesses.mjs';
 import { admitIdentity } from './e2e-identity.mjs';
 
 const flavour = process.argv[2];
@@ -12,10 +13,30 @@ if (flavour !== 'db' && flavour !== 'auth') {
 }
 
 const lane = ports();
-const port = flavour === 'db' ? lane.dbApi : lane.authApi;
-// The browser reaches this API through the flavour's Vite proxy, so its writes carry that origin.
-const webPort = flavour === 'db' ? lane.dbWeb : lane.authWeb;
-const database = flavour === 'db' ? '.e2e.db' : '.auth-e2e.db';
+const slotArgument = process.argv.indexOf('--slot');
+const slot = slotArgument === -1 ? null : Number(process.argv[slotArgument + 1]);
+if (slot !== null && flavour !== 'db') throw new Error('Only db fixtures have worker slots.');
+const worker = slot === null ? null : workerPorts(resolveLane(), slot);
+const port = worker?.api ?? (flavour === 'db' ? lane.dbApi : lane.authApi);
+const webPort = worker?.web ?? (flavour === 'db' ? lane.dbWeb : lane.authWeb);
+const database =
+  slot === null
+    ? flavour === 'db'
+      ? '.e2e.db'
+      : '.auth-e2e.db'
+    : `.e2e-l${resolveLane()}-w${slot}.db`;
+if (worker) {
+  const [apiOccupied, webOccupied] = await Promise.all([portInUse(port), portInUse(webPort)]);
+  if (apiOccupied || webOccupied) {
+    const occupied = [apiOccupied && `API ${port}`, webOccupied && `web ${webPort}`]
+      .filter(Boolean)
+      .join(' and ');
+    throw new Error(
+      `Worker ${occupied} port is already occupied; refusing to replace its database.`
+    );
+  }
+  console.info('E2E_WORKER_SLOT_READY_FOR_RESET');
+}
 const serverDirectory = new URL('../', import.meta.url);
 const env = {
   ...process.env,
@@ -27,22 +48,26 @@ const env = {
   SESSION_DRIVER: 'database',
   CAPACITYLENS_DB: database,
   CAPACITYLENS_ALLOW_RESET: '1',
-  ...(flavour === 'db' ? { CAPACITYLENS_RATE_LIMIT: '1000' } : {}),
+  CAPACITYLENS_BACKUP_DIR: '',
+  CAPACITYLENS_MAIL_HOST: '',
+  CAPACITYLENS_MAIL_PORT: '',
+  CAPACITYLENS_MAIL_USER: '',
+  CAPACITYLENS_MAIL_PASSWORD: '',
+  CAPACITYLENS_MAIL_FROM: '',
+  CAPACITYLENS_TRUST_PROXY_HEADERS: 'false',
+  // The limiter stays in the request path without throttling the suite: at 1,000 requests a
+  // minute a fast local run had fixture sign-ins refused with 429 midway through.
+  ...(flavour === 'db' ? { CAPACITYLENS_RATE_LIMIT: '1000000' } : {}),
   PORT: String(port),
+  // The auth-backed server completes real first-company setup before it creates the
+  // membership-free administrator used by recovery/login scenarios.
+  CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
+  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+  CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
+  CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
+  CAPACITYLENS_CORS_ORIGIN: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
 };
-
-if (flavour === 'auth' || flavour === 'db') {
-  Object.assign(env, {
-    // The auth-backed server completes real first-company setup before it creates the
-    // membership-free administrator used by recovery/login scenarios.
-    CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
-    CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
-    CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
-    CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
-    CAPACITYLENS_CORS_ORIGIN: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
-  });
-}
 
 for (const suffix of ['', '-wal', '-shm']) {
   rmSync(new URL(`../${database}${suffix}`, import.meta.url), { force: true });
@@ -59,7 +84,7 @@ function runAce(args, stdout = 'inherit') {
   return result.stdout;
 }
 
-runAce(['migration:run', '--force']);
+runAce(['migration:run', '--force', '--no-schema-generate']);
 if (flavour === 'db') runAce(['db:seed', '--files=database/seeders/main_seeder.ts']);
 
 /** The operator's printed first-install invitation for the baseline Owner. */

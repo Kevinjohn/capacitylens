@@ -1,7 +1,7 @@
 /**
  * Names a supported Playwright project.
  */
-export type PlaywrightProjectName = 'chromium' | 'db-backed' | 'auth-backed' | 'webkit' | 'firefox';
+export type PlaywrightProjectName = 'chromium' | 'auth-backed' | 'webkit' | 'firefox';
 
 /**
  * Defines the environment flags and projects for a preset E2E run.
@@ -19,19 +19,12 @@ export const E2E_RUN_PRESETS: Readonly<
 >;
 
 /**
- * Returns the API origin selected for a Playwright run.
- */
-export function serverTestApiOrigin(laneApiPort: number): string;
-
-/**
  * Resolves the Playwright projects and server profile from run settings.
  * @throws When incompatible run modes are selected.
  */
 export function resolvePlaywrightRunMode(
   environment: Readonly<Record<string, string | undefined>>,
-  argv: readonly string[],
-  selectsOnlyExplicitCoreSpecs: (argv: readonly string[]) => boolean,
 ): {
   projects: readonly PlaywrightProjectName[];
-  serverProfile: 'vite' | 'standard';
+  serverProfile: 'workers' | 'standard';
 };

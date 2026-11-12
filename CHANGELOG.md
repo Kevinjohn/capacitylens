@@ -30,6 +30,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Reassigning a booking with **Ignore working days** now honours the override on the server while retaining availability limits. New bookings still require a working-day start (#1851).
 - In the Docker Compose stack, each client now has its own request limits (#1840). Previously every request reached the API from the nginx container, so one client using up the sign-in limit blocked everyone. `CAPACITYLENS_TRUST_PROXY_HEADERS` accepts `private`, which also trusts forwarded headers from private-network peers, and Compose sets it.
 - Keep editor drafts and custom fields frozen while saves are pending, retain invitation errors after closing the dialog, and keep unavailable activity filters clearable (#1802).
 - Scheduled-person avatars on the Scheduler and Capacity overview no longer blank and reload after every save; they reload only when people change or a member link changes (#1825).

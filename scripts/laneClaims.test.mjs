@@ -313,7 +313,7 @@ test('explicit browser presets clear conflicting inherited mode flags', () => {
   for (const preset of Object.values(E2E_RUN_PRESETS)) {
     const environment = nonColourEnvironment({}, presetEnvironment(inherited, preset.environment));
     assert.equal(environment.KEEP_THIS, 'yes');
-    const mode = resolvePlaywrightRunMode(environment, [], () => false);
+    const mode = resolvePlaywrightRunMode(environment);
     assert.deepEqual(
       mode.projects.filter((project) => ['webkit', 'firefox'].includes(project)),
       preset.projects.filter((project) => ['webkit', 'firefox'].includes(project)),
@@ -487,6 +487,22 @@ test('the reservation shrinks as the pool fills and never reaches zero', () => {
 test('an occupied port is reported without killing its same-worktree process', async () => {
   const lane = 3;
   const port = portsForLane(lane).web;
+  const killed = [];
+  await assert.rejects(
+    assertLaneFree(lane, {
+      probe: (candidate) => Promise.resolve(candidate === port),
+      owner: () => 4242,
+      directoryOf: () => '/tmp/mine',
+      kill: (pid) => killed.push(pid),
+    }),
+    /lane 3.*pid 4242.*\/tmp\/mine.*kill 4242.*CAPACITYLENS_PORT_LANE=<n>/,
+  );
+  assert.deepEqual(killed, []);
+});
+
+test('an occupied worker endpoint refuses the lane without stopping its owner', async () => {
+  const lane = 3;
+  const port = 10399;
   const killed = [];
   await assert.rejects(
     assertLaneFree(lane, {

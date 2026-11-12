@@ -25,7 +25,7 @@
     "zustand": "^5.0.16"
   },
   "scripts": {
-    "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
+    "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy globalVariable baseLocale --output-structure locale-modules",
     "dev": "pnpm run paraglide:compile && vite",
     "build": "pnpm run paraglide:compile && tsc -b tsconfig.build.json && vite build",
     "test": "pnpm run paraglide:compile && vitest run",

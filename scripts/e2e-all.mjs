@@ -1,3 +1,4 @@
+// Every engine needs Node 24+ and a real SQLite backend; authentication stays Chromium-only.
 // Run engines sequentially to isolate their server lifecycles. Every engine must still run after an earlier failure.
 // Playwright dependencies skip failed dependants, so orchestration owns the sequence and aggregates exit statuses.
 //

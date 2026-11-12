@@ -16,6 +16,8 @@ export const GUARDED_FILES = Object.freeze([
   'docs-src/.vitepress/config.mts',
   'e2e/authTestSupport.ts',
   'e2e/serverTestState.ts',
+  'e2e/workerServer.ts',
+  'scripts/e2eWorkerRuntime.mjs',
   'apps/backend/scripts/e2e-server.mjs',
 ]);
 
@@ -43,7 +45,8 @@ export function evaluatePortUsage(files) {
     if (!/from\s+["'][^"']*ports\.mjs["']/.test(code)) {
       errors.push(`${path}: must import its ports from scripts/ports.mjs.`);
     }
-    for (const port of GUARDED_PORTS) {
+    const workerPortLiterals = code.match(/\b10\d{3}\b/g) ?? [];
+    for (const port of new Set([...GUARDED_PORTS, ...workerPortLiterals.map(Number)])) {
       if (new RegExp(`\\b${port}\\b`).test(code)) {
         errors.push(
           `${path}: hardcodes port ${port}. Derive it from scripts/ports.mjs so every lane is correct, not only lane 0.`,

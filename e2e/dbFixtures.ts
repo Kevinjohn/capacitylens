@@ -1,19 +1,46 @@
 import { test as base, expect } from './fixtures';
-import { API, ensureDbFixtureAdministrator } from './serverTestState';
+import { ensureDbFixtureAdministrator, resetServer } from './serverTestState';
+import { startWorkerServer } from './workerServer';
+import type { E2eWorkerServer } from './workerServer';
 
 const admin = { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' };
 
-/** Signs both the API client and browser into the disposable SQLite server. */
-export const test = base.extend<{ dbAuthentication: void }>({
+type WorkerFixtures = { dbServer: E2eWorkerServer };
+type TestFixtures = { dbReset: void; dbAuthentication: void };
+
+/** Database-backed specs each receive an isolated real API, Vite proxy and SQLite file. */
+export const test = base.extend<TestFixtures, WorkerFixtures>({
+  dbServer: [
+    // This worker runtime is independent of Playwright's browser and request fixtures.
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, use, workerInfo) => {
+      const runtime = await startWorkerServer(workerInfo.parallelIndex);
+      try {
+        await use(runtime);
+      } finally {
+        await runtime.stop();
+      }
+    },
+    { scope: 'worker', timeout: 180_000 },
+  ],
+  baseURL: [async ({ dbServer }, use) => use(dbServer.baseURL), { scope: 'test' }],
+  dbReset: [
+    async ({ dbServer }, use) => {
+      await resetServer({ target: dbServer.target });
+      await use();
+    },
+    { auto: true },
+  ],
   dbAuthentication: [
-    async ({ request, context }, use) => {
-      ensureDbFixtureAdministrator();
-      const apiSignIn = await request.post(`${API}/api/auth/sign-in`, {
+    async ({ dbReset, dbServer, request, context }, use) => {
+      void dbReset;
+      ensureDbFixtureAdministrator(dbServer.target);
+      const apiSignIn = await request.post(`${dbServer.target.api}/api/auth/sign-in`, {
         data: admin,
         headers: { 'sec-fetch-site': 'same-origin' },
       });
       expect(apiSignIn.status()).toBe(200);
-      const browserSignIn = await context.request.post(`${API}/api/auth/sign-in`, {
+      const browserSignIn = await context.request.post(`${dbServer.target.api}/api/auth/sign-in`, {
         data: admin,
         headers: { 'sec-fetch-site': 'same-origin' },
       });
@@ -25,4 +52,4 @@ export const test = base.extend<{ dbAuthentication: void }>({
 });
 
 export { expect };
-export type { APIRequestContext, Page } from './fixtures';
+export type { APIRequestContext, Locator, Page } from './fixtures';

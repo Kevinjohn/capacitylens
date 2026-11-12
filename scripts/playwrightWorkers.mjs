@@ -1,0 +1,67 @@
+import { readFileSync } from 'node:fs';
+import { freemem } from 'node:os';
+import { testShare, WORKER_SLOTS_PER_LANE } from './ports.mjs';
+import { resolvePlaywrightRunMode } from './playwrightRunMode.mjs';
+
+// Baseline full-stack RSS in KiB: API tree, warmed Vite tree and largest representative browser worker/tree (WebKit).
+export const AUTH_SERVER_MEMORY_BYTES = (671568 + 890832) * 1024;
+// Two measured E2E guardians were 59,436 and 59,348 KiB at API/Vite readiness;
+// reserve 64 MiB each for runtime and platform variation.
+export const E2E_GUARDIAN_MEMORY_BYTES = 2 * 64 * 1024 ** 2;
+export const WORKER_MEMORY_BYTES =
+  AUTH_SERVER_MEMORY_BYTES + 1537376 * 1024 + E2E_GUARDIAN_MEMORY_BYTES;
+
+/** Read usable RAM, including reclaimable caches on Linux; other platforms use free RAM. */
+export function availableMemoryBytes() {
+  if (process.platform !== 'linux') return freemem();
+  const available = /^MemAvailable:\s+(\d+)\s+kB$/m.exec(readFileSync('/proc/meminfo', 'utf8'));
+  if (!available) throw new Error('Cannot determine available memory for browser workers.');
+  return Number(available[1]) * 1024;
+}
+
+/** Bound isolated full-stack browser workers by the run's CPU share, port slots and measured RAM. */
+export function browserWorkerCount(
+  environment = process.env,
+  {
+    freeBytes = availableMemoryBytes(),
+    workerBytes = WORKER_MEMORY_BYTES,
+    reservedBytes = resolvePlaywrightRunMode(environment).serverProfile === 'standard'
+      ? AUTH_SERVER_MEMORY_BYTES
+      : 0,
+  } = {},
+) {
+  if (
+    !Number.isFinite(freeBytes) ||
+    freeBytes < 0 ||
+    !Number.isFinite(workerBytes) ||
+    workerBytes <= 0 ||
+    !Number.isFinite(reservedBytes) ||
+    reservedBytes < 0
+  )
+    throw new RangeError(
+      'Browser worker memory must be finite and non-negative, with a positive worker cost.',
+    );
+  const usableBytes = Math.max(0, freeBytes - reservedBytes);
+  const memorySlots = Math.floor(usableBytes / workerBytes);
+  if (memorySlots === 0) {
+    throw new Error(
+      `insufficient memory for one worker: needs ${Math.ceil(workerBytes / 1024 ** 2)} MB, has ${Math.floor(usableBytes / 1024 ** 2)} MB`,
+    );
+  }
+  return Math.min(testShare(environment), WORKER_SLOTS_PER_LANE, memorySlots);
+}
+
+const ADMITTED_WORKERS = 'CAPACITYLENS_E2E_ADMITTED_WORKERS';
+
+/** Admit once in the coordinator; worker config reloads reuse that decision after servers start. */
+export function configurationWorkerCount(environment = process.env, memory) {
+  if (environment.TEST_WORKER_INDEX !== undefined) {
+    const admitted = environment[ADMITTED_WORKERS];
+    if (!admitted || !/^[1-9]\d*$/.test(admitted) || Number(admitted) > WORKER_SLOTS_PER_LANE)
+      throw new Error('Playwright worker is missing a valid coordinator memory admission.');
+    return Number(admitted);
+  }
+  const count = browserWorkerCount(environment, memory);
+  environment[ADMITTED_WORKERS] = String(count);
+  return count;
+}

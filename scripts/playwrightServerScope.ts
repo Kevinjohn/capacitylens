@@ -1,11 +1,3 @@
-const explicitSpecPath = /(?:^|[/\\])e2e[/\\].+\.spec\.(?:ts|tsx|mts|cts)$/i;
-const serverBackedSpec = /\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$/i;
-/**
- * Matches core Playwright specs that do not require the server.
- */
-export const coreSpecPattern =
-  /^(?!.*\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$).*\.spec\.(?:ts|tsx|mts|cts)$/i;
-
 /**
  * Keep report paths non-empty and reject lossy aliases instead of merging nominally distinct runs.
  * Unset or empty input returns default.
@@ -19,18 +11,4 @@ export function parseReportPhaseName(value: string | undefined): string {
     );
   }
   return value;
-}
-
-/**
- * Detect the common focused-run form without guessing what arbitrary Playwright
- * file-filter regular expressions or directories might select.
- */
-export function selectsOnlyExplicitCoreSpecs(argv: readonly string[]): boolean {
-  const explicitSpecs = argv.filter(
-    (argument) => !argument.startsWith('-') && explicitSpecPath.test(argument),
-  );
-
-  return (
-    explicitSpecs.length > 0 && explicitSpecs.every((argument) => !serverBackedSpec.test(argument))
-  );
 }

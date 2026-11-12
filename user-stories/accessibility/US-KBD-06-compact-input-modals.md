@@ -10,7 +10,7 @@ As a company member, I want labelled form controls to remain clear on desktop an
 
 **Documentation:** [Help](../../docs-src/using/help.md)
 
-**Source:** [modal-layout.spec.ts](../../e2e/modal-layout.spec.ts)
+**Source:** [modal-layout.spec.ts](../../e2e/modal-layout.db.spec.ts)
 
 ## Acceptance criteria
 

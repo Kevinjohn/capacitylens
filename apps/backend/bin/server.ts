@@ -36,22 +36,49 @@ const IMPORTER = (filePath: string) => {
 
 let logConnectionDrop: (entry: Record<string, unknown>) => void = () => {};
 let terminateApplication: (() => Promise<void>) | undefined;
+type E2eRequestActivity = typeof import('#start/e2e_request_activity').installE2eRequestActivity;
+type NodeServer = Parameters<E2eRequestActivity>[0];
+type NodeHandler = Parameters<E2eRequestActivity>[1];
+let installE2eHarness:
+  ((server: NodeServer, handler: NodeHandler) => ReturnType<E2eRequestActivity>) | undefined;
+let resetControl: ReturnType<E2eRequestActivity> | undefined;
 
 new Ignitor(APP_ROOT, { importer: IMPORTER })
   .tap((app) => {
     terminateApplication = () => app.terminate();
+    app.terminating(async () => {
+      await resetControl?.close();
+    });
     app.booting(async () => {
       await import('#start/env');
     });
     app.booted(async () => {
       const { default: logger } = await import('@adonisjs/core/services/logger');
       logConnectionDrop = (entry) => logger.warn(entry);
+
+      // The isolated-worker harness is loaded only for a reset-enabled server, so an ordinary
+      // start keeps the framework's own request wiring and never evaluates the harness modules.
+      const { default: env } = await import('#start/env');
+      if (!env.get('CAPACITYLENS_ALLOW_RESET')) return;
+      const { installE2eRequestActivity } = await import('#start/e2e_request_activity');
+      installE2eHarness = (server, handler) =>
+        installE2eRequestActivity(server, handler, {
+          token: process.env.CAPACITYLENS_E2E_RESET_TOKEN,
+          host: env.get('HOST'),
+          port: env.get('PORT'),
+        });
     });
     app.listen('SIGTERM', () => app.terminate());
     app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate());
   })
   .httpServer()
-  .start((handler) => configureNodeServer(createServer(handler), logConnectionDrop))
+  .start((handler) => {
+    if (!installE2eHarness) return configureNodeServer(createServer(handler), logConnectionDrop);
+    const server = createServer();
+    resetControl = installE2eHarness(server, handler);
+    return configureNodeServer(server, logConnectionDrop);
+  })
+  .then(async () => resetControl?.ready)
   .catch(async (error) => {
     process.exitCode = 1;
     prettyPrintError(error);

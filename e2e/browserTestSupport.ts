@@ -202,14 +202,47 @@ export async function showScheduleFilters(page: Page): Promise<void> {
  * just need placeholders visible rather than testing the toggle itself. */
 export async function showPlaceholders(page: Page): Promise<void> {
   const toggle = page.getByRole('switch', { name: 'Show placeholders' });
-  if ((await toggle.getAttribute('aria-checked')) !== 'true') await toggle.click();
+  if ((await toggle.getAttribute('aria-checked')) !== 'true')
+    await changeCompanySetting(page, () => toggle.click());
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
+}
+
+/** Wait for a settings receipt and its canonical read before starting another planning change. */
+export async function changeCompanySetting(
+  page: Page,
+  action: () => Promise<unknown>,
+): Promise<void> {
+  const written = page
+    .waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        /\/api\/accounts\/[^/]+\/settings$/.test(new URL(response.url()).pathname),
+    )
+    .then(async (response) => {
+      expect(response.ok(), await response.text()).toBe(true);
+      const receipt = await response.json();
+      expect(Number.isInteger(receipt.revision)).toBe(true);
+      return receipt;
+    });
+  const canonical = page.waitForResponse(async (response) => {
+    if (
+      response.request().method() !== 'GET' ||
+      !/\/api\/accounts\/[^/]+\/planning$/.test(new URL(response.url()).pathname) ||
+      !response.ok()
+    )
+      return false;
+    const receipt = await written;
+    const snapshot = await response.json();
+    return snapshot.revision >= receipt.revision;
+  });
+  await Promise.all([action(), written, canonical]);
 }
 
 /** Turn on workspace inline activity creation from Settings for flows that exercise the opt-in UI. */
 export async function enableInlineActivityCreation(page: Page): Promise<void> {
   const toggle = page.getByRole('switch', { name: 'Inline activity creation' });
-  if ((await toggle.getAttribute('aria-checked')) !== 'true') await toggle.click();
+  if ((await toggle.getAttribute('aria-checked')) !== 'true')
+    await changeCompanySetting(page, () => toggle.click());
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
 }
 
@@ -237,51 +270,11 @@ export async function waitForAppLanding(page: Page, landedOn: Locator): Promise<
   }
 }
 
-// The seeded demo is multi-company, so it shows the full-screen account picker on every load. The
-// server-backed one-company fixture selects its company from the server summary and opens directly.
-// Most core specs want the seeded company, so they navigate through `openApp` instead of `goto('/')`.
-/** Opens a seeded company at the requested path and dismisses optional non-blocking orientation after the app shell mounts. */
-export async function openApp(
-  page: Page,
-  company = 'Wayne Enterprises',
-  path = '/',
-): Promise<void> {
-  // Must precede goto so the app reads the frozen date on its first render.
+/** Opens the authenticated fixture company and dismisses non-blocking orientation. */
+export async function openApp(page: Page, path = '/'): Promise<void> {
   await freezeBrowserDate(page);
   await page.goto(path);
-  // A one-company server fixture mounts the app directly after resolving the server summary.
-  const companyButton = page.getByRole('button', { name: company, exact: true });
-  const appMain = page.locator('#main');
-  await companyButton.or(appMain).first().waitFor();
-  if (await companyButton.isVisible()) {
-    // The demo picker lists seeded companies. Picking one leaves a deep-link URL intact.
-    await companyButton.click();
-  }
-  // Wait for the mounted app shell before dismissing its optional non-blocking orientation.
-  await waitForAppLanding(page, appMain);
-}
-
-/** Opens the new-company form without submitting it, so specs can inspect its initial fields. */
-export async function openNewCompanyForm(page: Page): Promise<void> {
-  // Must precede goto so the app reads the frozen date on its first render.
-  await freezeBrowserDate(page);
-  await page.goto('/');
-  await page.getByRole('button', { name: 'New company' }).click();
-}
-
-/** Submits an already-open company form and dismisses optional orientation after #main is visible. */
-export async function createCompany(page: Page, name: string): Promise<void> {
-  await page.getByLabel('Company name').fill(name);
-  await page.getByRole('button', { name: 'Create company' }).click();
-  const appMain = page.locator('#main');
-  await waitForAppLanding(page, appMain);
-  await expect(appMain).toBeVisible();
-}
-
-/** Creates an empty demo company through cosmetic sign-in and the picker, then dismisses optional orientation. */
-export async function openNewCompany(page: Page, name: string): Promise<void> {
-  await openNewCompanyForm(page);
-  await createCompany(page, name);
+  await waitForAppLanding(page, page.locator('#main'));
 }
 
 /** Reports the visible timeline's left edge, day count, and weekday column width. */
