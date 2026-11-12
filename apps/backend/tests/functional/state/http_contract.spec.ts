@@ -70,7 +70,10 @@ test.group('M1 HTTP contract', (group) => {
     client,
     assert,
   }) => {
-    const anonymous = await client.post('/api/test/reset').json({ seed: false });
+    const anonymous = await client
+      .post('/api/test/reset')
+      .header('sec-fetch-site', 'same-origin')
+      .json({ seed: false });
     assert.equal(anonymous.status(), 401);
     await resetState(false);
     client = await resetAuthenticatedClient(client, true);

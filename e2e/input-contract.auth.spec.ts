@@ -12,6 +12,7 @@ test('sign-in preserves long Unicode credentials and normalizes a maximum-length
   expect(new TextEncoder().encode(email)).toHaveLength(254);
   const signup = await request.post(`${AUTH_API}/api/auth/sign-up`, {
     data: { email, password, name: 'Bruce Wayne' },
+    headers: { 'sec-fetch-site': 'same-origin' },
   });
   expect(signup.ok()).toBeTruthy();
 

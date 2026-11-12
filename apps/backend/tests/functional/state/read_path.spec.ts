@@ -82,7 +82,10 @@ test.group('M1 read path', (group) => {
   }) => {
     const state = await client.get('/api/state');
     state.assertStatus(401);
-    const reset = await client.post('/api/test/reset').json({ seed: true });
+    const reset = await client
+      .post('/api/test/reset')
+      .header('sec-fetch-site', 'same-origin')
+      .json({ seed: true });
     reset.assertStatus(401);
     client = await resetAuthenticatedClient(client, true);
     const identity = await client.get('/api/auth/me');

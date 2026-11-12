@@ -14,6 +14,7 @@ import env from '#start/env';
 import loggerConfig from '#config/logger';
 
 const privateError = 'SENTINEL_PRIVATE_EXCEPTION_VALUE';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 async function captureLogs<T>(
   work: () => Promise<T>,
@@ -220,30 +221,27 @@ test.group('general HTTP logging privacy', (group) => {
     assert.notInclude(output, token);
   });
 
-  test('replaces oversized incoming request ids in logs with a bounded server correlation id', async ({
+  test('ignores supplied request ids and logs a distinct server id for every request', async ({
     client,
     assert,
   }) => {
-    const requestId = `SENTINEL_${'UNTRUSTED'.repeat(512)}`;
-    const { output, result } = await captureLogs(async () => {
-      const responses = await Promise.all(
+    const suppliedId = `SENTINEL_${'UNTRUSTED'.repeat(512)}`;
+    const { output } = await captureLogs(() =>
+      Promise.all(
         Array.from({ length: 3 }, () =>
-          client.get('/api/health').header('x-request-id', requestId).send()
+          client.get('/api/health').header('x-request-id', suppliedId).send()
         )
-      );
-      return responses[2]!;
-    });
+      )
+    );
 
-    assert.equal(result.status(), 200);
-    assert.notInclude(output, requestId);
-    const records = output
+    assert.notInclude(output, suppliedId);
+    const requestIds = output
       .trim()
       .split('\n')
-      .map((line) => JSON.parse(line) as Record<string, unknown>);
-    const correlationIds = records.map((record) => String(record['correlationId']));
-    assert.lengthOf(correlationIds, 3);
-    assert.lengthOf(new Set(correlationIds), 3);
-    assert.isTrue(correlationIds.every((correlationId) => correlationId.length <= 32));
+      .map((line) => String((JSON.parse(line) as Record<string, unknown>)['request_id']));
+    assert.lengthOf(requestIds, 3);
+    assert.lengthOf(new Set(requestIds), 3);
+    for (const requestId of requestIds) assert.match(requestId, UUID);
   });
 
   test('logs malformed body-parser requests without including their body', async ({
@@ -252,7 +250,11 @@ test.group('general HTTP logging privacy', (group) => {
   }) => {
     const secret = 'SENTINEL_MALFORMED_REQUEST_BODY';
     const { output, result } = await captureLogs(() =>
-      client.post('/api/transfer/apply').unsafeJson(`{"secret":"${secret}"`).send()
+      client
+        .post('/api/transfer/apply')
+        .header('sec-fetch-site', 'same-origin')
+        .unsafeJson(`{"secret":"${secret}"`)
+        .send()
     );
 
     assert.equal(result.status(), 400);

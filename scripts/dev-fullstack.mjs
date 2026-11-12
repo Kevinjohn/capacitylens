@@ -83,9 +83,13 @@ function start(label, args, env) {
   return child;
 }
 
+// Browser writes reach the API through the Vite proxy carrying this lane's web origin, which the
+// API's built-in development origins cover only on lane 0. The API appends these to its own
+// resolved CAPACITYLENS_CORS_ORIGIN, so the operator's environment files keep their meaning.
 start('api', ['--filter', '@capacitylens/backend', 'run', 'dev'], {
   PORT: String(API_PORT),
   CAPACITYLENS_SEED_DEMO: '1',
+  CAPACITYLENS_DEV_WEB_ORIGINS: `http://localhost:${WEB_PORT},http://127.0.0.1:${WEB_PORT}`,
 });
 start('web', ['run', 'dev:web'], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) });
 

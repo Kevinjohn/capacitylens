@@ -96,10 +96,10 @@ policy and backup-encryption controls.
 
 | Layer | Events | Format/destination | Sensitive-data rule |
 | --- | --- | --- | --- |
-| API request log | Event, method, route, status, outcome and correlation ID when request logging is enabled; no latency is recorded | Pino JSON stdout | No request/response bodies, cookie or authorization values; sensitive bearer path segments are redacted |
+| API request log | Event, method, route, status, outcome and `request_id` when request logging is enabled; no latency is recorded | Pino JSON stdout | No request/response bodies, cookie or authorization values; sensitive bearer path segments are redacted |
 | Application audit | Actor, company, action, entity, id and changed field names | Transactional SQLite `audit_entries` table | No entity values, passwords or bearer tokens |
 | Member-view lifecycle | Actor, target, revision, time, outcome and transition kind | Package-owned SQLite control/event tables, included in database backups | Historical product audit remains; new events omit company and legacy end classifications; excluded from scheduling exports |
-| Authentication events | When `CAPACITYLENS_LOG=1`, password sign-in success, credential failure and throttling are structured `auth.sign_in` events with outcome and request correlation ID | Pino JSON stdout, correlated with the HTTP completion record | Events omit email, IP, user-agent, password, session and bearer values; log access and retention remain operator responsibilities |
+| Authentication events | When `CAPACITYLENS_LOG=1`, password sign-in success, credential failure and throttling are structured `auth.sign_in` events with outcome and `request_id` | Pino JSON stdout, correlated with the HTTP completion record | Events omit email, IP, user-agent, password, session and bearer values; log access and retention remain operator responsibilities |
 | Proxy/platform | TLS/access/container/collector events | Deployment-defined systems | Operator classifies, redacts, restricts, retains and correlates in UTC |
 
 Production configuration requires application audit to remain enabled. Authentication outcomes

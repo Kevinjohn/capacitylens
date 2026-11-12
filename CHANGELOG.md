@@ -9,10 +9,12 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- The native release archive installs with one command (#1835). `sudo sh install.sh DOMAIN OWNER_EMAIL` writes `/etc/capacitylens.env` with generated secrets, upgrades the database, installs and starts the systemd unit, configures a same-machine Caddy site for automatic HTTPS when Caddy is installed (otherwise it prints the address to proxy to) and prints the setup link. Scheduled backups run in the service. Running a newer release's `install.sh` without arguments upgrades in place and keeps the environment file. The manual steps remain documented.
 - A person can delete their own account from **Account** after re-entering their password (#1791). Their sign-in, sessions, company memberships and member/person link are removed in one transaction; an Owner must transfer ownership first. Invitations they sent stay valid, and audit entries keep the former user id.
 
 ### Changed
 
+- **Breaking for API clients:** writes are accepted only from the `CAPACITYLENS_PUBLIC_URL` origin or an origin listed in `CAPACITYLENS_CORS_ORIGIN` (#1822). A write carrying neither `Origin` nor `Sec-Fetch-Site` is now refused; without `Origin`, a write needs `Sec-Fetch-Site: same-origin`. The request's `Host` header and protocol are no longer used, so a browser address that differs from the public URL must be listed in `CAPACITYLENS_CORS_ORIGIN`.
 - The **Getting started** checklist now sits left-aligned in its drawer instead of in a card on the right, and no longer repeats the drawer's **Hide checklist** and **Dismiss** buttons.
 - **Breaking for API clients:** action proofs are now called password confirmations. `POST /api/auth/action-proof/password` is now `POST /api/auth/password-confirmation` and returns `confirmationId` instead of `proofId`; ownership transfer, import apply and company anonymisation accept `confirmationId`; the error codes `ACTION_PROOF_REQUIRED` and `ACTION_PROOF_DENIED` are now `PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`. Behaviour is unchanged, and the old path has no alias.
 - Every `@kevinjohn/*` package now installs from its own repository's GitHub release instead of an archive copied into `vendor/`, which is removed. The packages move to their latest releases, which change only examples and tooling: Account Kit 0.3.4, Access Control 0.1.7, Masquerade 0.2.8, password confirmation 0.1.1 and soft deletes 0.1.7.

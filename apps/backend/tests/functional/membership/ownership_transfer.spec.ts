@@ -215,6 +215,7 @@ test.group('atomic ownership transfer', (group) => {
     const { ownerId, adminId, ownerCookie, adminCookie } = await fixture(client);
     const unsigned = await client
       .post('/api/accounts/a-studio/ownership-transfer')
+      .header('sec-fetch-site', 'same-origin')
       .json({ toUserId: adminId })
       .send();
     unsigned.assertStatus(401);

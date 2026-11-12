@@ -5,7 +5,7 @@ import { readdir } from 'node:fs/promises';
 import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
 
 const strictPolicy =
-  "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'";
+  "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'";
 
 test.group('M1 static fallback', (group) => {
   group.setup(() => freshDatabase());

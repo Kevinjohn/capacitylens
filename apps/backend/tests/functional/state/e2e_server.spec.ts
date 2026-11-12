@@ -82,14 +82,17 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
       await waitForReadiness(child, `http://127.0.0.1:${port}/health/ready`, flavour, () => output);
       const resetUrl = `http://127.0.0.1:${port}/api/test/reset`;
       {
-        const anonymousReset = await fetch(resetUrl, { method: 'POST' });
+        const anonymousReset = await fetch(resetUrl, {
+          method: 'POST',
+          headers: { 'sec-fetch-site': 'same-origin' },
+        });
         assert.equal(anonymousReset.status, 401, 'reset rejects unauthenticated callers');
         const anonymousState = await fetch(`http://127.0.0.1:${port}/api/state`);
         assert.equal(anonymousState.status, 401, 'persistent state requires sign-in');
 
         const signedIn = await fetch(`http://127.0.0.1:${port}/api/auth/sign-in`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify({
             email: 'admin@admin.admin',
             password: 'auth-e2e-password-2026',
@@ -127,6 +130,7 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
           headers: {
             cookie,
             'content-type': 'application/json',
+            'sec-fetch-site': 'same-origin',
             'X-Masquerade-Context': context.contextToken as string,
           },
           body: JSON.stringify({ seed: true }),
