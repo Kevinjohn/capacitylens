@@ -25,14 +25,10 @@ flowchart TD
   human3["Loading status remains visible"]
   human4["Hydration completes"]
   human5["requested page appears"]
-  human6["Connection or local-data error"]
-  human7["matching recovery screen"]
   human1 --> human2
   human2 --> human3
   human3 --> human4
   human4 --> human5
-  human1 --> human6
-  human6 --> human7
 ```
 
 ## Code flow
@@ -43,7 +39,6 @@ flowchart TD
   shell --> gate["AppEntryGate selects entry stage"]
   gate -->|not hydrated| loading["LoadingBoundary status"]
   gate -->|ready| children["Application children render"]
-  gate -->|error| recovery["ConnectionError or StorageRecovery"]
 ```
 
 **Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [AppEntryGate.tsx](../../apps/frontend/src/components/AppEntryGate.tsx); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts)

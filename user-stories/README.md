@@ -8,7 +8,7 @@ or controls they encounter. Historical stories stay discoverable when a feature 
 - [Template](TEMPLATE.md): how to write and maintain a story.
 - [Reference](REFERENCE.md): contexts, shared boundaries and source map.
 
-178 stories across 19 areas. The retired demo company-switching story has been removed.
+176 stories across 19 areas. The retired demo company-switching story has been removed.
 
 Every story includes a plain-language user flowchart and a Mermaid diagram of the relevant code path
 with links to its implementation sources.
@@ -147,9 +147,7 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity | Current |
 | [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour               | Current |
 | [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address             | Current |
-| [US-NAV-19](navigation/US-NAV-19-connection-retry.md)          | Retry after a server connection failure       | Hidden  |
 | [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Hidden  |
-| [US-NAV-21](navigation/US-NAV-21-browser-storage-recovery.md)  | Recover unreadable browser storage            | Hidden  |
 | [US-NAV-22](navigation/US-NAV-22-desktop-sidebar-toggle.md)    | Collapse or expand desktop navigation         | Current |
 
 ## Privacy
