@@ -61,11 +61,7 @@ export const teamAccessClient = {
     role: Role,
   ): Promise<TeamAccessResult<true>> {
     return readCommandResult(
-      await accountClient.changeMemberRole({
-        companyId: companyId,
-        principalId: principalId,
-        role: role,
-      }),
+      await accountClient.changeMemberRole({ companyId, principalId, role }),
       noContent,
     );
   },
@@ -76,11 +72,7 @@ export const teamAccessClient = {
     status: MembershipStatus,
   ): Promise<TeamAccessResult<true>> {
     return readCommandResult(
-      await accountClient.changeMemberStatus({
-        companyId: companyId,
-        principalId: principalId,
-        status: status,
-      }),
+      await accountClient.changeMemberStatus({ companyId, principalId, status }),
       noContent,
     );
   },

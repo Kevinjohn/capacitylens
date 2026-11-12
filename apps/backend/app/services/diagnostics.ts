@@ -8,7 +8,7 @@ import { checkDatabase } from '#services/state_repository';
 import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
 
 /** Release level and backup timing are administration facts: Owners and Admins only. */
-export async function administersAnyCompany(userId: string, trx: TransactionClientContract) {
+export async function isAdministratorOfAnyCompany(userId: string, trx: TransactionClientContract) {
   for (const accountId of await listActiveCompanyIds(userId, trx)) {
     const role = await activeCompanyRole(userId, accountId, trx);
     if (isOwnerOrAdmin(role)) return true;

@@ -11,7 +11,7 @@ import env from '#start/env';
 import { isMailConfigured } from '#services/mail_delivery';
 import { FirstCompanyPendingError } from '#models/user';
 import { requiresFirstCompanySetup } from '#services/first_company_setup';
-import { lacksMembership } from '#services/membership/admission_membership';
+import { isMembershipRequired } from '#services/membership/admission_membership';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { buildUserProjection } from '#services/auth/user_projection';
 import {
@@ -55,7 +55,7 @@ export default class AuthController {
             admission,
             companySetupRequired: admitted && (await requiresFirstCompanySetup(actor.userId, trx)),
             // Admitted but not yet a member: the person completes their membership explicitly.
-            membershipRequired: admitted && (await lacksMembership(actor.userId, trx)),
+            membershipRequired: admitted && (await isMembershipRequired(actor.userId, trx)),
           };
         },
         { limited: true }

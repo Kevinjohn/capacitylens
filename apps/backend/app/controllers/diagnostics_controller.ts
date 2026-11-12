@@ -1,13 +1,13 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import logger from '@adonisjs/core/services/logger';
 import { withActor } from '#services/auth/current_actor';
-import { administersAnyCompany, readServerDiagnostics } from '#services/diagnostics';
+import { isAdministratorOfAnyCompany, readServerDiagnostics } from '#services/diagnostics';
 
 export default class DiagnosticsController {
   async show(ctx: HttpContext) {
     const { response } = ctx;
     const administers = await withActor(ctx, (actor, trx) =>
-      administersAnyCompany(actor.userId, trx)
+      isAdministratorOfAnyCompany(actor.userId, trx)
     );
     if (!administers) {
       return response.forbidden({ error: 'Diagnostics are limited to Owners and Admins.' });
