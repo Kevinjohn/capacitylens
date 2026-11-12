@@ -121,7 +121,7 @@ the [architecture reference](docs-src/reference/architecture.md) and the
 [standing decisions](DECISIONS.md).
 
 [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·
-[Security review](docs-src/security/reviews/security-review-2026-08-18.md) ·
+[Reviews and compliance](docs-src/security/reviews.md) ·
 [ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) · [Changelog](CHANGELOG.md) ·
 [Trademarks](TRADEMARKS.md)
 
@@ -130,7 +130,7 @@ the [architecture reference](docs-src/reference/architecture.md) and the
 CapacityLens is [AGPL-3.0-only](LICENSE). Product names and logos are handled separately in
 [TRADEMARKS.md](TRADEMARKS.md).
 
-[![Validation including E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate-adonis.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate-adonis.yml?query=branch%3Amain)
+[![Validation including E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/validation.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/validation.yml?query=branch%3Amain)
 [![Frontend coverage](https://codecov.io/gh/Kevinjohn/capacitylens/branch/main/graph/badge.svg?flag=frontend)](https://app.codecov.io/gh/Kevinjohn/capacitylens/tree/main/apps/frontend/src)
 [![CodeQL](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml?query=branch%3Amain)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kevinjohn/capacitylens/badge)](https://scorecard.dev/viewer/?uri=github.com/Kevinjohn/capacitylens)
