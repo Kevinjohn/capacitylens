@@ -22,7 +22,9 @@ forwarded headers.
 
 ## Caddy
 
-Use the release's `Caddyfile.example`, replacing the hostname. Caddy obtains and renews public
+The [install command](/self-hosting/install-without-docker#install-with-one-command) writes the
+release's `Caddyfile.example` with your hostname to `/etc/caddy/capacitylens.caddy`, imports it from
+`/etc/caddy/Caddyfile` and reloads Caddy. By hand, use the same example, replacing the hostname. Caddy obtains and renews public
 certificates and proxies the whole site to the loopback application listener. Caddy adds no HSTS
 header; the application sends its own for the HTTPS public URL. If you add access
 logging, exclude request paths that contain single-use invitation and password-reset secrets.

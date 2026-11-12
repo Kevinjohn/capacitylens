@@ -1,0 +1,26 @@
+[
+  {
+    "story": "US-ALL-01",
+    "question": "faq-book-start-allocation",
+    "relatedQuestions": ["faq-book-amount-and-dates"]
+  },
+  { "story": "US-ALL-02", "question": "faq-book-edit-cancel" },
+  { "story": "US-ALL-03", "question": "faq-book-duplicate" },
+  { "story": "US-ALL-04", "question": "faq-book-delete-allocation" },
+  { "story": "US-ALL-05", "question": "faq-book-inline-activity" },
+  { "story": "US-ALL-06", "question": "faq-book-change-assignee" },
+  { "story": "US-ALL-07", "question": "faq-book-placeholder-project" },
+  { "story": "US-ALL-08", "question": "faq-book-save-errors" },
+  { "story": "US-ALL-09", "question": "faq-book-repeat-patterns" },
+  { "story": "US-ALL-10", "question": "faq-book-task-field" },
+  { "story": "US-ALL-11", "question": "faq-book-edit-cancel" },
+  { "story": "US-TOF-01", "question": "faq-book-add-time-off" },
+  { "story": "US-TOF-02", "question": "faq-book-edit-delete-time-off" },
+  { "story": "US-TOF-03", "question": "faq-book-edit-delete-time-off" },
+  { "story": "US-TOF-04", "question": "faq-book-time-off-type" },
+  { "story": "US-TOF-05", "question": "faq-book-old-time-off" },
+  { "story": "US-TOF-06", "question": "faq-book-company-closures" },
+  { "story": "US-TOF-07", "question": "faq-book-repeat-patterns" },
+  { "story": "US-TOF-08", "question": "faq-book-company-closures" },
+  { "story": "US-TOF-09", "question": "faq-book-delete-closure" }
+]

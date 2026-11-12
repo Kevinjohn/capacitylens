@@ -4,8 +4,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 
-// Start, probe and stop a built backend on a private loopback port. Shared by the packaged smoke
-// and the planning benchmark.
+// Start, probe and stop a built backend on a private loopback port for the packaged smoke.
 
 export const STARTUP_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;

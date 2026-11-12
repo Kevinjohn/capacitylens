@@ -9,6 +9,22 @@ Keep the database and backup directory outside versioned release folders. Before
 running code, read the release notes and confirm that a recent snapshot can be read. Use one
 process and stop it before replacing files or running the migration command.
 
+## Upgrade with the install command
+
+If you installed with the [install command](/self-hosting/install-without-docker#install-with-one-command),
+verify and unpack the new archive next to the current release, then run the new release's command
+without arguments:
+
+```bash
+sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
+sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
+sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh
+```
+
+It keeps `/etc/capacitylens.env`, stops the service, points `current` at the new release and runs
+`app:upgrade`, which backs up the existing database before migrating. If the migration fails, the
+service stays stopped; see [Roll back](#roll-back). The steps below are the same upgrade by hand.
+
 ## Install the new release
 
 Download the archive for the host's operating system and architecture. Verify its checksum, unpack

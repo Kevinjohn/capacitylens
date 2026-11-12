@@ -3,10 +3,6 @@ import type { NextFn } from '@adonisjs/core/types/http';
 import { isTrustedUnsafeOrigin } from '#services/cors_policy';
 export default class SecurityHeadersMiddleware {
   async handle({ request, response }: HttpContext, next: NextFn) {
-    response.header(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'"
-    );
     response.header('Cross-Origin-Opener-Policy', 'same-origin');
     response.header('Cross-Origin-Resource-Policy', 'same-origin');
     response.header('Referrer-Policy', 'no-referrer');

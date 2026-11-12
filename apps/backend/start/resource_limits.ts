@@ -3,11 +3,18 @@ import type { Server } from 'node:http';
 export const MAX_SERVER_CONNECTIONS = 512;
 const DROP_LOG_WINDOW_MS = 60_000;
 
-/** Applies the finite socket limits to every supported HTTP server entrypoint. */
+/**
+ * Applies the finite socket limits and the server-generated request id to every supported HTTP
+ * server entrypoint.
+ */
 export function configureNodeServer(
   nodeServer: Server,
   logConnectionDrop: (entry: Record<string, unknown>) => void = () => {}
 ) {
+  // The framework adopts a supplied `X-Request-Id` as the request id; drop it so it always generates one.
+  nodeServer.prependListener('request', (request) => {
+    delete request.headers['x-request-id'];
+  });
   nodeServer.maxConnections = MAX_SERVER_CONNECTIONS;
   nodeServer.requestTimeout = 30_000;
   nodeServer.setTimeout(30_000);

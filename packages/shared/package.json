@@ -123,11 +123,6 @@
       "types": "./src/lib/accountWorkingDays.ts",
       "default": "./dist/lib/accountWorkingDays.js"
     },
-    "./lib/cascades": {
-      "development": "./src/lib/cascades.ts",
-      "types": "./src/lib/cascades.ts",
-      "default": "./dist/lib/cascades.js"
-    },
     "./lib/dateMath": {
       "development": "./src/lib/dateMath.ts",
       "types": "./src/lib/dateMath.ts",

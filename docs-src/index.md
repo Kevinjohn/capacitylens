@@ -33,7 +33,7 @@ own server, and the only cost is that server ([server size](/self-hosting/instal
 <span id="day-to-day-usage"></span>
 <span id="self-hosting-operations"></span>
 
-**I manage the hosting.** Install CapacityLens in five steps on a Node 24 host, ending with Open.
+**I manage the hosting.** Install CapacityLens with one command on a Node 24 host, ending with Open.
 You handle HTTPS, backups, upgrades and service health. [Start the installation](/self-hosting/)
 
 **I own the company.** Create your sign-in, name the company in the browser and invite someone
