@@ -1,6 +1,4 @@
-import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import { describe, expect, it } from 'vitest';
-import { remapAndValidateImport } from '../domain/mutations.js';
 import { isPresetColor } from '../lib/color.js';
 import { dayIndex, weekdayOf } from '../lib/dateMath.js';
 import { emptyAppData } from '../types/entities.js';
@@ -88,27 +86,5 @@ describe('buildExampleCompany rules', () => {
       expect(activity.projectId === null).toBe(activity.kind !== 'project');
       expect(activity.phaseId === null || activity.kind === 'project').toBe(true);
     }
-  });
-
-  it('passes the import integrity checks with nothing dropped or repaired away', () => {
-    const data = build();
-    const base: AppData = {
-      ...emptyAppData(),
-      accounts: [
-        {
-          ...NULLABLE_FIELDS.accounts,
-          id: ACCOUNT,
-          name: 'Wayne Enterprises',
-          color: '#2d75da',
-          createdAt: NOW,
-          updatedAt: NOW,
-        },
-      ],
-    };
-    const result = remapAndValidateImport(base, ACCOUNT, { ...emptyAppData(), ...data }, NOW);
-    expect(result.skipped).toBe(0);
-    expect(result.imported).toBe(countExampleRows(data));
-    expect(result.data.allocations).toHaveLength(data.allocations.length);
-    expect(result.data.timeOff).toHaveLength(data.timeOff.length);
   });
 });

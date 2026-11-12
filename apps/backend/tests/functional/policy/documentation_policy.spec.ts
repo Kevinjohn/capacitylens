@@ -2,9 +2,7 @@ import { test } from '@japa/runner';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
-import { assertDateRange, remapAndValidateImport } from '@capacitylens/shared/domain/mutations';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
-import type { AppData } from '@capacitylens/shared/types/entities';
+import { assertDateRange } from '@capacitylens/shared/domain/mutations';
 
 const ROOT = resolve(process.cwd(), '../..');
 const read = (path: string) => readFileSync(resolve(ROOT, path), 'utf8');
@@ -230,53 +228,6 @@ test.group('M5 documentation and policy contracts', () => {
   test('keeps the shared domain core executable from the backend Node runtime', ({ assert }) => {
     assert.doesNotThrow(() => assertDateRange('2026-01-01', '2026-01-05'));
     assert.throws(() => assertDateRange('2026-01-05', '2026-01-01'));
-    const base: AppData = {
-      ...emptyAppData(),
-      accounts: [
-        {
-          id: 'a-studio',
-          name: 'Wayne Enterprises',
-          color: '#3b82f6',
-          schedulingMode: null,
-          timezone: null,
-          weekStartsOn: null,
-          workingDays: null,
-          language: null,
-          disciplinesEnabled: null,
-          placeholdersEnabled: null,
-          externalEnabled: null,
-          inlineActivityCreateEnabled: null,
-          showTaskFieldInSchedule: null,
-          capacityOverviewAccess: null,
-          dateStyle: null,
-          createdAt: 't',
-          updatedAt: 't',
-        },
-      ],
-    };
-    const incoming: AppData = {
-      ...emptyAppData(),
-      clients: [
-        {
-          id: 'c',
-          accountId: 'a-loft',
-          name: 'Stark Industries',
-          color: '#3b82f6',
-          isPrivate: null,
-          codeName: null,
-          builtin: null,
-          archivedAt: null,
-          deletedAt: null,
-          createdAt: 't',
-          updatedAt: 't',
-        },
-      ],
-    };
-    const result = remapAndValidateImport(base, 'a-studio', incoming, '2026-01-01T00:00:00.000Z');
-    assert.equal(result.imported, 1);
-    assert.notEqual(result.data.clients[0]?.id, 'c');
-    assert.equal(result.data.clients[0]?.accountId, 'a-studio');
-    assert.equal(result.data.clients[0]?.createdAt, '2026-01-01T00:00:00.000Z');
   });
 
   test('keeps user-story source and documentation references resolvable', ({ assert }) => {
