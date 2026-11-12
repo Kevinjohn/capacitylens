@@ -14,7 +14,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
-- **Breaking for API clients:** validation refusals use one code (#1898, #1899). First-company setup, ownership transfer, account commands and admission now answer `VALIDATION_ERROR` where they answered `INVALID_INPUT` or `VALIDATION_FAILED`. A planning refusal carries the status and code the server states, and a planning `VALIDATION_ERROR` is always a 400 where some were 404 or 409.
+- **Breaking for API clients:** validation refusals use one code (#1898, #1899). First-company setup, ownership transfer, account commands and admission now answer `VALIDATION_ERROR` where they answered `INVALID_INPUT` or `VALIDATION_FAILED`. Planning responses are unchanged.
 - `pnpm run dev:demo` now starts the full server with one disposable sample company and a printed development Owner sign-in. Changes survive refresh and reset on command restart. The company picker and extra-company creation screen are removed; normal first-install company setup remains. Browser tests use isolated real SQLite servers.
 - **Breaking for API clients:** writes are accepted only from the `CAPACITYLENS_PUBLIC_URL` origin or an origin listed in `CAPACITYLENS_CORS_ORIGIN` (#1822). A write carrying neither `Origin` nor `Sec-Fetch-Site` is now refused; without `Origin`, a write needs `Sec-Fetch-Site: same-origin`. The request's `Host` header and protocol are no longer used, so a browser address that differs from the public URL must be listed in `CAPACITYLENS_CORS_ORIGIN`.
 - The **Getting started** checklist now sits left-aligned in its drawer instead of in a card on the right, and no longer repeats the drawer's **Hide checklist** and **Dismiss** buttons.

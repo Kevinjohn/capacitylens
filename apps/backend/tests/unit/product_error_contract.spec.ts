@@ -146,15 +146,16 @@ test.group('product error adapters', () => {
     assert.equal(conflict.result.status, 409);
     assert.deepEqual(conflict.result.body, { error: 'The record is in use.' });
 
-    const invalid = context(
-      new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.')
-    );
-    await new PlanningController().lookup(invalid.ctx);
-    assert.equal(invalid.result.status, 400);
-    assert.deepEqual(invalid.result.body, {
-      error: 'The record was not found.',
-      code: 'VALIDATION_ERROR',
-    });
+    // No code is inferred from the status, and a stated code does not rewrite the status.
+    const uncoded = context(new PlanningOperationError(400, null, 'Nothing to restore.'));
+    await new PlanningController().lookup(uncoded.ctx);
+    assert.equal(uncoded.result.status, 400);
+    assert.deepEqual(uncoded.result.body, { error: 'Nothing to restore.' });
+
+    const stale = context(new PlanningOperationError(409, 'STALE_REVISION', 'Reload first.'));
+    await new PlanningController().lookup(stale.ctx);
+    assert.equal(stale.result.status, 409);
+    assert.deepEqual(stale.result.body, { error: 'Reload first.', code: 'STALE_REVISION' });
   });
   test('planning restoration failures retain both typed count-bearing variants', async ({
     assert,

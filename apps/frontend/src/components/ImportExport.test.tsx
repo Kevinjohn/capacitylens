@@ -412,13 +412,16 @@ describe('beta import and export', () => {
     });
   });
 
-  it('hides server import from non-owners while keeping export', () => {
-    render(
-      <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
-        <ImportExport />
-      </PermissionContext.Provider>,
-    );
-    expect(screen.queryByTestId('import-input')).toBeNull();
-    expect(screen.getByTestId('export-data')).toBeInTheDocument();
-  });
+  it.each(['admin', 'editor', 'viewer'] as const)(
+    'hides server import from a %s while keeping export',
+    (role) => {
+      render(
+        <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+          <ImportExport />
+        </PermissionContext.Provider>,
+      );
+      expect(screen.queryByTestId('import-input')).toBeNull();
+      expect(screen.getByTestId('export-data')).toBeInTheDocument();
+    },
+  );
 });
