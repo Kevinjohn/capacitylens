@@ -1,9 +1,8 @@
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
-import db from '@adonisjs/lucid/services/db';
+import type db from '@adonisjs/lucid/services/db';
 import logger from '@adonisjs/core/services/logger';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { listBundles } from '@kevinjohn/adonisjs-sqlite-backup';
-import env from '#start/env';
 import { checkDatabase } from '#services/state_repository';
 import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
 
@@ -16,12 +15,18 @@ export async function isAdministratorOfAnyCompany(userId: string, trx: Transacti
   return false;
 }
 
-/** Reads database, schema and backup state; throws when the database cannot be read. */
-export async function readServerDiagnostics() {
+/**
+ * Reads database, schema and backup state; throws when the database cannot be read. `backupDir`
+ * is absent when backups are not configured.
+ */
+export async function readServerDiagnostics(database: Pick<typeof db, 'from'>, backupDir?: string) {
   await checkDatabase();
-  const lastMigration = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first();
+  const lastMigration = await database
+    .from('adonis_schema')
+    .select('name')
+    .orderBy('id', 'desc')
+    .first();
   let newestSnapshotAt: string | null = null;
-  const backupDir = env.get('CAPACITYLENS_BACKUP_DIR');
   if (backupDir) {
     try {
       const times = listBundles(backupDir).map((bundle) => Date.parse(bundle.createdAt));
