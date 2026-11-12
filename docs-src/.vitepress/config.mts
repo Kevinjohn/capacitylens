@@ -111,16 +111,7 @@ const referenceSidebar = [
       { text: "Glossary", link: "/reference/glossary" },
       { text: "Security and privacy", link: "/security/" },
       { text: "Privacy", link: "/security/privacy" },
-      {
-        text: "Reviews and compliance",
-        link: "/security/reviews",
-        items: [
-          { text: "Security review 2026-08-18", link: "/security/reviews/security-review-2026-08-18" },
-          { text: "Security review 2026-07-14", link: "/security/reviews/security-review-2026-07-14" },
-          { text: "Mutation-test review 2026-07-15", link: "/security/reviews/mutation-review-2026-07-15" },
-          { text: "Mutation-test review 2026-07-18", link: "/security/reviews/mutation-review-2026-07-18" },
-        ],
-      },
+      { text: "Reviews and compliance", link: "/security/reviews" },
       { text: "Threat model", link: "/security/threat-model" },
       { text: "OpenSSF Baseline assessment", link: "/security/OpenSSF-best-practices-dev" },
       { text: "Control inventories", link: "/security/control-inventories" },

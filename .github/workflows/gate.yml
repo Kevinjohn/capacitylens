@@ -1,6 +1,6 @@
 name: gate
 
-# Pull requests receive static analysis and CodeQL; branch pushes reach this gate through gate-adonis.yml.
+# Pull requests receive static analysis and CodeQL; branch pushes reach this gate through validation.yml.
 on:
   workflow_dispatch:
   workflow_call:
