@@ -70,9 +70,11 @@ export function seedOwner(database: DatabaseSync) {
     .run('a-studio', 'bruce', 'owner', 'active', now, now);
 }
 
+/** Runs `run` against a real server on the fixture database and resolves with the server's stderr. */
 export async function withOperatorServer(
   fixture: ReturnType<typeof operatorFixture>,
-  run: (origin: string) => Promise<void>
+  run: (origin: string) => Promise<void>,
+  options: { nodeArgs?: string[]; environment?: Record<string, string> } = {}
 ) {
   const { createServer } = await import('node:net');
   const { spawn } = await import('node:child_process');
@@ -83,11 +85,22 @@ export async function withOperatorServer(
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve()))
   );
-  const child = spawn(process.execPath, ['--import=@poppinss/ts-exec', 'bin/server.ts'], {
-    cwd: process.cwd(),
-    env: { ...fixture.environment, HOST: '127.0.0.1', PORT: String(port) },
-    stdio: 'ignore',
-  });
+  const child = spawn(
+    process.execPath,
+    [...(options.nodeArgs ?? []), '--import=@poppinss/ts-exec', 'bin/server.ts'],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...fixture.environment,
+        ...options.environment,
+        HOST: '127.0.0.1',
+        PORT: String(port),
+      },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    }
+  );
+  let stderr = '';
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
   const exited = once(child, 'exit');
   try {
     const origin = `http://127.0.0.1:${port}`;
@@ -112,6 +125,7 @@ export async function withOperatorServer(
       clearTimeout(timer);
     }
   }
+  return stderr;
 }
 
 /**

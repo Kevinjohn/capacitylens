@@ -4,7 +4,6 @@ import { createResetControlServer, createRetirableListener } from '#start/e2e_re
 type RequestHandler = (request: IncomingMessage, response: ServerResponse) => void | Promise<void>;
 
 type RequestActivityOptions = {
-  enabled: boolean;
   token?: string;
   host: string;
   port: number;
@@ -18,15 +17,6 @@ export function installE2eRequestActivity(
   handler: RequestHandler,
   options: RequestActivityOptions
 ): { ready: Promise<void>; close(): Promise<void> } | undefined {
-  if (!options.enabled) {
-    server.on('request', (request, response) => {
-      void Promise.resolve(handler(request, response)).catch((error: unknown) => {
-        response.destroy(error instanceof Error ? error : new Error(String(error)));
-      });
-    });
-    return undefined;
-  }
-
   const pending = new Map<symbol, RequestEntry>();
   const listener = options.token
     ? createRetirableListener(server, {
