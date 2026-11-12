@@ -2,19 +2,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { PermissionContext } from '@/auth/permissionContext';
-import { DEFAULT_ACCOUNT_ID, makeResource } from '@/test/fixtures';
+import { resetStoreWithData, DEFAULT_ACCOUNT_ID, makeResource } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 import { useResourceAvatars } from '@/account/useResourceAvatars';
 import { SchedulerGrid } from './SchedulerGrid';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+function OwnerRouter({ children }: { children: ReactNode }) {
+  return (
+    <OwnerPermissions>
+      <MemoryRouter>{children}</MemoryRouter>
+    </OwnerPermissions>
+  );
+}
 
 vi.mock('@/account/useResourceAvatars', () => ({ useResourceAvatars: vi.fn() }));
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.mocked(useResourceAvatars).mockReturnValue(new Map());
-  useStore.getState().replaceAll(schedulerDataset());
-  useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+  await resetStoreWithData(schedulerDataset(), DEFAULT_ACCOUNT_ID);
   useStore.getState().setOriginDate('2026-06-01');
   useStore.getState().setZoom(1);
   useStore.getState().setDrawMode('work');
@@ -47,7 +56,7 @@ describe('SchedulerGrid component identity and row variants', () => {
       );
 
       try {
-        const { container } = render(<SchedulerGrid />, { wrapper: MemoryRouter });
+        const { container } = render(<SchedulerGrid />, { wrapper: OwnerRouter });
 
         const avatar = container.querySelector('button[data-testid="person-schedule-trigger"] img');
         expect(avatar).toHaveAttribute('src', avatarUrl ?? 'https://images.example/linked.png');
@@ -59,7 +68,7 @@ describe('SchedulerGrid component identity and row variants', () => {
   );
 
   it('retains the focused bar and group DOM nodes when the utilisation display changes', () => {
-    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    render(<SchedulerGrid />, { wrapper: OwnerRouter });
     const bar = screen.getByTestId('allocation-bar');
     const group = screen.getByTestId('discipline-group');
     bar.focus();
@@ -75,7 +84,7 @@ describe('SchedulerGrid component identity and row variants', () => {
       <PermissionContext.Provider value={{ role: 'viewer' }}>
         <SchedulerGrid />
       </PermissionContext.Provider>,
-      { wrapper: MemoryRouter },
+      { wrapper: OwnerRouter },
     );
     expect(screen.getByTestId('scheduler-row')).toBeVisible();
     expect(screen.queryByRole('button', { name: /Add allocation for/ })).not.toBeInTheDocument();
@@ -99,7 +108,7 @@ describe('SchedulerGrid component identity and row variants', () => {
 describe('SchedulerGrid individual schedule drawer', () => {
   it('opens one read-only schedule sheet without replacing the grid', async () => {
     const user = userEvent.setup();
-    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    render(<SchedulerGrid />, { wrapper: OwnerRouter });
     const grid = screen.getByTestId('scheduler-grid');
 
     await user.click(screen.getByRole('button', { name: "View Bruce's schedule B" }));
@@ -114,7 +123,7 @@ describe('SchedulerGrid individual schedule drawer', () => {
 
   it('returns focus to the grid without scrolling when the opener disconnects', async () => {
     const user = userEvent.setup();
-    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    render(<SchedulerGrid />, { wrapper: OwnerRouter });
     const grid = screen.getByTestId('scheduler-grid');
     grid.scrollLeft = 37;
     grid.scrollTop = 19;
@@ -131,7 +140,7 @@ describe('SchedulerGrid individual schedule drawer', () => {
 
   it('removes selected account content synchronously on an account switch', async () => {
     const user = userEvent.setup();
-    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    render(<SchedulerGrid />, { wrapper: OwnerRouter });
     await user.click(screen.getByRole('button', { name: "View Bruce's schedule B" }));
     expect(screen.getByRole('dialog', { name: "Bruce's schedule" })).toBeVisible();
 
@@ -142,15 +151,18 @@ describe('SchedulerGrid individual schedule drawer', () => {
 
   it('preserves the dimmed placeholder surface and work-mode creation affordance', async () => {
     await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { placeholdersEnabled: true });
-    useStore.getState().replaceAll({
-      ...useStore.getState().data,
-      resources: [
-        makeResource({ accountId: DEFAULT_ACCOUNT_ID, kind: 'placeholder', disciplineId: 'd1' }),
-      ],
-      allocations: [],
-    });
+    await resetStoreWithData(
+      {
+        ...useStore.getState().data,
+        resources: [
+          makeResource({ accountId: DEFAULT_ACCOUNT_ID, kind: 'placeholder', disciplineId: 'd1' }),
+        ],
+        allocations: [],
+      },
+      DEFAULT_ACCOUNT_ID,
+    );
     useStore.getState().setFilters({ projectId: 'p1', showUnmatched: true });
-    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    render(<SchedulerGrid />, { wrapper: OwnerRouter });
     expect(screen.getByTestId('scheduler-row')).toHaveAttribute('data-dimmed', 'true');
     expect(within(screen.getByTestId('scheduler-row')).getByRole('rowheader')).toHaveClass(
       'hatch-lines',

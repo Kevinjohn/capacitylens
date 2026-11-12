@@ -1,3 +1,4 @@
+import { archiveForTest } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StrictMode } from 'react';
@@ -7,6 +8,7 @@ import { ResourceForm } from './ResourceForm';
 import { useStore } from '@/store/useStore';
 import { requireValue, resetStoreWithAccount } from '@/test/fixtures';
 import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const addResource = useStore.getState().addResource;
 const updateResource = useStore.getState().updateResource;
@@ -286,6 +288,32 @@ it('keeps the dialog open and shows the persistence error when the server reject
   }
 });
 
+it('keeps the draft and displays a refusal returned by the planning transport', async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  const transport = getStubPlanningTransport();
+  transport.failNext(
+    new PlanningControllerError(
+      'The planning server refused this resource change.',
+      'VALIDATION_ERROR',
+      400,
+    ),
+  );
+  render(<ResourceForm kind="person" onClose={onClose} />);
+
+  await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
+  await user.click(screen.getByRole('button', { name: 'Save' }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'The planning server refused this resource change.',
+  );
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Name')).toHaveValue('Bruce Wayne');
+  expect(transport.calls).toHaveLength(1);
+  expect(transport.calls[0]).toMatchObject({ operation: 'resource.create' });
+  expect(useStore.getState().data.resources).toHaveLength(0);
+});
+
 it('shows a planning conflict when the typed write is refused', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
@@ -449,9 +477,7 @@ it('does not let a late typed write response close a form after its company chan
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const other = useStore.getState().addAccount({ name: 'Stark Industries', color: '#2d75da' });
-    if (!other) throw new Error('Expected second account');
-    useStore.getState().setActiveAccount(other.id);
+    useStore.getState().setActiveAccount(null);
 
     releaseWrite();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -477,9 +503,7 @@ it('does not surface a late typed write rejection after its company changed', as
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const other = useStore.getState().addAccount({ name: 'Stark Industries', color: '#2d75da' });
-    if (!other) throw new Error('Expected second account');
-    useStore.getState().setActiveAccount(other.id);
+    useStore.getState().setActiveAccount(null);
 
     releaseWrite();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -559,7 +583,7 @@ it('edits a placeholder bound to an archived project without forcing a reassignm
       color: '#333',
     }),
   );
-  useStore.getState().archiveEntity('projects', project.id);
+  await archiveForTest('projects', project.id);
   // Adopt this direct fixture edit before the form captures its canonical save revision.
   await useStore.getState().refreshPlanning();
   render(<ResourceForm resource={placeholder} onClose={onClose} />);
@@ -674,6 +698,10 @@ it('persists a mutually exclusive mixed full, half and non-working pattern', asy
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4],
     halfDays: [2],
+  });
+  expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+    operation: 'resource.create',
+    fields: { workingDays: [1, 2, 3, 4], halfDays: [2] },
   });
 });
 

@@ -1,10 +1,14 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DisciplineList } from './DisciplineList';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount } from '@/test/fixtures';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -82,7 +86,7 @@ describe('DisciplineList', () => {
 
   it('edit renames a discipline', async () => {
     const user = userEvent.setup();
-    await useStore.getState().addDiscipline({ name: 'OldName', color: '#aabbcc', sortOrder: 0 });
+    await useStore.getState().addDiscipline({ name: 'OldName', color: '#2d75da', sortOrder: 0 });
     render(<DisciplineList />);
 
     const row = screen.getByTestId('discipline-row');
@@ -143,7 +147,7 @@ describe('DisciplineList', () => {
   it('keeps the edit form open when its discipline vanished during editing', async () => {
     const user = userEvent.setup();
     const discipline = await requireCreated(
-      useStore.getState().addDiscipline({ name: 'Design', color: '#00ff00', sortOrder: 0 }),
+      useStore.getState().addDiscipline({ name: 'Design', color: '#2d75da', sortOrder: 0 }),
     );
     render(<DisciplineList />);
 

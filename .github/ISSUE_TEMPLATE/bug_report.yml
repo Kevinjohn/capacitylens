@@ -15,7 +15,7 @@ body:
       label: How are you running it?
       options:
         - pnpm run dev (full-stack, local)
-        - pnpm run dev:demo (browser-only demo)
+        - pnpm run dev:demo (disposable local server)
         - Docker / docker compose
         - Self-hosted (own server)
     validations:

@@ -16,15 +16,11 @@ const lane = ports();
 const slotArgument = process.argv.indexOf('--slot');
 const slot = slotArgument === -1 ? null : Number(process.argv[slotArgument + 1]);
 if (slot !== null && flavour !== 'db') throw new Error('Only db fixtures have worker slots.');
+if (flavour === 'db' && slot === null) throw new Error('Database E2E fixtures require --slot <n>.');
 const worker = slot === null ? null : workerPorts(resolveLane(), slot);
-const port = worker?.api ?? (flavour === 'db' ? lane.dbApi : lane.authApi);
-const webPort = worker?.web ?? (flavour === 'db' ? lane.dbWeb : lane.authWeb);
-const database =
-  slot === null
-    ? flavour === 'db'
-      ? '.e2e.db'
-      : '.auth-e2e.db'
-    : `.e2e-l${resolveLane()}-w${slot}.db`;
+const port = worker?.api ?? lane.authApi;
+const webPort = worker?.web ?? lane.authWeb;
+const database = slot === null ? '.auth-e2e.db' : `.e2e-l${resolveLane()}-w${slot}.db`;
 if (worker) {
   const [apiOccupied, webOccupied] = await Promise.all([portInUse(port), portInUse(webPort)]);
   if (apiOccupied || webOccupied) {

@@ -47,13 +47,12 @@ flowchart TD
   B -->|valid| C["allocationSlice.addAllocations"]
   B -->|invalid| I["Repeat/date error; no write"]
   C --> D["Planning cache controller executes group command"]
-  D --> E["createStorePlanningTransport selects server HTTP or demo memory transport"]
-  E -->|server| F["planningTransport sends api.planning.allocation.createGroup"]
+  D --> E["createStorePlanningTransport uses the server HTTP transport"]
+  E --> F["planningTransport sends api.planning.allocation.createGroup"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
   J --> I["Repeat error; draft remains available"]
   F --> G["PlanningController.mutatePlanning executes group writeRow operations"]
   G --> H["Acknowledgement reconciles separate occurrences"]
-  E -->|demo| H
 ```
 
 **Code references:**
@@ -66,7 +65,6 @@ flowchart TD
 
 - [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
 - [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
-- [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts)
 - [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
 - [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
 - [useAllocationScheduleState.ts](../../apps/frontend/src/components/scheduler/useAllocationScheduleState.ts)

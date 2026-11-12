@@ -11,7 +11,6 @@ import { useInactiveAccountData } from './useInactiveAccountData';
 
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
-  isServerConfigured: () => true,
 }));
 
 function payload(accountId: string, name: string) {
@@ -52,7 +51,6 @@ function view(role: 'owner' | 'admin' | 'editor', principalId = 'bruce') {
       value={{
         authMode: 'password-only',
         user: { id: principalId },
-        canCreateAccount: true,
         refreshAuth: async () => {},
         signOut: async () => {},
       }}

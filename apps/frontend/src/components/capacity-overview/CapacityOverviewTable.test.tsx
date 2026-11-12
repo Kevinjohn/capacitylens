@@ -9,7 +9,7 @@ import type { CapacityDisplayMode } from './capacityOverviewBar';
 import { buildCapacityOverviewModel } from './capacityOverviewModel';
 import type { CapacityOverviewModel, CapacityOverviewPeriodResult } from './capacityOverviewModel';
 import { CapacityOverviewTable } from './CapacityOverviewTable';
-import { resetStoreWithAccount, makeAccount } from '@/test/fixtures';
+import { loadPlanningData, resetStoreWithAccount, makeAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 
 vi.mock('@/account/useResourceAvatars', () => ({ useResourceAvatars: vi.fn() }));
@@ -147,9 +147,10 @@ describe('CapacityOverviewTable date style', () => {
 
   it('re-reads column headers when the date style changes with a stable model', async () => {
     await resetStoreWithAccount('account');
-    useStore
-      .getState()
-      .replaceAll({ ...data, accounts: [makeAccount({ id: 'account', dateStyle: 'day-month' })] });
+    loadPlanningData({
+      ...data,
+      accounts: [makeAccount({ id: 'account', dateStyle: 'day-month' })],
+    });
     await useStore.getState().refreshPlanning();
     renderTable();
     expect(screen.getByRole('columnheader', { name: /10 – 13 Sep/ })).toBeInTheDocument();

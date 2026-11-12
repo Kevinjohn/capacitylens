@@ -103,7 +103,7 @@ export function SettingsView() {
           title={m.settings_support_heading()}
           description={m.settings_support_description()}
         >
-          <SettingsDataSection serverMode={controller.serverMode} />
+          <SettingsDataSection />
           <SettingsBottomSections controller={controller} />
         </SettingsGroup>
       </div>

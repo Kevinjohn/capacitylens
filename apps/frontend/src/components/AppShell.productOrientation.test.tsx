@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { loadPlanningData, makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { AppShell } from './AppShell';
 import { AuthContext } from '@/auth/authContext';
@@ -11,24 +11,47 @@ import type { AuthContextValue } from '@/auth/authContext';
 import { buildProductOrientationKey } from '@/lib/productOrientation';
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 
-const serverFlag = vi.hoisted(() => ({ on: false }));
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: '',
-  isDemoMode: () => !serverFlag.on,
-  isServerConfigured: () => serverFlag.on,
-}));
-
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
 beforeEach(() => {
-  serverFlag.on = false;
-  useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
+  loadPlanningData(makeAppData({ accounts: [makeAccount()] }));
+  useStore.getState().setAccountSummaries({
+    list: [{ id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' }],
+  });
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().setHydrated(true);
-  localStorage.setItem('capacitylens/productOrientation/v1/demo/acct-test', 'dismissed');
+  localStorage.setItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID), 'dismissed');
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.endsWith('/api/accounts')) {
+        const state = useStore.getState();
+        const summaries = state.accountSummaries.length
+          ? state.accountSummaries
+          : state.data.accounts.map((account) => ({ ...account, role: 'owner' as const }));
+        return Promise.resolve(
+          Response.json(
+            summaries.map((summary) => ({
+              id: summary.id,
+              name: summary.name,
+              role:
+                'roleStatus' in summary && summary.roleStatus === 'unavailable'
+                  ? 'unknown-role'
+                  : summary.role,
+            })),
+          ),
+        );
+      }
+      if (url.includes('/getting-started')) {
+        return Promise.resolve(Response.json({ dismissed: true }));
+      }
+      return Promise.resolve(Response.json({ active: false, contextToken: 'idle' }));
+    }),
+  );
 });
 
 function authenticatedAuth(userId: string): AuthContextValue {
@@ -40,19 +63,18 @@ function authenticatedAuth(userId: string): AuthContextValue {
   return {
     authMode: 'password-only',
     user: { id: userId, name: subjectNames[userId] ?? 'Bruce Wayne' },
-    canCreateAccount: true,
     refreshAuth: async () => {},
     signOut: async () => {},
   };
 }
 
-function shellTree(path: string, auth?: AuthContextValue) {
+function shellTree(path: string, auth = authenticatedAuth('user-a')) {
   const shell = (
     <MemoryRouter initialEntries={[path]}>
       <AppShell />
     </MemoryRouter>
   );
-  return auth ? <AuthContext.Provider value={auth}>{shell}</AuthContext.Provider> : shell;
+  return <AuthContext.Provider value={auth}>{shell}</AuthContext.Provider>;
 }
 
 function renderShell(path = '/', auth?: AuthContextValue) {
@@ -61,7 +83,7 @@ function renderShell(path = '/', auth?: AuthContextValue) {
 
 describe('AppShell product orientation', () => {
   it('shows guidance without blocking the schedule and persists dismissal for the active company', async () => {
-    localStorage.removeItem('capacitylens/productOrientation/v1/demo/acct-test');
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
     const user = userEvent.setup();
     renderShell();
 
@@ -72,13 +94,13 @@ describe('AppShell product orientation', () => {
     expect(
       screen.queryByRole('region', { name: 'How CapacityLens works' }),
     ).not.toBeInTheDocument();
-    expect(localStorage.getItem('capacitylens/productOrientation/v1/demo/acct-test')).toBe(
+    expect(localStorage.getItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID))).toBe(
       'dismissed',
     );
   });
 
   it('reopens and focuses guidance from the named sidebar action', async () => {
-    localStorage.removeItem('capacitylens/productOrientation/v1/demo/acct-test');
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
     renderShell();
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Got it' }));
@@ -92,14 +114,14 @@ describe('AppShell product orientation', () => {
   });
 
   it('focuses the visible orientation heading on entry', async () => {
-    localStorage.removeItem('capacitylens/productOrientation/v1/demo/acct-test');
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
     renderShell();
     const heading = screen.getByRole('heading', { name: 'How CapacityLens works' });
     await waitFor(() => expect(heading).toHaveFocus());
   });
 
   it('keeps a failed storage dismissal suppressed for the current mount', async () => {
-    localStorage.removeItem('capacitylens/productOrientation/v1/demo/acct-test');
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key) => {
       if (String(key).includes('productOrientation')) throw new Error('blocked');
     });
@@ -114,13 +136,13 @@ describe('AppShell product orientation', () => {
 
   it('scopes the no-company Account view to a stable account-state segment', async () => {
     useStore.getState().setActiveAccount(null);
-    localStorage.removeItem('capacitylens/productOrientation/v1/demo/no-company');
+    localStorage.removeItem(buildProductOrientationKey('user-a', 'no-company'));
     const user = userEvent.setup();
     renderShell('/account');
 
     expect(screen.getByRole('region', { name: 'How CapacityLens works' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Got it' }));
-    expect(localStorage.getItem('capacitylens/productOrientation/v1/demo/no-company')).toBe(
+    expect(localStorage.getItem(buildProductOrientationKey('user-a', 'no-company'))).toBe(
       'dismissed',
     );
   });
@@ -133,7 +155,7 @@ describe('AppShell product orientation', () => {
   });
 
   it('keeps the orientation action available in the mobile sidebar and returns focus to its trigger', async () => {
-    localStorage.removeItem('capacitylens/productOrientation/v1/demo/acct-test');
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
     vi.stubGlobal(
       'matchMedia',
       vi.fn(
@@ -196,47 +218,11 @@ describe('AppShell product orientation', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('follows company A to B to A without leaking dismissal between companies', async () => {
-    const accountA = makeAccount({ id: 'acct-a', name: 'Wayne Enterprises' });
-    const accountB = makeAccount({ id: 'acct-b', name: 'Stark Industries' });
-    useStore.getState().replaceAll(makeAppData({ accounts: [accountA, accountB] }));
-    useStore.getState().setAccountSummaries({
-      list: [
-        { id: accountA.id, name: accountA.name, role: 'owner' },
-        { id: accountB.id, name: accountB.name, role: 'owner' },
-      ],
-    });
-    useStore.getState().setActiveAccount(accountA.id);
-    localStorage.removeItem(buildProductOrientationKey('user-a', accountA.id));
-    localStorage.removeItem(buildProductOrientationKey('user-a', accountB.id));
-    const user = userEvent.setup();
-    renderShell('/', authenticatedAuth('user-a'));
-
-    await user.click(screen.getByRole('button', { name: 'Got it' }));
-    expect(
-      screen.queryByRole('region', { name: 'How CapacityLens works' }),
-    ).not.toBeInTheDocument();
-
-    act(() => useStore.getState().setActiveAccount(accountB.id));
-    await waitFor(() =>
-      expect(screen.getByRole('region', { name: 'How CapacityLens works' })).toBeInTheDocument(),
-    );
-    await user.click(screen.getByRole('button', { name: 'Got it' }));
-
-    act(() => useStore.getState().setActiveAccount(accountA.id));
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('region', { name: 'How CapacityLens works' }),
-      ).not.toBeInTheDocument(),
-    );
-  });
-
   it('keeps the orientation guidance available to an authenticated Viewer', async () => {
-    serverFlag.on = true;
     vi.stubGlobal(
       'fetch',
       vi.fn((input: RequestInfo | URL) => {
-        const url = String(input);
+        const url = input instanceof Request ? input.url : String(input);
         if (url.endsWith('/api/accounts')) {
           return Promise.resolve(
             new Response(

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { isServerConfigured } from '@/data/apiConfig';
 import { formatDiagnostics, readBrowserDiagnostics, readDiagnostics } from '@/data/buildInfo';
 import { accountClient } from '@/account/accountClient';
 
@@ -7,14 +6,12 @@ type ServerObservation = { response: unknown; observedAt: string | undefined };
 
 /** Observes the server once, then combines that snapshot with this client's live facts. */
 export function useDiagnosticsController() {
-  const serverMode = isServerConfigured();
   const [observation, setObservation] = useState<ServerObservation>(() => ({
     response: null,
-    observedAt: serverMode ? undefined : new Date().toISOString(),
+    observedAt: undefined,
   }));
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   useEffect(() => {
-    if (!serverMode) return;
     const controller = new AbortController();
     void accountClient
       .diagnostics(controller.signal)
@@ -30,7 +27,7 @@ export function useDiagnosticsController() {
         }
       });
     return () => controller.abort();
-  }, [serverMode]);
+  }, []);
   const report = formatDiagnostics(
     readDiagnostics(observation.response, observation.observedAt, {
       browser: readBrowserDiagnostics(),

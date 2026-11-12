@@ -6,7 +6,7 @@ import { can } from '@capacitylens/shared/domain/access';
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import { useStore } from '@/store/useStore';
 
-// Resolved roles use the shared `can` matrix; an absent role permits actions only outside masquerade.
+// Resolved roles use the shared `can` matrix; an absent role fails closed.
 
 // Keep the sweep explicit and reject entries that are not valid permission keys.
 const ACTIONS = [
@@ -42,18 +42,17 @@ describe('useCan', () => {
     }
   });
 
-  it('permits EVERY action for a null role — the OFF/demo/no-provider guard', () => {
+  it('denies every action until a role is resolved', () => {
     for (const action of ACTIONS) {
       const { result } = renderHook(() => useCan(action), { wrapper: withRole(null) });
-      expect(result.current, action).toBe(true);
+      expect(result.current, action).toBe(false);
     }
   });
 
-  it('treats a missing provider exactly like an explicit null role', () => {
-    // No wrapper at all: the context default. This is the isolated-render / demo path.
+  it('fails closed when the permission provider is missing', () => {
     for (const action of ACTIONS) {
       const { result } = renderHook(() => useCan(action));
-      expect(result.current, action).toBe(true);
+      expect(result.current, action).toBe(false);
     }
   });
 
@@ -78,7 +77,7 @@ describe('useCan', () => {
 });
 
 describe('useCanEdit', () => {
-  it("is exactly useCan('planning:write') for every role, including null", () => {
+  it("is exactly useCan('planning:write') for every role, including unresolved", () => {
     for (const role of [...ROLES, null]) {
       const { result } = renderHook(
         () => ({ edit: useCanEdit(), write: useCan('planning:write') }),

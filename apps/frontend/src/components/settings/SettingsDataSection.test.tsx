@@ -1,6 +1,5 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { accountClient } from '@/account/accountClient';
@@ -28,18 +27,10 @@ vi.mock('@/auth/PasswordConfirmationDialog', () => ({
   ),
 }));
 
-type Props = ComponentProps<typeof SettingsDataSection>;
-
-function renderSection({
-  role = 'owner',
-  serverMode = true,
-}: { role?: Role | null; serverMode?: boolean } = {}) {
-  const props = {
-    serverMode,
-  } as unknown as Props;
+function renderSection({ role = 'owner' }: { role?: Role | null } = {}) {
   return render(
     <PermissionContext.Provider value={{ role }}>
-      <SettingsDataSection {...props} />
+      <SettingsDataSection />
     </PermissionContext.Provider>,
   );
 }
@@ -116,11 +107,8 @@ describe('Settings example data', () => {
     expect(section()).not.toBeInTheDocument();
   });
 
-  it('is hidden from an editor and where no server can add it', () => {
-    const editor = renderSection({ role: 'editor' });
-    expect(section()).not.toBeInTheDocument();
-    editor.unmount();
-    renderSection({ serverMode: false });
+  it('is hidden from an editor', () => {
+    renderSection({ role: 'editor' });
     expect(section()).not.toBeInTheDocument();
   });
 
@@ -205,83 +193,6 @@ describe('Company-wide people anonymisation', () => {
     expect(confirmation).toHaveTextContent('Clients, projects and activities stay unchanged.');
     expect(confirmation).toHaveTextContent('The company, its members and planning links remain.');
     expect(confirmation).toHaveTextContent('This cannot be undone.');
-  });
-
-  it("scrubs only the selected company's people in one volatile replacement", async () => {
-    const resource = makeResource({
-      id: 'r-private',
-      accountId: DEFAULT_ACCOUNT_ID,
-      name: 'Bruce Wayne',
-    });
-    const foreign = makeResource({ id: 'r-foreign', accountId: 'a-loft', name: 'Tony Stark' });
-    const allocation = makeAllocation({
-      id: 'al-private',
-      accountId: DEFAULT_ACCOUNT_ID,
-      resourceId: resource.id,
-      note: 'Private note',
-    });
-    const foreignAllocation = makeAllocation({
-      id: 'al-foreign',
-      accountId: 'a-loft',
-      resourceId: foreign.id,
-      note: 'Foreign note',
-    });
-    useStore.setState((state) => ({
-      data: {
-        ...state.data,
-        resources: [resource, foreign],
-        allocations: [allocation, foreignAllocation],
-      },
-    }));
-    renderSection({ serverMode: false });
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Anonymise all people' }));
-    const observed: string[] = [];
-    const unsubscribe = useStore.subscribe((state) => {
-      observed.push(state.data.resources.find((row) => row.id === resource.id)?.name ?? 'missing');
-    });
-    await userEvent
-      .setup()
-      .click(
-        within(screen.getByRole('dialog')).getByRole('button', { name: 'Anonymise all people' }),
-      );
-    const data = useStore.getState().data;
-    expect(data.resources.find((row) => row.id === resource.id)?.name).toMatch(/^Removed person/);
-    expect(data.resources.find((row) => row.id === foreign.id)).toEqual(foreign);
-    expect(data.allocations.find((row) => row.id === foreignAllocation.id)).toEqual(
-      foreignAllocation,
-    );
-    expect(data.allocations.find((row) => row.id === allocation.id)?.note).toBeNull();
-    expect(useStore.getState().notice?.message).toBe('All people in the company were anonymised.');
-    expect(useStore.getState().past).toEqual([]);
-    expect(apiFetch).not.toHaveBeenCalled();
-    expect(observed.length).toBeGreaterThan(0);
-    expect(observed.every((name) => name.startsWith('Removed person'))).toBe(true);
-    unsubscribe();
-  });
-
-  it("invalidates a deleted booking's restoration handle and Undo after the demo scrub", async () => {
-    const resource = makeResource({ id: 'r-private', accountId: DEFAULT_ACCOUNT_ID });
-    const allocation = makeAllocation({
-      id: 'al-private',
-      accountId: DEFAULT_ACCOUNT_ID,
-      resourceId: resource.id,
-      note: 'Private note',
-    });
-    useStore.setState((state) => ({
-      data: { ...state.data, resources: [resource], allocations: [allocation] },
-    }));
-    await originalPlanning.refreshPlanning();
-    await useStore.getState().deleteAllocation(allocation.id);
-    expect(useStore.getState().planning.history.past.length).toBeGreaterThan(0);
-    renderSection({ serverMode: false });
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Anonymise all people' }));
-    await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Anonymise all people' }),
-    );
-    expect(useStore.getState().planning.history.past).toEqual([]);
-    await useStore.getState().undoPlanning();
-    expect(useStore.getState().data.allocations).toEqual([]);
   });
 
   it('sends a bound proof to the named server endpoint from a settled planning view', async () => {

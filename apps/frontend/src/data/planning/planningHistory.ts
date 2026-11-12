@@ -1,8 +1,9 @@
-import { HISTORY_LIMIT } from '@/store/history';
 import type { PlanningHistoryEntry, PlanningIntent } from '@/api/planningContracts';
 import type { PlanningHistory } from './planningCacheController';
 
 // Page-local undo and redo history: moving entries after a commit and deciding eligibility.
+
+export const HISTORY_LIMIT = 50;
 
 export const emptyHistory = (): PlanningHistory => ({ past: [], future: [], tipRevision: null });
 

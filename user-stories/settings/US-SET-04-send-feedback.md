@@ -3,7 +3,7 @@
 As an Owner or Admin, I want to open a preaddressed feedback email so that I can report a problem with its build context.
 
 **Status:** Current
-**Access:** Owner, Admin; anyone in demo mode
+**Access:** Owner, Admin
 **Entry:** Diagnostics → Send feedback (when configured)
 **Documentation:** [Diagnostics](../../docs-src/admin/diagnostics.md)
 **Source:** [DiagnosticsBuildDetails.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx)

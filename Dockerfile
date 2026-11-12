@@ -17,11 +17,9 @@ FROM deps AS source
 FROM source AS web-build
 WORKDIR /app
 ARG VITE_CAPACITYLENS_API=""
-ARG VITE_CAPACITYLENS_DEMO=""
 ARG VITE_CAPACITYLENS_BUILD_SHA=""
 ARG VITE_CAPACITYLENS_FEEDBACK_MAILTO=""
 ENV VITE_CAPACITYLENS_API=${VITE_CAPACITYLENS_API}
-ENV VITE_CAPACITYLENS_DEMO=${VITE_CAPACITYLENS_DEMO}
 ENV VITE_CAPACITYLENS_BUILD_SHA=${VITE_CAPACITYLENS_BUILD_SHA}
 ENV VITE_CAPACITYLENS_FEEDBACK_MAILTO=${VITE_CAPACITYLENS_FEEDBACK_MAILTO}
 # The build boots the production configuration, which needs an HTTPS origin and a secret. These
@@ -31,7 +29,7 @@ RUN NODE_ENV=production HOST=127.0.0.1 PORT=0 LOG_LEVEL=error APP_KEY=capacityle
     CAPACITYLENS_PUBLIC_URL=https://127.0.0.1 pnpm run build
 
 FROM web-build AS web-client-build
-# The client-only runtime has no same-origin proxy. Bake its validated remote API origin (if any)
+# The client-only runtime has no same-origin proxy. Bake its validated remote API origin
 # into the CSP rather than weakening connect-src or templating mutable runtime configuration.
 RUN node scripts/render-client-nginx.mjs nginx.client.conf.template /tmp/nginx.client.conf
 

@@ -69,16 +69,7 @@ const allSteps: readonly RoleTourStep[] = [
 ];
 
 /** Builds the tour from the caller's role down through the read-only schedule guidance. */
-export function buildRoleTour({
-  role,
-  serverMode,
-}: {
-  role: Role | null;
-  serverMode: boolean;
-}): RoleTourStep[] {
+export function buildRoleTour({ role }: { role: Role | null }): RoleTourStep[] {
   const startIndex = role === null ? 0 : roleOrder.indexOf(role);
-  return allSteps.filter((step) => {
-    const segmentIndex = roleOrder.indexOf(step.segment);
-    return segmentIndex >= startIndex && (serverMode || step.id !== 'admin-example-data');
-  });
+  return allSteps.filter((step) => roleOrder.indexOf(step.segment) >= startIndex);
 }

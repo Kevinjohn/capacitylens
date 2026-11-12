@@ -2,7 +2,6 @@ import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { CompanySetup } from './CompanySetup';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { isServerConfigured } from '@/data/apiConfig';
 import {
   accountClient,
   bindStoredAccountCommandsToIdentity,
@@ -17,16 +16,13 @@ import { m } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from './signOut';
 import { APP_NAME } from '@capacitylens/shared/brand';
-import { buildOpenAuthResult } from './authStatus';
 import type { AuthStatusResult } from './authStatus';
 import { fetchAuthStatus } from './fetchAuthStatus';
 import { AuthLoading } from './authScreens';
 import { AccessScreen } from './AccessScreens';
 import { useAuthContextValue } from './useAuthContextValue';
 
-// Auth boundary. In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
-// pure pass-through that performs no fetch at all. In server mode (the default) it asks
-// GET /api/auth/me once at boot; a 401 replaces everything with the LoginScreen. The screen is a
+// Auth boundary checks GET /api/auth/me once at boot; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so interactive auth forms never load unless a login is actually shown.
 
 const LoginScreen = lazy(() =>
@@ -35,13 +31,9 @@ const LoginScreen = lazy(() =>
 
 type CheckAuth = (onNull: 'report-error' | 'keep-previous') => Promise<AuthStatusResult | null>;
 
-function useTenantAccessReady(
-  status: AuthStatusResult,
-  onTenantAccessReady?: (identitySource: 'live' | 'open') => void,
-) {
+function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: () => void) {
   const tenantAccessSignalled = useRef(false);
   const ready = status.kind === 'pass' && !status.companySetupRequired && !status.accessGate;
-  const identitySource = status.kind === 'pass' ? (status.identitySource ?? 'open') : 'open';
   useEffect(() => {
     if (!ready) {
       tenantAccessSignalled.current = false;
@@ -49,15 +41,12 @@ function useTenantAccessReady(
     }
     if (tenantAccessSignalled.current) return;
     tenantAccessSignalled.current = true;
-    onTenantAccessReady?.(identitySource);
-  }, [identitySource, onTenantAccessReady, ready]);
+    onTenantAccessReady?.();
+  }, [onTenantAccessReady, ready]);
 }
 
-type UseAuthStatusOptions = { serverMode: boolean };
-function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
-  const [status, setStatus] = useState<AuthStatusResult>(
-    serverMode ? { kind: 'checking' } : buildOpenAuthResult('off', null),
-  );
+function useAuthStatus() {
+  const [status, setStatus] = useState<AuthStatusResult>({ kind: 'checking' });
   const authRequestSeq = useRef(0);
   const checkAuth: CheckAuth = useCallback(async (onNull) => {
     const requestId = ++authRequestSeq.current;
@@ -77,41 +66,37 @@ function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
       queryClient.clear();
       useStore.getState().clearPlanning();
     } else if (next.kind === 'pass') {
-      bindStoredAccountCommandsToIdentity(next.user?.id ?? 'auth-off');
+      bindStoredAccountCommandsToIdentity(next.user.id);
     }
     setStatus(next);
     return next;
   }, []);
   const refreshAuth = useCallback(async () => {
-    if (serverMode) await checkAuth('keep-previous');
-  }, [serverMode, checkAuth]);
+    await checkAuth('keep-previous');
+  }, [checkAuth]);
   return { status, setStatus, checkAuth, refreshAuth };
 }
 
 function useAuthRevalidation({
-  serverMode,
   planningAuthLossVersion,
   checkAuth,
   refreshAuth,
 }: {
-  serverMode: boolean;
   planningAuthLossVersion: number;
   checkAuth: CheckAuth;
   refreshAuth: () => Promise<void>;
 }) {
   useEffect(() => {
-    if (!serverMode) return;
     void checkAuth('report-error');
-  }, [serverMode, checkAuth]);
+  }, [checkAuth]);
   const previousAuthLossVersion = useRef(planningAuthLossVersion);
   useEffect(() => {
-    if (serverMode && planningAuthLossVersion !== previousAuthLossVersion.current) {
+    if (planningAuthLossVersion !== previousAuthLossVersion.current) {
       void refreshAuth();
     }
     previousAuthLossVersion.current = planningAuthLossVersion;
-  }, [serverMode, planningAuthLossVersion, refreshAuth]);
+  }, [planningAuthLossVersion, refreshAuth]);
   useEffect(() => {
-    if (!serverMode) return;
     const revalidateVisibleSession = () => {
       if (document.visibilityState !== 'visible') return;
       // A returning tab must reconcile its planning revision after identity has been checked.
@@ -132,20 +117,17 @@ function useAuthRevalidation({
       window.removeEventListener('focus', revalidateVisibleSession);
       document.removeEventListener('visibilitychange', revalidateVisibleSession);
     };
-  }, [serverMode, checkAuth]);
+  }, [checkAuth]);
 }
 
 function useAuthInvalidation({
-  serverMode,
   checkAuth,
   setStatus,
 }: {
-  serverMode: boolean;
   checkAuth: CheckAuth;
   setStatus: (status: AuthStatusResult) => void;
 }) {
   useEffect(() => {
-    if (!serverMode) return;
     const onAuthInvalidation = (event: StorageEvent) => {
       if (event.key !== AUTH_INVALIDATION_STORAGE_KEY) return;
       masqueradeController.invalidate();
@@ -156,7 +138,7 @@ function useAuthInvalidation({
     };
     window.addEventListener('storage', onAuthInvalidation);
     return () => window.removeEventListener('storage', onAuthInvalidation);
-  }, [serverMode, checkAuth, setStatus]);
+  }, [checkAuth, setStatus]);
 }
 
 function LoginBoundary({
@@ -213,14 +195,14 @@ function AuthenticatedBoundary({
 }) {
   return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
 }
-/** Provides server-verified authentication state and a retryable boot boundary. Demo mode permits access without a request; unresolved later checks preserve the current snapshot, while a confirmed 401 opens sign-in. */
+/** Provides server-verified authentication state and a retryable boot boundary. Unresolved later checks preserve the current snapshot, while a confirmed 401 opens sign-in. */
 export function AuthProvider({
   children,
   onTenantAccessReady,
 }: {
   children: ReactNode;
   /** Starts tenant-data hydration after /me admits access; the callback must be idempotent under StrictMode effect replay. */
-  onTenantAccessReady?: (identitySource: 'live' | 'open') => void;
+  onTenantAccessReady?: () => void;
 }) {
   return (
     <AuthenticatedAppProvider {...(onTenantAccessReady ? { onTenantAccessReady } : {})}>
@@ -234,14 +216,13 @@ function AuthenticatedAppProvider({
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  onTenantAccessReady?: (identitySource: 'live' | 'open') => void;
+  onTenantAccessReady?: () => void;
 }) {
-  const serverMode = isServerConfigured();
   const planningAuthLossVersion = useStore((state) => state.planningAuthLossVersion);
-  const { status, setStatus, checkAuth, refreshAuth } = useAuthStatus({ serverMode });
+  const { status, setStatus, checkAuth, refreshAuth } = useAuthStatus();
   useTenantAccessReady(status, onTenantAccessReady);
-  useAuthRevalidation({ serverMode, planningAuthLossVersion, checkAuth, refreshAuth });
-  useAuthInvalidation({ serverMode, checkAuth, setStatus });
+  useAuthRevalidation({ planningAuthLossVersion, checkAuth, refreshAuth });
+  useAuthInvalidation({ checkAuth, setStatus });
 
   useEffect(() => {
     if (status.kind === 'error') {

@@ -206,6 +206,74 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(resource?.workingDays, original.workingDays);
   });
 
+  test('refuses to change an external resource working pattern without persisting or advancing revision', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(accountId, true);
+    const external = data.resources.find(
+      (row) => row.accountId === accountId && row.kind === 'external'
+    );
+    assert.isDefined(external);
+    const { cookie } = await signIn(client);
+    const before = await readState(accountId, true);
+    const changedDays = external!.workingDays.includes(0) ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4];
+
+    const refused = await session(client.patch(route(`resources/${external!.id}`)), cookie)
+      .json(
+        input(0, {
+          operation: 'resource.update',
+          id: external!.id,
+          changes: { workingDays: changedDays },
+        })
+      )
+      .send();
+
+    refused.assertStatus(400);
+    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    assert.deepEqual(await readState(accountId, true), before);
+    const snapshot = await session(client.get(planningUrl), cookie).send();
+    assert.equal(snapshot.body().revision, 0);
+    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+  });
+
+  test('refuses a reversed closure range without persisting or advancing revision', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const id = randomUUID();
+    const before = await readState(accountId, true);
+    const auditBefore = await db.from('audit_entries').where('account_id', accountId);
+    const mutationsBefore = await db.from('planning_mutations').where('account_id', accountId);
+
+    const refused = await session(client.post(route('closures')), cookie)
+      .json(
+        input(0, {
+          operation: 'closure.create',
+          id,
+          fields: { name: 'Invalid range', startDate: '2026-12-31', endDate: '2026-01-01' },
+        })
+      )
+      .send();
+
+    refused.assertStatus(400);
+    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    assert.deepEqual(await readState(accountId, true), before);
+    assert.isNull(await db.from('closures').where({ id, account_id: accountId }).first());
+    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditBefore);
+    assert.deepEqual(
+      await db.from('planning_mutations').where('account_id', accountId),
+      mutationsBefore
+    );
+    const snapshot = await session(client.get(planningUrl), cookie).send();
+    assert.equal(snapshot.body().revision, 0);
+  });
+
   test('Editor preserves confidential values and cannot change privacy controls or notes', async ({
     client,
     assert,

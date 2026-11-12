@@ -1,12 +1,12 @@
 # Capability coverage matrix
 
 This matrix maps user actions to stories across the application, including capabilities that
-previously had no standalone story. Read the linked story for form fields, access conditions,
-entry points and implementation sources. **New** means added to the catalogue in this refresh,
+previously had no standalone story. Read the linked story for form fields, access conditions
+entry points and implementation sources. **New** means added to the catalogue in this refresh
 not newly implemented functionality.
 
-The inventory covers ordinary pages and their forms, lists and menus; schedule gestures,
-details, navigation and filtering; public and limited account states; membership and security;
+The inventory covers ordinary pages and their forms, lists and menus; schedule gestures
+details, navigation and filtering; public and limited account states; membership and security
 settings, data actions and recovery. Demo-only and operator actions are labelled separately.
 Hidden and removed entries preserve the reason for the feature without implying it is available.
 
@@ -29,7 +29,7 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 | Story                                                          | Action                               | Access                                                                                                                   | Status  | Catalogue |
 | -------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------- | --------- |
-| [US-ACCOUNT-01](account/US-ACCOUNT-01-identity.md)             | Check my signed-in identity          | Any signed-in person; demo mode shows its demo identity.                                                                 | Current | New       |
+| [US-ACCOUNT-01](account/US-ACCOUNT-01-identity.md)             | Check my signed-in identity          | Any signed-in person.                                                                                                    | Current | New       |
 | [US-ACCOUNT-02](account/US-ACCOUNT-02-password-change.md)      | Change my password                   | Any signed-in person.                                                                                                    | Current | New       |
 | [US-ACCOUNT-03](account/US-ACCOUNT-03-password-reset.md)       | Recover a forgotten password         | Anyone can request a link; a person with a valid reset link can set a new password.                                      | Current | New       |
 | [US-ACCOUNT-04](account/US-ACCOUNT-04-sign-out.md)             | Sign out of this browser             | Any signed-in person.                                                                                                    | Current | New       |
@@ -67,9 +67,9 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 ## Capacity Overview
 
-| Story                                                                 | Action                                       | Access                                                                                       | Status  | Catalogue |
-| --------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | ------- | --------- |
-| [US-CAP-01](capacity-overview/US-CAP-01-review-four-week-capacity.md) | Review four-, eight- or twelve-week capacity | Owner and Admin by default; Overview access can add Editors or Everyone; anyone in demo mode | Current | Existing  |
+| Story                                                                 | Action                                       | Access                                                                  | Status  | Catalogue |
+| --------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------- | ------- | --------- |
+| [US-CAP-01](capacity-overview/US-CAP-01-review-four-week-capacity.md) | Review four-, eight- or twelve-week capacity | Owner and Admin by default; Overview access can add Editors or Everyone | Current | Existing  |
 
 ## Clients
 
@@ -84,16 +84,16 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 ## Data
 
-| Story                                                   | Action                                    | Access                                        | Status  | Catalogue |
-| ------------------------------------------------------- | ----------------------------------------- | --------------------------------------------- | ------- | --------- |
-| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                       | Owner, Admin, Editor, Viewer                  | Current | Existing  |
-| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data          | Owner on server; demo users in temporary demo | Current | Existing  |
-| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history   | Owner on server; demo users in temporary demo | Current | Existing  |
-| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files               | Owner on server; demo users in temporary demo | Current | Existing  |
-| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload          | Any authorized company member                 | Current | Existing  |
-| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore temporary demo data               | Demo user                                     | Demo    | Existing  |
-| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in transfer | Owner for import; role-tiered export          | Current | Existing  |
-| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation        | Owner                                         | Current | New       |
+| Story                                                   | Action                                    | Access                               | Status  | Catalogue |
+| ------------------------------------------------------- | ----------------------------------------- | ------------------------------------ | ------- | --------- |
+| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                       | Owner, Admin, Editor, Viewer         | Current | Existing  |
+| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data          | Owner                                | Current | Existing  |
+| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history   | Owner                                | Current | Existing  |
+| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files               | Owner                                | Current | Existing  |
+| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload          | Any authorized company member        | Current | Existing  |
+| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable sample data            | Printed development Owner            | Demo    | Existing  |
+| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in transfer | Owner for import; role-tiered export | Current | Existing  |
+| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation        | Owner                                | Current | New       |
 
 ## Disciplines
 
@@ -127,36 +127,35 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 ## Navigation
 
-| Story                                                          | Action                                           | Access                                                                                                      | Status  | Catalogue |
-| -------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ------- | --------- |
-| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate permitted sections                      | Owner, Admin, Editor, Viewer; section visibility and write controls follow role policy.                     | Current | Existing  |
-| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | See the active section                           | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Wait for company data                            | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | See planning read and save failures              | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Read and dismiss action notices                  | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Choose appearance                                | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                   | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                    | Owner, Admin, Editor, Viewer; results respect destination access                                            | Current | Existing  |
-| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen                | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Enter the persisted application                  | Unauthenticated visitors; admitted users can sign in                                                        | Current | Existing  |
-| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry                  | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                    | Owner, Admin, Editor; demo/local mode has no membership role; Viewer does not see the Getting Started panel | Current | Existing  |
-| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company         | Initial admitted identity only during empty-install setup; subsequent entry requires membership             | Current | Existing  |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity    | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour                  | Owner, Admin, Editor, Viewer                                                                                | Current | Existing  |
-| [US-NAV-17](navigation/US-NAV-17-demo-mode.md)                 | Create, switch between, and reset demo companies | Anyone using the demo build; no account role applies.                                                       | Demo    | New       |
-| [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address                | Owner, Admin, Editor, Viewer; sign-in wall still applies to protected routes.                               | Current | New       |
-| [US-NAV-19](navigation/US-NAV-19-connection-retry.md)          | Retry after a server connection failure          | Owner, Admin, Editor, Viewer                                                                                | Hidden  | New       |
-| [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load    | Owner, Admin, Editor, Viewer; Choose another is available only in demo mode.                                | Hidden  | New       |
-| [US-NAV-21](navigation/US-NAV-21-browser-storage-recovery.md)  | Recover unreadable browser storage               | Anyone whose local browser data triggers the storage recovery screen; no company role applies.              | Hidden  | New       |
-| [US-NAV-22](navigation/US-NAV-22-desktop-sidebar-toggle.md)    | Collapse or expand desktop navigation            | Owner, Admin, Editor, Viewer; also available in demo mode.                                                  | Current | New       |
+| Story                                                          | Action                                        | Access                                                                                          | Status  | Catalogue |
+| -------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------- | --------- |
+| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate permitted sections                   | Owner, Admin, Editor, Viewer; section visibility and write controls follow role policy.         | Current | Existing  |
+| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | See the active section                        | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Wait for company data                         | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | See planning read and save failures           | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Read and dismiss action notices               | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Choose appearance                             | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                 | Owner, Admin, Editor, Viewer; results respect destination access                                | Current | Existing  |
+| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen             | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Enter the persisted application               | Unauthenticated visitors; admitted users can sign in                                            | Current | Existing  |
+| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry               | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                 | Owner, Admin, Editor; Viewer does not see the Getting Started panel                             | Current | Existing  |
+| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company      | Initial admitted identity only during empty-install setup; subsequent entry requires membership | Current | Existing  |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour               | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address             | Owner, Admin, Editor, Viewer; sign-in wall still applies to protected routes.                   | Current | New       |
+| [US-NAV-19](navigation/US-NAV-19-connection-retry.md)          | Retry after a server connection failure       | Owner, Admin, Editor, Viewer                                                                    | Hidden  | New       |
+| [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Owner, Admin, Editor, Viewer.                                                                   | Hidden  | New       |
+| [US-NAV-21](navigation/US-NAV-21-browser-storage-recovery.md)  | Recover unreadable browser storage            | Anyone whose local browser data triggers the storage recovery screen; no company role applies.  | Hidden  | New       |
+| [US-NAV-22](navigation/US-NAV-22-desktop-sidebar-toggle.md)    | Collapse or expand desktop navigation         | Owner, Admin, Editor, Viewer.                                                                   | Current | New       |
 
 ## Privacy
 
-| Story                                                                   | Action                                       | Access                                                                                                            | Status  | Catalogue |
-| ----------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------- | --------- |
-| [US-PRI-01](privacy/US-PRI-01-role-safe-private-name-display.md)        | Show private names according to role         | Owner sees real name and code name; Admin, Editor, Viewer receive only quoted code name; demo is owner-equivalent | Current | Existing  |
-| [US-PRI-02](privacy/US-PRI-02-preserve-private-identities-on-writes.md) | Preserve protected names on non-Owner writes | Owner may manage privacy fields; Admin and Editor may make permitted ordinary edits; Viewer is read-only          | Current | Existing  |
+| Story                                                                   | Action                                       | Access                                                                                                   | Status  | Catalogue |
+| ----------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- | --------- |
+| [US-PRI-01](privacy/US-PRI-01-role-safe-private-name-display.md)        | Show private names according to role         | Owner sees real name and code name; Admin, Editor, Viewer receive only quoted code name                  | Current | Existing  |
+| [US-PRI-02](privacy/US-PRI-02-preserve-private-identities-on-writes.md) | Preserve protected names on non-Owner writes | Owner may manage privacy fields; Admin and Editor may make permitted ordinary edits; Viewer is read-only | Current | Existing  |
 
 ## Projects
 
@@ -221,8 +220,8 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | ----------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------- | ------- | --------- |
 | [US-SET-01](settings/US-SET-01-calendar-settings.md)        | Company details                          | Owner, Admin, Editor, Viewer                             | Current | Existing  |
 | [US-SET-02](settings/US-SET-02-bar-labels.md)               | Choose allocation bar labels             | Owner, Admin, Editor, Viewer                             | Current | Existing  |
-| [US-SET-03](settings/US-SET-03-build-stamp.md)              | Read build details                       | Owner, Admin; anyone in demo mode                        | Current | Existing  |
-| [US-SET-04](settings/US-SET-04-send-feedback.md)            | Open a feedback email                    | Owner, Admin; anyone in demo mode                        | Current | Existing  |
+| [US-SET-03](settings/US-SET-03-build-stamp.md)              | Read build details                       | Owner, Admin                                             | Current | Existing  |
+| [US-SET-04](settings/US-SET-04-send-feedback.md)            | Open a feedback email                    | Owner, Admin                                             | Current | Existing  |
 | [US-SET-05](settings/US-SET-05-minimise-weekends.md)        | Minimise weekend columns                 | Owner, Admin, Editor, Viewer                             | Current | Existing  |
 | [US-SET-06](settings/US-SET-06-show-placeholders.md)        | Show placeholders                        | Editor and above; Viewers can read the setting.          | Current | Existing  |
 | [US-SET-07](settings/US-SET-07-show-external.md)            | Show external resources                  | Editor and above; Viewers can read the setting.          | Current | Existing  |
@@ -244,7 +243,7 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | [US-SET-23](settings/US-SET-23-inline-activity-creation.md) | Create activities inline                 | Owner, Admin, Editor                                     | Current | New       |
 | [US-SET-24](settings/US-SET-24-task-field.md)               | Show the Task field                      | Owner, Admin, Editor                                     | Current | New       |
 | [US-SET-25](settings/US-SET-25-example-data.md)             | Add example data                         | Owner, Admin                                             | Current | New       |
-| [US-SET-26](settings/US-SET-26-anonymise-all-people.md)     | Anonymise all people                     | Owner on the server; demo users for temporary demo data. | Current | New       |
+| [US-SET-26](settings/US-SET-26-anonymise-all-people.md)     | Anonymise all people                     | Owner.                                                   | Current | New       |
 | [US-SET-27](settings/US-SET-27-utilisation-visibility.md)   | Choose which utilisation figures to show | Viewer, Editor, Admin and Owner; this device only.       | Current | New       |
 
 ## Team

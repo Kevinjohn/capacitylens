@@ -13,7 +13,7 @@ The suites cover the frontend, backend and shared workspace packages.
 | --- | --- | --- |
 | App and shared unit tests | Vitest, Testing Library | Shared scheduling rules, the client store and React components |
 | Backend tests | Japa | API behavior, authorization, SQLite, backups and sign-in |
-| End-to-end tests | Playwright | Volatile demo interaction checks and authenticated SQLite scheduler gestures in a real browser |
+| End-to-end tests | Playwright | Authenticated SQLite interaction checks and scheduler gestures in real browsers |
 | Accessibility checks | axe, inside the end-to-end tests | Automated accessibility rules on key screens |
 | Mutation testing | Stryker | Whether focused tests detect changes to scheduling logic; run on demand |
 
@@ -21,7 +21,7 @@ The suites cover the frontend, backend and shared workspace packages.
 
 - Backup and upgrade tests cover supported databases and recovery behavior.
 - End-to-end tests run Chromium by default. WebKit and Firefox runs are opt-in.
-- Demo scheduler tests exercise editable in-memory data that resets on reload.
+- Every browser project exercises the real server. Each parallel worker owns an API, Vite proxy and SQLite database; fixture resets preserve sign-ins and restore company data before authentication.
 - Database-project scenarios use authenticated sessions against SQLite; persisted server data is
   never available anonymously.
 - The dedicated authenticated scheduler suite signs

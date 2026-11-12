@@ -4,14 +4,12 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import { useAuth } from '@/auth/authContext';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { resolveAccessLabel, resolveAccessSummary } from '@/lib/accessCopy';
-import { resolveAccessExperience } from '@/lib/resolveAccessExperience';
 import { MembersSection } from './MembersSection';
 import { AdmissionRequestsPanel } from './AdmissionRequestsPanel';
 import { useStore } from '@/store/useStore';
 import { OwnershipTransferCard } from './OwnershipTransferCard';
 import { Badge } from '@/components/ui/badge';
 import { Check, ChevronDown, ChevronRight, X } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Card,
   CardAction,
@@ -30,18 +28,12 @@ interface Capability {
 interface CurrentAccessCardProps {
   accessLabel: string;
   accessSummary: string;
-  accessWarning: string | null;
   effectiveRole: Role | null;
 }
 
 interface AccessManagementProps {
-  authenticated: boolean;
   mayManage: boolean;
   permissionStatus: ReturnType<typeof usePermissionStatus>;
-}
-
-interface ResolveAccessWarningInput {
-  accessExperience: ReturnType<typeof resolveAccessExperience>;
 }
 
 function listCapabilities(role: Role): Capability[] {
@@ -53,11 +45,6 @@ function listCapabilities(role: Role): Capability[] {
     { label: m.access_cap_private_names(), allowed: canSeePrivateNames(role) },
     { label: m.access_cap_transfer_owner(), allowed: can(role, 'ownership:transfer') },
   ];
-}
-
-function resolveAccessWarning({ accessExperience }: ResolveAccessWarningInput) {
-  if (accessExperience === 'demo') return m.access_demo_warning();
-  return null;
 }
 
 function CapabilityList({ role }: { role: Role }) {
@@ -86,12 +73,7 @@ function CapabilityList({ role }: { role: Role }) {
   );
 }
 
-function CurrentAccessCard({
-  accessLabel,
-  accessSummary,
-  accessWarning,
-  effectiveRole,
-}: CurrentAccessCardProps) {
+function CurrentAccessCard({ accessLabel, accessSummary, effectiveRole }: CurrentAccessCardProps) {
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   let accessDetails = null;
 
@@ -117,12 +99,6 @@ function CurrentAccessCard({
         {capabilitiesOpen && <CapabilityList role={effectiveRole} />}
       </>
     );
-  } else if (accessWarning) {
-    accessDetails = (
-      <Alert>
-        <AlertDescription>{accessWarning}</AlertDescription>
-      </Alert>
-    );
   }
 
   const badgeVariant = effectiveRole === 'viewer' || !effectiveRole ? 'outline' : 'default';
@@ -142,14 +118,7 @@ function CurrentAccessCard({
   );
 }
 
-function AccessManagement({ authenticated, mayManage, permissionStatus }: AccessManagementProps) {
-  if (!authenticated) {
-    return (
-      <Alert>
-        <AlertDescription>{m.access_members_demo_note()}</AlertDescription>
-      </Alert>
-    );
-  }
+function AccessManagement({ mayManage, permissionStatus }: AccessManagementProps) {
   if (mayManage) return <MembersSection />;
   if (permissionStatus !== 'resolved') return null;
 
@@ -172,21 +141,15 @@ export function TeamAccessView() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
-  const accessExperience = resolveAccessExperience();
-  const authenticated = accessExperience === 'authenticated';
-  const resolvedRole = authenticated && permissionStatus === 'resolved' ? role : null;
+  const resolvedRole = permissionStatus === 'resolved' ? role : null;
   const effectiveRole: Role | null = resolvedRole;
   const mayManage = resolvedRole !== null && can(resolvedRole, 'members:manage');
   const accessCopyInput = {
-    experience: accessExperience,
     permissionStatus,
     role: resolvedRole,
   };
   const accessLabel = resolveAccessLabel(accessCopyInput);
   const accessSummary = resolveAccessSummary(accessCopyInput);
-  const accessWarning = resolveAccessWarning({
-    accessExperience,
-  });
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-5 p-6">
@@ -197,26 +160,19 @@ export function TeamAccessView() {
       <CurrentAccessCard
         accessLabel={accessLabel}
         accessSummary={accessSummary}
-        accessWarning={accessWarning}
         effectiveRole={effectiveRole}
       />
 
       {/* Resolve permission before mounting: lower roles must not issue privileged directory reads
           merely by visiting this page. */}
-      <AccessManagement
-        authenticated={authenticated}
-        mayManage={mayManage}
-        permissionStatus={permissionStatus}
-      />
+      <AccessManagement mayManage={mayManage} permissionStatus={permissionStatus} />
 
-      {authenticated &&
-        !masqueradeActive &&
-        (resolvedRole === 'owner' || resolvedRole === 'admin') && (
-          <AdmissionRequestsPanel key={JSON.stringify([activeAccountId, user?.id])} />
-        )}
+      {!masqueradeActive && (resolvedRole === 'owner' || resolvedRole === 'admin') && (
+        <AdmissionRequestsPanel key={JSON.stringify([activeAccountId, user?.id])} />
+      )}
 
       {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}
-      {authenticated && !masqueradeActive && resolvedRole === 'owner' && <OwnershipTransferCard />}
+      {!masqueradeActive && resolvedRole === 'owner' && <OwnershipTransferCard />}
     </div>
   );
 }

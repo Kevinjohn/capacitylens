@@ -4,11 +4,10 @@ import { pathToFileURL } from 'node:url';
 const CONNECT_SOURCES_PLACEHOLDER = '__CAPACITYLENS_CONNECT_SOURCES__';
 
 /**
- * Parses the configured remote API origin, or returns null for demo or unset modes.
+ * Parses the configured remote API origin, or returns null when unset.
  * @throws When the value is not an absolute HTTP(S) origin without credentials, path, query, or fragment.
  */
-export function parseClientApiOrigin(apiValue, demoValue) {
-  if (demoValue === '1') return null;
+export function parseClientApiOrigin(apiValue) {
   const raw = apiValue.trim().replace(/\/+$/, '');
   if (raw === '') return null;
 
@@ -45,15 +44,10 @@ export function renderClientNginx(template, env = process.env) {
       `Client nginx template must contain exactly one ${CONNECT_SOURCES_PLACEHOLDER} placeholder.`,
     );
   }
-  if (env.VITE_CAPACITYLENS_DEMO !== '1' && (env.VITE_CAPACITYLENS_API ?? '').trim() === '') {
-    throw new Error(
-      'The client-only image requires VITE_CAPACITYLENS_DEMO=1 or a remote VITE_CAPACITYLENS_API origin.',
-    );
+  if ((env.VITE_CAPACITYLENS_API ?? '').trim() === '') {
+    throw new Error('The client-only image requires a remote VITE_CAPACITYLENS_API origin.');
   }
-  const apiOrigin = parseClientApiOrigin(
-    env.VITE_CAPACITYLENS_API ?? '',
-    env.VITE_CAPACITYLENS_DEMO ?? '',
-  );
+  const apiOrigin = parseClientApiOrigin(env.VITE_CAPACITYLENS_API ?? '');
   const connectSources = `'self'${apiOrigin === null ? '' : ` ${apiOrigin}`}`;
   return template.replace(CONNECT_SOURCES_PLACEHOLDER, JSON.stringify(connectSources));
 }

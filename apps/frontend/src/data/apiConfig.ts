@@ -1,4 +1,4 @@
-// Canonicalise the API origin for live requests. Demo data stays in memory.
+// Canonicalise the API origin for live requests.
 
 function readOptionalEnvironmentString(value: unknown, variableName: string): string | undefined {
   if (value === undefined || value === null) return undefined;
@@ -34,19 +34,6 @@ function parseApiBase(value: string | undefined): string {
 }
 
 /** API path prefix, empty when requests use the current origin. */
-export const API_BASE = isDemoMode()
-  ? ''
-  : parseApiBase(
-      readOptionalEnvironmentString(import.meta.env.VITE_CAPACITYLENS_API, 'VITE_CAPACITYLENS_API'),
-    );
-
-/** Demo mode: an editable, in-memory seed that resets on refresh. The demo identity shown in the
- * shell (`fakeAuth.ts`) keys off authMode 'off', not this flag. */
-export function isDemoMode(): boolean {
-  return import.meta.env.VITE_CAPACITYLENS_DEMO === '1';
-}
-
-/** Returns true unless the build explicitly selects the in-memory demo. API_BASE does not affect this choice. */
-export function isServerConfigured(): boolean {
-  return !isDemoMode();
-}
+export const API_BASE = parseApiBase(
+  readOptionalEnvironmentString(import.meta.env.VITE_CAPACITYLENS_API, 'VITE_CAPACITYLENS_API'),
+);

@@ -3,7 +3,7 @@
 As a company member, I want invalid import files rejected so that an accidental selection cannot replace my data.
 
 **Status:** Current
-**Access:** Owner on server; demo users in temporary demo
+**Access:** Owner
 **Entry:** Settings → Data and support → Import and export → Import JSON
 **Documentation:** [Settings](../../docs-src/using/settings.md#import-and-export)
 **Source:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx)

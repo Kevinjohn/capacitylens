@@ -42,7 +42,7 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     return id;
   };
 
-  // Refuse writes during masquerade or for viewers so local state cannot diverge from the server.
+  // Refuse writes during masquerade or until a concrete writable role is published.
   // Return a notice instead of throwing because callers use this guard for interactive mutations.
   const blockedByViewer = (): boolean => {
     const state = get();
@@ -50,10 +50,18 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
       state.setNotice(m.notice_masquerade_read_only(), 'error');
       return true;
     }
-    if (state.activeRole !== 'viewer') return false;
+    if (
+      state.activeRole === 'owner' ||
+      state.activeRole === 'admin' ||
+      state.activeRole === 'editor'
+    ) {
+      return false;
+    }
     let message = m.notice_viewer_read_only();
     if (state.activeRoleStatus === 'pending') message = m.access_checking_summary();
-    if (state.activeRoleStatus === 'unavailable') message = m.access_unavailable_summary();
+    if (state.activeRoleStatus === 'unavailable' || state.activeRole === null) {
+      message = m.access_unavailable_summary();
+    }
     state.setNotice(message, 'error');
     return true;
   };

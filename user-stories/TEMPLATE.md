@@ -1,6 +1,6 @@
 # Story format
 
-A story records one meaningful user action and why it matters. Use actual permission roles,
+A story records one meaningful user action and why it matters. Use actual permission roles
 visible control names and current form fields. Keep implementation contracts in
 [DECISIONS.md](../DECISIONS.md), instructions in the guides, and test scripts in the test suite.
 
@@ -76,7 +76,7 @@ flowchart TD
   outcomes where they affect the journey. Avoid repeating every validation or security rule.
 - Trace real producers and consumers: the entry, handler, state or service, persistence when
   applicable, and the resulting UI. Read-only views and device preferences do not become
-  server writes. Distinguish the temporary demo from the persisted server path.
+  server writes. The disposable demo uses the same server path.
 - Link the implementation files under **Code references**. A code label must name an existing
   symbol or clearly identify an absent or intended control. State the scope when a diagram
   stops at a shared boundary.

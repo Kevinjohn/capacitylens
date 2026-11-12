@@ -3,13 +3,12 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { SchedulerView } from './SchedulerView';
 import { useStore } from '@/store/useStore';
-import { DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { resetStoreWithData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
 
 describe('SchedulerView', () => {
-  beforeEach(() => {
-    useStore.getState().replaceAll(schedulerDataset());
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+  beforeEach(async () => {
+    await resetStoreWithData(schedulerDataset(), DEFAULT_ACCOUNT_ID);
     useStore.getState().setOriginDate('2026-06-01');
     useStore.getState().setZoom(4);
     useStore.getState().clearFilters();

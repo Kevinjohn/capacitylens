@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createVolatilePlanningTransport } from '@/data/planning/volatilePlanningTransport';
+import { createTestPlanningTransport } from '@/test/createTestPlanningTransport';
 import { createAccountSlice } from './accountSlice';
 import { createAllocationSlice } from './allocationSlice';
-import { createHistorySlice } from './historySlice';
-import { createLifecycleSlice } from './lifecycleSlice';
 import { createRuntimeSlice } from './runtimeSlice';
 import { createSchedulerSlice } from './schedulerSlice';
 import { createStoreInternals } from '@/store/storeInternal';
@@ -14,17 +12,12 @@ describe('store slice composition', () => {
   it('owns every store key exactly once', () => {
     const set = useStore.setState;
     const get = useStore.getState;
-    const internals = createStoreInternals(set, get);
+    const internals = createStoreInternals(get);
     const slices = [
-      createAccountSlice(internals)(set, get, useStore),
-      createHistorySlice(internals)(set, get, useStore),
+      createAccountSlice()(set, get, useStore),
       createRuntimeSlice(set, get, useStore),
       createSchedulerSlice(buildEmptyFilters)(set, get, useStore),
-      createAllocationSlice(
-        internals,
-        createVolatilePlanningTransport(() => get().data),
-      )(set, get, useStore),
-      createLifecycleSlice(internals)(set, get, useStore),
+      createAllocationSlice(internals, createTestPlanningTransport())(set, get, useStore),
       createTypedPlanningActions(get, internals.blockedByViewer),
     ];
 
@@ -46,13 +39,10 @@ describe('store slice composition', () => {
 
     expect(actionNames).toEqual(
       expect.arrayContaining([
-        'addAccount',
         'updateAccount',
         'setActiveAccount',
         'beginAccountSummariesRequest',
         'setAccountSummaries',
-        'replaceAll',
-        'importData',
         'setHydrated',
         'setPersistError',
         'setLoadError',
@@ -70,9 +60,6 @@ describe('store slice composition', () => {
         'setActiveRole',
         'invalidateMemberships',
         'setMasquerade',
-        'clearUndoHistory',
-        'undo',
-        'redo',
         'addDiscipline',
         'updateDiscipline',
         'deleteDiscipline',
@@ -100,9 +87,6 @@ describe('store slice composition', () => {
         'addClosure',
         'updateClosure',
         'deleteClosure',
-        'archiveEntity',
-        'unarchiveEntity',
-        'anonymiseResource',
         'setZoom',
         'setOriginDate',
         'panDays',
