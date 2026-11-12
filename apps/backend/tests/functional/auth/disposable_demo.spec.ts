@@ -3,11 +3,16 @@ import app from '@adonisjs/core/services/app';
 import type { ApplicationService } from '@adonisjs/core/types';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
-import { prepareDisposableDemo, seedDisposableDemo } from '#services/disposable_demo';
+import {
+  assertDisposableDemoDatabase,
+  prepareDisposableDemo,
+  seedDisposableDemo,
+} from '#services/disposable_demo';
 import { readState } from '#services/state_repository';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { createIdentity, signIn } from '../../helpers/identities.js';
+import { operatorFixture } from '../../unit/operator_command_support.js';
 
 const email = 'admin@admin.admin';
 const password = 'capacitylens-demo-2026';
@@ -140,6 +145,55 @@ test.group('disposable development demo', (group) => {
         assert.lengthOf(await db.from(table), 0, table);
     } finally {
       await db.rawQuery('DROP TRIGGER reject_demo_audit');
+    }
+  });
+
+  test('only the launcher’s per-run storage counts as disposable', ({ assert }) => {
+    const original = env.get('CAPACITYLENS_DB')!;
+    try {
+      env.set('CAPACITYLENS_DB', app.tmpPath('demo-l0-Ab12cD', '.demo.db'));
+      assert.doesNotThrow(() => assertDisposableDemoDatabase(app));
+      for (const path of [
+        app.tmpPath('db.sqlite3'),
+        app.tmpPath('.demo.db'),
+        app.tmpPath('other', '.demo.db'),
+        app.tmpPath('demo-l0-Ab12cD', 'db.sqlite3'),
+        '/tmp/demo-l0-Ab12cD/.demo.db',
+      ]) {
+        env.set('CAPACITYLENS_DB', path);
+        assert.throws(() => assertDisposableDemoDatabase(app), /not disposable demo storage/);
+      }
+    } finally {
+      env.set('CAPACITYLENS_DB', original);
+    }
+  });
+
+  test('demo commands refuse a database the demo launcher did not create', ({
+    assert,
+    test: t,
+  }) => {
+    t.timeout(90000);
+    const f = operatorFixture();
+    try {
+      assert.equal(f.command(['app:upgrade']).status, 0);
+      for (const command of ['capacitylens:demo:prepare', 'capacitylens:demo:seed']) {
+        const result = f.command([command], {
+          NODE_ENV: 'development',
+          CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
+          CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: password,
+        });
+        assert.equal(result.status, 1, result.output);
+        assert.match(result.output, /not disposable demo storage/);
+      }
+      const database = f.inspect();
+      try {
+        for (const table of ['users', 'accounts', 'memberships'])
+          assert.lengthOf(database.prepare(`SELECT 1 FROM ${table}`).all(), 0, table);
+      } finally {
+        database.close();
+      }
+    } finally {
+      f.cleanup();
     }
   });
 });

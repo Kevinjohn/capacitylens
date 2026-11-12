@@ -1,6 +1,6 @@
 import { BaseCommand } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
-import { prepareDisposableDemo } from '#services/disposable_demo';
+import { assertDisposableDemoDatabase, prepareDisposableDemo } from '#services/disposable_demo';
 
 export default class DemoCommand extends BaseCommand {
   static commandName = 'capacitylens:demo:prepare';
@@ -8,6 +8,7 @@ export default class DemoCommand extends BaseCommand {
   static options: CommandOptions = { startApp: true };
   async run() {
     try {
+      assertDisposableDemoDatabase(this.app);
       await prepareDisposableDemo(this.app);
     } catch (error) {
       this.logger.error(

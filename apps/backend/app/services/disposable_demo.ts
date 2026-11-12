@@ -1,8 +1,24 @@
+import { basename, dirname, resolve } from 'node:path';
 import type { ApplicationService } from '@adonisjs/core/types';
 import db from '@adonisjs/lucid/services/db';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
 import { insertDisposableDemoSeed } from '#services/state_repository';
+import env from '#start/env';
+
+/** The demo commands run only on the per-launch storage `pnpm run dev:demo` creates under tmp/. */
+export function assertDisposableDemoDatabase(app: ApplicationService) {
+  const databasePath = env.get('CAPACITYLENS_DB');
+  const directory = databasePath ? dirname(resolve(databasePath)) : '';
+  if (
+    !databasePath ||
+    basename(databasePath) !== '.demo.db' ||
+    dirname(directory) !== app.tmpPath() ||
+    !/^demo-l\d+-/.test(basename(directory))
+  ) {
+    throw new Error('Refusing demo preparation: the database is not disposable demo storage');
+  }
+}
 
 /** Demo preparation and seeding are restricted to an empty development installation. */
 export async function assertEmptyDemoInstallation(app: ApplicationService) {
