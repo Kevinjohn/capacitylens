@@ -70,8 +70,6 @@ function AppShellToaster({ theme }: { theme: ReturnType<typeof useStore.getState
 
 type GatedAppProps = {
   hydrated: boolean;
-  connectionError: ReturnType<typeof useStore.getState>['connectionError'];
-  loadError: ReturnType<typeof useStore.getState>['loadError'];
   hasActiveAccount: boolean;
   ambiguousAccountDirectory: boolean;
   allowWithoutActiveAccount: boolean;
@@ -87,15 +85,12 @@ type GatedAppProps = {
   dirtyForm: boolean;
   paletteOpen: boolean;
   closePalette: () => void;
-  persistError: ReturnType<typeof useStore.getState>['persistError'];
   masqueradeBanner: ReturnType<typeof buildMasqueradeBannerContent>;
   navigate: ReturnType<typeof useNavigate>;
 };
 
 function GatedApp({
   hydrated,
-  connectionError,
-  loadError,
   hasActiveAccount,
   ambiguousAccountDirectory,
   allowWithoutActiveAccount,
@@ -108,7 +103,6 @@ function GatedApp({
   dirtyForm,
   paletteOpen,
   closePalette,
-  persistError,
   masqueradeBanner,
   navigate,
 }: GatedAppProps) {
@@ -122,8 +116,6 @@ function GatedApp({
   return (
     <AppEntryGate
       hydrated={hydrated}
-      connectionError={connectionError}
-      loadError={loadError}
       hasActiveAccount={hasActiveAccount}
       ambiguousAccountDirectory={ambiguousAccountDirectory}
       allowWithoutActiveAccount={allowWithoutActiveAccount}
@@ -152,8 +144,7 @@ function GatedApp({
           {/* prettier-ignore */}
           <GatedMain
             hydrated={hydrated}
-            persistError={persistError}
-            masqueradeBanner={masqueradeBanner}
+                masqueradeBanner={masqueradeBanner}
             navigate={navigate}
             orientation={orientation}
             mobileSidebarTriggerRef={mobileSidebarTrigger}
@@ -212,12 +203,11 @@ function GatedSidebar({
 
 function GatedMain({
   hydrated,
-  persistError,
   masqueradeBanner,
   navigate,
   orientation,
   mobileSidebarTriggerRef,
-}: Pick<GatedAppProps, 'hydrated' | 'persistError' | 'masqueradeBanner' | 'navigate'> & {
+}: Pick<GatedAppProps, 'hydrated' | 'masqueradeBanner' | 'navigate'> & {
   orientation: ReturnType<typeof useProductOrientation>;
   mobileSidebarTriggerRef: Ref<HTMLButtonElement>;
 }) {
@@ -232,11 +222,6 @@ function GatedMain({
         <MobileSidebarTrigger triggerRef={mobileSidebarTriggerRef} />
       </div>
       {masqueradeBanner && <MasqueradeBanner banner={masqueradeBanner} navigate={navigate} />}
-      {persistError && (
-        <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
-          <AlertDescription>{m.app_persist_error()}</AlertDescription>
-        </Alert>
-      )}
       {planningProblem && (
         <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
           <AlertDescription>
@@ -270,9 +255,6 @@ export function AppShell() {
   const navigate = useNavigate();
   const { paletteOpen, closePalette } = useAppShellController();
   const hydrated = useStore((state) => state.hydrated);
-  const persistError = useStore((state) => state.persistError);
-  const loadError = useStore((state) => state.loadError);
-  const connectionError = useStore((state) => state.connectionError);
   const masquerade = useStore((state) => state.masquerade);
   const masqueradeBanner = buildMasqueradeBannerContent(masquerade);
   // Delegate the system preference to Sonner so it follows live OS changes without a shell rerender;
@@ -303,8 +285,6 @@ export function AppShell() {
       <AppShellToaster theme={themePreference} />
       <GatedApp
         hydrated={hydrated}
-        connectionError={connectionError}
-        loadError={loadError}
         hasActiveAccount={activeAccount !== undefined}
         ambiguousAccountDirectory={accountSummariesAmbiguous || accountSummaries.length > 1}
         allowWithoutActiveAccount={
@@ -319,7 +299,6 @@ export function AppShell() {
         dirtyForm={dirtyForm}
         paletteOpen={paletteOpen}
         closePalette={closePalette}
-        persistError={persistError}
         masqueradeBanner={masqueradeBanner}
         navigate={navigate}
       />

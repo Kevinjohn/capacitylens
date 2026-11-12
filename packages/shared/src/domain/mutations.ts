@@ -7,7 +7,6 @@ export {
   assertDateRange,
   assertResourceExists,
 } from './assertions/dependents.js';
-export { remapAndValidateImport } from './importFold.js';
 export {
   assertAllocationWithinResourceAvailability,
   validateResourceAvailabilityPair,

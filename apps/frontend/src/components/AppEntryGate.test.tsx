@@ -15,8 +15,6 @@ beforeEach(() => {
 
 const baseProps = {
   hydrated: true,
-  connectionError: false,
-  loadError: false,
   hasActiveAccount: true,
   ambiguousAccountDirectory: false,
   allowWithoutActiveAccount: false,
@@ -27,7 +25,7 @@ const baseProps = {
   children: <div>application shell</div>,
 };
 
-describe('AppEntryGate connection failures', () => {
+describe('AppEntryGate', () => {
   it('shows only a neutral loading boundary before hydration completes', () => {
     render(<AppEntryGate {...baseProps} hydrated={false} />);
 
@@ -35,28 +33,7 @@ describe('AppEntryGate connection failures', () => {
     expect(screen.queryByText('application shell')).not.toBeInTheDocument();
   });
 
-  it('gates the application on a connection error', () => {
-    render(<AppEntryGate {...baseProps} connectionError />);
-
-    expect(screen.getByRole('heading', { name: 'Can’t reach the server' })).toBeInTheDocument();
-    expect(screen.queryByText('application shell')).not.toBeInTheDocument();
-  });
-
-  it('routes unreadable local data to recovery rather than the server retry loop', async () => {
-    render(<AppEntryGate {...baseProps} loadError />);
-
-    expect(
-      await screen.findByRole('heading', { name: 'Stored data could not be read' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Download raw copy' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reset data' })).toBeInTheDocument();
-    expect(
-      screen.queryByRole('heading', { name: 'Can’t reach the server' }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText('application shell')).not.toBeInTheDocument();
-  });
-
-  it('focuses the retry action when the connection-error stage appears', () => {
+  it('focuses the retry action when a recovery stage appears', () => {
     let callback: FrameRequestCallback | undefined;
     const request = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((next) => {
       callback = next;
@@ -64,10 +41,10 @@ describe('AppEntryGate connection failures', () => {
     });
     const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
     try {
-      render(<AppEntryGate {...baseProps} connectionError />);
+      render(<AppEntryGate {...baseProps} activeAccountLoadFailed="a-studio" />);
       act(() => callback?.(0));
 
-      expect(screen.getByRole('button', { name: 'Try again' })).toHaveFocus();
+      expect(screen.getByRole('button', { name: 'Retry' })).toHaveFocus();
     } finally {
       request.mockRestore();
       cancel.mockRestore();
@@ -78,7 +55,7 @@ describe('AppEntryGate connection failures', () => {
     const request = vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(23);
     const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
     try {
-      const view = render(<AppEntryGate {...baseProps} connectionError />);
+      const view = render(<AppEntryGate {...baseProps} activeAccountLoadFailed="a-studio" />);
       view.rerender(<AppEntryGate {...baseProps} />);
 
       expect(cancel).toHaveBeenCalledWith(23);

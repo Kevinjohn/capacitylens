@@ -16,10 +16,7 @@ import type { StoreState } from '@/store/types';
 
 type RuntimeSliceKeys =
   | 'hydrated'
-  | 'persistError'
   | 'planningAuthLossVersion'
-  | 'loadError'
-  | 'connectionError'
   | 'activeAccountLoadFailed'
   | 'notice'
   | 'srAnnouncement'
@@ -37,9 +34,6 @@ type RuntimeSliceKeys =
   | 'membershipRevision'
   | 'masquerade'
   | 'setHydrated'
-  | 'setPersistError'
-  | 'setLoadError'
-  | 'setConnectionError'
   | 'setNotice'
   | 'announceCapacity'
   | 'setDirtyForm'
@@ -73,10 +67,7 @@ const createPersistedFlagSetter = <K extends PersistedFlagKey>(
 function readRuntimeInitialState() {
   return {
     hydrated: false,
-    persistError: false,
     planningAuthLossVersion: 0,
-    loadError: false,
-    connectionError: false,
     activeAccountLoadFailed: null,
     notice: null,
     srAnnouncement: null,
@@ -112,9 +103,6 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     ...readRuntimeInitialState(),
 
     setHydrated: (value) => set({ hydrated: value }),
-    setPersistError: (value) => set({ persistError: value }),
-    setLoadError: (value) => set({ loadError: value }),
-    setConnectionError: (value) => set({ connectionError: value }),
     setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
     announceCapacity: (text) =>
       set((state) => ({
