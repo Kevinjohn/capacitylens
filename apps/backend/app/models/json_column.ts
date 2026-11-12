@@ -1,9 +1,12 @@
 import type { ColumnOptions } from '@adonisjs/lucid/types/model';
 
-type JsonColumnOptions<T> = Pick<ColumnOptions, 'prepare' | 'consume'> & {
+type JsonColumnOptions<T> = Pick<ColumnOptions, 'prepare' | 'consume' | 'meta'> & {
   prepare(value: T | null): string | null;
   consume(value: unknown): T | null;
 };
+
+/** Marks a column declared with `jsonColumn`, so the stored encoding is read from the model. */
+const JSON_COLUMN = Object.freeze({ json: true });
 
 export type JsonValidator<T> = (value: unknown) => value is T;
 
@@ -26,6 +29,7 @@ export function jsonColumn<T>(
 ): JsonColumnOptions<T> {
   const invalid = () => new Error(`Invalid persisted JSON in ${table}.${column}`);
   return {
+    meta: JSON_COLUMN,
     prepare(value) {
       if (value === null) return null;
       if (!validate(value)) throw invalid();
@@ -49,4 +53,9 @@ export function jsonColumn<T>(
       return parsed;
     },
   };
+}
+
+/** Whether a model column was declared with `jsonColumn`. */
+export function isJsonColumn(options: Pick<ColumnOptions, 'meta'> | undefined): boolean {
+  return options?.meta === JSON_COLUMN;
 }

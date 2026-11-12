@@ -4,7 +4,7 @@ import { withActor, kitContextIn } from '#services/auth/current_actor';
 import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { hasOnlyFields } from '#services/request_helpers';
-import { BatchRequestError } from '#services/planning/errors';
+import { EntityWriteError } from '#services/planning/errors';
 import {
   applyBetaAccountTransfer,
   parseRequestDocument,
@@ -40,7 +40,7 @@ function input(value: unknown, apply: boolean) {
 }
 
 function failure(ctx: HttpContext, error: unknown) {
-  if (error instanceof BatchRequestError) {
+  if (error instanceof EntityWriteError) {
     return ctx.response.status(error.status).send({
       error: error.message,
       ...(error.code ? { code: error.code } : {}),

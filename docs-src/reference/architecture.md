@@ -162,9 +162,9 @@ editor locked until a later lookup proves commitment or the context changes.
 `apps/backend/app/services/planning/` is private to the facade and the planning controller, with
 four deliberate exceptions:
 
-- `errors.ts` `BatchRequestError`: thrown by export import and example data, mapped by their
+- `errors.ts` `EntityWriteError`: thrown by export import and example data, mapped by their
   controllers.
-- `data_policy.ts` `BatchCapabilities`: the capability type the planning engine consumes.
+- `data_policy.ts` `PlanningCapabilities`: the capability type the planning engine consumes.
 - `entity_policy.ts` `TABLE_NAMES`: the scoped table list for export import and example data.
 - `server_timestamp.ts` `createServerRevision`: row timestamps for anonymisation.
 

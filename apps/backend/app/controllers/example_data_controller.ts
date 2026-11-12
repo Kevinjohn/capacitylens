@@ -5,7 +5,7 @@ import { encodeRow, readStateWithClient } from '#services/state_repository';
 import { TABLE_NAMES } from '#services/planning/entity_policy';
 import { withActor } from '#services/auth/current_actor';
 import { writeAudit } from '#services/audit';
-import { BatchRequestError } from '#services/planning/errors';
+import { EntityWriteError } from '#services/planning/errors';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { advancePlanningRevision } from '#services/planning_revision';
 
@@ -29,14 +29,14 @@ export default class ExampleDataController {
         const actor = await assertCompanyAction(accountId, 'members:manage', trx);
         const state = await readStateWithClient(trx, accountId, true);
         const account = state.accounts.at(0);
-        if (!account) throw new BatchRequestError('Company not found.', 404);
+        if (!account) throw new EntityWriteError('Company not found.', 404);
         if (
           state.resources.length > 0 ||
           state.clients.some((client) => client.builtin !== true) ||
           state.projects.length > 0 ||
           state.allocations.length > 0
         ) {
-          throw new BatchRequestError(
+          throw new EntityWriteError(
             'Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.',
             409,
             undefined,
@@ -78,7 +78,7 @@ export default class ExampleDataController {
       }
       return response.created({ added });
     } catch (error) {
-      if (error instanceof BatchRequestError) {
+      if (error instanceof EntityWriteError) {
         return response.status(error.status).send({
           error: error.message,
           ...(error.code ? { code: error.code } : {}),

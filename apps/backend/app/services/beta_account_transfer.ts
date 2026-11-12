@@ -10,7 +10,7 @@ import {
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { encodeRow, readStateWithClient } from '#services/state_repository';
 import { TABLE_NAMES } from '#services/planning/entity_policy';
-import { BatchRequestError } from '#services/planning/errors';
+import { EntityWriteError } from '#services/planning/errors';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 
@@ -72,7 +72,7 @@ async function assertNoForeignIdCollision(
         .select('id')
         .first();
       if (foreign) {
-        throw new BatchRequestError(
+        throw new EntityWriteError(
           'The import contains scheduling IDs used by another company on this server.',
           409,
           undefined,
@@ -104,7 +104,7 @@ export async function previewBetaAccountTransfer(
   document: BetaExportDocument
 ) {
   const current = await readStateWithClient(trx, accountId, true);
-  if (current.accounts.length !== 1) throw new BatchRequestError('Company not found.', 404);
+  if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
   const prepared = prepareBetaImport(document, await context(trx, accountId));
   await assertNoForeignIdCollision(trx, accountId, prepared.data);
   const changed = portableFingerprint(current, accountId) !== fingerprint(prepared.data);
@@ -121,10 +121,10 @@ export async function applyBetaAccountTransfer(
   actorId: string
 ) {
   const current = await readStateWithClient(trx, accountId, true);
-  if (current.accounts.length !== 1) throw new BatchRequestError('Company not found.', 404);
+  if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
   const revision = await getPlanningRevision(trx, accountId);
   if (revision !== baseRevision) {
-    throw new BatchRequestError(
+    throw new EntityWriteError(
       'The company changed. Preview the current data again.',
       409,
       { revision },

@@ -1,4 +1,5 @@
-export class BatchRequestError extends Error {
+/** A refused entity write with a safe message; each caller maps `status` to its response. */
+export class EntityWriteError extends Error {
   constructor(
     message: string,
     readonly status = 400,
