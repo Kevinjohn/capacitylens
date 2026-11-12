@@ -1,27 +1,42 @@
 # US-SCH-16 — Collapse and expand a discipline group
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/features.spec.ts` → "clicking a discipline header collapses its rows"
+As an Editor, I want to collapse and expand discipline groups so that I can focus the Schedule on selected teams.
 
-## Goal
+**Status:** Current
 
-Collapse a discipline group from its header (the chevron); the group's resource rows hide and the header shows an "N hidden" count, while the header itself stays. Clicking again expands it.
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-A busy studio has more rows than fit on one screen. When the manager is focused on, say, Development, being able to fold away Design and Copywriting keeps the relevant rows in view without scrolling past noise. Keeping the header (with a count of what's hidden) means nothing is lost — the group is one click from coming back.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). **Bruce Wayne** sits under the **Design** group.
-
-1. Click the **Design** discipline group header (its chevron toggles it).
-2. The resource rows under Design hide — **Bruce Wayne**'s row disappears from the grid.
-3. The **Design** group header itself remains (`data-testid="discipline-group"`), now showing an **"N hidden"** count of its folded rows (see US-SCH-14).
-4. Click the **Design** header again. The group expands and **Bruce Wayne**'s row returns.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ Clicking the group header hides that group's resource rows (e.g. **Bruce Wayne** is no longer in the grid).
-- ✅ The **discipline-group** header itself remains visible after collapsing.
-- ✅ The collapsed header shows an **"N hidden"** count.
-- ✅ Clicking the header again expands the group and restores its rows.
+- Selecting a group header collapses its resource rows and shows **{count} hidden**.
+- Selecting it again restores the rows.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer selects a discipline heading"]
+  B["Resource rows collapse and hidden count appears"]
+  C["Viewer selects the heading again"]
+  D["Resource rows return"]
+  A --> B
+  B --> C
+  C --> D
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["SchedulerGridGroupHeader button calls toggleGroup"] --> B["schedulerSlice.toggleGroup updates ui.collapsedGroups"]
+  B --> C["useSchedulerGridModel projects grouped rows"]
+  C --> D["SchedulerGridRows omits collapsed rows and renders header count"]
+```
+
+**Code references:** [SchedulerGridGroupHeader.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridGroupHeader.tsx), [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx)

@@ -1,49 +1,33 @@
-# US-SET-04 — Send feedback pinned to the build I'm on
+# US-SET-04 — Open a feedback email
 
-**Area:** Diagnostics · **Persona:** Owner or Admin reporting a problem · **Linked E2E:** `e2e/settings-build-stamp.spec.ts` → default build omits feedback link
+As an Owner or Admin, I want to open a preaddressed feedback email so that I can report a problem with its build context.
 
+**Status:** Current
+**Access:** Owner, Admin; anyone in demo mode
+**Entry:** Diagnostics → Send feedback (when configured)
 **Documentation:** [Diagnostics](../../docs-src/admin/diagnostics.md)
-
-> **Flag-gated:** the link only exists in builds made with `VITE_CAPACITYLENS_FEEDBACK_MAILTO`
-> set (the deploy script sets it to the owner's address). The default dev/local build
-> renders nothing, so the only part runnable against `pnpm run dev` is the _absence_
-> check — which is what the linked E2E asserts. Pairs with [US-SET-03](US-SET-03-build-stamp.md).
-
-## Goal
-
-Report a problem in one click, with the email already pinned to the exact build it
-happened on.
-
-## Why
-
-Tester reports arrive by email this round (no Sentry — Phase 0 decision). A bare "it
-broke" mail costs a round-trip to ask _which build_; pre-filling the subject with the
-build stamp (`CapacityLens feedback — build a1b2c3d · server`) makes every report attributable
-on arrival.
-
-## How (end-to-end, hosted demo)
-
-**Precondition:** the deployed site, signed in past Basic Auth as an Owner or Admin; open
-**Diagnostics** below Settings.
-
-1. Scroll below the support report: next to the build stamp sits a
-   **Send feedback** link (`data-testid="send-feedback"`).
-2. Click it — the mail client opens a draft to the owner's address with the subject
-   `CapacityLens feedback — build <sha> · server`.
-3. Describe the problem and send.
-
-**Precondition (default local build):** run `pnpm run dev`, open Diagnostics.
-
-4. Confirm there is **no** Send feedback link (and no footer at all).
+**Source:** [DiagnosticsBuildDetails.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx)
 
 ## Acceptance criteria
 
-- With `VITE_CAPACITYLENS_FEEDBACK_MAILTO=<addr>` baked into the build, Diagnostics shows a
-  **Send feedback** `mailto:` link beside the build stamp when `<addr>` is one valid email address;
-  the recipient is URI-encoded so reserved characters remain part of the mailbox.
-- An invalid feedback address is rejected during client build/startup rather than producing a
-  malformed mail action.
-- The mailto subject contains the build stamp when `VITE_CAPACITYLENS_BUILD_SHA` is also set
-  (the demo deploy sets both), and a plain `CapacityLens feedback` subject otherwise.
-- Without the variable (dev server, plain `pnpm run build`), the link is absent.
-- The link is plain text-styled, keyboard-focusable, and does not affect the axe audit.
+- With a configured valid feedback address, **Send feedback** opens a mail draft to that address with the subject `CapacityLens feedback`, followed by the build stamp when one is configured. Without a valid address the link is absent.
+
+## User flow
+
+```mermaid
+flowchart TD
+A["Open Diagnostics"] --> B{"Feedback address configured?"}
+B -->|yes| C["Select Send feedback"] --> D["Review the draft in the email application"]
+B -->|no| E["No feedback action is shown"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  view["DiagnosticsBuildDetails calls readFeedbackMailto"] --> info["buildInfo builds configured mailto and optional stamp"]
+  info --> link["DiagnosticsBuildDetails renders mailto anchor when configured"]
+  link --> mail["Browser opens the user's mail app"]
+```
+
+**Code references:** [DiagnosticsBuildDetails.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx), [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts)

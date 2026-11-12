@@ -1,45 +1,39 @@
-# US-NAV-15 — Blue identity, green positive actions, red destructive actions
+# US-NAV-15 — Recognize action meaning and product identity
 
-**Area:** Navigation & shell · **Persona:** Any CapacityLens user · **Linked automated coverage:** `e2e/navigation.spec.ts` (rendered identity/action roles), `apps/frontend/src/components/ui/button.test.tsx` (button role classes), `apps/frontend/src/lib/designTokens.test.ts` (token contrast), `e2e/a11y.spec.ts` (light/dark rendered accessibility)
+As a company member, I want consistent semantic colours so that I can recognize product, positive, and destructive actions.
 
-## Goal
+**Status:** Current
 
-Recognise what CapacityLens is, what moves work forward, and what is destructive at a glance —
-without the interface falling back to an indistinct purple accent or sacrificing contrast.
+**Access:** Owner, Admin, Editor, Viewer
 
-## Why
+**Entry:** Navigation and action buttons
 
-Colour should carry a small, consistent amount of meaning. Blue is the product identity and
-navigation accent. Green is reserved for positive actions such as Create, Save, Add and Continue.
-Destructive actions remain red, using the accessible soft-red pairing where a solid red would fail
-contrast. The same roles must hold in light and dark themes, while user-selected client, project
-and discipline swatches remain data colours rather than being confused with the action language.
+**Documentation:** [Help](../../docs-src/using/help.md)
 
-## How (end-to-end)
-
-1. Open a seeded company in the default light theme and note the CapacityLens wordmark and active
-   navigation accent.
-2. Open a form such as **Clients → Add client**. Confirm the primary **Save** action is green.
-3. Open an available destructive confirmation. Confirm its action is red, and its label states
-   the destructive operation explicitly.
-4. Switch to **Dark** in Settings and repeat the visual check. Confirm the identity, positive and
-   destructive roles remain distinct and legible.
-5. Pick a user-defined client/project/discipline swatch. Confirm it changes that entity's data
-   colour only; it does not change the meaning of primary or destructive controls.
-6. Compare role and status badges in the company picker, sidebar footer or Team & access. Confirm
-   they share a compact pill silhouette while colour continues to communicate their semantic role.
+**Source:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [button.tsx](../../apps/frontend/src/components/ui/button.tsx)
 
 ## Acceptance criteria
 
-- ✅ Product identity, wordmark and navigation accents use the semantic blue brand tokens; the
-  default UI is not purple-led.
-- ✅ Primary positive controls (Create, Save, Add, Continue and equivalent submit/recovery actions)
-  use the semantic green action token and readable action ink.
-- ✅ Destructive controls use the semantic red danger role and keep explicit labels; the danger
-  pairing remains contrast-safe in both themes.
-- ✅ Light and dark theme token pairings meet WCAG AA for the rendered text; the role distinction
-  does not depend on colour alone because controls retain meaningful labels.
-- ✅ Default account/resource/entity presets use the refreshed blue family, while user-selected
-  preset swatches continue to render as entity data colours.
-- ✅ Shared role and status badges use a compact pill silhouette; their existing brand, neutral,
-  warning, danger and outline colours keep the meanings described above.
+- Buttons share one semantic variant set: green for primary and confirming actions; neutral outline, secondary or ghost styles for secondary and cancel actions; red destructive or soft-danger styles for destructive actions; and the brand colour for link-styled actions.
+
+## User flow
+
+```mermaid
+flowchart TD
+  human1["Scan navigation and actions"]
+  human2["Positive, neutral, destructive or link intent is conveyed"]
+  human3["Text and controls remain legible"]
+  human1 --> human2
+  human2 --> human3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  action["Button receives variant and visual intent"] --> styles["button.tsx assigns semantic classes"]
+  styles --> tokens["index.css resolves semantic color tokens"]
+  tokens --> ui["rendered control communicates intent"]
+```
+
+**Code references:** [button.tsx](../../apps/frontend/src/components/ui/button.tsx); [index.css](../../apps/frontend/src/index.css)

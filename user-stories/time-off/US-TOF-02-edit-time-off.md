@@ -1,29 +1,56 @@
 # US-TOF-02 — Edit a time-off entry
 
-**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "edits a time-off entry and the list reflects the change"
+As an Editor, I want to edit one time-off entry so that its dates and type stay current without changing other occurrences.
 
-## Goal
-
-Change an existing time-off entry's type and/or dates, and have the list row and the timeline block update to match.
-
-## Why
-
-Plans move. A holiday gets shortened, or what was logged as a holiday turns out to be sick leave. The manager fixes the existing entry in place rather than deleting and re-booking, and the schedule's unavailable days shift with it automatically.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed already has **Bruce Wayne** off **10–12 June (Holiday)**.
-
-1. On the **Bruce Wayne** row (reading _Wed 10th Jun · 3 days_), click the **Edit** (pencil) icon. The "Edit time off" dialog opens.
-2. Confirm the dialog is pre-filled: **Resource** = _Bruce Wayne_, **Start** = `2026-06-10`, **End** = `2026-06-12`, **Type** = _Holiday_.
-3. Change **Type** = _Sick_ and shorten the range to **End** = `2026-06-11`.
-4. Click **Save**. The dialog closes.
-5. Go to **Schedule** (`/`), click **Today** so the seed bars are in view, and set **Weeks visible** to **1 week** to read the block over Bruce's lane.
+**Status:** Current
+**Access:** Editor, Admin or Owner
+**Entry:** Time off page
+**Documentation:** [time-off.md](../../docs-src/using/time-off.md)
+**Source:** [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx), [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/timeoff/TimeOffRepeatFields.tsx)
 
 ## Acceptance criteria
 
-- ✅ The dialog is titled **Edit time off** and pre-fills every field from the existing entry (resource, start, end, type, note).
-- ✅ After Save, Bruce's `timeoff-row` updates to **Bruce Wayne · Wed 10th Jun · 2 days** — the start date is unchanged, and shortening the end shows as a smaller day count (3 → 2). The new _Sick_ type is stored and shows on the timeline block + when you re-open the editor — it is not shown in the list row (see US-TOF-04).
-- ✅ On the Schedule (click **Today**, **Weeks visible** = **1 week**), Bruce's `timeoff-block` now spans 10–11 June (one day shorter) and carries the new type label; 12 June is no longer covered.
-- ✅ Editing back returns the entry to its prior state — the edit is reversible.
-- ✅ The same validation as creating applies: a reversed range (End before Start) keeps the dialog open with "End date cannot be before the start date."
+| Field    | Control    | Required/default/conditions                                            |
+| -------- | ---------- | ---------------------------------------------------------------------- |
+| Resource | Select     | Required; prefilled with the saved resource; excludes external parties |
+| Start    | Date input | Required; prefilled with the saved start date                          |
+| End      | Date input | Required; prefilled with the saved end date; cannot precede Start      |
+| Type     | Select     | Prefilled with the saved type; options Holiday, Sick, Unpaid or Other  |
+| Note     | Text input | Optional; prefilled; shown only to Owners and Admins                   |
+
+- Save updates this entry only; repeating occurrences remain independent.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Open one time-off entry"]
+  N2["edit its resource, dates, type or permitted note"]
+  N3["Save"]
+  N4["only that entry changes"]
+  B1["Invalid values or save failure: error shown; form stays open"]
+  B2["Cancel: saved entry unchanged"]
+  N1 --> N2
+  N2 --> N3
+  N3 --> N4
+  N3 -.-> B1
+  N3 -.-> B2
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["TimeOffForm: edit saved entry"] --> B["timeOffFormSubmission: validate changed fields"]
+  B -->|valid| C["updateTimeOff(id, patch)"]
+  B -->|invalid| D["Field error; no mutation"]
+  C --> E["typedPlanningActions.updateTimeOff; planning reconciliation"]
+  E --> F["Only selected entry updates"]
+```
+
+**Code references:**
+
+- [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx)
+- [timeOffFormSubmission.ts](../../apps/frontend/src/components/timeoff/timeOffFormSubmission.ts)
+- [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
+- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)

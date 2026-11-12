@@ -1,42 +1,44 @@
-# US-KBD-06 — Scan compact input modals
+# US-KBD-06 — Scan management forms at different widths
 
-**Area:** Accessibility · forms · **Persona:** Studio manager · **Linked E2E:**
-`e2e/modal-layout.spec.ts`
+As a company member, I want labelled form controls to remain clear on desktop and narrow screens so that I can complete supported forms.
 
-## Goal
+**Status:** Current
 
-Scan labels, required markers and controls consistently across the common management forms without
-making narrow screens harder to use.
+**Access:** Owner, Admin, Editor; visibility and writes are role-gated
 
-## Why
+**Entry:** Resource, External party, Discipline, Client, Project, Activity, and Time off forms
 
-Stacking every label above its control makes short add/edit dialogs taller and slower to scan. The
-approved Resource form establishes a compact row while retaining a mobile-first stacked fallback.
-The same visual language should apply to the other common input dialogs.
+**Documentation:** [Help](../../docs-src/using/help.md)
 
-## How (end-to-end)
-
-1. Open each add or edit dialog for **External party**, **Discipline**, **Client**, **Project**,
-   **Activity** and **Time off**.
-2. At a normal desktop width, compare the label and control columns.
-3. In Client or Project, enable **Use code name** and inspect the conditional **Code name** field and its helper row.
-4. In Activity, switch Kind and inspect the conditional **Project** field.
-5. Narrow the browser below the small-screen breakpoint.
-6. Submit one required form without its required value and inspect the error association.
+**Source:** [modal-layout.spec.ts](../../e2e/modal-layout.spec.ts)
 
 ## Acceptance criteria
 
-- ✅ At normal modal widths, every visible field in the six named dialogs uses the same approximate
-  25% label / 75% control row as the Resource form.
-- ✅ Conditional Activity and privacy controls retain that row when they appear.
-- ✅ Helper text occupies a separate row beneath its control, without shifting the label away from the control.
-- ✅ Below the small-screen breakpoint, each label stacks above its full-width control.
-- ✅ Long labels wrap within the label area without shifting the control column or widening the page.
-- ✅ Required markers, invalid styling and `aria-describedby` error association remain intact.
-- ✅ Allocation, company, invitation, Team and other administrative dialogs are unchanged.
+- Fields use aligned labels at wider widths and stacked labels on narrow screens; required and conditional fields remain associated.
 
-## Automated coverage
+## User flow
 
-`e2e/modal-layout.spec.ts` verifies all six create dialogs plus normal geometry, long-label wrapping,
-narrow stacking, page containment and required-error association. Shared field and form component
-tests verify the opt-in layout contract, including conditional fields.
+```mermaid
+flowchart TD
+  human1["Open a supported management form"]
+  human2["Labels and controls align at wider widths"]
+  human3["Narrow viewport"]
+  human4["labels stack above controls"]
+  human5["Conditional and required fields remain labelled"]
+  human1 --> human2
+  human2 --> human3
+  human3 --> human4
+  human4 --> human5
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  form["management form renders shared fields"] --> field["TextField accepts ProductFieldLayout"]
+  field --> layout["buildProductFieldLayoutProps selects layout classes"]
+  layout --> css["index.css responsive field layout"]
+  forms["Resource Client Project Activity TimeOff and External forms"] --> field
+```
+
+**Code references:** [textFields.tsx](../../apps/frontend/src/components/common/fields/textFields.tsx); [buildProductFieldLayoutProps.ts](../../apps/frontend/src/components/common/fields/buildProductFieldLayoutProps.ts); [fieldLayout.tsx](../../apps/frontend/src/components/common/fields/fieldLayout.tsx); [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx); [ExternalForm.tsx](../../apps/frontend/src/components/external/ExternalForm.tsx); [DisciplineForm.tsx](../../apps/frontend/src/components/disciplines/DisciplineForm.tsx); [ClientForm.tsx](../../apps/frontend/src/components/clients/ClientForm.tsx); [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx); [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx); [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx); [index.css](../../apps/frontend/src/index.css)

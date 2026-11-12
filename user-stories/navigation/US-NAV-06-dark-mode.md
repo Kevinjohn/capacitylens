@@ -1,60 +1,44 @@
-# US-NAV-06 — Light / dark theme preference (and reduced motion)
+# US-NAV-06 — Choose appearance
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "settings toggles the colour theme", "sidebar toggles between light and dark mode", "renders in dark mode"; `e2e/a11y.spec.ts` → "scheduler in dark mode has no serious or critical violations"
+As a company member, I want to choose this device’s light or dark appearance so that the interface suits my viewing conditions.
+
+**Status:** Current
+
+**Access:** Owner, Admin, Editor, Viewer
+
+**Entry:** Sidebar theme action; Settings → My display
 
 **Documentation:** [Settings](../../docs-src/using/settings.md)
 
-## Goal
-
-Switch quickly between light and dark from the sidebar, or choose the full colour-scheme
-preference in **Settings** — **Light** (the default), **Dark**, or **Match system** (follow the
-OS) — with legible text in every theme, and have a reduced-motion preference honoured.
-
-## Why
-
-People schedule at all hours, and some prefer a dark UI at night. CapacityLens themes from
-semantic colour tokens resolved to one `data-theme` on `<html>`, so the whole UI
-re-themes at once and stays readable (WCAG AA), with no per-component dark styling to
-drift out of sync. The default is **light**; dark is an explicit opt-in (or "Match
-system", which tracks the OS), so nothing surprises a user who hasn't asked for it.
-Respecting `prefers-reduced-motion` also keeps it comfortable for users who disable
-animations.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open at Schedule (`/`). On a fresh profile the theme is
-**light** by default — the app does not switch to dark just because the OS is dark.
-
-1. Below **Settings** in the sidebar, activate **Switch to dark mode**. The whole UI re-themes to
-   dark immediately — sidebar, the schedule grid, lists, modals, banners and toasts all switch
-   surfaces (no reload). The action becomes **Switch to light mode**.
-2. Activate **Switch to light mode** to return to light, then open **Settings** and find the
-   **Appearance on this device** row in **My display** with a **Theme** choice: **Light**, **Dark**,
-   **Match system**.
-3. Click **Dark**. The whole UI re-themes to dark immediately — sidebar, the schedule
-   grid, list pages, modals, banners and toasts all switch surfaces (no reload).
-4. Check legibility: nav labels, the utilisation column, resource names, list text and
-   form labels all read clearly against the dark surfaces.
-5. Open a modal (e.g. **Resources → Add resource**) and confirm its panel, labels and
-   the primary button are legible in dark.
-6. Click **Light** — the UI returns to the light theme. Then click **Match system**: the
-   theme now follows the OS appearance and flips live if you change the OS setting.
-7. (Reduced motion) Enable _Emulate prefers-reduced-motion: reduce_ (or the OS setting)
-   and confirm entrance animations (modal pop, toast) are suppressed/instant.
+**Source:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [theme.ts](../../apps/frontend/src/lib/theme.ts)
 
 ## Acceptance criteria
 
-- ✅ On a fresh profile the default theme is **light** (`<html data-theme="light">`); the
-  app does **not** auto-switch to dark from the OS setting alone.
-- ✅ The icon button directly below **Settings** switches between explicit light and dark choices,
-  updates its accessible action name, remains usable on the collapsed icon rail and saves the
-  choice in this browser. Its name, icon and action follow the scheme shown: with **Match system**
-  on a dark OS it offers **Switch to light mode** and saves an explicit light choice.
-- ✅ **Settings → My display → Appearance on this device** offers **Light**, **Dark** and **Match system**; choosing
-  one re-themes every surface (sidebar, grid, lists, modals, banner, toast) immediately,
-  with no reload.
-- ✅ With **Match system** selected, the theme follows the OS appearance (and re-themes
-  live when the OS scheme changes).
-- ✅ Text on every re-themed surface remains legible (meets WCAG AA contrast).
-  (The axe oracle proves this on the grid and a modal — see US-KBD-04.)
-- ✅ With `prefers-reduced-motion: reduce`, entrance animations are suppressed/instant.
+- Settings → My display → **Appearance on this device** offers **Light**, **Dark** and **Match system**. The sidebar action reads **Switch to light mode** or **Switch to dark mode** and switches between Light and Dark from the theme currently shown. The choice is a device preference.
+- With the operating system’s reduced-motion setting, animations and transitions are effectively disabled.
+
+## User flow
+
+```mermaid
+flowchart TD
+  human1["Choose Light, Dark, or Match system in Settings"]
+  human2["Appearance updates and the choice is saved on this device"]
+  human3["Use sidebar action"]
+  human4["toggle explicitly between Light and Dark"]
+  human1 --> human2
+  human1 --> human3
+  human3 --> human4
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  settings["SettingsAppearanceSection onChange"] --> action["runtimeSlice setTheme"]
+  sidebar["ThemeToggleMenuItem calls setTheme"] --> action
+  action --> storage["writeStoredTheme saves device preference"]
+  action --> dom["applyThemeToDom applies resolved theme"]
+  system["subscribeToSystemScheme"] --> resolved["resolveTheme follows OS for system choice"]
+```
+
+**Code references:** [SettingsAppearanceSection.tsx](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx); [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts); [theme.ts](../../apps/frontend/src/lib/theme.ts)

@@ -1,70 +1,87 @@
-# User-story template & exemplar
+# Story format
 
-Every story file follows this shape. Goal first, then why, then how, then explicit,
-checkable acceptance criteria. Steps are end-to-end and runnable by a human from the
-stated precondition with no other setup.
+A story records one meaningful user action and why it matters. Use actual permission roles,
+visible control names and current form fields. Keep implementation contracts in
+[DECISIONS.md](../DECISIONS.md), instructions in the guides, and test scripts in the test suite.
 
-```
-# US-XXX-NN — <short title>
+````markdown
+# US-XXX-NN — Action title
 
-**Area:** <area> · **Persona:** <who> · **Linked E2E:** `e2e/<file>.spec.ts` → "<test title>"
-_(use **Coverage:** with a unit test or "manual" instead when no dedicated E2E test exists)_
-**Documentation:** <link to the guide page or section that explains how to do this>
+As an Editor, I want to create a project and assign it to a client so that I can schedule people to work on it.
 
-## Goal
-<one sentence — the outcome the user wants>
-
-## Why
-<the value/motivation — why this matters to the user and the business>
-
-## How (end-to-end)
-**Precondition:** <starting state, e.g. "Seeded app open at Schedule (`/`)">
-1. <action>
-2. <action>
-3. <observed result>
-
-## Acceptance criteria
-- ✅ <a concrete, checkable assertion>
-- ✅ <another>
-- ✅ <edge/negative case where relevant>
-```
-
----
-
-## Exemplar (the standard to match)
-
-# US-RES-01 — Add a person resource
-
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule"
-
-**Documentation:** [Resources — add a person](../docs-src/using/resources.md#add-a-person)
-
-## Goal
-
-Add a named person (with a role, discipline and working pattern) so they can be scheduled.
-
-## Why
-
-The schedule is only useful once the team is in it. A studio manager onboards each new
-hire or freelancer once; everything downstream (allocations, capacity, utilisation) keys
-off that resource record.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Resources** in the sidebar.
-
-1. Click **Add resource**. The "Add resource" dialog opens (locked to a person — there is no Type switcher; placeholders have their own **Add placeholder** button).
-2. Fill **Name** = `Dana Lee`, **Role** = `Motion Designer`.
-3. Choose **Discipline** = _Design_.
-4. Leave **Engagement** = _Studio_.
-5. In **Working days**, ensure Mon–Fri are **Full day** and Sat/Sun are **Not working**.
-6. Click **Save**. The dialog closes.
+**Status:** Current
+**Access:** Editor and above.
+**Entry:** Projects → Add project.
+**Documentation:** [Clients and projects](../../docs-src/using/projects.md)
+**Source:** [Project form](../../apps/frontend/src/components/projects/ProjectForm.tsx)
 
 ## Acceptance criteria
 
-- ✅ After Save, the dialog closes and a row for **Dana Lee** appears in the Resources list.
-- ✅ The row shows the role (_Motion Designer_) and a colour avatar with the initials _DL_.
-- ✅ Going to **Schedule** shows a _Dana Lee_ row under the **Design** group.
-- ✅ Saving with an empty **Name** keeps the dialog open and shows an inline error
-  ("Name is required for a person.") associated with the Name field (`aria-invalid`).
-- ✅ The saved resource uses the fixed **8-hour** full-day capacity.
+| Field  | Control       | Required/default/conditions |
+| ------ | ------------- | --------------------------- |
+| Name   | Text input    | Required.                   |
+| Client | Client picker | Required; active clients.   |
+
+## User flow
+
+```mermaid
+flowchart TD
+    A["Open Projects and choose Add project"] --> B["Enter project details"]
+    B --> C{"Save or cancel?"}
+    C -->|cancel| D["Close without saving"]
+    C -->|save| E{"Details valid?"}
+    E -->|no| F["Correct the highlighted fields"]
+    F --> B
+    E -->|yes| G["Project appears in the list"]
+```
+
+## Code flow
+
+This example shows the form-to-store boundary.
+
+```mermaid
+flowchart TD
+    A["ProjectList: setCreating(true)"] --> B["ProjectForm: useProjectSubmit"]
+    B --> C{"parseName / validateProjectClient / validatePresetColor"}
+    C -->|invalid| D["useFieldError.fail: keep form open"]
+    C -->|valid| E["saveProject: addProject store action"]
+    E -->|created| F["onClose: hide ProjectForm"]
+```
+
+**Code references:** [ProjectList](../../apps/frontend/src/components/projects/ProjectList.tsx), [ProjectForm](../../apps/frontend/src/components/projects/ProjectForm.tsx)
+````
+
+- Include every field in the relevant form, including conditional and read-only fields.
+  Record required/optional, defaults and important field limits. Use the exact UI labels.
+- Create and edit are distinct actions. Link an identical shared field list and describe only
+  differences; do not make a reader chase several links to discover a form.
+- For actions without input fields, use a short list of controls and their visible result.
+  Confirmation buttons belong here too. Avoid detailed test scenarios and backend guarantees.
+- Use one story for a meaningful outcome rather than one for each click or implementation guard.
+  An inseparable set of controls may share a story; independently useful actions deserve their own.
+- Keep identifiers and filenames stable. Add the next unused identifier within the area.
+  Do not delete a story when its feature disappears: retain its intent and mark its status.
+- Use **Current**, **Hidden**, **Removed**, **Demo**, **Operator** or **Planned**.
+  Explain why a feature is unavailable and identify its historical or intended controls clearly.
+  Retention is a record of interest, not a commitment to reintroduce the feature.
+- Add an optional **Coverage:** test link when useful; a link does not claim a test was run.
+- Update the [index](README.md), [coverage matrix](COVERAGE.md) and
+  [decision gaps](GAPS.md) alongside the story. Verify the source rather than inheriting stale copy.
+
+## Diagram conventions
+
+- Every story has a **User flow** chart and a **Code flow** chart, each in a `mermaid` fence. Both render as diagrams in GitHub. The first uses screens, actions, decisions and outcomes that a person
+  understands; the second names the actual implementation behind that journey.
+- Keep diagrams focused on the story. Include meaningful choices, cancellation and failure
+  outcomes where they affect the journey. Avoid repeating every validation or security rule.
+- Trace real producers and consumers: the entry, handler, state or service, persistence when
+  applicable, and the resulting UI. Read-only views and device preferences do not become
+  server writes. Distinguish the temporary demo from the persisted server path.
+- Link the implementation files under **Code references**. A code label must name an existing
+  symbol or clearly identify an absent or intended control. State the scope when a diagram
+  stops at a shared boundary.
+- For hidden, removed or planned features, label the intended user journey as unavailable.
+  The code diagram shows the actual missing entry point and any retained support; it must
+  not imply an unavailable journey currently executes.
+- Check Mermaid syntax and representative rendering when changing diagrams. Syntax checks do
+  not establish behavioral correctness; reconcile labels and branches against source.

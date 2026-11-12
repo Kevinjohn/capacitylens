@@ -1,29 +1,43 @@
 # US-SCH-07 — Reassigning onto a mismatched placeholder is rejected
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked test:** `apps/frontend/src/components/scheduler/AllocationBar.pointerDrag.interaction.test.tsx` → "leaves assignee, dates and hours unchanged when a diagonal reassign is rejected"
+As an Editor, I want a mismatched placeholder reassignment to be rejected so that work cannot drift from the placeholder’s bound project.
 
-## Goal
+**Status:** Current
 
-When you drag an allocation onto a placeholder that is bound to a _different_ project, the move is refused: the bar stays on its original resource and a toast explains why.
+**Access:** Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-Placeholders stand in for a yet-to-be-hired role on **one specific project**, so they may only ever hold activities from that project. Silently snapping the bar back would leave the manager guessing why a drop "didn't take." Refusing the reassignment _and saying so_ keeps the placeholder's project binding trustworthy while making the rule legible the moment it bites. (Related: the create path is locked the same way — see `e2e/features.spec.ts` → "drawing on a placeholder locks the modal to its bound project".)
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open. In **Settings**, enable **Show placeholders**, then return to
-**Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in
-view. Scroll the timeline fully to the left. The **Senior Designer** placeholder (`data-resource-id="r-ph-designer"`) is bound to
-**Project Watchtower**; the **Brand System** bar belongs to an activity on **Metropolis Rebrand**.
-
-1. Find the **Brand System** bar and note its current resource (its lane) and dates.
-2. Press down on the bar and drag it onto the **Senior Designer** placeholder lane (`data-resource-id="r-ph-designer"`).
-3. Release. Because Brand System's activity is from Metropolis Rebrand — not the placeholder's bound Project Watchtower — the reassignment is rejected.
-4. Observe: the bar is **not** in the placeholder's lane; it remains on its original resource. A toast appears explaining the placeholder rule.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ After the invalid drop, the allocation's **resourceId is unchanged** — the bar is still on its original resource, not the placeholder.
-- ✅ A toast appears mentioning the placeholder rule ("A placeholder can only be assigned to activities from its bound project.").
-- ✅ The rejected diagonal drag is atomic: the allocation's **assignee, dates and hours are all unchanged**.
+- A drop onto a placeholder bound to another project is rejected.
+- The allocation stays unchanged and the user sees a reason.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Editor drops a booking onto a placeholder bound to another project"]
+  B["The move is refused with an explanation"]
+  C["The booking remains on its original resource and dates"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["AllocationBar begins pointer gesture"] --> B["useAllocationGestureController previews target lane"]
+  B --> C["isPreviewDropBlocked checks working-day compatibility only"]
+  C -->|blocked| D["Preview stays on source lane; commit is refused"]
+  C -->|allowed| E["Release calls updateAllocation with the target resourceId"]
+  E --> F["Shared domain assertion rejects a placeholder bound to another project when the allocation is saved"]
+  F --> G["Gesture controller shows the refusal as an error notice; the allocation is unchanged"]
+```
+
+**Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts), [useAllocationGestureController.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureController.ts), [gestureWorkingWeeks.ts](../../apps/frontend/src/components/scheduler/gestureWorkingWeeks.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts)

@@ -1,41 +1,39 @@
-# US-CLI-03 — Archive a client (hide from the schedule) and restore
+# US-CLI-03 — Archive a client
 
-**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "archiving a client hides it from the list, and undo leaves it archived"
+As an Editor, I want to archive a client so that its work leaves active views while remaining restorable.
 
-## Goal
-
-Remove a client from the active views **reversibly** — archive it (with a clear warning) so the client and everything underneath it (its projects → activities → allocations) are
-retained and can be restored from Archived clients below the Clients list.
-
-## Why
-
-When an account pauses or ends, the manager wants the client off the schedule in one action — but
-without destroying months of work. Archiving hides the client from the active views while retaining
-its data. There is no deletion step: an archived client stays until it is restored. Archiving is
-reversible through
-**Restore**.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). _Queen Consolidated_ owns
-**Project Watchtower**, which has activities (_Wireframes_, _Visual Design_, _CMS Review_) and
-allocations.
-
-1. On the **Queen Consolidated** row, click the **Archive Queen Consolidated** (trash) icon. The "Archive client?"
-   confirmation dialog opens.
-2. Read the dialog: it explains the client's work will be hidden from the schedule and can be restored
-   from **Archived clients** below the list.
-3. Click **Archive** to confirm. The dialog closes and **Queen Consolidated** leaves the Clients list.
-4. Use **Undo** if the acknowledged archive is still in the current page's history; **Redo** reapplies it.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Clients screen → client row → Archive {client name}
+**Documentation:** [Clients and projects guide](../../docs-src/using/projects.md)
+**Source:** [ClientList.tsx](../../apps/frontend/src/components/clients/ClientList.tsx) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx)
 
 ## Acceptance criteria
 
-- ✅ The confirmation dialog is titled **Archive client?** and explains the client is hidden from the
-  schedule and is restorable from Archived clients.
-- ✅ After confirming, **Queen Consolidated** is gone from the Clients management list (archived, not destroyed).
-- ✅ The client, its projects, activities and allocations are **retained** in the data — the active
-  view hides descendants through their archived ancestry, so a project under the archived client
-  keeps its own active status.
-- ✅ Archived clients surface under **Archived clients**, where they can be restored. No permanent
-  deletion exists.
-- ✅ **Restore** from Archived clients brings the client back. An eligible acknowledged archive or restore can also be reversed from page-local Undo/Redo history.
+- Selecting **Archive {name}** opens **Archive client?** with **Archive** and **Cancel** controls.
+- The dialog explains that descendants are hidden and restorable; when descendants exist, it states counts of affected projects, phases and allocations.
+- **Cancel** closes the dialog without archiving. **Archive** archives the record.
+- The archived record appears in its archived section with a **Restore** control.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Clients screen"] --> B["Archive client row"] --> C["Archive client? confirmation"]
+  C -->|Cancel| A
+  C -->|Archive| D["Client leaves active list"] --> E["Client appears in Archived clients"]
+  C -->|Action refused| F["Notice explains the archive failed"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["ClientList archive confirmation"] --> B["useLifecycleActions.archive"] --> C["sendPlanningCommand: catalogue.archive"]
+  C --> D["createPlanningTransport → api.planning.client.archive"] --> E["PlanningController.clientArchive → mutatePlanning begins scoped transaction"]
+  E --> F["transitionLifecycle updates only the archived row"] --> K["mutatePlanning records revision/audit and commits"] --> F2["useActiveScopedData activeOnly hides archived ancestry"]
+  C --> G["createVolatilePlanningTransport.execute applies intent in page memory"] --> F2
+  F2 --> H["ArchivedEntitySection / ArchiveRecoverySection refresh"]
+```
+
+**Code references:** [ClientList.tsx](../../apps/frontend/src/components/clients/ClientList.tsx) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [ArchiveRecoverySection.tsx](../../apps/frontend/src/components/common/ArchiveRecoverySection.tsx) · [useScopedData.ts](../../apps/frontend/src/store/useScopedData.ts) · [lifecycle.ts](../../packages/shared/src/domain/lifecycle.ts) · [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)

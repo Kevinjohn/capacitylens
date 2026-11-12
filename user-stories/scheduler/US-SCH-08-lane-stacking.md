@@ -1,26 +1,42 @@
 # US-SCH-08 — Overlapping allocations stack into separate lanes
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "stacks overlapping allocations onto a taller row (US-SCH-08)"
+As an Editor, I want overlapping allocations to appear in separate lanes so that each booking remains visible.
 
-## Goal
+**Status:** Current
 
-When two allocations on the same resource overlap in time, they stack onto separate vertical lanes within that resource's row (making the row taller); allocations that don't overlap share one lane.
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-A person can legitimately be on two things at once (that's exactly how over-allocation happens). If overlapping bars drew on top of each other you couldn't see the second commitment at all. Stacking them — and growing the row to fit — makes the double-booking visible, which is the whole point of a capacity view. Non-overlapping work shares a lane so rows stay compact when there's no conflict.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. **Bruce Wayne** has two seed allocations that overlap on **3–4 June** (8h + 4h), which is what over-allocates him.
-
-1. Look at Bruce's row in early June.
-2. Note the two bars that overlap on 3–4 June: they are drawn on **different vertical lanes** within Bruce's row, one above the other — not stacked on top of each other.
-3. Note that Bruce's row is **taller** than a row that has no overlapping work (e.g. a single-lane row like Diana's).
-4. Compare with a resource whose allocations never overlap: those bars share a single lane and the row is the shorter, single-lane height.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ Bruce's two overlapping seed bars (the 3–4 June pair) render on **different vertical lanes** within his row.
-- ✅ Bruce's row is **taller** than a single-lane row (it has grown to fit two stacked lanes).
-- ✅ A resource with no overlapping allocations keeps a single lane and the shorter row height.
+- Overlapping allocations on one resource occupy separate lanes.
+- Non-overlapping allocations can share a lane.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer opens a date range with overlapping bookings"]
+  B["Overlapping bars occupy separate lanes"]
+  C["Non-overlapping bars share a lane"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["useSchedulerGridModel supplies visible dates"] --> B["buildSchedulerModel creates resource bars"]
+  B --> C["applyVisibleUtilization calls projectVisibleLanes"]
+  C --> D["packLanes assigns lanes to overlapping bars"]
+  D --> E["resolveRowHeightForLanes sizes the row"]
+  E --> F["SchedulerGridRows renders bars in ResourceLane"]
+```
+
+**Code references:** [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)

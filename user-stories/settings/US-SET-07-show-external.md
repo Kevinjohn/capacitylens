@@ -1,47 +1,42 @@
-# US-SET-07 — Show external / 3rd parties
+# US-SET-07 — Show external resources
 
-**Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/external.spec.ts` → "hidden by default: the seeded external is absent from the schedule and the Resources tab", "turning it on reveals the External section with help in Resources and the band on the schedule", "the choice survives a reload (per-account pref)"
+As an Editor, I want to show or hide external resources so that I can focus on the work my company manages.
 
+**Status:** Current
+**Access:** Editor and above; Viewers can read the setting.
+**Entry:** Settings → Scheduling features → Show external resources
 **Documentation:** [Settings](../../docs-src/using/settings.md)
-
-## Goal
-
-Keep external / 3rd-party companies out of the way by default, and let account editors switch them
-on for the company — showing each external in a neutral band at the bottom of the schedule and an
-**External** section under the Resources tab for every member using that account.
-
-## Why
-
-An external / 3rd party is an outside company you hand work to but don't manage (a print shop, an
-overflow studio). It appears on the schedule so you can see the handoff, but carries no hours and
-never counts toward your team's capacity or utilisation. Many studios glancing at the helicopter
-view only want their own people, so the feature is **off by default** and lives behind a **per-account**
-setting on the Account (`externalEnabled`, absent = off, like Placeholders and `disciplinesEnabled`). Turning it off only HIDES
-externals — their data is untouched and returns when the switch goes back on, so it never breaks a
-dataset that already has externals. (External moved here from its old standalone `/external` tab; the
-old URL now redirects to `/resources`.)
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open (clock inside the seed window — see _Seed data_ in REFERENCE.md). The seed contains one external party (_Kord Industries_, booked on Visual Design), hidden by default.
-
-1. On the Schedule, note there is **no External band** at the bottom — only the real people. The external's bar (Visual Design) is not drawn.
-2. Open **Resources** (sidebar). There is **no "External" section** and **no "Add external party" button** — only the people list.
-3. Open **Settings** (sidebar). In the **Placeholders and external resources** section, find the **Show external resources**
-   switch — it's **off**. Its question-mark action opens the fuller explainer.
-4. Switch it **on**.
-5. Return to **Resources**: the **External** section now appears with the same explainer behind its labelled question-mark action and an **Add external party** button, showing the seeded external _Kord Industries_.
-6. Return to **Schedule**: a neutral **External / 3rd party** band now appears at the very bottom with _Kord Industries_'s Visual Design bar (no hours, no utilisation chip).
-7. Switch it back **off** in Settings — the external disappears again everywhere; its data is intact.
-8. (Optional) Reload the page and re-pick **Wayne Enterprises**: the choice is remembered (it's stored on the company).
+**Source:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx)
 
 ## Acceptance criteria
 
-- The **Placeholders and external resources** section appears in Settings with a **Show external resources** switch
-  (`role="switch"`, accessible name `Show external resources`); its fuller explainer is in the
-  labelled question-mark help modal rather than permanently on the page.
-- The switch defaults to **off** (`aria-checked="false"`) — externals are hidden out of the box.
-- With it **off**: no External band appears on the schedule, no external option appears in the assignee picker or the ⌘K command palette, and the Resources page hides its **External** section and **Add external party** button. The (now-empty) External band header does **not** render. A dataset that already contains externals **hides** them — it never errors.
-- With it **on**: the External band renders at the bottom of the schedule (single neutral colour, no utilisation / over-markers), and the **External** section appears under the Resources tab with its explainer in a labelled question-mark help modal rather than permanently in the page flow. The assignee picker labels an external **"<Company> (external)"**.
-- Editing an allocation that already targets an external keeps that external selectable in the assignee picker even while the pref is off, so editing never silently reassigns the work.
-- The choice survives a reload (stored **per-account** as `externalEnabled` on the Account, absent = off) and is carried in Export JSON like other account settings.
+| Field                   | Control | Required/default/conditions                                       |
+| ----------------------- | ------- | ----------------------------------------------------------------- |
+| Show external resources | Switch  | Off for new companies; company-wide. Hidden records are retained. |
+
+## User flow
+
+```mermaid
+flowchart TD
+A["Open Settings: Show external resources"] --> B["Choose the company setting"]
+B --> C{"Change accepted?"}
+C -->|yes| D["Show or hide external parties in company views"]
+C -->|no or uncertain| E["Read the visible error and resolve it before continuing"]
+```
+
+## Code flow
+
+The persisted server path is shown; the temporary demo applies these planning commands in memory.
+
+```mermaid
+flowchart TD
+  control["CompanyFeaturesSection calls updateSetting({ externalEnabled })"] --> view["useSettingsViewController.updateSetting checks active company and catches failure"]
+  view --> action["typedPlanningActions.updateAccount builds settings.update command"]
+  action --> execute["allocationSlice.sendPlanningCommand calls execute on the planning cache controller (createPlanningCacheController)"]
+  execute --> transport["planningTransport sends api.planning.settings.update"]
+  transport --> route["PlanningController.settingsUpdate validates and calls mutatePlanning"]
+  route --> reply["Planning cache controller reconciles the response into the company projection"]
+  reply --> read["store selectors.hasExternalResourcesEnabled supplies setting to views"]
+```
+
+**Code references:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx), [useSettingsViewController.ts](../../apps/frontend/src/components/settings/useSettingsViewController.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)

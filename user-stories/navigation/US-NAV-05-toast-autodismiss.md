@@ -1,48 +1,42 @@
-# US-NAV-05 — Transient toast that auto-dismisses
+# US-NAV-05 — Read and dismiss action notices
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` (an import surfaces a toast); the auto-dismiss timing is manual
+As a company member, I want action feedback announced without blocking the page so that I can understand the result and continue.
 
-## Goal
+**Status:** Current
 
-Get a short, non-blocking message when an action is rejected or completes (e.g. a
-disallowed drag, or an import), and have it clear itself after a few seconds.
+**Access:** Owner, Admin, Editor, Viewer
 
-## Why
+**Entry:** Application live notice; Close toast button when present
 
-Some actions can't go through — most usefully, dropping an allocation onto a
-placeholder bound to a different project. The user needs to know _why_ it didn't stick
-without a modal interrupting their flow. A toast announces the reason, then gets out of
-the way on its own (or on demand) so the schedule stays the focus.
+**Documentation:** [Help](../../docs-src/using/help.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at Schedule (`/`). Set **Weeks visible** to **4 weeks** so more of the
-timeline is visible, then scroll the grid fully left if the seed bars aren't in view.
-
-1. Find the **Brand System** allocation bar (a _Metropolis Rebrand_ activity on _Diana Prince_).
-2. Drag it onto the **Senior Designer** row — the placeholder bound to _Project
-   Watchtower_ (`data-resource-id="r-ph-designer"`). Its row highlights as a drop target
-   mid-drag.
-3. Release. The reassignment is rejected (a Watchtower-bound placeholder can't take a
-   _Metropolis Rebrand_ activity), and a dismissible notice appears at the bottom-centre reading
-   **"A placeholder can only be assigned to activities from its bound project."**
-4. This is an error notice, so it stays put rather than timing out — the reason remains
-   readable until you act on it. Click its **✕** (aria-label "Close toast") and it
-   disappears immediately.
-5. To see auto-dismiss, trigger an _info_ notice instead: drag a bar to a legal slot (or
-   import a dataset — see the variant below). That confirmation toast clears itself after
-   roughly 4 seconds without any interaction.
+**Source:** [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)
 
 ## Acceptance criteria
 
-- ✅ The rejected drag produces a dismissible notice (a toast in the bottom-centre live
-  region) surfacing the reason message. (Toasts surface through a single
-  `aria-live="polite"` region — they carry no per-toast `role`, and notably no
-  per-tone `role="alert"`; assert by visible text, not by role.)
-- ✅ Being an error notice, the rejected-drag toast stays until dismissed; clicking its
-  **✕** (aria-label "Close toast") removes it immediately.
-- ✅ An _info_ toast (a confirmation, e.g. a legal move or an import) auto-dismisses on its
-  own after roughly 4 seconds.
-- ✅ No toast blocks the page — the schedule behind it stays interactive.
-- ✅ (Variant) Importing a dataset surfaces a transient info toast that auto-dismisses the
-  same way.
+- Notices appear at the bottom centre and are announced in a polite live region. Informational notices close after 4 seconds; warnings and errors stay until closed with **Close toast**.
+
+## User flow
+
+```mermaid
+flowchart TD
+  human1["An action produces a notice"]
+  human2["Notice appears in the page live region"]
+  human3["Info notice closes after its display period"]
+  human4["Warning or error notice remains until dismissed"]
+  human1 --> human2
+  human2 --> human3
+  human1 --> human4
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  producer["Store setNotice publishes notice"] --> bridge["useNoticeBridge watches notice"]
+  bridge --> toast["showNoticeToast chooses Sonner duration"]
+  toast --> host["AppShellToaster renders toast and close control"]
+  toast --> clear["dismiss or auto-close clears same notice"]
+```
+
+**Code references:** [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts)

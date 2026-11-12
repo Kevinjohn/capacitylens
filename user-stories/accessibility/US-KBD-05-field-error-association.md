@@ -1,40 +1,44 @@
-# US-KBD-05 — Field-level error association
+# US-KBD-05 — Associate validation errors with fields
 
-**Area:** Keyboard & accessibility · **Persona:** Screen-reader user · **Linked E2E:** `e2e/accessibility.spec.ts` → "an invalid field is marked aria-invalid and described by the error"
+As a screen-reader user, I want invalid fields connected to their error messages so that I can locate and correct them.
 
-## Goal
+**Status:** Current
 
-When a form field is invalid, have the error tied to that specific field — not just
-printed at the bottom of the form — so assistive tech announces it on the field.
+**Access:** Owner, Admin, Editor; forms accessible to Viewer remain read-only
 
-## Why
+**Entry:** Invalid form control and its validation message
 
-A validation message shown only at the foot of a dialog is easy to miss and isn't
-linked to the control that's wrong. A screen-reader user lands on the field with no
-idea why Save failed. Marking the offending field `aria-invalid="true"` and pointing
-its `aria-describedby` at the error's element makes the message announce as part of the
-field, so the fix is obvious to everyone.
+**Documentation:** [Help](../../docs-src/using/help.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Resources** → **Add resource**.
-
-1. Leave **Name** empty (a person requires a name) and click **Save**.
-2. The dialog stays open and an inline error appears (e.g. "Name is required for a
-   person."), rendered as an `alert` with its own id.
-3. Inspect the **Name** input (DevTools): it now has `aria-invalid="true"` and an
-   `aria-describedby` whose value equals the id of that error element.
-4. Confirm the same wiring on another field — e.g. set every **Working days** row to
-   **Not working** and Save; the working-days group gets `aria-invalid` and points at the error.
-5. Fix the field (select at least one Full day or Half day) and Save — the field clears `aria-invalid` and
-   the association/error is gone.
+**Source:** [useFieldError.ts](../../apps/frontend/src/hooks/useFieldError.ts)
 
 ## Acceptance criteria
 
-- ✅ An invalid field gets `aria-invalid="true"`.
-- ✅ That field's `aria-describedby` equals the `id` of the error element
-  (`role="alert"`), so the message is programmatically tied to the field.
-- ✅ The error is associated with the offending field, not only shown at the bottom of
-  the form.
-- ✅ A valid field has neither `aria-invalid="true"` nor an `aria-describedby` pointing
-  at an error (the association clears once the field is corrected).
+- Invalid controls expose aria-invalid and reference their visible error; the association clears when corrected.
+
+## User flow
+
+```mermaid
+flowchart TD
+  human1["Submit an invalid form"]
+  human2["Invalid control is marked and associated error appears"]
+  human3["Focus reaches the invalid field"]
+  human4["Correct it"]
+  human5["invalid state and error association clear"]
+  human1 --> human2
+  human2 --> human3
+  human3 --> human4
+  human4 --> human5
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  form["form calls useFieldError.fail(field, message)"] --> state["error and errorField state"]
+  state --> field["TextField sets aria-invalid and aria-describedby"]
+  state --> message["FieldError renders matching id"]
+  focus["useFieldErrorFocus focuses associated control"] --> field
+```
+
+**Code references:** [useFieldError.ts](../../apps/frontend/src/hooks/useFieldError.ts); [textFields.tsx](../../apps/frontend/src/components/common/fields/textFields.tsx); [field.tsx](../../apps/frontend/src/components/ui/field.tsx)

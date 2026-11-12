@@ -1,26 +1,41 @@
 # US-TBR-02 — Pan a week back / forward
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "pans the window a week with Prev and Next"
+As an Editor, I want to pan one week backward or forward so that I can move through the schedule in manageable steps.
 
-## Goal
+**Status:** Current
 
-Move the visible window one week earlier or later with the icon-only **Prev** / **Next** buttons.
+**Access:** Viewer, Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-Once zoomed in, the manager steps through the calendar a week at a time to review upcoming work without losing the zoom level or scroll context.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Note the dates shown in the timeline header.
-
-1. Click the **Next** chevron button. Observe the header dates.
-2. Click the **Prev** chevron button twice. Observe the header dates.
+**Source:** [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
 
 ## Acceptance criteria
 
-- ✅ **Prev** and **Next** are icon-only buttons (left/right chevrons, no visible words) with accessible names "Prev"/"Next" (via `aria-label`) and hover titles "Back one week"/"Forward one week".
-- ✅ Clicking **Next** shifts the visible window so the header dates move **7 days later**.
-- ✅ Clicking **Prev** shifts the window so the header dates move **7 days earlier**.
-- ✅ After Next then two Prev, the window sits one week earlier than the starting position (each click is exactly one week, and they compose).
-- ✅ Panning does not change the **Weeks visible** level (still 4 weeks) or alter any allocation.
+- **Prev** ("Back one week") and **Next** ("Forward one week") move the schedule window by seven days.
+- The icon-only controls are named **Prev** and **Next** for assistive technology.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer selects Prev or Next"]
+  B["The timeline moves one week"]
+  C["The left edge aligns with the configured week start"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["ToolbarDateNavigation invokes panDays(-7 or 7)"] --> B["schedulerSlice.panDays changes originDate"]
+  B --> C["useSchedulerViewport regenerates dates and geometry"]
+  C --> D["useViewportAlignment snaps navigation to company week start"]
+  D --> E["SchedulerGrid displays the shifted window"]
+```
+
+**Code references:** [ToolbarDateNavigation.tsx](../../apps/frontend/src/components/scheduler/ToolbarDateNavigation.tsx), [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx), [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)

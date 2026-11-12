@@ -1,40 +1,50 @@
 # US-ALL-10 — Add an optional task to an allocation
 
-**Area:** Allocation editor and schedule details · **Persona:** Studio manager
+As an Editor, I want to add a short task description so that an allocation can carry context without replacing its activity.
 
-**Documentation:** [Settings — Allocation task field](../../docs-src/using/settings.md#allocation-task-field)
-and [Schedule and change work](../../docs-src/using/schedule-work.md#create-an-allocation)
-
-## Goal
-
-Give an allocation a short task description that helps the team understand the work behind a
-booking without changing its activity, dates or capacity.
-
-## Why
-
-Reusable activities should stay reusable even when a planner needs to identify the specific piece
-of work behind one booking. A separate task label avoids proliferating near-duplicate activities
-and keeps Notes available for longer context.
-
-## How (end-to-end)
-
-1. Open **Settings → Scheduling features → Company features** and enable **Show task field in schedule**.
-2. Create or edit an allocation. The single-line **Task** field appears below the activity controls.
-3. Enter a short description and save.
-4. Hover or focus the allocation bar to read the task above its Notes. The same task appears in the
-   person's schedule drawer when that view is available.
-5. Turn the setting off. The field and displayed task are hidden, but the saved text is preserved.
-6. Turn it on again. The task is available again, and a different account's setting does not change it.
+**Status:** Current
+**Access:** Editor, Admin or Owner
+**Entry:** Schedule (`/`)
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
+**Source:** [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx), [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx)
 
 ## Acceptance criteria
 
-- ✅ **Show task field in schedule** is an account-owned workspace setting, off by default and shared
-  by everyone in that account; changing it requires the same edit permission as other workspace
-  settings.
-- ✅ The editor shows an optional single-line **Task** field when enabled, and saves it with the
-  allocation without affecting scheduling calculations.
-- ✅ Enabled schedule details show a populated task above Notes; empty tasks do not create empty
-  detail rows.
-- ✅ Disabling the setting hides the form field and schedule detail without erasing the stored task;
-  re-enabling it restores the task.
-- ✅ Account-scoped reads and writes keep task text and the setting isolated between accounts.
+| Field | Control    | Required/default/conditions                                                                                                                        |
+| ----- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Task  | Text input | Optional; up to 100 characters; shown only when the company enables Show task field in schedule. Hidden task text is kept when the setting is off. |
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["When task details are enabled, enter optional task text in allocation form"]
+  N2["Save"]
+  N3["task appears with the booking"]
+  B1["Task field disabled: no task control shown"]
+  B2["Invalid text: field error; correct and retry"]
+  B3["Cancel: discard task draft"]
+  N1 --> N2
+  N2 --> N3
+  N2 -.-> B1
+  N2 -.-> B2
+  N2 -.-> B3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["AllocationScheduleFields shows task when setting enables it"] --> B["useAllocationModalState supplies task value"]
+  B --> C["allocationSubmit.parseOptionalTask validates and normalizes text"]
+  C -->|valid| D["Include task in allocation draft"]
+  C -->|invalid| E["Field error; no write"]
+  D --> F["addAllocation/updateAllocation planning command"]
+  F --> G["Reconciled allocation renders task"]
+```
+
+**Code references:**
+
+- [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
+- [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)

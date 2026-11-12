@@ -1,42 +1,39 @@
-# US-SET-19 — Approve who joins the company
+# US-SET-19 — Approve company admission
 
-**Area:** Team & access · **Persona:** Company Owner or Admin, and an invited person ·
-**Linked E2E:** `e2e/admission.auth.spec.ts`; **Automated coverage:**
-`apps/backend/tests/functional/auth/admission.spec.ts`
+As an Owner or Admin, I want to approve or decline admission so that company access follows our admission policy.
 
-## Goal
-
-Nobody sees company data until an Owner or Admin has approved them, even after they accept an
-invitation.
-
-**Guide:** [Approve new people](../../docs-src/admin/invite-teammates.md#approve-new-people) and
-[Join your team](../../docs-src/using/join-your-team.md).
-
-## Why
-
-An invitation link can be forwarded. Approval keeps the decision about who enters the company with
-its Owner and Admins.
-
-## How (end-to-end)
-
-**Precondition:** a company with an Owner, and an emailed invitation for a new person.
-
-1. The person opens the invitation link, sees the company and role, enters a name and password and
-   selects **Accept invitation**.
-2. The person sees the admission screen, selects **Ask for access** and reads that an Owner or
-   Admin will approve their access.
-3. The Owner opens **Team & access**. Under **Waiting for approval** the request lists the person with the invited role. The
-   Owner selects **Approve**, and the request leaves the list.
-4. The person selects **Check again** and the app opens with the invited role.
+**Status:** Current
+**Access:** Owner, Admin; invited person
+**Entry:** Team & access → Waiting for approval; admission screen
+**Documentation:** [Invite teammates](../../docs-src/admin/invite-teammates.md)
+**Source:** [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx)
 
 ## Acceptance criteria
 
-- Accepting an invitation confirms the address and creates the membership, but company data stays
-  refused (403) until approval.
-- Only Owners and Admins list and decide requests, and never for someone their role cannot
-  administer. Editors and Viewers get 403.
-- Rejecting or revoking approval refuses company data on the person's next request.
-- When `CAPACITYLENS_ALLOWED_EMAIL_DOMAINS` is set, only those address domains can be admitted.
-- An address the company removed cannot rejoin through an invitation.
-- A pending approval decision keeps its feedback and refresh within the originating sign-in and
-  company when the administrator leaves the page or changes context.
+- Invitation acceptance creates membership but does not grant company data before approval. Owner/Admin decisions apply on the person’s next request. See [US-TEAM-05](../team/US-TEAM-05-request-admission.md).
+
+## User flow
+
+```mermaid
+flowchart TD
+A["A person requests access from the limited access screen"] --> B["Owner or Admin opens Waiting for approval"]
+B --> C{"Choose an available decision"}
+C -->|approve| D["Person checks access again and joins if eligible"]
+C -->|decline pending request| E["Person sees declined access on the next check"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+accept["InviteAccept submits invitation acceptance"] --> kit["InvitationsController.signUp → Account Kit invitations.accept"]
+  kit --> hook["Configured onInvitationAccepted hook grants the invited membership"]
+  ask["AccessScreens: Ask for access when required"] --> request["AdmissionController.request records the admission request"]
+  request --> panel["AdmissionRequestsPanel loads requests"]
+  panel --> decision["AdmissionController.approve or reject under live product authority"]
+  decision --> check["AccessScreens checks admission again"]
+  check -->|admitted but no membership| join["Join company → AdmissionController.complete → completeMembership"]
+  check -->|active membership already exists| open["Continue into company data"]
+```
+
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts), [account_kit.ts](../../apps/backend/config/account_kit.ts), [policy.ts](../../apps/backend/app/services/account_kit/policy.ts), [admission_controller.ts](../../apps/backend/app/controllers/admission_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)

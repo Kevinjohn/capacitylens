@@ -1,28 +1,44 @@
 # US-SCH-12 — A vertical line marks today
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "marks today with a vertical line when in range (US-SCH-12)"
+As an Editor, I want today marked on the timeline so that I can orient myself within the visible date range.
 
-## Goal
+**Status:** Current
 
-A vertical line marks today's date on the timeline whenever today falls within the currently visible range — and it's absent when you've panned to a range that doesn't include today.
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-"Where are we now?" is the question every other reading on the schedule hangs off — what's late, what's imminent, what's still ahead. A persistent today line gives the manager a fixed reference point so past and future read at a glance. Showing it only when today is actually on-screen keeps it honest: a line on a month that doesn't contain today would be a lie.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). The app auto-scrolls to today on load.
-
-1. With the timeline showing the range around today, observe a vertical line marking today's column.
-2. Use **Next ›** to pan to a range that does **not** contain today (e.g. click it repeatedly to reach a future month).
-3. Observe the today line is no longer drawn — there's no spurious line on a range that doesn't include today.
-4. Pan back so today is in range again (e.g. click **Today**) — the line reappears.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ When today is within the visible range, a vertical **today line** is drawn at today's column.
-- ✅ When the visible range does **not** include today, the today line is **absent** (not drawn).
-- ✅ Returning to a range that includes today (e.g. **Today**) brings the line back.
-- ✅ A mounted schedule advances the marker at the company's local midnight and refreshes it
-  immediately when a backgrounded or cached page resumes.
+- When today, in the company time zone, falls within the loaded timeline range, a vertical line marks it on every resource row; when day columns are shown, the date header also highlights today. After navigating to a range that excludes today, neither appears.
+- At midnight in the company time zone, the marker moves to the new date.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer opens Schedule"]
+  B["Today is inside the loaded timeline range"]
+  C["Today marker appears"]
+  D["Today is outside the loaded timeline range"]
+  E["No marker appears"]
+  A --> B
+  B --> C
+  B --> D
+  D --> E
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["useCalendarToday resolves today's company-local date"] --> B["useSchedulerGridModel computes todayX from the loaded range geometry"]
+  B --> C["SchedulerGridRows passes todayX to ResourceLane"]
+  C --> D["ResourceLane renders today line only when todayX is in range"]
+```
+
+**Code references:** [useCalendarToday.ts](../../apps/frontend/src/components/scheduler/useCalendarToday.ts), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)

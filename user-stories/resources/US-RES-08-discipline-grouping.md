@@ -1,34 +1,37 @@
 # US-RES-08 — Group a resource under a discipline
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/disciplines.spec.ts` → "deletes a discipline and ungroups its resources without deleting them" (exercises resource-under-discipline grouping and the engagement fallback)
+As an Editor, I want to assign a resource to a discipline or leave it unassigned so that schedule grouping reflects the team.
 
-## Goal
-
-Assign a resource to a discipline so they group under that discipline's header on the
-schedule, or leave them unassigned with "— None —" and grouped by engagement.
-
-## Why
-
-The schedule is organised by discipline (Design, Development, Copywriting) so a manager can
-read capacity team-by-team. Putting each resource in the right discipline keeps the timeline
-legible; an unassigned resource still has a home in a catch-all bucket.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Resources** in the sidebar.
-
-1. On the **Diana Prince** row, click the **Edit** (pencil) icon. (Seeded discipline: _Copywriting_.)
-2. Change **Discipline** = _Design_. Click **Save**.
-3. Go to **Schedule**: Diana now appears under the **Design** discipline group header.
-4. Edit **Diana Prince** again, set **Discipline** = _— None —_, and Save.
-5. Return to **Schedule**.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Resources screen → person row → Edit → Discipline
+**Documentation:** [Guide](../../docs-src/using/resources.md)
+**Source:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [selectors.ts](../../apps/frontend/src/store/selectors.ts)
 
 ## Acceptance criteria
 
-- ✅ With a discipline chosen, the resource appears under that discipline's group header on
-  **Schedule** (`data-testid="discipline-group"`).
-- ✅ With **Discipline** = _— None —_, the resource appears after the assigned discipline bands in
-  **Studio** or **Supplementary** according to engagement. If the company has no active
-  Supplementary person, it appears in **Unassigned**, the band for people without a discipline,
-  instead.
-- ✅ The grouping reflects the saved discipline immediately on returning to the schedule.
+- In Add/Edit person, the **Discipline** picker offers **— None —** and available disciplines.
+- With disciplines enabled, saving a discipline places the person under that discipline’s group on the Schedule; **— None —** places them in **Unassigned**, which is split into **Studio** and **Supplementary** when the company has an active Supplementary person.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Resources screen"] --> B["Edit person or placeholder"] --> C["Choose Discipline or — None —"] --> D["Save"] --> E["Schedule places resource in its matching group"]
+  B --> Z["Cancel closes without saving"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["ResourceForm SelectField Discipline"] --> B["useResourceSubmit.buildResourcePatch stores disciplineId"]
+  B --> C["updateResource → createTypedPlanningActions.updateResource"] --> D["resource.update planning intent"]
+  D --> E{{"Server typed route or demo volatile transport"}}
+  E --> F["PlanningController.resourceUpdate → mutatePlanning → executePlanningIntent.writeRow"] --> F2["writeRow persists disciplineId"]
+  E --> G["createVolatilePlanningTransport.execute → apply"]
+  F2 --> H["selectors.buildDisciplineGroups groups resource"]
+  G --> H
+```
+
+**Code references:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [selectors.ts](../../apps/frontend/src/store/selectors.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)

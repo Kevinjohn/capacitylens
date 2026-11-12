@@ -1,36 +1,41 @@
 # US-TBR-06 — Undo / Redo toolbar buttons
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "undoes and redoes with the toolbar buttons, disabled when the stack is empty"
+As an Editor, I want toolbar Undo and Redo controls so that I can reverse or reapply a planning change without a keyboard shortcut.
 
-## Goal
+**Status:** Current
 
-Reverse and re-apply eligible acknowledged planning changes from the toolbar — a visible **Undo** / **Redo** pair the manager can see and click, with no need to know the keyboard shortcut.
+**Access:** Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-The keyboard path (**⌘Z** / **⌘⇧Z**, see US-TBR-07) is fast for power users but invisible — a new manager has no way to discover it. Surfacing Undo/Redo as toolbar buttons makes "I can take that back" obvious, and their disabled state doubles as a cue for whether there's anything to undo or redo. The shortcut still works; the buttons are its visible counterpart, not a replacement.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
-
-1. Scan the toolbar — to the right of the draw-mode toggle, find the **Undo** and **Redo** icon buttons.
-2. On a fresh load (account just picked, empty history) note both buttons look inactive.
-3. Make one reversible edit — click the **Brand System** bar and **Delete** it.
-4. Click the **Undo** button.
-5. Click the **Redo** button.
+**Source:** [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
 
 ## Acceptance criteria
 
-- ✅ The toolbar shows **Undo** and **Redo** icon buttons — `data-testid` `undo-button` / `redo-button`, with accessible names (aria-label) **Undo** and **Redo**, and a `title` carrying the shortcut hint (**Undo (⌘Z)** / **Redo (⌘⇧Z)**).
-- ✅ On a fresh load (nothing done yet) **both** buttons are **disabled** — there is nothing to undo or redo.
-- ✅ After a reversible edit (delete the **Brand System** bar, total `allocation-bar` count drops by one) the **Undo** button becomes **enabled**.
-- ✅ Clicking **Undo** restores the exact bar (count returns to the original) and **enables** the **Redo** button.
-- ✅ Clicking **Redo** re-applies the delete (count drops by one again).
-- ✅ The buttons use page-local history for eligible acknowledged typed planning changes. Imports and
-  irreversible privacy actions have no inverse and do not enter it; a genuine remote change or
-  context switch clears history.
-- ✅ The global **⌘Z** / **⌘⇧Z** shortcut still performs the same undo/redo and is ignored while typing in a text field — that keyboard path and its typing guard are covered by **US-TBR-07**.
+- **Undo** and **Redo** reverse and reapply acknowledged planning changes.
+- The buttons appear only for Editor or higher. Each is disabled while planning history is not ready or when it has nothing to undo or redo.
 
-**Documentation:** [Clients and projects](../../docs-src/using/projects.md),
-[Activities](../../docs-src/using/activities.md).
+## User flow
+
+```mermaid
+flowchart TD
+  A["Editor selects a history action"]
+  B["Undo reverses or Redo reapplies a planning change"]
+  C["Rejected action appears as an error notice"]
+  A --> B
+  A --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["SchedulerToolbarSections button calls runHistoryAction"] --> B["SchedulerToolbar passes undoPlanning or redoPlanning"]
+  B --> C["allocationSlice delegates to planningCacheController.undo/redo"]
+  C --> D["planningTransport executes typed history command"]
+  D --> E["Store publishes response; SchedulerGrid rerenders or Toolbar shows error"]
+```
+
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)

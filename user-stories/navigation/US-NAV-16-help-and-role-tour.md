@@ -1,28 +1,42 @@
-# US-NAV-16 — Find help and start the role-based tour
+# US-NAV-16 — Find help and a role-based tour
 
-**Area:** Navigation & shell · **Persona:** Any company member · **Linked coverage:** `e2e/navigation.spec.ts`, `e2e/mobile.spec.ts`, `e2e/help.auth.spec.ts`, `apps/frontend/src/components/AppShell.test.tsx`, `apps/frontend/src/components/CommandPalette.test.tsx`, `apps/frontend/src/components/HelpView.test.tsx`
+As a company member, I want help and guidance suited to my role so that I can learn relevant controls.
 
-**Documentation:** [Help](../../docs-src/using/help.md), [Take a role-based tour](../../docs-src/getting-started/roles-and-permissions.md#take-a-role-based-tour)
+**Status:** Current
 
-## Goal
+**Access:** Owner, Admin, Editor, Viewer
 
-Open help and learn the schedule controls that match your role, even after first-run guidance is dismissed.
+**Entry:** Help sidebar link; Help view tour control
 
-## Why
+**Documentation:** [Help](../../docs-src/using/help.md); [Roles And Permissions](../../docs-src/getting-started/roles-and-permissions.md)
 
-Viewers need a way to understand the read-only schedule. The same tour remains useful to every role after setup is complete.
-
-## How
-
-1. Open **Help** in the sidebar footer, immediately above **Account**, or find it in the command palette.
-2. Read the short description and follow **Browse the user guides** for detailed instructions.
-3. Select **Show tour**. The tour starts on Schedule and follows the current role's section and any lower-role guidance.
-4. As a Viewer, use the two read-only stops to learn the schedule and its toolbar.
+**Source:** [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx); [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx)
 
 ## Acceptance criteria
 
-- Help (`/help`) is available to Owner, Admin, Editor and Viewer, above Account in the expanded, collapsed and mobile sidebar.
-- Direct navigation sets the page title to **Help · CapacityLens**. The command palette lists Help exactly once and navigates to `/help`.
-- The page links to the existing user guides and provides a **Show tour** launcher.
-- The launcher uses the shared permission, duplicate-start and failure behavior. Starting away from Schedule opens Schedule first; a Viewer sees progress 1 of 2.
-- Help and its tour remain available when Getting started is hidden or dismissed.
+- The sidebar **Help** link opens Help, which offers **Show tour** and a **Browse the user guides** link. **Show tour** opens the Schedule and steps through guidance for the active role; it is disabled until the role is known.
+
+## User flow
+
+```mermaid
+flowchart TD
+  human1["Open Help from navigation"]
+  human2["Read help entry"]
+  human3["Select Show tour"]
+  human4["Role-based schedule tour begins"]
+  human1 --> human2
+  human2 --> human3
+  human3 --> human4
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  nav["AppSidebar renders HELP_LINK"] --> route["router renders HelpView at help route"]
+  help["HelpView calls useTourAction"] --> action["useTourAction checks permission readiness"]
+  action --> start["startTour builds role tour and navigates"]
+  start --> guide["driver.js presents tour steps"]
+```
+
+**Code references:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [router.tsx](../../apps/frontend/src/router.tsx); [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx); [useTourAction.ts](../../apps/frontend/src/hooks/useTourAction.ts); [tour.ts](../../apps/frontend/src/lib/tour.ts); [tourSteps.ts](../../apps/frontend/src/lib/tourSteps.ts)

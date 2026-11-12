@@ -290,15 +290,44 @@ test.group('M5 documentation and policy contracts', () => {
     assert.equal(new Set(indexed).size, files.length);
     assert.deepEqual(indexed.toSorted(), storyPaths());
 
+    const matrix = read('user-stories/COVERAGE.md');
+    const matrixPaths = [...matrix.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map(
+      (match) => match[1]
+    );
+    assert.deepEqual(
+      matrixPaths.toSorted(),
+      storyPaths(),
+      'Every story appears once in the matrix'
+    );
+    const identifiers = new Set<string>();
+
     for (const file of files) {
       const content = readFileSync(file, 'utf8');
-      assert.match(content, /^## Goal$/m);
-      assert.match(content, /^## Why$/m);
-      assert.match(content, /^## How(?: \([^\n]+\))?$/m);
-      assert.match(content, /^1\. /m);
+      const identifier = content.match(/^# (US-[A-Z]+-\d+) — /)?.[1];
+      assert.isDefined(identifier, `Missing story identifier: ${file}`);
+      assert.isFalse(identifiers.has(identifier!), `Duplicate story identifier: ${identifier}`);
+      identifiers.add(identifier!);
+      assert.match(content.replace(/\s+/g, ' '), /As an? .+, I want .+ so that .+/);
+      assert.match(content, /^\*\*Status:\*\* (?:Current|Hidden|Removed|Demo|Operator|Planned)\b/m);
+      const pathInCatalogue = relative(resolve(ROOT, 'user-stories'), file).replaceAll('\\', '/');
+      const matrixRow = matrix.split('\n').find((line) => line.includes(`](${pathInCatalogue})`));
+      const matrixStatus = matrixRow?.match(
+        /\|\s*(Current|Hidden|Removed|Demo|Operator|Planned)\s*\|\s*(?:New|Existing)\s*\|$/
+      )?.[1];
+      const storyStatus = content.match(/^\*\*Status:\*\* (\w+)/m)?.[1];
+      assert.equal(matrixStatus, storyStatus, `Matrix status differs for ${pathInCatalogue}`);
+      assert.match(content, /^\*\*Access:\*\* \S/m);
+      assert.match(content, /^\*\*Entry:\*\* \S/m);
+      assert.match(content, /^\*\*Documentation:\*\* \[/m);
+      assert.match(content, /^\*\*Source:\*\* \[/m);
       assert.match(content, /^## Acceptance criteria$/m);
-      assert.match(content, /^- (?:✅ )?\S/m);
-      const metadata = content.split(/^## Goal$/m, 1)[0] ?? '';
+      assert.match(content, /^(?:- \S|\|\s+Field\s+\|)/m);
+      const metadata = content.split(/^## Acceptance criteria$/m, 1)[0] ?? '';
+      for (const [, target] of content.matchAll(/\]\(([^)]+)\)/g)) {
+        if (!target || target.includes('://') || target.startsWith('#')) continue;
+        const path = target.split('#', 1)[0];
+        assert.isTrue(existsSync(resolve(dirname(file), path!)), `Missing story link ${target}`);
+      }
       for (const [, path] of metadata.matchAll(sourceReferences)) {
         if (path) assert.isTrue(existsSync(resolve(ROOT, path)), `Missing source ${path}`);
       }
@@ -317,6 +346,23 @@ test.group('M5 documentation and policy contracts', () => {
           );
         }
       }
+    }
+  });
+
+  test('keeps a user flow and a source-linked code flow on every story', ({ assert }) => {
+    for (const file of storyFiles()) {
+      const content = readFileSync(file, 'utf8');
+      assert.lengthOf([...content.matchAll(/^## User flow$/gm)], 1, file);
+      assert.lengthOf([...content.matchAll(/^## Code flow$/gm)], 1, file);
+      const userStart = content.indexOf('## User flow');
+      const codeStart = content.indexOf('## Code flow');
+      assert.isBelow(userStart, codeStart, `User flow must precede code flow: ${file}`);
+      const userFlow = content.slice(userStart, codeStart);
+      assert.match(userFlow, /^```mermaid\n[\s\S]+?^```$/m, `Missing user flowchart: ${file}`);
+      const diagrams = [...content.matchAll(/^```mermaid\n([\s\S]+?)^```$/gm)];
+      assert.lengthOf(diagrams, 2, `Expected user and code diagrams: ${file}`);
+      for (const diagram of diagrams) assert.match(diagram[1]!, /^flowchart (?:TD|LR)\b/, file);
+      assert.match(content.slice(codeStart), /^\*\*Code references:\*\*\s+(?:- )?\[/m, file);
     }
   });
 

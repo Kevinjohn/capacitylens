@@ -1,27 +1,40 @@
 # US-SCH-10 — Unavailable days are greyed (weekends, non-working days, time off)
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows seeded resources, grouping and capacity cues"
+As an Editor, I want non-working and time-off days distinguished so that I can plan around available days.
 
-## Goal
+**Status:** Current
 
-Days when a resource isn't available — weekends, their non-working weekdays, and their time-off days — are greyed on the timeline so they read as "don't book here."
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-Availability isn't uniform: a freelancer might work Mon–Wed, everyone has weekends, and people take holidays. Tinting those columns as unavailable means the manager plans _around_ real capacity at a glance, instead of accidentally booking work onto a day that has zero available hours. (A day with no available hours is also why anything booked onto it counts as over-allocated — see US-SCH-09.) The greying (and the weekend tint) only paints at **fine zoom** — dayWidth ≥ 18, i.e. the **1 week** or **2 weeks** levels; at coarser zoom the day columns are too narrow to tint legibly, so this story must be checked at **1 week/2 weeks**. (Over-markers and time-off blocks, by contrast, render at any zoom.)
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **1 week** (or **2 weeks**) and click **Today** so the seed bars are in view. **Barry Allen** is a freelancer working **Mon–Wed only**; **Bruce Wayne** has time off **10–12 June**.
-
-1. Look across any row: **weekend** columns (Sat/Sun) carry the **unavailable-day** grey tint.
-2. Look at **Barry Allen**'s row: their **Thursday and Friday** columns are greyed (non-working weekdays for a Mon–Wed freelancer).
-3. Look at **Bruce Wayne**'s row on **10–12 June**: those days are greyed as unavailable (his booked time off).
-4. Set **Weeks visible** to **4 weeks** and note the greying no longer paints (expected — it's a fine-zoom cue).
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ At **1 week/2 weeks**, weekend columns show the **unavailable-day** tint (`data-testid="unavailable-day"`).
-- ✅ At **1 week/2 weeks**, Barry Allen's **Thu/Fri** columns are greyed (non-working days for a Mon–Wed freelancer).
-- ✅ At **1 week/2 weeks**, Bruce's **10–12 June** time-off days are greyed.
-- ✅ At **4 weeks** (and coarser) the greying does **not** render — it is a fine-zoom-only cue.
+- When the zoom is fine enough to draw day columns (at least 18 px per day), each day a resource cannot take new work — a non-working day, a closure or a time-off day — is shaded grey on its row. A personal half day is shaded on the lower half of the row.
+- At coarser zoom the day shading is omitted; time off still shows as its own block (see [US-SCH-11](US-SCH-11-time-off-block.md)).
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer zooms in until day columns are at least 18 px wide"]
+  B["Non-working, closure and time-off days are shaded grey"]
+  C["Coarser scales omit the day shading"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["useSchedulerGridModel resolves day states and geometry"] --> B["buildSchedulerModel marks unavailable days"]
+  B --> C["ResourceLane CalendarLayers checks perDayColumns"]
+  C --> D["Unavailable day cells render the neutral tint"]
+```
+
+**Code references:** [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)

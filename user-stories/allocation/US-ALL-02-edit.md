@@ -1,37 +1,82 @@
 # US-ALL-02 — Edit an existing allocation
 
-**Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "edits an allocation and reflects the change on the bar"
+As an Editor, I want to change an allocation in place so that an updated plan keeps its existing booking.
 
-## Goal
-
-Change an existing allocation's hours, dates, status or note and see the bar update to match.
-
-## Why
-
-Plans change constantly — a booking stretches, drops to part-time, becomes tentative, or gains a note. The manager needs to adjust an existing booking in place rather than delete and recreate it, keeping its identity (and undo history) intact.
-
-**Documentation:** [Schedule and change work — Edit, duplicate or delete a booking](../../docs-src/using/schedule-work.md#edit-duplicate-or-delete-a-booking)
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. The seed has a _Wireframes_ bar on **Bruce Wayne**.
-
-1. Click the **Wireframes** bar. The **Edit allocation** dialog opens, pre-filled with the bar's current Assignee, Project, Activity, dates, Hours / day, Status and Note.
-2. Change **Hours / day** from its current value to `4`.
-3. Change **End** to one day later.
-4. Choose **Status** = _Tentative_ in the three-option status group.
-5. Type a single-line **Note**, e.g. `Pending sign-off`.
-6. Click **Save**. The dialog closes.
+**Status:** Current
+**Access:** Editor, Admin or Owner
+**Entry:** Schedule (`/`)
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
+**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx), [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
 
 ## Acceptance criteria
 
-- ✅ Clicking a bar opens **Edit allocation** (not _New allocation_) with every field pre-filled from that allocation.
-- ✅ After Save, the bar's label updates to show `· 4h`.
-- ✅ The bar now extends one day further (its end date moved).
-- ✅ Setting **Status** = _Tentative_ renders the bar with a dashed border + hatched overlay and `data-status="tentative"`; setting it to _Completed_ prefixes the label with a `✓` and sets `data-status="completed"`.
-- ✅ Adding a **Note** adds a trailing `•` marker to the bar label (and the note shows in the hover popover).
-- ✅ Saving another field without editing a historical multiline note preserves that stored note exactly; directly editing **Note** adopts the field's single-line value.
-- ✅ An attributed All-projects allocation reopens with its project selected and keeps the attribution when another field changes. A legacy unattributed All-projects allocation reopens as **No specific project** and stays unattributed unless explicitly assigned.
-- ✅ Creating an activity inline in the edit form does not by itself make the allocation stale. If another session changes the allocation while the form is open, Save is refused with **The schedule changed while you were editing**; close and reopen the current allocation, then reapply the intended changes.
-- ✅ Edit uses the same responsive 25/75 label/control layout as create, including its **Assignee**
-  row, while keeping every existing value and omitting the create-only **Repeat** controls.
+| Field               | Control           | Required/default/conditions                                                                                                                                                   |
+| ------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Assignee            | Select            | Required; prefilled with the current resource                                                                                                                                 |
+| Project             | Select            | Prefilled with the saved project scope; options: Internal, No specific project, then projects sorted by client and name; a placeholder limits the choice to its bound project |
+| Activity            | Select            | Required; prefilled with the current activity; choices follow the selected Project                                                                                            |
+| Task                | Text input        | Optional; up to 100 characters; shown only when the company enables Show task field in schedule; prefilled                                                                    |
+| Start Date          | Date input        | Required; prefilled with the saved start date                                                                                                                                 |
+| End                 | Date input        | Hours mode and external resources only; required; prefilled with the saved end date                                                                                           |
+| Hours / day         | Select            | Hours mode, not for external resources; prefilled; 1 h, 2 h - quarter day, 4 h - half day or 8 h - full day                                                                   |
+| Days of work        | Number input      | Days mode, not for external resources; required; greater than 0; 0.5 step; prefilled                                                                                          |
+| Days over           | Number input      | Days and Blocks modes, not for external resources; prefilled; whole number from 1 to the supported maximum; disabled when the person has no effective working days            |
+| Status              | Segmented control | Prefilled with the saved status; Confirmed, Tentative or Completed                                                                                                            |
+| Note                | Text input        | Optional; prefilled with the saved note                                                                                                                                       |
+| Ignore working days | Checkbox          | Prefilled with the saved value; hidden for external resources                                                                                                                 |
+
+- Save updates the existing allocation; Cancel leaves its saved values unchanged.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Open an allocation"]
+  N2["change its fields"]
+  N3["Save"]
+  N4["updated booking appears"]
+  B1["Cancel/close: saved booking remains unchanged"]
+  B2["Invalid or stale draft: error shown; correct or close"]
+  B3["Save failure: error shown; form stays open"]
+  N1 --> N2
+  N2 --> N3
+  N3 --> N4
+  N3 -.-> B1
+  N3 -.-> B2
+  N3 -.-> B3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["AllocationModal edit dialog"] --> B["allocationSubmit validates saved-value draft"]
+  B -->|valid| C["allocationSlice.updateAllocation"]
+  B -->|invalid or stale| I["Form error; saved row remains"]
+  C --> D["Planning cache controller executes command"]
+  D --> E["createStorePlanningTransport selects server HTTP or demo memory transport"]
+  E -->|server| F["planningTransport sends api.planning.allocation.update"]
+  F --> J["Request refusal or transport failure returns to allocationSubmit"]
+  J --> I["Form error; draft remains available"]
+  F --> G["PlanningController.mutatePlanning executes scoped writeRow"]
+  G --> H["Acknowledgement reconciles store; Schedule redraws"]
+  E -->|demo| H
+```
+
+**Code references:**
+
+- [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+
+- [planning.ts](../../apps/backend/app/services/planning.ts)
+
+- [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
+- [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
+- [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts)
+- [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
+- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+- [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
+- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)

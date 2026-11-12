@@ -1,34 +1,40 @@
-# US-NAV-04 — Server save-failure warning
+# US-NAV-04 — See planning read and save failures
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked tests:**
-`e2e/resilience.db.spec.ts`, `apps/frontend/src/components/AppShell.test.tsx`, `apps/frontend/src/data/planning/planningCacheController.test.ts`
+As a company member, I want failed or uncertain server operations shown clearly so that I can make an informed recovery decision.
 
-**Documentation:** [When something goes wrong](../../docs-src/self-hosting/incidents.md#the-service-is-not-ready)
+**Status:** Current
 
-## Goal
+**Access:** Owner, Admin, Editor, Viewer
 
-See a clear warning when server data cannot be read or a write cannot be confirmed.
+**Entry:** Schedule planning read/write failure → visible error notice
 
-## Why
+**Documentation:** [Incidents](../../docs-src/self-hosting/incidents.md)
 
-An unconfirmed edit must never look durable. The manager needs to know when to reload canonical
-data before deciding whether to retry an action.
-
-## How (end-to-end)
-
-**Precondition:** Authenticated server-backed app open while a planning read or write fails.
-
-1. If the initial planning read fails, see an unavailable alert; a client write is refused and no
-   private row is published from the failed read.
-2. Reload after the read recovers and see the canonical server data.
-3. If a typed save has an uncertain result, see its error without automatic replay. Reload the
-   authoritative state before deliberately retrying the edit.
+**Source:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
 
 ## Acceptance criteria
 
-- ✅ A failed planning read displays an unavailable alert and prevents a write until canonical data
-  can be loaded.
-- ✅ A failed or uncertain typed save surfaces an error without claiming that the edit persisted.
-- ✅ Reloading after service recovery restores canonical data; an explicit retry does not duplicate
-  an uncertain write.
-- ✅ The app never claims an unsaved server edit is durable or queues it for offline replay.
+- A failed planning read shows **The schedule couldn’t be loaded from the server. Reload to try again.**, blocks planning changes and stays until a later read succeeds.
+- A change the server refuses with 403 shows **That schedule change was refused, so it wasn’t saved.**; the loaded rows stay readable.
+- While an earlier change’s outcome is still unconfirmed, further changes are refused. Neither banner has a Retry control.
+
+## User flow
+
+```mermaid
+flowchart TD
+  read["Planning read fails"] --> banner["Unavailable banner appears; changes are blocked"]
+  banner -->|a later read succeeds| current["Current planning data appears"]
+  refused["Server refuses a change (403)"] --> refusedBanner["Refused banner appears; rows stay readable"]
+  banner --> noRetry["Neither banner has a Retry control"]
+  refusedBanner --> noRetry
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  request["planningCacheController stores planning status"] --> status["readPlanningProblem derives unavailable or refused notice"]
+  status --> alert["AppShell renders destructive Alert"]
+```
+
+**Code references:** [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [useStore.ts](../../apps/frontend/src/store/useStore.ts)

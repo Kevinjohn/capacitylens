@@ -1,30 +1,35 @@
-# US-DAT-03 — ⌘Z after an import keeps the imported data
+# US-DAT-03 — Keep imported data outside undo history
 
-**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "confirming an import replaces the dataset, and ⌘Z leaves it imported"
+As an Owner, I want imports to stay outside undo history so that an accidental undo cannot replace imported company data.
 
-**Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#everything-else-on-the-page)
-
-## Goal
-
-After a confirmed import has replaced the dataset, pressing ⌘Z leaves the imported data in place.
-
-## Why
-
-Imports replace a whole dataset and have no inverse in page-local history, so ⌘Z must not reverse
-one. The import confirmation and toast do not promise an undo. Export the current data first if you
-may need it back.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open. Have a valid CapacityLens file to import (e.g. the `capacitylens-data.json` from US-DAT-01). To make the change obvious, first add a clearly identifiable entity to the _current_ app — e.g. a client named **Marker Co.** on the Clients page — that is **not** in the import file.
-
-1. Confirm **Marker Co.** exists in the current data (Clients list).
-2. Open **Settings** → **Import and export**, expand it, click **Import JSON**, choose the file, and
-   click **Replace data** in the "Import data?" dialog.
-3. The dataset is replaced; the success toast "Imported … records." appears. **Marker Co.** is now gone (it wasn't in the file).
-4. Press **⌘Z**.
+**Status:** Current
+**Access:** Owner on server; demo users in temporary demo
+**Entry:** After import → Undo/Redo
+**Documentation:** [Settings](../../docs-src/using/settings.md#beta-transfer-contract)
+**Source:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx)
 
 ## Acceptance criteria
 
-- ✅ Immediately after the confirmed import, the live data is the file's contents (the pre-import marker, **Marker Co.**, is absent).
-- ✅ Pressing **⌘Z** leaves the imported dataset in place — **Marker Co.** stays absent and the imported entities remain on the lists and the Schedule.
+- Completing an import clears the Undo and Redo history, so neither can reverse the import or any earlier change.
+
+## User flow
+
+```mermaid
+flowchart TD
+  import["Confirm and finish import"] --> replace["Imported data replaces the prior company data"]
+  replace --> undo["Select Undo or Redo"]
+  undo --> result["Imported data remains in place"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  server["Server import completes and useServerImport refreshes planning"] --> revision["planningCacheController accepts canonical replacement revision"]
+  revision --> clear["External revision leaves page-local undo history cleared"]
+  demo["Demo import calls replaceAfterDemoImport"] --> demoClear["allocationSlice replaces data and clears past and future"]
+  clear --> controls["Undo and Redo have no import inverse to apply"]
+  demoClear --> controls
+```
+
+**Code references:** [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx)

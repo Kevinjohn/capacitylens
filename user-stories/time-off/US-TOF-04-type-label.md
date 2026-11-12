@@ -1,26 +1,45 @@
 # US-TOF-04 — Time-off list reads terse; the type label lives on the timeline
 
-**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "keeps the list row terse (start date + day count); the type label stays on the timeline"
+As a company member, I want the time-off list to show who is away and for how long so that I can scan upcoming availability changes.
 
-## Goal
+**Status:** Current
 
-Scan the Time off list as a plain "who's away, from when, and for how long" — each row shows the resource, a terse start date and a day count, and nothing else. The readable type label (e.g. "Holiday") still appears where it earns its place: on the matching timeline block.
+**Access:** Viewer, Editor, Admin or Owner
 
-## Why
+**Entry:** Time off page
 
-The list answers one question — who is out and how long — so it stays deliberately terse: the end date, the type and any note would only slow the scan. The schedule is where the _kind_ of absence and its exact span matter (it colours/labels and sizes the block), so the human label (`holiday → Holiday`, never the raw `holiday`) belongs there, not duplicated in the list.
+**Documentation:** [time-off.md](../../docs-src/using/time-off.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed has **Bruce Wayne** off **10–12 June** with type _Holiday_.
-
-1. Read the **Bruce Wayne** row — it reads **Wed 10th Jun · 3 days**. There is no end date, type or note in the row.
-2. Go to **Schedule** (`/`), set **Weeks visible** to **1 week** (so day columns are wide enough to render the block's label text), and click **Today** so the seed bars are in view.
-3. Read the label inside Bruce's `timeoff-block`.
+**Source:** [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx)
 
 ## Acceptance criteria
 
-- ✅ The Bruce Wayne `timeoff-row` shows the resource name, the start date **Wed 10th Jun**, and **3 days** — and does **not** show the end date, the type ("Holiday"/`holiday`) or any note.
-- ✅ The duration is carried by the day count alone (a one-day entry reads "… · 1 day", singular); the end date is never spelled out in the row.
-- ✅ The timeline `timeoff-block` for that entry still carries the human type label **Holiday** (CSS-uppercased on the bar to `HOLIDAY` — same value, styled; not a defect), never the raw value `holiday`.
-- ✅ Each type maps to its label consistently on the timeline: `holiday → Holiday`, `sick → Sick`, `unpaid → Unpaid`, `other → Other`.
+- The Time off list groups entries under each resource and shows each entry’s start date and length in days; it does not show the type.
+- The Schedule block shows the type (Holiday, Sick, Unpaid or Other) when the block is wider than 44 pixels, and always exposes it to assistive technology.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Open Time off page"]
+  N2["scan resource, start date and duration in the list"]
+  N3["read the type on its schedule block"]
+  N1 --> N2
+  N2 --> N3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["TimeOffList.buildTimeOffGroups keeps resource, date and duration in list"] --> B["schedulerRowModel maps time-off type to display label"]
+  B --> C["ResourceLane renders the timeoff-block with that label"]
+  C --> D["Schedule shows type on the matching absence block"]
+```
+
+**Code references:**
+
+- [TimeOffList.tsx](../../apps/frontend/src/components/timeoff/TimeOffList.tsx)
+- [timeOffView.ts](../../apps/frontend/src/components/timeoff/timeOffView.ts)
+- [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts)
+- [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)

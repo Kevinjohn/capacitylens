@@ -1,47 +1,44 @@
 # US-RES-11 — Set a person's availability dates
 
-**Area:** Resources · **Persona:** Studio manager · **Coverage:** unit (`packages/shared/src/domain/resourceAvailability.test.ts`, `apps/frontend/src/lib/capacity.test.ts`) + component (`apps/frontend/src/components/resources/ResourceForm.test.tsx`) + store (`apps/frontend/src/store/useStore.allocations.test.ts`) + typed server (`apps/backend/tests/functional/planning/availability.spec.ts`); manual server/API and browser flow (no dedicated E2E spec yet)
+As an Editor, I want to set a person’s availability dates so that capacity is zero outside their available period.
 
-**Documentation:** [Resources — set availability dates](../../docs-src/using/resources.md#set-availability-dates)
-
-## Goal
-
-Set the first and last dates when a Studio or Supplementary person is available, so capacity
-planning reflects a joiner, leaver or fixed-term engagement without hiding their history.
-
-## Why
-
-A person can be on the schedule before their start date or after their end date because the
-business needs to retain the plan and its history. Availability dates make those boundaries clear:
-capacity is zero outside the range, while existing allocated work remains visible for review.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Resources** in the sidebar.
-
-1. On the **Bruce Wayne** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens.
-2. Set **Start date** to `2026-06-08` and **End date** to `2026-06-19`.
-3. Click **Save**. The dialog closes.
-4. Open **Schedule** and view the weeks containing 5 June and 22 June.
-5. Try to create or move work for Bruce onto a scheduled working day before 8 June or after 19
-   June. The placement is rejected and the existing booking stays where it was.
-6. Return to Bruce's resource form and clear either date. Save, then confirm that side is unbounded.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Resources screen → person row → Edit → Start date / End date
+**Documentation:** [Guide](../../docs-src/using/resources.md)
+**Source:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [ResourceAvailabilityFields.tsx](../../apps/frontend/src/components/resources/ResourceAvailabilityFields.tsx)
 
 ## Acceptance criteria
 
-- ✅ Resource create and edit forms show **Start date** and **End date** only for Studio
-  and Supplementary people. Placeholders and External / 3rd party resources have no availability
-  date controls and retain their existing behaviour.
-- ✅ Both dates are optional and inclusive. Blank **Start date** means available without a first
-  date; blank **End date** means available without a last date. Setting both to the same date
-  is valid. A malformed date or a first date after the last date is rejected without clearing
-  either existing boundary. Clearing a date is deliberate and leaves only that side unbounded. The two
-  controls share one row at normal modal widths and stack on narrow screens.
-- ✅ A person's capacity is zero outside their availability range. Allocated load remains visible,
-  so narrowing a range does not delete, move or rewrite conflicting allocations.
-- ✅ Metadata edits remain allowed when existing allocations conflict with the new range.
-- ✅ New allocations and placement-changing edits (move, resize, reassignment or repeat occurrence
-  placement) are rejected when they would place work on a scheduled working day outside the range.
-  Rejection is atomic: the prior allocation and its dates remain unchanged.
-- ✅ **Ignore working days** can include recurring non-working days, but it does not bypass the
-  person's availability date boundaries.
+| Field      | Control    | Required/default/conditions         |
+| ---------- | ---------- | ----------------------------------- |
+| Start date | Date field | People only; optional and inclusive |
+| End date   | Date field | People only; optional and inclusive |
+
+- **Save** retains valid values; invalid values keep the form open with an error.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Resources screen"] --> B["Edit person"] --> C["Set optional Start date and End date"] --> D["Save"]
+  B --> Z["Cancel closes without saving"]
+  D -->|valid dates| E["Capacity is zero outside inclusive range"]
+  D -->|invalid or reversed range| F["Form stays open with error"]
+
+  D -->|server refuses save| X["Error stays visible in the form"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["ResourceForm (fields from ResourceAvailabilityFields) → useResourceSubmit.createSubmit"] --> B["useStore.updateResource → createTypedPlanningActions.updateResource"]
+  B --> C["buildResourceUpdate → allocationSlice.send"]
+  C --> D["createPlanningCacheController.execute"] --> E{"createStorePlanningTransport"}
+  E -->|server| F["createPlanningTransport.sendOperation → api.planning.resource.update"] --> G["PlanningController.resourceUpdate → mutatePlanning begins the scoped transaction"]
+  G --> H["executePlanningIntent applies intent → writeRow persists row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt updates planning state; ResourceList renders"]
+  E -->|demo| I["createVolatilePlanningTransport.execute → apply in page memory"] --> J
+```
+
+**Code references:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [ResourceAvailabilityFields.tsx](../../apps/frontend/src/components/resources/ResourceAvailabilityFields.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts)

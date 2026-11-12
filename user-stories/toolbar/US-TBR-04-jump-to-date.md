@@ -1,46 +1,41 @@
-# US-TBR-04 — Jump to a specific date (hidden from the toolbar — #173)
+# US-TBR-04 — Jump to a specific date (hidden from the toolbar)
 
-> **⏸ Not manually testable through the UI — the toolbar no longer renders the Jump to date
-> picker.** DECISION (#173): people rarely look far ahead, and a month list is probably the
-> better affordance for that need — that redesign is deferred, so rather than delete the control
-> the toolbar simply stops rendering it (`SHOW_JUMP_TO_DATE` in
-> `apps/frontend/src/components/scheduler/SchedulerToolbar.tsx`). The component itself
-> (`apps/frontend/src/components/scheduler/JumpToDateInput.tsx`) and the `goToDate` store action are unchanged
-> and stay one flip away from returning.
+As an Editor, I want to jump to a selected date so that I can inspect a specific future period; the toolbar control is currently hidden.
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "does not expose the jump-to-date picker" · **Coverage:** `apps/frontend/src/components/scheduler/JumpToDateInput.test.tsx` (component: shows the current focus date, moves the grid to a valid date, rejects a malformed date) + the `goToDate` tests in `apps/frontend/src/store/useStore.test.ts` (week-start snap behaviour, including the non-Monday `weekStartsOn` regression case).
+**Status:** Hidden — the date picker remains in code but the toolbar does not render it; redesign is deferred.
 
-## Goal
+**Access:** Viewer, Editor, Admin or Owner
 
-Move the timeline to a specific date using the **Jump to date** picker (as previously exposed).
+**Entry:** Schedule (`/`)
 
-## Why
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-The seed bars live in the current week (shifted there at runtime by `seedForCurrentWeek`), so the
-grid opening on **Today** already lands a manager on the work that matters most of the time. The
-picker's one remaining job — reaching a date weeks or months out — is rare enough that it wasn't
-worth the toolbar space it took, and a future month-list affordance is likely to replace it
-outright. Keeping the code (rather than deleting it) means that swap is a rendering change, not a
-rebuild.
-
-## How (not executable in the current build)
-
-The steps below describe the intended behaviour if the picker is re-surfaced.
-
-1. Open the **Schedule**. The toolbar shows a **Jump to date** input holding the current focus date.
-2. Type `2026-09-10` into it. The grid re-anchors on the week containing that date (week-start snap — see **US-TBR-08**).
-3. Type a malformed value such as `2026-2-30`. The grid does not move.
-
-A manual tester on the current build has no UI path to a specific far-future or far-past date.
-To reach nearby weeks, use **Today** (re-centres on the current week — see **US-TBR-03**) or
-**Prev** / **Next** (one week at a time — see **US-TBR-02**). To exercise the picker's own logic
-(value display, valid/invalid date handling, and the week-start snap), run the automated coverage
-listed above — it renders `JumpToDateInput` directly rather than through the toolbar.
+**Source:** [ToolbarDateNavigation.tsx](../../apps/frontend/src/components/scheduler/ToolbarDateNavigation.tsx), [JumpToDateInput.tsx](../../apps/frontend/src/components/scheduler/JumpToDateInput.tsx)
 
 ## Acceptance criteria
 
-- ✅ The Schedule toolbar (`data-testid="scheduler-toolbar"`) does not render a **Jump to date** input or any date-picker control.
-- ✅ `JumpToDateInput.tsx` and the `goToDate` store action remain in the codebase, are still exercised by their own tests, and are not called from `SchedulerToolbar.tsx` (gated behind `SHOW_JUMP_TO_DATE = false`).
-- ✅ Setting `SHOW_JUMP_TO_DATE` to `true` restores the picker with its prior behaviour, including the week-start re-anchoring described in **US-TBR-08**.
+| Field        | Control           | Required/default/conditions                                                                                                        |
+| ------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Jump to date | Native date input | Hidden from the current toolbar; when exposed, shows the focused date and repositions the schedule after a valid date is selected. |
 
-> See **US-TBR-08** for the week-start re-anchoring that still applies to **Weeks visible** / Prev-Next / Today.
+## User flow
+
+```mermaid
+flowchart TD
+  A["Intended: Viewer opens Schedule and chooses a date"]
+  B["Currently unavailable: toolbar has no Jump to date control"]
+  C["The intended date-jump flow cannot start"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["Current: SchedulerToolbarChrome renders ToolbarDateNavigation"] --> B["Current: ToolbarDateNavigation omits JumpToDateInput (SHOW_JUMP_TO_DATE is false)"]
+  B --> C["Retained only: JumpToDateInput would call goToDate after a valid date"]
+  C --> D["Retained model support: schedulerSlice.goToDate recenters to company week start"]
+```
+
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [ToolbarDateNavigation.tsx](../../apps/frontend/src/components/scheduler/ToolbarDateNavigation.tsx), [JumpToDateInput.tsx](../../apps/frontend/src/components/scheduler/JumpToDateInput.tsx), [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)

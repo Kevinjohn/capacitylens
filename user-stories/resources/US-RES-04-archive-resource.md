@@ -1,44 +1,40 @@
-# US-RES-04 — Archive a resource (hide from the schedule) and restore
+# US-RES-04 — Archive a resource
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "archiving a resource hides it from the list + schedule, and undo leaves it archived"
+As an Editor, I want to archive a resource so that it leaves active views while its work remains retained.
 
-## Goal
-
-Remove a resource from the schedule **reversibly** — archive it (with a clear warning), so its allocations and time off are retained and it can be restored
-from the grouped archive sections below the Resources list.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). Click **Today**
-so the seed bars and time off are in view. **Bruce Wayne** has both allocations
-(over-allocated on 3–4 June) and time off (10–12 June, Holiday).
-
-1. Note that Bruce's row shows allocation bars and a hatched time-off block in early June.
-2. Go to **Resources**; on the **Bruce Wayne** row click the **Archive Bruce Wayne** (trash) icon.
-3. A dialog titled **"Archive resource?"** appears, naming Bruce and explaining the row will be hidden
-   from the schedule and can be restored from the archive sections below the list.
-4. Click **Cancel** first — the dialog closes and Bruce is still present (nothing archived).
-5. Click the **Archive Bruce Wayne** icon again, then click **Archive** to confirm.
-6. Go back to **Schedule** (click **Today** if needed) and observe Bruce is gone (hidden, not
-   destroyed — his record + allocations + time off are retained).
-7. Use **Undo** if the acknowledged archive is still in the current page's history; **Redo** reapplies it.
-
-## Why
-
-A departing or paused team member must be removed from the schedule cleanly, but a mis-click
-shouldn't quietly destroy months of allocations and booked leave. Archiving is reversible: the data
-stays, the row simply leaves the active views. Anonymising a person is a separate, irreversible
-action; there is no permanent deletion.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Resources screen → resource row → Archive {resource name}
+**Documentation:** [Guide](../../docs-src/using/resources.md)
+**Source:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx)
 
 ## Acceptance criteria
 
-- ✅ The confirm dialog is titled **"Archive resource?"**, names the resource, and explains it will be
-  hidden from the schedule and is restorable from the appropriate Archived Studio, Archived Supplementary,
-  Archived External or Archived placeholders group.
-- ✅ Choosing **Cancel** leaves the resource, its bars and its time off untouched and visible.
-- ✅ After confirming **Archive**, the **Bruce Wayne** row disappears from Resources, and on
-  **Schedule** Bruce's row, allocation bars and time-off block are all hidden — but the records are
-  **retained** (not cascade-deleted), and Bruce appears under the appropriate archive group.
-- ✅ **Restore** from the resource archive sections brings Bruce back with all of his allocations
-  and time off. An eligible acknowledged archive or restore can also be reversed from page-local
-  Undo/Redo history.
+- Selecting **Archive {name}** opens **Archive resource?** with **Archive** and **Cancel** controls.
+- The dialog reads **Archive "{name}"? They will be hidden from the schedule.** and notes that Editors, Admins and Owners can restore them and only Owners and Admins can anonymise them. It shows no count of affected records.
+- After confirmation, the resource leaves its active section and the Schedule. Its allocations and time off are kept, not deleted.
+- **Cancel** closes the dialog without archiving. **Archive** archives the record.
+- The archived record appears in its archived section with a **Restore** control.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Resources screen"] --> B["Archive resource row"] --> C["Archive resource? confirmation"]
+  C -->|Cancel| A
+  C -->|Archive| D["Resource leaves active section"] --> E["Resource appears in its archived section, such as Archived Studio"]
+  C -->|Action refused| F["Notice explains the archive failed"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["ResourceList archive confirmation"] --> B["useLifecycleActions.archive"] --> C["sendPlanningCommand: resource.archive"]
+  C --> D["createPlanningTransport → api.planning.resource.archive"] --> E["PlanningController.resourceArchive → mutatePlanning begins scoped transaction"]
+  E --> F["executePlanningIntent.transitionLifecycle updates only the archived row"] --> K["mutatePlanning records revision/audit and commits"] --> F2["useActiveScopedData activeOnly hides descendants by ancestry"]
+  C --> G["createVolatilePlanningTransport.execute applies intent in page memory"] --> F2
+  F2 --> H["ArchivedEntitySection / ArchiveRecoverySection refresh"]
+```
+
+**Code references:** [ResourceList.tsx](../../apps/frontend/src/components/resources/ResourceList.tsx) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [ArchiveRecoverySection.tsx](../../apps/frontend/src/components/common/ArchiveRecoverySection.tsx) · [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [useScopedData.ts](../../apps/frontend/src/store/useScopedData.ts)

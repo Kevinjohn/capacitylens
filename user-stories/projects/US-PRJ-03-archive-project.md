@@ -1,41 +1,39 @@
-# US-PRJ-03 — Archive a project (hide from the schedule) and restore
+# US-PRJ-03 — Archive a project
 
-**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "archiving a project hides it from the list, and undo leaves it archived"
+As an Editor, I want to archive a project so that its work leaves active views while remaining restorable.
 
-## Goal
-
-Remove a project from the active views **reversibly** — archive it (with a clear warning) so the project and its phases/activities/allocations are retained and it can be restored.
-
-## Why
-
-When a project pauses or is cancelled, the manager wants it off the schedule in one step — but without
-destroying its scheduled work. Archiving hides the project from the active views while keeping its
-data. There is no deletion step: an archived project stays until it is restored. Archiving is
-reversible through **Restore**.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project
-Watchtower** has phases (_Discovery_, _Build_), activities (_Wireframes_, _Visual Design_, _CMS
-Review_) and allocations.
-
-1. On the **Project Watchtower** row, click the **Archive Project Watchtower** (trash) icon. The
-   "Archive project?" confirmation dialog opens.
-2. Read the dialog: it explains the project will be hidden from the schedule and can be restored
-   from **Archived projects** below the list.
-3. Click **Archive** to confirm. The dialog closes and **Project Watchtower** leaves the Projects list.
-4. Use **Undo** if the acknowledged archive is still in the current page's history; **Redo** reapplies it.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Projects screen → project row → Archive {project name}
+**Documentation:** [Guide](../../docs-src/using/projects.md)
+**Source:** [ProjectList.tsx](../../apps/frontend/src/components/projects/ProjectList.tsx) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx)
 
 ## Acceptance criteria
 
-- ✅ The confirmation dialog is titled **Archive project?** and explains the project is hidden from the
-  schedule and is restorable from Archived projects.
-- ✅ After confirming, **Project Watchtower** is gone from the Projects management list (archived, not
-  destroyed).
-- ✅ The project, its phases, activities and allocations are **retained** in the data — the active
-  view hides descendants through their archived ancestry without changing their own status.
-- ✅ Restoring the project brings attributed All-projects allocations back with their attribution
-  intact, including after an ordinary allocation drag or edit.
-- ✅ Archived projects surface under **Archived projects**, where they can be restored. No
-  permanent deletion exists.
-- ✅ **Restore** from Archived projects brings the project back. An eligible acknowledged archive or restore can also be reversed from page-local Undo/Redo history.
+- Selecting **Archive {name}** opens **Archive project?** with **Archive** and **Cancel** controls.
+- The dialog explains that phases and allocations are hidden and restorable; when present, their counts are shown.
+- **Cancel** closes the dialog without archiving. **Archive** archives the record.
+- The archived record appears in its archived section with a **Restore** control.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Projects screen"] --> B["Archive project row"] --> C["Archive project? confirmation"]
+  C -->|Cancel| A
+  C -->|Archive| D["Project leaves active list"] --> E["Project appears in Archived projects"]
+  C -->|Action refused| F["Notice explains the archive failed"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["ProjectList archive confirmation"] --> B["useLifecycleActions.archive"] --> C["sendPlanningCommand: catalogue.archive"]
+  C --> D["createPlanningTransport → api.planning.project.archive"] --> E["PlanningController.projectArchive → mutatePlanning begins scoped transaction"]
+  E --> F["transitionLifecycle updates only the archived row"] --> K["mutatePlanning records revision/audit and commits"] --> F2["useActiveScopedData activeOnly hides archived ancestry"]
+  C --> G["createVolatilePlanningTransport.execute applies intent in page memory"] --> F2
+  F2 --> H["ArchivedEntitySection / ArchiveRecoverySection refresh"]
+```
+
+**Code references:** [ProjectList.tsx](../../apps/frontend/src/components/projects/ProjectList.tsx) · [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [ArchiveRecoverySection.tsx](../../apps/frontend/src/components/common/ArchiveRecoverySection.tsx) · [useScopedData.ts](../../apps/frontend/src/store/useScopedData.ts) · [lifecycle.ts](../../packages/shared/src/domain/lifecycle.ts) · [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)

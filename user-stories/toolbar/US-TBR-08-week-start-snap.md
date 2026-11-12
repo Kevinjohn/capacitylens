@@ -1,33 +1,41 @@
 # US-TBR-08 — Navigation re-anchors the left edge to the week start
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)" — the one test that asserts the Monday re-anchor for **Weeks visible**, **Next**, **Prev** and **Today**
+As an Editor, I want navigation to align the Schedule with the configured week start so that week boundaries stay consistent.
 
-**Documentation:** [Settings](../../docs-src/using/settings.md)
+**Status:** Current
 
-## Goal
+**Access:** Viewer, Editor, Admin or Owner
 
-Whenever the manager navigates the timeline — a **Weeks visible** choice (1/2/4/6/8 weeks), **Prev**/**Next**, or **Today** — the grid's leftmost column always lands on the week start (the account `weekStartsOn`, default Monday), never mid-week.
+**Entry:** Schedule (`/`)
 
-## Why
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-This is a weekly view. A left edge parked on a Wednesday makes every week boundary read off-by-a-few-days and makes the helicopter scan harder. Snapping the left edge to the week start on every deliberate navigation keeps the grid reading as whole weeks. This **navigation snap** is always on. The separate week snap after an idle free scroll is also always on (US-SET-09). A pure window resize or the Minimise-weekends toggle preserves the exact left-edge date.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`), viewport ~1440 wide. The browser test disables the idle free-scroll snap with its test-only override so it cannot mask the navigation behavior; a manual check simply waits for each navigation to settle. (Do not pre-set **Weeks visible** — this story changes it.)
-
-1. Open **Weeks visible** and choose **1 week**. Read the leftmost date-header column — its weekday label is **Mon** (the focused week start).
-2. Scroll the grid right by ~2.5 day columns so the leftmost column is now a mid-week day (e.g. its label reads **Wed**).
-3. Open **Weeks visible** and choose **2 weeks**.
-4. Scroll right by ~2.5 day columns again so the left edge is mid-week again.
-5. Click **Next**.
-6. Scroll right by ~2.5 day columns again so the left edge is mid-week again, then click **Prev**.
+**Source:** [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
 
 ## Acceptance criteria
 
-- ✅ After step 1, the leftmost column's weekday label is **Mon**.
-- ✅ After step 2, the leftmost column's weekday label is **not** Mon (sanity: with the free-scroll setting off, navigation has a genuinely mid-week starting point).
-- ✅ After the **Weeks visible** change (step 3), the leftmost column's weekday label is back to **Mon**.
-- ✅ After the **Next** pan (step 5), the leftmost column's weekday label is **Mon**.
-- ✅ After the **Prev** pan (step 6), the leftmost column's weekday label is **Mon** — the left edge always lands on the week start regardless of navigation direction.
-- ✅ A pure browser-window resize or toggling **Minimise weekends** does **not** re-anchor — it keeps the exact left-edge date.
+- Weeks visible, Prev, Next and Today align the timeline to the configured week start.
+- Free scrolling also snaps back to the configured week start when scrolling settles.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer scrolls freely or uses date navigation"]
+  B["Free scroll settles: left edge aligns to company week start"]
+  C["Weeks visible, Prev, Next and Today also align to week start"]
+  A --> B
+  A --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["SchedulerGrid onScroll calls useSchedulerViewport.onScroll"] --> B["useViewportScrolling waits for idle interval"]
+  B --> C["resolveWeekStartSnapTarget chooses company week edge"]
+  C --> D["setScrollLeft aligns viewport"]
+  E["Toolbar navigation changes dates or zoom"] --> F["useViewportAlignment anchors navigation to week start"]
+```
+
+**Code references:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts), [resolveWeekStartSnapTarget.ts](../../apps/frontend/src/components/scheduler/resolveWeekStartSnapTarget.ts), [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)

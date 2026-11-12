@@ -1,54 +1,55 @@
 # US-ALL-04 — Delete an allocation
 
-**Area:** Allocation editor · **Persona:** Studio manager · **Linked tests:**
-`e2e/allocation.spec.ts` → "deletes an allocation from the edit dialog and ⌘Z restores it" ·
-`e2e/features.spec.ts` → "undo restores a deleted allocation" ·
-`e2e/restoration-cleanup.spec.ts` → "privacy cleanup warns once, preserves the cancelled draft and skips warning after Restore is cleared" ·
-`apps/frontend/src/components/scheduler/AllocationModal.edit.test.tsx` ·
-`apps/backend/tests/functional/planning/restoration.spec.ts`
+As an Editor, I want to delete an allocation that is no longer needed so that the Schedule stays current, with undo if I delete it by mistake.
 
-## Goal
+**Status:** Current
 
-Remove one allocation, or one linked repeat occurrence and its future siblings, and be able to undo
-the complete removal.
+**Access:** Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-Bookings get cancelled. The manager needs a clear way to remove one allocation without manually
-opening every future occurrence in a repeated series, a confirmation step that prevents an accidental
-click, and undo in case the confirmed removal was still a mistake.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. The seed has a _Brand System_ bar (on **Diana Prince**).
-
-1. Click the **Brand System** bar. The **Edit allocation** dialog opens.
-2. Click **Delete**. A **Delete allocation?** confirmation dialog opens.
-3. Click **Cancel**. The confirmation closes, the editor stays open, and the bar remains unchanged.
-4. Click **Delete** again, then click **Delete** in the confirmation dialog. The editor closes and
-   the bar disappears.
-5. Press **⌘Z** (Undo).
-
-For an allocation created as part of a repeat batch, **Delete** opens **Delete repeated allocation?**.
-Choose **Delete this occurrence** to remove only the selected row, or **Delete this and future
-occurrences** to remove the selected row and every later-starting row in the same series. Earlier
-occurrences remain.
+**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
 
 ## Acceptance criteria
 
-- ✅ The confirmation dialog is titled **Delete allocation?** with **Delete** and **Cancel** buttons.
-- ✅ **Cancel** keeps the exact allocation and returns to its open editor.
-- ✅ After confirming **Delete**, the **Brand System** bar is gone and the total `allocation-bar`
-  count drops by one.
-- ✅ If the removal is rejected, the dialog remains open and shows the safe rejection reason.
-- ✅ Pressing **⌘Z** restores the exact same bar (same resource, activity, dates, hours and status).
-- ✅ The delete is undoable via **⌘Z** OR the toolbar **Undo** button — either path restores the bar.
-- ✅ A linked occurrence offers one-only and this-and-future choices; the forward choice is one
-  atomic mutation and one Undo restores the complete deleted tail.
-- ✅ Editing a linked occurrence retains its series membership and never modifies future siblings.
-- ✅ Legacy repeat batches remain independent: no series is inferred or backfilled.
-- ✅ A client/project privacy or code-name change, or an activity-kind change, asks once before it
-  clears pending company-wide deleted-item recovery: **This change clears N restorable items**. It
-  skips confirmation when no items will be cleared or when relevant values are unchanged. Cancelling
-  keeps the draft and recovery copies; confirming saves the change and clears them atomically.
-  Ordinary edits preserve the recovery copies.
+- In the Edit allocation dialog, **Delete** opens **Delete allocation?** with **Delete** and **Cancel**.
+- For an allocation in a repeating series it opens **Delete repeated allocation?** with **Delete this occurrence**, **Delete this and future occurrences** and **Cancel**.
+- **Cancel** keeps the allocation. A confirmed deletion removes the chosen allocation, or it and the later occurrences in its series; ⌘Z / Ctrl+Z (or **Undo**) restores it.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Open an allocation"]
+  N2["choose Delete"]
+  N3["confirm; a repeated allocation offers this occurrence or this and future occurrences"]
+  N4["the chosen allocations leave the Schedule; Undo can restore them"]
+  B1["Cancel: keep the allocation"]
+  N1 --> N2
+  N2 --> N3
+  N3 --> N4
+  N3 -.-> B1
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["AllocationModal: Delete action"] --> B["RepeatedAllocationDeleteDialog when series has scope choice"]
+  B -->|cancel| C["Keep allocation"]
+  B -->|one| D["allocationSubmit.deleteSelectedAllocation: deleteAllocation"]
+  B -->|this and future| E["deleteAllocationSeriesFrom"]
+  D --> F["allocationSlice typed delete reconciles store; Schedule updates"]
+  E --> F
+```
+
+**Code references:**
+
+- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+- [AllocationFooter.tsx](../../apps/frontend/src/components/scheduler/AllocationFooter.tsx)
+- [RepeatedAllocationDeleteDialog.tsx](../../apps/frontend/src/components/scheduler/RepeatedAllocationDeleteDialog.tsx)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
+- [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
+- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)

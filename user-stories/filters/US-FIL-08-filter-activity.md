@@ -1,29 +1,51 @@
 # US-FIL-08 — Filter by activity (the activity lens)
 
-**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "filters the schedule to an all-projects activity (the activity lens)" · "the activity lens is mutually exclusive with the client / project lens"
+As a company member, I want an activity lens across projects so that I can review internal or All projects work by activity.
 
-## Goal
+**Status:** Current
 
-Show only the allocations of a chosen internal/All-projects activity — or a whole kind — regardless of which project context the work belongs to.
+**Access:** Viewer, Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-Beyond a client view and a project view, managers want an **activity view**: "show me all design work" or "all internal time" across every project. All-projects activities (Design, Workshop) and internal activities (Admin) get their own lens. An attributed All-projects allocation can match either its activity lens or its chosen project/client lens; selecting one lens still clears the other.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); click **Show filters**. Seed books _Design_ (an unattributed All-projects activity) for Barry on 8–10 June. The expanded row shows a **Filter by activity** dropdown (grouped: _All activities_; an _Internal_ group with `Internal — All` + each internal activity; an _All projects_ group with `All projects — All` + each All-projects activity).
-
-1. Open **Filter by activity** and choose **All projects — All**.
-2. Note the schedule now shows only the _Design_ booking.
-3. Set **Filter by project** to **Metropolis Rebrand**, then re-open **Filter by activity** and choose **All projects — All** again.
+**Source:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
 
 ## Acceptance criteria
 
-- ✅ Choosing **All projects — All** collapses the view to All-projects activity work only (the _Design_ bar); project-specific activity bars are hidden.
-- ✅ Internal remains above All projects, and activities are alphabetical within each group after
-  the group's **All** option.
-- ✅ The activity lens is **standalone**: selecting an activity filter resets **Filter by project / client** to _All_, and choosing a project/client resets **Filter by activity** to _All activities_ (the two lenses are mutually exclusive).
-- ✅ Project-specific activities are **not** listed in the activity dropdown (they're reached via **Filter by project**).
-- ✅ **Show unallocated** works under the activity lens too (dimmed rows for resources with no matching activity work).
-- ✅ The dropdown is **absent** for an account with no internal/All-projects activities.
+- **Filter by activity** offers **All activities**, then an **Internal** group (**Internal — All**, then internal activities by name) and an **All projects** group (**All projects — All**, then all-projects activities by name). Project-specific activities are not listed; they are reached through **Filter by project**.
+- Choosing **Internal — All** or **All projects — All** shows only work on activities of that kind; choosing one activity shows only its work.
+- The activity lens and the client/project lens are exclusive: choosing an activity resets **Filter by client** and **Filter by project** to All, and choosing a client or project resets **Filter by activity** to **All activities**.
+- **Show unallocated** works under the activity lens. The dropdown is absent when the company has no internal or all-projects activities and no activity lens is selected.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Choose an activity lens"]
+  N2["matching activity bars remain across projects"]
+  N3["clear the lens to restore all activities"]
+  N1 --> N2
+  N2 --> N3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["ToolbarActivityFilter selects activity lens"] --> B["SchedulerToolbar passes setFilters callback"]
+  B --> C["schedulerSlice.setFilters stores activityId or activityKind"]
+  C --> D["createAllocationFilters.allocVisible applies activity lens"]
+  D --> E["schedulerModel and SchedulerGrid render matching bars"]
+  E --> F["No planning write or server mutation"]
+```
+
+**Code references:**
+
+- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)
+- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
+- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
+- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
+- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)

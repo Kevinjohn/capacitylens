@@ -1,57 +1,74 @@
 # US-ALL-09 — Create repeating weekly or monthly allocations
 
-**Area:** Allocation modal · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "creates and undoes a weekly repeat batch", "edits one monthly occurrence, deletes its series tail and restores the tail with one Undo", and repeat preview tests
+As an Editor, I want to create linked repeating allocations so that a recurring work pattern can be planned in one step.
 
-## Goal
-
-Create several linked allocations from one completed New allocation form, using a weekly or monthly
-cadence through an explicit end date.
-
-## Why
-
-Regular meetings and recurring project work should not require the same allocation to be entered
-again and again. The manager still needs ordinary bars afterwards, so each occurrence remains free
-to edit independently and can still be deleted without affecting its siblings when that is the
-intended scope.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`).
-
-1. Click a resource row’s **+** button, or draw a new range on an empty part of their lane.
-2. Choose the **Project** and **Activity**, then enter the dates and workload as usual.
-3. Open **Repeat**. It defaults to **Doesn’t repeat** and also offers **Weekly**, **Every 2 weeks**,
-   **Every 3 weeks**, **Every 4 weeks** and **Monthly**.
-4. Choose a repeating option. **Repeat until** starts at the end of the month two calendar months
-   after the allocation start; change it if needed. It cannot be before today or the allocation
-   start, must include at least one repeated occurrence, and can be no more than six calendar months
-   after the allocation start.
-5. Review the preview: it shows the inclusive cutoff, how many linked allocations will be created,
-   and the final occurrence start. An occurrence that starts on the cutoff is included, even when
-   its multi-day span ends later.
-6. Review any aggregate capacity or time-off warning. It is advisory, so **Save** remains available.
-7. Click **Save**. The modal closes and the generated allocations appear as ordinary schedule bars.
-8. Use Undo once. Every allocation created by that Save is removed together.
+**Status:** Current
+**Access:** Editor, Admin or Owner
+**Entry:** Schedule (`/`)
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
+**Source:** [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx), [useAllocationScheduleState.ts](../../apps/frontend/src/components/scheduler/useAllocationScheduleState.ts)
 
 ## Acceptance criteria
 
-- ✅ Repeat appears only in **New allocation**, including row-button and drawn-range creation.
-- ✅ **Doesn’t repeat** creates one allocation through the existing path.
-- ✅ Choosing a cadence reveals a required **Repeat until** date suggested from the allocation start;
-  the suggestion follows start changes until manually edited, while one-off creation shows no date.
-- ✅ The cutoff cannot precede today or the allocation start, must permit at least one repeat, and
-  cannot exceed six calendar months after the allocation start.
-- ✅ Occurrences whose start is on the inclusive cutoff are included; their end may fall after it.
-- ✅ The preview shows the cutoff and final start using the app's short weekday/day/month date style.
-- ✅ Saving a repeat is all-or-nothing and produces one undo step.
-- ✅ Generated bars remain independently editable while retaining their hidden series membership.
-- ✅ When an All-projects activity is booked under a real project, every generated occurrence copies that project attribution. Editing one occurrence changes only that row.
-- ✅ Linked bars show a repeat cue and expose the last surviving series end on hover, focus and to
-  assistive technology; one-offs and legacy unlinked repeat batches do not.
-- ✅ Delete can remove one occurrence or the selected and future occurrences; earlier starts remain.
-- ✅ Either deletion choice is one undoable operation, and legacy repeat batches remain unlinked.
-- ✅ Edit shows no Repeat control, and linked occurrences do not offer Duplicate.
-- ✅ Duplicate remains available for unlinked allocations and creates exactly one independent allocation.
-- ✅ Capacity and time-off warnings count affected generated allocations and never block Save.
-- ✅ **Repeat until** follows the shared label/control row, and its generated-allocation preview
-  aligns beneath the right-hand control column.
+| Field        | Control    | Required/default/conditions                                                                                                                                |
+| ------------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repeat       | Select     | Create only; defaults to Doesn’t repeat; Weekly, Every 2 weeks, Every 3 weeks, Every 4 weeks or Monthly                                                    |
+| Repeat until | Date input | Required when repeating; suggested as the end of the second calendar month after Start; not before today or Start; at most six calendar months after Start |
+
+- The form previews **Creates {count} linked allocations through {repeatUntil}. Last start: {lastStart}.** and warns, without blocking, when occurrences may exceed capacity, overlap time off or start on a non-working day.
+- Save creates the previewed occurrences as one undoable action; each occurrence remains separately editable.
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Choose a repeat pattern"]
+  N2["set Repeat until"]
+  N3["review the preview of count and last start"]
+  N4["Save"]
+  N5["linked occurrences are created together"]
+  B1["Invalid cutoff or dates: correct repeat fields"]
+  B2["Save failure: error shown; dialog remains open"]
+  B3["Cancel: no occurrences created"]
+  N1 --> N2
+  N2 --> N3
+  N3 --> N4
+  N4 --> N5
+  N4 -.-> B1
+  N4 -.-> B2
+  N1 -.-> B3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["AllocationScheduleFields repeat preview"] --> B["allocationSubmit validates cutoff and occurrence drafts"]
+  B -->|valid| C["allocationSlice.addAllocations"]
+  B -->|invalid| I["Repeat/date error; no write"]
+  C --> D["Planning cache controller executes group command"]
+  D --> E["createStorePlanningTransport selects server HTTP or demo memory transport"]
+  E -->|server| F["planningTransport sends api.planning.allocation.createGroup"]
+  F --> J["Request refusal or transport failure returns to allocationSubmit"]
+  J --> I["Repeat error; draft remains available"]
+  F --> G["PlanningController.mutatePlanning executes group writeRow operations"]
+  G --> H["Acknowledgement reconciles separate occurrences"]
+  E -->|demo| H
+```
+
+**Code references:**
+
+- [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+
+- [planning.ts](../../apps/backend/app/services/planning.ts)
+
+- [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
+- [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
+- [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts)
+- [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
+- [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
+- [useAllocationScheduleState.ts](../../apps/frontend/src/components/scheduler/useAllocationScheduleState.ts)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
+- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)

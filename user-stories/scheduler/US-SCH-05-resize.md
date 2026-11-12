@@ -1,27 +1,45 @@
 # US-SCH-05 — Resize an allocation with its grip handles
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "resizes a bar via its end handle"
+As an Editor, I want to resize an allocation by its edge so that I can change its date range directly on the Schedule.
 
-## Goal
+**Status:** Current
 
-Lengthen or shorten an allocation by dragging the grip handle at its start or end edge; the bar can never shrink below one day.
+**Access:** Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-Estimates change once work is underway — a two-day activity becomes four. Dragging the end grip to extend (or the start grip to pull the beginning in) is the direct way to re-scope without opening a form. The one-day floor stops a careless drag from collapsing an allocation into nothing.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
-
-1. Find the **Wireframes** bar (a 4-day allocation whose right edge stays on-screen).
-2. Note its current width.
-3. Hover its right edge to reveal the **end** grip handle (`data-testid="resize-end"`).
-4. Press down on the end handle, drag right by roughly one day-column, and release. The bar extends by one whole day.
-5. Now drag the same end handle left, hard, past the bar's start. The bar stops at a minimum of one day — it does not collapse or invert.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ Dragging the **end** handle right extends the bar by whole days (its width is measurably greater than before).
-- ✅ Dragging the **start** handle works symmetrically (pulling the start edge moves the start date, not the end).
-- ✅ An allocation cannot shrink below **1 day**: dragging an edge past the opposite edge clamps at a single day rather than producing a zero/negative range.
+- Dragging either edge changes the allocation date range by whole days. Unless Ignore working days is set, an edge dropped on a non-working day moves on to the next working day in the drag direction.
+- The allocation remains at least one day long.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Editor drags an allocation edge"]
+  B["The bar previews its snapped date range"]
+  C["Release saves the updated dates; rejection leaves the booking unchanged"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["AllocationBar calls useAllocationGesture"] --> B["useAllocationGestureController resolves gesture and preview"]
+  B --> C["resolveGesture applies snapped dates and mode-specific load rules"]
+  C --> D["Commit gate checks destination and start date"]
+  D --> E["savePointerCommit calls updateAllocation once"]
+  E --> F["allocationSlice creates allocation.update intent"]
+  F --> G["PlanningTransport sends server request or volatile demo applies in memory"]
+  G --> H["Server: PlanningController.mutatePlanning executes writer transaction"]
+  G --> I["Receipt or demo snapshot reconciles into SchedulerGrid"]
+```
+
+**Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts), [useAllocationGestureController.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureController.ts), [allocationDrag.ts](../../apps/frontend/src/components/scheduler/allocationDrag.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)

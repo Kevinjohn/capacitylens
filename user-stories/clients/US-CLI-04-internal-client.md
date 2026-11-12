@@ -1,48 +1,36 @@
 # US-CLI-04 — The built-in "Internal" client
 
-**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/internal-client.spec.ts`
+As an Editor, I want Internal work to have a built-in client grouping so that project-less work can be filtered alongside Internal projects.
 
-## Goal
-
-Use the built-in **Internal** client to capture project-less internal work (Admin, retros, unattributed All-projects
-activities) and see it on the schedule — without it cluttering the Clients management list as if it
-were a client you maintain by hand.
-
-## Why
-
-Not all work belongs to a paying client. CapacityLens gives every account ONE built-in **Internal**
-pseudo-client so project-less internal and unattributed All-projects activities have a home in the client view: they
-bucket under Internal for labelling and filtering, and Internal can also own real projects when the
-team wants to. But Internal is a behind-the-scenes data anchor, not a client you manage — so it is
-**hidden from the Clients management list** while staying fully selectable and bindable everywhere it
-is actually used.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open.
-
-1. Click **Clients** in the sidebar (`/clients`). The list shows _Queen Consolidated_ and _LexCorp_ (each with
-   Edit / Delete). **Internal does NOT appear here** — it's a hidden data anchor, not a managed client.
-2. Click **Projects** in the sidebar (`/projects`). Click **Add project**, set **Name** =
-   `Quarterly planning`, open the **Client** picker — **Internal is offered** — choose it, and **Save**.
-   The new project shows **· Internal** as its client even though Internal isn't in the Clients list.
-3. Click **Activities** in the sidebar (`/activities`). Click **Add activity**, set **Name** =
-   `Team retro`, choose the **Internal** kind (the **Project** picker disappears), and **Save** — the
-   activity lands in the **Internal activities** section with no project.
-4. Click **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and scroll to the start so the seed's project-less
-   unattributed All-projects _Design_ booking (Barry Allen, 8–10 June) is visible.
-5. Open **Filter by client** and choose **Internal** (it's still an option here).
+**Status:** Current
+**Access:** Editors and above manage projects and activities; all roles can view and filter Internal work
+**Entry:** Projects screen → Client picker; Activities screen → Internal kind; Schedule → Filter by client
+**Documentation:** [Clients and projects guide](../../docs-src/using/projects.md)
+**Source:** [ClientList.tsx](../../apps/frontend/src/components/clients/ClientList.tsx) · [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx) · [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx)
 
 ## Acceptance criteria
 
-- ✅ **Internal does NOT appear** in the Clients management list (`/clients`); normal clients
-  (_Queen Consolidated_, _LexCorp_) are listed with their Edit/Delete controls.
-- ✅ Internal is still **selectable as a project's client** in the project form's **Client** picker,
-  and a project bound to Internal resolves its client label to **Internal** in the Projects list.
-- ✅ Internal remains a valid **Filter by client → Internal** option and a **Clients** entry in the
-  ⌘K command palette.
-- ✅ An activity created with the **Internal** kind has **no project** and appears under
-  **Internal activities** — no error anywhere downstream.
-- ✅ **Filter by client → Internal** shows project-less (internal/unattributed All-projects) work AND any work under
-  Internal-owned projects, while hiding project work owned by other clients (e.g. _Brand System_
-  under LexCorp disappears).
+- The built-in **Internal** client is absent from Clients management.
+- **Client** in Add/Edit project includes Internal; the Schedule **Filter by client** includes Internal.
+- Choosing the **Internal** activity kind hides the Project picker and saves a project-less activity.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Clients management list"] --> B["Internal is not listed"]
+  C["Add project"] --> D["Choose Internal in Client"]
+  E["Add activity"] --> F["Choose Internal kind"] --> G["Save project-less activity"]
+  H["Schedule"] --> I["Filter by client: Internal"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["ClientList filters built-in Internal out of management rows"] --> B["ProjectForm clientOptions includes Internal"]
+  C["ActivityForm kind options include Internal"] --> D["Internal kind clears projectId and phaseId"]
+  E["SchedulerToolbar.buildFilterOptions includes available clients"] --> F["schedulerModelFilters matches selected client"]
+```
+
+**Code references:** [ClientList.tsx](../../apps/frontend/src/components/clients/ClientList.tsx) · [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx) · [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx) · [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx) · [toolbarFilterOptions.ts](../../apps/frontend/src/components/scheduler/toolbarFilterOptions.ts) · [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts) · [selectors.ts](../../apps/frontend/src/store/selectors.ts)

@@ -1,33 +1,39 @@
 # US-RES-07 — Studio or Supplementary engagement
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "edits Engagement while Employment stays hidden and unbadged"
+As an Editor, I want to classify a person as Studio or Supplementary so that the roster groups them correctly.
 
-## Goal
-
-Classify a person as **Studio** or **Supplementary**, independently of their discipline or retained
-employment data.
-
-## Why
-
-Contract status does not reliably describe whether someone is regarded as part of an agency's core
-team. Engagement captures that relationship directly without discarding the existing employment
-data that may be useful later.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open; click **Resources** in the sidebar.
-
-1. On the **Bruce Wayne** row, click the **Edit** (pencil) icon.
-2. Confirm **Engagement** defaults to _Studio_ and no **Employment** control is shown.
-3. Change the always-visible Engagement choice to _Supplementary_ and Save.
-4. Edit **Bruce Wayne** again and confirm _Supplementary_ persisted.
+**Status:** Current
+**Access:** Editor and above (Editor, Admin, Owner)
+**Entry:** Resources screen → person row → Edit → Engagement
+**Documentation:** [Guide](../../docs-src/using/resources.md)
+**Source:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx)
 
 ## Acceptance criteria
 
-- ✅ The person form shows **Engagement** with always-visible **Studio** and **Supplementary** choices, defaulting
-  new and migrated resources to Studio.
-- ✅ The hidden employment value is preserved when an existing person is edited; new people retain
-  the permanent default.
-- ✅ Engagement is distinct from Discipline and does not add a roster or schedule badge in this
-  story.
-- ✅ For a **Placeholder** the Engagement control is hidden and the stored value is always Studio.
+| Field      | Control          | Required/default/conditions                              |
+| ---------- | ---------------- | -------------------------------------------------------- |
+| Engagement | Segmented choice | People only; Studio or Supplementary; defaults to Studio |
+
+- **Save** retains valid values; invalid values keep the form open with an error.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Resources screen"] --> B["Edit person"] --> C["Choose Studio or Supplementary"] --> D["Save"] --> E["Roster grouping reflects engagement"]
+  B --> Z["Cancel closes without saving"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["ResourceForm.useResourceSubmit.createSubmit"] --> B["useStore.updateResource → createTypedPlanningActions.updateResource"]
+  B --> C["buildResourceUpdate → allocationSlice.send"]
+  C --> D["createPlanningCacheController.execute"] --> E{"createStorePlanningTransport"}
+  E -->|server| F["createPlanningTransport.sendOperation → api.planning.resource.update"] --> G["PlanningController.resourceUpdate → mutatePlanning begins the scoped transaction"]
+  G --> H["executePlanningIntent applies intent → writeRow persists row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt updates planning state; ResourceList renders"]
+  E -->|demo| I["createVolatilePlanningTransport.execute → apply in page memory"] --> J
+```
+
+**Code references:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts)

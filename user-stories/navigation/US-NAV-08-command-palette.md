@@ -1,57 +1,42 @@
-# US-NAV-08 — Command palette (⌘K / Ctrl+K)
+# US-NAV-08 — Jump with the command palette
 
-**Area:** Navigation · **Persona:** Studio manager · **Linked E2E:** `e2e/palette.spec.ts` → "fuzzy-finds a seeded resource and jumps to their lane"
+As a company member, I want to search available pages and schedule destinations from the keyboard so that I can navigate quickly.
 
-**Documentation:** [Jump to a page with the command palette](../../docs-src/using/read-the-schedule.md#jump-to-a-page-with-the-command-palette)
+**Status:** Current
 
-## Goal
+**Access:** Owner, Admin, Editor, Viewer; results respect destination access
 
-Open a keyboard-driven command palette to jump instantly to any person, project, page or date
-without mousing through the sidebar.
+**Entry:** ⌘K / Ctrl+K; palette search and result controls
 
-## Why
+**Documentation:** [Read The Schedule](../../docs-src/using/read-the-schedule.md)
 
-The palette is for speed: CapacityLens is a helicopter view of who's busy. A single shortcut and a
-couple of keystrokes navigate faster than any menu when you already know what you're looking for.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open at Schedule (`/`), Wayne Enterprises tenant active.
-
-1. Press **⌘K** (macOS) or **Ctrl+K** (Windows/Linux). The command palette opens centred near the top of the page. The search field is focused.
-2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (the routes
-   currently available to your role, including **Team & access** and **Account**, listed with
-   their paths).
-   **Disciplines** is omitted when the company turns that feature off. **Overview** appears only when
-   the company's access setting allows your role to open it, matching the sidebar; the route remains
-   authorization-guarded if opened directly.
-3. Type `Wayne`. The palette shows a **People** section with _Bruce Wayne_ as the first result.
-4. Press **ArrowDown** once, then **Enter** (or just click _Bruce Wayne_). The palette closes.
-5. The scheduler scrolls so Bruce Wayne's row is visible. Scroll elsewhere, then make an ordinary
-   schedule change; the grid keeps that newer position instead of jumping back to Bruce.
-6. Press **⌘K** again. Type `2026-06-10`. An **Actions** entry "Go to date 2026-06-10" appears.
-7. Press **Enter**. The scheduler jumps to that week.
-8. Press **⌘K** again. Type `res`. The _Resources_ page option appears under **Pages**.
-9. Press **Enter**. The app navigates to `/resources`.
-10. Press **⌘K** to open the palette; press **Escape**. The palette closes without navigation.
+**Source:** [CommandPalette.tsx](../../apps/frontend/src/components/CommandPalette.tsx)
 
 ## Acceptance criteria
 
-- ✅ **⌘K / Ctrl+K** opens the palette from anywhere, including while a text field is focused (e.g. the scheduler's "Search people…" filter).
-- ✅ A second **⌘K** toggles the palette closed.
-- ✅ The search input receives focus on open.
-- ✅ **Escape** and clicking the backdrop close the palette without navigating.
-- ✅ The empty-query view shows **Actions** + **Pages** sections only.
-- ✅ Typing filters all sections; non-matching sections are hidden.
-- ✅ Search is case- and diacritic-insensitive: `jose` finds **José** and `muller` finds **Müller**.
-- ✅ Typing a valid ISO date (`YYYY-MM-DD`) shows "Go to date YYYY-MM-DD" in **Actions**.
-- ✅ Selecting a **Person** navigates to `/`, clears filters, and scrolls that resource's row into
-  view exactly once; later model changes preserve the user's newer vertical position.
-- ✅ Selecting a **Project** navigates to `/` and sets the project filter.
-- ✅ Selecting a **Client** navigates to `/` and sets the client filter.
-- ✅ Selecting an **Activity** navigates to `/activities`.
-- ✅ Selecting a **Page** navigates to that route.
-- ✅ **ArrowUp/ArrowDown** move the highlight; **Enter** selects; mouse hover also sets the active item.
-- ✅ The focused combobox input's `aria-activedescendant` identifies the highlighted option on open
-  and after navigation, and is absent when no option matches.
-- ✅ The palette has no serious/critical WCAG 2.1 AA colour-contrast violations (axe test).
+- ⌘K / Ctrl+K opens or closes the palette with its search box focused. It does not open during IME composition or over another open dialog; with unsaved form changes it shows "You have unsaved changes — use Cancel or Save to close this dialog." instead.
+- With no query, the palette lists **Go to today** and every page the role can open; Overview, Diagnostics and Disciplines appear only when available. Typing fuzzy-matches pages and active people, projects, clients and activities, up to five per section; a date typed as YYYY-MM-DD adds **Go to date {date}**. People exclude placeholders and external resources while those settings are off.
+- Selecting a page opens it. A person opens the Schedule with filters cleared and scrolls to that row; a project or client opens the Schedule filtered to it; an activity opens Activities with it selected.
+
+## User flow
+
+```mermaid
+flowchart TD
+  shortcut["Press Cmd/Ctrl+K"] --> open["Search palette opens focused"]
+  open --> search["Search available pages or schedule items"]
+  search --> choose["Choose a result"]
+  choose --> destination["Destination opens"]
+  open -->|Escape| close["Palette closes"]
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  key["useGlobalShortcuts handles Cmd/Ctrl+K"] --> state["AppShell paletteOpen state"]
+  state --> palette["CommandPalette filters available items"]
+  palette --> navigate["useNavigate opens selected destination"]
+  palette --> close["Escape closes palette"]
+```
+
+**Code references:** [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [CommandPalette.tsx](../../apps/frontend/src/components/CommandPalette.tsx)

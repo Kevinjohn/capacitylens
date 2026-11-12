@@ -1,26 +1,56 @@
 # US-ALL-06 — Change an allocation's assignee
 
-**Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "reassigns an allocation to another resource via the dialog"
+As an Editor, I want to change an allocation’s assignee so that work can move to the resource who will do it.
 
-## Goal
+**Status:** Current
 
-Reassign an existing allocation to a different resource from the edit dialog, moving its bar to that resource's row.
+**Access:** Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-Work gets handed over — someone goes on leave, a freelancer takes an activity, or a placeholder is filled by a real hire. The manager needs to reassign a booking without recreating it, preserving its dates, hours, status and note.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. The seed has a _Brand System_ bar on the **Diana Prince** row.
-
-1. Click the **Brand System** bar. The **Edit allocation** dialog opens with **Assignee** = _Diana Prince_.
-2. Change **Assignee** to _Clark Kent_.
-3. Click **Save**. The dialog closes.
+**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
 
 ## Acceptance criteria
 
-- ✅ After Save, the **Brand System** bar no longer appears on the **Diana Prince** row and now appears on the **Clark Kent** row (`data-resource-id="r-nike"`).
-- ✅ The bar keeps its activity, dates, hours/day, status and note — only the resource changed.
-- ✅ Pressing **⌘Z** moves the bar back to **Diana Prince**.
-- ✅ Selecting a placeholder as the new Assignee locks Project to its bound project and clears Activity — you must pick one of that project's activities before Save (see US-ALL-07).
+| Field    | Control | Required/default/conditions                                                                                                 |
+| -------- | ------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Assignee | Select  | Required; prefilled with the current resource. The other edit fields remain as described in [US-ALL-02](US-ALL-02-edit.md). |
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Open allocation"]
+  N2["choose another assignee"]
+  N3["Save"]
+  N4["booking moves to that resource"]
+  B1["Invalid placement or save error: form stays open with error"]
+  B2["Cancel: original assignee remains"]
+  N1 --> N2
+  N2 --> N3
+  N3 --> N4
+  N3 -.-> B1
+  N3 -.-> B2
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["AllocationModal edit"] --> B["AllocationTargetFields: assignee selection"]
+  B --> C["useAllocationModalState: resolve selected resource"]
+  C --> D["allocationSubmit validates assignment and placement"]
+  D -->|valid| E["updateAllocation with new resourceId"]
+  D -->|invalid| F["Resource/activity error; no write"]
+  E --> G["allocationSlice planning reconciliation updates Schedule row"]
+```
+
+**Code references:**
+
+- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+- [AllocationTargetFields.tsx](../../apps/frontend/src/components/scheduler/AllocationTargetFields.tsx)
+- [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
+- [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
+- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)

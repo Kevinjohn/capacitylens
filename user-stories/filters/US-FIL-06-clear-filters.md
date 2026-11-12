@@ -1,29 +1,49 @@
 # US-FIL-06 — Clear all filters at once
 
-**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "clears all active filters with the Clear Filters button"
+As a company member, I want to clear all active filters at once so that I can return to the full schedule quickly.
 
-## Goal
+**Status:** Current
 
-Reset the search, all the filter selects and the Hide-tentative toggle in one click with **Clear Filters**.
+**Access:** Viewer, Editor, Admin or Owner
 
-## Why
+**Entry:** Schedule (`/`)
 
-After narrowing the view several ways, getting back to the full schedule one control at a time is tedious. A single **Clear Filters** restores everything at once.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view.
-
-1. Type `Clark` in **Search people…**.
-2. Choose a **Filter by discipline** (e.g. _Development_).
-3. Choose a **Filter by client** and a **Filter by project**.
-4. Turn the **Tentative** pill off.
-5. Click **Clear Filters**.
+**Source:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
 
 ## Acceptance criteria
 
-- ✅ **Clear Filters** remains at the far right whenever the filter toolbar is open.
-- ✅ With no active filter it is visually quiet, has no bin icon and is disabled.
-- ✅ With any active filter it uses the red soft-danger style, shows a decorative bin icon and is enabled.
-- ✅ Clicking **Clear Filters** empties the **Search people…** box, returns every filter select to its "All …" option, and turns **Tentative** back on and unticks **Show unallocated**.
-- ✅ After clearing, the full schedule returns — all resource rows, all groups and all bars are visible again.
+- **Clear Filters** is enabled only when search, a discipline, client, project or activity filter is set, or Tentative is turned off.
+- Selecting it resets search, every selection filter, Tentative (back on) and Show unallocated (back off).
+
+## User flow
+
+```mermaid
+flowchart TD
+  N1["Choose Clear Filters"]
+  N2["search, selection filters, Tentative and Show unallocated reset"]
+  N3["full schedule returns"]
+  N1 --> N2
+  N2 --> N3
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["SchedulerToolbarFilters Clear Filters action"] --> B["useToolbarSearch.clearSearch callback"]
+  B --> C["schedulerSlice.clearFilters resets local filter state"]
+  C --> D["SchedulerGrid rebuilds the full schedule"]
+  D --> E["No planning write or server mutation"]
+```
+
+**Code references:**
+
+- [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx)
+- [useToolbarSearch.ts](../../apps/frontend/src/components/scheduler/useToolbarSearch.ts)
+- [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx)
+- [schedulerModelFilters.ts](../../apps/frontend/src/components/scheduler/schedulerModelFilters.ts)
+- [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts)
+- [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
+- [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts)

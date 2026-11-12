@@ -1,42 +1,42 @@
-# US-SET-06 — Show placeholders on the schedule
+# US-SET-06 — Show placeholders
 
-**Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/placeholders.spec.ts` → "hidden by default: the seeded placeholder is absent from the schedule and Resources list", "turning it on in Settings reveals the placeholder with a \"?\" avatar and \"Placeholder\" name", "the choice survives a reload (per-account pref)"
+As an Editor, I want to show or hide placeholders so that I can focus on the resources relevant to my plan.
 
+**Status:** Current
+**Access:** Editor and above; Viewers can read the setting.
+**Entry:** Settings → Scheduling features → Show placeholders
 **Documentation:** [Settings](../../docs-src/using/settings.md)
-
-## Goal
-
-Keep "slot" placeholders out of the way by default, and let account editors switch them on for the
-company — showing each unfilled slot as a named **"Placeholder"** row with a question-mark avatar
-for every member using that account.
-
-## Why
-
-A placeholder is an unfilled slot you pencil in before a real person is assigned. Most studios
-glancing at the helicopter view only want the actual people; the empty slots are clutter. So the
-feature is **off by default** and lives behind a **per-account** setting on the Account
-(`placeholdersEnabled`, absent = off, like `disciplinesEnabled`). Turning it off only HIDES placeholders — their data is untouched and returns
-when the switch goes back on, so it never breaks a dataset that already has placeholders.
-
-## How (end-to-end)
-
-**Precondition:** Seeded app open (clock inside the seed window — see _Seed data_ in REFERENCE.md). The seed contains one placeholder (_Senior Designer_, bound to Project Watchtower), hidden by default.
-
-1. On the Schedule, note there is **no placeholder row** — only the real people (Bruce, Diana, Clark, Barry). (The External band is also hidden by default — it has its own _Show external resources_ pref, see US-SET-07.) The placeholder's bar (Visual Design) is not drawn.
-2. Open **Resources** (sidebar). There is **no "Placeholders" section** and **no "Add placeholder" button** — only the people list.
-3. Open **Settings** (sidebar). In the **Placeholders and external resources** section, find the **Show placeholders** switch — it's **off**.
-4. Switch it **on**.
-5. Return to **Resources**: the **Placeholders** section and its **Add placeholder** button now appear, with the seeded placeholder shown as **"Placeholder"** (its role _Senior Designer_ in the secondary text).
-6. Return to **Schedule**: a row now appears in the Design band showing the name **"Placeholder"** with a **"?"** avatar and its Visual Design bar.
-7. Switch it back **off** in Settings — the placeholder disappears again everywhere; its data is intact.
-8. (Optional) Reload the page and re-pick **Wayne Enterprises**: the choice is remembered (it's stored on the company).
+**Source:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx)
 
 ## Acceptance criteria
 
-- The **Placeholders and external resources** section appears in Settings with a **Show placeholders** switch (`role="switch"`, accessible name `Show placeholders`).
-- The switch defaults to **off** (`aria-checked="false"`) — placeholders are hidden out of the box.
-- With it **off**: no placeholder row appears on the schedule (and a placeholder contributes nothing to per-discipline / overall utilisation), no placeholder option appears in the assignee picker or the ⌘K command palette, and the Resources page hides its **Placeholders** section and **Add placeholder** button. A dataset that already contains placeholders **hides** them — it never errors.
-- With it **on**: a placeholder shows the literal name **"Placeholder"** with a **"?"** avatar (its role/discipline as secondary text); the assignee picker labels it **"Placeholder (slot)"**.
-- A placeholder bound to an archived or deleted project, or to a project whose client is archived or deleted, stays hidden with that project in active views and returns when the ancestor is restored.
-- Editing an allocation that already targets a placeholder keeps that placeholder selectable in the assignee picker even while the pref is off, so editing never silently reassigns the work.
-- The choice survives a reload (stored **per-account** as `placeholdersEnabled` on the Account, absent = off) and is carried in Export JSON like other account settings.
+| Field             | Control | Required/default/conditions                                       |
+| ----------------- | ------- | ----------------------------------------------------------------- |
+| Show placeholders | Switch  | Off for new companies; company-wide. Hidden records are retained. |
+
+## User flow
+
+```mermaid
+flowchart TD
+A["Open Settings: Show placeholders"] --> B["Choose the company setting"]
+B --> C{"Change accepted?"}
+C -->|yes| D["Show or hide placeholders in company views"]
+C -->|no or uncertain| E["Read the visible error and resolve it before continuing"]
+```
+
+## Code flow
+
+The persisted server path is shown; the temporary demo applies these planning commands in memory.
+
+```mermaid
+flowchart TD
+  control["CompanyFeaturesSection calls updateSetting({ placeholdersEnabled })"] --> view["useSettingsViewController.updateSetting checks active company and catches failure"]
+  view --> action["typedPlanningActions.updateAccount builds settings.update command"]
+  action --> execute["allocationSlice.sendPlanningCommand calls execute on the planning cache controller (createPlanningCacheController)"]
+  execute --> transport["planningTransport sends api.planning.settings.update"]
+  transport --> route["PlanningController.settingsUpdate validates and calls mutatePlanning"]
+  route --> reply["Planning cache controller reconciles the response into the company projection"]
+  reply --> read["store selectors.hasPlaceholdersEnabled reads the saved company setting"]
+```
+
+**Code references:** [SettingsSchedulingSection.tsx](../../apps/frontend/src/components/settings/SettingsSchedulingSection.tsx), [useSettingsViewController.ts](../../apps/frontend/src/components/settings/useSettingsViewController.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)

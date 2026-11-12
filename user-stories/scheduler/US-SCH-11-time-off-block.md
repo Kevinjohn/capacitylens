@@ -1,25 +1,39 @@
 # US-SCH-11 — Time off renders as a labelled hatched block
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/features.spec.ts` → "booking time off greys the schedule"
+As an Editor, I want time off shown as a labelled block so that absence is distinct from scheduled work.
 
-## Goal
+**Status:** Current
 
-A resource's time off shows on the timeline as a distinct hatched block, labelled with the reason, so it reads clearly as "away" and not as a piece of work.
+**Access:** Viewer, Editor, Admin or Owner; editing actions require Editor or higher
 
-## Why
+**Entry:** Schedule (`/`)
 
-Time off and allocations both occupy a person's days, but they mean opposite things — one is capacity _removed_, the other capacity _used_. A hatched, labelled block makes the absence unmistakable (you can read "Holiday" right on the bar) so the manager doesn't mistake leave for bookable work or for an allocation they could drag. The block (like the over-marker) renders at **every** zoom level — it isn't a fine-zoom-only cue like the unavailable-day greying — so absences are always visible; the text **label** appears when the block is wide enough to fit it.
+**Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-## How (end-to-end)
-
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. **Bruce Wayne** has time off **10–12 June** with the reason **Holiday**.
-
-1. Look at Bruce's row on **10–12 June**: a hatched **time-off block** spans those days.
-2. Read its label: **"Holiday"** (visible because the block is wide enough at this range).
-3. Confirm the block is visually distinct from an allocation bar — hatched, not a solid coloured bar — so it can't be mistaken for bookable work.
+**Source:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)
 
 ## Acceptance criteria
 
-- ✅ Bruce's **10–12 June** shows a **time-off block** (`data-testid="timeoff-block"`).
-- ✅ The block is labelled **"Holiday"** (the label shows when the block is wide enough to fit it).
-- ✅ The time-off block is visible at the current **4 weeks** zoom (it does not depend on fine zoom).
+- Each time-off entry appears as a hatched block across its dates on the resource lane, behind the allocation bars. The block shows its type (Holiday, Sick, Unpaid or Other) when it is wider than 44 px; the type is always available to screen readers.
+
+## User flow
+
+```mermaid
+flowchart TD
+  A["Viewer opens a resource lane with time off"]
+  B["A labelled hatched block appears on the covered dates"]
+  C["Allocation bars remain a separate layer"]
+  A --> B
+  B --> C
+```
+
+## Code flow
+
+```mermaid
+flowchart TD
+  A["useSchedulerGridModel reads scoped time off"] --> B["buildSchedulerModel creates TimeOffBlock layout"]
+  B --> C["SchedulerGridRows passes blocks to ResourceLane"]
+  C --> D["ScheduleSignals renders labelled hatched time-off blocks"]
+```
+
+**Code references:** [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
