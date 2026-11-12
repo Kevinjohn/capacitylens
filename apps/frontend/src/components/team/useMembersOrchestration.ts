@@ -251,7 +251,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     directoryState,
   });
   const getResourceLinkRequest = useMemberResourceLinkRequests({
-    workspaceId: activeAccountId,
+    companyId: activeAccountId,
     reload: directoryState.reload,
     acceptedReadGeneration: directoryState.acceptedReadGeneration,
   });

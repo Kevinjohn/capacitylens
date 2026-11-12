@@ -26,43 +26,43 @@ export type { OwnershipTransferReceipt } from './ownershipTransferAccess';
 
 const noContent = (): true => true;
 
-type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
+type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
 /** Provides typed request methods for team and access administration. */
 export const teamAccessClient = {
   ...ownershipTransferAccess,
 
   async listMembers(
-    workspaceId: string,
+    companyId: string,
     signal?: AbortSignal,
   ): Promise<TeamAccessResult<TeamDirectory>> {
-    return readResult(await accountClient.listMembers(workspaceId, signal), parseMembers);
+    return readResult(await accountClient.listMembers(companyId, signal), parseMembers);
   },
 
   async setMemberSignInTracking({
-    workspaceId,
+    companyId,
     enabled,
   }: SetMemberSignInTrackingOptions): Promise<TeamAccessResult<boolean>> {
     return readResult(
-      await accountClient.setMemberSignInTracking({ workspaceId, enabled }),
+      await accountClient.setMemberSignInTracking({ companyId, enabled }),
       (body) => (isRecord(body) && typeof body.enabled === 'boolean' ? body.enabled : null),
     );
   },
 
   async listInvitations(
-    workspaceId: string,
+    companyId: string,
     signal?: AbortSignal,
   ): Promise<TeamAccessResult<TeamInvitation[]>> {
-    return readResult(await accountClient.listInvitations(workspaceId, signal), parseInvitations);
+    return readResult(await accountClient.listInvitations(companyId, signal), parseInvitations);
   },
 
   async changeMemberRole(
-    workspaceId: string,
+    companyId: string,
     principalId: string,
     role: Role,
   ): Promise<TeamAccessResult<true>> {
     return readCommandResult(
       await accountClient.changeMemberRole({
-        workspaceId: workspaceId,
+        companyId: companyId,
         principalId: principalId,
         role: role,
       }),
@@ -71,13 +71,13 @@ export const teamAccessClient = {
   },
 
   async changeMemberStatus(
-    workspaceId: string,
+    companyId: string,
     principalId: string,
     status: MembershipStatus,
   ): Promise<TeamAccessResult<true>> {
     return readCommandResult(
       await accountClient.changeMemberStatus({
-        workspaceId: workspaceId,
+        companyId: companyId,
         principalId: principalId,
         status: status,
       }),
@@ -86,7 +86,7 @@ export const teamAccessClient = {
   },
 
   async setMemberResourceLink(input: {
-    workspaceId: string;
+    companyId: string;
     principalId: string;
     resourceId: string;
     expectedRevision: string | null;
@@ -98,13 +98,9 @@ export const teamAccessClient = {
     );
   },
 
-  async clearMemberResourceLink(
-    workspaceId: string,
-    principalId: string,
-    expectedRevision: string,
-  ) {
+  async clearMemberResourceLink(companyId: string, principalId: string, expectedRevision: string) {
     return readCommandResult(
-      await accountClient.clearMemberResourceLink({ workspaceId, principalId, expectedRevision }),
+      await accountClient.clearMemberResourceLink({ companyId, principalId, expectedRevision }),
       noContent,
       204,
     );
@@ -121,13 +117,10 @@ export const teamAccessClient = {
   },
 
   async resendInvitation(
-    workspaceId: string,
+    companyId: string,
     invitationId: string,
   ): Promise<TeamAccessResult<{ emailed: boolean }>> {
-    return readResult(
-      await accountClient.resendInvitation(workspaceId, invitationId),
-      parseDelivery,
-    );
+    return readResult(await accountClient.resendInvitation(companyId, invitationId), parseDelivery);
   },
 
   /** Every pending, declined and revoked record, read page by page; pending people come first. */
@@ -157,12 +150,9 @@ export const teamAccessClient = {
     return readResult(await accountClient.decideAdmission(userId, decision), noContent);
   },
 
-  async revokeInvitation(
-    workspaceId: string,
-    invitationId: string,
-  ): Promise<TeamAccessResult<true>> {
+  async revokeInvitation(companyId: string, invitationId: string): Promise<TeamAccessResult<true>> {
     return readCommandResult(
-      await accountClient.revokeInvitation(workspaceId, invitationId),
+      await accountClient.revokeInvitation(companyId, invitationId),
       noContent,
     );
   },

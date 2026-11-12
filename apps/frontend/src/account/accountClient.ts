@@ -20,21 +20,21 @@ import { apiRouteUrl, apiReadRouteUrl } from '@/api/queryClient';
 export type AdmissionStatus = 'pending' | 'rejected' | 'revoked';
 
 interface ChangeMemberRoleInput {
-  workspaceId: string;
+  companyId: string;
   principalId: string;
   role: Role;
   command?: BrowserAccountCommand | undefined;
 }
 
 interface TransferOwnershipInput {
-  workspaceId: string;
+  companyId: string;
   targetPrincipalId: string;
   confirmationId: string;
   command?: BrowserAccountCommand | undefined;
 }
 
 interface ChangeMemberStatusInput {
-  workspaceId: string;
+  companyId: string;
   principalId: string;
   status: MembershipStatus;
   command?: BrowserAccountCommand | undefined;
@@ -51,7 +51,7 @@ export {
   readUnknownAccountCommandOutcome,
 } from './commandOutcome';
 
-type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
+type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
 /** Provides typed request methods for account and membership endpoints. */
 export const accountClient = {
   me(signal?: AbortSignal): Promise<Response> {
@@ -60,7 +60,7 @@ export const accountClient = {
       ...(signal ? { signal } : {}),
     });
   },
-  listWorkspaces(signal?: AbortSignal): Promise<Response> {
+  listCompanies(signal?: AbortSignal): Promise<Response> {
     return apiFetch(apiRouteUrl('api.accounts.index', {}), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
@@ -74,30 +74,30 @@ export const accountClient = {
   },
 
   /** Add the small example company to an empty company. Not idempotent: a second call is refused. */
-  addExampleData(workspaceId: string): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.example-data', { params: { accountId: workspaceId } }), {
+  addExampleData(companyId: string): Promise<Response> {
+    return apiFetch(apiRouteUrl('api.example-data', { params: { accountId: companyId } }), {
       method: 'POST',
       credentials: 'include',
     });
   },
 
-  listMembers(workspaceId: string, signal?: AbortSignal): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.members.index', { params: { accountId: workspaceId } }), {
+  listMembers(companyId: string, signal?: AbortSignal): Promise<Response> {
+    return apiFetch(apiRouteUrl('api.members.index', { params: { accountId: companyId } }), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
   },
 
-  listResourceAvatars: (workspaceId: string) =>
-    apiFetch(resourceAvatarsUrl(workspaceId), { credentials: 'include' }),
+  listResourceAvatars: (companyId: string) =>
+    apiFetch(resourceAvatarsUrl(companyId), { credentials: 'include' }),
   setMemberResourceLink,
   clearMemberResourceLink,
 
   setMemberSignInTracking({
-    workspaceId,
+    companyId,
     enabled,
   }: SetMemberSignInTrackingOptions): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.members.tracking', { params: { accountId: workspaceId } }), {
+    return apiFetch(apiRouteUrl('api.members.tracking', { params: { accountId: companyId } }), {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -105,15 +105,15 @@ export const accountClient = {
     });
   },
 
-  listInvitations(workspaceId: string, signal?: AbortSignal): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.invites.index', { params: { accountId: workspaceId } }), {
+  listInvitations(companyId: string, signal?: AbortSignal): Promise<Response> {
+    return apiFetch(apiRouteUrl('api.invites.index', { params: { accountId: companyId } }), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
   },
 
-  startMasquerade(workspaceId: string, body: StartMasqueradePayload): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.masquerade.start', { params: { accountId: workspaceId } }), {
+  startMasquerade(companyId: string, body: StartMasqueradePayload): Promise<Response> {
+    return apiFetch(apiRouteUrl('api.masquerade.start', { params: { accountId: companyId } }), {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -121,10 +121,10 @@ export const accountClient = {
     });
   },
 
-  masqueradeStatus(workspaceId?: string): Promise<Response> {
+  masqueradeStatus(companyId?: string): Promise<Response> {
     const route = apiRouteUrl('api.masquerade.status', {});
-    const url = workspaceId
-      ? `${route}${route.includes('?') ? '&' : '?'}accountId=${encodeURIComponent(workspaceId)}`
+    const url = companyId
+      ? `${route}${route.includes('?') ? '&' : '?'}accountId=${encodeURIComponent(companyId)}`
       : route;
     return apiFetch(url, { credentials: 'include' });
   },
@@ -139,18 +139,18 @@ export const accountClient = {
   },
 
   changeMemberRole({
-    workspaceId,
+    companyId,
     principalId,
     role,
     command,
   }: ChangeMemberRoleInput): Promise<Response> {
     return runCommand({
-      operationKey: `member-role:${workspaceId}:${principalId}:${role}`,
+      operationKey: `member-role:${companyId}:${principalId}:${role}`,
       explicit: command,
       request: (resolved) =>
         apiFetch(
           apiRouteUrl('api.members.role', {
-            params: { accountId: workspaceId, userId: principalId },
+            params: { accountId: companyId, userId: principalId },
           }),
           buildJsonCommandRequestInit('PATCH', { role }, resolved),
         ),
@@ -158,18 +158,18 @@ export const accountClient = {
   },
 
   changeMemberStatus({
-    workspaceId,
+    companyId,
     principalId,
     status,
     command,
   }: ChangeMemberStatusInput): Promise<Response> {
     return runCommand({
-      operationKey: `member-status:${workspaceId}:${principalId}:${status}`,
+      operationKey: `member-status:${companyId}:${principalId}:${status}`,
       explicit: command,
       request: (resolved) =>
         apiFetch(
           apiRouteUrl('api.members.status', {
-            params: { accountId: workspaceId, userId: principalId },
+            params: { accountId: companyId, userId: principalId },
           }),
           buildJsonCommandRequestInit('PATCH', { status }, resolved),
         ),
@@ -177,17 +177,17 @@ export const accountClient = {
   },
 
   transferOwnership({
-    workspaceId,
+    companyId,
     targetPrincipalId,
     confirmationId,
     command,
   }: TransferOwnershipInput): Promise<Response> {
     return runCommand({
-      operationKey: `ownership-transfer:${workspaceId}:${targetPrincipalId}`,
+      operationKey: `ownership-transfer:${companyId}:${targetPrincipalId}`,
       explicit: command,
       request: (resolved) =>
         apiFetch(
-          apiRouteUrl('api.ownership.transfer', { params: { accountId: workspaceId } }),
+          apiRouteUrl('api.ownership.transfer', { params: { accountId: companyId } }),
           buildJsonCommandRequestInit(
             'POST',
             { toUserId: targetPrincipalId, confirmationId },
@@ -226,17 +226,17 @@ export const accountClient = {
   },
 
   revokeInvitation(
-    workspaceId: string,
+    companyId: string,
     invitationId: string,
     command?: BrowserAccountCommand,
   ): Promise<Response> {
     return runCommand({
-      operationKey: `invitation-revoke:${workspaceId}:${invitationId}`,
+      operationKey: `invitation-revoke:${companyId}:${invitationId}`,
       explicit: command,
       request: (resolved) =>
         apiFetch(
           apiRouteUrl('api.invites.revoke', {
-            params: { accountId: workspaceId, id: invitationId },
+            params: { accountId: companyId, id: invitationId },
           }),
           buildCommandRequestInit({ method: 'DELETE', credentials: 'include' }, resolved),
         ),
@@ -244,9 +244,9 @@ export const accountClient = {
   },
 
   /** Sends a fresh link for a pending invitation; the earlier link stops working. */
-  resendInvitation(workspaceId: string, invitationId: string): Promise<Response> {
+  resendInvitation(companyId: string, invitationId: string): Promise<Response> {
     return apiFetch(
-      apiRouteUrl('api.invites.resend', { params: { accountId: workspaceId, id: invitationId } }),
+      apiRouteUrl('api.invites.resend', { params: { accountId: companyId, id: invitationId } }),
       {
         method: 'POST',
         credentials: 'include',

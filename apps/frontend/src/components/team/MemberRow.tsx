@@ -179,7 +179,7 @@ export function MemberRow({
   chooseMemberAction,
   linkedResourceIds,
   resourceCandidates,
-  workspaceId,
+  companyId,
   resourceLinkRequest,
 }: {
   member: TeamMember;
@@ -191,7 +191,7 @@ export function MemberRow({
   chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
   linkedResourceIds: ReadonlySet<string>;
   resourceCandidates: readonly { resourceId: string; label: string }[];
-  workspaceId: string | null;
+  companyId: string | null;
   resourceLinkRequest: MemberResourceLinkRequest;
 }) {
   const affordances = buildMemberAffordances(myRole, member);
@@ -232,7 +232,7 @@ export function MemberRow({
             myRole={myRole}
             linkedResourceIds={linkedResourceIds}
             resourceCandidates={resourceCandidates}
-            workspaceId={workspaceId}
+            companyId={companyId}
             request={resourceLinkRequest}
             busy={busy}
           />

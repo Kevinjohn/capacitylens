@@ -283,7 +283,7 @@ function AuthenticatedAppProvider({
         onSignOut={signOut}
         onConflict={async () => {
           // A conflict may be another tab's success or an installation that this identity cannot own.
-          const response = await accountClient.listWorkspaces();
+          const response = await accountClient.listCompanies();
           if (!response.ok) {
             throw new Error('Could not verify company access. Refresh the page to try again.');
           }

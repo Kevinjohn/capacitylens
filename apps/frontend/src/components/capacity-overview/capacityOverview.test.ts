@@ -74,7 +74,7 @@ function period(model: CapacityOverviewModel, rowId: string, index: number) {
 }
 
 describe('buildCapacityOverviewPeriods', () => {
-  it('builds the remaining current period followed by three full workspace periods', () => {
+  it('builds the remaining current period followed by three full company periods', () => {
     expect(buildCapacityOverviewPeriods({ today: '2026-06-03', weekStartsOn: 1 })).toEqual([
       { index: 0, key: 'this-week', start: '2026-06-03', end: '2026-06-07', partial: true },
       { index: 1, key: 'next-week', start: '2026-06-08', end: '2026-06-14', partial: false },
@@ -83,7 +83,7 @@ describe('buildCapacityOverviewPeriods', () => {
     ]);
   });
 
-  it('respects a Sunday workspace week start', () => {
+  it('respects a Sunday company week start', () => {
     expect(buildCapacityOverviewPeriods({ today: '2026-06-06', weekStartsOn: 0 })[0]).toEqual({
       index: 0,
       key: 'this-week',

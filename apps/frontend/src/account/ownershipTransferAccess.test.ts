@@ -15,7 +15,7 @@ describe('ownership transfer access', () => {
 
     await expect(
       ownershipTransferAccess.transferOwnership({
-        workspaceId: 'wayne-enterprises',
+        companyId: 'wayne-enterprises',
         targetPrincipalId: 'selina',
         confirmationId: 'proof-1',
       }),
@@ -31,7 +31,7 @@ describe('ownership transfer access', () => {
 
     await expect(
       ownershipTransferAccess.transferOwnership({
-        workspaceId: 'wayne-enterprises',
+        companyId: 'wayne-enterprises',
         targetPrincipalId: 'selina',
         confirmationId: 'proof-1',
       }),

@@ -191,7 +191,7 @@ function MembersTable({
               chooseMemberAction={memberActions.chooseMemberAction}
               linkedResourceIds={linkedResourceIds}
               resourceCandidates={memberActions.resourceCandidates}
-              workspaceId={memberActions.activeAccountId}
+              companyId={memberActions.activeAccountId}
               resourceLinkRequest={memberActions.getResourceLinkRequest(member)}
             />
           ))}

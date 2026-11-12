@@ -1,7 +1,7 @@
 import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types';
 import type { Role } from '@capacitylens/shared/domain/access';
 
-/** A workspace member and the resource-link state shown in team access. */
+/** A company member and the resource-link state shown in team access. */
 export interface TeamMember {
   userId: string;
   role: Role;
@@ -22,7 +22,7 @@ export interface TeamMember {
   } | null;
 }
 
-/** Members, sign-in tracking state, and resource candidates for a workspace. */
+/** Members, sign-in tracking state, and resource candidates for a company. */
 export interface TeamDirectory {
   members: TeamMember[];
   signInTrackingEnabled: boolean;

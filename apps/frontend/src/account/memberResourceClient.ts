@@ -4,20 +4,20 @@ import type { BrowserAccountCommand } from './accountCommands';
 import { buildCommandRequestInit, runCommand } from './commandRequest';
 
 /** Build the account-owned URL for the minimum scheduled-person avatar projection. */
-export function resourceAvatarsUrl(workspaceId: string): string {
-  return apiRouteUrl('api.member-resources.avatars', { params: { accountId: workspaceId } });
+export function resourceAvatarsUrl(companyId: string): string {
+  return apiRouteUrl('api.member-resources.avatars', { params: { accountId: companyId } });
 }
 
 /** Build the account-owned URL for one member/person association. */
-export function memberResourceLinkUrl(workspaceId: string, principalId: string): string {
+export function memberResourceLinkUrl(companyId: string, principalId: string): string {
   return apiRouteUrl('api.member-resources.set', {
-    params: { accountId: workspaceId, principalId },
+    params: { accountId: companyId, principalId },
   });
 }
 
-/** Identifies the workspace member and resource for a resource-link request. */
+/** Identifies the company member and resource for a resource-link request. */
 export interface MemberResourceLinkRequestInput {
-  workspaceId: string;
+  companyId: string;
   principalId: string;
   resourceId: string;
   expectedRevision: string | null;
@@ -30,7 +30,7 @@ export function setMemberResourceLink(
 ): Promise<Response> {
   return runCommand({
     operationKey:
-      `member-resource-link:${input.workspaceId}:${input.principalId}:` +
+      `member-resource-link:${input.companyId}:${input.principalId}:` +
       `${input.resourceId}:${input.expectedRevision ?? 'none'}`,
     explicit: command,
     request: (resolved) => {
@@ -46,7 +46,7 @@ export function memberResourceLinkRequest(
   input: MemberResourceLinkRequestInput,
 ): [string, RequestInit] {
   return [
-    memberResourceLinkUrl(input.workspaceId, input.principalId),
+    memberResourceLinkUrl(input.companyId, input.principalId),
     {
       method: 'PUT',
       credentials: 'include',
@@ -61,12 +61,12 @@ export function memberResourceLinkRequest(
 
 /** Build an unlink request for the member-resource command adapter. */
 export function clearMemberResourceLinkRequest(
-  workspaceId: string,
+  companyId: string,
   principalId: string,
   expectedRevision: string,
 ): [string, RequestInit] {
   return [
-    memberResourceLinkUrl(workspaceId, principalId),
+    memberResourceLinkUrl(companyId, principalId),
     {
       method: 'DELETE',
       credentials: 'include',
@@ -78,15 +78,15 @@ export function clearMemberResourceLinkRequest(
 
 /** Send an unlink command through the account command boundary. */
 export function clearMemberResourceLink(
-  input: { workspaceId: string; principalId: string; expectedRevision: string },
+  input: { companyId: string; principalId: string; expectedRevision: string },
   command?: BrowserAccountCommand,
 ): Promise<Response> {
   return runCommand({
-    operationKey: `member-resource-unlink:${input.workspaceId}:${input.principalId}:${input.expectedRevision}`,
+    operationKey: `member-resource-unlink:${input.companyId}:${input.principalId}:${input.expectedRevision}`,
     explicit: command,
     request: (resolved) => {
       const [url, init] = clearMemberResourceLinkRequest(
-        input.workspaceId,
+        input.companyId,
         input.principalId,
         input.expectedRevision,
       );

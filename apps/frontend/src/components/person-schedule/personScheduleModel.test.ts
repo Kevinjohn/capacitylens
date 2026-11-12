@@ -172,7 +172,7 @@ describe('buildPersonSchedule allocation projection', () => {
 });
 
 describe('buildPersonSchedule task visibility', () => {
-  it('omits task text when the workspace visibility setting is off', () => {
+  it('omits task text when the company visibility setting is off', () => {
     const result = build({
       data: {
         ...emptyAppData(),

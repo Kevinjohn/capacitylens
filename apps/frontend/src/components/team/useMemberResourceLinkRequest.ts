@@ -5,7 +5,7 @@ import type { TeamMember } from '@/account/teamAccessClient';
 import { invalidateResourceAvatars } from '@/account/useResourceAvatars';
 
 interface MemberResourceLinkRequestsInput {
-  workspaceId: string | null;
+  companyId: string | null;
   /** Requests a fresh directory read and returns its generation. */
   reload(): number;
   /** Generation of the newest successful directory read. */
@@ -26,10 +26,10 @@ function resolveResourceStatus({
     : m.settings_member_resource_update_done();
 }
 
-function requestResourceLinkChange(member: TeamMember, workspaceId: string, resourceId: string) {
+function requestResourceLinkChange(member: TeamMember, companyId: string, resourceId: string) {
   if (resourceId !== '') {
     return teamAccessClient.setMemberResourceLink({
-      workspaceId,
+      companyId,
       principalId: member.userId,
       resourceId,
       expectedRevision: member.resourceLink?.revision ?? null,
@@ -37,7 +37,7 @@ function requestResourceLinkChange(member: TeamMember, workspaceId: string, reso
   }
   if (member.resourceLink) {
     return teamAccessClient.clearMemberResourceLink(
-      workspaceId,
+      companyId,
       member.userId,
       member.resourceLink.revision,
     );
@@ -78,7 +78,7 @@ export interface MemberResourceLinkRequest {
  * fresh revision. `statusMessage` announces success only once the reloaded member shows the link.
  */
 export function useMemberResourceLinkRequests({
-  workspaceId,
+  companyId,
   reload,
   acceptedReadGeneration,
 }: MemberResourceLinkRequestsInput): (member: TeamMember) => MemberResourceLinkRequest {
@@ -87,11 +87,11 @@ export function useMemberResourceLinkRequests({
   );
   const latestRequestByMember = useRef(new Map<string, number>());
   const requestCount = useRef(0);
-  const currentWorkspace = useRef(workspaceId);
+  const currentCompany = useRef(companyId);
   useLayoutEffect(() => {
-    currentWorkspace.current = workspaceId;
+    currentCompany.current = companyId;
     latestRequestByMember.current.clear();
-  }, [workspaceId]);
+  }, [companyId]);
   const update = (userId: string, patch: Partial<MemberResourceLinkRequestState>) => {
     setRequests((previous) =>
       new Map(previous).set(userId, { ...(previous.get(userId) ?? IDLE_REQUEST), ...patch }),
@@ -99,16 +99,16 @@ export function useMemberResourceLinkRequests({
   };
 
   const change = (member: TeamMember, resourceId: string) => {
-    if (!workspaceId) return;
-    const activeWorkspaceId = workspaceId;
+    if (!companyId) return;
+    const activeCompanyId = companyId;
     const { userId } = member;
     const generation = ++requestCount.current;
     latestRequestByMember.current.set(userId, generation);
     const current = () =>
       latestRequestByMember.current.get(userId) === generation &&
-      currentWorkspace.current === activeWorkspaceId;
+      currentCompany.current === activeCompanyId;
     update(userId, { sending: true, error: null, expectedResourceId: undefined });
-    void requestResourceLinkChange(member, workspaceId, resourceId)
+    void requestResourceLinkChange(member, companyId, resourceId)
       .then((result) => {
         if (!current()) return;
         if (result.kind === 'unknown' || result.kind === 'invalid') {

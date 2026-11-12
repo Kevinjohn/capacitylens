@@ -139,7 +139,7 @@ describe('teamAccessClient member resource links', () => {
     vi.spyOn(accountClient, 'setMemberResourceLink').mockResolvedValue(response);
     await expect(
       teamAccessClient.setMemberResourceLink({
-        workspaceId: 'a1',
+        companyId: 'a1',
         principalId: 'u1',
         resourceId: 'r1',
         expectedRevision: null,
@@ -158,7 +158,7 @@ describe('teamAccessClient member resource links', () => {
       );
       await expect(
         teamAccessClient.setMemberResourceLink({
-          workspaceId: 'a1',
+          companyId: 'a1',
           principalId: 'u1',
           resourceId: 'r1',
           expectedRevision,
@@ -176,7 +176,7 @@ describe('teamAccessClient member resource links', () => {
       )
       .mockResolvedValueOnce(new Response('', { status: 200 }));
     const input = {
-      workspaceId: 'a1',
+      companyId: 'a1',
       principalId: 'u1',
       resourceId: 'r1',
       expectedRevision: null,

@@ -13,16 +13,16 @@ describe('getting-started account client', () => {
 
   it('reads and dismisses the encoded company URL', async () => {
     const controller = new AbortController();
-    await gettingStartedClient.read('workspace / one', controller.signal);
-    await gettingStartedClient.dismiss('workspace / one');
+    await gettingStartedClient.read('company / one', controller.signal);
+    await gettingStartedClient.dismiss('company / one');
     expect(apiFetch).toHaveBeenNthCalledWith(
       1,
-      'https://app.example/api/accounts/workspace%20%2F%20one/getting-started',
+      'https://app.example/api/accounts/company%20%2F%20one/getting-started',
       { credentials: 'include', signal: controller.signal },
     );
     expect(apiFetch).toHaveBeenNthCalledWith(
       2,
-      'https://app.example/api/accounts/workspace%20%2F%20one/getting-started',
+      'https://app.example/api/accounts/company%20%2F%20one/getting-started',
       {
         method: 'PUT',
         credentials: 'include',

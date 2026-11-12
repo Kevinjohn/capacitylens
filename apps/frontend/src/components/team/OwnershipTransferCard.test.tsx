@@ -132,7 +132,7 @@ describe('OwnershipTransferCard', () => {
 
     await waitFor(() => {
       expect(client.transferOwnership).toHaveBeenCalledWith({
-        workspaceId: DEFAULT_ACCOUNT_ID,
+        companyId: DEFAULT_ACCOUNT_ID,
         targetPrincipalId: ADMIN.userId,
         confirmationId: 'proof-1',
       });
@@ -188,14 +188,14 @@ describe('OwnershipTransferCard', () => {
     expect(client.transferOwnership.mock.calls).toEqual([
       [
         {
-          workspaceId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_ACCOUNT_ID,
           targetPrincipalId: ADMIN.userId,
           confirmationId: 'proof-1',
         },
       ],
       [
         {
-          workspaceId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_ACCOUNT_ID,
           targetPrincipalId: ADMIN.userId,
           confirmationId: 'proof-1',
         },

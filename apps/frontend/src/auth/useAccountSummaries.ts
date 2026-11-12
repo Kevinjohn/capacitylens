@@ -101,7 +101,7 @@ export async function fetchAccountSummaries(requestOptions?: {
 }): Promise<AccountSummary[] | null> {
   const acceptEffects = requestOptions?.acceptEffects ?? (() => true);
   try {
-    const res = await accountClient.listWorkspaces(requestOptions?.signal);
+    const res = await accountClient.listCompanies(requestOptions?.signal);
     if (!res.ok) {
       if (res.status === 409 && acceptEffects()) {
         useStore.getState().setAccountSummaries({ list: [], complete: false, ambiguous: true });

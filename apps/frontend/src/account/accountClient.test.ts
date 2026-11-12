@@ -31,7 +31,7 @@ function transferOwner(
   explicit?: typeof command,
 ): Promise<Response> {
   return accountClient.transferOwnership({
-    workspaceId: 'a-studio',
+    companyId: 'a-studio',
     targetPrincipalId: input.name,
     confirmationId: input.color ?? 'proof-1',
     ...(explicit ? { command: explicit } : {}),
@@ -105,13 +105,13 @@ function registerCommandCreationTests(): void {
 }
 
 function registerReadRouteTests(): void {
-  it('owns unauthenticated status and workspace-list reads via apiFetch', async () => {
+  it('owns unauthenticated status and company-list reads via apiFetch', async () => {
     // Routed through apiFetch (not raw fetch) so the audit-degradation header check that apiFetch
     // performs applies uniformly to these reads too.
     const controller = new AbortController();
 
     await accountClient.me(controller.signal);
-    await accountClient.listWorkspaces(controller.signal);
+    await accountClient.listCompanies(controller.signal);
 
     expect(mocks.apiFetch).toHaveBeenNthCalledWith(1, 'https://app.example/api/auth/me', {
       credentials: 'include',
@@ -151,22 +151,22 @@ function registerMutationRouteTests(): void {
   it('adds command headers, JSON encoding, safe path encoding, and bulk timeout policy', async () => {
     await transferOwner({ name: 'Studio' }, command);
     await accountClient.changeMemberRole({
-      workspaceId: 'workspace / one',
+      companyId: 'company / one',
       principalId: 'person / one',
       role: 'editor',
       command: command,
     });
     await accountClient.transferOwnership({
-      workspaceId: 'workspace / one',
+      companyId: 'company / one',
       targetPrincipalId: 'person / one',
       confirmationId: 'proof-1',
       command,
     });
     await accountClient.createInvitation(
-      { accountId: 'workspace / one', role: 'viewer', email: 'selina@wayne.test' },
+      { accountId: 'company / one', role: 'viewer', email: 'selina@wayne.test' },
       command,
     );
-    await accountClient.revokeInvitation('workspace / one', 'invite / one', command);
+    await accountClient.revokeInvitation('company / one', 'invite / one', command);
 
     const [createUrl, createInit] = mocks.apiFetch.mock.calls[0] as unknown as [
       string,
@@ -180,8 +180,8 @@ function registerMutationRouteTests(): void {
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
       expect.arrayContaining([
-        'https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one',
-        'https://app.example/api/accounts/workspace%20%2F%20one/invites/invite%20%2F%20one',
+        'https://app.example/api/accounts/company%20%2F%20one/members/person%20%2F%20one',
+        'https://app.example/api/accounts/company%20%2F%20one/invites/invite%20%2F%20one',
       ]),
     );
   });
@@ -190,14 +190,14 @@ function registerMutationRouteTests(): void {
 function registerOwnershipTransferTests(): void {
   it('sends one command and bound proof to the typed ownership route', async () => {
     await accountClient.transferOwnership({
-      workspaceId: 'workspace / one',
+      companyId: 'company / one',
       targetPrincipalId: 'person / one',
       confirmationId: 'proof-1',
       command,
     });
 
     const [url, init] = mocks.apiFetch.mock.calls[0] ?? [];
-    expect(url).toBe('https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer');
+    expect(url).toBe('https://app.example/api/accounts/company%20%2F%20one/ownership-transfer');
     expectCommand(init as RequestInit, 'POST');
     expect(JSON.parse(String(init?.body))).toEqual({
       toUserId: 'person / one',
@@ -213,7 +213,7 @@ function registerOwnershipTransferTests(): void {
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(Response.json({ fromUserId: 'bruce', toUserId: 'selina' }));
     const input = {
-      workspaceId: 'wayne-enterprises',
+      companyId: 'wayne-enterprises',
       targetPrincipalId: 'selina',
       confirmationId: 'proof-1',
     };
@@ -234,7 +234,7 @@ function registerMemberResourceCommandTests(): void {
     mocks.apiFetch.mockResolvedValueOnce(new Response('unreadable conflict', { status: 409 }));
     const link = await accountClient.setMemberResourceLink(
       {
-        workspaceId: 'workspace / one',
+        companyId: 'company / one',
         principalId: 'person / one',
         resourceId: 'resource / one',
         expectedRevision: null,
@@ -245,7 +245,7 @@ function registerMemberResourceCommandTests(): void {
     expect(hasUnknownAccountCommandOutcome(link)).toBe(true);
     const [linkUrl, linkInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(linkUrl).toBe(
-      'https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/resource-link',
+      'https://app.example/api/accounts/company%20%2F%20one/members/person%20%2F%20one/resource-link',
     );
     expectCommand(linkInit, 'PUT');
     expect(JSON.parse(String(linkInit.body))).toEqual({
@@ -255,7 +255,7 @@ function registerMemberResourceCommandTests(): void {
 
     await accountClient.clearMemberResourceLink(
       {
-        workspaceId: 'workspace / one',
+        companyId: 'company / one',
         principalId: 'person / one',
         expectedRevision: 'revision-1',
       },
@@ -273,9 +273,9 @@ function registerMemberResourceCommandTests(): void {
 
 function registerMembershipRouteTests(): void {
   it('owns member, invitation preview, and signup routes', async () => {
-    await accountClient.listMembers('workspace / one');
-    await accountClient.listInvitations('workspace / one');
-    await accountClient.startMasquerade('workspace / one', { targetUserId: 'person / one' });
+    await accountClient.listMembers('company / one');
+    await accountClient.listInvitations('company / one');
+    await accountClient.startMasquerade('company / one', { targetUserId: 'person / one' });
     await accountClient.masqueradeStatus();
     await accountClient.endMasquerade({ token: 'token-1', reason: 'explicit' });
     await accountClient.previewInvitation('token / one');
@@ -288,14 +288,14 @@ function registerMembershipRouteTests(): void {
       .map((call) => String(call[0]))
       .filter((url) => url.endsWith('/members') || url.endsWith('/invites'));
     expect(directoryUrls).toEqual([
-      'https://app.example/api/accounts/workspace%20%2F%20one/members',
-      'https://app.example/api/accounts/workspace%20%2F%20one/invites',
+      'https://app.example/api/accounts/company%20%2F%20one/members',
+      'https://app.example/api/accounts/company%20%2F%20one/invites',
     ]);
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
-      'https://app.example/api/accounts/workspace%20%2F%20one/members',
-      'https://app.example/api/accounts/workspace%20%2F%20one/invites',
-      'https://app.example/api/accounts/workspace%20%2F%20one/masquerade',
+      'https://app.example/api/accounts/company%20%2F%20one/members',
+      'https://app.example/api/accounts/company%20%2F%20one/invites',
+      'https://app.example/api/accounts/company%20%2F%20one/masquerade',
       'https://app.example/api/masquerade',
       'https://app.example/api/masquerade',
       'https://app.example/api/invites/token%20%2F%20one/preview',

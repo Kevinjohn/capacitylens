@@ -256,7 +256,7 @@ describe('AllocationModal inline activity creation pref', () => {
 });
 
 describe('AllocationModal task field', () => {
-  it('shows and saves an optional single-line task when the workspace setting is enabled', async () => {
+  it('shows and saves an optional single-line task when the company setting is enabled', async () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();

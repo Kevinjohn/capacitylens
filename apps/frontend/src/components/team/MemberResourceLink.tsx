@@ -88,17 +88,17 @@ function MemberResourceCell({ linked, view }: { linked: boolean; view: MemberRes
 
 function MemberResourceEditor({
   member,
-  workspaceId,
+  companyId,
   request,
   view,
 }: {
   member: TeamMember;
-  workspaceId: string | null;
+  companyId: string | null;
   request: MemberResourceLinkRequest;
   view: MemberResourceView;
 }) {
   const { pending, error, statusMessage, change } = request;
-  const disabled = pending || !workspaceId;
+  const disabled = pending || !companyId;
   return (
     <div className="flex flex-col items-start gap-2">
       {view.showInactive && (
@@ -156,11 +156,11 @@ export function MemberResourceDialog({
   myRole,
   linkedResourceIds,
   resourceCandidates,
-  workspaceId,
+  companyId,
   request,
   busy,
 }: MemberResourceLinkProps & {
-  workspaceId: string | null;
+  companyId: string | null;
   /** Owned by the members section so it outlives this row and its dialog. */
   request: MemberResourceLinkRequest;
   busy: boolean;
@@ -206,7 +206,7 @@ export function MemberResourceDialog({
         >
           <MemberResourceEditor
             member={member}
-            workspaceId={workspaceId}
+            companyId={companyId}
             request={request}
             view={buildMemberResourceView(member, linkedResourceIds, resourceCandidates)}
           />
