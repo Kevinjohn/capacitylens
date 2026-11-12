@@ -424,7 +424,7 @@ function registerIgnoredWorkingDayTest() {
         endDate: '2026-06-05',
         hoursPerDay: 8,
         status: 'confirmed',
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
     );
 
@@ -460,7 +460,7 @@ function registerIgnoredWorkingDayTest() {
       resourceId: destination.id,
       startDate: '2026-06-05',
       endDate: '2026-06-05',
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     });
   });
 }
@@ -594,7 +594,7 @@ function registerExternalReassignmentTest() {
         endDate: '2026-06-03',
         hoursPerDay: 0,
         status: 'confirmed',
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
     );
 

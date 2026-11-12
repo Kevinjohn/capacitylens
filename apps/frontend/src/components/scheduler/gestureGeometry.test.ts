@@ -12,7 +12,7 @@ const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5];
 interface PreviewInput {
   startDate: string;
   endDate: string;
-  ignoreWeekends: boolean;
+  ignoreWorkingDays: boolean;
   mode: DragMode;
   deltaDays: number;
   previewDays: Weekday[] | undefined;
@@ -24,7 +24,7 @@ function previewPixels(input: PreviewInput): { left: number; width: number } {
   const allocation = makeAllocation({
     startDate: input.startDate,
     endDate: input.endDate,
-    ignoreWeekends: input.ignoreWeekends,
+    ignoreWorkingDays: input.ignoreWorkingDays,
   });
   const result = buildGesturePreviewDates({
     allocation,
@@ -54,7 +54,7 @@ describe('gesture preview geometry', () => {
       previewPixels({
         startDate: '2026-06-01',
         endDate: '2026-06-04',
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
         mode: 'move',
         deltaDays: 2,
         previewDays: undefined,
@@ -73,8 +73,8 @@ describe('gesture preview geometry', () => {
       previewDays: WEEKDAYS,
       geometry: geom,
     };
-    const naive = previewPixels({ ...move, ignoreWeekends: true });
-    const weekendAware = previewPixels({ ...move, ignoreWeekends: false });
+    const naive = previewPixels({ ...move, ignoreWorkingDays: true });
+    const weekendAware = previewPixels({ ...move, ignoreWorkingDays: false });
 
     expect(naive).toEqual({ left: 4 * 20, width: 2 * 20 });
     expect(weekendAware).not.toEqual(naive);
@@ -94,7 +94,7 @@ describe('gesture preview geometry', () => {
     const preview = previewPixels({
       startDate: '2026-06-05',
       endDate: '2026-06-05',
-      ignoreWeekends: false,
+      ignoreWorkingDays: false,
       mode: 'resize-end',
       deltaDays: 1,
       previewDays: WEEKDAYS,

@@ -193,7 +193,7 @@ describe('AllocationModal days mode', () => {
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: '2026-06-01',
       endDate: '2026-06-05',
-      ignoreWeekends: false,
+      ignoreWorkingDays: false,
     });
   });
 
@@ -222,7 +222,7 @@ describe('AllocationModal days mode', () => {
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: '2026-06-01',
       endDate: '2026-06-03',
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     });
   });
 
@@ -239,7 +239,7 @@ describe('AllocationModal days mode', () => {
         endDate: '2026-06-03',
         hoursPerDay: 8,
         status: 'confirmed',
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
     );
     const user = userEvent.setup();
@@ -253,7 +253,7 @@ describe('AllocationModal days mode', () => {
     ).toMatchObject({
       startDate: '2026-06-01',
       endDate: '2026-06-03',
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     });
   });
 

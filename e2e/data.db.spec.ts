@@ -81,7 +81,7 @@ test.describe('Beta company transfer through the server', () => {
     ],
     [
       'unsupported schema',
-      JSON.stringify({ ...restoredDocument(), schemaVersion: 2 }),
+      JSON.stringify({ ...restoredDocument(), schemaVersion: 3 }),
       /unsupported/i,
     ],
   ];

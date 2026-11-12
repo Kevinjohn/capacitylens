@@ -120,10 +120,11 @@ type BuildWorkingWeekValuesOptions = {
   validDaysOver: boolean;
 };
 function buildWorkingWeekValues({ input, external, validDaysOver }: BuildWorkingWeekValuesOptions) {
-  const { effectiveWeek, startDate, endDate, mode, daysOver, daysOfWork, ignoreWeekends } = input;
+  const { effectiveWeek, startDate, endDate, mode, daysOver, daysOfWork, ignoreWorkingDays } =
+    input;
   const spanOptions = {
     ...(effectiveWeek?.kind === 'days' ? { workingDays: effectiveWeek.days } : {}),
-    ignoreWeekends,
+    ignoreWorkingDays,
   };
   const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOptions) : MAX_SPAN_DAYS;
   const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maximumDaysOver;
@@ -154,7 +155,7 @@ export function buildEffectiveAllocationValues({
   hoursPerDay,
   daysOver,
   daysOfWork,
-  ignoreWeekends,
+  ignoreWorkingDays,
 }: EffectiveAllocationInput) {
   const external = !!resource && isExternalResource(resource);
   const validDaysOver =
@@ -171,14 +172,14 @@ export function buildEffectiveAllocationValues({
         hoursPerDay,
         daysOver,
         daysOfWork,
-        ignoreWeekends,
+        ignoreWorkingDays,
       },
       external: external,
       validDaysOver: validDaysOver,
     });
   }
 
-  if (lacksEffectiveWorkingDays(effectiveWeek, ignoreWeekends)) {
+  if (lacksEffectiveWorkingDays(effectiveWeek, ignoreWorkingDays)) {
     // With no effective workdays, keep the seeded span quantity unchanged so unrelated edits cannot dilute stored work volume.
     return buildUnavailableWeekValues({
       input: {
@@ -190,7 +191,7 @@ export function buildEffectiveAllocationValues({
         hoursPerDay,
         daysOver,
         daysOfWork,
-        ignoreWeekends,
+        ignoreWorkingDays,
       },
       external: external,
       validDaysOver: validDaysOver,
@@ -207,7 +208,7 @@ export function buildEffectiveAllocationValues({
       hoursPerDay,
       daysOver,
       daysOfWork,
-      ignoreWeekends,
+      ignoreWorkingDays,
     },
     external: external,
     validDaysOver: validDaysOver,

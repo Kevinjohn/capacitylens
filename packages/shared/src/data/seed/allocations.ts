@@ -82,7 +82,7 @@ const ALLOCATIONS: AppData['allocations'] = [
     endDate: '2026-06-09',
     hoursPerDay: 0,
     status: 'confirmed',
-    ignoreWeekends: true,
+    ignoreWorkingDays: true,
   },
   {
     ...NULLABLE_FIELDS.allocations,

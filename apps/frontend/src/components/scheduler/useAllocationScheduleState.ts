@@ -41,7 +41,7 @@ function useEffectiveSchedule(input: {
   fields: ReturnType<typeof useScheduleFields>;
 }) {
   const { selectedResource, accountWorkingDays, mode, fields } = input;
-  const { startDate, endDate, hoursPerDay, ignoreWeekends, daysOver, daysOfWork } = fields;
+  const { startDate, endDate, hoursPerDay, ignoreWorkingDays, daysOver, daysOfWork } = fields;
   const selectedEffectiveWeek = useMemo(
     () =>
       selectedResource ? effectiveWorkingWeek(selectedResource, accountWorkingDays) : undefined,
@@ -58,14 +58,14 @@ function useEffectiveSchedule(input: {
         hoursPerDay,
         daysOver,
         daysOfWork,
-        ignoreWeekends,
+        ignoreWorkingDays,
       }),
     [
       daysOfWork,
       daysOver,
       endDate,
       hoursPerDay,
-      ignoreWeekends,
+      ignoreWorkingDays,
       mode,
       selectedEffectiveWeek,
       selectedResource,
@@ -108,7 +108,7 @@ function resolveInitialDetails(seed: AllocationModalSeed) {
     status: seed.editing?.status ?? 'confirmed',
     note: seed.editing?.note ?? '',
     task: seed.editing?.task ?? '',
-    ignoreWeekends: seed.editing?.ignoreWeekends ?? false,
+    ignoreWorkingDays: seed.editing?.ignoreWorkingDays ?? false,
   };
 }
 
@@ -148,7 +148,7 @@ function useScheduleFields(seed: AllocationModalSeed, calendarTimeZone: string) 
   const [status, setStatus] = useState<AllocationStatus>(initialDetails.status);
   const [note, setNote] = useState(initialDetails.note);
   const [noteEdited, setNoteEdited] = useState(false);
-  const [ignoreWeekends, setIgnoreWeekends] = useState(initialDetails.ignoreWeekends);
+  const [ignoreWorkingDays, setIgnoreWorkingDays] = useState(initialDetails.ignoreWorkingDays);
   const [task, setTask] = useState(initialDetails.task);
   const [daysOver, setDaysOver] = useState(seed.initialDaysOver);
   const [daysOfWork, setDaysOfWork] = useState(() => resolveInitialDaysOfWork(seed));
@@ -167,8 +167,8 @@ function useScheduleFields(seed: AllocationModalSeed, calendarTimeZone: string) 
     setNoteEdited,
     task,
     setTask,
-    ignoreWeekends,
-    setIgnoreWeekends,
+    ignoreWorkingDays,
+    setIgnoreWorkingDays,
     daysOver,
     setDaysOver,
     daysOfWork,
@@ -188,7 +188,7 @@ export function useAllocationScheduleState({
   const isBlocks = !carriesHourlyLoad(mode);
   const fields = useScheduleFields(seed, calendarTimeZone);
   const { noteEdited, ...scheduleFields } = fields;
-  const { startDate, endDate, ignoreWeekends } = fields;
+  const { startDate, endDate, ignoreWorkingDays } = fields;
   const { repeat, repeatUntil, changeRepeat, changeRepeatUntil } = useRepeatSchedule(startDate);
   const { selectedEffectiveWeek, values: effectiveValues } = useEffectiveSchedule({
     selectedResource,
@@ -216,7 +216,7 @@ export function useAllocationScheduleState({
 
   const daysOverDisabled =
     hasWorkingSpan(selectedResource, mode) &&
-    lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWeekends);
+    lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWorkingDays);
 
   return {
     selectedEffectiveWeek,

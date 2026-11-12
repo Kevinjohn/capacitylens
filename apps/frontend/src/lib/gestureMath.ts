@@ -48,10 +48,10 @@ export interface DateRange {
   endDate: ISODate;
 }
 
-/** Weekend-awareness for a move gesture. When `ignoreWeekends` is false and
+/** Weekend-awareness for a move gesture. When `ignoreWorkingDays` is false and
  * `workingDays` doesn't cover the whole week, a move preserves the allocation's
  * *working-day* count by extending its end across non-working days. Omit (or
- * set `ignoreWeekends`) to get the plain calendar-shift behavior. */
+ * set `ignoreWorkingDays`) to get the plain calendar-shift behavior. */
 export interface GestureOptions {
   /** The destination's working week: where the moved range is placed, and the only week a resize
    * ever sees. */
@@ -61,7 +61,7 @@ export interface GestureOptions {
    * so the two weeks answer different questions: this one sizes the range, `workingDays` positions
    * it. Omit for a same-resource gesture, where the two are the same week. */
   sourceWorkingDays?: Weekday[];
-  ignoreWeekends?: boolean | null;
+  ignoreWorkingDays?: boolean | null;
 }
 
 type Direction = 1 | -1;
@@ -155,13 +155,13 @@ function applyResize({ mode, range, deltaDays, weekendAwareDays }: ApplyResizeIn
 
 type ResolveWeekendAwareWeekOptions = {
   days: Weekday[] | undefined;
-  ignoreWeekends: boolean | undefined;
+  ignoreWorkingDays: boolean | undefined;
 };
 function resolveWeekendAwareWeek({
   days,
-  ignoreWeekends,
+  ignoreWorkingDays,
 }: ResolveWeekendAwareWeekOptions): Weekday[] | null {
-  return isWeekendAware(days, ignoreWeekends) ? (days ?? null) : null;
+  return isWeekendAware(days, ignoreWorkingDays) ? (days ?? null) : null;
 }
 
 // Compare week contents because same-resource moves may receive equal but distinct arrays.
@@ -175,12 +175,14 @@ function isSameWeek(a: Weekday[] | null, b: Weekday[] | null): boolean {
 // the booking because resolveWeekendAwareWeek returns null for both full and empty workweeks.
 function resolveMoveSpan(range: DateRange, options: GestureOptions | undefined): number {
   const workingDays = options?.sourceWorkingDays ?? options?.workingDays;
-  if (workingDays?.length === 0 && !options?.ignoreWeekends) return 0;
+  if (workingDays?.length === 0 && !options?.ignoreWorkingDays) return 0;
   // `spanDays` owns the working-days-versus-calendar-days split for the whole product; measuring
   // through it is what keeps a dragged duration and a typed one meaning the same thing.
   return spanDays(range.startDate, range.endDate, {
     ...(workingDays ? { workingDays } : {}),
-    ...(options?.ignoreWeekends !== undefined ? { ignoreWeekends: options.ignoreWeekends } : {}),
+    ...(options?.ignoreWorkingDays !== undefined
+      ? { ignoreWorkingDays: options.ignoreWorkingDays }
+      : {}),
   });
 }
 
@@ -188,7 +190,7 @@ function resolveMoveSpan(range: DateRange, options: GestureOptions | undefined):
 export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureInput): DateRange {
   const weekendAwareDays = resolveWeekendAwareWeek({
     days: options?.workingDays,
-    ignoreWeekends: options?.ignoreWeekends ?? undefined,
+    ignoreWorkingDays: options?.ignoreWorkingDays ?? undefined,
   });
   switch (mode) {
     case 'move':
@@ -199,7 +201,7 @@ export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureIn
         placesIntoAnotherWeek: !isSameWeek(
           resolveWeekendAwareWeek({
             days: options?.sourceWorkingDays ?? options?.workingDays,
-            ignoreWeekends: options?.ignoreWeekends ?? undefined,
+            ignoreWorkingDays: options?.ignoreWorkingDays ?? undefined,
           }),
           weekendAwareDays,
         ),

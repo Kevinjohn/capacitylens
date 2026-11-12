@@ -27,7 +27,7 @@ export type CapacityAllocationInput = Pick<
   Allocation,
   'resourceId' | 'startDate' | 'endDate' | 'hoursPerDay'
 > &
-  Partial<Pick<Allocation, 'ignoreWeekends'>>;
+  Partial<Pick<Allocation, 'ignoreWorkingDays'>>;
 
 /** Existing load in hours, keyed by the ISO day it lands on, for one resource. Building this once
  * is what makes an advisory O(window + load) instead of O(windowDays × allocations), and lets a
@@ -71,7 +71,7 @@ export function addCapacityLoad({
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek: effectiveWeek,
-        ignoreWorkingDays: allocation.ignoreWeekends ?? undefined,
+        ignoreWorkingDays: allocation.ignoreWorkingDays ?? undefined,
         dayIsWorking: isWorkingDay(effectiveWeek, day),
       })
     ) {
@@ -168,13 +168,13 @@ function tallyAdvisory({
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek: effectiveWeek,
-        ignoreWorkingDays: proposal.ignoreWeekends ?? undefined,
+        ignoreWorkingDays: proposal.ignoreWorkingDays ?? undefined,
         dayIsWorking: working,
       })
     ) {
       continue;
     }
-    // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
+    // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWorkingDays) has
     // 0 capacity, so any proposed hours there read as over, exactly like the per-day over-marker.
     const available = working ? scheduledCapacity : 0;
     if (
@@ -199,7 +199,7 @@ interface BuildCapacityAdvisoryInput {
 }
 
 /** Non-blocking advisory for a proposed allocation (its own dates, `hoursPerDay` and
- * `ignoreWeekends`): how many days it would push the resource over capacity, and how many fall on
+ * `ignoreWorkingDays`): how many days it would push the resource over capacity, and how many fall on
  * time off. The proposal is taken whole so a draft or persisted row passes straight through, only
  * its `resourceId` is unread, because the advisory always scopes to `resource`.
  * `otherAllocations` is the existing load to count against (caller excludes the allocation being
@@ -207,7 +207,7 @@ interface BuildCapacityAdvisoryInput {
  * Shared by the modal and the drag-commit path so the rule
  * lives in one place. Mirrors the per-day over-marker (`resolveAllocatedHoursOnDay`): it counts a day only
  * when the proposed allocation actually works it (so a weekend-aware bar merely spanning Sat/Sun
- * isn't "over"), and an `ignoreWeekends` weekend, 0 capacity, reads as over exactly like the red
+ * isn't "over"), and an `ignoreWorkingDays` weekend, 0 capacity, reads as over exactly like the red
  * cell does. Time off stays its own category, never folded into overDays (a holiday a working
  * allocation covers is surfaced as "on time off for N days", not "over"), which is the one place the
  * advisory deliberately diverges from the marker. */

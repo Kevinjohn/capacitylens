@@ -57,7 +57,7 @@ function resolveDraftEndDate(input: CommandInput) {
     isDays: input.isDays,
     resourceId: input.resourceId,
     startDate: input.startDate,
-    ignoreWeekends: input.ignoreWeekends,
+    ignoreWorkingDays: input.ignoreWorkingDays,
     daysOver: input.daysOver,
     initialDaysOver: input.initialDaysOver,
     effectiveEndDate: input.effEndDate,
@@ -133,7 +133,7 @@ function parseAllocationCommandDraft(input: CommandInput): ValidatedDraft | null
     // Include the field even when empty so editing can intentionally clear an existing task.
     task: cleanTask ?? null,
     ...(input.attributedProjectId ? { projectId: input.attributedProjectId } : {}),
-    ignoreWeekends: input.isExternal ? true : input.ignoreWeekends,
+    ignoreWorkingDays: input.isExternal ? true : input.ignoreWorkingDays,
   };
 }
 

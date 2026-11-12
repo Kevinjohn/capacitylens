@@ -6,11 +6,11 @@ import { isBoolean, jsonColumn } from '#models/json_column';
 import { deletedAtColumn, isoTimestampColumn } from '#models/scalar_column';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
-import { forCompany, forTrustedLocal, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
 import Activity from '#models/activity';
 export default class Project extends SoftDeletes(ProjectSchema) {
   static forCompany = forCompany;
-  static forTrustedLocal = forTrustedLocal;
+  static forWholeInstallation = forWholeInstallation;
   @beforeFind() static requireFindScope = requireCompanyScope;
   @beforeFetch() static requireFetchScope = requireCompanyScope;
   @hasMany(() => Activity, { foreignKey: 'projectId' }) declare activities: HasMany<

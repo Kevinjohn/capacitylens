@@ -41,7 +41,7 @@ const baseDraft = (overrides: Partial<Draft<Allocation>> = {}): Draft<Allocation
   hoursPerDay: 8,
   status: 'confirmed',
   note: 'Keep me',
-  ignoreWeekends: false,
+  ignoreWorkingDays: false,
   ...overrides,
 });
 
@@ -134,7 +134,7 @@ describe('projectAllocationDates', () => {
   });
 
   it('checks External first and preserves its validated zero-load literal span in every account mode', () => {
-    const base = baseDraft({ hoursPerDay: 0, ignoreWeekends: true });
+    const base = baseDraft({ hoursPerDay: 0, ignoreWorkingDays: true });
     for (const schedulingMode of ['hourly', 'days', 'blocks'] as const) {
       const projected = buildRepeatedAllocationDrafts(
         base,
@@ -149,7 +149,7 @@ describe('projectAllocationDates', () => {
         startDate: '2027-02-28',
         endDate: '2027-03-02',
         hoursPerDay: 0,
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       });
     }
   });
@@ -184,7 +184,7 @@ describe('projectAllocationDates working spans', () => {
         startDate: '9999-09-30',
         endDate: '9999-10-02',
         hoursPerDay: mode === 'blocks' ? 0 : 8,
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       });
       expect(() =>
         buildRepeatedAllocationDrafts(
@@ -209,7 +209,7 @@ describe('projectAllocationDates working spans', () => {
     expect(custom[1]).toMatchObject({ startDate: '2026-06-03', endDate: '2026-06-09' });
 
     const weekends = buildRepeatedAllocationDrafts(
-      baseDraft({ startDate: '2026-06-01', endDate: '2026-06-03', ignoreWeekends: true }),
+      baseDraft({ startDate: '2026-06-01', endDate: '2026-06-03', ignoreWorkingDays: true }),
       ['2026-06-01', '2026-06-06'],
       repeatContext({ schedulingMode: 'days', daysOver: 3 }),
     );
@@ -288,7 +288,7 @@ describe('projectAllocationDates validation', () => {
         baseDraft({
           startDate: '2026-06-01',
           endDate: '2026-06-02',
-          ignoreWeekends: true,
+          ignoreWorkingDays: true,
         }),
         ['2026-06-01', '2026-06-08'],
         repeatContext({
@@ -298,7 +298,7 @@ describe('projectAllocationDates validation', () => {
           accountWorkingDays: [2],
         }),
       )[1],
-    ).toMatchObject({ startDate: '2026-06-08', endDate: '2026-06-09', ignoreWeekends: true });
+    ).toMatchObject({ startDate: '2026-06-08', endDate: '2026-06-09', ignoreWorkingDays: true });
   });
 });
 
@@ -584,7 +584,7 @@ describe('repeatingAllocationAdvisory zero-load and external resources', () => {
       baseDraft({ startDate: '2026-06-01', endDate: '2026-06-01' }),
       baseDraft({ startDate: '2026-07-01', endDate: '2026-07-06' }),
       baseDraft({ startDate: '2026-08-01', endDate: '2026-08-03' }),
-      baseDraft({ startDate: '2026-09-01', endDate: '2026-09-01', ignoreWeekends: true }),
+      baseDraft({ startDate: '2026-09-01', endDate: '2026-09-01', ignoreWorkingDays: true }),
     ];
 
     expect(

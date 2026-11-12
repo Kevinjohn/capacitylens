@@ -529,7 +529,7 @@ describe('AllocationModal edit', () => {
         endDate: '2026-06-02',
         hoursPerDay: 8,
         status: 'confirmed',
-        ignoreWeekends: true,
+        ignoreWorkingDays: true,
       }),
     );
     const user = userEvent.setup();
@@ -542,7 +542,7 @@ describe('AllocationModal edit', () => {
       useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
     ).toMatchObject({
       resourceId: source.id,
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     });
     expect(
       screen.getByText(

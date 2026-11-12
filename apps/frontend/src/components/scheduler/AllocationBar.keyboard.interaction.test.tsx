@@ -381,7 +381,7 @@ function registerKeyboardMovementTests() {
     const allocation = await seedAllocation({
       startDate: lastVisibleDay,
       endDate: lastVisibleDay,
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     });
     render(
       <AllocationBar

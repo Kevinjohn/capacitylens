@@ -110,7 +110,7 @@ export function buildAllocationCreate(
     status: args.fields.status,
     note: args.fields.note ?? null,
     task: args.fields.task ?? null,
-    ignoreWeekends: args.fields.ignoreWeekends ?? null,
+    ignoreWorkingDays: args.fields.ignoreWorkingDays ?? null,
   };
   return {
     intent: { operation: 'allocation.create', allocation },
@@ -148,7 +148,7 @@ export function buildAllocationDuplicate(
   ] as const;
   const sameSource =
     copyFields.every((field) => equal(created[field] ?? null, original[field] ?? null)) &&
-    Boolean(created.ignoreWeekends) === Boolean(original.ignoreWeekends);
+    Boolean(created.ignoreWorkingDays) === Boolean(original.ignoreWorkingDays);
   if (!sameSource) return command;
   return {
     ...command,
@@ -170,7 +170,7 @@ const ALLOCATION_FIELDS = [
   'status',
   'note',
   'task',
-  'ignoreWeekends',
+  'ignoreWorkingDays',
 ] as const satisfies readonly (keyof Allocation)[];
 
 /** Build an allocation patch against the captured draft basis. */
@@ -184,7 +184,7 @@ export function buildAllocationUpdate(
     'projectId',
     'note',
     'task',
-    'ignoreWeekends',
+    'ignoreWorkingDays',
   ]);
   if (!diff) return null;
   const changes = { ...diff.changes };

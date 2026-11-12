@@ -79,7 +79,7 @@ Two middleware gates run before the controller and can refuse:
   view-as mode, requires the context header on unsafe methods (428
   `MASQUERADE_CONTEXT_REQUIRED`) and refuses every unsafe request while viewing as another
   member (403 `MASQUERADE_READ_ONLY`).
-- P2. `apps/backend/app/middleware/trusted_local_middleware.ts` (router stack) returns 401
+- P2. `apps/backend/app/middleware/require_sign_in_middleware.ts` (router stack) returns 401
   `{ error: 'Sign-in required.' }` with no code when there is no valid session.
 
 Then, in order:

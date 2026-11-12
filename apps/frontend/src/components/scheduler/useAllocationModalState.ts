@@ -293,7 +293,7 @@ function buildRepeatProjectionInput(
     daysOver: schedule.fields.daysOver,
     effEndDate: schedule.effEndDate,
     effHoursPerDay: schedule.fields.effHoursPerDay,
-    ignoreWeekends: schedule.fields.ignoreWeekends,
+    ignoreWorkingDays: schedule.fields.ignoreWorkingDays,
     isBlocks: context.isBlocks,
     isDays: context.isDays,
     isExternal: schedule.fields.isExternal,
@@ -335,7 +335,7 @@ function buildAdvisoryInput({
     editId: context.editId,
     effEndDate: schedule.effEndDate,
     effHoursPerDay: schedule.fields.effHoursPerDay,
-    ignoreWeekends: schedule.fields.ignoreWeekends,
+    ignoreWorkingDays: schedule.fields.ignoreWorkingDays,
     isBlocks: context.isBlocks,
     isExternal: schedule.fields.isExternal,
     repeat: schedule.fields.repeat,
@@ -355,7 +355,7 @@ function buildAdvisoryInput({
 function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0]) {
   // prettier-ignore
   const { activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
-    ignoreWeekends, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
+    ignoreWorkingDays, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
     repeatUntilMinimum, resourceId, selectedActivity, selectedEffectiveProjectId, selectedResource,
     selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver } = input;
   return useMemo(
@@ -368,7 +368,7 @@ function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0])
         daysOver,
         effEndDate,
         effHoursPerDay,
-        ignoreWeekends,
+        ignoreWorkingDays,
         isBlocks,
         isDays,
         isExternal,
@@ -391,7 +391,7 @@ function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0])
       }),
     // prettier-ignore
     [activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
-      ignoreWeekends, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
+      ignoreWorkingDays, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
       repeatUntilMinimum, resourceId, selectedActivity, selectedEffectiveProjectId, selectedResource,
       selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver],
   );
@@ -399,7 +399,7 @@ function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0])
 
 function useAllocationAdvisory(input: Parameters<typeof buildAllocationAdvisory>[0]) {
   // prettier-ignore
-  const { attributedProjectId, create, editId, effEndDate, effHoursPerDay, ignoreWeekends, isBlocks,
+  const { attributedProjectId, create, editId, effEndDate, effHoursPerDay, ignoreWorkingDays, isBlocks,
     isExternal, repeat, repeatProjection, resourceId, selectedResource, selectedEffectiveWeek, startDate, data } = input;
   const { allocations, closures, timeOff } = data;
   return useMemo(
@@ -410,7 +410,7 @@ function useAllocationAdvisory(input: Parameters<typeof buildAllocationAdvisory>
         editId,
         effEndDate,
         effHoursPerDay,
-        ignoreWeekends,
+        ignoreWorkingDays,
         isBlocks,
         isExternal,
         repeat,
@@ -422,7 +422,7 @@ function useAllocationAdvisory(input: Parameters<typeof buildAllocationAdvisory>
         data: { allocations, closures, timeOff },
       }),
     // prettier-ignore
-    [attributedProjectId, create, editId, effEndDate, effHoursPerDay, ignoreWeekends, isBlocks,
+    [attributedProjectId, create, editId, effEndDate, effHoursPerDay, ignoreWorkingDays, isBlocks,
       isExternal, repeat, repeatProjection, resourceId, selectedResource, selectedEffectiveWeek,
       startDate, allocations, closures, timeOff],
   );

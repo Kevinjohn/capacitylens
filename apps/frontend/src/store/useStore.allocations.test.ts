@@ -243,7 +243,7 @@ function registerAvailabilityCreationTests(): void {
     ).resolves.toMatchObject({ kind: 'created' });
     await expect(
       state().addAllocation(
-        draft({ startDate: '2026-06-01', endDate: '2026-06-02', ignoreWeekends: true }),
+        draft({ startDate: '2026-06-01', endDate: '2026-06-02', ignoreWorkingDays: true }),
       ),
     ).rejects.toThrow(/before.*available/i);
   });
@@ -261,7 +261,7 @@ function registerAvailabilityCreationTests(): void {
     ).resolves.toMatchObject({ kind: 'created' });
     await expect(
       state().addAllocation(
-        draft({ startDate: '2026-06-04', endDate: '2026-06-05', ignoreWeekends: true }),
+        draft({ startDate: '2026-06-04', endDate: '2026-06-05', ignoreWorkingDays: true }),
       ),
     ).rejects.toThrow(/after.*available/i);
   });
@@ -282,7 +282,7 @@ function registerAvailabilityMutationTests(): void {
         resourceId: allocation.resourceId,
         startDate: allocation.startDate,
         endDate: allocation.endDate,
-        ignoreWeekends: allocation.ignoreWeekends,
+        ignoreWorkingDays: allocation.ignoreWorkingDays,
         status: 'tentative',
         task: 'Prepare retained work',
       }),

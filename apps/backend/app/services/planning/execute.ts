@@ -45,7 +45,7 @@ function allocationGroupShape(allocation: GroupAllocation) {
         : cleanText(allocation.note, { multiline: true }),
     task:
       allocation.task === null || allocation.task === undefined ? null : cleanText(allocation.task),
-    ignoreWeekends: allocation.ignoreWeekends === true,
+    ignoreWorkingDays: allocation.ignoreWorkingDays === true,
   });
 }
 
@@ -201,7 +201,7 @@ export async function executePlanningIntent(
               status: source.status,
               note: source.note,
               task: source.task,
-              ignoreWeekends: source.ignoreWeekends,
+              ignoreWorkingDays: source.ignoreWorkingDays,
               seriesId,
             },
             capabilities,

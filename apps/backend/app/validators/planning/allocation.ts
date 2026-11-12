@@ -26,7 +26,7 @@ const allocationCreate = vine
     status: vine.enum(['confirmed', 'tentative', 'completed'] as const),
     note: nullableUserText(true).optional(),
     task: nullableUserText().optional(),
-    ignoreWeekends: boolean().nullable().optional(),
+    ignoreWorkingDays: boolean().nullable().optional(),
   })
   .use(dateRange());
 
@@ -41,7 +41,7 @@ const allocationChanges = vine
     status: vine.enum(['confirmed', 'tentative', 'completed'] as const).optional(),
     note: nullableUserText(true).optional(),
     task: nullableUserText().optional(),
-    ignoreWeekends: boolean().nullable().optional(),
+    ignoreWorkingDays: boolean().nullable().optional(),
   })
   .use(dateRange());
 
@@ -111,7 +111,7 @@ export const allocationIntent = vine
             'status',
             'note',
             'task',
-            'ignoreWeekends',
+            'ignoreWorkingDays',
           ])
         ),
       })

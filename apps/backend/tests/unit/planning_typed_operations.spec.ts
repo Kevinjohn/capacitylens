@@ -51,7 +51,7 @@ const makeAllocation = (
   status: source.status,
   note: source.note,
   task: source.task,
-  ignoreWeekends: source.ignoreWeekends,
+  ignoreWorkingDays: source.ignoreWorkingDays,
 });
 
 test.group('typed allocation group and lifecycle operations', (group) => {

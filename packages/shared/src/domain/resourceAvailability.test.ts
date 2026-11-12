@@ -29,7 +29,7 @@ describe('resource availability boundaries', () => {
     ).not.toThrow();
   });
 
-  it('checks only scheduled weekdays unless ignoreWeekends is enabled', () => {
+  it('checks only scheduled weekdays unless ignoreWorkingDays is enabled', () => {
     expect(() =>
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-13', endDate: '2026-06-14' },
@@ -39,7 +39,7 @@ describe('resource availability boundaries', () => {
     ).not.toThrow();
     expect(() =>
       assertAllocationWithinResourceAvailability({
-        allocation: { startDate: '2026-06-13', endDate: '2026-06-14', ignoreWeekends: true },
+        allocation: { startDate: '2026-06-13', endDate: '2026-06-14', ignoreWorkingDays: true },
         resource: person({ firstAvailableDate: '2026-06-15' }),
         accountWorkingDays: [1, 2, 3, 4, 5],
       }),
