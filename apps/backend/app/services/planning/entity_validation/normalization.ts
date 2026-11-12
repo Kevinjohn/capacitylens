@@ -1,14 +1,10 @@
-import {
-  canonicalWeekdaySet,
-  normalizeAccountWorkingDays,
-} from '@capacitylens/shared/lib/accountWorkingDays';
+import { canonicalWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
 import { normalizeCodeName } from '@capacitylens/shared/domain/privateNames';
-import type { AppDataKey, Weekday } from '@capacitylens/shared/types/entities';
+import type { ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
 
 interface NormalizeValidWriteInput {
-  table: AppDataKey;
+  table: ScopedEntityKey;
   candidate: Record<string, unknown>;
-  requested: Record<string, unknown>;
   existing: Record<string, unknown> | undefined;
   canSeePrivateNames: boolean;
 }
@@ -17,19 +13,9 @@ interface NormalizeValidWriteInput {
 export function normalizeValidWrite({
   table,
   candidate,
-  requested,
   existing,
   canSeePrivateNames,
 }: NormalizeValidWriteInput): void {
-  if (table === 'accounts') {
-    if (!existing || Object.hasOwn(requested, 'workingDays')) {
-      candidate.workingDays = normalizeAccountWorkingDays(
-        candidate.workingDays,
-        candidate.weekStartsOn === 0 ? 0 : 1
-      );
-    }
-    return;
-  }
   if (table === 'resources') {
     candidate.workingDays = canonicalWeekdaySet(candidate.workingDays as Weekday[]);
     candidate.halfDays = canonicalWeekdaySet(candidate.halfDays as Weekday[]);

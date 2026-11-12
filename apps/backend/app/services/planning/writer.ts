@@ -1,6 +1,12 @@
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import type { AppData, AppDataKey, Resource, Weekday } from '@capacitylens/shared/types/entities';
+import type {
+  AppData,
+  AppDataKey,
+  Resource,
+  ScopedEntityKey,
+  Weekday,
+} from '@capacitylens/shared/types/entities';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
@@ -106,7 +112,7 @@ export async function writeRow(
   trx: TransactionClientContract,
   data: AppData,
   accountId: string,
-  table: AppDataKey,
+  table: ScopedEntityKey,
   id: string,
   fields: Record<string, unknown>,
   capabilities: PlanningCapabilities,
