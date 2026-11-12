@@ -37,10 +37,12 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       ensureDbFixtureAdministrator(dbServer.target);
       const apiSignIn = await request.post(`${dbServer.target.api}/api/auth/sign-in`, {
         data: admin,
+        headers: { 'sec-fetch-site': 'same-origin' },
       });
       expect(apiSignIn.status()).toBe(200);
       const browserSignIn = await context.request.post(`${dbServer.target.api}/api/auth/sign-in`, {
         data: admin,
+        headers: { 'sec-fetch-site': 'same-origin' },
       });
       expect(browserSignIn.status()).toBe(200);
       await use();

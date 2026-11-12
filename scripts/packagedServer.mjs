@@ -4,8 +4,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 
-// Start, probe and stop a built backend on a private loopback port. Shared by the packaged smoke
-// and the planning benchmark.
+// Start, probe and stop a built backend on a private loopback port for the packaged smoke.
 
 export const STARTUP_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -28,7 +27,7 @@ export async function reservePort() {
 }
 
 /** Use native password authentication and database sessions in a private loopback fixture. */
-export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port }) {
+export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port, corsOrigin }) {
   const environment = { ...inherited };
   delete environment.NODE_PATH;
   delete environment.NODE_OPTIONS;
@@ -56,6 +55,7 @@ export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port
     CAPACITYLENS_DB: databasePath,
     CAPACITYLENS_BACKUP_DIR: backupDir,
     CAPACITYLENS_PUBLIC_URL: `https://127.0.0.1:${port}`,
+    ...(corsOrigin ? { CAPACITYLENS_CORS_ORIGIN: corsOrigin } : {}),
   });
 }
 

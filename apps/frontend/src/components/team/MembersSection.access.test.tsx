@@ -172,7 +172,9 @@ describe('MembersSection — directory error retention', () => {
     );
     await waitFor(() => expect(result.current.directory.kind).toBe('ready'));
 
-    act(() => result.current.reload());
+    act(() => {
+      result.current.reload();
+    });
 
     await waitFor(() => expect(result.current.directory.kind).toBe('error'));
     expect(result.current.directory).toMatchObject({
@@ -222,7 +224,9 @@ describe('MembersSection — transient directory state', () => {
       throw new Error('Expected an authorized directory fixture.');
     }
 
-    act(() => result.current.reload());
+    act(() => {
+      result.current.reload();
+    });
 
     await waitFor(() => expect(result.current.directory.kind).toBe('error'));
     expect(result.current.directory).toMatchObject({

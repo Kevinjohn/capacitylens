@@ -116,6 +116,7 @@ async function postSignUp(
 ): Promise<string> {
   const res = await ctx.post(`${AUTH_API}/api/auth/sign-up`, {
     data: { email, password: AUTH_PASSWORD, name },
+    headers: { 'sec-fetch-site': 'same-origin' },
   });
   expect(res.ok(), `sign-up ${email}`).toBeTruthy();
   admitFixtureIdentity(email);

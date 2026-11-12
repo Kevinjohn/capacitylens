@@ -13,6 +13,7 @@ import { createFixtureCompanyForOwner } from '../helpers/authenticated_data_fixt
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#services/state_repository';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const email = 'bruce.wayne@wayne.example';
 const password = 'batman-secret-2026';
 
@@ -69,6 +70,7 @@ test.group('authentication outcome events', (group) => {
     const { lines } = await captureLogs(async () => {
       const success = await client
         .post('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
         .json({ email, password })
@@ -76,6 +78,7 @@ test.group('authentication outcome events', (group) => {
       success.assertStatus(200);
       const failure = await client
         .post('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
         .json({ email, password: 'incorrect-private-password' })
@@ -88,13 +91,13 @@ test.group('authentication outcome events', (group) => {
     const authEvents = entries.filter((entry) => entry.event === 'auth.sign_in');
     assert.deepEqual(authEvents.map((entry) => entry.outcome).sort(), ['failure', 'success']);
     for (const event of authEvents) {
-      assert.match(event.correlationId, /^[a-z0-9]+-[a-z0-9]+$/);
+      assert.match(event.request_id, UUID);
       assert.isTrue(
         entries.some(
           (entry) =>
-            entry.event === 'http.request.completed' && entry.correlationId === event.correlationId
+            entry.event === 'http.request.completed' && entry.request_id === event.request_id
         ),
-        'sign-in event shares its request completion correlation ID'
+        'sign-in event shares the request id of its completion record'
       );
     }
     for (const secret of [
@@ -115,6 +118,7 @@ test.group('authentication outcome events', (group) => {
     const request = () =>
       client
         .post('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
         .json({ email: 'private-throttle@example.test', password: 'never-store-this-password' })
         .send();
     const { lines, result } = await captureLogs(async () => {
@@ -131,15 +135,15 @@ test.group('authentication outcome events', (group) => {
       ['failure', 'failure', 'failure', 'failure', 'failure', 'throttled']
     );
     const throttled = authEvents[5];
-    assert.match(throttled.correlationId, /^[a-z0-9]+-[a-z0-9]+$/);
+    assert.match(throttled.request_id, UUID);
     assert.isTrue(
       entries.some(
         (entry) =>
           entry.event === 'http.request.completed' &&
-          entry.correlationId === throttled.correlationId &&
+          entry.request_id === throttled.request_id &&
           entry.status === 429
       ),
-      'throttle event shares its 429 request completion correlation ID'
+      'throttle event shares the request id of its 429 completion record'
     );
     assert.notInclude(lines.join('\n'), 'private-throttle@example.test');
     assert.notInclude(lines.join('\n'), 'never-store-this-password');
@@ -177,6 +181,7 @@ test.group('authentication outcome events', (group) => {
     const { lines, result } = await captureLogs(async () =>
       client
         .post('/api/auth/sign-up')
+        .header('sec-fetch-site', 'same-origin')
         .json({ email: signupEmail, password, name: 'Clark Kent' })
         .send()
     );
@@ -186,11 +191,12 @@ test.group('authentication outcome events', (group) => {
     const authEvent = entries.find((entry) => entry.event === 'auth.sign_in');
     assert.isDefined(authEvent);
     assert.equal(authEvent.outcome, 'success');
+    assert.match(authEvent.request_id, UUID);
     assert.isTrue(
       entries.some(
         (entry) =>
           entry.event === 'http.request.completed' &&
-          entry.correlationId === authEvent.correlationId &&
+          entry.request_id === authEvent.request_id &&
           entry.status === 201
       )
     );
@@ -223,7 +229,11 @@ test.group('authentication outcome events', (group) => {
     cleanup(() => db.rawQuery('DROP TRIGGER IF EXISTS fail_sign_in_tracking'));
 
     const { lines, result } = await captureLogs(() =>
-      client.post('/api/auth/sign-in').json({ email, password }).send()
+      client
+        .post('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
+        .json({ email, password })
+        .send()
     );
 
     result.assertStatus(500);
@@ -231,11 +241,12 @@ test.group('authentication outcome events', (group) => {
     const authEvent = entries.find((entry) => entry.event === 'auth.sign_in');
     assert.isDefined(authEvent);
     assert.equal(authEvent.outcome, 'success');
+    assert.match(authEvent.request_id, UUID);
     assert.isTrue(
       entries.some(
         (entry) =>
           entry.event === 'http.request.completed' &&
-          entry.correlationId === authEvent.correlationId &&
+          entry.request_id === authEvent.request_id &&
           entry.status === 500
       )
     );

@@ -99,7 +99,7 @@ type MemberTableCapabilities = Pick<
   | 'setOpenMenuFor'
   | 'setRoleEdit'
   | 'chooseMemberAction'
-  | 'reload'
+  | 'getResourceLinkRequest'
   | 'activeAccountId'
   | 'resourceCandidates'
   | 'error'
@@ -192,7 +192,7 @@ function MembersTable({
               linkedResourceIds={linkedResourceIds}
               resourceCandidates={memberActions.resourceCandidates}
               workspaceId={memberActions.activeAccountId}
-              reload={memberActions.reload}
+              resourceLinkRequest={memberActions.getResourceLinkRequest(member)}
             />
           ))}
         </tbody>

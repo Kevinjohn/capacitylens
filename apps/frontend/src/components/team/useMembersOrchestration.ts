@@ -10,6 +10,7 @@ import { useStore } from '@/store/useStore';
 import type { StoreState } from '@/store/types';
 import { useTeamDirectory } from './useTeamDirectory';
 import { useMemberInvites } from './useMemberInvites';
+import { useMemberResourceLinkRequests } from './useMemberResourceLinkRequest';
 import { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
 import { createMemberMutations } from './createMemberMutations';
 import { startMasquerade } from '@/auth/accountTransition';
@@ -249,6 +250,11 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     createInviteActions,
     directoryState,
   });
+  const getResourceLinkRequest = useMemberResourceLinkRequests({
+    workspaceId: activeAccountId,
+    reload: directoryState.reload,
+    acceptedReadGeneration: directoryState.acceptedReadGeneration,
+  });
   const setActionStatusElement = useActionStatusFocus(directoryState.busyAction);
   return {
     activeAccountId,
@@ -260,6 +266,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     errorId,
     clear,
     reload: directoryState.reload,
+    getResourceLinkRequest,
     members: directoryState.members,
     resourceCandidates,
     ...buildMemberDirectoryPresentation(directoryState.members),

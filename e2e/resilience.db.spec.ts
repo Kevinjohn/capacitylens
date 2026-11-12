@@ -124,6 +124,7 @@ function registerStaleConcurrentEditRejectedExplainedTests() {
     const secondContext = await newObservedContext({ baseURL: new URL(page.url()).origin });
     const secondSignIn = await secondContext.request.post(`${API}/api/auth/sign-in`, {
       data: { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' },
+      headers: { 'sec-fetch-site': 'same-origin' },
     });
     expect(secondSignIn.status()).toBe(200);
     const secondPage = await secondContext.newPage();

@@ -114,7 +114,13 @@ export async function runDevelopmentStack({ demo = false } = {}) {
   }
 
   try {
-    const apiEnvironment = { PORT: String(API_PORT) };
+    // Browser writes reach the API through the Vite proxy carrying this lane's web origin, which the
+    // API's built-in development origins cover only on lane 0. The API appends these to its own
+    // resolved CAPACITYLENS_CORS_ORIGIN, so the operator's environment files keep their meaning.
+    const apiEnvironment = {
+      PORT: String(API_PORT),
+      CAPACITYLENS_DEV_WEB_ORIGINS: `http://localhost:${WEB_PORT},http://127.0.0.1:${WEB_PORT}`,
+    };
     if (demo) {
       demoStorage = await createDisposableDemoStorage(resolveLane());
       Object.assign(apiEnvironment, {

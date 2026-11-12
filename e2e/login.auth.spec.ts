@@ -25,6 +25,7 @@ async function seedUser(email = EMAIL) {
   try {
     const res = await anonymousRequest.post(`${API}/api/auth/sign-up`, {
       data: { email, password: PASSWORD, name: 'Tester' },
+      headers: { 'sec-fetch-site': 'same-origin' },
     });
     if (!res.ok()) expect(res.status()).toBe(409);
   } finally {

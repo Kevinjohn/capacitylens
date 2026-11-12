@@ -79,6 +79,7 @@ test.group('beta transfer apply', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
     await db.from('account_member_resources').delete();
+    await db.from('password_confirmations').delete();
   });
 
   test('restores a full source export into a fresh company and retains destination authority', async ({
