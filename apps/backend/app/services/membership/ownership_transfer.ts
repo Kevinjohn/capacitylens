@@ -27,8 +27,8 @@ export async function transferOwnership(
         if (actor.masqueradeContext?.isMasquerading) {
           throw new IdentityAuthorityError('Masquerade is read-only.');
         }
-        const account = await trx.from('accounts').where('id', accountId).select('id').first();
-        if (!account) throw new OwnershipTransferError('Company not found.', 404, 'NOT_FOUND');
+        // A membership proves its company exists, so an unknown company is refused like any other
+        // company the caller does not belong to.
         currentRole = await activeCompanyRole(actor.userId, accountId, trx);
         if (!currentRole) throw new IdentityAuthorityError('Forbidden.');
       },

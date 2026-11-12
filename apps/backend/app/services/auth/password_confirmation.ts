@@ -19,6 +19,8 @@ export async function passwordConfirmationActor(
 ): Promise<CurrentActor> {
   const actor = actorIn(trx);
   if (actor.masqueradeContext?.isMasquerading) throw new PasswordConfirmationError();
+  // The company id arrives in a request body with no length bound, and the membership lookup
+  // rejects an overlong id as a fault. This probe turns any unknown id into the proof refusal.
   if (!(await trx.from('accounts').where('id', accountId).select('id').first())) {
     throw new PasswordConfirmationError();
   }

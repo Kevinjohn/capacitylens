@@ -69,14 +69,6 @@ async function currentAuthority(
   if (!(await bouncer.allows('planning:read'))) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
-  const account = await trx.from('accounts').where('id', accountId).select('id').first();
-  if (!account) {
-    throw new PlanningOperationError(
-      403,
-      'ACCOUNT_MEMBERSHIP_LOST',
-      'Company membership is unavailable.'
-    );
-  }
   const masquerading = principal.isMasquerading;
   const role = requireStoredRole(membership);
   const authority: PlanningAuthority = {
