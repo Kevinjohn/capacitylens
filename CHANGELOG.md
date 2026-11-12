@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- The native release archive installs with one command (#1835). `sudo sh install.sh DOMAIN OWNER_EMAIL` writes `/etc/capacitylens.env` with generated secrets, upgrades the database, installs and starts the systemd unit, configures a same-machine Caddy site for automatic HTTPS when Caddy is installed (otherwise it prints the address to proxy to) and prints the setup link. Scheduled backups run in the service. Running a newer release's `install.sh` without arguments upgrades in place and keeps the environment file. The manual steps remain documented.
 - A person can delete their own account from **Account** after re-entering their password (#1791). Their sign-in, sessions, company memberships and member/person link are removed in one transaction; an Owner must transfer ownership first. Invitations they sent stay valid, and audit entries keep the former user id.
 
 ### Changed
