@@ -99,7 +99,7 @@ describe('planning authority publication', () => {
     expect(useStore.getState().planning.history.past).toHaveLength(3);
     expect(useStore.getState().planning.history.future).toHaveLength(1);
 
-    failure.read = new PlanningControllerError('Sign in again.', 'UNAUTHENTICATED', 401);
+    failure.read = new PlanningControllerError('Sign in again.', undefined, 401);
     const beforeAuthLoss = useStore.getState().planningAuthLossVersion;
     await useStore.getState().refreshPlanning({ fresh: true });
 

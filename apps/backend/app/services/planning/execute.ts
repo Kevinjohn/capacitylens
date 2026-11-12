@@ -80,7 +80,7 @@ async function transitionLifecycle(
   if (table === 'clients' && current.builtin === true) {
     throw new PlanningOperationError(
       409,
-      'conflict',
+      null,
       `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'unarchived'}.`
     );
   }
@@ -132,7 +132,7 @@ export async function executePlanningIntent(
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
   }
   if (!data.accounts.some((row) => row.id === accountId)) {
-    throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The company was not found.');
+    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
   try {
     switch (intent.operation) {

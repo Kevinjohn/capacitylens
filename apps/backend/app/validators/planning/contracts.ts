@@ -83,7 +83,6 @@ export type PlanningMutationLookup =
 /** Product planning refusal codes; Kit codes retain their own contract. */
 export const planningMutationErrorCodes = [
   'VALIDATION_ERROR',
-  'UNAUTHENTICATED',
   'ACCOUNT_MEMBERSHIP_LOST',
   'AUTHORIZATION_DENIED',
   'STALE_REVISION',
@@ -92,6 +91,7 @@ export const planningMutationErrorCodes = [
   'RESTORATION_CONFIRMATION_REQUIRED',
   'RESTORATION_CONFIRMATION_STALE',
 ] as const satisfies readonly ProductErrorCode[];
+export type PlanningMutationErrorCode = (typeof planningMutationErrorCodes)[number];
 
 /** Flat command failure body; conflicts use HTTP 409. */
 export type PlanningMutationFailure = HttpErrorBody;

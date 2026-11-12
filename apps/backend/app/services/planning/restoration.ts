@@ -28,11 +28,7 @@ type SavedRow = { kind: 'row' };
 type SavedLink = { kind: 'link'; parentId: string };
 
 function conflict(): never {
-  throw new PlanningOperationError(
-    409,
-    'restoration_conflict',
-    'The deleted records can no longer be restored.'
-  );
+  throw new PlanningOperationError(409, null, 'The deleted records can no longer be restored.');
 }
 
 /** Maps expected domain refusals to a restoration conflict while surfacing implementation faults. */
@@ -158,11 +154,7 @@ export async function restoreGroup(
   );
   if (consumed === 0) {
     if (await trx.from('deleted_groups').where(owner).select('group_id').first()) {
-      throw new PlanningOperationError(
-        409,
-        'restoration_consumed',
-        'This deletion has already been restored.'
-      );
+      throw new PlanningOperationError(409, null, 'This deletion has already been restored.');
     }
     const origin = await trx
       .from('planning_mutations')
@@ -175,11 +167,7 @@ export async function restoreGroup(
       .select('mutation_id')
       .first();
     if (origin) {
-      throw new PlanningOperationError(
-        409,
-        'restoration_invalidated',
-        'This deletion can no longer be restored.'
-      );
+      throw new PlanningOperationError(409, null, 'This deletion can no longer be restored.');
     }
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }

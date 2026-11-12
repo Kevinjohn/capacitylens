@@ -9,7 +9,6 @@ import { StalePlanningRevisionError } from '#services/planning_revision';
 import { RestorationConfirmationError } from '#services/planning/restoration';
 import { PlanningOperationError } from '#services/planning/execute';
 import { IdentityAuthorityError } from '#services/auth/authorization';
-import { planningMutationErrorCodes } from '#validators/planning/contracts';
 import type { PlanningMutationFailure } from '#validators/planning/contracts';
 
 /** Map a planning failure to its HTTP status and body; anything unrecognised is rethrown. */
@@ -29,15 +28,10 @@ function refusal(error: unknown): {
     };
   }
   if (error instanceof PlanningOperationError) {
-    const code =
-      planningMutationErrorCodes.find((candidate) => candidate === error.code) ??
-      (error.status === 400
-        ? 'VALIDATION_ERROR'
-        : error.status === 403
-          ? 'AUTHORIZATION_DENIED'
-          : undefined);
-    const status = code === 'VALIDATION_ERROR' ? 400 : error.status;
-    return { status, body: { error: error.message, ...(code ? { code } : {}) } };
+    return {
+      status: error.status,
+      body: { error: error.message, ...(error.code ? { code: error.code } : {}) },
+    };
   }
   if (error instanceof EntityWriteError) {
     return {

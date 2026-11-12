@@ -26,12 +26,13 @@ import { createServerRevision } from '#services/planning/server_timestamp';
 import { validateEntityRow } from '#validators/entities/index';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { isRetainedTable, retainedQuery } from './retained_rows.js';
+import type { PlanningMutationErrorCode } from '#validators/planning/contracts';
 
 /** A safe refusal whose caller must roll back the enclosing planning transaction. */
 export class PlanningOperationError extends Error {
   constructor(
     readonly status: number,
-    readonly code: string,
+    readonly code: PlanningMutationErrorCode | null,
     message: string
   ) {
     super(message);
@@ -69,7 +70,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
 /** Resolves a stored row from the complete company snapshot, refusing missing targets. */
 export function existingRow(data: AppData, table: AppDataKey, id: string): Row {
   const row = (data[table] as unknown as Row[]).find((item) => item.id === id);
-  if (!row) throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The record was not found.');
+  if (!row) throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.');
   return row;
 }
 
@@ -122,17 +123,17 @@ export async function writeRow(
   const existing = (data[table] as unknown as Row[]).find((row) => row.id === id);
   requirePrivacyPermission(table, fields, capabilities, mode);
   if (mode === 'create' && existing) {
-    throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   if (
     mode === 'create' &&
     !isRetainedTable(table) &&
     (await trx.from(TABLE_NAMES[table]).select('id').where('id', id).first())
   ) {
-    throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   if (mode === 'update' && !existing) {
-    throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The record was not found.');
+    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.');
   }
   const candidate: Record<string, unknown> = {
     ...(existing ?? {}),
@@ -186,7 +187,7 @@ export async function writeRow(
         .first();
       if (prior) {
         if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id) {
-          throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+          throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
         }
         const purged = await retainedQuery(trx, accountId, table)
           .onlyTrashed()
@@ -194,7 +195,7 @@ export async function writeRow(
           .where('deletion_group_id', String(prior.deletion_group_id))
           .forceDelete();
         if (purged !== 1) {
-          throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.');
+          throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
         }
       }
     }
@@ -235,7 +236,7 @@ export async function updateSettings(
     assertFrozenAccountFields(changes, candidate, existing);
   } catch (error) {
     if (!(error instanceof EntityWriteError) || error.status !== 409) throw error;
-    throw new PlanningOperationError(409, 'frozen_account_setting', error.message);
+    throw new PlanningOperationError(409, null, error.message);
   }
   const now = createServerRevision(existing.updatedAt);
   candidate.updatedAt = now;

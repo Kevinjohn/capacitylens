@@ -1,4 +1,5 @@
 import { RestorationConfirmationError } from '#services/planning/restoration';
+import { PlanningOperationError } from '#services/planning/execute';
 import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
@@ -136,6 +137,24 @@ test.group('product error adapters', () => {
     await new HttpExceptionHandler().handle(error, ctx);
     assert.equal(result.status, 400);
     assert.deepEqual(result.body, { error: 'Email is required.', code: 'VALIDATION_ERROR' });
+  });
+  test('planning operation refusals send the status and code the service states', async ({
+    assert,
+  }) => {
+    const conflict = context(new PlanningOperationError(409, null, 'The record is in use.'));
+    await new PlanningController().lookup(conflict.ctx);
+    assert.equal(conflict.result.status, 409);
+    assert.deepEqual(conflict.result.body, { error: 'The record is in use.' });
+
+    const invalid = context(
+      new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.')
+    );
+    await new PlanningController().lookup(invalid.ctx);
+    assert.equal(invalid.result.status, 400);
+    assert.deepEqual(invalid.result.body, {
+      error: 'The record was not found.',
+      code: 'VALIDATION_ERROR',
+    });
   });
   test('planning restoration failures retain both typed count-bearing variants', async ({
     assert,
