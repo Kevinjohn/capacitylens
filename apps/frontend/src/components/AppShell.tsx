@@ -144,7 +144,7 @@ function GatedApp({
           {/* prettier-ignore */}
           <GatedMain
             hydrated={hydrated}
-                masqueradeBanner={masqueradeBanner}
+            masqueradeBanner={masqueradeBanner}
             navigate={navigate}
             orientation={orientation}
             mobileSidebarTriggerRef={mobileSidebarTrigger}

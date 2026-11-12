@@ -152,6 +152,16 @@ describe('masqueradeApi', () => {
     );
   });
 
+  it.each([undefined, null, { id: 'u-actor' }, { id: '', email: 'actor@example.test' }])(
+    'rejects an active status whose principal is %j',
+    async (principal) => {
+      mocks.status.mockResolvedValue(json({ ...activeStatus, principal }));
+      await expect(masqueradeApi.status()).rejects.toThrow(
+        'The server returned an invalid masquerade principal.',
+      );
+    },
+  );
+
   it('rejects a status whose active context proof differs from the active mode token', async () => {
     mocks.status.mockResolvedValue(json({ ...activeStatus, contextToken: 'stale-context' }));
     await expect(masqueradeApi.status()).rejects.toThrow(

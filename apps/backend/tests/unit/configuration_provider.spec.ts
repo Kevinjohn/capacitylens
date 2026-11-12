@@ -5,8 +5,8 @@ import {
 } from '#services/development_bootstrap';
 import { assertProductionPosture } from '#providers/configuration_provider';
 
-test('production refuses bootstrap, invalid limiter, and audit settings', ({ assert }) => {
-  const safe = { mode: 'password-only', allowReset: false, rateLimit: '300' };
+test('production refuses bootstrap, invalid limiter, and reset settings', ({ assert }) => {
+  const safe = { allowReset: false, rateLimit: '300' };
   assert.doesNotThrow(() => assertProductionPosture(safe));
   assert.throws(() => assertProductionPosture({ ...safe, createAdmin: true }), /bootstrap/);
   assert.throws(

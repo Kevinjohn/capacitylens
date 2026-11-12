@@ -31,8 +31,9 @@ export type AuthStatusResult =
       kind: 'login';
       passwordResetEmail: boolean;
       needsSetup: boolean;
-      /** True when the 401 body itself was untrustworthy (non-JSON or an HTML proxy page). The login wall then shows a non-terminal "configuration couldn't be
-       * loaded" notice above the password form. */
+      /** True when the 401 body itself was untrustworthy (non-JSON or an HTML proxy page). The login
+       * wall then shows a non-terminal "configuration couldn't be loaded" notice above the password
+       * form. */
       degraded: boolean;
       /** Captured synchronously at the 401 boundary, before replacing the app detaches persistence. */
       hadUnsavedChanges: boolean;
