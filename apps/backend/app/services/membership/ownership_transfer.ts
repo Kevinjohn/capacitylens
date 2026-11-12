@@ -40,7 +40,9 @@ export async function transferOwnership(
       // The controller supplies a string; eligibility checks must precede empty-confirmation rejection.
       parseAuthorization: (raw) => raw as string,
       authorizeExecute: async (_context, authorization) => {
-        if (currentRole !== 'owner') throw new IdentityAuthorityError('Forbidden.');
+        if (!currentRole || !access.can(currentRole, 'ownership:transfer')) {
+          throw new IdentityAuthorityError('Forbidden.');
+        }
         if (actor.userId === toUserId) {
           throw new OwnershipTransferError(
             'Choose another administrator.',

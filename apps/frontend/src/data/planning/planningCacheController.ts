@@ -234,7 +234,7 @@ export function readPlanningProblem(
 // keeps the readable rows and history.
 function losesScope(error: unknown): boolean {
   const details = errorDetails(error);
-  return details.status === 401 || details.code === 'UNAUTHENTICATED';
+  return details.status === 401;
 }
 
 /** Owns one client's planning request ordering and page-local typed history. */

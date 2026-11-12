@@ -1,4 +1,5 @@
 import { RestorationConfirmationError } from '#services/planning/restoration';
+import { PlanningOperationError } from '#services/planning/execute';
 import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
@@ -136,6 +137,25 @@ test.group('product error adapters', () => {
     await new HttpExceptionHandler().handle(error, ctx);
     assert.equal(result.status, 400);
     assert.deepEqual(result.body, { error: 'Email is required.', code: 'VALIDATION_ERROR' });
+  });
+  test('planning operation refusals send the status and code the service states', async ({
+    assert,
+  }) => {
+    const conflict = context(new PlanningOperationError(409, null, 'The record is in use.'));
+    await new PlanningController().lookup(conflict.ctx);
+    assert.equal(conflict.result.status, 409);
+    assert.deepEqual(conflict.result.body, { error: 'The record is in use.' });
+
+    // No code is inferred from the status, and a stated code does not rewrite the status.
+    const uncoded = context(new PlanningOperationError(400, null, 'Nothing to restore.'));
+    await new PlanningController().lookup(uncoded.ctx);
+    assert.equal(uncoded.result.status, 400);
+    assert.deepEqual(uncoded.result.body, { error: 'Nothing to restore.' });
+
+    const stale = context(new PlanningOperationError(409, 'STALE_REVISION', 'Reload first.'));
+    await new PlanningController().lookup(stale.ctx);
+    assert.equal(stale.result.status, 409);
+    assert.deepEqual(stale.result.body, { error: 'Reload first.', code: 'STALE_REVISION' });
   });
   test('planning restoration failures retain both typed count-bearing variants', async ({
     assert,

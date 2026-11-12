@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { resolveErrorMessage } from '@/lib/errorMessage';
+import { can } from '@capacitylens/shared/domain/access';
 import { useRole } from '@/auth/permissionContext';
 import { ConfirmDialog, Modal } from './common/ui';
 import { m } from '@/i18n';
@@ -134,7 +135,7 @@ export function ImportExport() {
   const setNotice = useStore((state) => state.setNotice);
   const role = useRole();
   const activeAccountId = useStore((state) => state.activeAccountId);
-  const canImport = role === 'owner';
+  const canImport = role !== null && can(role, 'company:import');
   // A full-slice replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
   const {
     pending: pendingImport,

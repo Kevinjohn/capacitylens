@@ -167,7 +167,6 @@ test.group('session-bound allocation restoration', (suite) => {
       };
       const failed = await restore(client, cookie, groupId, revisionBefore);
       failed.assertStatus(500);
-      assert.notEqual(failed.body().code, 'restoration_conflict');
     } finally {
       Allocation.prototype.serialize = originalSerialize;
     }

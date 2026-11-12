@@ -33,7 +33,7 @@ export default class FirstCompanySetupController {
     if (name === null || ![0, 1].includes(weekStartsOn as number) || !validTimeZone) {
       return ctx.response.badRequest({
         error: `Enter a company name of up to ${MAX_NAME_LENGTH} characters without unsupported characters, a Sunday or Monday week start, and a supported time zone.`,
-        code: 'INVALID_INPUT',
+        code: 'VALIDATION_ERROR',
       });
     }
     const result = await withActor(ctx, async (actor, trx) => {

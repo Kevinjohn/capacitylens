@@ -33,7 +33,7 @@ export default class AnonymiseController {
     }
     const { accountId } = ctx.params;
     await withActor(ctx, async (_actor, trx) => {
-      const actor = await passwordConfirmationActor(accountId, trx);
+      const actor = await passwordConfirmationActor(accountId, trx, 'anonymise');
       await passwordConfirmations.consume(kitContextIn(trx), {
         confirmationId: body.confirmationId as string,
         action: 'anonymise',

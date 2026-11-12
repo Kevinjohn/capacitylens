@@ -80,7 +80,7 @@ async function transitionLifecycle(
   if (table === 'clients' && current.builtin === true) {
     throw new PlanningOperationError(
       409,
-      'conflict',
+      null,
       `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'unarchived'}.`
     );
   }
@@ -132,7 +132,7 @@ export async function executePlanningIntent(
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
   }
   if (!data.accounts.some((row) => row.id === accountId)) {
-    throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The company was not found.');
+    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
   try {
     switch (intent.operation) {
@@ -362,11 +362,9 @@ export async function executePlanningIntent(
   } catch (error) {
     if (error instanceof PlanningOperationError) throw error;
     if (error instanceof EntityWriteError) {
-      throw new PlanningOperationError(
-        error.status,
-        error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',
-        error.message
-      );
+      throw error.status === 403
+        ? new PlanningOperationError(403, 'AUTHORIZATION_DENIED', error.message)
+        : new PlanningOperationError(400, 'VALIDATION_ERROR', error.message);
     }
     if (error instanceof DomainError) {
       throw new PlanningOperationError(400, 'VALIDATION_ERROR', error.message);

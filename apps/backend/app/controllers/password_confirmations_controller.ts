@@ -55,7 +55,9 @@ export default class PasswordConfirmationsController {
   async password(ctx: HttpContext) {
     const body = requestBody(ctx.request.body());
     if (!body) return ctx.response.badRequest({ error: 'Invalid password confirmation.' });
-    await withActor(ctx, async (_actor, trx) => passwordConfirmationActor(body.accountId, trx));
+    await withActor(ctx, async (_actor, trx) =>
+      passwordConfirmationActor(body.accountId, trx, body.action)
+    );
     const { confirmationId } = await passwordConfirmations.confirmPassword(
       await accountInput(ctx),
       {

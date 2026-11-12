@@ -19,8 +19,8 @@ export const accessPermissions = {
   invitations: { manage: 'admin' },
   viewAs: { use: 'admin' },
   resources: { anonymise: 'admin' },
-  catalogue: { manage: 'admin' },
   ownership: { transfer: 'owner' },
+  company: { import: 'owner', anonymise: 'owner' },
 } as const satisfies Record<string, Record<string, Role>>;
 
 type Permissions = typeof accessPermissions;

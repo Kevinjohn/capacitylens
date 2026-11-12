@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { useCan } from '@/auth/permissionContext';
-import { useRole } from '@/auth/permissionContext';
 import { API_BASE } from '@/data/apiConfig';
 import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { resolveErrorMessage } from '@/lib/errorMessage';
@@ -17,8 +16,7 @@ import { SettingsSection } from './SettingsSection';
 export function CompanyAnonymiseSection() {
   const accountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
-  const allowed = useCan('resources:anonymise');
-  const role = useRole();
+  const allowed = useCan('company:anonymise');
   const [confirming, setConfirming] = useState(false);
   const [proving, setProving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -41,7 +39,7 @@ export function CompanyAnonymiseSection() {
     });
   }, []);
 
-  if (!allowed || !accountId || role !== 'owner') return null;
+  if (!allowed || !accountId) return null;
 
   const submit = async (confirmationId: string) => {
     if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== accountId) {

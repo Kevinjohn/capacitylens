@@ -22,7 +22,8 @@ const LOWEST_ROLE: Record<PermissionKey, Role> = {
   'invitations:manage': 'admin',
   'viewAs:use': 'admin',
   'resources:anonymise': 'admin',
-  'catalogue:manage': 'admin',
+  'company:import': 'owner',
+  'company:anonymise': 'owner',
   'ownership:transfer': 'owner',
 };
 

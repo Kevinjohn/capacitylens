@@ -1,5 +1,6 @@
 import type { Role } from '../../account/types.js';
 import type { AppData, AppDataKey } from '../../types/entities.js';
+import { canSeePrivateNames } from '../access.js';
 import { redactPrivateName } from '../privateNames.js';
 import { inspectLifecycleAncestry } from './ancestry.js';
 import type { LifecycleAncestryRow } from './ancestry.js';
@@ -40,7 +41,7 @@ export function archiveRecovery(data: AppData, accountId: string, role: Role): A
     return row ? { ...row, archivedAt: null } : undefined;
   };
   const label = (table: AppDataKey, row: LifecycleAncestryRow): string => {
-    if ((table === 'clients' || table === 'projects') && role !== 'owner') {
+    if ((table === 'clients' || table === 'projects') && !canSeePrivateNames(role)) {
       return redactPrivateName(row as unknown as AppData['clients'][number]).name;
     }
     return typeof row.name === 'string' && row.name
