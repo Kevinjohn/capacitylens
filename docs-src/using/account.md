@@ -51,11 +51,15 @@ restore it, with the same role.
 ## Delete your account
 
 1. Select **Delete account**.
-2. Enter your **Current password** and select **Delete account**.
+2. Enter your **Current password** and select **Delete account**. The password confirms this one
+   deletion, as it does for other sensitive actions.
 
 Your sign-in, sessions and company memberships are removed and this browser returns to the sign-in
 page. Invitations you sent stay valid. Your name stays on past schedules and audit entries; an Owner
 or Admin can anonymise the person record afterwards. Deletion cannot be undone.
+
+If the password is wrong, the dialog says **Incorrect password.** and nothing is deleted. After five
+wrong passwords in a minute, password confirmation is blocked for 20 minutes.
 
 If the message says **Your account was deleted, but a follow-up step failed**, the account is
 already gone and you are signed out.

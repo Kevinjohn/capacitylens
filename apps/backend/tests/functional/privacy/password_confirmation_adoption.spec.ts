@@ -234,25 +234,6 @@ test.group('package proof adoption boundaries', (group) => {
     anonymise.assertStatus(404);
   });
 
-  test('deleting a company cascades only its issued proofs', async ({ client, assert }) => {
-    const { cookie } = await resetAuthenticatedData(client);
-    const a = await issue(client, cookie);
-    const b = await issue(client, cookie, { ...body, accountId: 'a-loft' });
-    a.assertStatus(200);
-    b.assertStatus(200);
-    await db.from('memberships').where('scope_id', accountId).delete();
-    await db.from('accounts').where('id', accountId).delete();
-    assert.isNull(
-      await db.from('password_confirmations').where('id', a.body().confirmationId).first()
-    );
-    const survivor = await db
-      .from('password_confirmations')
-      .where('id', b.body().confirmationId)
-      .firstOrFail();
-    assert.equal(survivor.scope, 'a-loft');
-    assert.isNull(survivor.consumed_at);
-  });
-
   test('Kit transaction context is removed after callback completion and interruption', async ({
     client,
     assert,

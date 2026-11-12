@@ -10,12 +10,13 @@ As a signed-in person, I want to delete my account so that my sign-in and compan
 
 ## Acceptance criteria
 
-| Field            | Control        | Required/default/conditions |
-| ---------------- | -------------- | --------------------------- |
-| Current password | Password input | Required.                   |
+| Field            | Control        | Required/default/conditions                                         |
+| ---------------- | -------------- | ------------------------------------------------------------------- |
+| Current password | Password input | Required. Confirms this one deletion through password confirmation. |
 
 - The dialog explains that deletion cannot be undone and removes the sign-in and company memberships; the person Resource remains on past schedules, while audit history retains the former user ID.
 - **Delete account** submits the form; **Cancel** closes the dialog and clears its field. An Owner must transfer ownership before deletion. On success, the browser returns to sign-in.
+- The password is checked through a single-use `delete-account` password confirmation, with the same wrong-password limit as ownership transfer, import and company anonymisation. A wrong password shows **Incorrect password.** against the field and deletes nothing.
 
 ## User flow
 
@@ -23,6 +24,7 @@ As a signed-in person, I want to delete my account so that my sign-in and compan
 flowchart TD
   open["Account → Delete account"] --> password["Enter current password"]
   password --> submit["Delete account"]
+  submit --> denied["Wrong password: Incorrect password. shown on the field"]
   submit --> success["Success: account is removed; return to sign in"]
   submit --> owner["Owner conflict: transfer ownership first"]
   password --> cancel["Cancel: close the dialog and clear the field"]
@@ -35,7 +37,10 @@ flowchart TD
   view["AccountView opens DeleteAccountDialog"] --> submit["useAccountDeletion.submit sends current password"]
   submit --> client["authClient.deleteAccount"]
   client --> route["CredentialController.deleteAccount"]
-  route --> kit["Account Kit accountData.delete"]
+  route --> issue["Package confirmPassword issues a delete-account confirmation"]
+  issue --> refused["Wrong password or throttled: refusal shown on the field"]
+  issue --> spend["Package withConfirmation spends it"]
+  spend --> kit["Account Kit accountData.delete checks the current password"]
   kit --> owner["Owner protection returns LAST_OWNER conflict"]
   kit --> session["Successful deletion terminates session; browser reloads"]
 ```

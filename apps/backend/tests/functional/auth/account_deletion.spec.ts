@@ -125,6 +125,12 @@ test.group('account deletion', (group) => {
     const refused = await deleteAccount(client, cookie, owner.password);
     refused.assertStatus(409);
     refused.assertBodyContains({ code: 'LAST_OWNER' });
+    // The password was confirmed and the confirmation spent before Account Kit refused.
+    const spent = await db
+      .from('password_confirmations')
+      .where({ user_id: ownerId, action: 'delete-account' })
+      .whereNotNull('consumed_at');
+    assert.lengthOf(spent, 1);
 
     const after = await rowsFor(ownerId);
     assert.lengthOf(after.users, 1);
@@ -140,7 +146,7 @@ test.group('account deletion', (group) => {
 
     const wrong = await deleteAccount(client, cookie, 'not-the-password-2026');
     wrong.assertStatus(403);
-    wrong.assertBodyContains({ code: 'CURRENT_PASSWORD_INCORRECT' });
+    wrong.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' });
     const malformed = await asDataOwner(client.post('/api/auth/delete-account'), cookie)
       .json({ currentPassword: editor.password, extra: true })
       .send();
