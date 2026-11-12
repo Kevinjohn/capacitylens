@@ -4,8 +4,7 @@ import type { DomainErrorCode } from '../domain/errors.js';
 import type { Activity, Allocation, ID, ISODate, Resource } from '../types/entities.js';
 import { isValidISODate } from './isoDates.js';
 
-// Keep referential-integrity validation pure. Calendar parsing lives in isoDates and cascade
-// transforms in cascades.
+// Keep referential-integrity validation pure. Calendar parsing lives in isoDates.
 
 /** Outcome of a validation: `ok`, display-safe `errors`, and their stable `codes`. */
 export interface ValidationResult {

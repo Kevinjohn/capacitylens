@@ -9,7 +9,6 @@ import {
   MAX_HOURS_PER_DAY,
 } from '@capacitylens/shared/types/entities';
 import type { ISODate, Resource } from '@capacitylens/shared/types/entities';
-import type { ColumnGeometry } from './columnGeometry';
 
 interface ReconcileReassignedHoursInput {
   current: number;
@@ -35,15 +34,7 @@ interface ResolveGestureInput {
   isDays: boolean;
 }
 
-interface BuildSnappedBarGeometryInput {
-  mode: DragMode;
-  current: DateRange;
-  deltaDays: number;
-  options: GestureOptions;
-  geometry: ColumnGeometry;
-}
-
-// Pure date, load and geometry policy belongs here; DOM hit testing and store commits remain at the gesture boundary. Unexpected computation errors must propagate rather than be swallowed.
+// Pure date and load policy belongs here; DOM hit testing and store commits remain at the gesture boundary. Unexpected computation errors must propagate rather than be swallowed.
 
 /** Hours/day an allocation should carry after being reassigned (dragged) to `target`. An external
  * / 3rd party always carries no load (0). In Hours/Days mode, a zero-hour booking dragged off an
@@ -107,24 +98,4 @@ export function resolveGesture({
     return { dates, hours, clamped };
   }
   return { dates, hours: hoursPerDay, clamped: false };
-}
-
-/** Snaps the range and measures it through the shared column geometry so preview pixels match committed placement, including narrowed weekends. */
-export function buildSnappedBarGeometry({
-  mode,
-  current,
-  deltaDays,
-  options,
-  geometry,
-}: BuildSnappedBarGeometryInput): { left: number; width: number } {
-  const snapped = applyGesture({
-    mode: mode,
-    range: current,
-    deltaDays: deltaDays,
-    options: options,
-  });
-  return {
-    left: geometry.xForDateInGeom(snapped.startDate),
-    width: geometry.widthForDates(snapped.startDate, snapped.endDate),
-  };
 }

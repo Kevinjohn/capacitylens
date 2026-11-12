@@ -5,25 +5,10 @@ type JsonColumnOptions<T> = Pick<ColumnOptions, 'prepare' | 'consume'> & {
   consume(value: unknown): T | null;
 };
 
-export type JsonValue =
-  null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
-
 export type JsonValidator<T> = (value: unknown) => value is T;
 
 export const isBoolean: JsonValidator<boolean> = (value): value is boolean =>
   typeof value === 'boolean';
-
-export const isJsonValue: JsonValidator<JsonValue> = (value): value is JsonValue => {
-  if (value === null || typeof value === 'boolean' || typeof value === 'string') return true;
-  if (typeof value === 'number') return Number.isFinite(value);
-  if (Array.isArray(value)) return value.every(isJsonValue);
-  if (typeof value !== 'object') return false;
-  const prototype = Object.getPrototypeOf(value);
-  return (
-    (prototype === Object.prototype || prototype === null) &&
-    Object.values(value as Record<string, unknown>).every(isJsonValue)
-  );
-};
 
 export function isOneOf<const T extends string | number>(values: readonly T[]): JsonValidator<T> {
   return (value): value is T => values.includes(value as T);
