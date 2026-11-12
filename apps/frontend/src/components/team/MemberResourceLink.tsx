@@ -5,17 +5,13 @@ import type { TeamMember } from '@/account/teamAccessClient';
 import { Modal, SelectField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { Link as LinkIcon } from 'lucide-react';
-import { useMemberResourceLinkRequest } from './useMemberResourceLinkRequest';
+import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
 
 interface MemberResourceLinkProps {
   member: TeamMember;
   myRole: Role | undefined;
   linkedResourceIds: ReadonlySet<string>;
   resourceCandidates: readonly { resourceId: string; label: string }[];
-  workspaceId: string | null;
-  reload(): void;
-  /** Render inside the centered resource-link dialog instead of a table cell. */
-  dialog?: boolean;
 }
 
 type MemberResourceView = ReturnType<typeof buildMemberResourceView>;
@@ -62,14 +58,10 @@ function buildMemberResourceView(
 
 /** Account-admin control linking a login member to one eligible person Resource. */
 export function MemberResourceLink(props: MemberResourceLinkProps) {
-  const { member, myRole, linkedResourceIds, resourceCandidates, dialog = false } = props;
-  if (myRole !== 'owner' && myRole !== 'admin') {
-    return dialog ? <div /> : <td className="py-2 px-4" />;
-  }
+  const { member, myRole, linkedResourceIds, resourceCandidates } = props;
+  if (myRole !== 'owner' && myRole !== 'admin') return <td className="py-2 px-4" />;
   const view = buildMemberResourceView(member, linkedResourceIds, resourceCandidates);
-
-  if (!dialog) return <MemberResourceCell linked={Boolean(member.resourceLink)} view={view} />;
-  return <MemberResourceEditor {...props} view={view} />;
+  return <MemberResourceCell linked={Boolean(member.resourceLink)} view={view} />;
 }
 
 function MemberResourceCell({ linked, view }: { linked: boolean; view: MemberResourceView }) {
@@ -96,16 +88,15 @@ function MemberResourceCell({ linked, view }: { linked: boolean; view: MemberRes
 function MemberResourceEditor({
   member,
   workspaceId,
-  reload,
+  request,
   view,
-}: Pick<MemberResourceLinkProps, 'member' | 'workspaceId' | 'reload'> & {
+}: {
+  member: TeamMember;
+  workspaceId: string | null;
+  request: MemberResourceLinkRequest;
   view: MemberResourceView;
 }) {
-  const { pending, error, statusMessage, change } = useMemberResourceLinkRequest({
-    member,
-    workspaceId,
-    reload,
-  });
+  const { pending, error, statusMessage, change } = request;
   const disabled = pending || !workspaceId;
   return (
     <div className="flex flex-col items-start gap-2">
@@ -165,15 +156,12 @@ export function MemberResourceDialog({
   linkedResourceIds,
   resourceCandidates,
   workspaceId,
-  reload,
+  request,
   busy,
-}: {
-  member: TeamMember;
-  myRole: Role | undefined;
-  linkedResourceIds: ReadonlySet<string>;
-  resourceCandidates: readonly { resourceId: string; label: string }[];
+}: MemberResourceLinkProps & {
   workspaceId: string | null;
-  reload(): void;
+  /** Owned by the members section so it outlives this row and its dialog. */
+  request: MemberResourceLinkRequest;
   busy: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -196,7 +184,10 @@ export function MemberResourceDialog({
         aria-label={m.settings_member_resource_link_aria({ member: memberLabel })}
         data-testid="member-resource-menu"
         disabled={busy}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          request.clearStatus();
+          setOpen(true);
+        }}
       >
         <LinkIcon />
       </Button>
@@ -212,14 +203,11 @@ export function MemberResourceDialog({
             </Button>
           }
         >
-          <MemberResourceLink
+          <MemberResourceEditor
             member={member}
-            myRole={myRole}
-            linkedResourceIds={linkedResourceIds}
-            resourceCandidates={resourceCandidates}
             workspaceId={workspaceId}
-            reload={reload}
-            dialog
+            request={request}
+            view={buildMemberResourceView(member, linkedResourceIds, resourceCandidates)}
           />
         </Modal>
       )}
