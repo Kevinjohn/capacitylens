@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Read Schedule utilisation over the weeks shown and distinguish it from daily conflicts and the fixed 14-day warning."
+    />
+    <title>Find capacity · CapacityLens documentation preview</title>
+    <link rel="stylesheet" href="../../preview.css" />
+  </head>
+  <body class="handbook">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="../../index.html"
+        >CapacityLens <span>Documentation exploration</span></a
+      ><a href="../../index.html">Compare options</a>
+    </header>
+    <div class="preview-note">Editorial preview · A: Task handbook · Actual product unchanged</div>
+    <nav class="compare" aria-label="Same task in another option">
+      <span>Compare this task:</span
+      ><a
+        href="../handbook/06-find-capacity.html"
+        aria-label="Option A: Task handbook"
+        aria-current="page"
+        >A<span> Task handbook</span></a
+      ><a href="../guided/06-find-capacity.html" aria-label="Option B: First-week walkthrough"
+        >B<span> First-week walkthrough</span></a
+      ><a href="../answers/06-find-capacity.html" aria-label="Option C: Answer desk"
+        >C<span> Answer desk</span></a
+      >
+    </nav>
+    <details class="route-menu">
+      <summary>Browse tasks</summary>
+      <nav aria-label="All tasks">
+        <ol>
+          <li><a href="01-plan-next-week.html">Plan next week</a></li>
+          <li><a href="02-get-access.html">Get access</a></li>
+          <li><a href="03-add-people.html">Add people</a></li>
+          <li><a href="04-add-work.html">Add work</a></li>
+          <li><a href="05-add-time-off.html">Add time off</a></li>
+          <li><a href="06-find-capacity.html" aria-current="page">Find capacity</a></li>
+          <li><a href="07-book-work.html">Book work</a></li>
+          <li><a href="08-resolve-overbooking.html">Resolve overbooking</a></li>
+          <li><a href="09-check-your-week.html">Check your week</a></li>
+          <li><a href="10-update-the-plan.html">Update the plan</a></li>
+        </ol>
+      </nav>
+    </details>
+    <div class="layout">
+      <aside class="sidebar">
+        <nav aria-label="Task handbook">
+          <p class="nav-label">Your next-week plan</p>
+          <ol>
+            <li><a href="01-plan-next-week.html">Plan next week</a></li>
+            <li><a href="02-get-access.html">Get access</a></li>
+            <li><a href="03-add-people.html">Add people</a></li>
+            <li><a href="04-add-work.html">Add work</a></li>
+            <li><a href="05-add-time-off.html">Add time off</a></li>
+            <li><a href="06-find-capacity.html" aria-current="page">Find capacity</a></li>
+            <li><a href="07-book-work.html">Book work</a></li>
+            <li><a href="08-resolve-overbooking.html">Resolve overbooking</a></li>
+            <li><a href="09-check-your-week.html">Check your week</a></li>
+            <li><a href="10-update-the-plan.html">Update the plan</a></li>
+          </ol>
+        </nav>
+      </aside>
+      <main id="main" tabindex="-1">
+        <div class="page-context">
+          <p>Schedule, Overview</p>
+          <p><strong>For:</strong> Editor, Admin, Owner, Viewer</p>
+        </div>
+        <article>
+          <h1 id="find-capacity" tabindex="-1">
+            Find capacity
+            <a class="header-anchor" href="#find-capacity" aria-label='Permalink to "Find capacity"'
+              >&ZeroWidthSpace;</a
+            >
+          </h1>
+          <p>
+            Open <strong>Schedule</strong> and choose <strong>Weeks visible</strong> to cover the
+            period you are planning. <strong>Prev</strong> and <strong>Next</strong> move one week
+            at a time; <strong>Today</strong> returns to the current week. Use
+            <strong>Show filters</strong> to narrow the grid by person, discipline, client, project
+            or activity.
+          </p>
+          <table tabindex="0">
+            <thead>
+              <tr>
+                <th>Schedule indicator</th>
+                <th>What it means</th>
+                <th>What changes it</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Utilisation percentage</td>
+                <td>
+                  Booked time compared with available time across the visible date window.
+                  <strong>Weeks visible</strong> changes this window.
+                </td>
+                <td>Zooming or moving the grid can change it.</td>
+              </tr>
+              <tr>
+                <td>Red daily band</td>
+                <td>The person is booked for more than their capacity on that day.</td>
+                <td>Check the date, working patterns, availability and time off.</td>
+              </tr>
+              <tr>
+                <td>Red percentage</td>
+                <td>The person is over capacity at least once in the next 14 days from today.</td>
+                <td>This warning stays fixed when you pan or zoom.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            At exactly 100%, booked time equals available capacity; over capacity means booked time
+            is greater. An empty cell alone does not prove someone is available. Check
+            <strong>Resources</strong> and <strong>Time off</strong> before booking.
+          </p>
+          <p>
+            <a class="screenshot" href="../../../docs-src/screenshots/flows/capacity_overview.png"
+              ><img
+                src="../../../docs-src/screenshots/flows/capacity_overview.png"
+                alt="Overview ledger with free days, a red overbooked figure and tentative work"
+                loading="lazy"
+            /></a>
+          </p>
+          <p>
+            <em>Illustrative interface capture; its dates do not show completion of your plan.</em>
+          </p>
+          <p>
+            <strong>Overview</strong> is optional. It compares capacity one week per column,
+            starting with four weeks. By default, only Owners and Admins can open it; an Owner or
+            Admin can choose <strong>Admins &amp; Editors</strong> or <strong>Everyone</strong> in
+            <strong>Settings → Overview access</strong>. <strong>Blocks</strong> bookings do not
+            measure workload. Review their spans and overlaps on Schedule; Overview has no capacity
+            figures in this mode.
+          </p>
+          <p>
+            When you have a suitable person and date range,
+            <a href="./07-book-work.html">Book work</a>. For a red daily band, see
+            <a href="./08-resolve-overbooking.html">Resolve overbooking</a>.
+          </p>
+        </article>
+        <nav class="page-turn" aria-label="Related tasks">
+          <a rel="prev" href="05-add-time-off.html"><span>Previous</span>Add time off</a
+          ><a rel="next" href="07-book-work.html"><span>Next</span>Book work</a>
+        </nav>
+      </main>
+    </div>
+    <footer>
+      CapacityLens · Standalone editorial sample · <a href="../../faq.html">FAQ appendix</a> ·
+      <a href="../../research.html">Read the comparison report</a>
+    </footer>
+  </body>
+</html>
