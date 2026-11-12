@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { AccountPicker } from './accounts/AccountPicker';
+import { AccountAccessRecovery } from './accounts/AccountAccessRecovery';
 import { AccountLoadRecovery } from './accounts/AccountLoadRecovery';
 import { ConnectionError } from './ConnectionError';
 import { RotateHint } from './RotateHint';
@@ -35,14 +35,13 @@ interface AppEntryGateProps {
   hydrated: boolean;
   connectionError: boolean;
   loadError: boolean;
-  demoAuthActive: boolean;
   hasActiveAccount: boolean;
+  ambiguousAccountDirectory: boolean;
   allowWithoutActiveAccount: boolean;
   activeAccountId: string | null;
   activeAccountLoadFailed: string | null;
   activeAccountName: string;
   onRetryActiveAccountLoad: () => Promise<boolean>;
-  onChooseAnotherAccount: () => void;
   children: ReactNode;
 }
 
@@ -51,14 +50,13 @@ export function AppEntryGate({
   hydrated,
   connectionError,
   loadError,
-  demoAuthActive,
   hasActiveAccount,
+  ambiguousAccountDirectory,
   allowWithoutActiveAccount,
   activeAccountId,
   activeAccountLoadFailed,
   activeAccountName,
   onRetryActiveAccountLoad,
-  onChooseAnotherAccount,
   children,
 }: AppEntryGateProps) {
   if (connectionError) {
@@ -82,19 +80,15 @@ export function AppEntryGate({
   if (activeAccountLoadFailed !== null && activeAccountLoadFailed === activeAccountId) {
     return (
       <FocusableStage>
-        <AccountLoadRecovery
-          accountName={activeAccountName}
-          onRetry={onRetryActiveAccountLoad}
-          {...(demoAuthActive ? { onChooseAnother: onChooseAnotherAccount } : {})}
-        />
+        <AccountLoadRecovery accountName={activeAccountName} onRetry={onRetryActiveAccountLoad} />
       </FocusableStage>
     );
   }
 
-  if (!hasActiveAccount && !allowWithoutActiveAccount) {
+  if (ambiguousAccountDirectory || (!hasActiveAccount && !allowWithoutActiveAccount)) {
     return (
       <FocusableStage>
-        <AccountPicker />
+        <AccountAccessRecovery />
         <RotateHint />
       </FocusableStage>
     );

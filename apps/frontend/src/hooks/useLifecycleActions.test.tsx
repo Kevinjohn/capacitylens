@@ -1,13 +1,17 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '@/store/useStore';
-import { DEFAULT_ACCOUNT_ID, makeAccount, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  loadPlanningData,
+  DEFAULT_ACCOUNT_ID,
+  makeAccount,
+  resetStoreWithAccount,
+} from '@/test/fixtures';
 import { useLifecycleActions } from './useLifecycleActions';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
-  isServerConfigured: () => true,
 }));
 const originalRefreshPlanning = useStore.getState().refreshPlanning;
 
@@ -92,7 +96,7 @@ describe('named lifecycle actions', () => {
   });
 
   it('blocks another anonymisation after a failed canonical refresh, including after remount', async () => {
-    useStore.getState().replaceAll({
+    loadPlanningData({
       ...useStore.getState().data,
       accounts: [makeAccount({ id: 'a-recovery-failed' })],
     });

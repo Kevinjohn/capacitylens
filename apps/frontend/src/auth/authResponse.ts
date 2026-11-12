@@ -11,7 +11,6 @@ interface AuthResponseFields {
   authMode: unknown;
   emailVerified: unknown;
   membershipRequired: unknown;
-  canCreateAccount: unknown;
   companySetupRequired: unknown;
   needsSetup: unknown;
   passwordResetEmail: unknown;
@@ -29,7 +28,6 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
     authMode: readField(value, 'authMode'),
     emailVerified: readField(value, 'emailVerified'),
     membershipRequired: readField(value, 'membershipRequired'),
-    canCreateAccount: readField(value, 'canCreateAccount'),
     companySetupRequired: readField(value, 'companySetupRequired'),
     needsSetup: readField(value, 'needsSetup'),
     passwordResetEmail: readField(value, 'passwordResetEmail'),
@@ -40,10 +38,8 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
 function parseLoginResult(body: unknown): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
   const rawAuthMode = fields?.authMode;
-  const authMode = isAuthMode(rawAuthMode) && rawAuthMode !== 'off' ? rawAuthMode : 'password-only';
-  const degraded =
-    fields === null ||
-    (rawAuthMode !== undefined && (!isAuthMode(rawAuthMode) || rawAuthMode === 'off'));
+  const authMode = isAuthMode(rawAuthMode) ? rawAuthMode : 'password-only';
+  const degraded = fields === null || (rawAuthMode !== undefined && !isAuthMode(rawAuthMode));
   return {
     kind: 'login',
     authMode,
@@ -98,7 +94,7 @@ export function invalidResponse(): AuthStatusResult {
 
 function parsePassResult(body: unknown): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
-  if (!fields || !isAuthMode(fields.authMode) || fields.authMode === 'off') {
+  if (!fields || !isAuthMode(fields.authMode)) {
     return invalidResponse();
   }
   const authMode = fields.authMode;
@@ -119,10 +115,8 @@ function parsePassResult(body: unknown): AuthStatusResult {
   const accessGate = resolveAccessGate(fields, admission.admitted);
   const next: Extract<AuthStatusResult, { kind: 'pass' }> = {
     kind: 'pass',
-    identitySource: 'live',
     authMode,
     user,
-    canCreateAccount: false,
     companySetupRequired: fields.companySetupRequired === true,
     ...(accessGate ? { accessGate } : {}),
     admission: admission.summary,

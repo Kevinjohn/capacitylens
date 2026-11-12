@@ -1,5 +1,4 @@
 import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password';
-import { useAuth } from '@/auth/authContext';
 import { m } from '@/i18n';
 import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
@@ -165,9 +164,7 @@ export function SecuritySection({
   deleteOpen?: boolean;
   onDeleteOpenChange?: (open: boolean) => void;
 }) {
-  const auth = useAuth();
   const controller = useSecurityController();
-  const showPassword = auth.authMode !== 'off';
   const changePasswordOpen = (open: boolean) => {
     if (!open) controller.password.reset();
     onPasswordOpenChange(open);
@@ -176,7 +173,7 @@ export function SecuritySection({
     if (!open) controller.deletion.reset();
     onDeleteOpenChange(open);
   };
-  return showPassword ? (
+  return (
     <>
       <PasswordDialog
         open={passwordOpen}
@@ -189,5 +186,5 @@ export function SecuritySection({
         controller={controller}
       />
     </>
-  ) : null;
+  );
 }

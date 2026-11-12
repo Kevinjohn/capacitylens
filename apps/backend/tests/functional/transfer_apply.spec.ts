@@ -392,6 +392,44 @@ test.group('beta transfer apply', (group) => {
     assert.deepEqual(await readState(accountId, true), before);
   });
 
+  test('strips a prototype key from a JSON transfer row without mutating server state', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie } = await resetAuthenticatedData(client);
+    const full = await document();
+    const before = await readState(accountId, true);
+    const revisionBefore = await revision();
+    const auditsBefore = await db.from('audit_entries').where('account_id', accountId);
+    const mutationsBefore = await db.from('planning_mutations').where('account_id', accountId);
+    const firstClient = full.data.clients[0];
+    if (!firstClient) throw new Error('The transfer fixture has no client.');
+
+    // Build the hostile member with JSON text so `__proto__` is an own input key, not an
+    // object-literal prototype setter.
+    const serializedClient = JSON.stringify(firstClient);
+    const clientWithPrototypeKey = JSON.parse(
+      `${serializedClient.slice(0, -1)},"__proto__":{"polluted":true}}`
+    );
+    const documentWithPrototypeKey = JSON.parse(JSON.stringify(full)) as BetaExportDocument;
+    documentWithPrototypeKey.data.clients[0] = clientWithPrototypeKey;
+
+    const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+      .json({ accountId, document: documentWithPrototypeKey })
+      .send();
+
+    preview.assertStatus(200);
+    assert.isUndefined(({} as Record<string, unknown>).polluted);
+    assert.notProperty(Object.prototype, 'polluted');
+    assert.deepEqual(await readState(accountId, true), before);
+    assert.equal(await revision(), revisionBefore);
+    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditsBefore);
+    assert.deepEqual(
+      await db.from('planning_mutations').where('account_id', accountId),
+      mutationsBefore
+    );
+  });
+
   test('a post-cleanup audit failure rolls back rows, restoration, marker and proof', async ({
     client,
     assert,

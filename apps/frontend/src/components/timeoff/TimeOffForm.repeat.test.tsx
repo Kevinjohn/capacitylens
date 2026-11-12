@@ -1,11 +1,52 @@
 import { requireCreated } from '@/test/requireCreated';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render as rtlRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
 import { resetStoreWithAccount, WORKDAYS } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { TimeOffForm } from './TimeOffForm';
+import type { ReactElement } from 'react';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+
+function render(ui: ReactElement) {
+  return rtlRender(
+    <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+      {ui}
+    </PermissionContext.Provider>,
+  );
+}
+
+function queueRepeatedEntries(): void {
+  getStubPlanningTransport().respondNext((execution) => {
+    if (execution.intent.operation !== 'timeOff.repeat') {
+      throw new Error('Expected repeated time off');
+    }
+    return {
+      status: 'committed',
+      mutationId: execution.mutationId,
+      revision: execution.baseRevision + 1,
+      restoration: { consumedGroupId: null, replacementGroupId: null },
+      projection: {
+        mode: 'patch',
+        history: 'retain',
+        changed: {
+          upserts: execution.intent.entries.map((row) => ({
+            entity: 'timeOff' as const,
+            row: {
+              createdAt: '2026-01-15T12:00:00.000Z',
+              updatedAt: '2026-01-15T12:00:00.000Z',
+              ...row,
+              note: row.note ?? null,
+              accountId: useStore.getState().data.accounts[0]?.id ?? 'unit-fixture',
+            },
+          })),
+          removed: [],
+        },
+      },
+    };
+  });
+}
 
 const resourceDraft = {
   kind: 'person' as const,
@@ -39,6 +80,7 @@ async function renderCreateForm(startDate = '2026-01-30', endDate = startDate, o
 }
 
 function chooseRepeat(optionName: string): void {
+  queueRepeatedEntries();
   const repeat = screen.getByLabelText('Repeat');
   fireEvent.keyDown(repeat, { key: 'ArrowDown' });
   fireEvent.click(screen.getByRole('option', { name: optionName }));
@@ -255,7 +297,7 @@ function registerTimeOffRepeatPrivacy(): void {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
     render(
-      <PermissionContext.Provider value={{ role: 'editor' }}>
+      <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
         <TimeOffForm
           defaults={{ resourceId: resource.id, startDate: '2026-01-30', endDate: '2026-01-30' }}
           onClose={() => {}}

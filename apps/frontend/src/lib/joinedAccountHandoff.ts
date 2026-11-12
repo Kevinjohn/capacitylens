@@ -24,8 +24,3 @@ export function clearJoinedAccountHandoff(search: string): string {
 export function replaceWithJoinedAccount(accountId: string): void {
   window.location.replace(buildJoinedAccountEntryPath(accountId));
 }
-
-/** Reboot into the ordinary authenticated company picker when no destination could be verified. */
-export function replaceWithAccountPicker(): void {
-  window.location.replace('/');
-}

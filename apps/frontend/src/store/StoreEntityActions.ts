@@ -1,4 +1,4 @@
-import type { Draft, LifecycleEntity, Patch } from './entityDrafts';
+import type { Draft, Patch } from './entityDrafts';
 import type {
   Activity,
   Allocation,
@@ -12,11 +12,11 @@ import type {
   TimeOff,
 } from '@capacitylens/shared/types/entities';
 
-/** A create action can be blocked by the active Viewer policy without saving a row. */
+/** A create action can be blocked until a writable role is confirmed. */
 export type CreateResult<T> = { kind: 'created'; value: T } | { kind: 'blocked' };
 
-/** Store actions mutate the active account and participate in undo history. Viewer restrictions may
- * return a blocked result or no-op; stale IDs are no-ops. Tenancy, reference, and input-integrity
+/** Store actions write the active company through the canonical planning transport. Authority
+ * restrictions may return a blocked result or no-op; stale IDs are no-ops. Reference and input-integrity
  * failures throw, and callers handling user input must surface them. */
 export interface StoreEntityActions {
   /** Create a discipline in the active account. */
@@ -65,7 +65,7 @@ export interface StoreEntityActions {
     sourceId: ID,
     input: Draft<Allocation>,
   ) => Promise<CreateResult<Allocation>>;
-  /** Apply an allocation patch. False means a Viewer refusal, a missing target or no change;
+  /** Apply an allocation patch. False means an authority refusal, a missing target or no change;
    * validation, tenancy and server refusals reject. */
   updateAllocation: (id: ID, patch: Patch<Allocation>) => Promise<boolean>;
   /** Delete an allocation from the active account. */
@@ -87,20 +87,6 @@ export interface StoreEntityActions {
   addClosure: (input: Draft<Closure>) => Promise<CreateResult<Closure>>;
   /** Patch a company closure in the active account. */
   updateClosure: (id: ID, patch: Patch<Closure>) => Promise<void>;
-  /** Delete a company closure from the active account. */
+  /** Delete a company closure from the active company. */
   deleteClosure: (id: ID) => Promise<void>;
-
-  // These actions mutate the volatile demo snapshot. Server mode uses named planning routes.
-  /** Archive an active entity.
-   *
-   * @throws When the entity is not active; no state changes.
-   */
-  archiveEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Restore an archived entity.
-   *
-   * @throws When the entity is not archived; no state changes.
-   */
-  unarchiveEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Irreversibly obfuscate one resource and its dependent notes. */
-  anonymiseResource: (id: ID) => void;
 }

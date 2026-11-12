@@ -22,11 +22,10 @@ test('supported presets preserve literal forwarded arguments and mode environmen
   context.after(() => rm(directory, { recursive: true, force: true }));
   await writeFile(
     join(directory, 'pnpm'),
-    `#!${process.execPath}\nprocess.stdout.write(JSON.stringify({args:process.argv.slice(2),demo:process.env.VITE_CAPACITYLENS_DEMO}));\n`,
+    `#!${process.execPath}\nprocess.stdout.write(JSON.stringify({args:process.argv.slice(2)}));\n`,
     { mode: 0o755 },
   );
   for (const [preset, prefix] of [
-    ['dev-demo', ['run', 'dev:web']],
     ['webkit', ['exec', 'playwright', 'test', '--project=webkit']],
     ['firefox', ['exec', 'playwright', 'test', '--project=firefox']],
   ]) {
@@ -37,7 +36,6 @@ test('supported presets preserve literal forwarded arguments and mode environmen
     assert.equal(result.status, 0, result.stderr);
     const output = JSON.parse(result.stdout);
     assert.deepEqual(output.args, [...prefix, 'literal argument;$()']);
-    if (preset === 'dev-demo') assert.equal(output.demo, '1');
   }
 });
 

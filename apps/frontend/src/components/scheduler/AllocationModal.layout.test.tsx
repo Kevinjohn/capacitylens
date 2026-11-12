@@ -1,11 +1,16 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
 import { chooseOption } from './__tests__/schedulerTestKit';
-import { ACC, person, resetAllocationModalStore } from './__tests__/allocationModalTestKit';
+import {
+  ACC,
+  person,
+  resetAllocationModalStore,
+  renderAsOwner,
+} from './__tests__/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
@@ -59,7 +64,7 @@ describe('AllocationModal compact layout', () => {
     );
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
@@ -106,7 +111,7 @@ describe('AllocationModal compact layout', () => {
         status: 'confirmed',
       }),
     );
-    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     expectLabelControl(screen.getByRole('combobox', { name: 'Assignee' }));
     expect(screen.queryByRole('combobox', { name: 'Repeat' })).not.toBeInTheDocument();
@@ -125,7 +130,7 @@ describe('AllocationModal compact layout', () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
     );
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -151,7 +156,7 @@ describe('AllocationModal compact layout', () => {
         color: '#9ca3af',
       }),
     );
-    const externalView = render(
+    const externalView = renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: external.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -175,7 +180,7 @@ describe('AllocationModal compact layout', () => {
         projectId: 'p1',
       }),
     );
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: placeholder.id, startDate: '2026-06-01', endDate: '2026-06-03' }}

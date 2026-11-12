@@ -25,8 +25,8 @@ export function isIsoInstant(value: unknown): value is IsoInstant {
   }
 }
 
-/** Whether the app runs against the server's password sign-in or as the unauthenticated demo. */
-export type AccountMode = 'off' | 'password-only';
+/** Authentication method used by the server. */
+export type AccountMode = 'password-only';
 
 /** Every membership role, most to least privileged. */
 export const ACCOUNT_ROLES = Object.freeze(['owner', 'admin', 'editor', 'viewer'] as const);

@@ -65,8 +65,3 @@ export function useActiveScopedData(): AppData {
   const base = useScopedData();
   return resolveSharedActiveData(base);
 }
-
-/** Returns the raw active-account slice without applying the active-only projection. Demo slices include inactive rows; server slices remain limited to what the server hydrated, so administrative inactive views fetch includeInactive=1 separately. */
-export function useInactiveScopedData(): AppData {
-  return useScopedData();
-}

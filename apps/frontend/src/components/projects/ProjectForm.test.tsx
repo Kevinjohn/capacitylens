@@ -1,23 +1,33 @@
+import { archiveForTest } from '@/test/fixtures';
 import { RestorationCleanupDialog } from '@/data/planning/RestorationCleanupDialog';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import userEvent from '@testing-library/user-event';
 import { ProjectForm } from './ProjectForm';
 import { useStore } from '@/store/useStore';
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { PlanningControllerError } from '@/data/planning/planningCacheController';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
 });
 
+function renderOwner(ui: ReactElement, options?: Parameters<typeof render>[1]) {
+  return render(<OwnerPermissions>{ui}</OwnerPermissions>, options);
+}
+
 describe('ProjectForm', () => {
   const installInternalClient = async () => {
     const state = useStore.getState();
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
-    state.replaceAll({ ...state.data, clients: [...state.data.clients, internal] });
+    loadPlanningData({ ...state.data, clients: [...state.data.clients, internal] });
     await useStore.getState().refreshPlanning();
     return internal;
   };
@@ -28,18 +38,30 @@ describe('ProjectForm', () => {
       useStore.getState().addClient({ name: 'Ferris', color: '#111111' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Gotham', clientId: client.id, color: '#ec4899' }),
+      useStore.getState().addProject({ name: 'Gotham', clientId: client.id, color: '#da2d92' }),
     );
     const closure = await requireCreated(
       useStore
         .getState()
         .addClosure({ name: 'Gotham holiday', startDate: '2026-12-24', endDate: '2026-12-25' }),
     );
+    queuePlanningPatch(() => ({ upserts: [], removed: [{ entity: 'closures', id: closure.id }] }), {
+      replacementGroupId: 'closure-restore-group',
+    });
     await useStore.getState().deleteClosure(closure.id);
+    getStubPlanningTransport().failNext(
+      new PlanningControllerError(
+        'This change clears 1 restorable item.',
+        'RESTORATION_CONFIRMATION_REQUIRED',
+        409,
+        false,
+        1,
+      ),
+    );
     const before = structuredClone(useStore.getState().data);
     const history = useStore.getState().planning.history;
     const onClose = vi.fn();
-    render(
+    renderOwner(
       <>
         <ProjectForm project={project} onClose={onClose} />
         <RestorationCleanupDialog />
@@ -65,7 +87,7 @@ describe('ProjectForm', () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111111' }),
     );
-    render(<ProjectForm onClose={onClose} />);
+    renderOwner(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText('Name'), 'Secret Launch');
     await user.click(screen.getByRole('switch', { name: 'Use code name' }));
@@ -88,7 +110,7 @@ describe('ProjectForm', () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111111' }),
     );
-    render(<ProjectForm onClose={onClose} />);
+    renderOwner(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText('Name'), 'Secret Launch');
     await user.click(screen.getByRole('switch', { name: 'Use code name' }));
@@ -120,8 +142,8 @@ describe('ProjectForm', () => {
         .addProject({ name: 'Real project', clientId: client.id, color: '#ec4899' }),
     );
     const project = { ...created, name: '"Aurora"', isPrivate: true };
-    useStore.getState().replaceAll({ ...useStore.getState().data, projects: [project] });
-    render(
+    loadPlanningData({ ...useStore.getState().data, projects: [project] });
+    renderOwner(
       <PermissionContext.Provider value={{ role: 'admin' }}>
         <ProjectForm project={project} onClose={vi.fn()} />
       </PermissionContext.Provider>,
@@ -137,7 +159,7 @@ describe('ProjectForm', () => {
   it('refuses to save a project without a client', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(<ProjectForm onClose={onClose} />);
+    renderOwner(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText('Name'), 'New Project');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -153,13 +175,14 @@ describe('ProjectForm', () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
-    render(<ProjectForm onClose={onClose} />);
+    renderOwner(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText('Name'), 'New Project');
     fireEvent.keyDown(screen.getByLabelText('Client'), { key: 'ArrowDown' });
     fireEvent.click(screen.getByRole('option', { name: client.name }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.projects).toHaveLength(1);
     expect(useStore.getState().data.projects[0]?.clientId).toBe(client.id);
@@ -173,7 +196,7 @@ describe('ProjectForm', () => {
     const alpha = await requireCreated(
       useStore.getState().addClient({ name: 'alpha', color: '#222222' }),
     );
-    const { baseElement } = render(<ProjectForm onClose={vi.fn()} />);
+    const { baseElement } = renderOwner(<ProjectForm onClose={vi.fn()} />);
 
     fireEvent.keyDown(screen.getByLabelText('Client'), { key: 'ArrowDown' });
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
@@ -192,7 +215,7 @@ describe('ProjectForm', () => {
 
   it('hides the colour picker for an Internal-owned project in the default grey mode', async () => {
     const internal = await installInternalClient();
-    render(<ProjectForm onClose={vi.fn()} />);
+    renderOwner(<ProjectForm onClose={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: /^Colour/ })).toBeInTheDocument();
     fireEvent.keyDown(screen.getByLabelText('Client'), { key: 'ArrowDown' });
@@ -211,7 +234,7 @@ describe('ProjectForm', () => {
       }),
     );
 
-    render(<ProjectForm project={project} onClose={vi.fn()} />);
+    renderOwner(<ProjectForm project={project} onClose={vi.fn()} />);
     expect(screen.queryByRole('button', { name: /^Colour/ })).not.toBeInTheDocument();
     await user.clear(screen.getByLabelText('Name'));
     await user.type(screen.getByLabelText('Name'), 'Planning updated');
@@ -229,12 +252,12 @@ describe('ProjectForm', () => {
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Alpha', clientId: client.id, color: '#ec4899' }),
+      useStore.getState().addProject({ name: 'Alpha', clientId: client.id, color: '#da2d92' }),
     );
-    useStore.getState().archiveEntity('clients', client.id);
+    await archiveForTest('clients', client.id);
     // Adopt this direct fixture edit before the form captures its canonical save revision.
     await useStore.getState().refreshPlanning();
-    render(<ProjectForm project={project} onClose={onClose} />);
+    renderOwner(<ProjectForm project={project} onClose={onClose} />);
 
     const select = screen.getByLabelText('Client');
     expect(select).toHaveTextContent('Ferris (archived)');
@@ -248,6 +271,7 @@ describe('ProjectForm', () => {
     await user.type(screen.getByLabelText('Name'), 'Alpha Renamed');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.projects[0]?.name).toBe('Alpha Renamed');
     expect(useStore.getState().data.projects[0]?.clientId).toBe(client.id);
@@ -266,7 +290,7 @@ describe('ProjectForm', () => {
         color: '#da2d92',
       }),
     );
-    render(<ProjectForm project={project} onClose={onClose} />);
+    renderOwner(<ProjectForm project={project} onClose={onClose} />);
 
     await useStore.getState().updateProject(project.id, { color: '#e02727' });
     await user.clear(screen.getByLabelText('Name'));
@@ -294,10 +318,10 @@ describe('ProjectForm', () => {
         color: '#da2d92',
       }),
     );
-    render(<ProjectForm project={project} onClose={onClose} />);
+    renderOwner(<ProjectForm project={project} onClose={onClose} />);
 
     const data = useStore.getState().data;
-    useStore.getState().replaceAll({
+    loadPlanningData({
       ...data,
       projects: data.projects.filter((candidate) => candidate.id !== project.id),
     });

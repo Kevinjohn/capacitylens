@@ -78,8 +78,6 @@ services:
       args:
         # Set a remote API origin when the app cannot use nginx's same-origin /api proxy.
         VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-}
-        # Set VITE_CAPACITYLENS_DEMO=1 to build the in-memory demo; it takes precedence over the API origin.
-        VITE_CAPACITYLENS_DEMO: ${VITE_CAPACITYLENS_DEMO:-}
         VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
         VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
     restart: unless-stopped
@@ -112,8 +110,8 @@ services:
       # nothing else reach that address: any private peer can choose its forwarded client address.
       - '${WEB_BIND_IP:-127.0.0.1}:${WEB_PORT:-8080}:8080'
 
-  # Explicitly target this service for a client-only deployment:
-  #   VITE_CAPACITYLENS_DEMO=1 docker compose up --build -d web-client
+  # Explicitly target this service with a remote API origin:
+  #   VITE_CAPACITYLENS_API=https://api.example.test docker compose up --build -d web-client
   # Because a service name was supplied, Compose starts only this profile and its dependencies
   # (there are none); the normal upgrade/api/web services remain stopped.
   web-client:
@@ -124,7 +122,6 @@ services:
       target: web-client
       args:
         VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-}
-        VITE_CAPACITYLENS_DEMO: ${VITE_CAPACITYLENS_DEMO:-}
         VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
         VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
     restart: unless-stopped

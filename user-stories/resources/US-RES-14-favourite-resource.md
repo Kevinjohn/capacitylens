@@ -27,12 +27,11 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["FavouriteButton click toggles isFavourite"] --> B["useStore.updateResource"] --> C["createTypedPlanningActions.updateResource → resource.update"]
-  C --> D{{"Server typed transport or demo volatile transport"}}
-  D -->|server| E["PlanningController.resourceUpdate → mutatePlanning → executePlanningIntent.writeRow"] --> E2["writeRow persists isFavourite"]
-  D -->|demo| F["createVolatilePlanningTransport.execute → apply"]
+  C --> D{{"Typed server transport"}}
+  D --> E["PlanningController.resourceUpdate → mutatePlanning → executePlanningIntent.writeRow"] --> E2["writeRow persists isFavourite"]
   E2 --> G["acceptReceipt updates planning state"]
   F --> G
   G --> H["useResourceListModel comparator moves favourite row"]
 ```
 
-**Code references:** [FavouriteButton.tsx](../../apps/frontend/src/components/resources/FavouriteButton.tsx) · [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+**Code references:** [FavouriteButton.tsx](../../apps/frontend/src/components/resources/FavouriteButton.tsx) · [useResourceListModel.ts](../../apps/frontend/src/components/resources/useResourceListModel.ts) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)

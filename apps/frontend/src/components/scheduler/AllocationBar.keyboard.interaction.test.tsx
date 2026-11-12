@@ -1,14 +1,17 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { screen, fireEvent, act } from '@testing-library/react';
+import { screen, fireEvent, act, render as renderTestingLibrary } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { m } from '@/i18n';
 import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
 import { PlanningControllerError } from '@/data/planning/planningCacheController';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount } from '@/test/fixtures';
+import { OwnerPermissions } from '@/test/ownerPermissions';
 import { buildVisibleRange } from '@/store/selectors';
-import { renderWithTooltip as render, GEOM, indexAtClientX } from './__tests__/schedulerTestKit';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { GEOM, indexAtClientX } from './__tests__/schedulerTestKit';
 
 import {
   barFor,
@@ -16,6 +19,18 @@ import {
   seedAllocation,
   settlePlanning,
 } from './__tests__/allocationBarInteractionTestKit';
+
+function OwnerPermissionsAndTooltip({ children }: { children: ReactNode }) {
+  return (
+    <OwnerPermissions>
+      <TooltipProvider>{children}</TooltipProvider>
+    </OwnerPermissions>
+  );
+}
+
+function render(ui: ReactNode) {
+  return renderTestingLibrary(ui, { wrapper: OwnerPermissionsAndTooltip });
+}
 
 beforeEach(async () => resetStoreWithAccount());
 afterEach(() => vi.restoreAllMocks());
@@ -565,7 +580,7 @@ function registerKeyboardPinnedTest() {
     expect(after.data.allocations.find((candidate) => candidate.id === allocation.id)).toBe(
       storedBefore,
     );
-    expect(after.past).toBe(before.past);
+    expect(after.planning.history.past).toBe(before.planning.history.past);
     expect(after.srAnnouncement).toBeNull();
   });
 }

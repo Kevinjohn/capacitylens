@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { isServerConfigured } from '@/data/apiConfig';
 import { useRole } from '@/auth/permissionContext';
 import { ConfirmDialog, Modal } from './common/ui';
 import { m } from '@/i18n';
@@ -9,7 +8,6 @@ import { Button } from './ui/button';
 import { reloadPage } from '@/lib/reloadPage';
 import { useServerImport } from './import-export/useServerImport';
 import { BetaImportPreview } from './import-export/BetaImportPreview';
-import { confirmLocalImport } from './import-export/confirmLocalImport';
 import { summarize } from './import-export/importExportMessages';
 import { useExportAction } from './import-export/useExportAction';
 import { usePendingImport } from './import-export/usePendingImport';
@@ -46,16 +44,14 @@ function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
 
 function ImportConfirmation({
   pending,
-  serverMode,
   onConfirm,
   onCancel,
 }: {
   pending: PendingImport;
-  serverMode: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const outro = serverMode ? m.data_import_confirm_outro_server() : m.data_import_confirm_outro();
+  const outro = m.data_import_confirm_outro_server();
   return (
     <ConfirmDialog
       title={m.data_import_confirm_title()}
@@ -137,9 +133,8 @@ function DataToolControls({
 export function ImportExport() {
   const setNotice = useStore((state) => state.setNotice);
   const role = useRole();
-  const serverMode = isServerConfigured();
   const activeAccountId = useStore((state) => state.activeAccountId);
-  const canImport = !serverMode || role === 'owner';
+  const canImport = role === 'owner';
   // A full-slice replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
   const {
     pending: pendingImport,
@@ -158,10 +153,6 @@ export function ImportExport() {
   const [confirmingAction, setConfirmingAction] = useState(false);
   const continuePreview = async () => {
     if (!pendingImport || !activeAccountId) return;
-    if (!serverMode) {
-      setPreviewRevision(0);
-      return;
-    }
     const selection = selectionRef.current;
     const isCurrent = () =>
       selectionRef.current === selection && useStore.getState().activeAccountId === activeAccountId;
@@ -204,13 +195,7 @@ export function ImportExport() {
       setPendingImport(null);
       return;
     }
-    if (serverMode) {
-      setConfirmingAction(true);
-      return;
-    }
-    if (!activeAccountId) return;
-    setPendingImport(null);
-    confirmLocalImport(pendingImport.document, activeAccountId, setNotice);
+    setConfirmingAction(true);
   };
 
   return (
@@ -254,7 +239,6 @@ export function ImportExport() {
       {pendingImport && canImport && previewRevision !== null && !confirmingAction && (
         <ImportConfirmation
           pending={pendingImport}
-          serverMode={serverMode}
           onConfirm={confirmImport}
           onCancel={() => {
             selectionRef.current += 1;

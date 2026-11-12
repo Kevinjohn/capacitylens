@@ -9,6 +9,13 @@ import {
   resetStoreWithAccount,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
+import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import {
+  queueTimeOffDeleteGroupResponse,
+  queueTimeOffRestoreResponse,
+  queueTimeOffRepeatResponse,
+} from '@/test/planning/queuePlanningFixtures';
 
 const state = () => useStore.getState();
 
@@ -23,7 +30,6 @@ async function timeOffSetup() {
     type: 'holiday',
     ...overrides,
   });
-  useStore.setState({ past: [], future: [] });
   return { resource, draft };
 }
 
@@ -39,6 +45,7 @@ describe('atomic time-off creation: happy path', () => {
       }
     });
 
+    queueTimeOffRepeatResponse();
     const created = await requireCreated(
       state().addTimeOffs([
         draft({ note: 'First note' }),
@@ -60,7 +67,7 @@ describe('atomic time-off creation: happy path', () => {
 });
 
 describe('atomic time-off creation: atomic validation', () => {
-  it('rejects an empty batch and an invalid middle row atomically', async () => {
+  it('rejects empty batches locally and preserves the server refusal for an invalid row', async () => {
     const { draft } = await timeOffSetup();
 
     await expect(requireCreated(state().addTimeOffs([]))).rejects.toThrow(
@@ -76,6 +83,13 @@ describe('atomic time-off creation: atomic validation', () => {
         data = state().data;
       }
     });
+    getStubPlanningTransport().failNext(
+      new PlanningControllerError(
+        'The server refused the time-off batch.',
+        'VALIDATION_ERROR',
+        400,
+      ),
+    );
     await expect(
       requireCreated(
         state().addTimeOffs([
@@ -84,9 +98,17 @@ describe('atomic time-off creation: atomic validation', () => {
           draft({ startDate: '2026-08-01', endDate: '2026-08-02' }),
         ]),
       ),
-    ).rejects.toThrow(/end date cannot be before/i);
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
     unsubscribe();
 
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'timeOff.repeat',
+      entries: [
+        { startDate: '2026-06-01', endDate: '2026-06-02' },
+        { startDate: '2026-07-10', endDate: '2026-07-01' },
+        { startDate: '2026-08-01', endDate: '2026-08-02' },
+      ],
+    });
     expect(dataPublications).toBe(0);
     expect(state().data.timeOff).toHaveLength(0);
     expect(state().planning.history.past).toHaveLength(1);
@@ -102,8 +124,6 @@ describe('atomic time-off creation: resource validation', () => {
     });
     useStore.setState({
       data: { ...state().data, resources: [...state().data.resources, foreignResource] },
-      past: [],
-      future: [],
     });
 
     await expect(
@@ -129,25 +149,26 @@ describe('atomic time-off creation: history', () => {
   it('uses one undo/redo step for the complete batch and keeps addTimeOff working', async () => {
     const { draft } = await timeOffSetup();
     const historyBeforeBatch = state().planning.history.past.length;
+    queueTimeOffRepeatResponse();
     const created = await requireCreated(
       state().addTimeOffs([draft(), draft({ startDate: '2026-06-08', endDate: '2026-06-10' })]),
     );
     expect(state().planning.history.past).toHaveLength(historyBeforeBatch + 1);
 
+    const ids = created.map(({ id }) => id);
+    queueTimeOffDeleteGroupResponse(ids, 'group-timeoff-undo');
     await state().undoPlanning();
     expect(state().data.timeOff).toHaveLength(0);
+    queueTimeOffRestoreResponse(created, 'group-timeoff-undo');
     await state().redoPlanning();
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'planning.restoreGroup',
+      restorationGroupId: 'group-timeoff-undo',
+    });
     const redone = state().data.timeOff;
     expect(redone.map((timeOff) => ({ ...timeOff, updatedAt: null }))).toEqual(
       created.map((timeOff) => ({ ...timeOff, updatedAt: null })),
     );
-    expect(
-      redone.every(
-        (timeOff, index) =>
-          Date.parse(timeOff.updatedAt) > Date.parse(created[index]?.updatedAt ?? ''),
-      ),
-    ).toBe(true);
-
     const single = await requireCreated(
       state().addTimeOff(draft({ startDate: '2026-06-15', endDate: '2026-06-15' })),
     );

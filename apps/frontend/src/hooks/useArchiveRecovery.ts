@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import type { ArchiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import { client, scopeQueryKey } from '@/api/queryClient';
 import { useAuth } from '@/auth/authContext';
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext';
-import { isServerConfigured } from '@/data/apiConfig';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
 import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
-import { useInactiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { resolveErrorMessage } from '@/lib/errorMessage';
@@ -36,7 +33,6 @@ function hasCurrentPlanningAccess(
 
 /** Reads recovery identities with a fresh cache fence for every principal/access transition. */
 export function useArchiveRecovery() {
-  const server = isServerConfigured();
   const { user } = useAuth();
   const role = useRole();
   const permissionStatus = usePermissionStatus();
@@ -44,7 +40,6 @@ export function useArchiveRecovery() {
   const accountId = useStore((state) => state.activeAccountId);
   const planning = useStore((state) => state.planning);
   const masquerade = useStore((state) => state.masquerade);
-  const localData = useInactiveScopedData();
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
   useEffect(
@@ -57,13 +52,12 @@ export function useArchiveRecovery() {
   const enabled =
     mayWrite &&
     !!accountId &&
-    (!server ||
-      (!!user &&
-        permissionStatus === 'resolved' &&
-        hasCurrentPlanningAccess(planning.accessKey, user.id, role) &&
-        planning.context?.companyId === accountId &&
-        planning.canWrite &&
-        planning.status === 'ready'));
+    !!user &&
+    permissionStatus === 'resolved' &&
+    hasCurrentPlanningAccess(planning.accessKey, user.id, role) &&
+    planning.context?.companyId === accountId &&
+    planning.canWrite &&
+    planning.status === 'ready';
   const scope = {
     principalId: user?.id ?? null,
     accountId,
@@ -94,7 +88,7 @@ export function useArchiveRecovery() {
       planning.revision,
       reloadKey,
     ]),
-    enabled: server && enabled,
+    enabled,
     gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
@@ -111,9 +105,6 @@ export function useArchiveRecovery() {
     },
   });
   if (!enabled) return { data: null, error: null, reload };
-  if (!server) {
-    return { data: archiveRecovery(localData, accountId, role ?? 'owner'), error: null, reload };
-  }
   return {
     data: query.isError ? null : (query.data ?? null),
     error: query.error ? resolveErrorMessage(query.error) : null,

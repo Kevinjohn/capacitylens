@@ -47,8 +47,8 @@ they were never shown.
 
 ## What stays in the browser
 
-The local demo keeps scheduling data in memory only; it resets on refresh and is never sent
-anywhere. Device preferences such as theme use the browser's localStorage and are not part of a
+The local demo sends scheduling changes to its disposable local SQLite server. Changes survive
+refresh and reset when the command restarts. Device preferences such as theme use the browser's localStorage and are not part of a
 company export.
 
 Scheduling data and verified identities are never saved as persistent browser snapshots. A server

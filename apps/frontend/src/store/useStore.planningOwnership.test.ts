@@ -1,14 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AppData } from '@capacitylens/shared/types/entities';
 import {
   PlanningControllerError,
   readPlanningProblem,
 } from '@/data/planning/planningCacheController';
 import { useStore } from '@/store/useStore';
-import { makeAccount, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  makeAccount,
+  makeResourceDraft,
+  replaceFixtureData,
+  resetStoreWithAccount,
+  updatePlanningFixtureSource,
+} from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 
-// Lets a test make the planning transport fail like the server would, over the demo transport.
+// Lets a test make the planning transport fail like the server would.
 const failure = vi.hoisted(() => ({
   read: null as Error | null,
   execute: null as Error | null,
@@ -18,13 +23,12 @@ const failure = vi.hoisted(() => ({
 const lookups = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const actual = await vi.importActual<typeof import('@/data/planning/volatilePlanningTransport')>(
-    '@/data/planning/volatilePlanningTransport',
+  const actual = await vi.importActual<typeof import('@/test/createTestPlanningTransport')>(
+    '@/test/createTestPlanningTransport',
   );
   return {
-    createStorePlanningTransport: (readData: () => AppData) => {
-      const transport = actual.createVolatilePlanningTransport(readData);
-      return {
+    createStorePlanningTransport: () => {
+      return actual.createTestPlanningTransport((transport) => ({
         ...transport,
         read: async (...args: Parameters<typeof transport.read>) => {
           if (failure.read) throw failure.read;
@@ -43,7 +47,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
           lookups.count += 1;
           return transport.lookup(...args);
         },
-      };
+      }));
     },
   };
 });
@@ -81,23 +85,19 @@ afterEach(() => {
 });
 
 describe('planning authority publication', () => {
-  it('clears the cache and both histories together when authentication is lost, without legacy deletes', async () => {
+  it('clears the cache and typed planning history together when authentication is lost', async () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#111111' }),
     );
-    useStore.getState().archiveEntity('clients', client.id);
-    useStore.getState().unarchiveEntity('clients', client.id);
-    useStore.getState().undo();
-    expect(useStore.getState().past).toHaveLength(1);
-    expect(useStore.getState().future).toHaveLength(1);
+    expect(useStore.getState().data.clients).toContainEqual(
+      expect.objectContaining({ id: client.id }),
+    );
     await useStore.getState().refreshPlanning();
     await seedTypedAllocation();
-    expect(useStore.getState().planning.history.past).toHaveLength(3);
+    expect(useStore.getState().planning.history.past).toHaveLength(4);
     await useStore.getState().undoPlanning();
-    expect(useStore.getState().planning.history.past).toHaveLength(2);
+    expect(useStore.getState().planning.history.past).toHaveLength(3);
     expect(useStore.getState().planning.history.future).toHaveLength(1);
-    expect(useStore.getState().past).toHaveLength(1);
-    expect(useStore.getState().future).toHaveLength(1);
 
     failure.read = new PlanningControllerError('Sign in again.', 'UNAUTHENTICATED', 401);
     const beforeAuthLoss = useStore.getState().planningAuthLossVersion;
@@ -107,8 +107,6 @@ describe('planning authority publication', () => {
     expect(state.data.allocations).toEqual([]);
     expect(state.data.clients).toEqual([]);
     expect(state.data.resources).toEqual([]);
-    expect(state.past).toEqual([]);
-    expect(state.future).toEqual([]);
     expect(state.planning.history.past).toEqual([]);
     expect(state.planning.history.future).toEqual([]);
     expect(state.planning.context).toBeNull();
@@ -119,7 +117,6 @@ describe('planning authority publication', () => {
   it('keeps rows and history and shows a refusal when a change loses company membership', async () => {
     const allocation = await seedTypedAllocation();
     const data = useStore.getState().data;
-    const legacyPast = useStore.getState().past;
     const planningPast = useStore.getState().planning.history.past;
     const authLossVersion = useStore.getState().planningAuthLossVersion;
     failure.execute = new PlanningControllerError(
@@ -134,7 +131,6 @@ describe('planning authority publication', () => {
 
     const state = useStore.getState();
     expect(state.data).toBe(data);
-    expect(state.past).toBe(legacyPast);
     expect(state.planning.history.past).toBe(planningPast);
     expect(state.planning.context).not.toBeNull();
     expect(state.activeAccountId).not.toBeNull();
@@ -163,28 +159,14 @@ describe('planning authority publication', () => {
 });
 
 describe('planning ownership of allocations', () => {
-  it("keeps other companies' allocations once when a typed receipt updates the active company", async () => {
-    const active = await seedTypedAllocation();
-    const other = { ...active, id: 'allocation-other-company', accountId: 'a2' };
-    useStore.setState((state) => ({
-      data: {
-        ...state.data,
-        accounts: [...state.data.accounts, makeAccount({ id: 'a2' })],
-        allocations: [...state.data.allocations, other],
-      },
-    }));
-
-    await useStore.getState().updateAllocation(active.id, { endDate: '2026-06-05' });
-
-    const allocations = useStore.getState().data.allocations;
-    expect(allocations.filter((row) => row.id === other.id)).toEqual([other]);
-    expect(allocations.find((row) => row.id === active.id)?.endDate).toBe('2026-06-05');
-  });
-
   it('opens the planning context for a company as soon as it becomes active', async () => {
-    useStore.getState().replaceAll({
+    const data = {
       ...useStore.getState().data,
       accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
+    };
+    replaceFixtureData(data);
+    useStore.getState().setAccountSummaries({
+      list: data.accounts.map((account) => ({ id: account.id, name: account.name, role: 'owner' })),
     });
 
     useStore.getState().setActiveAccount('a2');
@@ -212,50 +194,13 @@ describe('planning ownership of allocations', () => {
     useStore.setState((state) => ({
       data: { ...state.data, clients: state.data.clients.filter((row) => row.id !== oldClient.id) },
     }));
+    updatePlanningFixtureSource(useStore.getState().data);
     const afterChange = useStore.getState().refreshPlanning({ fresh: true });
     expect(afterChange).not.toBe(beforeChange);
     expect(await afterChange).toBe(true);
     releaseOld();
     expect(await beforeChange).toBe(false);
     expect(useStore.getState().data.clients.find((row) => row.id === oldClient.id)).toBeUndefined();
-  });
-
-  it('retires a held demo read while visiting the picker, then re-enters a new company incarnation', async () => {
-    const account = makeAccount({ id: 'a2' });
-    useStore.getState().replaceAll({
-      ...useStore.getState().data,
-      accounts: [...useStore.getState().data.accounts, account],
-    });
-    let releaseOld!: () => void;
-    let held!: () => void;
-    const oldReadHeld = new Promise<void>((resolve) => {
-      held = resolve;
-    });
-    failure.holdNextRead = new Promise<void>((resolve) => {
-      releaseOld = resolve;
-    });
-    failure.onHeldRead = held;
-
-    const oldRead = useStore.getState().refreshPlanning({ fresh: true });
-    await oldReadHeld;
-    useStore.getState().setActiveAccount(null);
-    expect(
-      useStore
-        .getState()
-        .data.accounts.map((row) => row.id)
-        .sort(),
-    ).toEqual(['a2', 'acct-test']);
-    useStore.getState().setActiveAccount('acct-test');
-    expect(await useStore.getState().refreshPlanning()).toBe(true);
-    releaseOld();
-    expect(await oldRead).toBe(false);
-    expect(useStore.getState().planning.context?.companyId).toBe('acct-test');
-    expect(
-      useStore
-        .getState()
-        .data.accounts.map((row) => row.id)
-        .sort(),
-    ).toEqual(['a2', 'acct-test']);
   });
 
   it('undoes the latest typed allocation edit without removing a preceding catalogue change', async () => {

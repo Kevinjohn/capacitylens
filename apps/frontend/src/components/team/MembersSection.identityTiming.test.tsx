@@ -11,7 +11,6 @@ import { MembersSection } from './MembersSection';
 import { mockApi, rawMember } from './MembersSection.testSupport';
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
-  isServerConfigured: () => true,
 }));
 function deferred<T>() {
   let resolve!: (value: T) => void;

@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react';
 import { canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
 import type { Account, AppData, ID, ISODate, Resource } from '@capacitylens/shared/types/entities';
-import { useAuth } from '@/auth/authContext';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { m } from '@/i18n';
 import { resolveResourceDisplayName } from '@/lib/metadata';
@@ -92,16 +91,15 @@ export function usePersonSchedule({
   );
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const { authMode } = useAuth();
   const accountView = useMemo(
     () => ({ ...data, accounts: activeAccount ? [activeAccount] : [] }),
     [activeAccount, data],
   );
   const timeZone = resolveTimeZone(accountView, activeAccountId);
   const today = useCalendarToday(timeZone);
-  const permissionAvailable =
-    authMode === 'off' || (permissionStatus === 'resolved' && role !== null);
-  const canSeeTimeOffNotes = authMode === 'off' || (role !== null && canSeeTimeOffNote(role));
+  const permissionAvailable = permissionStatus === 'resolved' && role !== null;
+  const canSeeTimeOffNotes =
+    permissionStatus === 'resolved' && role !== null && canSeeTimeOffNote(role);
 
   const built = useMemo(
     () =>

@@ -3,7 +3,7 @@ import { can } from '@capacitylens/shared/domain/access';
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import { useStore } from '@/store/useStore';
 
-// A null role means no membership role applies in off mode, demo mode, or providerless contexts.
+// A null role means no membership role applies in the current account context.
 // Authenticated server lookups project unresolved memberships to Viewer; masquerading independently
 // denies every permission key except `planning:read`.
 
@@ -25,7 +25,7 @@ export const PermissionContext = createContext<PermissionContextValue>({
 /**
  * The caller's resolved {@link Role} for the active account, or `null`.
  *
- * `null` means no membership role applies in off mode, demo mode, or providerless contexts.
+ * `null` means no membership role applies in the current account context.
  *
  * @returns the active account's role, or `null` when there is no membership role to enforce.
  */
@@ -43,9 +43,8 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue['statu
  * Reports whether the current user may use `key` in the active account. It shows or hides a control
  * only; the server enforces the same permission declaration on every request.
  *
- * A null role permits the key when no membership applies, except that masquerading denies every
- * key other than `planning:read`. Authenticated server lookups project unresolved memberships to
- * Viewer.
+ * A null role denies the key until an authenticated membership role is available. Masquerading
+ * denies every key other than `planning:read`.
  *
  * @param key - the permission the calling surface is gating.
  * @returns `true` when the affordance should be shown.
@@ -54,7 +53,7 @@ export function useCan(key: PermissionKey): boolean {
   const masqueradeKind = useStore((state) => state.masquerade.kind);
   const role = useRole();
   if (key !== 'planning:read' && masqueradeKind !== 'inactive') return false;
-  return role === null ? true : can(role, key);
+  return role !== null && can(role, key);
 }
 
 /**

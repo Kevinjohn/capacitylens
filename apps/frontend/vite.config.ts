@@ -197,10 +197,9 @@ export default defineConfig(({ mode, command }) => {
   // Stryker loads this config from the repository root, so resolve frontend paths from the config file.
   const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
   const fileEnv = loadEnv(mode, frontendRoot, 'VITE_CAPACITYLENS_');
-  const clientEnv = (
-    name: 'VITE_CAPACITYLENS_API' | 'VITE_CAPACITYLENS_DEMO' | 'VITE_CAPACITYLENS_FEEDBACK_MAILTO',
-  ) => process.env[name] ?? fileEnv[name] ?? '';
-  parseClientApiOrigin(clientEnv('VITE_CAPACITYLENS_API'), clientEnv('VITE_CAPACITYLENS_DEMO'));
+  const clientEnv = (name: 'VITE_CAPACITYLENS_API' | 'VITE_CAPACITYLENS_FEEDBACK_MAILTO') =>
+    process.env[name] ?? fileEnv[name] ?? '';
+  parseClientApiOrigin(clientEnv('VITE_CAPACITYLENS_API'));
   const feedbackAddress = clientEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO').trim();
   if (feedbackAddress !== '' && !isAccountEmail(feedbackAddress)) {
     throw new Error('VITE_CAPACITYLENS_FEEDBACK_MAILTO must be one valid email address.');

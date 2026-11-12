@@ -1,11 +1,16 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
 import { chooseOption } from './__tests__/schedulerTestKit';
-import { ACC, person, resetAllocationModalStore } from './__tests__/allocationModalTestKit';
+import {
+  ACC,
+  person,
+  resetAllocationModalStore,
+  renderAsOwner,
+} from './__tests__/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
@@ -45,7 +50,7 @@ describe('AllocationModal blocks mode', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{
@@ -93,7 +98,7 @@ describe('AllocationModal blocks mode', () => {
     });
 
     const renderCreate = () =>
-      render(
+      renderAsOwner(
         <AllocationModal
           kind="create"
           create={{
@@ -124,7 +129,7 @@ describe('AllocationModal blocks mode', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{
@@ -155,7 +160,7 @@ describe('AllocationModal blocks mode', () => {
     );
     const user = userEvent.setup();
 
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{
@@ -196,7 +201,7 @@ describe('AllocationModal blocks mode', () => {
     );
     await enableBlocks();
     const user = userEvent.setup();
-    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.type(screen.getByLabelText('Note'), 'Still scheduled');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -216,7 +221,7 @@ describe('AllocationModal blocks mode', () => {
       useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
     );
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{

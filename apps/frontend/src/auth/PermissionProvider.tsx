@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
-import { isServerConfigured } from '@/data/apiConfig';
 import { useStore } from '@/store/useStore';
 import { useAuth } from './authContext';
 import { PermissionContext } from './permissionContext';
@@ -63,7 +62,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
     if (!isCurrent()) return;
     if (!(await adoptMasqueradeStatus(masquerade, isCurrent))) return;
     if (!refresh.isCurrent()) return;
-    // One validated request drives the picker list and permission projection while retaining their
+    // One validated request drives the company directory and permission projection while retaining their
     // distinct failure postures.
     const summaries = await refreshAccountSummaries({
       acceptEffects: refresh.isCurrent,
@@ -107,7 +106,7 @@ function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
   return { role: 'viewer', status: input.fetched?.status ?? 'pending' };
 }
 
-/** Publishes the active company role from the shared validated directory. Authenticated lookups project unresolved membership to Viewer; off/demo uses no membership role. The store independently applies the same read-only guard. */
+/** Publishes the active company role from the shared validated directory. Unresolved membership projects to Viewer; the store independently applies the same read-only guard. */
 export function PermissionProvider({ children }: { children: ReactNode }) {
   const { authMode } = useAuth();
   const activeAccountId = useStore((state) => state.activeAccountId);
@@ -117,7 +116,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   // Tag resolved roles with accountId and membership revision so switching company immediately discards the previous role and projects Viewer until the new lookup succeeds.
   const [fetched, setFetched] = useState<FetchedPermission | null>(null);
 
-  const enabled = authMode !== 'off' && isServerConfigured();
+  const enabled = authMode !== null;
 
   useEffect(() => {
     if (masquerade.kind !== 'inactive') {

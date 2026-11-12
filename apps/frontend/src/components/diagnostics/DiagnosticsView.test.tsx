@@ -32,17 +32,16 @@ afterEach(() => {
 const reportText = () => screen.getByTestId('diagnostics-report-text');
 
 describe('DiagnosticsView — report', () => {
-  it('shows client diagnostics in demo mode without requesting the server route', () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1');
+  it('shows server diagnostics and reports the server deployment', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d');
     render(<DiagnosticsView />);
 
     expect(screen.getByRole('heading', { name: 'Diagnostics', level: 1 })).toBeInTheDocument();
     expect(reportText()).toHaveTextContent('Build revision: a1b2c3d');
-    expect(reportText()).toHaveTextContent('Deployment mode: demo');
-    expect(reportText()).toHaveTextContent('Database: unavailable');
+    expect(reportText()).toHaveTextContent('Deployment mode: server');
+    expect(await screen.findByText(/Database: ok/)).toBeInTheDocument();
     expect(reportText()).toHaveTextContent(/Time zone: \S+/);
-    expect(fetchMock.fetch).not.toHaveBeenCalled();
+    expect(fetchMock.fetch).toHaveBeenCalled();
   });
 
   it('never includes the signed-in identity', () => {
@@ -51,7 +50,6 @@ describe('DiagnosticsView — report', () => {
         value={{
           authMode: 'password-only',
           user: { id: 'u-1', name: 'Bruce Wayne', email: 'bruce@wayne.example' },
-          canCreateAccount: false,
           refreshAuth: async () => {},
           signOut: async () => {},
         }}

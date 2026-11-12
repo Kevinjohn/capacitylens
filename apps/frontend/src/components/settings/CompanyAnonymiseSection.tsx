@@ -9,13 +9,12 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { readApiError } from '@/lib/readApiError';
 import { reloadPage } from '@/lib/reloadPage';
 import { useStore } from '@/store/useStore';
-import { obfuscateResource } from '@capacitylens/shared/domain/lifecycle';
 import { Modal } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { SettingsSection } from './SettingsSection';
 
 /** Confirms anonymising all people against the active native session. */
-export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean }) {
+export function CompanyAnonymiseSection() {
   const accountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
   const allowed = useCan('resources:anonymise');
@@ -42,27 +41,7 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
     });
   }, []);
 
-  if (!allowed || !accountId || (serverMode && role !== 'owner')) return null;
-
-  const anonymiseDemo = () => {
-    const state = useStore.getState();
-    if (state.activeAccountId !== accountId) return;
-    const data = state.data;
-    state.replaceAfterDemoImport({
-      ...data,
-      resources: data.resources.map((row) =>
-        row.accountId === accountId ? { ...obfuscateResource(row), avatarUrl: null } : row,
-      ),
-      allocations: data.allocations.map((row) =>
-        row.accountId === accountId && row.note != null ? { ...row, note: null } : row,
-      ),
-      timeOff: data.timeOff.map((row) =>
-        row.accountId === accountId && row.note != null ? { ...row, note: null } : row,
-      ),
-    });
-    setConfirming(false);
-    setNotice(m.settings_company_anonymise_done());
-  };
+  if (!allowed || !accountId || role !== 'owner') return null;
 
   const submit = async (confirmationId: string) => {
     if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== accountId) {
@@ -173,8 +152,7 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
               variant="destructive"
               disabled={busy}
               onClick={() => {
-                if (serverMode) setProving(true);
-                else anonymiseDemo();
+                setProving(true);
               }}
             >
               {busy ? m.ownership_transfer_working() : m.settings_company_anonymise_button()}
