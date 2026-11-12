@@ -29,7 +29,6 @@ vi.mock('@/auth/accountTransition', () => ({
 
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
-  isServerConfigured: () => true,
 }));
 
 beforeEach(async () => {

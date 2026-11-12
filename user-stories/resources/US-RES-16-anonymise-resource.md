@@ -28,12 +28,11 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["ArchivedEntitySection Owner/Admin Anonymise control"] --> B["ConfirmDialog onConfirm → useLifecycleActions.anonymise"]
-  B --> C{{"Persisted server or demo"}}
-  C -->|server| D["POST resources/:id/anonymise → AnonymiseController.resource"] --> E["anonymiseResources transaction"] --> F["reloadFromServer calls refreshPlanning({ fresh: true })"]
-  C -->|demo| G["dispatchLocalLifecycle → lifecycleSlice.anonymiseResource"]
+  B --> C{{"Server anonymisation"}}
+  C --> D["POST resources/:id/anonymise → AnonymiseController.resource"] --> E["anonymiseResources transaction"] --> F["reloadFromServer calls refreshPlanning({ fresh: true })"]
   G --> H["obfuscateResource and clear linked notes"]
   H --> I["Archived resource view refreshes"]
   F --> I
 ```
 
-**Code references:** [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts) · [lifecycleSlice.ts](../../apps/frontend/src/store/slices/lifecycleSlice.ts) · [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts) · [anonymise_controller.ts](../../apps/backend/app/controllers/anonymise_controller.ts) · [anonymise.ts](../../apps/backend/app/services/anonymise.ts)
+**Code references:** [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts) · [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts) · [anonymise_controller.ts](../../apps/backend/app/controllers/anonymise_controller.ts) · [anonymise.ts](../../apps/backend/app/services/anonymise.ts)

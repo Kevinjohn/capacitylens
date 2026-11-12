@@ -36,14 +36,6 @@ function registerHiddenDefaultSeededExternalAbsentTest() {
   });
 }
 
-function registerOldExternalURLRedirectsResourcesTest() {
-  test('the old /external URL redirects to the Resources tab', async ({ page }) => {
-    await openApp(page, '/external');
-    await expect(page).toHaveURL(/\/resources$/);
-    await expect(page.getByRole('heading', { name: 'Resources', exact: true })).toBeVisible();
-  });
-}
-
 function registerTurningRevealsExternalSectionHelpTest() {
   test('turning it on reveals the External section with help in Resources and the band on the schedule', async ({
     page,
@@ -240,7 +232,6 @@ function registerArchivingExternalPartyUndoableTests() {
 
 test.describe('External / 3rd parties (per-account pref, default off)', () => {
   registerHiddenDefaultSeededExternalAbsentTest();
-  registerOldExternalURLRedirectsResourcesTest();
   registerTurningRevealsExternalSectionHelpTest();
   registerChoiceSurvivesNavigationAndReloadTest();
   registerAddsExternalPartyResourcesTabTest();

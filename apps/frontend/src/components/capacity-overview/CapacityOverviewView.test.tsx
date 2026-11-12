@@ -1,4 +1,6 @@
-import { render, screen, within } from '@testing-library/react';
+import { render as rtlRender, screen, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { OwnerPermissions } from '@/test/ownerPermissions';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -10,6 +12,10 @@ import {
 } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { CapacityOverviewView } from './CapacityOverviewView';
+
+function render(ui: ReactNode) {
+  return rtlRender(ui, { wrapper: OwnerPermissions });
+}
 
 vi.mock('@/components/scheduler/useCalendarToday', () => ({
   useCalendarToday: () => '2026-09-10',

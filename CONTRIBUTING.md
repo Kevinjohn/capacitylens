@@ -129,8 +129,10 @@ These commands preserve the existing identity and password. If you cannot verify
 origin, stop and use a fresh local database instead of changing its admission. Restart with
 `CAPACITYLENS_CREATE_ADMIN_ADMIN=true` after the required admission steps succeed.
 
-`pnpm run dev:demo` starts the temporary in-memory demo without SQLite or authentication. The
-workspace contains the web app, the pure `@capacitylens/shared` domain package, and the server.
+`pnpm run dev:demo` starts the full stack on disposable SQLite storage and prints its development
+sign-in. Refresh keeps changes; restarting resets the sample company. Normal `pnpm run dev` keeps
+the empty-install setup journey. The workspace contains the web app, pure shared domain package
+and server.
 
 ## AdonisJS review record
 
@@ -203,9 +205,8 @@ server-owned `{ accountId, memberResourceLinks }` context and returns `{ data, i
 `imported` includes the account row. Export callers must supply an authorized, confidentially
 projected dataset; the completeness marker grants no authority.
 
-Settings now uses this contract for server and demo import/export. Server preview and apply go
-through `POST /api/transfer/preview` and `POST /api/transfer/apply`; demo import uses the same strict
-document validation in page memory. Server apply requires the live Owner and a single-use password
+Settings uses this contract for import/export, including the disposable demo. Preview and apply go
+through `POST /api/transfer/preview` and `POST /api/transfer/apply`. Apply requires the live Owner and a single-use password
 proof bound to the exact document, company and previewed revision. Inside the transaction it checks
 the current revision and member links again, refuses scheduling IDs held by another company, then
 replaces the company slice and supported settings atomically. It retains the destination company ID,

@@ -7,7 +7,9 @@ import {
   makeResource,
   requireValue,
   resetStoreWithAccount,
+  resetStoreWithData,
 } from '@/test/fixtures';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 
 const T = '2026-01-01T00:00:00.000Z';
 const meta = { accountId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
@@ -16,15 +18,14 @@ beforeEach(() => resetStoreWithAccount());
 
 function registerUndoSyncPart1(): void {
   it('re-stamps an undo whose content is identical but stored revision changed', async () => {
-    useStore.getState().replaceAll(
+    await resetStoreWithData(
       makeAppData({
         clients: [
           { ...NULLABLE_FIELDS.clients, ...meta, id: 'c1', name: 'Client', color: '#111111' },
         ],
       }),
+      DEFAULT_ACCOUNT_ID,
     );
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    await useStore.getState().refreshPlanning();
 
     await useStore.getState().updateClient('c1', { name: 'Changed' });
     const afterNoOpSave = useStore.getState().data;
@@ -46,9 +47,7 @@ function registerUndoSyncPart1(): void {
       name: `Client ${index}`,
       color: '#111111',
     }));
-    useStore.getState().replaceAll(makeAppData({ clients }));
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    await useStore.getState().refreshPlanning();
+    await resetStoreWithData(makeAppData({ clients }), DEFAULT_ACCOUNT_ID);
     await useStore.getState().addClient({ name: 'Last client', color: '#222222' });
     const addedClient = requireValue(useStore.getState().data.clients.at(-1), 'last client');
 
@@ -64,7 +63,7 @@ function registerUndoSyncPart1(): void {
 
 function registerUndoSyncPart2(): void {
   it('restores an activity phaseId after a phase delete', async () => {
-    useStore.getState().replaceAll(
+    await resetStoreWithData(
       makeAppData({
         clients: [
           { ...NULLABLE_FIELDS.clients, ...meta, id: 'c1', name: 'Client', color: '#111111' },
@@ -92,19 +91,54 @@ function registerUndoSyncPart2(): void {
           },
         ],
       }),
+      DEFAULT_ACCOUNT_ID,
     );
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    await useStore.getState().refreshPlanning();
-
+    const deletedActivity = requireValue(useStore.getState().data.activities[0], 'activity');
+    const deletedPhase = requireValue(useStore.getState().data.phases[0], 'phase');
+    const phaseHandle = 'restore-phase-delete';
+    queuePlanningPatch(
+      (execution) => {
+        if (execution.intent.operation !== 'catalogue.delete') {
+          throw new Error(`Expected catalogue.delete, received ${execution.intent.operation}.`);
+        }
+        return {
+          removed: [{ entity: 'phases', id: 'ph1' }],
+          upserts: [
+            {
+              entity: 'activities',
+              row: { ...deletedActivity, phaseId: null, updatedAt: new Date().toISOString() },
+            },
+          ],
+        };
+      },
+      { replacementGroupId: phaseHandle },
+    );
     await useStore.getState().deletePhase('ph1');
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.activities[0], 'activity')).toHaveProperty('phaseId', null);
+    queuePlanningPatch(
+      (execution) => {
+        if (execution.intent.operation !== 'planning.restoreGroup') {
+          throw new Error(
+            `Expected planning.restoreGroup, received ${execution.intent.operation}.`,
+          );
+        }
+        return {
+          removed: [],
+          upserts: [
+            { entity: 'activities', row: deletedActivity },
+            { entity: 'phases', row: deletedPhase },
+          ],
+        };
+      },
+      { consumedGroupId: phaseHandle },
+    );
     await useStore.getState().undoPlanning();
     expect(useStore.getState().data.activities[0]?.phaseId).toBe('ph1');
   });
 
   it('restores a resource disciplineId after a discipline delete', async () => {
-    useStore.getState().replaceAll(
+    await resetStoreWithData(
       makeAppData({
         disciplines: [
           { ...NULLABLE_FIELDS.disciplines, ...meta, id: 'd1', name: 'Design', sortOrder: 0 },
@@ -113,13 +147,48 @@ function registerUndoSyncPart2(): void {
           makeResource({ ...meta, id: 'r1', name: 'Person', disciplineId: 'd1', color: '#333333' }),
         ],
       }),
+      DEFAULT_ACCOUNT_ID,
     );
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    await useStore.getState().refreshPlanning();
-
+    const deletedResource = requireValue(useStore.getState().data.resources[0], 'resource');
+    const deletedDiscipline = requireValue(useStore.getState().data.disciplines[0], 'discipline');
+    const disciplineHandle = 'restore-discipline-delete';
+    queuePlanningPatch(
+      (execution) => {
+        if (execution.intent.operation !== 'catalogue.delete') {
+          throw new Error(`Expected catalogue.delete, received ${execution.intent.operation}.`);
+        }
+        return {
+          removed: [{ entity: 'disciplines', id: 'd1' }],
+          upserts: [
+            {
+              entity: 'resources',
+              row: { ...deletedResource, disciplineId: null, updatedAt: new Date().toISOString() },
+            },
+          ],
+        };
+      },
+      { replacementGroupId: disciplineHandle },
+    );
     await useStore.getState().deleteDiscipline('d1');
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.resources[0], 'resource')).toHaveProperty('disciplineId', null);
+    queuePlanningPatch(
+      (execution) => {
+        if (execution.intent.operation !== 'planning.restoreGroup') {
+          throw new Error(
+            `Expected planning.restoreGroup, received ${execution.intent.operation}.`,
+          );
+        }
+        return {
+          removed: [],
+          upserts: [
+            { entity: 'resources', row: deletedResource },
+            { entity: 'disciplines', row: deletedDiscipline },
+          ],
+        };
+      },
+      { consumedGroupId: disciplineHandle },
+    );
     await useStore.getState().undoPlanning();
     expect(useStore.getState().data.resources[0]?.disciplineId).toBe('d1');
   });

@@ -13,16 +13,10 @@ const tourMock = vi.hoisted(() => ({
       (options: {
         role: 'owner' | 'admin' | 'editor' | 'viewer' | null;
         navigate: (path: string) => void;
-        serverMode: boolean;
       }) => Promise<void>
     >(),
 }));
-const apiMode = vi.hoisted(() => ({ demo: false }));
 vi.mock('@/lib/tour', () => ({ startTour: tourMock.startTour }));
-vi.mock('@/data/apiConfig', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/data/apiConfig')>()),
-  isDemoMode: () => apiMode.demo,
-}));
 
 const setNotice = vi.fn();
 const actionRef = createRef<() => Promise<void>>();
@@ -63,7 +57,6 @@ function renderHarness({
 
 beforeEach(() => {
   tourMock.startTour.mockReset().mockResolvedValue(undefined);
-  apiMode.demo = false;
   setNotice.mockReset();
   actionRef.current = null;
 });
@@ -87,7 +80,7 @@ describe('useTourAction', () => {
     renderHarness({ role, status, path: '/settings' });
     await act(async () => actionRef.current?.());
     const options = tourMock.startTour.mock.calls[0]?.[0];
-    expect(options).toMatchObject({ role, serverMode: true });
+    expect(options).toMatchObject({ role });
     expect(typeof options?.navigate).toBe('function');
   });
 

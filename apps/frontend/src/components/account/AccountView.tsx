@@ -1,7 +1,5 @@
 import { useAuth } from '@/auth/authContext';
-import demoAvatarUrl from '@/assets/avatar-demo.svg';
 import { m } from '@/i18n';
-import { FAKE_USER, useDemoAuthActive } from '@/lib/fakeAuth';
 import { DEFAULT_COLORS } from '@/lib/palette';
 import { LogOut } from 'lucide-react';
 import { useState } from 'react';
@@ -11,13 +9,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SecuritySection } from '@/components/settings/SecuritySection';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 
-type ResolveIdentityOptions = { auth: ReturnType<typeof useAuth>; demo: boolean };
-function resolveIdentity({ auth, demo }: ResolveIdentityOptions) {
-  const identity = demo ? FAKE_USER : auth.user;
+function resolveIdentity(auth: ReturnType<typeof useAuth>) {
+  const identity = auth.user;
   return {
     name: identity?.name ?? identity?.email ?? m.account_local_identity(),
     email: identity?.email,
-    imageUrl: demo ? demoAvatarUrl : (auth.user?.image ?? undefined),
+    imageUrl: auth.user?.image ?? undefined,
   };
 }
 
@@ -43,8 +40,7 @@ function EmailCell({ email }: { email: string | undefined }) {
 /** Renders the signed-in person's identity and personal security controls outside company data. */
 export function AccountView() {
   const auth = useAuth();
-  const demo = useDemoAuthActive();
-  const { name, email, imageUrl } = resolveIdentity({ auth: auth, demo: demo });
+  const { name, email, imageUrl } = resolveIdentity(auth);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -88,37 +84,31 @@ export function AccountView() {
                   <EmailCell email={email} />
                   <td className="py-2 px-4 text-right whitespace-nowrap">
                     <div className="flex justify-end gap-2">
-                      {auth.authMode !== 'off' && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setPasswordOpen(true)}
-                        >
-                          {m.settings_security_change_password()}
-                        </Button>
-                      )}
-                      {auth.authMode !== 'off' && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setDeleteOpen(true)}
-                        >
-                          {m.settings_security_delete_account()}
-                        </Button>
-                      )}
-                      {auth.authMode !== 'off' && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="danger-soft"
-                          onClick={() => void auth.signOut()}
-                        >
-                          <LogOut data-icon="inline-start" />
-                          {m.nav_sign_out()}
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPasswordOpen(true)}
+                      >
+                        {m.settings_security_change_password()}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setDeleteOpen(true)}
+                      >
+                        {m.settings_security_delete_account()}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="danger-soft"
+                        onClick={() => void auth.signOut()}
+                      >
+                        <LogOut data-icon="inline-start" />
+                        {m.nav_sign_out()}
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -126,14 +116,12 @@ export function AccountView() {
             </table>
           </div>
         </SettingsSection>
-        {auth.authMode !== 'off' && (
-          <SecuritySection
-            passwordOpen={passwordOpen}
-            onPasswordOpenChange={setPasswordOpen}
-            deleteOpen={deleteOpen}
-            onDeleteOpenChange={setDeleteOpen}
-          />
-        )}
+        <SecuritySection
+          passwordOpen={passwordOpen}
+          onPasswordOpenChange={setPasswordOpen}
+          deleteOpen={deleteOpen}
+          onDeleteOpenChange={setDeleteOpen}
+        />
       </div>
     </ListPage>
   );

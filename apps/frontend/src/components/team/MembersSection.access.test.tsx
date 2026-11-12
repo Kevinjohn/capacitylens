@@ -20,7 +20,6 @@ vi.mock('@/auth/accountTransition', () => ({
 
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
-  isServerConfigured: () => true,
 }));
 
 beforeEach(async () => {
@@ -239,11 +238,11 @@ describe('MembersSection — transient directory state', () => {
 });
 
 function registerSelfGateDisplayTests(): void {
-  it('renders nothing when authMode is off', () => {
+  it('renders nothing while auth state is still checking', () => {
     vi.stubGlobal('fetch', mockApi([]));
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
-        <AuthContext.Provider value={authValue({ authMode: 'off' })}>
+        <AuthContext.Provider value={authValue({ authMode: null, user: null })}>
           <MembersSection />
         </AuthContext.Provider>
       </QueryClientProvider>,

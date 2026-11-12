@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  serverConfigured: true,
   controllerLoaded: vi.fn(),
   transitionAccount: vi.fn(),
   start: vi.fn(),
@@ -10,19 +9,13 @@ const mocks = vi.hoisted(() => ({
   status: vi.fn(),
   retryProjection: vi.fn(),
   end: vi.fn(),
-  setActiveAccount: vi.fn(),
   activeAccountId: 'a-studio' as string | null,
-}));
-
-vi.mock('@/data/apiConfig', () => ({
-  isServerConfigured: () => mocks.serverConfigured,
 }));
 
 vi.mock('@/store/useStore', () => ({
   useStore: {
     getState: () => ({
       activeAccountId: mocks.activeAccountId,
-      setActiveAccount: mocks.setActiveAccount,
     }),
   },
 }));
@@ -47,7 +40,6 @@ vi.mock('./masqueradeController', () => ({
 describe('account transition boundary', () => {
   beforeEach(() => {
     vi.resetModules();
-    mocks.serverConfigured = true;
     mocks.controllerLoaded.mockReset();
     mocks.transitionAccount.mockReset();
     mocks.start.mockReset();
@@ -56,7 +48,6 @@ describe('account transition boundary', () => {
     mocks.status.mockReset();
     mocks.retryProjection.mockReset();
     mocks.end.mockReset();
-    mocks.setActiveAccount.mockReset();
     mocks.activeAccountId = 'a-studio';
   });
 
@@ -86,16 +77,6 @@ describe('account transition boundary', () => {
 
     await expect(boundary.transitionAccount(null)).resolves.toBe(false);
     expect(mocks.transitionAccount).toHaveBeenCalledWith(null);
-  });
-
-  it('activates local accounts without loading the server transition owner', async () => {
-    mocks.serverConfigured = false;
-    const boundary = await import('./accountTransition');
-
-    await expect(boundary.transitionAccount('a-studio')).resolves.toBe(true);
-    expect(mocks.setActiveAccount).toHaveBeenCalledWith('a-studio');
-    expect(mocks.controllerLoaded).not.toHaveBeenCalled();
-    expect(mocks.transitionAccount).not.toHaveBeenCalled();
   });
 
   it('starts masquerade through the same lazy controller boundary', async () => {

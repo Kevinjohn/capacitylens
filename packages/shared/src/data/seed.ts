@@ -8,16 +8,12 @@ import { createActivities } from './seed/activities.js';
 import { createAllocations } from './seed/allocations.js';
 import { createSchedule } from './seed/schedule.js';
 
-// Two demo companies, loaded on first run so the account picker isn't empty.
-// "Wayne Enterprises" is the rich dataset (stacked/overlapping allocations, an
-// over-allocated day, a limited-days freelancer, a project-bound placeholder, an
-// external partner and a block of time off). The placeholder and external rows are seeded but
-// hidden until their default-off per-account visibility settings are enabled. "Stark Industries" is a
-// small second tenant, enough to prove
-// switching companies swaps the whole dataset. Every scoped entity carries an
-// `accountId`; the store filters on it everywhere.
+// Fictional fixture data spans two tenants to exercise server isolation. The disposable demo
+// selects only a-studio. Its rich schedule includes overlapping allocations, a limited-days
+// freelancer, a project-bound placeholder, an external partner and time off. Placeholder and
+// external rows remain hidden until their default-off company visibility settings are enabled.
 
-/** Build the demo dataset: two companies with their people, work and schedule. Pure. */
+/** Build deterministic fictional company, people and scheduling fixture data. */
 export function seed(): AppData {
   const { accounts, disciplines, clients, projects, phases } = createOrgTables();
   return {
@@ -34,7 +30,7 @@ export function seed(): AppData {
 }
 
 /** The canonical demo scenarios shifted onto the week containing `referenceDate`.
- * Keep `seed()` fixed for repeatable tests, screenshots and written walkthroughs; runtime demo
+ * Keep `seed()` fixed for repeatable tests, screenshots and written walkthroughs; disposable server demo
  * entry points use this variant so a new visitor never lands on an empty, expired schedule. */
 export function seedForCurrentWeek(referenceDate = todayISO()): AppData {
   const week = startOfWeekISO(referenceDate);

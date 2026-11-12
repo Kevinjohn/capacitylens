@@ -1,12 +1,17 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
 import { makeResourceDraft } from '@/test/fixtures';
 import { chooseOption } from './__tests__/schedulerTestKit';
-import { required, person, resetAllocationModalStore } from './__tests__/allocationModalTestKit';
+import {
+  required,
+  person,
+  resetAllocationModalStore,
+  renderAsOwner,
+} from './__tests__/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
@@ -50,7 +55,7 @@ describe('AllocationModal create', () => {
       useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] }),
     );
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
@@ -110,7 +115,7 @@ describe('AllocationModal create', () => {
         .getState()
         .addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
     );
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
@@ -126,10 +131,10 @@ describe('AllocationModal create', () => {
   it('gives same-named activity options distinct accessible labels', async () => {
     await useStore.getState().addActivity({ name: 'Wireframes', kind: 'project', projectId: 'p1' });
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
     );
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{
@@ -150,12 +155,12 @@ describe('AllocationModal create', () => {
 
   it('creates an allocation for a person after picking project + activity', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
     );
     const resourceId = resource.id;
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -189,10 +194,10 @@ describe('AllocationModal create', () => {
       await useStore.getState().addActivity({ name: 'Operations', kind: 'internal' });
       await useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' });
       const resource = await requireCreated(
-        useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
+        useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
       );
       const user = userEvent.setup();
-      render(
+      renderAsOwner(
         <AllocationModal
           kind="create"
           create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -223,11 +228,11 @@ describe('AllocationModal create', () => {
     ['8 h - full day', 8],
   ] as const)('creates an allocation with the %s hours option', async (option, expectedHours) => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
     );
     const resourceId = resource.id;
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -246,11 +251,11 @@ describe('AllocationModal create', () => {
 
   it('rejects an empty date instead of saving a broken allocation', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
     );
     const resourceId = resource.id;
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -291,7 +296,7 @@ describe('AllocationModal create', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{
@@ -349,7 +354,7 @@ describe('AllocationModal create', () => {
       }),
     );
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: placeholder.id, startDate: '2026-06-01', endDate: '2026-06-02' }}
@@ -384,7 +389,7 @@ describe('AllocationModal advisory work bounds', () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
     );
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{
@@ -411,7 +416,7 @@ describe('AllocationModal advisory work bounds', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{
@@ -458,7 +463,7 @@ describe('AllocationModal advisory work bounds', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{
@@ -499,7 +504,7 @@ describe('AllocationModal advisory work bounds', () => {
       }),
     );
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-04' }}

@@ -102,6 +102,12 @@ function waitForProcessTreeExit(child, timeoutMs, options) {
   });
 }
 
+/** Check the owned POSIX process group, or the root process on Windows. */
+export function isProcessTreeRunning(child, options = {}) {
+  if (!Number.isInteger(child.pid) || child.pid <= 0) return false;
+  return processGroupRunning(child, { ...options, platform: options.platform ?? process.platform });
+}
+
 /**
  * Attempts to stop a detached child process tree, escalating from SIGTERM to SIGKILL after the grace period.
  * Resolution does not guarantee exit if the force timeout expires.

@@ -8,6 +8,7 @@ import { PermissionContext } from '@/auth/permissionContext';
 import type { PermissionContextValue } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
 import {
+  loadPlanningData,
   makeAccount,
   makeActivity,
   makeAllocation,
@@ -29,15 +30,14 @@ vi.mock('@/components/scheduler/useCalendarToday', () => ({
 function wrapper({
   role = null,
   status = role === null ? 'not-applicable' : 'resolved',
-  authMode = 'off',
+  authMode = 'password-only',
 }: PermissionContextValue & { authMode?: AccountMode }) {
   return function Wrapper({ children }: PropsWithChildren) {
     return (
       <AuthContext.Provider
         value={{
           authMode,
-          user: authMode === 'off' ? null : { id: 'viewer' },
-          canCreateAccount: true,
+          user: { id: 'viewer' },
           refreshAuth: async () => {},
           signOut: async () => {},
         }}
@@ -65,7 +65,7 @@ function withoutName(value: Resource): Resource {
 const activity = withoutProjectId(makeActivity({ id: 't1', accountId: 'a1', kind: 'internal' }));
 
 function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
-  useStore.getState().replaceAll(
+  loadPlanningData(
     makeAppData({
       accounts: [makeAccount({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 1 })],
       resources: [resource],
@@ -87,7 +87,9 @@ beforeEach(() => {
 
 describe('usePersonSchedule availability', () => {
   it('builds the current account-local four-week window independently of grid dates', () => {
-    const monday = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }));
+    const monday = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+      wrapper: wrapper({ role: 'owner' }),
+    });
     expect(monday.result.current).toMatchObject({
       kind: 'available',
       model: { window: { startDate: '2026-09-07', endDate: '2026-10-04' } },
@@ -150,8 +152,9 @@ describe('usePersonSchedule calendar rollover', () => {
       allocations: [oldAllocation, newAllocation],
     });
 
-    const { result, rerender } = renderHook(() =>
-      usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }),
+    const { result, rerender } = renderHook(
+      () => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }),
+      { wrapper: wrapper({ role: 'owner' }) },
     );
     expect(calendarToday.timeZone).toBe('Pacific/Kiritimati');
     expect(result.current).toMatchObject({
@@ -212,7 +215,9 @@ describe('usePersonSchedule authorized projection', () => {
         },
       ],
     });
-    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }));
+    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+      wrapper: wrapper({ role: 'owner' }),
+    });
     expect(result.current).toMatchObject({
       kind: 'available',
       model: { title: 'Placeholder — Designer · Design' },
@@ -260,7 +265,9 @@ describe('usePersonSchedule lifecycle', () => {
         }),
       ],
     });
-    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }));
+    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+      wrapper: wrapper({ role: 'owner' }),
+    });
     expect(result.current).toMatchObject({
       kind: 'available',
       model: { entries: [{ note: 'Private' }] },

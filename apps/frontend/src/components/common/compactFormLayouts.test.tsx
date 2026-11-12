@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { OwnerPermissions } from '@/test/ownerPermissions';
 import userEvent from '@testing-library/user-event';
 import { resetStoreWithAccount } from '@/test/fixtures';
 import { ExternalForm } from '@/components/external/ExternalForm';
@@ -8,6 +10,10 @@ import { ClientForm } from '@/components/clients/ClientForm';
 import { ProjectForm } from '@/components/projects/ProjectForm';
 import { ActivityForm } from '@/components/activities/ActivityForm';
 import { TimeOffForm } from '@/components/timeoff/TimeOffForm';
+
+function render(ui: ReactNode) {
+  return rtlRender(ui, { wrapper: OwnerPermissions });
+}
 
 beforeEach(() => resetStoreWithAccount());
 

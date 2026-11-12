@@ -13,7 +13,7 @@ import type { TeamMember } from '@/account/teamAccessClient';
 
 // Member controls require an authoritative Owner/Admin directory read, while server authorization remains independent. Fresh invitation secrets are displayed once and never read back.
 
-/** Shows member administration only for authenticated server mode after the members read authorizes it. Ordinary controls exclude ownership changes, which use the transfer ceremony. */
+/** Shows member administration only after the members read authorizes the authenticated user. Ordinary controls exclude ownership changes, which use the transfer ceremony. */
 export function MembersSection() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { user } = useAuth();

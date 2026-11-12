@@ -17,10 +17,9 @@ describe('product orientation persistence', () => {
     );
   });
 
-  it('uses stable identities without names, email addresses, or roles', () => {
-    expect(resolveProductOrientationSubject({ userId: 'user-1', demo: true })).toBe('user-1');
-    expect(resolveProductOrientationSubject({ userId: null, demo: true })).toBe('demo');
-    expect(resolveProductOrientationSubject({ userId: null, demo: false })).toBe('local');
+  it('uses the stable person identifier and a local fallback without names or email addresses', () => {
+    expect(resolveProductOrientationSubject({ userId: 'user-1' })).toBe('user-1');
+    expect(resolveProductOrientationSubject({ userId: null })).toBe('local');
   });
 
   it('does not treat the legacy device-global intro flag as dismissal', () => {

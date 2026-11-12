@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
-import { isDemoMode } from '@/data/apiConfig';
 import { m } from '@/i18n';
 import { startTour } from '@/lib/tour';
 
@@ -24,7 +23,6 @@ export function useTourAction(setNotice: (message: string, tone: 'error') => voi
         navigate: (path) => {
           void navigate(path);
         },
-        serverMode: !isDemoMode(),
       });
     } catch {
       // Surface a failed tour launch so the user receives feedback instead of an inert launcher.

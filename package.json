@@ -30,7 +30,7 @@
     "paraglide:compile": "pnpm --dir apps/frontend paraglide:compile",
     "dev": "node scripts/with-lane.mjs node scripts/dev-fullstack.mjs",
     "dev:web": "node scripts/with-lane.mjs pnpm --dir apps/frontend dev",
-    "dev:demo": "node scripts/with-lane.mjs node scripts/run-preset.mjs dev-demo",
+    "dev:demo": "node scripts/with-lane.mjs node scripts/dev-demo.mjs",
     "lanes": "node scripts/lanes.mjs",
     "build": "pnpm --filter @capacitylens/shared build && pnpm --dir apps/backend codegen && pnpm --dir apps/backend typecheck:client && pnpm --dir apps/frontend build && node scripts/sync-adonis-public.mjs && pnpm --dir apps/backend build && pnpm run bundle:check",
     "package:managed-release": "node scripts/package-managed-release.mjs",
@@ -82,7 +82,7 @@
     "dependency:major-report:test": "node --test scripts/report-major-dependencies.test.mjs",
     "policy:packaged-smoke:test": "node --test scripts/packagedServer.test.mjs scripts/smoke-packaged-server.test.mjs scripts/smoke-packaged-dialogs.test.mjs scripts/loopbackHttpProxy.test.mjs",
     "policy:node-runtime:test": "node --test scripts/check-node-runtime.test.mjs scripts/check-node26.test.mjs",
-    "policy:e2e-workers:test": "node --test --test-concurrency=1 scripts/e2eWorkerRuntime.test.mjs scripts/e2eProxyDrain.test.mjs scripts/playwrightWorkers.test.mjs scripts/e2eReset.test.mjs scripts/playwright-server-reuse.test.mjs scripts/serverStateTransport.test.mjs && node scripts/paraglidePluginParity.mjs"
+    "policy:e2e-workers:test": "node --test --test-concurrency=1 scripts/e2eWorkerRuntime.test.mjs scripts/disposableDemoStorage.test.mjs scripts/e2eProxyDrain.test.mjs scripts/playwrightWorkers.test.mjs scripts/e2eReset.test.mjs scripts/playwright-server-reuse.test.mjs scripts/serverStateTransport.test.mjs && node scripts/paraglidePluginParity.mjs"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}": "eslint --max-warnings 0 --no-warn-ignored"

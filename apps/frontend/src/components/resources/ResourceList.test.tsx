@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { requireCreated } from '@/test/requireCreated';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
+import { render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ResourceList } from './ResourceList';
@@ -8,18 +10,57 @@ import { useStore } from '@/store/useStore';
 import {
   DEFAULT_ACCOUNT_ID,
   WORKDAYS,
+  loadPlanningData,
   resetStoreWithAccount,
   requireValue,
   setExternalEnabled,
   setPlaceholdersEnabled,
 } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+import { AuthContext } from '@/auth/authContext';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+
+function TestProviders({ children }: { children: ReactNode }) {
+  return (
+    <AuthContext.Provider
+      value={{
+        authMode: 'password-only',
+        user: { id: 'test-principal' },
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
+    >
+      <OwnerPermissions>{children}</OwnerPermissions>
+    </AuthContext.Provider>
+  );
+}
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: TestProviders });
+
+function mockInactiveRead() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      const data = structuredClone(useStore.getState().data);
+      const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-01-01T00:00:00.000Z');
+      return Response.json({
+        ...data,
+        clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+      });
+    }),
+  );
+}
+
+afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(async () => {
   await resetStoreWithAccount();
   useStore.getState().clearFilters();
   // Enable placeholders for this suite because the management cases require their otherwise-hidden section.
   await setPlaceholdersEnabled({ on: true });
+  mockInactiveRead();
 });
 
 const personDraft = (name: string) => ({
@@ -31,7 +72,7 @@ const personDraft = (name: string) => ({
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
   halfDays: [],
-  color: '#3b82f6',
+  color: '#1b4f98',
 });
 
 const freelancerDraft = (name: string) => ({
@@ -43,7 +84,7 @@ const freelancerDraft = (name: string) => ({
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
   halfDays: [],
-  color: '#f59e0b',
+  color: '#ed841b',
 });
 
 describe('ResourceList display', () => {
@@ -225,7 +266,7 @@ describe('ResourceList display', () => {
 
   it('omits missing and dangling disciplines without losing valid role or discipline metadata', async () => {
     const discipline = await requireCreated(
-      useStore.getState().addDiscipline({ name: 'Design', color: '#123456', sortOrder: 0 }),
+      useStore.getState().addDiscipline({ name: 'Design', color: '#1b4f98', sortOrder: 0 }),
     );
     await useStore.getState().addResource(personDraft('Role only'));
     await useStore
@@ -340,10 +381,10 @@ describe('ResourceList display', () => {
 
   it('shows a "placeholder" tag for a placeholder resource and its role as its label', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#76a5e7' }),
     );
     await useStore.getState().addResource({
       kind: 'placeholder',
@@ -353,7 +394,7 @@ describe('ResourceList display', () => {
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
       halfDays: [],
-      color: '#a855f7',
+      color: '#9c3ace',
       projectId: project.id,
     });
     render(<ResourceList />);
@@ -373,10 +414,10 @@ describe('ResourceList display', () => {
 describe('ResourceList display', () => {
   it('does not show global first-resource onboarding when only a visible later section has rows', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#76a5e7' }),
     );
     await useStore.getState().addResource({
       kind: 'placeholder',
@@ -386,7 +427,7 @@ describe('ResourceList display', () => {
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
       halfDays: [],
-      color: '#a855f7',
+      color: '#9c3ace',
       projectId: project.id,
     });
 
@@ -404,10 +445,10 @@ describe('ResourceList display', () => {
 
   it('hides the Placeholders section + its placeholders when the pref is OFF (default)', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#76a5e7' }),
     );
     await useStore.getState().addResource(personDraft('Alice'));
     await useStore.getState().addResource({
@@ -418,7 +459,7 @@ describe('ResourceList display', () => {
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
       halfDays: [],
-      color: '#a855f7',
+      color: '#9c3ace',
       projectId: project.id,
     });
 
@@ -436,10 +477,10 @@ describe('ResourceList display', () => {
 describe('ResourceList display', () => {
   it('renders all three resource types together', async () => {
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#76a5e7' }),
     );
 
     await useStore.getState().addResource(personDraft('Alice'));
@@ -452,7 +493,7 @@ describe('ResourceList display', () => {
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
       halfDays: [],
-      color: '#a855f7',
+      color: '#9c3ace',
       projectId: project.id,
     });
 
@@ -488,11 +529,8 @@ describe('ResourceList display', () => {
   });
 });
 
-// Archive hides a resource from active views while retaining it for restoration. The demo fixture exercises local state without requests.
+// Active resources and the server-shaped inactive slice are read from separate fixture paths.
 describe('ResourceList archive flow', () => {
-  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'));
-  afterEach(() => vi.unstubAllEnvs());
-
   it('shows an Archive confirm dialog and cancelling keeps the resource visible', async () => {
     const user = userEvent.setup();
     await useStore.getState().addResource(personDraft('Alice'));
@@ -516,26 +554,29 @@ describe('ResourceList archive flow', () => {
 
   it('archives a resource after confirming and shows it below the active sections', async () => {
     const user = userEvent.setup();
-    await useStore.getState().addResource(personDraft('Alice'));
+    const resource = await requireCreated(useStore.getState().addResource(personDraft('Alice')));
     render(<ResourceList />);
 
     await user.click(screen.getByRole('button', { name: 'Archive Alice' }));
     const dialog = screen.getByRole('alertdialog');
+    queuePlanningPatch(() => ({
+      upserts: [
+        { entity: 'resources', row: { ...resource, archivedAt: '2026-01-01T00:00:00.000Z' } },
+      ],
+      removed: [],
+    }));
     await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
 
     expect(useStore.getState().data.resources).toHaveLength(1);
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByTestId('resource-row')).not.toBeInTheDocument();
     expect(
-      within(screen.getByTestId('archived-resources-section')).getByText('Alice'),
+      within(await screen.findByTestId('archived-resources-section')).getByText('Alice'),
     ).toBeInTheDocument();
   });
 });
 
 describe('ResourceList archived grouping', () => {
-  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'));
-  afterEach(() => vi.unstubAllEnvs());
-
   it('groups archived resources by kind and engagement, hides empty groups, and preserves placeholders', async () => {
     const studio = await requireCreated(
       useStore.getState().addResource(personDraft('Bruce Wayne')),
@@ -559,16 +600,27 @@ describe('ResourceList archived grouping', () => {
         workingHoursPerDay: 8,
         workingDays: WORKDAYS,
         halfDays: [],
-        color: '#a855f7',
+        color: '#9c3ace',
       }),
     );
-    for (const id of [studio.id, supplementary.id, external.id, placeholder.id]) {
-      await useStore.getState().archiveEntity('resources', id);
-    }
+    const data = useStore.getState().data;
+    const archivedIds = new Set([studio.id, supplementary.id, external.id, placeholder.id]);
+    loadPlanningData({
+      ...data,
+      resources: data.resources.map((resource) =>
+        archivedIds.has(resource.id)
+          ? { ...resource, archivedAt: '2026-01-01T00:00:00.000Z' }
+          : resource,
+      ),
+    });
 
     render(<ResourceList />);
 
-    const archived = screen.getByTestId('archived-resources-section');
+    const archived = await screen.findByTestId('archived-resources-section');
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('includeInactive=1'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
     const headings = within(archived)
       .getAllByRole('heading')
       .map((heading) => heading.textContent);
@@ -597,11 +649,19 @@ describe('ResourceList archived grouping', () => {
     const studio = await requireCreated(
       useStore.getState().addResource(personDraft('Bruce Wayne')),
     );
-    await useStore.getState().archiveEntity('resources', studio.id);
+    const data = useStore.getState().data;
+    loadPlanningData({
+      ...data,
+      resources: data.resources.map((resource) =>
+        resource.id === studio.id
+          ? { ...resource, archivedAt: '2026-01-01T00:00:00.000Z' }
+          : resource,
+      ),
+    });
 
     render(<ResourceList />);
 
-    const archived = screen.getByTestId('archived-resources-section');
+    const archived = await screen.findByTestId('archived-resources-section');
     expect(
       within(archived).getByRole('heading', { name: 'Archived Studio (1)' }),
     ).toBeInTheDocument();
@@ -618,13 +678,10 @@ describe('ResourceList archived grouping', () => {
 });
 
 describe('ResourceList archive flow', () => {
-  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'));
-  afterEach(() => vi.unstubAllEnvs());
-
   it('archives the correct resource when multiple exist', async () => {
     const user = userEvent.setup();
     await useStore.getState().addResource(personDraft('Alice'));
-    await useStore.getState().addResource(personDraft('Bob'));
+    const bobResource = await requireCreated(useStore.getState().addResource(personDraft('Bob')));
     render(<ResourceList />);
 
     const rows = screen.getAllByTestId('resource-row');
@@ -636,6 +693,12 @@ describe('ResourceList archive flow', () => {
 
     const dialog = screen.getByRole('alertdialog');
     expect(dialog).toHaveTextContent(/Bob/i);
+    queuePlanningPatch(() => ({
+      upserts: [
+        { entity: 'resources', row: { ...bobResource, archivedAt: '2026-01-01T00:00:00.000Z' } },
+      ],
+      removed: [],
+    }));
     await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
 
     const bob = requireValue(
@@ -646,52 +709,59 @@ describe('ResourceList archive flow', () => {
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getAllByTestId('resource-row')).toHaveLength(1);
     expect(
-      within(screen.getByTestId('archived-resources-section')).getByText('Bob'),
+      within(await screen.findByTestId('archived-resources-section')).getByText('Bob'),
     ).toBeInTheDocument();
   });
 });
 
 describe('ResourceList archive flow', () => {
-  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'));
-  afterEach(() => vi.unstubAllEnvs());
-
   it('archives a freelancer resource', async () => {
     const user = userEvent.setup();
-    await useStore.getState().addResource(freelancerDraft('Bob'));
+    const freelancer = await requireCreated(
+      useStore.getState().addResource(freelancerDraft('Bob')),
+    );
     render(<ResourceList />);
 
     expect(screen.getByText('Bob')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Archive Bob' }));
     const dialog = screen.getByRole('alertdialog');
+    queuePlanningPatch(() => ({
+      upserts: [
+        { entity: 'resources', row: { ...freelancer, archivedAt: '2026-01-01T00:00:00.000Z' } },
+      ],
+      removed: [],
+    }));
     await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
 
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByTestId('resource-row')).not.toBeInTheDocument();
     expect(
-      within(screen.getByTestId('archived-resources-section')).getByText('Bob'),
+      within(await screen.findByTestId('archived-resources-section')).getByText('Bob'),
     ).toBeInTheDocument();
   });
 
   it('archives a placeholder resource', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
     const project = await requireCreated(
-      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#222' }),
+      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#76a5e7' }),
     );
-    await useStore.getState().addResource({
-      kind: 'placeholder',
-      role: 'Senior Designer',
-      employmentType: 'permanent' as const,
-      engagement: 'studio' as const,
-      workingHoursPerDay: 8,
-      workingDays: WORKDAYS,
-      halfDays: [],
-      color: '#a855f7',
-      projectId: project.id,
-    });
+    const placeholder = await requireCreated(
+      useStore.getState().addResource({
+        kind: 'placeholder',
+        role: 'Senior Designer',
+        employmentType: 'permanent' as const,
+        engagement: 'studio' as const,
+        workingHoursPerDay: 8,
+        workingDays: WORKDAYS,
+        halfDays: [],
+        color: '#9c3ace',
+        projectId: project.id,
+      }),
+    );
     render(<ResourceList />);
 
     // Match the secondary role label separately from the fixed Placeholder display name.
@@ -703,10 +773,16 @@ describe('ResourceList archive flow', () => {
     const dialog = screen.getByRole('alertdialog');
     // The confirmation uses the same Placeholder display identity as the row so the target remains recognizable.
     expect(dialog).toHaveTextContent(/Archive "Placeholder"/i);
+    queuePlanningPatch(() => ({
+      upserts: [
+        { entity: 'resources', row: { ...placeholder, archivedAt: '2026-01-01T00:00:00.000Z' } },
+      ],
+      removed: [],
+    }));
     await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
 
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
-    const archived = screen.getByTestId('archived-resources-section');
+    const archived = await screen.findByTestId('archived-resources-section');
     expect(
       within(archived).getByTestId('archived-row').querySelector('.font-medium'),
     ).toHaveTextContent('Senior Designer');

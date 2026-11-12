@@ -1,12 +1,13 @@
 import db from '@adonisjs/lucid/services/db';
 import type { AppData } from '@capacitylens/shared/types/entities';
-import { seed } from '@capacitylens/shared/data/seed';
+import { seed, seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { withTransaction } from '#services/with_transaction';
 import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
 import access from '#config/access_control';
 import Account from '#models/account';
+import { establishInitialCompanyAuthority } from '#services/initial_company_authority';
 import Activity from '#models/activity';
 import Allocation from '#models/allocation';
 import Client from '#models/client';
@@ -243,4 +244,40 @@ export const replaceWithSeed = () => resetState(true);
 export async function checkDatabase() {
   await db.rawQuery('select 1');
   await assertSchemaIntegrity();
+}
+
+/** Insert the single disposable company graph and its authority in one transaction. */
+export async function insertDisposableDemoSeed(ownerId: string) {
+  await withTransaction(async (trx) => {
+    if (await trx.from('accounts').first()) {
+      throw new Error('Refusing demo seed: companies already exist');
+    }
+    if (await trx.from('memberships').first()) {
+      throw new Error('Refusing demo seed: memberships already exist');
+    }
+    const data = seedForCurrentWeek();
+    const company = data.accounts.find((account) => account.id === 'a-studio');
+    if (!company) throw new Error('Disposable company fixture is missing');
+    for (const [key, table] of Object.entries(tables)) {
+      const rows =
+        key === 'accounts'
+          ? [company]
+          : data[key as keyof typeof tables].filter(
+              (row) => 'accountId' in row && row.accountId === company.id
+            );
+      if (rows.length > 0) {
+        await trx
+          .table(table)
+          .multiInsert(
+            rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>))
+          );
+      }
+    }
+    await establishInitialCompanyAuthority(trx, {
+      accountId: company.id,
+      ownerId,
+      actorId: ownerId,
+      now: new Date().toISOString(),
+    });
+  });
 }

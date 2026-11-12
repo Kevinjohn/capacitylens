@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useRole } from '@/auth/permissionContext';
-import { isDemoMode } from '@/data/apiConfig';
 import { useTourAction } from '@/hooks/useTourAction';
 import { gettingStartedClient } from '@/account/gettingStartedClient';
 import { buildGettingStartedSteps } from '@/lib/gettingStarted';
@@ -51,8 +50,6 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
   );
 }
 
-const demoDismissedAccounts = new Set<string>();
-
 /** Shows account setup guidance based on the active account state. */
 export function GettingStarted() {
   const accountId = useStore((state) => state.activeAccountId);
@@ -85,7 +82,7 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
     else void dismiss();
   };
   if (!loaded || dismissed || activeRole === 'viewer') return null;
-  const canDismiss = activeRole === 'owner' || activeRole === 'admin' || activeRole === null;
+  const canDismiss = activeRole === 'owner' || activeRole === 'admin';
 
   return (
     <div
@@ -210,17 +207,15 @@ function useCompanyDismissal(
   pathname: string,
   setNotice: (message: string, tone: 'error') => void,
 ) {
-  const [dismissed, setDismissed] = useState(
-    () => isDemoMode() && demoDismissedAccounts.has(accountId),
-  );
-  const [loaded, setLoaded] = useState(() => isDemoMode());
+  const [dismissed, setDismissed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const dismissedRef = useRef(dismissed);
   useEffect(() => {
-    if (isDemoMode() || dismissedRef.current) return;
+    if (dismissedRef.current) return;
     const controller = new AbortController();
     void gettingStartedClient
       .read(accountId, controller.signal)
@@ -251,11 +246,8 @@ function useCompanyDismissal(
     if (saving) return;
     setSaving(true);
     try {
-      if (!isDemoMode()) {
-        const response = await gettingStartedClient.dismiss(accountId);
-        if (!response.ok) throw new Error(`Getting started dismissal failed (${response.status})`);
-      }
-      if (isDemoMode()) demoDismissedAccounts.add(accountId);
+      const response = await gettingStartedClient.dismiss(accountId);
+      if (!response.ok) throw new Error(`Getting started dismissal failed (${response.status})`);
       dismissedRef.current = true;
       setDismissed(true);
       setConfirmOpen(false);

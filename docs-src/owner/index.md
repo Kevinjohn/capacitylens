@@ -27,8 +27,7 @@ You need the one-time setup link from whoever installed CapacityLens.
 2. **Create your company.** On **Set up your company**, enter **Company name** and select
    **Create company**. Schedule opens with you as Owner. [Company setup](/owner/create-your-company)
    explains what to do if access is unavailable.
-   The [demo](/getting-started/try-the-demo) lets you edit fictional companies, but its changes are
-   lost on reload.
+   The [demo](/getting-started/try-the-demo) opens a fictional sample company. Changes survive refresh and reset when the demo restarts.
 
 3. ![Invite someone dialog with Role set to Admin, an email address and Create invite](../screenshots/steps/owner_invite_admin_dialog.png)
 

@@ -190,5 +190,53 @@
   {
     "path": "docs-src/screenshots/reviews/reassignment_working_day_after.png",
     "sha256": "ca5df6290605fd0a2bd82ba9abd3c1ca72e87b39aee8c19f5ece9bf6eeba71c2"
+  },
+  {
+    "path": "docs-src/screenshots/flows/using_settings_1.png",
+    "sha256": "8d47a4d2c9b137e2ccfeb1c4cf2803f56cdf4c1651712bd80b5ae2d56b2ceed4"
+  },
+  {
+    "path": "docs-src/screenshots/flows/schedule_filters_open.png",
+    "sha256": "5a0ced86aea551224724df40704c28e096794cb62c678a0430af74c749c35c1e"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_company_settings_1.png",
+    "sha256": "8d47a4d2c9b137e2ccfeb1c4cf2803f56cdf4c1651712bd80b5ae2d56b2ceed4"
+  },
+  {
+    "path": "docs-src/screenshots/flows/schedule_filter_unallocated.png",
+    "sha256": "6292831b0b6152f93ed7fb4b7f6dbf31e46bce8d17a8ea4776e0d11c8fa6d98c"
+  },
+  {
+    "path": "docs-src/screenshots/flows/tour_viewer.png",
+    "sha256": "1d2c497af1b689bf3be94161334e2e5583cd79421101e1baff554a8491fcead1"
+  },
+  {
+    "path": "docs-src/screenshots/flows/settings_overview.png",
+    "sha256": "8d47a4d2c9b137e2ccfeb1c4cf2803f56cdf4c1651712bd80b5ae2d56b2ceed4"
+  },
+  {
+    "path": "docs-src/screenshots/flows/schedule.jpg",
+    "sha256": "6f5397d615db8c80e00722a27d8c114529c2c82429bb16c78e29d22f3353942b"
+  },
+  {
+    "path": "docs-src/screenshots/flows/schedule_filter_project.png",
+    "sha256": "98cdf0d5b77ee95cb0c0acc968353691fd37875770e9464f477579ce863c911a"
+  },
+  {
+    "path": "docs-src/screenshots/flows/settings_working_days_guard.png",
+    "sha256": "4342c92522c7ae018874235c2d57b9a035480f254114c26081b95f90eb0554da"
+  },
+  {
+    "path": "docs-src/screenshots/flows/settings_schedule_device.png",
+    "sha256": "61a7d6dc97297c6ce725e8f4436bccd26937c11cd7524e66a817786085e22913"
+  },
+  {
+    "path": "docs-src/screenshots/flows/settings_account_disclosures.png",
+    "sha256": "69386903c736bcf9895d2e23d40079fad331ad88efc5cb3982fde0ebfb3eb916"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_company_settings_2.png",
+    "sha256": "8d47a4d2c9b137e2ccfeb1c4cf2803f56cdf4c1651712bd80b5ae2d56b2ceed4"
   }
 ]

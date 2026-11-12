@@ -7,15 +7,12 @@ import {
 } from '@capacitylens/shared/data/betaTransfer';
 import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
 import { seed } from '@capacitylens/shared/data/seed';
-import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
-import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, resetStoreWithAccount } from '@/test/fixtures';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
 
-const serverFlag = { on: false };
 const refreshOverride = vi.hoisted(() => ({ result: { kind: 'reloaded' } as { kind: string } }));
 const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
 const originalPlanning = {
@@ -25,8 +22,6 @@ const originalPlanning = {
 };
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: '',
-  isServerConfigured: () => serverFlag.on,
-  isDemoMode: () => !serverFlag.on,
 }));
 
 const accountId = 'a-studio';
@@ -35,34 +30,21 @@ function document(): BetaExportDocument {
   return buildBetaExport(seed(), { accountId, completeness: 'full' });
 }
 
-function renderTools(server = false) {
-  serverFlag.on = server;
-  if (server) {
-    useStore.setState({
-      refreshPlanning: async () => refreshOverride.result.kind === 'reloaded',
-      planningReadyForReplacement: () => true,
-      suspendPlanningCommands: () => {
-        planningProbe.suspends += 1;
-        return () => {
-          planningProbe.releases += 1;
-        };
-      },
-    });
-  }
+function renderTools() {
+  useStore.setState({
+    refreshPlanning: async () => refreshOverride.result.kind === 'reloaded',
+    planningReadyForReplacement: () => true,
+    suspendPlanningCommands: () => {
+      planningProbe.suspends += 1;
+      return () => {
+        planningProbe.releases += 1;
+      };
+    },
+  });
   return render(
-    <AuthContext.Provider
-      value={{
-        authMode: server ? 'password-only' : 'off',
-        user: server ? { id: 'bruce', email: 'bruce@wayne.example' } : null,
-        canCreateAccount: false,
-        refreshAuth: async () => {},
-        signOut: async () => {},
-      }}
-    >
-      <PermissionContext.Provider value={{ role: server ? 'owner' : null, status: 'resolved' }}>
-        <ImportExport />
-      </PermissionContext.Provider>
-    </AuthContext.Provider>,
+    <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+      <ImportExport />
+    </PermissionContext.Provider>,
   );
 }
 
@@ -96,7 +78,7 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
       throw new Error(`Unexpected request: ${url}`);
     }),
   );
-  renderTools(true);
+  renderTools();
   await previewFile(document());
   fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
@@ -105,12 +87,11 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
 }
 
 beforeEach(async () => {
-  serverFlag.on = false;
   refreshOverride.result = { kind: 'reloaded' };
   planningProbe.suspends = 0;
   planningProbe.releases = 0;
   await resetStoreWithAccount(accountId);
-  useStore.getState().replaceAll(seed());
+  loadPlanningData(seed());
   sessionStorage.clear();
   window.history.replaceState(null, '', '/settings');
 });
@@ -213,6 +194,12 @@ describe('beta import and export', () => {
       }),
       revokeObjectURL: vi.fn(),
     });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : String(input);
+      expect(url).toContain(`/api/state?accountId=${accountId}&includeInactive=1`);
+      return Response.json(document().data);
+    });
+    vi.stubGlobal('fetch', fetchMock);
     renderTools();
     fireEvent.click(screen.getByTestId('export-data'));
     await waitFor(() => {
@@ -225,6 +212,7 @@ describe('beta import and export', () => {
     expect(exported.completeness).toBe('full');
     expect(exported.data.accounts.map((row) => row.id)).toEqual([accountId]);
     expect(exported.data.resources[0]?.id).toBeDefined();
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it('refuses a malformed inactive server slice instead of downloading a repaired backup', async () => {
@@ -237,163 +225,10 @@ describe('beta import and export', () => {
       vi.fn(async () => Response.json(bad)),
     );
     const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    renderTools(true);
+    renderTools();
     fireEvent.click(screen.getByTestId('export-data'));
     await waitFor(() => expect(useStore.getState().notice?.tone).toBe('error'));
     expect(download).not.toHaveBeenCalled();
-  });
-
-  it('previews without writing, cancels, then replaces only the selected demo company with stable IDs', async () => {
-    const before = structuredClone(useStore.getState().data);
-    const incoming = document();
-    const incomingAccount = incoming.data.accounts[0];
-    if (!incomingAccount) throw new Error('The import fixture has no company.');
-    incomingAccount.name = 'Wayne Enterprises restored';
-    renderTools();
-    await selectFile(incoming);
-    expect(useStore.getState().data).toEqual(before);
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(useStore.getState().data).toEqual(before);
-
-    await previewFile(incoming);
-    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-    await waitFor(() =>
-      expect(useStore.getState().data.accounts.find((row) => row.id === accountId)?.name).toBe(
-        'Wayne Enterprises restored',
-      ),
-    );
-    const after = useStore.getState().data;
-    expect(after.accounts.find((row) => row.id === 'a-loft')).toEqual(
-      before.accounts.find((row) => row.id === 'a-loft'),
-    );
-    for (const key of SCOPED_KEYS) {
-      expect(after[key].filter((row) => row.accountId === 'a-loft')).toEqual(
-        before[key].filter((row) => row.accountId === 'a-loft'),
-      );
-    }
-    expect(
-      after.resources.filter((row) => row.accountId === accountId).map((row) => row.id),
-    ).toEqual(incoming.data.resources.map((row) => row.id));
-    expect(useStore.getState().past).toEqual([]);
-  });
-
-  it('refuses demo imports whose scheduling IDs belong to another company without changing either company', async () => {
-    await useStore.getState().refreshPlanning();
-    const before = structuredClone(useStore.getState().data);
-    const planningBefore = useStore.getState().planning;
-    const incoming = buildBetaExport(seed(), { accountId: 'a-loft', completeness: 'full' });
-    renderTools();
-    await previewFile(incoming);
-    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull());
-    expect(useStore.getState().notice?.tone).toBe('error');
-    expect(useStore.getState().notice?.message).toMatch(/another demo company/i);
-    expect(useStore.getState().activeAccountId).toBe(accountId);
-    expect(useStore.getState().data).toEqual(before);
-    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
-    expect(useStore.getState().planning).toBe(planningBefore);
-    await useStore.getState().refreshPlanning();
-    expect(useStore.getState().data).toEqual(before);
-    const retry = document();
-    const retryAccount = retry.data.accounts[0];
-    if (!retryAccount) throw new Error('The retry fixture has no company.');
-    retryAccount.name = 'Wayne Enterprises restored';
-    await previewFile(retry);
-    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-    await waitFor(() =>
-      expect(useStore.getState().data.accounts.find((row) => row.id === accountId)?.name).toBe(
-        'Wayne Enterprises restored',
-      ),
-    );
-    expect(useStore.getState().notice?.tone).not.toBe('error');
-  });
-
-  it('imports a different source company into the demo when its scheduling IDs do not collide', async () => {
-    const before = structuredClone(useStore.getState().data);
-    const incoming = document();
-    const incomingAccount = incoming.data.accounts[0];
-    if (!incomingAccount) throw new Error('The import fixture has no company.');
-    incomingAccount.id = 'source-company';
-    incomingAccount.name = 'Wayne Enterprises restored';
-    for (const key of SCOPED_KEYS) {
-      for (const row of incoming.data[key]) row.accountId = 'source-company';
-    }
-    renderTools();
-    await previewFile(incoming);
-    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull());
-    const after = useStore.getState().data;
-    expect(after.accounts.find((row) => row.id === accountId)).toEqual({
-      ...incoming.data.accounts[0],
-      id: accountId,
-    });
-    expect(after.accounts.find((row) => row.id === 'a-loft')).toEqual(
-      before.accounts.find((row) => row.id === 'a-loft'),
-    );
-    for (const key of SCOPED_KEYS) {
-      expect(after[key].filter((row) => row.accountId === accountId)).toEqual(
-        incoming.data[key].map((row) => ({ ...row, accountId })),
-      );
-      expect(after[key].filter((row) => row.accountId === 'a-loft')).toEqual(
-        before[key].filter((row) => row.accountId === 'a-loft'),
-      );
-    }
-    expect(useStore.getState().activeAccountId).toBe(accountId);
-    expect(useStore.getState().notice?.tone).not.toBe('error');
-  });
-
-  it('invalidates typed Undo and old restoration handles in the same demo import publication', async () => {
-    await useStore.getState().refreshPlanning();
-    const allocation = useStore
-      .getState()
-      .data.allocations.find((row) => row.accountId === accountId);
-    if (!allocation) throw new Error('The demo allocation fixture is missing.');
-    await useStore.getState().deleteAllocation(allocation.id);
-    const history = useStore.getState().planning.history.past;
-    const inverse = history.at(-1)?.inverse;
-    if (inverse?.operation !== 'planning.restoreGroup') {
-      throw new Error('The delete has no restoration handle.');
-    }
-
-    const incoming = document();
-    incoming.data.allocations = incoming.data.allocations.filter((row) => row.id !== allocation.id);
-    const account = incoming.data.accounts[0];
-    if (!account) throw new Error('The imported company is missing.');
-    account.name = 'Wayne Enterprises after import';
-    const publications: Array<{ imported: boolean; typedHistory: number }> = [];
-    const unsubscribe = useStore.subscribe((state) => {
-      publications.push({
-        imported: state.data.accounts.some(
-          (row) => row.id === accountId && row.name === account.name,
-        ),
-        typedHistory: state.planning.history.past.length,
-      });
-    });
-    try {
-      renderTools();
-      await previewFile(incoming);
-      fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-      await waitFor(() =>
-        expect(useStore.getState().data.accounts.find((row) => row.id === accountId)?.name).toBe(
-          account.name,
-        ),
-      );
-      expect(
-        publications
-          .filter((publication) => publication.imported)
-          .every((publication) => publication.typedHistory === 0),
-      ).toBe(true);
-      expect(await useStore.getState().undoPlanning()).toBe(false);
-      await expect(
-        useStore.getState().sendPlanningCommand({ intent: inverse, inverse: null }),
-      ).rejects.toThrow();
-      expect(useStore.getState().data.allocations.some((row) => row.id === allocation.id)).toBe(
-        false,
-      );
-    } finally {
-      unsubscribe();
-    }
   });
 
   it('refuses a redacted document before showing replacement confirmation', async () => {
@@ -418,7 +253,7 @@ describe('beta import and export', () => {
     ['invalid JSON', '{ "format":', /valid JSON/i],
     ['unrelated JSON', '{ "hello": "world" }', /beta-native CapacityLens export/i],
     ['unsupported version', JSON.stringify({ ...document(), schemaVersion: 3 }), /unsupported/i],
-  ])('refuses %s without changing demo data', async (_case, contents, message) => {
+  ])('refuses %s without changing server data', async (_case, contents, message) => {
     const before = structuredClone(useStore.getState().data);
     renderTools();
     const input = screen.getByTestId('import-input');
@@ -474,7 +309,7 @@ describe('beta import and export', () => {
         throw new Error(`Unexpected request: ${path}`);
       }),
     );
-    renderTools(true);
+    renderTools();
     await previewFile(incoming);
     fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
     expect(requests.map((request) => request.url)).toEqual(['/api/transfer/preview']);
@@ -546,7 +381,7 @@ describe('beta import and export', () => {
         throw new Error(`Unexpected request: ${path}`);
       }),
     );
-    renderTools(true);
+    renderTools();
     await selectFile(first);
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(previews).toHaveLength(1));
@@ -578,7 +413,6 @@ describe('beta import and export', () => {
   });
 
   it('hides server import from non-owners while keeping export', () => {
-    serverFlag.on = true;
     render(
       <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
         <ImportExport />

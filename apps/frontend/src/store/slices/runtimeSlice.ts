@@ -52,8 +52,7 @@ type RuntimeSliceKeys =
   | 'setMinimiseWeekends'
   | 'setActiveRole'
   | 'invalidateMemberships'
-  | 'setMasquerade'
-  | 'clearUndoHistory';
+  | 'setMasquerade';
 
 type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
@@ -162,6 +161,5 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     invalidateMemberships: () =>
       set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
     setMasquerade: (masquerade) => set({ masquerade }),
-    clearUndoHistory: () => set({ past: [], future: [] }),
   };
 };

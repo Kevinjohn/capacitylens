@@ -36,16 +36,14 @@ async function readActiveMasqueradeAuthStatus(
 ): Promise<AuthStatusResult | null> {
   try {
     const user = parseAuthUser({ value: masquerade.principal, requireEmail: true });
-    if (!user || !isAuthMode(masquerade.authMode) || masquerade.authMode === 'off') {
+    if (!user || !isAuthMode(masquerade.authMode)) {
       return invalidResponse();
     }
     if (!(await adoptMasqueradeStatus(masquerade, acceptEffects))) return null;
     const next: Extract<AuthStatusResult, { kind: 'pass' }> = {
       kind: 'pass',
-      identitySource: 'live',
       authMode: masquerade.authMode,
       user,
-      canCreateAccount: false,
     };
     return next;
   } catch (error) {

@@ -45,7 +45,6 @@ Setup is available only when your identity is the only sign-in and no company or
 The server blocks open signup until your company exists, so another signup cannot interrupt this
 first-run setup. If several identities already exist, ask whoever manages hosting to resolve
 access. Setup cannot create a second company or replace an Owner.
-The temporary [demo](/getting-started/try-the-demo) lets you explore fictional companies without
-storing their records.
+The temporary [demo](/getting-started/try-the-demo) opens a fictional sample company on a disposable local server. Restarting the demo resets its data.
 
 Next: [Appoint an Admin](/owner/appoint-an-admin) — hand the day-to-day running to someone else.

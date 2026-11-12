@@ -1,10 +1,8 @@
 // Build provenance for tester bug reports, read from the build-time
 // env like apiConfig. The deploy script sets VITE_CAPACITYLENS_BUILD_SHA; a build without it (dev
-// server, plain local build) renders no stamp at all. The mode suffix exists because the demo
-// build looks otherwise identical to a real server deploy. The stamp is how the
-// post-deploy smoke test proves the deploy really is in server mode, not the demo build.
+// server or plain local build) renders no stamp at all. The suffix identifies the server deployment
+// in feedback and diagnostics.
 
-import { isServerConfigured } from './apiConfig';
 import { APP_NAME } from '@capacitylens/shared/brand';
 import { isAccountEmail } from '@capacitylens/shared/account/validation';
 import { EXPORT_SCHEMA_VERSION } from '@capacitylens/shared/types/entities';
@@ -40,13 +38,13 @@ export interface ClientDiagnostics {
   browser: BrowserDiagnostics;
 }
 
-/** Privacy-safe client report captured for a local demo or server observation; it is not a live monitor. */
+/** Privacy-safe client report captured for a server observation; it is not a live monitor. */
 export interface DiagnosticsReport {
-  /** Client ISO timestamp for a local demo snapshot, server response, or observed failure; null means it is still pending. */
+  /** Client ISO timestamp for a server response or observed failure; null means it is still pending. */
   observedAt: string | null;
   appVersion: string;
   buildRevision: string | null;
-  deploymentMode: 'server' | 'demo';
+  deploymentMode: 'server';
   exportSchema: number;
   server: ServerDiagnostics;
   client: ClientDiagnostics;
@@ -168,7 +166,7 @@ export function readDiagnostics(
     observedAt: readTimestamp(observedAt) ?? null,
     appVersion: packageJson.version,
     buildRevision: readBuildRevision(),
-    deploymentMode: isServerConfigured() ? 'server' : 'demo',
+    deploymentMode: 'server',
     // The export schema is a client-side format marker; it is deliberately not presented as the
     // physical server schema, which is supplied separately by the authenticated diagnostics route.
     exportSchema: EXPORT_SCHEMA_VERSION,
@@ -212,7 +210,7 @@ function readOptionalEnvironmentString(value: unknown, variableName: string): st
 export function readBuildStamp(): string | null {
   const revision = readBuildRevision();
   if (!revision) return null;
-  return `build ${revision} · ${isServerConfigured() ? 'server' : 'demo'}`;
+  return `build ${revision} · server`;
 }
 
 /** The Diagnostics "Send feedback" mailto href (flag VITE_CAPACITYLENS_FEEDBACK_MAILTO), or

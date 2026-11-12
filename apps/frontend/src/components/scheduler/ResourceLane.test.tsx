@@ -1,3 +1,4 @@
+import { loadPlanningData } from '@/test/fixtures';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { cleanup, screen, act } from '@testing-library/react';
@@ -10,7 +11,7 @@ import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { renderWithTooltip as render } from './__tests__/schedulerTestKit';
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData());
+  loadPlanningData(emptyAppData());
   useStore.getState().clearFilters();
 });
 

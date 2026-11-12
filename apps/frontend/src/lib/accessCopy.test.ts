@@ -28,27 +28,22 @@ const localizedRoleCopy = (role: Role) => ({
 const accessPrecedenceCases = () =>
   [
     [
-      { experience: 'demo', permissionStatus: 'pending', role: null },
-      m.access_demo_label(),
-      m.access_demo_summary(),
-    ],
-    [
-      { experience: 'authenticated', permissionStatus: 'pending', role: null },
+      { permissionStatus: 'pending', role: null },
       m.access_checking_label(),
       m.access_checking_summary(),
     ],
     [
-      { experience: 'authenticated', permissionStatus: 'not-applicable', role: null },
+      { permissionStatus: 'not-applicable', role: null },
       m.access_not_applicable_label(),
       m.access_not_applicable_summary(),
     ],
     [
-      { experience: 'authenticated', permissionStatus: 'unavailable', role: 'owner' },
+      { permissionStatus: 'unavailable', role: 'owner' },
       m.access_unavailable_label(),
       m.access_unavailable_summary(),
     ],
     [
-      { experience: 'authenticated', permissionStatus: 'resolved', role: 'viewer' },
+      { permissionStatus: 'resolved', role: 'viewer' },
       m.settings_role_viewer(),
       m.access_role_viewer_summary(),
     ],
@@ -61,7 +56,7 @@ describe('access copy', () => {
     expect(resolveRoleSummary(role)).toBe(copy.summary);
   });
 
-  it('applies demo, pending, unavailable and role precedence consistently', () => {
+  it('applies pending, unavailable and role precedence consistently', () => {
     for (const [input, label, summary] of accessPrecedenceCases()) {
       expect(resolveAccessLabel(input)).toBe(label);
       expect(resolveAccessSummary(input)).toBe(summary);

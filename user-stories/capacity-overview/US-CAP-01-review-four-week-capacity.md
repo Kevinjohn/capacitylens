@@ -4,7 +4,7 @@ As a company member, I want to compare available capacity across the selected we
 
 **Status:** Current
 
-**Access:** Owner and Admin by default; Overview access can add Editors or Everyone; anyone in demo mode
+**Access:** Owner and Admin by default; Overview access can add Editors or Everyone
 
 **Entry:** Overview page
 
@@ -20,7 +20,7 @@ As a company member, I want to compare available capacity across the selected we
 - With disciplines enabled, people are grouped by discipline, and people without one appear under **Unassigned**; with disciplines off, people appear under **Overall**. Either fallback splits into **Studio** and **Supplementary** when an active Supplementary person exists. Every group can be collapsed.
 - Active placeholders appear under **Unassigned demand** only when placeholders are enabled. External, archived and deleted resources are excluded.
 - With Blocks scheduling input, the page shows **Overview needs measured capacity** instead of the table.
-- Owners and Admins set Settings → **Overview access** to Admins, Admins & Editors or Everyone; the default is Admins. Owners and Admins always have access, and anyone in demo mode can open it.
+- Owners and Admins set Settings → **Overview access** to Admins, Admins & Editors or Everyone; the default is Admins. Owners and Admins always have access.
 
 ## User flow
 

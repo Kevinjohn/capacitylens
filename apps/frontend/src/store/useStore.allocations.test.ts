@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import {
   DEFAULT_ACCOUNT_ID,
+  makeActivity,
+  makeResource,
   makeResourceDraft,
   requireValue,
   resetStoreWithAccount,
@@ -10,6 +12,12 @@ import {
 } from '@/test/fixtures';
 import { useStore } from './useStore';
 import type { Draft } from './useStore';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import {
+  queueAllocationDeleteGroupResponse,
+  queueAllocationGroupResponse,
+  queueAllocationRestoreResponse,
+} from '@/test/planning/queuePlanningFixtures';
 
 const state = () => useStore.getState();
 const typedHistory = () => state().planning.history;
@@ -34,8 +42,8 @@ async function allocationSetup() {
 function registerAtomicAllocationPart1(): void {
   it('shares the single/bulk path, mints unique rows, preserves valid hours and records one typed history step', async () => {
     const { draft } = await allocationSetup();
-    const legacyPast = state().past;
     const historyBefore = typedHistory().past.length;
+    queueAllocationGroupResponse();
     const created = requireCreated(
       await state().addAllocations([
         draft({ hoursPerDay: 24 }),
@@ -49,7 +57,6 @@ function registerAtomicAllocationPart1(): void {
     expect(requireValue(created[0], 'first allocation').hoursPerDay).toBe(24);
     expect(state().data.allocations).toEqual(created);
     expect(typedHistory().past).toHaveLength(historyBefore + 1);
-    expect(state().past).toBe(legacyPast);
 
     const single = requireCreated(
       await state().addAllocation(draft({ startDate: '2026-06-15', endDate: '2026-06-15' })),
@@ -87,21 +94,22 @@ function registerAtomicAllocationPart2(): void {
 }
 
 function registerAtomicAllocationPart3(): void {
-  it('rejects cross-account references and a placeholder/project mismatch atomically', async () => {
+  it('rejects foreign references and a placeholder/project mismatch atomically', async () => {
     const first = await allocationSetup();
-    const secondAccount = state().addAccount({ name: 'Other', color: '#2d75da' });
-    expect(secondAccount).not.toBeNull();
-    if (!secondAccount) throw new Error('Expected second account');
-    state().setActiveAccount(secondAccount.id);
-    await state().refreshPlanning();
-    const otherResource = await requireCreated(
-      state().addResource(makeResourceDraft({ name: 'Other person' })),
-    );
-    const otherActivity = await requireCreated(
-      state().addActivity({ name: 'Other work', kind: 'repeatable' }),
-    );
-    state().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    await state().refreshPlanning();
+    const otherResource = makeResource({ id: 'other-resource', accountId: 'other-company' });
+    const otherActivity = makeActivity({
+      id: 'other-activity',
+      accountId: 'other-company',
+      kind: 'repeatable',
+      projectId: null,
+    });
+    useStore.setState((current) => ({
+      data: {
+        ...current.data,
+        resources: [...current.data.resources, otherResource],
+        activities: [...current.data.activities, otherActivity],
+      },
+    }));
     const historyBeforeCrossAccountRejection = typedHistory().past.length;
     await expect(
       state().addAllocations([
@@ -154,6 +162,7 @@ function registerAtomicAllocationPart3(): void {
 function registerAtomicAllocationPart4(): void {
   it('creates one typed Undo/Redo unit for the complete batch', async () => {
     const { draft } = await allocationSetup();
+    queueAllocationGroupResponse();
     const created = requireCreated(
       await state().addAllocations([
         draft(),
@@ -162,14 +171,24 @@ function registerAtomicAllocationPart4(): void {
       ]),
     );
     expect(state().data.allocations).toEqual(created);
+    queueAllocationDeleteGroupResponse(
+      created.map(({ id }) => id),
+      'group-allocation-undo',
+    );
     expect(await state().undoPlanning()).toBe(true);
     expect(state().data.allocations).toHaveLength(0);
+    queueAllocationRestoreResponse(created, 'group-allocation-undo');
     expect(await state().redoPlanning()).toBe(true);
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'planning.restoreGroup',
+      restorationGroupId: 'group-allocation-undo',
+    });
     expect(state().data.allocations.map(({ id }) => id)).toEqual(created.map(({ id }) => id));
   });
 
   it('links a repeated set under one series and isolates a single-occurrence edit', async () => {
     const { draft } = await allocationSetup();
+    queueAllocationGroupResponse('server-series');
     const created = requireCreated(
       await state().addAllocations([
         draft(),
@@ -336,6 +355,7 @@ describe('resource availability boundaries', () => {
 describe('repeat-series allocation mutations', () => {
   it('deletes the selected and future occurrences as one typed Undo step', async () => {
     const { draft } = await allocationSetup();
+    queueAllocationGroupResponse('server-series');
     const [earlier, selected, later] = requireCreated(
       await state().addAllocations([
         draft({ startDate: '2026-06-01', endDate: '2026-06-03' }),
@@ -349,12 +369,15 @@ describe('repeat-series allocation mutations', () => {
     if (!earlier || !selected || !later) throw new Error('Expected three repeated allocations');
     const pastBefore = typedHistory().past.length;
 
+    queueAllocationDeleteGroupResponse([selected.id, later.id], 'group-delete-series');
     await state().deleteAllocationSeriesFrom(selected.id);
 
     expect(state().data.allocations.map(({ id }) => id)).toEqual([earlier.id, unrelated.id]);
     expect(typedHistory().past).toHaveLength(pastBefore + 1);
+    queueAllocationRestoreResponse([selected, later], 'group-delete-series');
     expect(await state().undoPlanning()).toBe(true);
     expect(state().data.allocations).toHaveLength(4);
+    queueAllocationDeleteGroupResponse([selected.id, later.id], 'group-redo-series');
     expect(await state().redoPlanning()).toBe(true);
     expect(state().data.allocations.map(({ id }) => id)).not.toContain(selected.id);
     expect(state().data.allocations.map(({ id }) => id)).not.toContain(later.id);
@@ -362,6 +385,7 @@ describe('repeat-series allocation mutations', () => {
 
   it('keeps series membership system-owned while editing linked and one-off allocations', async () => {
     const { draft } = await allocationSetup();
+    queueAllocationGroupResponse('server-series');
     const [linked] = requireCreated(
       await state().addAllocations([
         draft(),

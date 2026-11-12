@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { isServerConfigured } from '@/data/apiConfig';
 import { useStore } from '@/store/useStore';
 import type { AccountSummary } from '@/store/useStore';
 import { isAccountRole } from '@capacitylens/shared/account/types';
@@ -10,7 +8,8 @@ import { m } from '@/i18n';
 import { useAuth } from './authContext';
 import { api, scopeQueryKey } from '@/api/queryClient';
 
-// The picker needs the server directory before a tenant is selected because the loaded tenant slice cannot enumerate other companies. Demo mode derives its directory from local accounts.
+// The company directory is loaded before a tenant is selected because the active company slice
+// cannot enumerate other memberships.
 
 // Validate directory entries before publication. Unknown roles remain selectable but
 // fail closed without claiming an authoritative Viewer membership.
@@ -81,7 +80,7 @@ function applyAccountSummaryParseEffects(
   acceptEffects: () => boolean,
 ): void {
   if (outcome.droppedCount > 0 && acceptEffects()) {
-    useStore.getState().setNotice(m.picker_accounts_incomplete(), 'warning');
+    useStore.getState().setNotice(m.account_directory_incomplete(), 'warning');
   }
 }
 
@@ -106,7 +105,7 @@ export async function fetchAccountSummaries(requestOptions?: {
     if (!res.ok) {
       if (res.status === 409 && acceptEffects()) {
         useStore.getState().setAccountSummaries({ list: [], complete: false, ambiguous: true });
-        useStore.getState().setNotice(m.picker_multiple_companies_error(), 'warning');
+        useStore.getState().setNotice(m.account_directory_ambiguous(), 'warning');
       }
       return null;
     }
@@ -127,9 +126,9 @@ export async function fetchAccountSummaries(requestOptions?: {
 
 /**
  * Fetch and publish the company directory through the store's shared request sequence. Every
- * server-mode caller uses this boundary: a newer read, or a direct create/delete mutation, makes an
- * older response ineligible to replace the picker list. The fetched list is still returned to the
- * caller for its local reconciliation flow; only the shared-store publication is sequenced.
+ * caller uses this boundary: a newer read or membership mutation makes an older response ineligible
+ * to replace the company directory. The fetched list is also returned to reconcile active-account
+ * selection; only publication to the shared store is sequenced.
  */
 export async function refreshAccountSummaries(requestOptions?: {
   signal?: AbortSignal;
@@ -169,17 +168,9 @@ export async function refreshAccountSummaries(requestOptions?: {
   return list;
 }
 
-/** Keeps the picker directory current. Active-company reads belong to PermissionProvider; failed reads preserve the previous list, and the demo derives local summaries. */
-export function useAccountSummaries({
-  refreshActiveAccount = true,
-}: {
-  /** Authenticated app bodies delegate active-account refreshes to PermissionProvider so the
-   * directory and permission projection share one request. Picker reads remain owned by this hook. */
-  refreshActiveAccount?: boolean;
-} = {}): void {
-  const serverMode = isServerConfigured();
-  // Re-key the server request owner on the active account so a switch / sign-in re-pulls the list
-  // (a freshly accepted invite or a just-created org then appears). Harmless in the demo build.
+/** Keeps the account directory current. Active-company reads belong to PermissionProvider; failed reads preserve the previous list. */
+export function useAccountSummaries(): void {
+  // Re-key the request owner on the active account so a sign-in or membership change re-pulls the list.
   const activeAccountId = useStore((state) => state.activeAccountId);
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const membershipRevision = useStore((state) => state.membershipRevision);
@@ -193,9 +184,9 @@ export function useAccountSummaries({
       { principalId: user?.id ?? null, accountId: activeAccountId, masqueradeGeneration },
       ['account-summaries', membershipRevision, ...accountRouteKey],
     ),
-    enabled: serverMode && !masqueradeActive && (activeAccountId === null || refreshActiveAccount),
+    enabled: !masqueradeActive && activeAccountId === null,
     // Keep refresh triggers aligned with the existing effect dependencies; focus alone must not
-    // silently change the picker list.
+    // silently change the company directory.
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) =>
@@ -204,20 +195,4 @@ export function useAccountSummaries({
         acceptEffects: () => !signal.aborted,
       }),
   });
-  // Demo accounts are the complete local directory; server account rows hold only the hydrated tenant and cannot drive the picker.
-  const localAccounts = useStore((state) => state.data.accounts);
-
-  useEffect(() => {
-    if (serverMode) return;
-    // Demo build: the picker's list is the store's accounts (tagged owner = full access so the
-    // pure `can` keeps local fully editable). Kept in lockstep on every
-    // add/delete so the picker reflects changes without a fetch.
-    useStore.getState().setAccountSummaries({
-      list: localAccounts.map((allocation) => ({
-        id: allocation.id,
-        name: allocation.name,
-        role: 'owner' as const,
-      })),
-    });
-  }, [serverMode, localAccounts]);
 }

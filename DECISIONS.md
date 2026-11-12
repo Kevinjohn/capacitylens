@@ -25,7 +25,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - Employment type is recorded for people but does not add a visual badge to the schedule or roster.
 - Product orientation is non-blocking and shown automatically to eligible users until dismissed.
   The sidebar action can reopen it at any time. Dismissal is a versioned device preference scoped
-  to the signed-in person and company (with stable demo, local and no-company scopes), never
+  to the signed-in person and company (with a stable no-company scope), never
   company data or export data. Reopening focuses the guidance; automatic background state changes
   do not repeatedly steal focus. A copy change may bump the version to show materially changed
   guidance again.
@@ -73,17 +73,22 @@ This is the short, present-tense record of decisions that constrain future work.
 
 ## Data and tenancy
 
-- CapacityLens has two access experiences: `VITE_CAPACITYLENS_DEMO=1` is an editable, in-memory
-  demo whose scheduling data resets on reload; every persisted server requires an authenticated,
-  authorised company member. There is no sign-in mode setting; nothing enables anonymous persisted
-  access.
+- Every server requires an authenticated, authorised company member. There is no sign-in mode
+  setting or anonymous persisted access. The development demo runs the full server with a printed
+  sign-in and one sample company on disposable SQLite storage. Refresh retains changes; restarting
+  the command resets the sample data. Each invocation owns a temporary directory beneath the backend
+  temporary-data directory, with `.demo.db` as its basename. Cleanup removes it only after the
+  owned process groups have exited. Uncertain crash residue is retained and never reset by a later
+  invocation; Windows also retains storage when descendant exit cannot be verified.
 - SQLite is the only product database. One process owns one database file through a pool of one
   connection. Missing API access is an error, never a silent browser-storage fallback.
 - Every scoped row carries its company id. The server authorises every tenant read and write from
   session membership; client scoping is UI hygiene, not authorisation. Database triggers reject
   cross-company references within the scheduling graph; control links are checked transactionally
-  against the member and resource. One production installation holds one company; the demo may hold
-  several.
+  against the member and resource. Every installation serves one company. First-install setup
+  creates that company; the UI offers no company switcher or additional-company creation. Tenant
+  scoping, memberships and the account directory remain enforced, and ambiguous installations
+  report an error.
 - Planning reads return current authority, one integer company revision and the complete,
   confidentially projected company slice from one transaction. Every typed mutation carries the
   `baseRevision` it was drafted against; a mismatch returns 409 and the client refetches. No
@@ -173,7 +178,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - Scheduling records and identity snapshots are never persisted in the browser. The Zustand
   planning slice is a non-persisted cache patched from server responses; it is never authoritative.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
-- Ordinary device preferences live in localStorage. The demo is volatile and in-memory.
+- Ordinary device preferences live in localStorage. The disposable demo uses the same server-owned
+  planning data path as an installation.
 
 ## Accounts, admission and security
 
@@ -222,6 +228,7 @@ This is the short, present-tense record of decisions that constrain future work.
   commit together. The server refuses open signup until the first company exists, even when open
   signup is enabled in configuration. The stopped-server operator initializer remains a recovery
   option and also requires an admitted identity. No environment variable grants company ownership.
+  A development-only demo command may, on an empty disposable database, create the sample company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
   for a locked-out Owner is the kit's operator command, never an in-product action.

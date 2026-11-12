@@ -176,7 +176,6 @@ export class MasqueradeController {
         'The member view started, but its data could not be loaded. Retry or end the masquerade.',
       );
     }
-    useStore.getState().clearUndoHistory();
     publishMasqueradeAccount(state);
     useStore.getState().setMasquerade({ kind: 'active', state, generation });
     return true;
@@ -250,7 +249,6 @@ export class MasqueradeController {
       console.error('Masquerade projection retry failed', error);
       return this.fail('The member view could not be loaded.');
     }
-    useStore.getState().clearUndoHistory();
     publishMasqueradeAccount(state);
     useStore.getState().setMasquerade({ kind: 'active', state, generation });
     return true;
@@ -262,7 +260,7 @@ export class MasqueradeController {
   ): Promise<boolean> {
     const runtime = useStore.getState().masquerade;
     // A selected company can still lack a trustworthy projection after its first canonical read fails.
-    // Once End is confirmed, return to the picker rather than exposing that unread projection.
+    // Once End is confirmed, show account recovery rather than expose that unread projection.
     const cold =
       useStore.getState().activeAccountId === null ||
       (runtime.kind === 'starting' && !this.resumeWrites);
@@ -356,7 +354,6 @@ export class MasqueradeController {
       if (projection.kind === 'superseded') return { kind: 'superseded' };
       if (projection.kind === 'failed') return { kind: 'failed' };
       this.releaseSuspension({ dropParkedEdits: true });
-      useStore.getState().clearUndoHistory();
       useStore.getState().setMasquerade({ kind: 'inactive' });
       return { kind: 'inactive' };
     } catch (error) {
@@ -372,7 +369,6 @@ export class MasqueradeController {
         }
         if (!this.ownsRuntime(generation, 'ending')) return { kind: 'superseded' };
         this.releaseSuspension({ dropParkedEdits: true });
-        useStore.getState().clearUndoHistory();
         useStore.getState().setMasquerade({ kind: 'inactive' });
         return { kind: 'inactive' };
       } catch (reconciliationError) {
@@ -472,7 +468,6 @@ export class MasqueradeController {
       if (!this.acquireSuspension()) {
         return this.fail('The member view could not be loaded. Retry or end the masquerade.');
       }
-      useStore.getState().clearUndoHistory();
       publishMasqueradeAccount(state);
       const loadedName =
         useStore.getState().data.accounts.find((account) => account.id === state.accountId)?.name ??
@@ -554,7 +549,6 @@ export class MasqueradeController {
     }
     if (!this.ownsRuntime(generation, 'ending')) return;
     this.releaseSuspension({ dropParkedEdits: true });
-    useStore.getState().clearUndoHistory();
     useStore.getState().setMasquerade({ kind: 'inactive' });
   }
 }
