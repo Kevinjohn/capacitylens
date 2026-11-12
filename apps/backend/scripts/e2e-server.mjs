@@ -13,6 +13,8 @@ if (flavour !== 'db' && flavour !== 'auth') {
 
 const lane = ports();
 const port = flavour === 'db' ? lane.dbApi : lane.authApi;
+// The browser reaches this API through the flavour's Vite proxy, so its writes carry that origin.
+const webPort = flavour === 'db' ? lane.dbWeb : lane.authWeb;
 const database = flavour === 'db' ? '.e2e.db' : '.auth-e2e.db';
 const serverDirectory = new URL('../', import.meta.url);
 const env = {
@@ -38,7 +40,7 @@ if (flavour === 'auth' || flavour === 'db') {
     CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
     CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
     CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
-    CAPACITYLENS_CORS_ORIGIN: `http://localhost:${lane.authWeb},http://127.0.0.1:${lane.authWeb}`,
+    CAPACITYLENS_CORS_ORIGIN: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
   });
 }
 

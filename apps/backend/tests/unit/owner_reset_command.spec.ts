@@ -226,7 +226,7 @@ test('the issued owner link redeems once through the normal HTTP flow and ends e
       assert.notEqual(replayed.status, 200);
       const signin = await fetch(`${origin}/api/auth/sign-in`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
         body: JSON.stringify({
           email: 'bruce@wayne.example',
           password: 'owner-recovered-password-2026',

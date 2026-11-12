@@ -107,7 +107,11 @@ test.group('member sign-in tracking lifecycle', (group) => {
     ]);
 
     const signIn = () =>
-      client.post('/api/auth/sign-in').json({ email: 'clark.kent@wayne.example', password }).send();
+      client
+        .post('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
+        .json({ email: 'clark.kent@wayne.example', password })
+        .send();
     const offSignIn = await signIn();
     offSignIn.assertStatus(200);
     assert.isNull(await observation('a-studio', memberId));

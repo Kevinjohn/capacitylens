@@ -58,6 +58,7 @@ test.group('M2a review regressions', (group) => {
   test('removes the CSP report endpoint', async ({ client, assert }) => {
     const response = await client
       .post('/api/security/csp-report')
+      .header('sec-fetch-site', 'same-origin')
       .json({ report: 'ignored' })
       .send();
     assert.equal(response.status(), 404);

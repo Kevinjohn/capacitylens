@@ -76,15 +76,17 @@ forwarded headers.
 
 Set `CAPACITYLENS_TRUST_PROXY_HEADERS=1` only when the application listener is reachable solely
 through a trusted proxy on the same host that overwrites forwarded headers. The application then
-trusts forwarded client address and scheme headers from loopback connections only. The Docker
+trusts forwarded client address headers from loopback connections only. The Docker
 Compose stack sets `private`, which also trusts peers on private networks (10.0.0.0/8,
 172.16.0.0/12, 192.168.0.0/16 and fc00::/7); use it only when the listener is unreachable from
 anything but the proxy on that network. Keep `APP_URL`
 and `CAPACITYLENS_PUBLIC_URL` aligned with the browser-visible address. An HTTPS public URL makes
 the application send a host-only one-year HSTS header and mark its cookies `Secure`; an HTTP public
 URL sends no HSTS and uses plain cookies. The supplied nginx file leaves HSTS to the application
-and does not configure CSP reporting. `CAPACITYLENS_CORS_ORIGIN` is
-only needed when the browser app and API use different origins.
+and does not configure CSP reporting. Writes are accepted only from the `CAPACITYLENS_PUBLIC_URL`
+origin and the origins listed in `CAPACITYLENS_CORS_ORIGIN`. List every other browser address
+people use, such as an extra hostname, a LAN IP or a direct port. Listing an origin also allows
+credentialed cross-origin requests from it.
 
 `CAPACITYLENS_LOG=1` enables routine request-completion and structured password sign-in outcome
 logs. Sign-in records identify success, credential failure or throttling and share the request's

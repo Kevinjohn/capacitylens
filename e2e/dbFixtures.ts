@@ -8,9 +8,15 @@ export const test = base.extend<{ dbAuthentication: void }>({
   dbAuthentication: [
     async ({ request, context }, use) => {
       ensureDbFixtureAdministrator();
-      const apiSignIn = await request.post(`${API}/api/auth/sign-in`, { data: admin });
+      const apiSignIn = await request.post(`${API}/api/auth/sign-in`, {
+        data: admin,
+        headers: { 'sec-fetch-site': 'same-origin' },
+      });
       expect(apiSignIn.status()).toBe(200);
-      const browserSignIn = await context.request.post(`${API}/api/auth/sign-in`, { data: admin });
+      const browserSignIn = await context.request.post(`${API}/api/auth/sign-in`, {
+        data: admin,
+        headers: { 'sec-fetch-site': 'same-origin' },
+      });
       expect(browserSignIn.status()).toBe(200);
       await use();
     },

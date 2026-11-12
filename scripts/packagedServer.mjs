@@ -27,7 +27,7 @@ export async function reservePort() {
 }
 
 /** Use native password authentication and database sessions in a private loopback fixture. */
-export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port }) {
+export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port, corsOrigin }) {
   const environment = { ...inherited };
   delete environment.NODE_PATH;
   delete environment.NODE_OPTIONS;
@@ -55,6 +55,7 @@ export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port
     CAPACITYLENS_DB: databasePath,
     CAPACITYLENS_BACKUP_DIR: backupDir,
     CAPACITYLENS_PUBLIC_URL: `https://127.0.0.1:${port}`,
+    ...(corsOrigin ? { CAPACITYLENS_CORS_ORIGIN: corsOrigin } : {}),
   });
 }
 

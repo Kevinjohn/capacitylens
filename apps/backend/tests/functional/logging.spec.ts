@@ -250,7 +250,11 @@ test.group('general HTTP logging privacy', (group) => {
   }) => {
     const secret = 'SENTINEL_MALFORMED_REQUEST_BODY';
     const { output, result } = await captureLogs(() =>
-      client.post('/api/transfer/apply').unsafeJson(`{"secret":"${secret}"`).send()
+      client
+        .post('/api/transfer/apply')
+        .header('sec-fetch-site', 'same-origin')
+        .unsafeJson(`{"secret":"${secret}"`)
+        .send()
     );
 
     assert.equal(result.status(), 400);

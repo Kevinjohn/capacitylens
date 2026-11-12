@@ -248,10 +248,11 @@ This is the short, present-tense record of decisions that constrain future work.
   intact, but new events do not retain a company ID or separate explicit/company-switch/sign-out
   classifications. Control state and events stay in database backups, outside scheduling exports.
   Upgrades end legacy projections without converting their tokens into new authority.
-- Cross-site writes are refused by the Origin / Sec-Fetch-Site check, with one exemption for a
-  same-host Origin that claims `https` behind a TLS-terminating proxy. Shield owns HSTS, `nosniff`,
-  frame protection and the CSP. HSTS is sent only when the public URL is HTTPS. There is no CSP
-  report route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
+- Unsafe requests are accepted only from the public URL's origin or a `CAPACITYLENS_CORS_ORIGIN`
+  entry; when that is unset outside production, the built-in `localhost` and `127.0.0.1` origins on
+  ports 5173 and 5273 are trusted. With no Origin, only `Sec-Fetch-Site: same-origin` is accepted.
+  Shield owns HSTS, `nosniff`, frame protection and the CSP. HSTS is sent only when the public URL
+  is HTTPS. There is no CSP report route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.
 - Logs correlate a request by the framework's `request_id`. The server always generates it (a
   UUID, echoed in the `X-Request-Id` response header); a client-supplied `X-Request-Id` is

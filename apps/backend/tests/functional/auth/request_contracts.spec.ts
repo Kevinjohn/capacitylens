@@ -81,7 +81,11 @@ test.group('ordinary authentication request contracts', (group) => {
       [{ password: 'secret' }, 'Invalid email or password.'],
       [{ email: 'clark@wayne.example', password: 123 }, 'Invalid email or password.'],
     ] as const) {
-      const response = await client.post<string>('/api/auth/sign-in').json(body).send();
+      const response = await client
+        .post<string>('/api/auth/sign-in')
+        .header('sec-fetch-site', 'same-origin')
+        .json(body)
+        .send();
       response.assertStatus(400);
       assert.deepEqual(response.body(), { error });
     }
@@ -93,6 +97,7 @@ test.group('ordinary authentication request contracts', (group) => {
   }) => {
     const response = await client
       .post('/api/auth/sign-in')
+      .header('sec-fetch-site', 'same-origin')
       .json({ email: 'clark@wayne.example', password: '' })
       .send();
     response.assertStatus(401);
@@ -159,6 +164,7 @@ test.group('ordinary authentication request contracts', (group) => {
     for (const password of ['a'.repeat(15), '😀'.repeat(15), '😀'.repeat(128)]) {
       const response = await client
         .post('/api/auth/sign-up')
+        .header('sec-fetch-site', 'same-origin')
         .json({
           email: '  Clark.Kent@Wayne.example  ',
           password,
@@ -190,6 +196,7 @@ test.group('ordinary authentication request contracts', (group) => {
 
     const response = await client
       .post('/api/auth/sign-up')
+      .header('sec-fetch-site', 'same-origin')
       .json({
         email: 'clark.kent@wayne.example',
         password: 'account-password-2026',
@@ -232,7 +239,11 @@ test.group('ordinary authentication request contracts', (group) => {
         'Invalid sign-up details.',
       ],
     ] as const) {
-      const response = await client.post<string>('/api/auth/sign-up').json(body).send();
+      const response = await client
+        .post<string>('/api/auth/sign-up')
+        .header('sec-fetch-site', 'same-origin')
+        .json(body)
+        .send();
       response.assertStatus(400);
       assert.deepEqual(response.body(), { error });
     }
