@@ -13,7 +13,8 @@ such as NFS are unsupported. Retain protected copies away from the host and rehe
 ## Scheduled and manual bundles
 
 Set `CAPACITYLENS_BACKUP_DIR` to enable a backup at web-service startup and every 24 hours while it
-runs. Startup checks the source and prepares the root with mode `0700`. If that root disappears
+runs. The [install command](/self-hosting/install-without-docker#install-with-one-command) sets it
+to `/var/lib/capacitylens/backups` and creates that folder for the service user. Startup checks the source and prepares the root with mode `0700`. If that root disappears
 later, a scheduled run fails without recreating it. Restore the storage/mount and permissions before
 retrying. Unset or empty configuration disables scheduling without preventing application startup.
 

@@ -1,6 +1,6 @@
 ---
 title: Install without Docker
-description: Install the native CapacityLens archive on a Linux host with systemd and an external HTTPS proxy.
+description: Install the native CapacityLens archive on a Linux host with one command, or by hand with systemd and an HTTPS proxy.
 prev:
   text: Install CapacityLens
   link: /self-hosting/install
@@ -11,11 +11,54 @@ next:
 
 # Install without Docker
 
-These steps use the native release archive, Node 24.19.0 or later within the 24.x line, systemd and a
-reverse proxy on the same machine that terminates public TLS. Whoever manages hosting follows
-these five steps and remains responsible for backups, upgrades and service health. Replace `X.Y.Z`, hostnames and paths with your own.
+The native release archive runs on a Linux host with systemd and Node 24.19.0 or later within the
+24.x line, behind an HTTPS proxy on the same machine. Whoever manages hosting installs it and
+remains responsible for backups, upgrades and service health. Replace `X.Y.Z`, hostnames and
+addresses with your own.
 
-## 1. Create the service and data directories
+## Install with one command
+
+Before you start, install Node 24 system-wide, point your domain name's DNS at the host and open
+ports 80 and 443. Install [Caddy](https://caddyserver.com/docs/install) too, unless the host
+already runs another HTTPS proxy. The archive contains a native SQLite addon and must match the
+host operating system and architecture.
+
+Download the archive and its checksum from the same GitHub release, verify and unpack it into
+`/opt/capacitylens`, then run its install command with your domain name and the Owner's email
+address:
+
+```bash
+sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
+sudo install -d -m 0755 /opt/capacitylens
+sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
+sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com
+```
+
+The command runs the steps under [Install by hand](#install-by-hand):
+
+- creates the `capacitylens` service user and `/var/lib/capacitylens` if they are missing
+- writes `/etc/capacitylens.env`, readable by root only, with your address and a generated
+  `APP_KEY` and `CAPACITYLENS_SECRET`; an existing file is kept unchanged
+- points `/opt/capacitylens/current` at the release, runs the database upgrade, then installs and
+  starts the systemd unit
+- when Caddy is installed, writes `/etc/caddy/capacitylens.caddy`, imports it from
+  `/etc/caddy/Caddyfile`, validates the result and reloads Caddy; otherwise it prints the address
+  to point your proxy at
+- prints the one-time setup link for the Owner
+
+Verified backups run when the service starts and every 24 hours; see
+[Backups and restore](/self-hosting/backups-and-restore). Mail is left unset: add the
+`CAPACITYLENS_MAIL_*` settings with `sudoedit /etc/capacitylens.env` and restart the service before
+inviting anyone else ([step 3](#_3-configure-the-installation) says what works without them). Open
+the setup link and continue at [step 5](#_5-open). Until the Owner has signed up, running the same
+command again finishes an interrupted install and prints a fresh link. Running a newer release's
+command without arguments upgrades; see [Upgrades](/self-hosting/upgrades).
+
+## Install by hand
+
+Follow these five steps when the command does not suit the host.
+
+### 1. Create the service and data directories
 
 Keep writable state outside the release folder so a version change cannot remove it.
 
@@ -28,7 +71,7 @@ sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens /v
 Install Node 24.19.0 or a later 24.x release on the host and verify it with `node --version`. The
 archive contains a native SQLite addon and must match the host operating system and architecture.
 
-## 2. Download and unpack a release
+### 2. Download and unpack a release
 
 Download the archive and its checksum from the same GitHub release. Verify it before extracting:
 
@@ -40,7 +83,7 @@ sudo ln -sfn /opt/capacitylens/capacitylens-X.Y.Z /opt/capacitylens/current
 
 The archive has `backend/` plus the example environment file and proxy/service templates.
 
-## 3. Configure the installation
+### 3. Configure the installation
 
 Create a private environment file outside the release and edit it for your host:
 
@@ -70,7 +113,7 @@ offers no password reset, and Owner password recovery uses the stopped-server
 Fill in the mail settings before inviting anyone else. See
 [Configuration](/self-hosting/configuration) for sign-in, mail, proxy and optional settings.
 
-## 4. Upgrade the database and start the service
+### 4. Upgrade the database and start the service
 
 Run the upgrade as the service user with the same environment file. It initializes a fresh database;
 for an existing database, it writes and verifies a pre-upgrade snapshot before running pending
@@ -96,10 +139,10 @@ The supplied unit runs one backend process as `capacitylens` and serves both the
 Put the supplied Caddy or nginx configuration at the network edge, adjusting the hostname and
 certificate details. Do not expose the loopback application port publicly.
 
-## 5. Open
+### 5. Open
 
-Check `https://capacity.example.com/health/ready`, then print the one-time setup link for the
-Owner's email address:
+Check `https://capacity.example.com/health/ready`. The install command has already printed the
+one-time setup link; by hand, print it for the Owner's email address:
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \

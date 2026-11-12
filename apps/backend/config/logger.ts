@@ -44,10 +44,9 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
         },
       },
 
-      /** Remove native request/response payload containers and the framework's untrusted id. */
+      /** Remove native request/response payload containers. */
       redact: {
         paths: [
-          'request_id',
           'req.headers',
           'req.body',
           'res.headers',
