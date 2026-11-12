@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { can, canSeeTimeOffNote, canSeePrivateNames, canViewCapacityOverview } from './access.js';
+import {
+  can,
+  canSeeTimeOffNote,
+  canSeePrivateNames,
+  canViewCapacityOverview,
+  isOwnerOrAdmin,
+} from './access.js';
 import type { CapacityOverviewAccess } from '../types/entities.js';
 import type { PermissionKey, Role } from './access.js';
 
@@ -108,5 +114,17 @@ describe('canViewCapacityOverview(role, access) — account setting policy', () 
       everyone: { owner: true, admin: true, editor: true, viewer: true },
     }[access];
     for (const role of ROLES) expect(canViewCapacityOverview(role, access)).toBe(expected[role]);
+  });
+});
+
+describe('isOwnerOrAdmin(role)', () => {
+  it('holds for Owner and Admin only', () => {
+    expect(ROLES.filter((role) => isOwnerOrAdmin(role))).toEqual(['owner', 'admin']);
+  });
+
+  it('fails closed for an absent or unknown role', () => {
+    expect(isOwnerOrAdmin(null)).toBe(false);
+    expect(isOwnerOrAdmin(undefined)).toBe(false);
+    expect(isOwnerOrAdmin('superuser' as Role)).toBe(false);
   });
 });

@@ -1,3 +1,4 @@
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import { orderedWeekdays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { useId } from 'react';
 import { useCanEdit, useRole } from '@/auth/permissionContext';
@@ -79,7 +80,7 @@ export function useSettingsViewController() {
     scheduling,
     workingDaysMinimumId,
     canEdit,
-    canManageCapacityOverviewAccess: role === 'owner' || role === 'admin',
+    canManageCapacityOverviewAccess: isOwnerOrAdmin(role),
     updateSetting,
   };
 }

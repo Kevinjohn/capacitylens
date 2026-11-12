@@ -4,16 +4,9 @@ import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { writeAudit } from '#services/audit';
-import {
-  AccountCommandError,
-  runAccountCommand,
-  readAccountCommand,
-} from '#services/account_commands';
-import {
-  changeMemberRole,
-  changeMemberStatus,
-  MembershipError,
-} from '#services/membership/member_mutations';
+import { runAccountCommand, readAccountCommand } from '#services/account_commands';
+import { hasOnlyFields } from '#services/request_helpers';
+import { changeMemberRole, changeMemberStatus } from '#services/membership/member_mutations';
 import {
   confirmMemberSignIn,
   readMemberSignInTracking,
@@ -21,25 +14,9 @@ import {
 } from '#services/membership/sign_in_tracking';
 import { readMemberDirectory } from '#services/membership/member_directory';
 
-function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).every((key) => allowed.includes(key))
-  );
-}
-
 function readRouteParam(value: unknown) {
   // Adonis calls the controller after matching a route, so each parameter is already a string.
   return value as string;
-}
-
-function replyMemberError(ctx: HttpContext, error: unknown) {
-  if (error instanceof MembershipError || error instanceof AccountCommandError) {
-    return ctx.response.status(error.status).send({ error: error.message, code: error.code });
-  }
-  throw error;
 }
 
 interface SemanticMutationInput<T> {
@@ -81,7 +58,7 @@ export default class MembersController {
 
   async tracking(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['enabled']) || typeof body.enabled !== 'boolean') {
+    if (!hasOnlyFields(body, ['enabled']) || typeof body.enabled !== 'boolean') {
       return ctx.response.badRequest({ error: 'enabled must be a Boolean.' });
     }
     const enabled = body.enabled;
@@ -107,63 +84,53 @@ export default class MembersController {
 
   async changeRole(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['role']) || !isAccountRole(body.role)) {
+    if (!hasOnlyFields(body, ['role']) || !isAccountRole(body.role)) {
       return ctx.response.badRequest({ error: 'Invalid member role.' });
     }
     const role = body.role;
     const accountId = readRouteParam(ctx.params.accountId);
     const userId = readRouteParam(ctx.params.userId);
-    try {
-      const result = await semanticMutation(ctx, {
-        accountId,
-        operation: 'change-member-role',
-        payload: {
+    const result = await semanticMutation(ctx, {
+      accountId,
+      operation: 'change-member-role',
+      payload: {
+        userId,
+        role,
+      },
+      work: (trx, actor) =>
+        changeMemberRole(trx, {
+          accountId,
+          actorId: actor.actorId,
           userId,
           role,
-        },
-        work: (trx, actor) =>
-          changeMemberRole(trx, {
-            accountId,
-            actorId: actor.actorId,
-            userId,
-            role,
-          }),
-      });
-      return ctx.response.ok(result);
-    } catch (error) {
-      // Domain and receipt refusals retain their status; unexpected failures escape the mapper.
-      return replyMemberError(ctx, error);
-    }
+        }),
+    });
+    return ctx.response.ok(result);
   }
 
   async changeStatus(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['status']) || !isMembershipStatus(body.status)) {
+    if (!hasOnlyFields(body, ['status']) || !isMembershipStatus(body.status)) {
       return ctx.response.badRequest({ error: 'Invalid member status.' });
     }
     const status = body.status;
     const accountId = readRouteParam(ctx.params.accountId);
     const userId = readRouteParam(ctx.params.userId);
-    try {
-      const result = await semanticMutation(ctx, {
-        accountId,
-        operation: 'change-member-status',
-        payload: {
+    const result = await semanticMutation(ctx, {
+      accountId,
+      operation: 'change-member-status',
+      payload: {
+        userId,
+        status,
+      },
+      work: (trx, actor) =>
+        changeMemberStatus(trx, {
+          accountId,
+          actorId: actor.actorId,
           userId,
           status,
-        },
-        work: (trx, actor) =>
-          changeMemberStatus(trx, {
-            accountId,
-            actorId: actor.actorId,
-            userId,
-            status,
-          }),
-      });
-      return ctx.response.ok(result);
-    } catch (error) {
-      // Domain and receipt refusals retain their status; unexpected failures escape the mapper.
-      return replyMemberError(ctx, error);
-    }
+        }),
+    });
+    return ctx.response.ok(result);
   }
 }

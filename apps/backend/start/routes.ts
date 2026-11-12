@@ -1,3 +1,4 @@
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import '#start/planning_routes';
 import env from '#start/env';
 import db from '@adonisjs/lucid/services/db';
@@ -54,7 +55,7 @@ router
     const administers = await withActor(ctx, async (actor, trx) => {
       for (const accountId of await listActiveCompanyIds(actor.userId, trx)) {
         const role = await activeCompanyRole(actor.userId, accountId, trx);
-        if (role === 'owner' || role === 'admin') return true;
+        if (isOwnerOrAdmin(role)) return true;
       }
       return false;
     });

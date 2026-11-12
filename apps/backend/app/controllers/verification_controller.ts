@@ -3,28 +3,23 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { InvalidTokenError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
-import env from '#start/env';
+import { isMailConfigured } from '#services/mail_delivery';
+import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
 import { currentAccount } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
 
 function tokenBody(value: unknown, extra: string[] = []): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const body = value as Record<string, unknown>;
-  if (Object.keys(body).some((key) => key !== 'token' && !extra.includes(key))) return null;
+  const body = value;
+  if (!hasOnlyFields(body, ['token', ...extra])) return null;
   return typeof body.token === 'string' && body.token.length > 0 && body.token.length <= 512
     ? body
     : null;
 }
 
-function proofHeaders(ctx: HttpContext) {
-  ctx.response.header('Cache-Control', 'no-store');
-  ctx.response.header('Referrer-Policy', 'no-referrer');
-}
-
 /** Address confirmation for a signed-in identity, reachable before admission. */
 export default class VerificationController {
   async send(ctx: HttpContext) {
-    if (!env.get('CAPACITYLENS_MAIL_HOST')) {
+    if (!isMailConfigured()) {
       return ctx.response.serviceUnavailable({
         error: 'Email delivery is not configured. Ask your administrator.',
         code: 'MAIL_UNAVAILABLE',

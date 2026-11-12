@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
+import {
+  can,
+  canSeePrivateNames,
+  canSeeTimeOffNote,
+  isOwnerOrAdmin,
+} from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { useAuth } from '@/auth/authContext';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
@@ -167,7 +172,7 @@ export function TeamAccessView() {
           merely by visiting this page. */}
       <AccessManagement mayManage={mayManage} permissionStatus={permissionStatus} />
 
-      {!masqueradeActive && (resolvedRole === 'owner' || resolvedRole === 'admin') && (
+      {!masqueradeActive && isOwnerOrAdmin(resolvedRole) && (
         <AdmissionRequestsPanel key={JSON.stringify([activeAccountId, user?.id])} />
       )}
 

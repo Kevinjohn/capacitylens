@@ -10,18 +10,10 @@ import {
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
-import env from '#start/env';
+import { isMailConfigured } from '#services/mail_delivery';
+import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
 import { accountInput, currentAccount, sessionGuard } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
-
-function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).every((field) => allowed.includes(field))
-  );
-}
 
 function password(value: unknown): value is string {
   return typeof value === 'string' && !passwordLengthFailure(value);
@@ -35,12 +27,6 @@ function privateErrorCode(error: unknown) {
   const code =
     typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
   return typeof code === 'string' && /^[A-Z_]{2,64}$/.test(code) ? code : 'RECOVERY_REQUEST_FAILED';
-}
-
-/** Keeps bearer links out of shared caches and referrers. */
-function proofHeaders(ctx: HttpContext) {
-  ctx.response.header('Cache-Control', 'no-store');
-  ctx.response.header('Referrer-Policy', 'no-referrer');
 }
 
 const committed = {
@@ -57,11 +43,11 @@ const deletionCommitted = {
 
 export default class CredentialController {
   async requestReset(ctx: HttpContext) {
-    if (!env.get('CAPACITYLENS_MAIL_HOST')) {
+    if (!isMailConfigured()) {
       return ctx.response.notFound({ error: 'Password recovery is unavailable.' });
     }
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['email']) || typeof body.email !== 'string') {
+    if (!hasOnlyFields(body, ['email']) || typeof body.email !== 'string') {
       return ctx.response.badRequest({ error: 'Invalid recovery request.' });
     }
     const email = normalizeAccountEmail(body.email);
@@ -82,7 +68,7 @@ export default class CredentialController {
   async inspectReset(ctx: HttpContext) {
     proofHeaders(ctx);
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['token']) || !token(body.token)) {
+    if (!hasOnlyFields(body, ['token']) || !token(body.token)) {
       return ctx.response.badRequest({ error: 'Invalid recovery request.' });
     }
     return ctx.response.ok({
@@ -95,7 +81,7 @@ export default class CredentialController {
     proofHeaders(ctx);
     const body: unknown = ctx.request.body();
     if (
-      !fields(body, ['token', 'newPassword']) ||
+      !hasOnlyFields(body, ['token', 'newPassword']) ||
       !token(body.token) ||
       !password(body.newPassword)
     ) {
@@ -120,7 +106,7 @@ export default class CredentialController {
   async changePassword(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
     if (
-      !fields(body, ['currentPassword', 'newPassword']) ||
+      !hasOnlyFields(body, ['currentPassword', 'newPassword']) ||
       typeof body.currentPassword !== 'string' ||
       !password(body.newPassword)
     ) {
@@ -157,7 +143,7 @@ export default class CredentialController {
    */
   async deleteAccount(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!fields(body, ['currentPassword']) || typeof body.currentPassword !== 'string') {
+    if (!hasOnlyFields(body, ['currentPassword']) || typeof body.currentPassword !== 'string') {
       return ctx.response.badRequest({ error: 'Invalid credential request.' });
     }
     const input = await accountInput(ctx);

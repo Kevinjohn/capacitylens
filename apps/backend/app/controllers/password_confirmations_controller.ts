@@ -7,6 +7,7 @@ import {
 } from '#services/auth/password_confirmation';
 import { accountInput, withActor } from '#services/auth/current_actor';
 import { classifyLogError, reportPrivateFailure } from '#services/logging_safety';
+import { hasOnlyFields } from '#services/request_helpers';
 import { parseRequestDocument } from '#services/beta_account_transfer';
 
 type ConfirmationRequest = {
@@ -17,10 +18,8 @@ type ConfirmationRequest = {
 };
 
 function requestBody(value: unknown): ConfirmationRequest | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const body = value as Record<string, unknown>;
-  const fields = ['action', 'accountId', 'intent', 'password'];
-  if (Object.keys(body).some((key) => !fields.includes(key))) return null;
+  const body = value;
+  if (!hasOnlyFields(body, ['action', 'accountId', 'intent', 'password'])) return null;
   if (!PASSWORD_CONFIRMATION_KINDS.includes(body.action as PasswordConfirmationKind)) return null;
   if (typeof body.accountId !== 'string' || !body.accountId) return null;
   if (typeof body.password !== 'string') return null;

@@ -1,18 +1,14 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { AccountCommandError, readAccountCommand } from '#services/account_commands';
-import { IdentityAuthorityError } from '#services/auth/authorization';
-import { OwnershipTransferError, transferOwnership } from '#services/membership/ownership_transfer';
+import { readAccountCommand } from '#services/account_commands';
+import { transferOwnership } from '#services/membership/ownership_transfer';
+import { hasOnlyFields } from '#services/request_helpers';
 
 function validBody(value: unknown): value is { toUserId: string; confirmationId?: string } {
   return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).every((key) => key === 'toUserId' || key === 'confirmationId') &&
-    'toUserId' in value &&
+    hasOnlyFields(value, ['toUserId', 'confirmationId']) &&
     typeof value.toUserId === 'string' &&
     /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value.toUserId) &&
-    (!('confirmationId' in value) ||
+    (value.confirmationId === undefined ||
       (typeof value.confirmationId === 'string' && /^[0-9a-f-]{36}$/.test(value.confirmationId)))
   );
 }
@@ -25,24 +21,14 @@ export default class OwnershipController {
         code: 'VALIDATION_FAILED',
       });
     }
-    try {
-      const command = readAccountCommand(ctx);
-      const receipt = await transferOwnership(
-        ctx,
-        ctx.params.accountId,
-        ctx.request.body().toUserId,
-        ctx.request.body().confirmationId ?? '',
-        command
-      );
-      return ctx.response.ok(receipt);
-    } catch (error) {
-      if (error instanceof AccountCommandError || error instanceof OwnershipTransferError) {
-        return ctx.response.status(error.status).send({ error: error.message, code: error.code });
-      }
-      if (error instanceof IdentityAuthorityError) {
-        return ctx.response.forbidden({ error: error.message, code: error.code });
-      }
-      throw error;
-    }
+    const command = readAccountCommand(ctx);
+    const receipt = await transferOwnership(
+      ctx,
+      ctx.params.accountId,
+      ctx.request.body().toUserId,
+      ctx.request.body().confirmationId ?? '',
+      command
+    );
+    return ctx.response.ok(receipt);
   }
 }

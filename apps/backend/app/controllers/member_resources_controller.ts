@@ -6,18 +6,12 @@ import { writeAudit } from '#services/audit';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
 import { invalidAdmission } from '#services/admission/errors';
 import { renderAdmissionFailure } from '#services/admission/http';
+import { hasOnlyFields } from '#services/request_helpers';
 import { readMemberAvatars } from '#services/member_resources/directory';
 
 function bodyOf(value: unknown, keys: string[]): Record<string, unknown> {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    Object.keys(value).some((key) => !keys.includes(key))
-  ) {
-    invalidAdmission();
-  }
-  return value as Record<string, unknown>;
+  if (!hasOnlyFields(value, keys)) invalidAdmission();
+  return value;
 }
 
 /** Scoped member/person association and the read-only avatar projection. */
