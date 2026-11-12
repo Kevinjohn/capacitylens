@@ -405,14 +405,12 @@ test.group('native read-only masquerade', (group) => {
     const active = status.body() as {
       active: boolean;
       principal: { id: string; email: string };
-      authMode: string;
       contextToken: string;
       expiresAt: string;
     };
     assert.isTrue(active.active);
     assert.equal(active.principal.id, ownerId);
     assert.equal(active.principal.email, 'bruce.wayne@wayne.example');
-    assert.equal(active.authMode, 'password-only');
     assert.equal(active.contextToken, state.contextToken);
     assert.equal(active.expiresAt, state.expiresAt);
     const secondSession = await signIn(client, 'bruce.wayne@wayne.example', password);

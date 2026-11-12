@@ -1,7 +1,6 @@
 import { accountClient } from '@/account/accountClient';
 import { isTransportFailure } from '@/data/requestTimeout';
 import { m } from '@/i18n';
-import { isAuthMode } from './authStatus';
 import type { AuthStatusResult } from './authStatus';
 import { parseAuthUser } from './validateAuthUser';
 import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
@@ -36,13 +35,12 @@ async function readActiveMasqueradeAuthStatus(
 ): Promise<AuthStatusResult | null> {
   try {
     const user = parseAuthUser({ value: masquerade.principal, requireEmail: true });
-    if (!user || !isAuthMode(masquerade.authMode)) {
+    if (!user) {
       return invalidResponse();
     }
     if (!(await adoptMasqueradeStatus(masquerade, acceptEffects))) return null;
     const next: Extract<AuthStatusResult, { kind: 'pass' }> = {
       kind: 'pass',
-      authMode: masquerade.authMode,
       user,
     };
     return next;

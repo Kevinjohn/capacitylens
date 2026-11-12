@@ -89,7 +89,6 @@ it.each(
         <MemoryRouter>
           <AuthContext.Provider
             value={{
-              authMode: 'password-only',
               user: { id: 'bruce' },
               refreshAuth: async () => {},
               signOut: async () => {},

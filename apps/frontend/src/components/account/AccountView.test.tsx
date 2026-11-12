@@ -24,18 +24,17 @@ vi.mock('@/components/settings/SecuritySection', () => ({
 import { AccountView } from './AccountView';
 
 const signOut = vi.fn();
-function auth(authMode: AuthContextValue['authMode']): AuthContextValue {
+function auth(): AuthContextValue {
   return {
-    authMode,
     user: { id: 'u1', name: 'Diana Prince', email: 'diana@example.test' },
     refreshAuth: async () => {},
     signOut,
   };
 }
 
-function renderAccount(mode: AuthContextValue['authMode']) {
+function renderAccount() {
   return render(
-    <AuthContext.Provider value={auth(mode)}>
+    <AuthContext.Provider value={auth()}>
       <AccountView />
     </AuthContext.Provider>,
   );
@@ -43,7 +42,7 @@ function renderAccount(mode: AuthContextValue['authMode']) {
 
 describe('AccountView', () => {
   it('uses separate single-line table cells and reveals the full truncated email on focus', async () => {
-    renderAccount('password-only');
+    renderAccount();
     expect(
       screen.getByRole('heading', { level: 1, name: 'Account' }).parentElement?.parentElement,
     ).toHaveClass('max-w-4xl');
@@ -81,7 +80,7 @@ describe('AccountView', () => {
   });
 
   it('opens the account deletion dialog from the identity row', () => {
-    renderAccount('password-only');
+    renderAccount();
     const actions = screen.getByTestId('account-identity-row').querySelectorAll('td')[3];
     const remove = screen.getByRole('button', { name: 'Delete account' });
     expect(actions).toContainElement(remove);
@@ -91,16 +90,14 @@ describe('AccountView', () => {
 
   it('signs out immediately', () => {
     signOut.mockClear();
-    renderAccount('password-only');
+    renderAccount();
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(signOut).toHaveBeenCalledOnce();
   });
 
   it('shows email in its own cell when the displayed name falls back to email', () => {
     render(
-      <AuthContext.Provider
-        value={{ ...auth('password-only'), user: { id: 'u1', email: 'diana@example.test' } }}
-      >
+      <AuthContext.Provider value={{ ...auth(), user: { id: 'u1', email: 'diana@example.test' } }}>
         <AccountView />
       </AuthContext.Provider>,
     );

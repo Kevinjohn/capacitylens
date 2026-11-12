@@ -8,7 +8,6 @@ import type {
 import { isAccountRole } from '@capacitylens/shared/account/types';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { isTimestamp } from '@/account/accessResult';
-import type { AccountMode } from './authContext';
 import { accountClient } from '@/account/accountClient';
 import { extractApiErrorMessage } from '@/lib/readApiError';
 
@@ -55,13 +54,8 @@ function parseBootstrapPrincipal(
   };
 }
 
-function isAccountMode(value: unknown): value is AccountMode {
-  return value === 'password-only';
-}
-
 export type MasqueradeBootstrapStatus = MasqueradeStatus & {
   principal?: { id: string; name?: string | null; email: string };
-  authMode?: AccountMode;
 };
 
 async function readMasqueradeBody(response: Response, fallback: string): Promise<unknown> {
@@ -123,11 +117,10 @@ export const masqueradeApi = {
       throw new Error('The server returned an invalid masquerade status.');
     }
     const principal = parseBootstrapPrincipal((body as { principal?: unknown }).principal);
-    const authMode = (body as { authMode?: unknown }).authMode;
-    if (!principal || !isAccountMode(authMode)) {
+    if (!principal) {
       throw new Error('The server returned an invalid masquerade principal.');
     }
-    return { active: true, ...state, contextToken, principal, authMode };
+    return { active: true, ...state, contextToken, principal };
   },
 
   async start(accountId: string, targetUserId: string): Promise<MasqueradeState> {

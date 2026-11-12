@@ -361,7 +361,6 @@ it('does not duplicate personal identity or Sign out when the server reports an 
   render(
     <AuthContext.Provider
       value={{
-        authMode: 'password-only',
         user: { id: 'u1', email: 'tester@capacitylens.dev' },
         refreshAuth: async () => {},
         signOut,

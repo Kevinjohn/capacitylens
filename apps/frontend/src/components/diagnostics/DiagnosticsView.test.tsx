@@ -48,7 +48,6 @@ describe('DiagnosticsView — report', () => {
     render(
       <AuthContext.Provider
         value={{
-          authMode: 'password-only',
           user: { id: 'u-1', name: 'Bruce Wayne', email: 'bruce@wayne.example' },
           refreshAuth: async () => {},
           signOut: async () => {},

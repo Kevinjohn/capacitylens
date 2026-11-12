@@ -10,7 +10,7 @@ it.each([true, false, undefined, 'true'])(
       .spyOn(masqueradeApi, 'status')
       .mockResolvedValue({ active: false, contextToken: 'idle-context' });
     const request = vi.spyOn(accountClient, 'me').mockResolvedValue(
-      new Response(JSON.stringify({ authMode: 'password-only', passwordResetEmail }), {
+      new Response(JSON.stringify({ passwordResetEmail }), {
         status: 401,
       }),
     );
@@ -34,7 +34,6 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
     const request = vi.spyOn(accountClient, 'me').mockResolvedValue(
       new Response(
         JSON.stringify({
-          authMode: 'password-only',
           user: { id: 'real-user', email: 'real@example.test', name: 'Real User' },
         }),
         { status: 200 },
@@ -54,9 +53,7 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
     const status = vi.spyOn(masqueradeApi, 'status').mockRejectedValue(new TypeError('offline'));
     const request = vi
       .spyOn(accountClient, 'me')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ authMode: 'password-only' }), { status: 401 }),
-      );
+      .mockResolvedValue(new Response(JSON.stringify({}), { status: 401 }));
     try {
       expect(await fetchAuthStatus(() => false)).toMatchObject({ kind: 'login' });
     } finally {
@@ -94,7 +91,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     });
     const request = vi.spyOn(accountClient, 'me').mockImplementation(async () => {
       expect(getMasqueradeContextToken()).toBe('idle-context');
-      return new Response(JSON.stringify({ authMode: 'password-only' }), { status: 401 });
+      return new Response(JSON.stringify({}), { status: 401 });
     });
     try {
       await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'login' });
@@ -120,9 +117,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     });
     const request = vi
       .spyOn(accountClient, 'me')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ authMode: 'password-only' }), { status: 401 }),
-      );
+      .mockResolvedValue(new Response(JSON.stringify({}), { status: 401 }));
     const restore = vi
       .spyOn(masqueradeController, 'restoreServerEndedProjection')
       .mockImplementation(() => {});
@@ -178,7 +173,6 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       token: 'stale-mode-token',
       contextToken: 'stale-mode-token',
       principal: { id: 'real-user', email: 'real@example.test' },
-      authMode: 'password-only' as const,
     };
     try {
       const pending = fetchAuthStatus(() => true);

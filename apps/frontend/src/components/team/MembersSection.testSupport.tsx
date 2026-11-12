@@ -132,7 +132,6 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
 
 /** Creates an auth context value for member section tests. */
 export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
-  authMode: 'password-only',
   user: { id: 'me', email: 'me@x.io' },
   refreshAuth: async () => {},
   signOut: async () => {},

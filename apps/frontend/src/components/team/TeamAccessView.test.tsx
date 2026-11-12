@@ -21,8 +21,7 @@ vi.mock('./OwnershipTransferCard', () => ({
   OwnershipTransferCard: () => <div data-testid="ownership-transfer-card">Ownership controls</div>,
 }));
 
-const auth = (authMode: AuthContextValue['authMode'], userId = 'me'): AuthContextValue => ({
-  authMode,
+const auth = (userId = 'me'): AuthContextValue => ({
   user: { id: userId, email: 'me@example.com' },
   refreshAuth: async () => {},
   signOut: async () => {},
@@ -30,20 +29,18 @@ const auth = (authMode: AuthContextValue['authMode'], userId = 'me'): AuthContex
 
 interface RenderViewOptions {
   role: Role | null;
-  authMode: AuthContextValue['authMode'];
   status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
   userId?: string;
 }
 
 function renderView({
   role,
-  authMode,
   status = role ? 'resolved' : 'not-applicable',
   userId = 'me',
 }: RenderViewOptions) {
   return render(
     <MemoryRouter>
-      <AuthContext.Provider value={auth(authMode, userId)}>
+      <AuthContext.Provider value={auth(userId)}>
         <PermissionContext.Provider value={{ role, status }}>
           <TeamAccessView />
         </PermissionContext.Provider>
@@ -64,7 +61,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('TeamAccessView access presentation', () => {
   it('keeps the capability list collapsed until it is asked for', async () => {
-    renderView({ role: 'viewer', authMode: 'password-only' });
+    renderView({ role: 'viewer' });
     const toggle = screen.getByTestId('capabilities-toggle');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('View the schedule')).not.toBeInTheDocument();
@@ -78,7 +75,7 @@ describe('TeamAccessView access presentation', () => {
   });
 
   it('does not present a persisted server as open access', () => {
-    renderView({ role: null, authMode: 'password-only', status: 'unavailable' });
+    renderView({ role: null, status: 'unavailable' });
 
     expect(screen.getByTestId('current-access')).toHaveTextContent('Your access');
     expect(screen.getByTestId('current-access')).not.toHaveTextContent('Open access');
@@ -88,7 +85,7 @@ describe('TeamAccessView access presentation', () => {
   });
 
   it('shows every Viewer capability and keeps management understandable but unavailable', () => {
-    renderView({ role: 'viewer', authMode: 'password-only' });
+    renderView({ role: 'viewer' });
     expect(screen.getByTestId('current-access')).toHaveTextContent('Viewer');
     showCapabilities();
     expect(screen.getByText('View the schedule')).toBeInTheDocument();
@@ -104,18 +101,18 @@ describe('TeamAccessView access presentation', () => {
 
 describe('TeamAccessView member management', () => {
   it('shows management controls to the single Owner', () => {
-    renderView({ role: 'owner', authMode: 'password-only' });
+    renderView({ role: 'owner' });
     expect(screen.getByTestId('current-access')).toHaveTextContent('single Owner');
     expect(screen.getByTestId('member-management')).toBeInTheDocument();
     expect(screen.getByTestId('ownership-transfer-card')).toBeInTheDocument();
   });
 
   it('keeps ownership transfer available only to the real online Owner', () => {
-    const admin = renderView({ role: 'admin', authMode: 'password-only' });
+    const admin = renderView({ role: 'admin' });
     expect(screen.queryByTestId('ownership-transfer-card')).toBeNull();
     admin.unmount();
 
-    const owner = renderView({ role: 'owner', authMode: 'password-only' });
+    const owner = renderView({ role: 'owner' });
     expect(screen.getByTestId('ownership-transfer-card')).toBeInTheDocument();
     owner.unmount();
   });
@@ -126,7 +123,7 @@ describe('TeamAccessView member management', () => {
   ] as const)(
     'does not present Viewer as authoritative while membership is %s',
     (status, label) => {
-      renderView({ role: 'viewer', authMode: 'password-only', status });
+      renderView({ role: 'viewer', status });
 
       expect(screen.getByTestId('current-access')).toHaveTextContent(label);
       expect(screen.getByTestId('current-access')).not.toHaveTextContent('Viewer');
@@ -135,7 +132,7 @@ describe('TeamAccessView member management', () => {
   );
 
   it('unmounts member management while a membership recheck fails closed', () => {
-    const view = renderView({ role: 'owner', authMode: 'password-only', status: 'resolved' });
+    const view = renderView({ role: 'owner', status: 'resolved' });
     const controls = screen.getByTestId('member-management');
     expect(controls).toBeVisible();
 
@@ -189,7 +186,7 @@ describe('TeamAccessView member management', () => {
         .mockResolvedValue({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' });
 
       useStore.setState({ activeAccountId: 'a-studio' });
-      const view = renderView({ role: 'admin', authMode: 'password-only' });
+      const view = renderView({ role: 'admin' });
       await screen.findByText(oldRequest.email);
       fireEvent.click(screen.getByTestId('admission-approve'));
       const listingCountBeforeContextChange = list.mock.calls.length;
@@ -197,7 +194,7 @@ describe('TeamAccessView member management', () => {
       if (changedContext === 'principal') {
         view.rerender(
           <MemoryRouter>
-            <AuthContext.Provider value={auth('password-only', 'next-principal')}>
+            <AuthContext.Provider value={auth('next-principal')}>
               <PermissionContext.Provider value={{ role: 'admin', status: 'resolved' }}>
                 <TeamAccessView />
               </PermissionContext.Provider>

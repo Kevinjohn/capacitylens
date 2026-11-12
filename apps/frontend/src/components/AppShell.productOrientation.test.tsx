@@ -61,7 +61,6 @@ function authenticatedAuth(userId: string): AuthContextValue {
     'viewer-user': 'Bruce Wayne',
   };
   return {
-    authMode: 'password-only',
     user: { id: userId, name: subjectNames[userId] ?? 'Bruce Wayne' },
     refreshAuth: async () => {},
     signOut: async () => {},

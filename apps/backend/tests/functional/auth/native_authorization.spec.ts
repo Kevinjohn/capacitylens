@@ -160,7 +160,6 @@ test.group('native authorization and role projections', (group) => {
     nonMember.assertStatus(403);
     const nonMemberProjection = await currentUser(client, cookie);
     nonMemberProjection.assertStatus(200);
-    assert.isFalse((nonMemberProjection.body() as { canCreateAccount: boolean }).canCreateAccount);
 
     await db.table('memberships').insert({
       scope_id: accountId,
@@ -213,11 +212,6 @@ test.group('native authorization and role projections', (group) => {
 
       const me = await currentUser(client, cookie);
       me.assertStatus(200);
-      assert.equal(
-        (me.body() as { canCreateAccount: boolean }).canCreateAccount,
-        false,
-        `${role} account-creation projection`
-      );
 
       const currentPlanning = await withSession(trusted(client.get(planningUrl)), cookie).send();
       currentPlanning.assertStatus(200);

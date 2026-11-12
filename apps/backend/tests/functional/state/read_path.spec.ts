@@ -85,9 +85,7 @@ test.group('M1 read path', (group) => {
     client = await resetAuthenticatedClient(client, true);
     const identity = await client.get('/api/auth/me');
     identity.assertStatus(200);
-    assert.equal(identity.body().authMode, 'password-only');
     assert.equal(identity.body().user.email, 'bruce.wayne@wayne.example');
-    assert.isFalse(identity.body().canCreateAccount);
     const unscoped = await client.get('/api/state');
     unscoped.assertStatus(200);
     assert.deepEqual(

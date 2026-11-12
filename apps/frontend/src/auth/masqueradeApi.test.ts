@@ -30,7 +30,6 @@ const activeStatus = {
   ...state,
   contextToken: state.token,
   principal: { id: 'u-actor', email: 'actor@example.test' },
-  authMode: 'password-only',
 };
 
 function json(body: unknown, status = 200): Response {
@@ -111,7 +110,6 @@ describe('masqueradeApi', () => {
         active: true,
         ...malformedState,
         principal: activeStatus.principal,
-        authMode: activeStatus.authMode,
       }),
     );
 

@@ -213,13 +213,13 @@ function useMemberStoreActions() {
 
 /** Coordinates member reads, invitations, and access mutations for the active account. */
 export function useMembersOrchestration(activeAccountId: string | null) {
-  const { authMode } = useAuth();
+  const { user } = useAuth();
   const { setNotice } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
   const memberInvites = useMemberInvites();
   const { resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
-  const enabled = authMode !== null;
+  const enabled = user !== null;
   const directoryState = useMemberDirectoryState({
     activeAccountId,
     enabled,
@@ -258,7 +258,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const setActionStatusElement = useActionStatusFocus(directoryState.busyAction);
   return {
     activeAccountId,
-    authMode,
     enabled,
     directory: directoryState.directory,
     error,

@@ -1,4 +1,4 @@
-import type { AccountMode, AuthUser } from './authContext';
+import type { AuthUser } from './authContext';
 
 /**
  * The limited screen a signed-in identity sees before company data: an unconfirmed address, a
@@ -22,7 +22,6 @@ export type AuthStatusResult =
   | { kind: 'error'; message: string }
   | {
       kind: 'pass';
-      authMode: AccountMode;
       user: AuthUser;
       companySetupRequired?: boolean;
       accessGate?: AccessGate;
@@ -31,17 +30,10 @@ export type AuthStatusResult =
   | {
       kind: 'login';
       passwordResetEmail: boolean;
-      authMode: AccountMode;
       needsSetup: boolean;
-      /** True when the 401 body itself was untrustworthy (non-JSON, an HTML proxy page, or a junk
-       * `authMode` value). The login wall then shows a non-terminal "configuration couldn't be
+      /** True when the 401 body itself was untrustworthy (non-JSON or an HTML proxy page). The login wall then shows a non-terminal "configuration couldn't be
        * loaded" notice above the password form. */
       degraded: boolean;
       /** Captured synchronously at the 401 boundary, before replacing the app detaches persistence. */
       hadUnsavedChanges: boolean;
     };
-
-/** Checks whether an untrusted value is a supported account auth mode. */
-export function isAuthMode(value: unknown): value is AccountMode {
-  return value === 'password-only';
-}

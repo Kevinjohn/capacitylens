@@ -102,7 +102,6 @@ describe('QueryCacheLifecycle', () => {
     const { QueryCacheLifecycle } = await import('./QueryCacheLifecycle');
     const cache = new QueryClient();
     const authValue = (id: string | null) => ({
-      authMode: 'password-only' as const,
       user: id ? { id } : null,
       refreshAuth: async () => {},
       signOut: async () => {},

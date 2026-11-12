@@ -32,13 +32,12 @@ it('revalidates /me after a real planning GET returns 401 and clears private que
         return Response.json(
           authReads === 1
             ? {
-                authMode: 'password-only',
                 user: { id: 'u1', email: 'a@b.test' },
                 emailVerified: true,
                 membershipRequired: false,
                 admission: { admitted: true, requirements: {} },
               }
-            : { authMode: 'password-only' },
+            : {},
           { status: authReads === 1 ? 200 : 401 },
         );
       }

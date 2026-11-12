@@ -16,7 +16,6 @@ import { AuthContext } from '@/auth/authContext';
 import { buildProductOrientationKey } from '@/lib/productOrientation';
 
 const authenticatedUser = {
-  authMode: 'password-only' as const,
   user: { id: 'app-shell-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
   refreshAuth: async () => {},
   signOut: async () => {},
