@@ -7,11 +7,9 @@ import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import { IdentityAuthorityError } from '#services/auth/authorization';
-import { PasswordConfirmationError } from '#services/auth/password_confirmation';
-import { AdmissionError } from '#services/admission/errors';
+import { RefusalError } from '#exceptions/refusal_error';
 import { buildKitRefusal } from '#services/account_kit/refusal';
 import { buildAccessRefusal } from '#services/access_control/refusal';
-import { FirstCompanyPendingError } from '#models/user';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import {
   PasswordConfirmationRequiredException,
@@ -176,15 +174,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       ctx.response.header('Cache-Control', 'no-store');
       return ctx.response.status(accessRefusal.status).send(accessRefusal.body);
     }
-    if (error instanceof AdmissionError) {
-      return ctx.response.status(error.status).send({
-        error: error.message,
-        code: error.code,
-        ...(error.decision === undefined ? {} : { decision: error.decision }),
-      });
-    }
-    if (error instanceof PasswordConfirmationError || error instanceof FirstCompanyPendingError) {
-      return ctx.response.status(error.status).send({ error: error.message, code: error.code });
+    if (error instanceof RefusalError) {
+      return ctx.response.status(error.status).send(error.body());
     }
     const refusal = confirmationRefusal(error);
     if (refusal) {
@@ -269,14 +260,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    */
   async report(error: unknown, ctx: HttpContext) {
     if (confirmationRefusal(error)) return;
-    if (
-      error instanceof IdentityAuthorityError ||
-      error instanceof AdmissionError ||
-      error instanceof PasswordConfirmationError ||
-      error instanceof FirstCompanyPendingError
-    ) {
-      return;
-    }
+    if (error instanceof IdentityAuthorityError || error instanceof RefusalError) return;
     // Mapped Access Control refusals are expected 4xx; unmapped package codes stay reportable.
     if (buildAccessRefusal(error)) return;
     // Account Kit refusals are expected outcomes; its server faults are still reported.

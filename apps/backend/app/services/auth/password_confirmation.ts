@@ -1,15 +1,14 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import { RefusalError } from '#exceptions/refusal_error';
 import { activeCompanyRole } from './authorization.js';
 import { actorIn, type CurrentActor } from './current_actor.js';
 
 export const PASSWORD_CONFIRMATION_KINDS = ['transfer-ownership', 'import', 'anonymise'] as const;
 export type PasswordConfirmationKind = (typeof PASSWORD_CONFIRMATION_KINDS)[number];
 
-export class PasswordConfirmationError extends Error {
-  readonly status = 403;
-  readonly code = 'PASSWORD_CONFIRMATION_REQUIRED';
+export class PasswordConfirmationError extends RefusalError {
   constructor(message = 'Confirm this action again.') {
-    super(message);
+    super(message, 403, 'PASSWORD_CONFIRMATION_REQUIRED');
   }
 }
 

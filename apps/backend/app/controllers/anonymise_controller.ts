@@ -3,17 +3,13 @@ import { withActor, kitContextIn } from '#services/auth/current_actor';
 import { anonymiseResources } from '#services/anonymise';
 import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
+import { hasOnlyFields } from '#services/request_helpers';
 import { getActiveMembership, createMemberBouncer } from '#services/auth/authorization';
 
 export default class AnonymiseController {
   async resource(ctx: HttpContext) {
     const body = ctx.request.body() as unknown;
-    if (
-      body === null ||
-      typeof body !== 'object' ||
-      Array.isArray(body) ||
-      Object.keys(body).length !== 0
-    ) {
+    if (!hasOnlyFields(body, [])) {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
     }
     const { accountId, id } = ctx.params;
@@ -32,20 +28,14 @@ export default class AnonymiseController {
 
   async company(ctx: HttpContext) {
     const body = ctx.request.body() as unknown;
-    if (
-      !body ||
-      typeof body !== 'object' ||
-      Array.isArray(body) ||
-      Object.keys(body).length !== 1 ||
-      typeof (body as Record<string, unknown>).confirmationId !== 'string'
-    ) {
+    if (!hasOnlyFields(body, ['confirmationId']) || typeof body.confirmationId !== 'string') {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
     }
     const { accountId } = ctx.params;
     await withActor(ctx, async (_actor, trx) => {
       const actor = await passwordConfirmationActor(accountId, trx);
       await passwordConfirmations.consume(kitContextIn(trx), {
-        confirmationId: (body as { confirmationId: string }).confirmationId,
+        confirmationId: body.confirmationId as string,
         action: 'anonymise',
         scope: accountId,
         intent: {},

@@ -8,6 +8,7 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import env from '#start/env';
+import { isMailConfigured } from '#services/mail_delivery';
 import access from '#config/access_control';
 import { FirstCompanyPendingError } from '#models/user';
 import { requiresFirstCompanySetup } from '#services/first_company_setup';
@@ -73,7 +74,7 @@ export default class AuthController {
       return ctx.response.unauthorized({
         authMode: 'password-only',
         error: 'Sign-in required.',
-        passwordResetEmail: Boolean(env.get('CAPACITYLENS_MAIL_HOST')),
+        passwordResetEmail: isMailConfigured(),
         ...(!hasUsers ? { needsSetup: true } : {}),
       });
     }

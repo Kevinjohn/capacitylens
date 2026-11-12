@@ -1,3 +1,4 @@
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { HttpContext } from '@adonisjs/core/http';
 import vine, { errors as vineErrors } from '@vinejs/vine';
 import { withActor } from '#services/auth/current_actor';
@@ -32,7 +33,7 @@ export default class GettingStartedController {
     const now = new Date().toISOString();
     const exists = await withActor(ctx, async (_actor, trx) => {
       const { role } = await assertCompanyAction(params.accountId, 'planning:write', trx);
-      if (role !== 'owner' && role !== 'admin') {
+      if (!isOwnerOrAdmin(role)) {
         throw new IdentityAuthorityError('Forbidden.');
       }
       if (!(await trx.from('accounts').where('id', params.accountId).first())) return false;

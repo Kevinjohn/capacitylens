@@ -1,3 +1,4 @@
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, AppDataKey, Resource, Weekday } from '@capacitylens/shared/types/entities';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
@@ -215,10 +216,7 @@ export async function updateSettings(
   changes: Record<string, unknown>,
   capabilities: BatchCapabilities
 ) {
-  if (
-    Object.hasOwn(changes, 'capacityOverviewAccess') &&
-    !['owner', 'admin'].includes(capabilities.role)
-  ) {
+  if (Object.hasOwn(changes, 'capacityOverviewAccess') && !isOwnerOrAdmin(capabilities.role)) {
     throw new PlanningOperationError(
       403,
       'AUTHORIZATION_DENIED',

@@ -1,12 +1,15 @@
 import { randomUUID } from 'node:crypto';
+import { RefusalError } from '#exceptions/refusal_error';
 import { UserSchema } from '#database/schema';
 import { beforeCreate, beforeSave, column } from '@adonisjs/lucid/orm';
 
-export class FirstCompanyPendingError extends Error {
-  readonly code = 'FIRST_COMPANY_PENDING';
-  readonly status = 409;
+export class FirstCompanyPendingError extends RefusalError {
   constructor() {
-    super('Only the invited first Owner may join before the company exists.');
+    super(
+      'Only the invited first Owner may join before the company exists.',
+      409,
+      'FIRST_COMPANY_PENDING'
+    );
   }
 }
 

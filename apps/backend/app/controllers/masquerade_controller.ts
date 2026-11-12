@@ -3,6 +3,7 @@ import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { currentMasquerade, endMasquerade, startMasquerade } from '#services/auth/masquerade';
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
+import { hasOnlyFields } from '#services/request_helpers';
 import { signedInSession } from '#services/auth/current_actor';
 
 async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
@@ -39,11 +40,7 @@ export default class MasqueradeController {
     if (
       typeof accountId !== 'string' ||
       !accountId ||
-      !body ||
-      typeof body !== 'object' ||
-      Array.isArray(body) ||
-      Object.keys(body).length !== 1 ||
-      !('targetUserId' in body) ||
+      !hasOnlyFields(body, ['targetUserId']) ||
       typeof body.targetUserId !== 'string' ||
       !body.targetUserId
     ) {
@@ -86,14 +83,9 @@ export default class MasqueradeController {
   async end(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
     if (
-      !body ||
-      typeof body !== 'object' ||
-      Array.isArray(body) ||
-      Object.keys(body).length !== 2 ||
-      !('token' in body) ||
+      !hasOnlyFields(body, ['token', 'reason']) ||
       typeof body.token !== 'string' ||
       !body.token ||
-      !('reason' in body) ||
       (body.reason !== 'explicit' && body.reason !== 'account_switch')
     ) {
       return ctx.response.badRequest({ error: 'Invalid masquerade end request.' });

@@ -1,3 +1,4 @@
+import { RefusalError } from '#exceptions/refusal_error';
 import type { HttpContext } from '@adonisjs/core/http';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
@@ -8,15 +9,7 @@ import access from '#config/access_control';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
 
-export class OwnershipTransferError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly code: string
-  ) {
-    super(message);
-  }
-}
+export class OwnershipTransferError extends RefusalError {}
 
 /** Exchanges Owner and Admin inside one product transaction, with exact semantic replay. */
 export async function transferOwnership(
