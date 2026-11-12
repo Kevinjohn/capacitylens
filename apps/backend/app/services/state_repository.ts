@@ -53,7 +53,7 @@ const jsonColumns = {
   phases: new Set<string>(),
   resources: new Set(['workingDays', 'halfDays', 'isFavourite']),
   activities: new Set<string>(),
-  allocations: new Set(['ignoreWeekends']),
+  allocations: new Set(['ignoreWorkingDays']),
   time_off: new Set<string>(),
   closures: new Set<string>(),
 } satisfies Record<(typeof tables)[keyof typeof tables], Set<string>>;
@@ -116,45 +116,45 @@ export async function readStateWithClient(
     accountId === undefined
       ? Client.query({ client })
           .withTrashed()
-          .withScopes((scopes) => scopes.forTrustedLocal())
+          .withScopes((scopes) => scopes.forWholeInstallation())
       : Client.query({ client })
           .withTrashed()
           .withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Discipline.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      ? Discipline.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
       : Discipline.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
       ? Project.query({ client })
           .withTrashed()
-          .withScopes((scopes) => scopes.forTrustedLocal())
+          .withScopes((scopes) => scopes.forWholeInstallation())
       : Project.query({ client })
           .withTrashed()
           .withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Phase.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      ? Phase.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
       : Phase.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
       ? Resource.query({ client })
           .withTrashed()
-          .withScopes((scopes) => scopes.forTrustedLocal())
+          .withScopes((scopes) => scopes.forWholeInstallation())
       : Resource.query({ client })
           .withTrashed()
           .withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
       ? Activity.query({ client })
           .withTrashed()
-          .withScopes((scopes) => scopes.forTrustedLocal())
+          .withScopes((scopes) => scopes.forWholeInstallation())
       : Activity.query({ client })
           .withTrashed()
           .withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Allocation.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      ? Allocation.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
       : Allocation.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? TimeOff.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      ? TimeOff.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
       : TimeOff.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Closure.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
+      ? Closure.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
       : Closure.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
   ]);
   const data = {

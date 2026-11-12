@@ -152,7 +152,7 @@ describe('applyGesture: move across resources with different working weeks', () 
         mode: 'move',
         range: { startDate: '2026-08-13', endDate: '2026-08-18' },
         deltaDays: 0,
-        options: { workingDays: monToFri, sourceWorkingDays: mid, ignoreWeekends: true },
+        options: { workingDays: monToFri, sourceWorkingDays: mid, ignoreWorkingDays: true },
       }),
     ).toEqual({ startDate: '2026-08-13', endDate: '2026-08-18' });
   });
@@ -249,7 +249,7 @@ function registerWeekendAwareResizeScenarios(): void {
         mode: 'resize-end',
         range: r,
         deltaDays: 1,
-        options: { ...wd, ignoreWeekends: true },
+        options: { ...wd, ignoreWorkingDays: true },
       }).endDate,
     ).toBe('2026-05-16');
   });

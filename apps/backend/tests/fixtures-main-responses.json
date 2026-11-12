@@ -441,7 +441,7 @@
             "endDate": "2026-06-09",
             "hoursPerDay": 0,
             "status": "confirmed",
-            "ignoreWeekends": true,
+            "ignoreWorkingDays": true,
             "createdAt": "2026-05-01T00:00:00.000Z",
             "updatedAt": "2026-05-01T00:00:00.000Z"
           },
@@ -850,7 +850,7 @@
             "endDate": "2026-06-09",
             "hoursPerDay": 0,
             "status": "confirmed",
-            "ignoreWeekends": true,
+            "ignoreWorkingDays": true,
             "createdAt": "2026-05-01T00:00:00.000Z",
             "updatedAt": "2026-05-01T00:00:00.000Z"
           },

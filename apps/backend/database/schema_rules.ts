@@ -37,7 +37,7 @@ export default {
     is_private: boolean,
     builtin: boolean,
     is_favourite: boolean,
-    ignore_weekends: boolean,
+    ignore_working_days: boolean,
   },
   tables: {
     accounts: {

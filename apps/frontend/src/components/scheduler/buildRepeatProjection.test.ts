@@ -16,7 +16,7 @@ function validInput(overrides: Partial<ProjectionInput> = {}): ProjectionInput {
     daysOver: 2,
     effEndDate: '2027-01-05',
     effHoursPerDay: 4,
-    ignoreWeekends: false,
+    ignoreWorkingDays: false,
     isBlocks: false,
     isDays: false,
     isExternal: false,
@@ -64,7 +64,7 @@ describe('buildRepeatProjection', () => {
       endDate: '2027-01-05',
       hoursPerDay: 4,
       status: 'confirmed',
-      ignoreWeekends: false,
+      ignoreWorkingDays: false,
     });
     expect(projection?.drafts[0]).not.toHaveProperty('note');
     expect(projection?.drafts[0]).not.toHaveProperty('task');
@@ -82,12 +82,12 @@ describe('buildRepeatProjection', () => {
     });
   });
 
-  it('forces ignoreWeekends for external resources', () => {
+  it('forces ignoreWorkingDays for external resources', () => {
     const external = makeResource({ kind: 'external' });
     const projection = buildRepeatProjection(
       validInput({ isExternal: true, selectedResource: external, effHoursPerDay: 0 }),
     );
-    expect(projection?.drafts.every((draft) => draft.ignoreWeekends)).toBe(true);
+    expect(projection?.drafts.every((draft) => draft.ignoreWorkingDays)).toBe(true);
   });
 
   it('returns null outside a repeating creation context', () => {

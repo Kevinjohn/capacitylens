@@ -251,7 +251,7 @@ export interface Allocation extends ScopedEntity {
   /** When true, this allocation treats weekends / non-working days as normal
    * working days (drag/move does not auto-extend across them). Null =
    * weekend-aware (the default). */
-  ignoreWeekends: boolean | null;
+  ignoreWorkingDays: boolean | null;
 }
 
 /** One person's time off over a date range; company-wide closures are {@link Closure} records. */
@@ -298,7 +298,7 @@ export type { AppDataKey, ScopedEntityKey } from './entityKeys.js';
 
 /** Portable JSON schema version, independent of the physical SQLite schema version.
  * Increment when the portable AppData shape changes and provide the corresponding migration. */
-export const EXPORT_SCHEMA_VERSION = 24;
+export const EXPORT_SCHEMA_VERSION = 25;
 
 /** The versioned export document. */
 export interface PersistedState {

@@ -118,7 +118,7 @@ export function readCapacityGestureAdvisory({
         endDate: dates.endDate,
         // Use the shared blocks-load projection so gesture warnings match the grid even when stored allocations carry hourly values.
         hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,
-        ignoreWeekends: bar.allocation.ignoreWeekends,
+        ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
       },
       otherAllocations: others,
       timeOff: timeOff,

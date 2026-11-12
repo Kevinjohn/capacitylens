@@ -89,7 +89,9 @@ export function buildRepeatedAllocationDrafts(
     isExternalResource(context.resource) || context.schedulingMode === 'hourly';
   const spanOptions = {
     ...(context.effectiveWeek.kind === 'days' ? { workingDays: context.effectiveWeek.days } : {}),
-    ...(baseDraft.ignoreWeekends !== undefined ? { ignoreWeekends: baseDraft.ignoreWeekends } : {}),
+    ...(baseDraft.ignoreWorkingDays !== undefined
+      ? { ignoreWorkingDays: baseDraft.ignoreWorkingDays }
+      : {}),
   };
   assertProjectedSpans({ startDates, daysOver: context.daysOver, spanOptions, usesCalendarSpan });
 
@@ -127,7 +129,7 @@ function assertRepeatProjection(
   }
   if (
     !usesCalendarSpan &&
-    lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWeekends ?? undefined)
+    lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWorkingDays ?? undefined)
   ) {
     throw new RangeError('Repeat projection requires at least one effective working day.');
   }
@@ -215,7 +217,7 @@ export function buildRepeatingAllocationAdvisory({
     if (
       startsOnNonEffectiveWeekday(
         effectiveWeek,
-        draft.ignoreWeekends ?? undefined,
+        draft.ignoreWorkingDays ?? undefined,
         weekdayOf(draft.startDate),
       )
     ) {

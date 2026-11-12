@@ -206,7 +206,7 @@ export function resolveAllocationLoadForWeekday({
   effectiveWeek,
 }: ResolveAllocatedHoursForWeekdayInput): { hours: number; components: readonly number[] } {
   // Derive the working-weekday flag once per day: it's invariant across the loop, only the
-  // allocation's `ignoreWeekends` varies (and isWeekendAware is parse-free), so this keeps the
+  // allocation's `ignoreWorkingDays` varies (and isWeekendAware is parse-free), so this keeps the
   // render-time over-marker hot path off a per-allocation parseISO.
   const dayIsWorking = effectiveWeekIncludes(effectiveWeek, weekday);
   let sum = 0;
@@ -224,7 +224,7 @@ export function resolveAllocationLoadForWeekday({
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek: effectiveWeek,
-        ignoreWorkingDays: allocation.ignoreWeekends ?? undefined,
+        ignoreWorkingDays: allocation.ignoreWorkingDays ?? undefined,
         dayIsWorking: dayIsWorking,
       })
     ) {

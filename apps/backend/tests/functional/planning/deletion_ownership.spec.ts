@@ -299,17 +299,19 @@ test.group('planning deletion ownership', (suite) => {
         );
         const rows = data[key as keyof typeof mappings];
         if (rows.length)
-          await db
-            .table(table)
-            .multiInsert(
-              rows.map((row) =>
-                Object.fromEntries(
-                  Object.entries(
-                    encodeRow(table, row as unknown as Record<string, unknown>)
-                  ).filter(([name]) => columns.has(name))
-                )
+          await db.table(table).multiInsert(
+            rows.map((row) =>
+              Object.fromEntries(
+                Object.entries(encodeRow(table, row as unknown as Record<string, unknown>))
+                  // The baseline predates the rename, so the value starts under the old name.
+                  .map(([name, value]) => [
+                    name === 'ignore_working_days' ? 'ignore_weekends' : name,
+                    value,
+                  ])
+                  .filter(([name]) => columns.has(name as string))
               )
-            );
+            )
+          );
       }
       const sessionId = await fixtureSession('u-bruce');
       const groupId = await group('a-studio', sessionId);
@@ -380,6 +382,11 @@ test.group('planning deletion ownership', (suite) => {
             if (!['allocations', 'time_off', 'closures', 'phases', 'disciplines'].includes(table))
               return row;
             const original = { ...row };
+            if (table === 'allocations') {
+              // The upgrade renames the column; the value must survive under the new name.
+              original.ignore_weekends = original.ignore_working_days;
+              delete original.ignore_working_days;
+            }
             delete original.deleted_at;
             delete original.deletion_group_id;
             return original;

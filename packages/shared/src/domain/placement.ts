@@ -2,7 +2,7 @@ import { assertAllocationWithinResourceAvailability } from './resourceAvailabili
 import type { Allocation, Resource, Weekday } from '../types/entities.js';
 
 type AllocationPlacement = Pick<Allocation, 'resourceId' | 'startDate' | 'endDate'> &
-  Partial<Pick<Allocation, 'ignoreWeekends'>>;
+  Partial<Pick<Allocation, 'ignoreWorkingDays'>>;
 
 /** Inputs resolved by the caller for one allocation availability check. */
 export interface AssertAllocationPlacementInput {
@@ -25,7 +25,7 @@ export function assertAllocationPlacement({
     allocation.resourceId === existing.resourceId &&
     allocation.startDate === existing.startDate &&
     allocation.endDate === existing.endDate &&
-    (allocation.ignoreWeekends === true) === (existing.ignoreWeekends === true)
+    (allocation.ignoreWorkingDays === true) === (existing.ignoreWorkingDays === true)
   ) {
     return;
   }

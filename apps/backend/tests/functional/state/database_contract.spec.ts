@@ -59,6 +59,7 @@ test.group('M1 database contract', (group) => {
         'database/migrations/202611090001_replace_command_results_with_request_receipts',
         'database/migrations/202611090002_replace_action_proofs_with_password_confirmations',
         'database/migrations/202611110001_unbind_password_confirmation_scope_from_companies',
+        'database/migrations/202611120001_rename_ignore_weekends_to_ignore_working_days',
         'database/migrations/202611120002_drop_ownership_transfers',
       ]
     );

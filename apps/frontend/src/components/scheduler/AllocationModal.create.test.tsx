@@ -521,7 +521,7 @@ describe('AllocationModal advisory work bounds', () => {
       startDate: '2026-06-01',
       endDate: '2026-06-04',
       hoursPerDay: 0,
-      ignoreWeekends: true,
+      ignoreWorkingDays: true,
     });
   });
 });

@@ -19,7 +19,7 @@ type AdvisoryInput = Pick<
   | 'editId'
   | 'effEndDate'
   | 'effHoursPerDay'
-  | 'ignoreWeekends'
+  | 'ignoreWorkingDays'
   | 'isBlocks'
   | 'isExternal'
   | 'repeat'
@@ -90,7 +90,7 @@ function buildSingleAdvisory(
     data,
     effEndDate: endDate,
     effHoursPerDay: hoursPerDay,
-    ignoreWeekends,
+    ignoreWorkingDays,
     resourceId,
     selectedEffectiveWeek,
     selectedResource,
@@ -106,7 +106,7 @@ function buildSingleAdvisory(
           startDate,
           endDate,
           hoursPerDay,
-          ignoreWeekends,
+          ignoreWorkingDays,
           ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
         },
         otherAllocations,

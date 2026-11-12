@@ -43,5 +43,5 @@ server.use([
  */
 router.use([
   () => import('@adonisjs/core/bodyparser_middleware'),
-  () => import('#middleware/trusted_local_middleware'),
+  () => import('#middleware/require_sign_in_middleware'),
 ]);

@@ -586,7 +586,7 @@ function buildCompanyClosureData(): AppData {
     endDate: '2026-06-06',
     hoursPerDay: 4,
     status: 'confirmed',
-    ignoreWeekends: true,
+    ignoreWorkingDays: true,
   });
   d.closures.push(
     {

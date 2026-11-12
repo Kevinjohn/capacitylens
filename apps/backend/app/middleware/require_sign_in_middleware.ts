@@ -3,7 +3,7 @@ import type { NextFn } from '@adonisjs/core/types/http';
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { currentAccount } from '#services/auth/current_actor';
 
-export default class TrustedLocalMiddleware {
+export default class RequireSignInMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     const pathname = ctx.request.url().split('?')[0];
     const publicAdmission =
