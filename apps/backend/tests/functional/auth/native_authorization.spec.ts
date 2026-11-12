@@ -4,10 +4,10 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import type { ApiClient } from '@japa/api-client';
 import env from '#start/env';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import { seed } from '@capacitylens/shared/data/seed';
 import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import { signUpAndIn, expectStatus } from '../../helpers/identities.js';
 import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
 
@@ -160,7 +160,6 @@ test.group('native authorization and role projections', (group) => {
     nonMember.assertStatus(403);
     const nonMemberProjection = await currentUser(client, cookie);
     nonMemberProjection.assertStatus(200);
-    assert.isFalse((nonMemberProjection.body() as { canCreateAccount: boolean }).canCreateAccount);
 
     await db.table('memberships').insert({
       scope_id: accountId,
@@ -213,11 +212,6 @@ test.group('native authorization and role projections', (group) => {
 
       const me = await currentUser(client, cookie);
       me.assertStatus(200);
-      assert.equal(
-        (me.body() as { canCreateAccount: boolean }).canCreateAccount,
-        false,
-        `${role} account-creation projection`
-      );
 
       const currentPlanning = await withSession(trusted(client.get(planningUrl)), cookie).send();
       currentPlanning.assertStatus(200);

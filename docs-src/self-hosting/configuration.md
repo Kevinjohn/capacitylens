@@ -17,9 +17,7 @@ Restart the single backend process after changing its environment.
 | `HOST`, `PORT` | Listener address and port. The supplied release example binds loopback on port 8787. |
 | `APP_URL` | Adonis framework URL; also the public-origin fallback when `CAPACITYLENS_PUBLIC_URL` is unset. |
 | `APP_KEY` | Adonis encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
-| `SESSION_DRIVER` | Use `database` for a deployed application. |
 | `CAPACITYLENS_DB` | SQLite database path. Put it in persistent storage outside the release. |
-| `CAPACITYLENS_SECRET` | Boot requires at least 32 characters. This compatibility requirement does not supply an encryption or signing key; `APP_KEY` owns Adonis encryption. |
 | `CAPACITYLENS_PUBLIC_URL` | Optional public-origin override shared by emailed links, cookies and transport security. Bare HTTP(S) origin only: no credentials, path, query or fragment. Production requires HTTPS; development/test allow HTTP only on `localhost`, `127.0.0.1` or `[::1]`. |
 
 Run `node ace.js app:upgrade` with the service stopped before the first start and after each
@@ -45,7 +43,7 @@ may join.
 Keep `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset unless you intentionally allow open registration. An
 openly registered identity still needs an Owner or Admin approval before it sees company data.
 
-SQL audit records remain active for every installation. `CAPACITYLENS_AUDIT=off` is refused in production; the setting does not disable SQL audit in development or test either.
+SQL audit records remain active for every installation; no setting disables them.
 
 ## Email
 

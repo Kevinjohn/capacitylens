@@ -262,7 +262,7 @@ test('backend CI builds actual application assets before tests without leaking p
   const build = backend.steps[buildIndex];
   assert.equal(build.env.NODE_ENV, 'production');
   assert.match(build.env.CAPACITYLENS_PUBLIC_URL, /^https:/);
-  for (const key of ['APP_KEY', 'APP_URL', 'HOST', 'PORT', 'LOG_LEVEL', 'SESSION_DRIVER'])
+  for (const key of ['APP_KEY', 'APP_URL', 'HOST', 'PORT', 'LOG_LEVEL'])
     assert.ok(build.env[key], key);
   assert.notEqual(backend.env?.NODE_ENV, 'production');
   assert.notEqual(backend.steps[testIndex].env?.NODE_ENV, 'production');

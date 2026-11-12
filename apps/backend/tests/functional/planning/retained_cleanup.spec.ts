@@ -14,7 +14,7 @@ import {
   signIn,
   signInAgain,
 } from './helpers.js';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 
 async function revision() {
   const row = await db.from('company_planning_revisions').where('account_id', accountId).first();

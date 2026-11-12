@@ -1,10 +1,4 @@
-import type {
-  AppData,
-  Entity,
-  Resource,
-  ResourceEngagement,
-  ScopedEntityKey,
-} from '@capacitylens/shared/types/entities';
+import type { Entity, Resource, ResourceEngagement } from '@capacitylens/shared/types/entities';
 
 // The store supplies account identity and server-owned fields. Exclude builtin from
 // ordinary drafts so public CRUD cannot create or promote a second Internal client;
@@ -25,18 +19,6 @@ export type Draft<T extends Entity> = T extends Resource ? ResourceDraft : Draft
 /** Partial draft fields, with `undefined` available to clear nullable values. */
 export type Patch<T extends Entity> = {
   [K in keyof Draft<T>]?: object extends Pick<Draft<T>, K> ? Draft<T>[K] | undefined : Draft<T>[K];
-};
-
-/** A row type selected from an account-scoped entity table. */
-export type ScopedRow<K extends ScopedEntityKey> = AppData[K][number];
-/** Mutable fields for one account-scoped table row. */
-export type ScopedPatch<K extends ScopedEntityKey> = {
-  [P in keyof Omit<ScopedRow<K>, keyof Entity>]?: object extends Pick<
-    Omit<ScopedRow<K>, keyof Entity>,
-    P
-  >
-    ? Omit<ScopedRow<K>, keyof Entity>[P] | undefined
-    : Omit<ScopedRow<K>, keyof Entity>[P];
 };
 
 /** Resource and catalogue tables with archive/restore actions. Retained deletion of other planning rows is separate. */

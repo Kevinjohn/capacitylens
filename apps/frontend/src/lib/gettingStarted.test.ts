@@ -1,10 +1,6 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { describe, expect, it } from 'vitest';
-import {
-  buildGettingStartedSteps,
-  hasCompletedAllSteps,
-  isGettingStartedComplete,
-} from './gettingStarted';
+import { buildGettingStartedSteps } from './gettingStarted';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type {
   Activity,
@@ -291,13 +287,6 @@ describe('first-use outcome truth table', () => {
       expect(steps.scheduled).toBe(expected);
     },
   );
-
-  it('requires all five outcomes', () => {
-    const complete = { person: true, client: true, project: true, activity: true, scheduled: true };
-    expect(hasCompletedAllSteps(complete)).toBe(true);
-    expect(isGettingStartedComplete(complete)).toBe(true);
-    expect(isGettingStartedComplete({ ...complete, scheduled: false })).toBe(false);
-  });
 
   it('counts client and project independently, excluding the built-in client', () => {
     expect(buildGettingStartedSteps(dataWith({ clients: [client()] })).client).toBe(true);

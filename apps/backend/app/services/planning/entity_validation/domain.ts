@@ -21,8 +21,8 @@ import type {
   Activity,
   Allocation,
   AppData,
-  AppDataKey,
   Resource,
+  ScopedEntityKey,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
 import { EntityWriteError } from '#services/planning/errors';
@@ -30,16 +30,15 @@ import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations
 
 /** Enforce relational and lifecycle rules against the transaction's evolving projection. */
 export function assertEntityDomain(
-  table: AppDataKey,
+  table: ScopedEntityKey,
   row: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
   state: AppData,
   lookup: ValidationDataLookup,
-  hasOtherBuiltinClient: (accountId: string, clientId: string, excludedId?: string) => boolean,
-  generatedBuiltinReplacementId?: string
+  hasOtherBuiltinClient: (accountId: string, clientId: string) => boolean
 ) {
   const id = row.id as string;
-  const accountId = (table === 'accounts' ? id : row.accountId) as string;
+  const accountId = row.accountId as string;
   if (isLifecycleEntityKey(table)) {
     if (
       table === 'clients' &&
@@ -70,7 +69,7 @@ export function assertEntityDomain(
     if (existing?.builtin === true) {
       throw new EntityWriteError('The built-in Internal client cannot be modified.');
     }
-    if (row.builtin === true && !existing && !generatedBuiltinReplacementId) {
+    if (row.builtin === true && !existing) {
       throw new EntityWriteError('The built-in Internal client is managed by the server.');
     }
     if (
@@ -79,15 +78,12 @@ export function assertEntityDomain(
     ) {
       throw new EntityWriteError('The built-in Internal client has a fixed name and colour.');
     }
-    if (
-      row.builtin === true &&
-      hasOtherBuiltinClient(accountId, id, generatedBuiltinReplacementId)
-    ) {
+    if (row.builtin === true && hasOtherBuiltinClient(accountId, id)) {
       throw new EntityWriteError('This company already has its built-in Internal client.');
     }
     return;
   }
-  if (table === 'accounts' || table === 'disciplines') return;
+  if (table === 'disciplines') return;
   if (table !== 'allocations' && table !== 'timeOff' && table !== 'closures') {
     assertScopedRefs(state, accountId, table, row, existing, lookup, { fullRow: true });
   }

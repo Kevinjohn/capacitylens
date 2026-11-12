@@ -1,10 +1,8 @@
-import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import {
-  APP_DATA_KEYS,
-  CAPACITY_OVERVIEW_ACCESS_VALUES,
   externalCapacityDefaults,
   type AppData,
   type AppDataKey,
+  type ScopedEntityKey,
 } from '@capacitylens/shared/types/entities';
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import {
@@ -12,11 +10,6 @@ import {
   halfDaysWithinWorkingDays,
   sameWeekdays,
 } from '@capacitylens/shared/domain/resourceWorkingPattern';
-import {
-  INTERNAL_CLIENT_COLOR,
-  INTERNAL_CLIENT_NAME,
-  internalClientIdFor,
-} from '@capacitylens/shared/data/internalClient';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { cleanText } from '@capacitylens/shared/lib/strings';
 import { hasUsablePrivateCodeName } from '@capacitylens/shared/domain/privateNames';
@@ -43,9 +36,6 @@ export const TABLE_NAMES = {
   closures: 'closures',
 } as const satisfies Record<AppDataKey, import('#services/state_repository').ProductTable>;
 
-export const isTable = (value: string): value is AppDataKey =>
-  APP_DATA_KEYS.includes(value as AppDataKey);
-export const isScoped = (table: AppDataKey) => table !== 'accounts';
 export const isLifecycle = (table: AppDataKey) =>
   ['clients', 'projects', 'resources', 'activities'].includes(table);
 
@@ -57,7 +47,7 @@ function reject(field: string, reason: string): never {
 }
 
 function pinHiddenFields(
-  table: AppDataKey,
+  table: ScopedEntityKey,
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
   context: PlanningCapabilities
@@ -76,11 +66,6 @@ function pinHiddenFields(
       delete candidate.isPrivate;
       delete candidate.codeName;
     }
-  }
-  if (table === 'accounts' && !isOwnerOrAdmin(context.role)) {
-    if (CAPACITY_OVERVIEW_ACCESS_VALUES.includes(existing?.capacityOverviewAccess as never)) {
-      candidate.capacityOverviewAccess = existing?.capacityOverviewAccess;
-    } else delete candidate.capacityOverviewAccess;
   }
 }
 
@@ -180,7 +165,7 @@ function assertResourceKind(candidate: Record<string, unknown>, existing: Record
 }
 
 function assertManagedFields(
-  table: AppDataKey,
+  table: ScopedEntityKey,
   requested: Record<string, unknown>,
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined
@@ -198,12 +183,6 @@ function assertManagedFields(
       throw new EntityWriteError('seriesId is fixed after creation.');
     }
     candidate.seriesId = existing.seriesId ?? null;
-  }
-  if (table === 'accounts' && existing) {
-    assertFrozenAccountFields(requested, candidate, existing);
-    if (!Object.hasOwn(requested, 'workingDays') && existing.workingDays !== undefined) {
-      candidate.workingDays = existing.workingDays;
-    }
   }
   if (table === 'resources' && existing && candidate.kind === 'person') {
     for (const field of ['firstAvailableDate', 'lastAvailableDate'] as const) {
@@ -239,7 +218,7 @@ export function assertFrozenAccountFields(
 }
 
 function validationView(
-  table: AppDataKey,
+  table: ScopedEntityKey,
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
   context: PlanningCapabilities
@@ -251,13 +230,10 @@ function validationView(
     delete visible.codeName;
     if (existing?.isPrivate === true) delete visible.name;
   }
-  if (table === 'accounts' && !isOwnerOrAdmin(context.role)) {
-    delete visible.capacityOverviewAccess;
-  }
   return visible;
 }
 
-function assertRequired(table: AppDataKey, candidate: Record<string, unknown>) {
+function assertRequired(table: ScopedEntityKey, candidate: Record<string, unknown>) {
   const missing = requiredFields[table].filter((field) => !Object.hasOwn(candidate, field));
   if (missing.length) {
     throw new EntityWriteError(`Missing required field(s): ${missing.join(', ')}.`);
@@ -268,42 +244,12 @@ function assertRequired(table: AppDataKey, candidate: Record<string, unknown>) {
 
 export interface EntityWriteOptions {
   lookup: ValidationDataLookup;
-  hasOtherBuiltinClient(accountId: string, clientId: string, excludedId?: string): boolean;
-  /** Only the service names the deterministic Internal row a supplied built-in client replaces. */
-  generatedBuiltinReplacementId?: string;
-}
-
-function resolveGeneratedBuiltinReplacement(
-  table: AppDataKey,
-  row: Record<string, unknown>,
-  existing: Record<string, unknown> | undefined,
-  options: EntityWriteOptions
-): string | undefined {
-  const generatedId = options.generatedBuiltinReplacementId;
-  if (generatedId === undefined) return undefined;
-  const accountId = row.accountId;
-  const generated = options.lookup.row('clients', generatedId);
-  if (
-    table !== 'clients' ||
-    row.builtin !== true ||
-    existing !== undefined ||
-    typeof accountId !== 'string' ||
-    generatedId !== internalClientIdFor(accountId) ||
-    row.id === generatedId ||
-    options.lookup.row('clients', String(row.id)) !== undefined ||
-    generated?.accountId !== accountId ||
-    generated.builtin !== true ||
-    generated.name !== INTERNAL_CLIENT_NAME ||
-    generated.color !== INTERNAL_CLIENT_COLOR
-  ) {
-    throw new EntityWriteError('The built-in Internal client is managed by the server.');
-  }
-  return generatedId;
+  hasOtherBuiltinClient(accountId: string, clientId: string): boolean;
 }
 
 /** Prepare one complete entity row for a typed write against the current transaction projection. */
 export async function prepareEntityWrite(
-  table: AppDataKey,
+  table: ScopedEntityKey,
   row: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
   state: AppData,
@@ -315,10 +261,10 @@ export async function prepareEntityWrite(
       'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde or hyphen.'
     );
   }
-  if (isScoped(table) && (typeof row.accountId !== 'string' || row.accountId.length === 0)) {
+  if (typeof row.accountId !== 'string' || row.accountId.length === 0) {
     throw new EntityWriteError('A string accountId is required.');
   }
-  if (existing && isScoped(table) && existing.accountId !== row.accountId) {
+  if (existing && existing.accountId !== row.accountId) {
     throw new EntityWriteError('Not found.', 404);
   }
   for (const [field, value] of Object.entries(row)) {
@@ -330,14 +276,6 @@ export async function prepareEntityWrite(
       (field === 'isPrivate' ||
         field === 'codeName' ||
         (field === 'name' && existing?.isPrivate === true))
-    ) {
-      continue;
-    }
-    if (
-      table === 'accounts' &&
-      field === 'capacityOverviewAccess' &&
-      context.role !== 'owner' &&
-      context.role !== 'admin'
     ) {
       continue;
     }
@@ -361,14 +299,6 @@ export async function prepareEntityWrite(
       if (existing?.isPrivate === true && Object.hasOwn(candidate, 'name')) {
         preserved.name = candidate.name;
       }
-    }
-    if (
-      table === 'accounts' &&
-      context.role !== 'owner' &&
-      context.role !== 'admin' &&
-      Object.hasOwn(candidate, 'capacityOverviewAccess')
-    ) {
-      preserved.capacityOverviewAccess = candidate.capacityOverviewAccess;
     }
     candidate = { ...validated, ...preserved };
   } catch (error) {
@@ -407,12 +337,6 @@ export async function prepareEntityWrite(
   ) {
     throw new EntityWriteError('Closure name is required.');
   }
-  if (
-    table === 'accounts' &&
-    (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
-  ) {
-    throw new EntityWriteError('Company name is required.');
-  }
   for (const field of ['name', 'role', 'codeName', 'note', 'task'] as const) {
     if (typeof candidate[field] === 'string') {
       candidate[field] = cleanText(candidate[field] as string, { multiline: field === 'note' });
@@ -424,11 +348,9 @@ export async function prepareEntityWrite(
   normalizeValidWrite({
     table,
     candidate,
-    requested: row,
     existing,
     canSeePrivateNames: context.canSeePrivateNames,
   });
-  const replacementId = resolveGeneratedBuiltinReplacement(table, candidate, existing, options);
   try {
     assertEntityDomain(
       table,
@@ -436,8 +358,7 @@ export async function prepareEntityWrite(
       existing,
       state,
       options.lookup,
-      options.hasOtherBuiltinClient,
-      replacementId
+      options.hasOtherBuiltinClient
     );
   } catch (error) {
     if (error instanceof EntityWriteError) throw error;

@@ -5,7 +5,8 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import type { ArchiveRecovery, ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '../../helpers/fresh_database.js';
-import { encodeRow, readState } from '#services/state_repository';
+import { encodeRow } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import {
   accountId,
   configureAuth,

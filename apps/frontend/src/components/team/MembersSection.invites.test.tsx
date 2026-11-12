@@ -284,24 +284,21 @@ function registerInviteValidationTests(): void {
     });
   });
 
-  it.each(['password-only'] as const)(
-    'requires an email for a %s invite without posting',
-    async (authMode) => {
-      const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }]);
-      vi.stubGlobal('fetch', fetchMock);
-      renderSection({ authMode });
-      await screen.findByTestId('invite-open');
-      fireEvent.click(screen.getByTestId('invite-open'));
+  it('requires an email for an invite without posting', async () => {
+    const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }]);
+    vi.stubGlobal('fetch', fetchMock);
+    renderSection();
+    await screen.findByTestId('invite-open');
+    fireEvent.click(screen.getByTestId('invite-open'));
 
-      await userEvent.setup().click(await screen.findByTestId('invite-submit'));
+    await userEvent.setup().click(await screen.findByTestId('invite-submit'));
 
-      const field = screen.getByTestId('invite-preauth');
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent(m.settings_invite_email_required());
-      expect(field.getAttribute('aria-describedby')?.split(' ')).toContain(alert.id);
-      expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
-    },
-  );
+    const field = screen.getByTestId('invite-preauth');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(m.settings_invite_email_required());
+    expect(field.getAttribute('aria-describedby')?.split(' ')).toContain(alert.id);
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+  });
 }
 
 function registerInviteCreationFailureTests(): void {

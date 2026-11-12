@@ -65,7 +65,6 @@ beforeEach(async () => {
     },
     'GET /api/auth/me': () =>
       jsonResponse({
-        authMode: 'password-only',
         user: { id: principal, email: `${principal}@wayne.test` },
         emailVerified: true,
         membershipRequired: false,

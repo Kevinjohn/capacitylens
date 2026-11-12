@@ -13,7 +13,7 @@ for your domain pointing at it, unpack the archive into `/opt/capacitylens` and 
 sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com
 ```
 
-It runs the steps below: it writes `/etc/capacitylens.env` with generated secrets, upgrades the
+It runs the steps below: it writes `/etc/capacitylens.env` with a generated `APP_KEY`, upgrades the
 database, installs and starts the systemd unit, configures Caddy for automatic HTTPS when it is installed and prints
 the setup link. Mail is left unset until you add it. Run a newer release's `install.sh` without
 arguments to upgrade; it keeps the environment file and backs up the database before migrating.
@@ -21,8 +21,8 @@ arguments to upgrade; it keeps the environment file and backs up the database be
 ## By hand
 
 The backend supports password authentication and native database sessions. The environment example
-keeps open access disabled. Set `APP_KEY`, a random `CAPACITYLENS_SECRET` of at least 32 characters,
-matching HTTPS `APP_URL` / `CAPACITYLENS_PUBLIC_URL` origins and SMTP delivery before starting.
+keeps open access disabled. Set `APP_KEY`, matching HTTPS `APP_URL` / `CAPACITYLENS_PUBLIC_URL`
+origins and SMTP delivery before starting.
 Invitations, address confirmation and password resets are emailed. After the first start, print the
 first-install link for the Owner's email address:
 

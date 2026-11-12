@@ -9,7 +9,8 @@ import {
 import { freshDatabase } from '../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
-import { encodeRow, readState } from '#services/state_repository';
+import { encodeRow } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 
 let dataOwnerId: string;
 

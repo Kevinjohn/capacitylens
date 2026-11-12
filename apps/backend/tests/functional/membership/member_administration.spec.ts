@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
@@ -458,7 +458,6 @@ test.group('company member administration', (group) => {
       const cookie = admin.cookie('adonis-session')!.value;
       const current = await signed(client.get('/api/auth/me'), cookie).send();
       current.assertStatus(200);
-      assert.isFalse(current.body().canCreateAccount);
       const second = await signed(client.post('/api/orgs'), cookie)
         .json({ id: 'a-loft', name: 'Stark Industries' })
         .send();

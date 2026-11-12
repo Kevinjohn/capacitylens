@@ -10,7 +10,7 @@ it.each([true, false, undefined, 'true'])(
       .spyOn(masqueradeApi, 'status')
       .mockResolvedValue({ active: false, contextToken: 'idle-context' });
     const request = vi.spyOn(accountClient, 'me').mockResolvedValue(
-      new Response(JSON.stringify({ authMode: 'password-only', passwordResetEmail }), {
+      new Response(JSON.stringify({ passwordResetEmail }), {
         status: 401,
       }),
     );
@@ -34,7 +34,6 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
     const request = vi.spyOn(accountClient, 'me').mockResolvedValue(
       new Response(
         JSON.stringify({
-          authMode: 'password-only',
           user: { id: 'real-user', email: 'real@example.test', name: 'Real User' },
         }),
         { status: 200 },
@@ -54,9 +53,7 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
     const status = vi.spyOn(masqueradeApi, 'status').mockRejectedValue(new TypeError('offline'));
     const request = vi
       .spyOn(accountClient, 'me')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ authMode: 'password-only' }), { status: 401 }),
-      );
+      .mockResolvedValue(new Response(JSON.stringify({}), { status: 401 }));
     try {
       expect(await fetchAuthStatus(() => false)).toMatchObject({ kind: 'login' });
     } finally {
@@ -94,7 +91,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     });
     const request = vi.spyOn(accountClient, 'me').mockImplementation(async () => {
       expect(getMasqueradeContextToken()).toBe('idle-context');
-      return new Response(JSON.stringify({ authMode: 'password-only' }), { status: 401 });
+      return new Response(JSON.stringify({}), { status: 401 });
     });
     try {
       await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'login' });
@@ -120,9 +117,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     });
     const request = vi
       .spyOn(accountClient, 'me')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ authMode: 'password-only' }), { status: 401 }),
-      );
+      .mockResolvedValue(new Response(JSON.stringify({}), { status: 401 }));
     const restore = vi
       .spyOn(masqueradeController, 'restoreServerEndedProjection')
       .mockImplementation(() => {});
@@ -155,6 +150,31 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     }
   });
 
+  it('fails closed without adopting an active status whose principal is not a valid user', async () => {
+    const { fetchAuthStatus } = await import('./fetchAuthStatus');
+    const { masqueradeController } = await import('./masqueradeController');
+    const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
+      active: true,
+      accountId: 'a-studio',
+      targetUserId: 'u-viewer',
+      targetName: 'Selina Kyle',
+      effectiveRole: 'viewer',
+      startedAt: '2026-09-01T10:00:00.000Z',
+      expiresAt: '2026-09-01T10:15:00.000Z',
+      token: 'mode-token',
+      contextToken: 'mode-token',
+      principal: { id: '', email: 'real@example.test' },
+    });
+    const adopt = vi.spyOn(masqueradeController, 'adoptStatus');
+    try {
+      await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'error' });
+      expect(adopt).not.toHaveBeenCalled();
+    } finally {
+      status.mockRestore();
+      adopt.mockRestore();
+    }
+  });
+
   it('ignores an active status read that resolves after local identity invalidation', async () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { masqueradeController } = await import('./masqueradeController');
@@ -178,7 +198,6 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       token: 'stale-mode-token',
       contextToken: 'stale-mode-token',
       principal: { id: 'real-user', email: 'real@example.test' },
-      authMode: 'password-only' as const,
     };
     try {
       const pending = fetchAuthStatus(() => true);

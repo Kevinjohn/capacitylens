@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { foldForSearch, fuzzyScore, fuzzyFilter } from './fuzzy';
+import { foldForSearch, fuzzyFilter } from './fuzzy';
 
 const resources = [
   { id: 'r-tyler', name: 'Bruce Wayne' },
@@ -18,78 +18,6 @@ describe('foldForSearch', () => {
   it('is total for lone surrogates and leaves undecomposable text alone', () => {
     expect(foldForSearch('\ud800')).toBe('\ud800');
     expect(foldForSearch('Bruce Wayne')).toBe('bruce wayne');
-  });
-});
-
-describe('fuzzyScore — prefix tiers', () => {
-  describe('Tier 0 — exact prefix', () => {
-    it('scores 0 for exact prefix match', () => {
-      expect(fuzzyScore('br', 'Bruce Wayne')).toBe(0);
-    });
-    it('scores 0 for full match', () => {
-      expect(fuzzyScore('bruce wayne', 'Bruce Wayne')).toBe(0);
-    });
-    it('is case-insensitive', () => {
-      expect(fuzzyScore('BR', 'bruce wayne')).toBe(0);
-    });
-    it('is diacritic-insensitive in either direction and across Unicode forms', () => {
-      expect(fuzzyScore('jose', 'José Alvarez')).toBe(0);
-      expect(fuzzyScore('MÜLLER', 'Muller')).toBe(0);
-      expect(fuzzyScore('Jose\u0301', 'José Alvarez')).toBe(0);
-    });
-  });
-
-  describe('Tier 1 — word-boundary prefix', () => {
-    it('scores 1 for second-word prefix', () => {
-      expect(fuzzyScore('way', 'Bruce Wayne')).toBe(1);
-    });
-    it('scores 1 for word after a hyphen', () => {
-      expect(fuzzyScore('end', 'Front End')).toBe(1);
-    });
-    it('scores 1 for word after underscore', () => {
-      expect(fuzzyScore('bar', 'foo_bar')).toBe(1);
-    });
-    it.each(['foo--bar', 'foo  bar', 'foo- _bar'])(
-      'treats a consecutive delimiter run in %s as one word boundary',
-      (text) => {
-        expect(fuzzyScore('bar', text)).toBe(1);
-      },
-    );
-  });
-});
-
-describe('fuzzyScore — fallback tiers', () => {
-  describe('Tier 2 — contiguous substring', () => {
-    it('scores 2 for mid-word substring', () => {
-      expect(fuzzyScore('uce', 'Bruce Wayne')).toBe(2);
-    });
-    it('scores 2 for substring across boundary that is not a prefix', () => {
-      expect(fuzzyScore('ce way', 'Bruce Wayne')).toBe(2);
-    });
-  });
-
-  describe('Tier 3 — subsequence', () => {
-    it('scores 3 for scattered subsequence', () => {
-      expect(fuzzyScore('bwn', 'Bruce Wayne')).toBe(3);
-    });
-    it('scores 3 when all chars appear in order but not contiguously', () => {
-      expect(fuzzyScore('brw', 'Bruce Wayne')).toBe(3);
-    });
-  });
-
-  describe('No match', () => {
-    it('returns Infinity when query has characters not in text', () => {
-      expect(fuzzyScore('xyz', 'Bruce Wayne')).toBe(Infinity);
-    });
-    it('returns Infinity for empty text with non-empty query', () => {
-      expect(fuzzyScore('a', '')).toBe(Infinity);
-    });
-  });
-
-  describe('Empty query', () => {
-    it('returns 0 for empty query (shows everything)', () => {
-      expect(fuzzyScore('', 'Bruce Wayne')).toBe(0);
-    });
   });
 });
 
@@ -184,27 +112,5 @@ describe('fuzzyFilter — query and tie behavior', () => {
       { id: 'a', name: 'qa' },
     ];
     expect(fuzzyFilter(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['a', 'b']);
-  });
-
-  it('keeps the same tiers as fuzzyScore even though the query is folded once for the whole pass', () => {
-    // fuzzyFilter folds the trimmed query a single time and scores against that; fuzzyScore folds
-    // per call. The two must agree for every item, including when the query needs both trimming and
-    // diacritic folding, or the sort order silently diverges from the documented tiers.
-    const items = [
-      { name: 'José Alvarez' },
-      { name: 'Bruce José' },
-      { name: 'xjosey' },
-      { name: 'j o s e' },
-      { name: 'Clark Kent' },
-    ];
-    const query = '  JOSÉ ';
-    const expected = items.filter((i) => fuzzyScore(query.trim(), i.name) < Infinity);
-    expect(fuzzyFilter(items, query, (i) => i.name)).toEqual([
-      expected[0],
-      expected[1],
-      expected[2],
-      expected[3],
-    ]);
-    expect(expected.map((i) => fuzzyScore(query.trim(), i.name))).toEqual([0, 1, 2, 3]);
   });
 });

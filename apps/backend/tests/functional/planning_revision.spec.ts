@@ -3,7 +3,7 @@ import { freshDatabase } from '../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { withTransaction } from '#services/with_transaction';
 import { advancePlanningRevision, getPlanningRevision } from '#services/planning_revision';
-import { replaceWithSeed } from '#services/state_repository';
+import { replaceWithSeed } from '#tests/helpers/state_fixture';
 
 test.group('company planning revision storage', (group) => {
   group.setup(() => freshDatabase());

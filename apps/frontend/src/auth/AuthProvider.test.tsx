@@ -75,27 +75,22 @@ function RefreshProbe({
   useAuth,
 }: {
   useAuth: () => {
-    authMode: string | null;
     user: { id: string } | null;
     refreshAuth: () => Promise<void>;
   };
 }) {
-  const { authMode, user, refreshAuth } = useAuth();
+  const { user, refreshAuth } = useAuth();
   return (
     <button type="button" onClick={() => void refreshAuth()}>
-      refresh<span>{`authMode:${authMode ?? 'checking'} user:${user?.id ?? 'none'}`}</span>
+      refresh<span>{`user:${user?.id ?? 'none'}`}</span>
     </button>
   );
 }
 
 // Pass the hook as a prop so session assertions observe the same context instance.
-function SessionProbe({
-  useAuth,
-}: {
-  useAuth: () => { authMode: string | null; user: { id: string } | null };
-}) {
-  const { authMode, user } = useAuth();
-  return <div>{`authMode:${authMode ?? 'checking'} user:${user?.id ?? 'none'}`}</div>;
+function SessionProbe({ useAuth }: { useAuth: () => { user: { id: string } | null } }) {
+  const { user } = useAuth();
+  return <div>{`user:${user?.id ?? 'none'}`}</div>;
 }
 
 function deferred<T>() {
@@ -129,7 +124,6 @@ function registerServerModeTest01() {
     await act(async () => {
       auth.resolve(
         me(200, {
-          authMode: 'password-only',
           user: {
             id: 'authenticated-user',
             name: 'Authenticated user',
@@ -151,11 +145,10 @@ function registerServerModeTest02() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: 'password-only',
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: 'password-only' }));
+      .mockResolvedValue(me(401, {}));
     vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore } = await freshProvider();
     const { queryClient } = await import('@/api/queryClient');
@@ -190,7 +183,7 @@ function registerServerModeTest03() {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, { authMode: 'password-only' })),
+      vi.fn(async () => me(401, {})),
     );
     const onTenantAccessReady = vi.fn();
     const { AuthProvider } = await freshProvider();
@@ -212,7 +205,7 @@ function registerServerModeTest05() {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
-      return me(200, { authMode: 'off', user: { id: 'demo', name: 'Demo' } });
+      return me(200, { user: { id: 'demo', name: 'Demo' } });
     });
     vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider } = await freshProvider();
@@ -236,12 +229,12 @@ function registerServerModeTest05() {
 }
 
 function registerServerModeTest06() {
-  it("rejects authMode 'off' from a credentialed /api/auth/me check", async () => {
+  it('rejects a body without a user from a credentialed /api/auth/me check', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
-      return me(200, { authMode: 'off', user: null });
+      return me(200, { user: null });
     });
     vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider } = await freshProvider();
@@ -276,7 +269,6 @@ function registerServerModeTest06() {
       token: 'session-token',
       contextToken: 'session-token',
       principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
-      authMode: 'password-only',
     });
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
@@ -289,9 +281,7 @@ function registerServerModeTest06() {
       </AuthProvider>,
     );
 
-    expect(
-      await screen.findByText('authMode:password-only user:real-principal'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('user:real-principal')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(useStore.getState().activeAccountId).toBe('a-studio');
     expect(useStore.getState().masquerade.kind).toBe('active');
@@ -310,7 +300,6 @@ function registerServerModeTest06() {
       token: 'session-token',
       contextToken: 'session-token',
       principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
-      authMode: 'password-only',
     });
     vi.doMock('@/data/planning/storePlanningTransport', async () => {
       const { createPlanningTransport } = await import('@/data/planning/planningTransport');
@@ -365,37 +354,6 @@ function registerServerModeTest06() {
       });
     }
   });
-
-  it('rejects an active masquerade whose auth mode is off', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
-    authBootstrapMocks.masqueradeStatus.mockResolvedValue({
-      active: true,
-      accountId: 'a-studio',
-      targetUserId: 'target-user',
-      targetName: 'Selina Kyle',
-      effectiveRole: 'viewer',
-      startedAt: '2026-09-01T10:00:00.000Z',
-      expiresAt: '2026-09-01T10:15:00.000Z',
-      token: 'session-token',
-      contextToken: 'session-token',
-      principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
-      authMode: 'off' as never,
-    });
-    const { AuthProvider, useStore, resetStoreWithAccount } = await freshProvider();
-    await resetStoreWithAccount('a-studio');
-
-    render(
-      <AuthProvider>
-        <div>app-content</div>
-      </AuthProvider>,
-    );
-
-    expect(
-      await screen.findByRole('heading', { name: 'Unable to verify your session' }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
-    expect(useStore.getState().masquerade.kind).not.toBe('active');
-  });
 }
 
 function registerServerModeTest07() {}
@@ -405,7 +363,7 @@ function registerServerModeTest09() {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, { authMode: 'password-only' })),
+      vi.fn(async () => me(401, {})),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -434,7 +392,7 @@ function registerServerModeTest13() {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, { authMode: 'password-only' })),
+      vi.fn(async () => me(401, {})),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -448,7 +406,7 @@ function registerServerModeTest13() {
     expect(
       screen.queryByText('The authentication service returned an invalid configuration.'),
     ).not.toBeInTheDocument();
-    // The explicit authMode is a trustworthy signal, so no degraded notice.
+    // A JSON body is a trustworthy signal, so no degraded notice.
     expect(
       screen.queryByText(/sign-in configuration could not be loaded/i),
     ).not.toBeInTheDocument();
@@ -474,26 +432,6 @@ function registerServerModeTest14() {
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
     // The body couldn't be trusted at all, so the login wall says its configuration is a guess.
-    expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
-  });
-}
-
-function registerServerModeTest15() {
-  it('shows the password sign-in wall with a degraded notice for an unknown auth mode', async () => {
-    // Distinct from an omitted authMode (old-server compat, no notice): here the field is present
-    // but neither 'password' nor 'sso', a genuinely untrustworthy body, not a version-skew case.
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => me(401, { authMode: 'bogus' })),
-    );
-    const { AuthProvider } = await freshProvider();
-    render(
-      <AuthProvider>
-        <div>app-content</div>
-      </AuthProvider>,
-    );
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
 }
@@ -545,7 +483,7 @@ function registerServerModeTest18() {
       vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
       vi.stubGlobal(
         'fetch',
-        vi.fn(async () => me(401, { authMode: 'password-only' })),
+        vi.fn(async () => me(401, {})),
       );
       const { AuthProvider } = await freshProvider();
       render(
@@ -568,7 +506,7 @@ function registerServerModeTest19() {
       vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
       vi.stubGlobal(
         'fetch',
-        vi.fn(async () => me(401, { authMode: 'password-only' })),
+        vi.fn(async () => me(401, {})),
       );
       const { AuthProvider } = await freshProvider();
       render(
@@ -589,7 +527,7 @@ function registerServerModeTest20() {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, { authMode: 'password-only', needsSetup: true })),
+      vi.fn(async () => me(401, { needsSetup: true })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -610,7 +548,7 @@ function registerServerModeTest21() {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, { authMode: 'password-only', needsSetup: 'yes' })),
+      vi.fn(async () => me(401, { needsSetup: 'yes' })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -693,7 +631,7 @@ function registerServerModeTest25() {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(200, { authMode: 'password-only', user })),
+      vi.fn(async () => me(200, { user })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -738,7 +676,6 @@ function registerServerModeTest27() {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi.fn(async () =>
       me(200, {
-        authMode: 'password-only',
         user: { id: 'u1', email: 'a@b.test' },
       }),
     );
@@ -794,11 +731,10 @@ function registerServerModeTest27() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: 'password-only',
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: 'password-only' }));
+      .mockResolvedValue(me(401, {}));
     vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore } = await freshProvider();
     render(
@@ -839,11 +775,7 @@ function registerServerModeTest28() {
       const onTenantAccessReady = vi.fn();
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn()
-          .mockResolvedValue(
-            me(200, { authMode: 'password-only', user: { id: 'u1', email: 'a@b.test' }, ...gates }),
-          ),
+        vi.fn().mockResolvedValue(me(200, { user: { id: 'u1', email: 'a@b.test' }, ...gates })),
       );
       const { AuthProvider } = await freshProvider();
       render(
@@ -865,11 +797,10 @@ function registerServerModeTest29() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: 'password-only',
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: 'password-only' }));
+      .mockResolvedValue(me(401, {}));
     vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore, resetStoreWithAccount } = await freshProvider();
     render(
@@ -906,7 +837,6 @@ function registerServerModeTest30() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: 'password-only',
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
@@ -918,7 +848,7 @@ function registerServerModeTest30() {
         <SessionProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText('authMode:password-only user:u1')).toBeInTheDocument();
+    expect(await screen.findByText('user:u1')).toBeInTheDocument();
     act(() =>
       useStore.setState((state) => ({
         planningAuthLossVersion: state.planningAuthLossVersion + 1,
@@ -930,7 +860,7 @@ function registerServerModeTest30() {
       ),
     );
 
-    expect(screen.getByText('authMode:password-only user:u1')).toBeInTheDocument();
+    expect(screen.getByText('user:u1')).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 }
@@ -944,12 +874,11 @@ function registerServerModeTest31() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: 'password-only',
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
       .mockImplementationOnce(() => slow.promise)
-      .mockResolvedValue(me(401, { authMode: 'password-only' }));
+      .mockResolvedValue(me(401, {}));
     vi.stubGlobal('fetch', fetchSpy);
     const { AuthProvider, useStore, useAuth } = await freshProvider();
     render(
@@ -971,7 +900,6 @@ function registerServerModeTest31() {
     await act(async () => {
       slow.resolve(
         me(200, {
-          authMode: 'password-only',
           user: { id: 'u1', email: 'a@b.test' },
         }),
       );
@@ -995,7 +923,6 @@ describe('AuthProvider — server mode', () => {
   registerServerModeTest12();
   registerServerModeTest13();
   registerServerModeTest14();
-  registerServerModeTest15();
   registerServerModeTest16();
   registerServerModeTest17();
   registerServerModeTest18();
@@ -1035,12 +962,12 @@ function registerAccountPolicyTest04() {
 }
 
 function registerAccountPolicyTest05() {
-  it('fails closed on a 200 response with an off-spec authMode', async () => {
+  it('fails closed on a 200 response with an off-spec body', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(200, { authMode: 'bogus', privateValue: 'SENTINEL_AUTH_PAYLOAD' })),
+      vi.fn(async () => me(200, { privateValue: 'SENTINEL_AUTH_PAYLOAD' })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -1051,32 +978,7 @@ function registerAccountPolicyTest05() {
     expect(
       await screen.findByRole('heading', { name: 'Unable to verify your session' }),
     ).toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('unexpected body'));
-  });
-}
-
-function registerAccountPolicyTest09() {
-  it("fails closed on authMode 'off' with either a missing or present user", async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    for (const user of [null, { id: 'unexpected', email: 'unexpected@example.test' }]) {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn(async () => me(200, { authMode: 'off', user })),
-      );
-      const { AuthProvider } = await freshProvider();
-      const view = render(
-        <AuthProvider>
-          <div>app-content</div>
-        </AuthProvider>,
-      );
-      expect(
-        await screen.findByRole('heading', { name: 'Unable to verify your session' }),
-      ).toBeInTheDocument();
-      expect(screen.queryByText('app-content')).not.toBeInTheDocument();
-      view.unmount();
-    }
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('unexpected body'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('without a valid user'));
   });
 }
 
@@ -1087,13 +989,11 @@ function registerAccountPolicyTest06() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: 'password-only',
           user: { id: 'setup-owner', email: 'owner@example.test' },
         }),
       )
       .mockResolvedValue(
         me(200, {
-          authMode: 'password-only',
           user: { id: 'setup-owner', email: 'owner@example.test' },
         }),
       );
@@ -1104,10 +1004,10 @@ function registerAccountPolicyTest06() {
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText('authMode:password-only user:setup-owner')).toBeInTheDocument();
+    expect(await screen.findByText('user:setup-owner')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /refresh/ }));
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
-    expect(screen.getByText('authMode:password-only user:setup-owner')).toBeInTheDocument();
+    expect(screen.getByText('user:setup-owner')).toBeInTheDocument();
   });
 }
 
@@ -1120,7 +1020,6 @@ function registerAccountPolicyTest07() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: 'password-only',
           user: { id: 'setup-owner', email: 'owner@example.test' },
         }),
       )
@@ -1132,7 +1031,7 @@ function registerAccountPolicyTest07() {
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText('authMode:password-only user:setup-owner')).toBeInTheDocument();
+    expect(await screen.findByText('user:setup-owner')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /refresh/ }));
     await waitFor(() =>
       expect(warn).toHaveBeenCalledWith(
@@ -1140,7 +1039,7 @@ function registerAccountPolicyTest07() {
       ),
     );
 
-    expect(screen.getByText('authMode:password-only user:setup-owner')).toBeInTheDocument();
+    expect(screen.getByText('user:setup-owner')).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 }
@@ -1150,7 +1049,6 @@ describe('AuthProvider auth state', () => {
   registerAccountPolicyTest05();
   registerAccountPolicyTest06();
   registerAccountPolicyTest07();
-  registerAccountPolicyTest09();
 });
 
 it('gates tenant hydration behind authenticated company setup and opens scheduling after confirmation', async () => {
@@ -1161,7 +1059,6 @@ it('gates tenant hydration behind authenticated company setup and opens scheduli
       return me(201, { accountId: 'wayne' });
     }
     return me(200, {
-      authMode: 'password-only',
       user: { id: 'bruce', email: 'bruce@wayne.example', name: 'Bruce Wayne' },
       companySetupRequired: !created,
     });
@@ -1194,7 +1091,6 @@ it('adopts a same-principal company created in another browser only after confir
     }
     if (String(url).endsWith('/api/accounts')) return me(200, [{ id: 'wayne', role: 'owner' }]);
     return me(200, {
-      authMode: 'password-only',
       user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: !createdElsewhere,
     });
@@ -1224,7 +1120,6 @@ it('keeps a conflicting setup refusal visible when the principal has no company 
     }
     if (String(url).endsWith('/api/accounts')) return me(200, []);
     return me(200, {
-      authMode: 'password-only',
       user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: true,
     });

@@ -3,7 +3,6 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Activity, Resource } from '@capacitylens/shared/types/entities';
 import { AuthContext } from '@/auth/authContext';
-import type { AccountMode } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { PermissionContextValue } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
@@ -30,13 +29,11 @@ vi.mock('@/components/scheduler/useCalendarToday', () => ({
 function wrapper({
   role = null,
   status = role === null ? 'not-applicable' : 'resolved',
-  authMode = 'password-only',
-}: PermissionContextValue & { authMode?: AccountMode }) {
+}: PermissionContextValue) {
   return function Wrapper({ children }: PropsWithChildren) {
     return (
       <AuthContext.Provider
         value={{
-          authMode,
           user: { id: 'viewer' },
           refreshAuth: async () => {},
           signOut: async () => {},
@@ -180,10 +177,10 @@ describe('usePersonSchedule calendar rollover', () => {
 describe('usePersonSchedule permissions and identity', () => {
   it('fails closed while authenticated permissions are unresolved', () => {
     const pending = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
-      wrapper: wrapper({ role: 'viewer', status: 'pending', authMode: 'password-only' }),
+      wrapper: wrapper({ role: 'viewer', status: 'pending' }),
     });
     const unavailable = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
-      wrapper: wrapper({ role: 'viewer', status: 'unavailable', authMode: 'password-only' }),
+      wrapper: wrapper({ role: 'viewer', status: 'unavailable' }),
     });
     expect(pending.result.current).toEqual({ kind: 'unavailable' });
     expect(unavailable.result.current).toEqual({ kind: 'unavailable' });
@@ -243,7 +240,7 @@ describe('usePersonSchedule authorized projection', () => {
       ],
     });
     const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
-      wrapper: wrapper({ role, status: 'resolved', authMode: 'password-only' }),
+      wrapper: wrapper({ role, status: 'resolved' }),
     });
     expect(result.current.kind).toBe('available');
     if (result.current.kind !== 'available') return;

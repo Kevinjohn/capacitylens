@@ -50,9 +50,7 @@ export default class AuthController {
           const admission = await admissionDecision(actor.userId, trx);
           const admitted = actor.emailVerified && admission.admitted;
           return {
-            authMode: 'password-only',
             user: buildUserProjection(actor),
-            canCreateAccount: false,
             emailVerified: actor.emailVerified,
             admission,
             companySetupRequired: admitted && (await requiresFirstCompanySetup(actor.userId, trx)),
@@ -72,7 +70,6 @@ export default class AuthController {
       if (!(error instanceof InvalidSessionError)) throw error;
       const hasUsers = Boolean(await db.from('users').select('id').first());
       return ctx.response.unauthorized({
-        authMode: 'password-only',
         error: 'Sign-in required.',
         passwordResetEmail: isMailConfigured(),
         ...(!hasUsers ? { needsSetup: true } : {}),

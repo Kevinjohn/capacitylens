@@ -38,7 +38,7 @@ The command runs the steps under [Install by hand](#install-by-hand):
 
 - creates the `capacitylens` service user and `/var/lib/capacitylens` if they are missing
 - writes `/etc/capacitylens.env`, readable by root only, with your address and a generated
-  `APP_KEY` and `CAPACITYLENS_SECRET`; an existing file is kept unchanged
+  `APP_KEY`; an existing file is kept unchanged
 - points `/opt/capacitylens/current` at the release, runs the database upgrade, then installs and
   starts the systemd unit
 - when Caddy is installed, writes `/etc/caddy/capacitylens.caddy`, imports it from
@@ -101,9 +101,8 @@ sudo -u capacitylens node ace.js generate:key --show
 ```
 
 Set matching public HTTPS origins in `APP_URL` and `CAPACITYLENS_PUBLIC_URL`. Set `CAPACITYLENS_DB`
-to `/var/lib/capacitylens/capacitylens.db`, `CAPACITYLENS_BACKUP_DIR` to its backups directory,
-and generate a random value of at least 32 characters for `CAPACITYLENS_SECRET`. Keep open access
-disabled.
+to `/var/lib/capacitylens/capacitylens.db` and `CAPACITYLENS_BACKUP_DIR` to its backups directory.
+Keep open access disabled.
 
 Mail is optional for the first Owner: the bootstrap link is printed on the server and company
 creation needs no email. Without the `CAPACITYLENS_MAIL_*` settings, invitations and address

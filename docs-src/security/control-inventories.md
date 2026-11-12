@@ -74,8 +74,7 @@ storage.
 
 The cryptographic inventory is reviewed by hand; no gate discovers implementation paths. Review it
 after cryptographic changes. `APP_KEY` configures the application AES-256-GCM encryptor and Account Kit limiter secret; current application call sites for encrypted stored data are not established.
-`CAPACITYLENS_SECRET` is checked for length at boot when authentication is enabled, but does not
-derive application keys. Operators maintain their deployment key/certificate inventory, rotation
+Operators maintain their deployment key/certificate inventory, rotation
 policy and backup-encryption controls.
 
 ## Service connection and work limits

@@ -132,7 +132,6 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
 
 /** Creates an auth context value for member section tests. */
 export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
-  authMode: 'password-only',
   user: { id: 'me', email: 'me@x.io' },
   refreshAuth: async () => {},
   signOut: async () => {},
@@ -280,18 +279,6 @@ export async function expectAccessibleMemberControls({
   await openMemberMenu(user, row);
   expect(screen.getByRole('button', { name: `Suspend ${member}` })).toBeInTheDocument();
   await user.keyboard('{Escape}');
-}
-
-/** Stubs `window.location.reload` and returns its mock function. */
-export function stubPageReload(): ReturnType<typeof vi.fn> {
-  const reload = vi.fn();
-  const windowStub = Object.create(window) as Window;
-  Object.defineProperty(windowStub, 'location', {
-    configurable: true,
-    value: { ...window.location, reload },
-  });
-  vi.stubGlobal('window', windowStub);
-  return reload;
 }
 
 /** Waits until the store notice matches the supplied message. */

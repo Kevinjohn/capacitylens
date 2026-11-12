@@ -108,17 +108,6 @@ export interface StoreState extends StoreEntityActions {
   planningAuthLossVersion: number;
   /** Submit one typed planning command and resolve after authoritative reconciliation. */
   sendPlanningCommand: (command: PlanningCommand, original?: unknown) => Promise<void>;
-  persistError: boolean;
-  /** True when stored data existed but could not be read (corrupt JSON / failed
-   * migrate). Distinct from persistError (a write failure): on a load error the
-   * app renders empty and autosave is intentionally not attached, so a recovery
-   * UI can offer reset/import/export without overwriting the unreadable bytes. */
-  loadError: boolean;
-  /** True when a remote load failed (server down / network error), distinct from
-   * loadError (corrupt local bytes). The app renders empty with no autosave attached,
-   * and a connection-error screen offers a retry. Clearing local storage (the
-   * StorageRecovery path) can't recover a server-backed app, so the two are kept apart. */
-  connectionError: boolean;
   /** Current user notice, or null. Dismissal and treatment follow Notice. */
   notice: Notice | null;
   /** Latest keyboard capacity announcement and sequence token. The token makes equal
@@ -185,12 +174,6 @@ export interface StoreState extends StoreEntityActions {
 
   /** Record whether the initial load has finished. */
   setHydrated: (value: boolean) => void;
-  /** Record whether the latest save failed. */
-  setPersistError: (value: boolean) => void;
-  /** Record whether stored local data could not be read. */
-  setLoadError: (value: boolean) => void;
-  /** Record whether the server could not be reached. */
-  setConnectionError: (value: boolean) => void;
   /** Show a notice with the given tone (default `info`), or clear it with null. */
   setNotice: (message: string | null, tone?: 'info' | 'warning' | 'error') => void;
   /** Announce a capacity outcome to the grid's polite aria-live region (WCAG 4.1.3). Bumps `seq`

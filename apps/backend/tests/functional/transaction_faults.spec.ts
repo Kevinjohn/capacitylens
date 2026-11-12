@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '../helpers/fresh_database.js';
-import { replaceWithSeed } from '#services/state_repository';
+import { replaceWithSeed } from '#tests/helpers/state_fixture';
 import { withTransaction } from '#services/with_transaction';
 
 const accountId = 'a-studio';

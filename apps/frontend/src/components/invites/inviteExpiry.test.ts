@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatInviteExpiry, formatInviteExpiryDate } from './inviteExpiry';
+import { formatInviteExpiryDate } from './inviteExpiry';
 
 describe('invite expiry formatters', () => {
   it.each(['2026-09-10T14:05:37.000Z', '2027-01-02T09:07:59.000Z'])(
@@ -9,9 +9,4 @@ describe('invite expiry formatters', () => {
       expect(formatInviteExpiryDate(expiresAt)).not.toContain(':');
     },
   );
-
-  it('preserves distinct invalid-input contracts for date-time and date-only invite expiry', () => {
-    expect(() => formatInviteExpiry('not-a-timestamp')).toThrow(RangeError);
-    expect(formatInviteExpiryDate('not-a-timestamp')).toBe('Invalid Date');
-  });
 });

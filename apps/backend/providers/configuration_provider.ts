@@ -7,21 +7,11 @@ import { bootstrapDevelopmentCredential } from '#services/development_bootstrap'
 
 const PRUNE_INTERVAL_MS = 60 * 60_000;
 
-function assertAuthenticationConfiguration() {
-  const secret = env.get('CAPACITYLENS_SECRET');
-  if (!secret || secret.length < 32) {
-    throw new Error(
-      'CAPACITYLENS_SECRET must contain at least 32 characters when authentication is enabled'
-    );
-  }
-}
-
 interface ProductionPosture {
   allowReset?: boolean;
   createAdmin?: boolean;
   bootstrapPassword?: string;
   rateLimit?: string;
-  audit?: string;
 }
 
 export function assertProductionPosture(options: ProductionPosture) {
@@ -36,9 +26,6 @@ export function assertProductionPosture(options: ProductionPosture) {
   ) {
     throw new Error('CAPACITYLENS_RATE_LIMIT must be an integer from 1 to 1,000,000 in production');
   }
-  if (options.audit === 'off') {
-    throw new Error('CAPACITYLENS_AUDIT=off is not permitted in production');
-  }
   if (options.allowReset) throw new Error('CAPACITYLENS_ALLOW_RESET is forbidden in production');
 }
 
@@ -47,14 +34,12 @@ export default class ConfigurationProvider {
 
   constructor(protected app: ApplicationService) {}
   async boot() {
-    assertAuthenticationConfiguration();
     if (this.app.inProduction) {
       assertProductionPosture({
         allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),
         createAdmin: env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN'),
         bootstrapPassword: env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD'),
         rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
-        audit: env.get('CAPACITYLENS_AUDIT'),
       });
     }
   }

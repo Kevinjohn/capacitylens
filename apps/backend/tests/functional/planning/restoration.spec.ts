@@ -7,7 +7,8 @@ import db from '@adonisjs/lucid/services/db';
 import Allocation from '#models/allocation';
 import Activity from '#models/activity';
 import Resource from '#models/resource';
-import { encodeRow, readState } from '#services/state_repository';
+import { encodeRow } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import { withTransaction } from '#services/with_transaction';
 import { deleteAllocations } from '#services/planning/restoration';
 import {

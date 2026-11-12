@@ -40,13 +40,6 @@ export const DOMAIN_ERROR_CODES = [
 /** A domain rule violation code; see {@link DOMAIN_ERROR_CODES}. */
 export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[number];
 
-const DOMAIN_ERROR_CODE_SET = new Set<string>(DOMAIN_ERROR_CODES);
-
-/** Narrow an untrusted value to a known {@link DomainErrorCode}. Pure. */
-export function isDomainErrorCode(value: unknown): value is DomainErrorCode {
-  return typeof value === 'string' && DOMAIN_ERROR_CODE_SET.has(value);
-}
-
 /** A display-safe domain rejection with a stable identity independent from its fallback wording. */
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -62,6 +55,3 @@ export class DomainError extends Error {
 export function throwDomainError(code: DomainErrorCode, message: string): never {
   throw new DomainError(code, message);
 }
-
-/** Compatibility alias for the published domain contract. */
-export const domainError = throwDomainError;

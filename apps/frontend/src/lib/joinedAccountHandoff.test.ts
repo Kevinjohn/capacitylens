@@ -1,10 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  clearJoinedAccountHandoff,
-  buildJoinedAccountEntryPath,
-  readJoinedAccountHandoff,
-  replaceWithJoinedAccount,
-} from './joinedAccountHandoff';
+import { afterEach, describe, expect, it } from 'vitest';
+import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from './joinedAccountHandoff';
 
 const realLocation = window.location;
 
@@ -16,12 +11,6 @@ afterEach(() => {
 });
 
 describe('joined account handoff', () => {
-  it('round-trips an opaque account id through the one-use entry query', () => {
-    const path = buildJoinedAccountEntryPath('account / one');
-    expect(path).toBe('/?joinedAccount=account%20%2F%20one');
-    expect(readJoinedAccountHandoff(path.slice(path.indexOf('?')))).toBe('account / one');
-  });
-
   it('ignores missing and empty destinations', () => {
     expect(readJoinedAccountHandoff('')).toBeNull();
     expect(readJoinedAccountHandoff('?joinedAccount=')).toBeNull();
@@ -38,20 +27,5 @@ describe('joined account handoff', () => {
       '?tab=security&view=archived',
     );
     expect(clearJoinedAccountHandoff('?joinedAccount=account-1')).toBe('');
-  });
-});
-
-describe('navigation boundaries', () => {
-  it("replaces the current page with the requested account's entry path", () => {
-    const replace = vi.fn();
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: { ...realLocation, replace },
-    });
-
-    replaceWithJoinedAccount('account-1');
-
-    expect(replace).toHaveBeenCalledOnce();
-    expect(replace).toHaveBeenCalledWith('/?joinedAccount=account-1');
   });
 });

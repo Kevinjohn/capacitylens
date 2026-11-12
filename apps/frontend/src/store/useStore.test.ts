@@ -15,7 +15,7 @@ import {
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
-import { readActiveDateStyle, formatDayMonth } from '@/lib/dateDisplay';
+import { formatDayMonth } from '@/lib/dateDisplay';
 import { resolveDateStyle } from './selectors';
 import { buildBetaExport, serializeBetaExport } from '@capacitylens/shared/data/betaTransfer';
 import { seed } from '@capacitylens/shared/data/seed';
@@ -314,12 +314,11 @@ function registerSchedulerUiPart3(): void {
     await s().updateAccount(accountId, { dateStyle: 'month-day' });
     expect(resolveDateStyle(s().data, accountId)).toBe('month-day');
 
-    expect(readActiveDateStyle()).toBe('month-day');
     expect(formatDayMonth('2026-09-09')).toBe('Sep 9');
 
     await s().undoPlanning();
     expect(resolveDateStyle(s().data, accountId)).toBe('day-month');
-    expect(readActiveDateStyle()).toBe('day-month');
+    expect(formatDayMonth('2026-09-09')).toBe('9 Sep');
 
     await s().updateAccount(accountId, { dateStyle: 'month-day' });
     const exportData = seed();

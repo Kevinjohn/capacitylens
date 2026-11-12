@@ -83,7 +83,6 @@ describe('useResourceAvatars', () => {
   it('refreshes after session and ordinary account-data refresh signals', async () => {
     vi.mocked(accountClient.listResourceAvatars).mockImplementation(async () => response([]));
     const authValue = (image: string) => ({
-      authMode: 'password-only' as const,
       user: { id: 'u1', image },
       refreshAuth: async () => {},
       signOut: async () => {},

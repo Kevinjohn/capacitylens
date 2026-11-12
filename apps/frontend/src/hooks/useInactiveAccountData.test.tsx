@@ -49,7 +49,6 @@ function view(role: 'owner' | 'admin' | 'editor', principalId = 'bruce') {
   return (
     <AuthContext.Provider
       value={{
-        authMode: 'password-only',
         user: { id: principalId },
         refreshAuth: async () => {},
         signOut: async () => {},

@@ -48,9 +48,6 @@ export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port
     APP_KEY: 'capacitylens-packaged-smoke-key-0123456789abcdef',
     // Production refuses plain-HTTP public origins; links name HTTPS while the smoke talks to loopback.
     APP_URL: `https://127.0.0.1:${port}`,
-    SESSION_DRIVER: 'database',
-    CAPACITYLENS_SECRET: 'capacitylens-packaged-secret-0123456789abcdef',
-    CAPACITYLENS_AUDIT: 'on',
     CAPACITYLENS_ALLOW_OPEN_SIGNUP: 'true',
     CAPACITYLENS_DB: databasePath,
     CAPACITYLENS_BACKUP_DIR: backupDir,

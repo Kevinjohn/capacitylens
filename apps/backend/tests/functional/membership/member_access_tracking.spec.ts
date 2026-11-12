@@ -3,7 +3,8 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { encodeRow, resetState } from '#services/state_repository';
+import { encodeRow } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
@@ -229,7 +230,6 @@ test.group('company member access and tracking', (group) => {
     });
     const available = await signed(client.get('/api/auth/me'), adminCookie).send();
     available.assertStatus(200);
-    assert.isFalse(available.body().canCreateAccount);
     const refusedWhileActive = await signed(client.post('/api/orgs'), adminCookie)
       .json({ id: 'a-loft', name: 'Stark Industries' })
       .send();
@@ -244,7 +244,6 @@ test.group('company member access and tracking', (group) => {
     suspended.assertStatus(200);
     const unavailable = await signed(client.get('/api/auth/me'), adminCookie).send();
     unavailable.assertStatus(200);
-    assert.isFalse(unavailable.body().canCreateAccount);
     const refused = await signed(client.post('/api/orgs'), ownerCookie)
       .json({ id: 'a-loft', name: 'Stark Industries' })
       .send();

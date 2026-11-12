@@ -4,7 +4,7 @@ import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
 import { seed } from '@capacitylens/shared/data/seed';
 import { type AppData } from '@capacitylens/shared/types/entities';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import {
   clearIdentities,
   createIdentity,

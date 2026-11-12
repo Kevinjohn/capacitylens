@@ -1,8 +1,5 @@
 import { createContext, useContext } from 'react';
 
-export type { AccountMode } from '@capacitylens/shared/account/types';
-import type { AccountMode } from '@capacitylens/shared/account/types';
-
 /** Verified user identity exposed to authenticated application screens. */
 export interface AuthUser {
   id: string;
@@ -14,7 +11,6 @@ export interface AuthUser {
 
 /** Authentication state and actions available to app screens. */
 export interface AuthContextValue {
-  authMode: AccountMode | null;
   user: AuthUser | null;
   /** Rechecks server-owned authentication and company-creation capability. Unresolved refreshes preserve the previous snapshot and log a warning; the promise does not reject, so event callers may discard it. */
   refreshAuth: () => Promise<void>;
@@ -24,7 +20,6 @@ export interface AuthContextValue {
 
 /** Context supplying authentication state to the application. */
 export const AuthContext = createContext<AuthContextValue>({
-  authMode: null,
   user: null,
   refreshAuth: async () => {},
   signOut: async () => {},

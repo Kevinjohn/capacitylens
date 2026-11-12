@@ -8,7 +8,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import { sessionCookieHeader } from '../../helpers/identities.js';
 import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import {
   accountId,
   planningUrl,

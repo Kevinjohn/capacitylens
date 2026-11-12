@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { readMemberDirectory } from '#services/membership/member_directory';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,

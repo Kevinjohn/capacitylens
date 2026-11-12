@@ -21,11 +21,6 @@ export function invalidAdmission(message = 'Invalid admission request.'): never 
   throw new AdmissionError(message, 400, 'INVALID_INPUT');
 }
 
-/** Refuses a request that lacks current company authority or proof. */
-export function forbiddenAdmission(message = 'Admission is not permitted.'): never {
-  throw new AdmissionError(message, 403, 'FORBIDDEN');
-}
-
 /** Conceals a missing or cross-company control record. */
 export function missingAdmission(message = 'Invitation not found.'): never {
   throw new AdmissionError(message, 404, 'NOT_FOUND');

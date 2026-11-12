@@ -29,7 +29,6 @@ function TestProviders({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        authMode: 'password-only',
         user: { id: 'test-principal' },
         refreshAuth: async () => {},
         signOut: async () => {},

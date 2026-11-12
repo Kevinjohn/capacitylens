@@ -37,7 +37,6 @@ const optionalProxyTrust: ProxyTrustValidator = (key, value) => {
 };
 
 type OptionalStringKey =
-  | 'CAPACITYLENS_SECRET'
   | 'CAPACITYLENS_ALLOWED_EMAIL_DOMAINS'
   | 'CAPACITYLENS_BACKUP_DIR'
   | 'CAPACITYLENS_BACKUP_KEEP'
@@ -64,9 +63,7 @@ type CapacityLensEnvironmentSchema = {
   LOG_LEVEL: EnumValidator<'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'silent'>;
   APP_KEY: SecretValidator;
   APP_URL: StringValidator;
-  CAPACITYLENS_AUDIT: ReturnType<typeof Env.schema.enum.optional<'on' | 'off'>>;
   CAPACITYLENS_LOG: ReturnType<typeof Env.schema.enum.optional<'0' | '1'>>;
-  SESSION_DRIVER: EnumValidator<'cookie' | 'memory' | 'database'>;
   CAPACITYLENS_TRUST_PROXY_HEADERS: ProxyTrustValidator;
 } & { [Key in OptionalStringKey]: OptionalStringValidator } & {
   [Key in OptionalBooleanKey]: OptionalBooleanValidator;
@@ -88,9 +85,6 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   ] as const),
   APP_KEY: Env.schema.secret(),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
-  SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),
-  CAPACITYLENS_SECRET: optional,
-  CAPACITYLENS_AUDIT: Env.schema.enum.optional(['on', 'off'] as const),
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: optionalBoolean,
   CAPACITYLENS_ALLOW_RESET: optionalBoolean,
   // Admission owns domain-list policy; CORS owns its explicit origin-list validation.

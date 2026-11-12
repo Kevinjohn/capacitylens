@@ -114,7 +114,6 @@ export async function currentMasquerade(ctx: HttpContext) {
     contextToken: view.contextToken,
     token: view.contextToken,
     principal: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
-    authMode: 'password-only',
   };
 }
 

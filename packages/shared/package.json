@@ -23,11 +23,6 @@
       "types": "./src/account/validation.ts",
       "default": "./dist/account/validation.js"
     },
-    "./api/replyMessages": {
-      "development": "./src/api/replyMessages.ts",
-      "types": "./src/api/replyMessages.ts",
-      "default": "./dist/api/replyMessages.js"
-    },
     "./brand": {
       "development": "./src/brand.ts",
       "types": "./src/brand.ts",
@@ -153,11 +148,6 @@
       "types": "./src/lib/repeatingDates.ts",
       "default": "./dist/lib/repeatingDates.js"
     },
-    "./lib/sanitizeImport": {
-      "development": "./src/lib/sanitizeImport.ts",
-      "types": "./src/lib/sanitizeImport.ts",
-      "default": "./dist/lib/sanitizeImport.js"
-    },
     "./lib/schedulingDays": {
       "development": "./src/lib/schedulingDays.ts",
       "types": "./src/lib/schedulingDays.ts",
@@ -177,11 +167,6 @@
       "development": "./src/types/nullableFields.ts",
       "types": "./src/types/nullableFields.ts",
       "default": "./dist/types/nullableFields.js"
-    },
-    "./domain/importFold": {
-      "development": "./src/domain/importFold.ts",
-      "types": "./src/domain/importFold.ts",
-      "default": "./dist/domain/importFold.js"
     },
     "./domain/placement": {
       "development": "./src/domain/placement.ts",

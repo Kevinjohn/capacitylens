@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { readFile } from 'node:fs/promises';
 import { freshDatabase } from '../../helpers/fresh_database.js';
-import { replaceWithSeed } from '#services/state_repository';
+import { replaceWithSeed } from '#tests/helpers/state_fixture';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
@@ -85,9 +85,7 @@ test.group('M1 read path', (group) => {
     client = await resetAuthenticatedClient(client, true);
     const identity = await client.get('/api/auth/me');
     identity.assertStatus(200);
-    assert.equal(identity.body().authMode, 'password-only');
     assert.equal(identity.body().user.email, 'bruce.wayne@wayne.example');
-    assert.isFalse(identity.body().canCreateAccount);
     const unscoped = await client.get('/api/state');
     unscoped.assertStatus(200);
     assert.deepEqual(

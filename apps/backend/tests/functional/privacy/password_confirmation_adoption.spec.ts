@@ -15,7 +15,7 @@ import {
   capturedMasqueradeContext,
 } from '#services/auth/masquerade_request';
 import { withTransaction } from '#services/with_transaction';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
 import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
 import {

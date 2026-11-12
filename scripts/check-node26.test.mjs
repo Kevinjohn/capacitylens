@@ -40,16 +40,7 @@ test('runtime probe scopes build settings, packages through the supported entry 
   });
   assert.equal(calls.length, 3);
   assert.equal(calls[0].environment.NODE_ENV, 'production');
-  for (const key of [
-    'APP_KEY',
-    'APP_URL',
-    'HOST',
-    'PORT',
-    'LOG_LEVEL',
-    'SESSION_DRIVER',
-    'CAPACITYLENS_SECRET',
-    'CAPACITYLENS_PUBLIC_URL',
-  ])
+  for (const key of ['APP_KEY', 'APP_URL', 'HOST', 'PORT', 'LOG_LEVEL', 'CAPACITYLENS_PUBLIC_URL'])
     assert.ok(calls[0].environment[key], key);
   assert.equal(calls[1].environment, undefined);
   assert.equal(calls[2].environment, undefined);

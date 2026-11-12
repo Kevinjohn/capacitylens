@@ -11,7 +11,7 @@ import { freshDatabase } from '../helpers/fresh_database.js';
 import { createIdentity, clearIdentities } from '../helpers/identities.js';
 import { createFixtureCompanyForOwner } from '../helpers/authenticated_data_fixture.js';
 import limiter from '@adonisjs/limiter/services/main';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const email = 'bruce.wayne@wayne.example';

@@ -45,11 +45,6 @@ export default configApp(
               name: '@adonisjs/lucid/services/db',
               message: 'Mutating services receive a transaction client as their first argument.',
             },
-            {
-              name: '#services/state_repository',
-              importNames: ['readState'],
-              message: 'Transactional services must use readStateWithClient(trx).',
-            },
           ],
         },
       ],

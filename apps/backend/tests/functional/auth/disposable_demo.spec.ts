@@ -8,7 +8,7 @@ import {
   prepareDisposableDemo,
   seedDisposableDemo,
 } from '#services/disposable_demo';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { createIdentity, signIn } from '../../helpers/identities.js';

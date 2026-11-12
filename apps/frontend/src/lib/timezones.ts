@@ -3,17 +3,6 @@ import { m } from '@/i18n';
 /** The account default, and the only zone with bespoke display copy (see resolveTimeZoneOptionLabel). */
 export const DEFAULT_TIME_ZONE = 'Etc/GMT';
 
-/** Common choices stay near the detected local zone in onboarding. */
-export const LIKELY_TIME_ZONES = [
-  DEFAULT_TIME_ZONE,
-  'UTC',
-  'Europe/London',
-  'Europe/Paris',
-  'America/New_York',
-  'America/Los_Angeles',
-  'Asia/Tokyo',
-] as const;
-
 // The engine's zone list is fixed for the lifetime of the page, so it is built once on first use
 // and reused. `undefined` means "not built yet": a lazy `let` rather than a module-scope call
 // because the fallback path below constructs a list we would rather not pay for at import.
@@ -44,20 +33,6 @@ function warnRuntimeFallback(message: string, error?: unknown): void {
 export function listSupportedTimeZones(): readonly string[] {
   cachedZones ??= Object.freeze(buildSupportedTimeZones());
   return cachedZones;
-}
-
-/** Return the browser's validated IANA zone, or the stable app default when unavailable. */
-export function resolveBrowserTimeZone(supportedZones = listSupportedTimeZones()): string {
-  try {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return typeof timeZone === 'string' && supportedZones.includes(timeZone)
-      ? timeZone
-      : DEFAULT_TIME_ZONE;
-  } catch (error) {
-    // Unavailable browser zone detection uses the stable default and logs the runtime failure rather than breaking calendar setup.
-    warnRuntimeFallback('timezones: browser zone detection failed; using Etc/GMT', error);
-    return DEFAULT_TIME_ZONE;
-  }
 }
 
 function buildSupportedTimeZones(): string[] {

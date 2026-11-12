@@ -1,15 +1,9 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { AccountAccessRecovery } from './accounts/AccountAccessRecovery';
 import { AccountLoadRecovery } from './accounts/AccountLoadRecovery';
-import { ConnectionError } from './ConnectionError';
 import { RotateHint } from './RotateHint';
 import { m } from '@/i18n';
-
-const StorageRecovery = lazy(async () => {
-  const module = await import('./StorageRecovery');
-  return { default: module.StorageRecovery };
-});
 
 function LoadingBoundary() {
   return (
@@ -33,8 +27,6 @@ function FocusableStage({ children }: { children: ReactNode }) {
 
 interface AppEntryGateProps {
   hydrated: boolean;
-  connectionError: boolean;
-  loadError: boolean;
   hasActiveAccount: boolean;
   ambiguousAccountDirectory: boolean;
   allowWithoutActiveAccount: boolean;
@@ -48,8 +40,6 @@ interface AppEntryGateProps {
 /** Expresses the mutually-exclusive app entry sequence in one ordered boundary. */
 export function AppEntryGate({
   hydrated,
-  connectionError,
-  loadError,
   hasActiveAccount,
   ambiguousAccountDirectory,
   allowWithoutActiveAccount,
@@ -59,22 +49,6 @@ export function AppEntryGate({
   onRetryActiveAccountLoad,
   children,
 }: AppEntryGateProps) {
-  if (connectionError) {
-    return (
-      <FocusableStage>
-        <ConnectionError />
-      </FocusableStage>
-    );
-  }
-  if (loadError) {
-    return (
-      <Suspense fallback={<LoadingBoundary />}>
-        <FocusableStage>
-          <StorageRecovery />
-        </FocusableStage>
-      </Suspense>
-    );
-  }
   if (!hydrated) return <LoadingBoundary />;
 
   if (activeAccountLoadFailed !== null && activeAccountLoadFailed === activeAccountId) {

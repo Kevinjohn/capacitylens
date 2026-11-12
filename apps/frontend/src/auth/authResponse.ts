@@ -2,13 +2,11 @@ import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { useStore } from '@/store/useStore';
 import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
-import { isAuthMode } from './authStatus';
 import type { AccessGate, AdmissionSummary, AuthStatusResult } from './authStatus';
 import { parseAuthUser } from './validateAuthUser';
 
 interface AuthResponseFields {
   admission: unknown;
-  authMode: unknown;
   emailVerified: unknown;
   membershipRequired: unknown;
   companySetupRequired: unknown;
@@ -25,7 +23,6 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   return {
     admission: readField(value, 'admission'),
-    authMode: readField(value, 'authMode'),
     emailVerified: readField(value, 'emailVerified'),
     membershipRequired: readField(value, 'membershipRequired'),
     companySetupRequired: readField(value, 'companySetupRequired'),
@@ -37,13 +34,9 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
 
 function parseLoginResult(body: unknown): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
-  const rawAuthMode = fields?.authMode;
-  const authMode = isAuthMode(rawAuthMode) ? rawAuthMode : 'password-only';
-  const degraded = fields === null || (rawAuthMode !== undefined && !isAuthMode(rawAuthMode));
   return {
     kind: 'login',
-    authMode,
-    degraded,
+    degraded: fields === null,
     hadUnsavedChanges: useStore.getState().planning.pending !== null,
     needsSetup: fields?.needsSetup === true,
     passwordResetEmail: fields?.passwordResetEmail === true,
@@ -84,7 +77,7 @@ function resolveAccessGate(fields: AuthResponseFields, admitted: boolean): Acces
   return undefined;
 }
 
-/** Reject identity responses whose mode cannot be trusted. */
+/** Reject identity responses that cannot be trusted. */
 export function invalidResponse(): AuthStatusResult {
   console.warn(
     'AuthProvider: /api/auth/me returned an unexpected body; nothing trustworthy learned',
@@ -94,10 +87,9 @@ export function invalidResponse(): AuthStatusResult {
 
 function parsePassResult(body: unknown): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
-  if (!fields || !isAuthMode(fields.authMode)) {
+  if (!fields) {
     return invalidResponse();
   }
-  const authMode = fields.authMode;
   const user = parseAuthUser({ value: fields.user, requireEmail: true });
   if (!user) {
     console.warn('AuthProvider: /api/auth/me returned auth-on without a valid user');
@@ -115,7 +107,6 @@ function parsePassResult(body: unknown): AuthStatusResult {
   const accessGate = resolveAccessGate(fields, admission.admitted);
   const next: Extract<AuthStatusResult, { kind: 'pass' }> = {
     kind: 'pass',
-    authMode,
     user,
     companySetupRequired: fields.companySetupRequired === true,
     ...(accessGate ? { accessGate } : {}),

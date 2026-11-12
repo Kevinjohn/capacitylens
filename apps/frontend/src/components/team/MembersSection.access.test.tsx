@@ -242,7 +242,7 @@ function registerSelfGateDisplayTests(): void {
     vi.stubGlobal('fetch', mockApi([]));
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
-        <AuthContext.Provider value={authValue({ authMode: null, user: null })}>
+        <AuthContext.Provider value={authValue({ user: null })}>
           <MembersSection />
         </AuthContext.Provider>
       </QueryClientProvider>,

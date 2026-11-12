@@ -1,11 +1,5 @@
 const JOINED_ACCOUNT_PARAM = 'joinedAccount';
 
-/** Build the one-use post-invite entry URL. The account id is only a requested destination: the
- * authenticated account list remains the authority before AppShell activates it. */
-export function buildJoinedAccountEntryPath(accountId: string): string {
-  return `/?${JOINED_ACCOUNT_PARAM}=${encodeURIComponent(accountId)}`;
-}
-
 /** Read the requested post-invite destination from a URL search string. Empty values are ignored. */
 export function readJoinedAccountHandoff(search: string): string | null {
   const value = new URLSearchParams(search).get(JOINED_ACCOUNT_PARAM);
@@ -18,9 +12,4 @@ export function clearJoinedAccountHandoff(search: string): string {
   params.delete(JOINED_ACCOUNT_PARAM);
   const remaining = params.toString();
   return remaining.length > 0 ? `?${remaining}` : '';
-}
-
-/** Start the authenticated app boot that will verify and consume the requested destination. */
-export function replaceWithJoinedAccount(accountId: string): void {
-  window.location.replace(buildJoinedAccountEntryPath(accountId));
 }

@@ -44,15 +44,6 @@ function scoreFolded(query: string, text: string): number {
   return Infinity;
 }
 
-/** Return the score for `query` against `text`, or Infinity if no match.
- * @remarks Pure and total, although `query` is untrusted user input, every branch returns a
- * number and the regex is a fixed pattern over a single capture (no catastrophic backtracking),
- * so this cannot throw. Do not wrap it in try/catch. There's nothing to guard and a wrapper
- * would only mask a future real bug. */
-export function fuzzyScore(query: string, text: string): number {
-  return scoreFolded(foldForSearch(query), text);
-}
-
 /** Score every item in `items` against `query`, drop non-matches, sort by score. */
 export function fuzzyFilter<T>(items: T[], query: string, getText: (item: T) => string): T[] {
   const trimmed = query.trim();

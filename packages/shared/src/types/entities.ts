@@ -300,14 +300,6 @@ export type { AppDataKey, ScopedEntityKey } from './entityKeys.js';
  * Increment when the portable AppData shape changes and provide the corresponding migration. */
 export const EXPORT_SCHEMA_VERSION = 25;
 
-/** The versioned export document. */
-export interface PersistedState {
-  schemaVersion: number;
-  data: AppData;
-  /** Legacy compare-and-swap revision retained for import compatibility. */
-  revision: number | null;
-}
-
 export {
   carriesHourlyLoad,
   isScopedEntityKey,

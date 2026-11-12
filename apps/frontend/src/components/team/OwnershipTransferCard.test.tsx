@@ -62,16 +62,13 @@ const INACTIVE_ADMIN = member({
 
 function renderAs({
   role = 'owner',
-  authMode = 'password-only',
   refreshAuth = vi.fn(async () => {}),
 }: {
   role?: 'owner' | 'admin' | 'editor' | 'viewer';
-  authMode?: AuthContextValue['authMode'];
   refreshAuth?: () => Promise<void>;
 } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const auth: AuthContextValue = {
-    authMode,
     user: { id: 'bruce', email: 'bruce@wayne.test' },
     refreshAuth,
     signOut: async () => {},

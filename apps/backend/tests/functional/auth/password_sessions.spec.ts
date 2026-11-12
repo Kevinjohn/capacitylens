@@ -2,7 +2,7 @@ import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import {
   asDataOwner,

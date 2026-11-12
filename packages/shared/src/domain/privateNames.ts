@@ -1,4 +1,4 @@
-import type { AppData, Client, Project } from '../types/entities.js';
+import type { Client, Project } from '../types/entities.js';
 
 // The fallback used when an id is absent, empty, or yields no alphanumerics, so a derived label is
 // never left with an empty marker. Constant (not random) to keep {@link shortIdTag} deterministic;
@@ -76,13 +76,4 @@ export function redactPrivateName<T extends PrivateNamedEntity>(entity: T): T {
   redacted.codeName = null;
   projectedPrivateNames.set(redacted, redacted.name);
   return redacted;
-}
-
-/** Redact private client/project real names throughout one already-tenant-scoped AppData slice. */
-export function redactPrivateNames(data: AppData): AppData {
-  return {
-    ...data,
-    clients: data.clients.map(redactPrivateName),
-    projects: data.projects.map(redactPrivateName),
-  };
 }

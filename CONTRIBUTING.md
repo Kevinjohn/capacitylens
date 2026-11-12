@@ -91,17 +91,15 @@ cd apps/backend
 node ace.js generate:key --show
 ```
 
-Copy the generated value into `APP_KEY` in `apps/backend/.env`, then return to the repository root
-and generate an authentication secret of at least 32 characters:
+Copy the generated value into `APP_KEY` in `apps/backend/.env`, then return to the repository root:
 
 ```bash
 cd ../..
-openssl rand -hex 32
 ```
 
-Copy that output into `CAPACITYLENS_SECRET` in `apps/backend/.env`. The example key is a placeholder;
-do not use it as a local secret or commit your `.env` file. Initialize the local SQLite database
-and run its migrations before starting the full-stack development servers:
+The example key is a placeholder; do not use it as a local secret or commit your `.env` file.
+Initialize the local SQLite database and run its migrations before starting the full-stack
+development servers:
 
 ```bash
 mkdir -p apps/backend/tmp

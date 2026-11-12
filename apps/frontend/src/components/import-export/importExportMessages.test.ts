@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { makeAppData, makeAllocation, makeResource } from '@/test/fixtures';
-import { buildImportedMessage, buildSkippedMessage, summarize } from './importExportMessages';
+import { buildSkippedMessage, summarize } from './importExportMessages';
 
 describe('import messages', () => {
   it('names skipped records for the no-records reason and the success note', () => {
@@ -10,10 +10,6 @@ describe('import messages', () => {
     expect(buildSkippedMessage(3, 'why')).toBe(' — 3 invalid records skipped');
     expect(buildSkippedMessage(1, 'note')).toBe(' (1 invalid record skipped)');
     expect(buildSkippedMessage(2, 'note')).toBe(' (2 invalid records skipped)');
-  });
-
-  it('appends the skipped note to the imported count', () => {
-    expect(buildImportedMessage(4, 2)).toContain(' (2 invalid records skipped)');
   });
 
   it('summarises only the tables that hold rows', () => {

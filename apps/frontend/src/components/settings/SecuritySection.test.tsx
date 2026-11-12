@@ -50,7 +50,6 @@ beforeEach(() => {
 });
 
 const passwordAuth: AuthContextValue = {
-  authMode: 'password-only',
   user: { id: 'u1', email: 'diana@example.test' },
   refreshAuth: async () => {},
   signOut: async () => {},

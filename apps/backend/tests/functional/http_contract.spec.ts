@@ -64,8 +64,6 @@ async function withServer(
     LOG_LEVEL: 'error',
     APP_KEY: 'capacitylens-test-key-0123456789abcdef',
     APP_URL: `http://127.0.0.1:${port}`,
-    SESSION_DRIVER: 'database',
-    CAPACITYLENS_SECRET: 'capacitylens-http-contract-secret-2026',
     CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${port}`,
     CAPACITYLENS_DB: join(root, 'contract.db'),
     ...settings,

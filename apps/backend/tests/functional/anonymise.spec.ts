@@ -11,7 +11,8 @@ import type { ApiClient } from '@japa/api-client';
 import { randomUUID } from 'node:crypto';
 import { withTransaction } from '#services/with_transaction';
 import { getPlanningRevision } from '#services/planning_revision';
-import { encodeRow, readState } from '#services/state_repository';
+import { encodeRow } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import { seed } from '@capacitylens/shared/data/seed';
 
 const accountId = 'a-studio';

@@ -108,7 +108,7 @@ function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
 
 /** Publishes the active company role from the shared validated directory. Unresolved membership projects to Viewer; the store independently applies the same read-only guard. */
 export function PermissionProvider({ children }: { children: ReactNode }) {
-  const { authMode } = useAuth();
+  const { user } = useAuth();
   const activeAccountId = useStore((state) => state.activeAccountId);
   const setActiveRole = useStore((state) => state.setActiveRole);
   const membershipRevision = useStore((state) => state.membershipRevision);
@@ -116,7 +116,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   // Tag resolved roles with accountId and membership revision so switching company immediately discards the previous role and projects Viewer until the new lookup succeeds.
   const [fetched, setFetched] = useState<FetchedPermission | null>(null);
 
-  const enabled = authMode !== null;
+  const enabled = user !== null;
 
   useEffect(() => {
     if (masquerade.kind !== 'inactive') {

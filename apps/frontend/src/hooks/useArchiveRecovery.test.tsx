@@ -38,7 +38,6 @@ function view(cache: QueryClient, role: Role = 'editor', principal: string | nul
     <QueryClientProvider client={cache}>
       <AuthContext.Provider
         value={{
-          authMode: 'password-only',
           user: principal ? { id: principal } : null,
           refreshAuth: async () => {},
           signOut: async () => {},

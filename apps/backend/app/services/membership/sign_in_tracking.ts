@@ -102,8 +102,3 @@ export async function resetMemberSignIn(
     .where({ account_id: accountId, key: observedKey(userId) })
     .delete();
 }
-
-/** Clears an identity's observations when all-user session authority is revoked. */
-export async function clearMemberSignIn(userId: string, trx: TransactionClientContract) {
-  await trx.from('company_settings').where('key', observedKey(userId)).delete();
-}

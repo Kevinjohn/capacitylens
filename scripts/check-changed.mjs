@@ -32,14 +32,12 @@ const appBuildOutput = 'apps/backend/public/assets';
 // (.github/workflows/gate.yml).
 const appBuildEnvironment = {
   NODE_ENV: 'production',
-  CAPACITYLENS_SECRET: 'capacitylens-build-secret-0123456789abcdef',
   CAPACITYLENS_PUBLIC_URL: 'https://127.0.0.1',
   HOST: '127.0.0.1',
   PORT: '0',
   LOG_LEVEL: 'error',
   APP_KEY: 'capacitylens-test-key-0123456789abcdef',
   APP_URL: 'http://127.0.0.1',
-  SESSION_DRIVER: 'memory',
 };
 // A rule or ignore change can fail files the branch never touched.
 const lintConfig = /(?:^|\/)eslint\.config\.[cm]?js$/;

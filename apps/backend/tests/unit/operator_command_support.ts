@@ -12,13 +12,11 @@ export function operatorFixture() {
     NODE_ENV: 'test',
     CAPACITYLENS_DB: databasePath,
     CAPACITYLENS_BACKUP_DIR: '',
-    CAPACITYLENS_SECRET: 'operator-command-secret-2026-1234567890',
     CAPACITYLENS_PUBLIC_URL: 'http://localhost:8787',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
     APP_KEY: 'zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi',
     APP_URL: 'http://localhost:8787',
-    SESSION_DRIVER: 'database',
     LOG_LEVEL: 'fatal',
   };
   return {

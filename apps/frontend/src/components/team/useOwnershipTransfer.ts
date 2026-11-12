@@ -181,7 +181,7 @@ export function useOwnershipTransfer(
   accountId: string | null,
   refreshAuth: () => Promise<void>,
 ): OwnershipTransferController {
-  const { authMode, user } = useAuth();
+  const { user } = useAuth();
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const masquerade = useStore((state) => state.masquerade);
@@ -191,7 +191,6 @@ export function useOwnershipTransfer(
     masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
   };
   const available =
-    authMode !== null &&
     user !== null &&
     role === 'owner' &&
     permissionStatus === 'resolved' &&

@@ -1,14 +1,12 @@
 import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import { describe, expect, it } from 'vitest';
-import { emptyAppData } from '../types/entities.js';
-import type { Client, Project } from '../types/entities.js';
+import type { Client } from '../types/entities.js';
 import {
   normalizeCodeName,
   nameForQuotedContext,
   privateCodeNameFallback,
   quoteCodeName,
   redactPrivateName,
-  redactPrivateNames,
 } from './privateNames.js';
 
 const meta = { accountId: 'a1', createdAt: 't', updatedAt: 't' };
@@ -21,17 +19,6 @@ const privateClient: Client = {
   isPrivate: true,
   codeName: 'Nightwing',
 };
-const privateProject: Project = {
-  ...NULLABLE_FIELDS.projects,
-  ...meta,
-  id: 'p1',
-  name: 'Real Project',
-  clientId: 'c1',
-  color: '#445566',
-  isPrivate: true,
-  codeName: 'Aurora',
-};
-
 describe('private-name projection', () => {
   it('stores code names without user-supplied outer quotes and displays one consistent quote pair', () => {
     expect(normalizeCodeName('  “Nightwing”  ')).toBe('Nightwing');
@@ -57,16 +44,10 @@ describe('private-name projection', () => {
 });
 
 describe('private-name projection safeguards', () => {
-  it('is idempotent for both a projected row and a projected slice', () => {
+  it('is idempotent for a projected row', () => {
     const once = redactPrivateName(privateClient);
     expect(redactPrivateName(once)).toBe(once);
     expect(redactPrivateName(once).name).toBe('"Nightwing"');
-
-    const data = { ...emptyAppData(), clients: [privateClient], projects: [privateProject] };
-    const projected = redactPrivateNames(data);
-    const projectedAgain = redactPrivateNames(projected);
-    expect(projectedAgain.clients[0]?.name).toBe('"Nightwing"');
-    expect(projectedAgain.projects[0]?.name).toBe('"Aurora"');
   });
 
   it('fails closed to a neutral code name when a private row has no usable code name', () => {
@@ -115,24 +96,5 @@ describe('private-name projection across data', () => {
     expect(privateCodeNameFallback('client-1234')).toBe('Confidential #client1234');
     expect(privateCodeNameFallback('client-5678')).toBe('Confidential #client5678');
     expect(privateCodeNameFallback('----')).toBe('Confidential #0000');
-  });
-
-  it('redacts only clients and projects, leaving public names and all other tables untouched', () => {
-    const publicClient: Client = {
-      ...privateClient,
-      id: 'c2',
-      name: 'Public Client',
-    };
-    publicClient.isPrivate = null;
-    publicClient.codeName = null;
-    const data = {
-      ...emptyAppData(),
-      clients: [privateClient, publicClient],
-      projects: [privateProject],
-    };
-    const visible = redactPrivateNames(data);
-    expect(visible.clients.map((c) => c.name)).toEqual(['"Nightwing"', 'Public Client']);
-    expect(visible.projects[0]?.name).toBe('"Aurora"');
-    expect(visible.accounts).toBe(data.accounts);
   });
 });

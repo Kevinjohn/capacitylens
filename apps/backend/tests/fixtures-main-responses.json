@@ -1083,8 +1083,7 @@
           "emailVerified": true,
           "image": null
         },
-        "providers": [],
-        "canCreateAccount": false
+        "providers": []
       }
     }
   ]

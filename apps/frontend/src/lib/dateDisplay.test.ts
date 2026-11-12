@@ -5,10 +5,8 @@ import {
   formatDayMonth,
   formatDayMonthEndpoint,
   formatDayMonthRange,
-  formatInstant,
   formatInstantDate,
   formatMonthYear,
-  formatScheduleDate,
   formatScheduleDateRange,
   formatShortDate,
   formatShortDateEndpoint,
@@ -228,21 +226,13 @@ describe('schedule dates', () => {
     expect(formatScheduleDateRange('2026-09-10', '2026-09-10')).toBe('10 Sep 2026');
   });
 
-  it('always includes the year for a standalone schedule date', () => {
-    expect(formatScheduleDate('2027-01-15')).toBe('15 Jan 2027');
-  });
-
   it('resolves schedule dates through the active locale on every call', () => {
-    expect(formatScheduleDate('2026-09-10')).toBe('10 Sep 2026');
-
     dateLocaleMocks.readActiveDateLocale.mockReturnValue(fr);
 
-    expect(formatScheduleDate('2026-09-10')).toBe('10 sept. 2026');
     expect(formatScheduleDateRange('2026-09-07', '2026-10-04')).toBe('7 sept. – 4 oct. 2026');
   });
 
   it('surfaces invalid upstream schedule dates', () => {
-    expect(() => formatScheduleDate(invalidDate)).toThrow(RangeError);
     expect(() => formatScheduleDateRange(invalidDate, '2026-09-10')).toThrow(RangeError);
   });
 });
@@ -253,7 +243,6 @@ const STYLE_TABLE: Record<
     single: string;
     sameMonth: string;
     crossMonth: string;
-    singleWithYear: string;
     sameMonthWithYear: string;
     crossMonthSameYearWithYear: string;
     crossYear: string;
@@ -264,7 +253,6 @@ const STYLE_TABLE: Record<
     single: '9 Sep',
     sameMonth: '9 – 14 Sep',
     crossMonth: '9 Sep – 14 Oct',
-    singleWithYear: '9 Sep 2026',
     sameMonthWithYear: '9 – 14 Sep 2026',
     crossMonthSameYearWithYear: '9 Sep – 14 Oct 2026',
     crossYear: '28 Dec 2026 – 8 Jan 2027',
@@ -274,7 +262,6 @@ const STYLE_TABLE: Record<
     single: '9th Sep',
     sameMonth: '9th – 14th Sep',
     crossMonth: '9th Sep – 14th Oct',
-    singleWithYear: '9th Sep 2026',
     sameMonthWithYear: '9th – 14th Sep 2026',
     crossMonthSameYearWithYear: '9th Sep – 14th Oct 2026',
     crossYear: '28th Dec 2026 – 8th Jan 2027',
@@ -284,7 +271,6 @@ const STYLE_TABLE: Record<
     single: 'Sep 9',
     sameMonth: 'Sep 9 – 14',
     crossMonth: 'Sep 9 – Oct 14',
-    singleWithYear: 'Sep 9, 2026',
     sameMonthWithYear: 'Sep 9 – 14, 2026',
     crossMonthSameYearWithYear: 'Sep 9 – Oct 14, 2026',
     crossYear: 'Dec 28, 2026 – Jan 8, 2027',
@@ -294,7 +280,6 @@ const STYLE_TABLE: Record<
     single: 'Sep 9th',
     sameMonth: 'Sep 9th – 14th',
     crossMonth: 'Sep 9th – Oct 14th',
-    singleWithYear: 'Sep 9th, 2026',
     sameMonthWithYear: 'Sep 9th – 14th, 2026',
     crossMonthSameYearWithYear: 'Sep 9th – Oct 14th, 2026',
     crossYear: 'Dec 28th, 2026 – Jan 8th, 2027',
@@ -323,10 +308,6 @@ describe.each(Object.entries(STYLE_TABLE))('date style %s', (style, cells) => {
     expect(formatDayMonthRange('2026-09-09', '2027-09-09')).toBe(cells.crossYearNoYearHelper);
   });
 
-  it('formats a single date with year (formatScheduleDate)', () => {
-    expect(formatScheduleDate('2026-09-09')).toBe(cells.singleWithYear);
-  });
-
   it('formats a same-month range with year (formatScheduleDateRange)', () => {
     expect(formatScheduleDateRange('2026-09-09', '2026-09-14')).toBe(cells.sameMonthWithYear);
   });
@@ -345,31 +326,17 @@ describe.each(Object.entries(STYLE_TABLE))('date style %s', (style, cells) => {
 // The instant formatters render on the viewer's own clock. Assertions stay locale-agnostic on
 // purpose: these deliberately take no locale argument (see the module's "Instants" note), so pinning
 // literal en-GB or en-US output would pin the CI runner's ICU default rather than the contract.
-describe('formatInstant / formatInstantDate', () => {
+describe('formatInstantDate', () => {
   // The vitest environment fixes TZ=UTC, so 13:45Z is 13:45 local here.
   const instant = '2026-07-14T13:45:00.000Z';
 
   it("uses the browser's default locale", () => {
-    expect(formatInstant(instant)).toBe(new Date(instant).toLocaleString());
     expect(formatInstantDate(instant)).toBe(new Date(instant).toLocaleDateString());
-  });
-
-  it('renders a numeric epoch exactly like the equivalent timestamp string', () => {
-    expect(formatInstant(Date.parse(instant))).toBe(formatInstant(instant));
-  });
-
-  it('keeps the hour needed to display security deadlines', () => {
-    expect(formatInstant(instant)).toContain(':');
-    expect(formatInstant(instant)).toContain('45');
   });
 
   it('drops the time for the date-only form', () => {
     expect(formatInstantDate(instant)).not.toContain(':');
     expect(formatInstantDate(instant)).not.toContain('45');
-  });
-
-  it('agrees with the date-and-time form on the date itself', () => {
-    expect(formatInstant(instant)).toContain(formatInstantDate(instant));
   });
 
   it('resolves the local calendar day rather than slicing the UTC string', () => {
@@ -380,8 +347,6 @@ describe('formatInstant / formatInstantDate', () => {
   });
 
   it('degrades an unparseable timestamp to Invalid Date instead of throwing', () => {
-    expect(() => formatInstant('not-a-timestamp')).not.toThrow();
-    expect(formatInstant('not-a-timestamp')).toBe('Invalid Date');
     expect(formatInstantDate('not-a-timestamp')).toBe('Invalid Date');
   });
 });

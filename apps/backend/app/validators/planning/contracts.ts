@@ -21,7 +21,6 @@ import type { planningMutationValidator } from '#validators/planning_operations'
 
 export type PlanningMutationInput = Infer<typeof planningMutationValidator>;
 export type PlanningIntent = PlanningMutationInput['intent'];
-export type AllocationIntent = Extract<PlanningIntent, { operation: `allocation.${string}` }>;
 
 /** Metadata is added when an intent is executed, never stored in the forward/inverse intent. */
 export interface PlanningExecution<TIntent = PlanningIntent> {
@@ -106,4 +105,3 @@ export const planningMutationFailureValidator = vine.compile(
     restorableItemCount: revision().optional(),
   })
 );
-export type PlanningMutationFailureInput = Infer<typeof planningMutationFailureValidator>;
