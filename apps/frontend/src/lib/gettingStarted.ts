@@ -77,8 +77,3 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
     scheduled,
   };
 }
-
-/** Returns true when every GettingStartedSteps field is complete; new steps participate automatically. */
-export function hasCompletedAllSteps(steps: GettingStartedSteps): boolean {
-  return Object.values(steps).every(Boolean);
-}
