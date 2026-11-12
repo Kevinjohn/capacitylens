@@ -51,7 +51,8 @@ test('native web entry reports an invalid environment through the framework prin
 }) => {
   t.timeout(40000);
   const environment = { ...process.env };
-  delete environment.APP_KEY;
+  // An empty value overrides a local .env file; deleting the key would let that file supply it.
+  environment.APP_KEY = '';
   const result = spawnSync(process.execPath, ['--import=@poppinss/ts-exec', 'bin/server.ts'], {
     cwd: process.cwd(),
     encoding: 'utf8',
