@@ -25,9 +25,9 @@ import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { validateEntityRow, requiredFields } from '#validators/entities/index';
 import { assertEntityDomain } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
-import { BatchRequestError } from '#services/planning/errors';
+import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import type { BatchCapabilities } from '#services/planning/data_policy';
+import type { PlanningCapabilities } from '#services/planning/data_policy';
 
 export const TABLE_NAMES = {
   accounts: 'accounts',
@@ -52,14 +52,14 @@ const IMMUTABLE_ACCOUNT_FIELDS = ['language', 'weekStartsOn', 'timezone'] as con
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/;
 
 function reject(field: string, reason: string): never {
-  throw new BatchRequestError(`${field} ${reason}.`);
+  throw new EntityWriteError(`${field} ${reason}.`);
 }
 
 function pinHiddenFields(
   table: AppDataKey,
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
-  context: BatchCapabilities
+  context: PlanningCapabilities
 ) {
   if (table === 'timeOff' && !context.canSeeTimeOffNote) {
     if (typeof existing?.note === 'string') candidate.note = existing.note;
@@ -92,7 +92,7 @@ function assertResourceFields(
     kind !== 'placeholder' &&
     (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
   ) {
-    throw new BatchRequestError('A person or external company name is required.');
+    throw new EntityWriteError('A person or external company name is required.');
   }
   if (kind === 'person') {
     if (requested.projectId !== undefined && requested.projectId !== null) {
@@ -149,7 +149,7 @@ function assertResourceFields(
   }
   if (Object.hasOwn(requested, 'avatarUrl')) {
     if (requested.avatarUrl !== null && requested.avatarUrl !== undefined) {
-      throw new BatchRequestError(
+      throw new EntityWriteError(
         'Only a person can have an avatar URL.',
         400,
         undefined,
@@ -161,7 +161,7 @@ function assertResourceFields(
 
 function assertResourceKind(candidate: Record<string, unknown>, existing: Record<string, unknown>) {
   if (!['person', 'placeholder', 'external'].includes(existing.kind as string)) {
-    throw new BatchRequestError(
+    throw new EntityWriteError(
       'The stored resource kind is invalid and must be repaired by import.',
       400,
       undefined,
@@ -169,7 +169,7 @@ function assertResourceKind(candidate: Record<string, unknown>, existing: Record
     );
   }
   if (candidate.kind !== existing.kind) {
-    throw new BatchRequestError(
+    throw new EntityWriteError(
       'A resource’s kind cannot change after creation.',
       400,
       undefined,
@@ -187,14 +187,14 @@ function assertManagedFields(
   if (isLifecycle(table)) {
     for (const field of ['archivedAt', 'deletedAt'] as const) {
       if (Object.hasOwn(requested, field) && requested[field] !== (existing?.[field] ?? null)) {
-        throw new BatchRequestError(`${field} is managed by its lifecycle action.`);
+        throw new EntityWriteError(`${field} is managed by its lifecycle action.`);
       }
       candidate[field] = existing?.[field] ?? null;
     }
   }
   if (table === 'allocations' && existing) {
     if (Object.hasOwn(requested, 'seriesId') && requested.seriesId !== existing.seriesId) {
-      throw new BatchRequestError('seriesId is fixed after creation.');
+      throw new EntityWriteError('seriesId is fixed after creation.');
     }
     candidate.seriesId = existing.seriesId ?? null;
   }
@@ -226,7 +226,7 @@ export function assertFrozenAccountFields(
       existing[field] !== null &&
       requested[field] !== existing[field]
     ) {
-      throw new BatchRequestError(
+      throw new EntityWriteError(
         'Language, week start and time zone are set when the company is created and cannot be changed.',
         409
       );
@@ -241,7 +241,7 @@ function validationView(
   table: AppDataKey,
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
-  context: BatchCapabilities
+  context: PlanningCapabilities
 ) {
   const visible = { ...candidate };
   if (table === 'timeOff' && !context.canSeeTimeOffNote) delete visible.note;
@@ -259,7 +259,7 @@ function validationView(
 function assertRequired(table: AppDataKey, candidate: Record<string, unknown>) {
   const missing = requiredFields[table].filter((field) => !Object.hasOwn(candidate, field));
   if (missing.length) {
-    throw new BatchRequestError(`Missing required field(s): ${missing.join(', ')}.`);
+    throw new EntityWriteError(`Missing required field(s): ${missing.join(', ')}.`);
   }
   if (table === 'resources' && candidate.halfDays === undefined) candidate.halfDays = [];
   if (table === 'resources' && candidate.engagement === undefined) candidate.engagement = 'studio';
@@ -268,7 +268,7 @@ function assertRequired(table: AppDataKey, candidate: Record<string, unknown>) {
 export interface EntityWriteOptions {
   lookup: ValidationDataLookup;
   hasOtherBuiltinClient(accountId: string, clientId: string, excludedId?: string): boolean;
-  /** Only the service may identify the deterministic Internal row displaced by a client PUT. */
+  /** Only the service names the deterministic Internal row a supplied built-in client replaces. */
   generatedBuiltinReplacementId?: string;
 }
 
@@ -295,30 +295,30 @@ function resolveGeneratedBuiltinReplacement(
     generated.name !== INTERNAL_CLIENT_NAME ||
     generated.color !== INTERNAL_CLIENT_COLOR
   ) {
-    throw new BatchRequestError('The built-in Internal client is managed by the server.');
+    throw new EntityWriteError('The built-in Internal client is managed by the server.');
   }
   return generatedId;
 }
 
-/** Prepare a strict full-row PUT against the current transaction projection. */
+/** Prepare one complete entity row for a typed write against the current transaction projection. */
 export async function prepareEntityWrite(
   table: AppDataKey,
   row: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
   state: AppData,
-  context: BatchCapabilities,
+  context: PlanningCapabilities,
   options: EntityWriteOptions
 ): Promise<Record<string, unknown>> {
   if (typeof row.id !== 'string' || !ID_PATTERN.test(row.id)) {
-    throw new BatchRequestError(
+    throw new EntityWriteError(
       'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde or hyphen.'
     );
   }
   if (isScoped(table) && (typeof row.accountId !== 'string' || row.accountId.length === 0)) {
-    throw new BatchRequestError('A string accountId is required.');
+    throw new EntityWriteError('A string accountId is required.');
   }
   if (existing && isScoped(table) && existing.accountId !== row.accountId) {
-    throw new BatchRequestError('Not found.', 404);
+    throw new EntityWriteError('Not found.', 404);
   }
   for (const [field, value] of Object.entries(row)) {
     if (value !== undefined) continue;
@@ -381,7 +381,7 @@ export async function prepareEntityWrite(
     ) {
       const first = error.messages[0];
       if (typeof first?.message === 'string') {
-        throw new BatchRequestError(
+        throw new EntityWriteError(
           first.message,
           400,
           undefined,
@@ -397,20 +397,20 @@ export async function prepareEntityWrite(
   }
   if (table === 'clients' || table === 'projects') {
     if (context.canSeePrivateNames && !hasUsablePrivateCodeName(candidate)) {
-      throw new BatchRequestError('A private client or project requires a code name.');
+      throw new EntityWriteError('A private client or project requires a code name.');
     }
   }
   if (
     table === 'closures' &&
     (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
   ) {
-    throw new BatchRequestError('Closure name is required.');
+    throw new EntityWriteError('Closure name is required.');
   }
   if (
     table === 'accounts' &&
     (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
   ) {
-    throw new BatchRequestError('Company name is required.');
+    throw new EntityWriteError('Company name is required.');
   }
   for (const field of ['name', 'role', 'codeName', 'note', 'task'] as const) {
     if (typeof candidate[field] === 'string') {
@@ -439,9 +439,9 @@ export async function prepareEntityWrite(
       replacementId
     );
   } catch (error) {
-    if (error instanceof BatchRequestError) throw error;
+    if (error instanceof EntityWriteError) throw error;
     if (error instanceof DomainError) {
-      throw new BatchRequestError(error.message, 400, undefined, error.code);
+      throw new EntityWriteError(error.message, 400, undefined, error.code);
     }
     throw error;
   }

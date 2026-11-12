@@ -171,7 +171,7 @@ export async function readStateWithClient(
   return includeInactive ? data : activeOnly(data);
 }
 
-/** Reads through an explicit ordinary connection; batch callers pass their transaction instead. */
+/** Reads through an ordinary connection; transactional callers pass their transaction instead. */
 export function readState(accountId?: string, includeInactive = accountId === undefined) {
   return readStateWithClient(db.connection(), accountId, includeInactive);
 }

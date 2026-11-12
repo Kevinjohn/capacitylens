@@ -14,10 +14,10 @@ import {
   prepareEntityWrite,
   TABLE_NAMES,
 } from '#services/planning/entity_policy';
-import { BatchRequestError } from '#services/planning/errors';
+import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { validateEntityRow } from '#validators/entities/index';
-import type { BatchCapabilities } from '#services/planning/data_policy';
+import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { isRetainedTable, retainedQuery } from './retained_rows.js';
 
 /** A safe refusal whose caller must roll back the enclosing planning transaction. */
@@ -69,7 +69,7 @@ export function existingRow(data: AppData, table: AppDataKey, id: string): Row {
 function requirePrivacyPermission(
   table: AppDataKey,
   fields: Record<string, unknown>,
-  capabilities: BatchCapabilities,
+  capabilities: PlanningCapabilities,
   mode: 'create' | 'update'
 ) {
   if (
@@ -108,7 +108,7 @@ export async function writeRow(
   table: AppDataKey,
   id: string,
   fields: Record<string, unknown>,
-  capabilities: BatchCapabilities,
+  capabilities: PlanningCapabilities,
   mode: 'create' | 'update',
   options: { permissiveRepeatStart?: boolean } = {}
 ) {
@@ -213,7 +213,7 @@ export async function updateSettings(
   data: AppData,
   accountId: string,
   changes: Record<string, unknown>,
-  capabilities: BatchCapabilities
+  capabilities: PlanningCapabilities
 ) {
   if (
     Object.hasOwn(changes, 'capacityOverviewAccess') &&
@@ -230,7 +230,7 @@ export async function updateSettings(
   try {
     assertFrozenAccountFields(changes, candidate, existing);
   } catch (error) {
-    if (!(error instanceof BatchRequestError) || error.status !== 409) throw error;
+    if (!(error instanceof EntityWriteError) || error.status !== 409) throw error;
     throw new PlanningOperationError(409, 'frozen_account_setting', error.message);
   }
   const now = createServerRevision(existing.updatedAt);

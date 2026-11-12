@@ -4,7 +4,7 @@ import { errors as vineErrors } from '@vinejs/vine';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import { buildKitRefusal } from '#services/account_kit/refusal';
 import { buildAccessRefusal } from '#services/access_control/refusal';
-import { BatchRequestError } from '#services/planning/errors';
+import { EntityWriteError } from '#services/planning/errors';
 import { StalePlanningRevisionError } from '#services/planning_revision';
 import { RestorationConfirmationError } from '#services/planning/restoration';
 import { PlanningOperationError } from '#services/planning/execute';
@@ -39,7 +39,7 @@ function refusal(error: unknown): {
     const status = code === 'VALIDATION_ERROR' ? 400 : error.status;
     return { status, body: { error: error.message, ...(code ? { code } : {}) } };
   }
-  if (error instanceof BatchRequestError) {
+  if (error instanceof EntityWriteError) {
     return {
       status: error.status === 403 ? 403 : 400,
       body: {

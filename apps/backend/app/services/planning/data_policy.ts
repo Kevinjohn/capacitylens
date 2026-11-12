@@ -1,5 +1,5 @@
-/** What the current member may do and see while one planning batch is applied. */
-export interface BatchCapabilities {
+/** What the current member may do and see during one planning operation. */
+export interface PlanningCapabilities {
   role: 'owner' | 'admin' | 'editor' | 'viewer';
   canWrite: boolean;
   canAnonymise: boolean;

@@ -25,7 +25,7 @@ import type {
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
-import { BatchRequestError } from '#services/planning/errors';
+import { EntityWriteError } from '#services/planning/errors';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 
 /** Enforce relational and lifecycle rules against the transaction's evolving projection. */
@@ -48,10 +48,10 @@ export function assertEntityDomain(
         (value) => typeof value === 'string'
       )
     ) {
-      throw new BatchRequestError('The built-in Internal client must remain active.');
+      throw new EntityWriteError('The built-in Internal client must remain active.');
     }
     if (typeof existing?.deletedAt === 'string') {
-      throw new BatchRequestError(
+      throw new EntityWriteError(
         'Soft-deleted records can only be changed through lifecycle endpoints.'
       );
     }
@@ -62,28 +62,28 @@ export function assertEntityDomain(
     (parentTable, parentId) => lookup.row(parentTable, parentId) as never
   );
   if (ancestry.kind === 'hidden') {
-    throw new BatchRequestError(
+    throw new EntityWriteError(
       'Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.'
     );
   }
   if (table === 'clients') {
     if (existing?.builtin === true) {
-      throw new BatchRequestError('The built-in Internal client cannot be modified.');
+      throw new EntityWriteError('The built-in Internal client cannot be modified.');
     }
     if (row.builtin === true && !existing && !generatedBuiltinReplacementId) {
-      throw new BatchRequestError('The built-in Internal client is managed by the server.');
+      throw new EntityWriteError('The built-in Internal client is managed by the server.');
     }
     if (
       row.builtin === true &&
       (row.name !== INTERNAL_CLIENT_NAME || row.color !== INTERNAL_CLIENT_COLOR)
     ) {
-      throw new BatchRequestError('The built-in Internal client has a fixed name and colour.');
+      throw new EntityWriteError('The built-in Internal client has a fixed name and colour.');
     }
     if (
       row.builtin === true &&
       hasOtherBuiltinClient(accountId, id, generatedBuiltinReplacementId)
     ) {
-      throw new BatchRequestError('This company already has its built-in Internal client.');
+      throw new EntityWriteError('This company already has its built-in Internal client.');
     }
     return;
   }
@@ -102,7 +102,7 @@ export function assertEntityDomain(
         activity.projectId !== row.projectId
     )
   ) {
-    throw new BatchRequestError(
+    throw new EntityWriteError(
       'A phase with activities cannot move to a different project.',
       400,
       undefined,
@@ -119,7 +119,7 @@ export function assertEntityDomain(
       resource.lastAvailableDate ?? undefined
     );
     if (!availability.ok) {
-      throw new BatchRequestError(
+      throw new EntityWriteError(
         availability.codes[0] === 'date_reversed'
           ? 'First available date cannot be after last available date.'
           : 'Availability dates must be valid calendar dates (YYYY-MM-DD).'

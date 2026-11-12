@@ -5,9 +5,9 @@ import db from '@adonisjs/lucid/services/db';
 import { readState, readStateWithClient, resetState } from '#services/state_repository';
 import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
-import type { BatchCapabilities } from '#services/planning/data_policy';
+import type { PlanningCapabilities } from '#services/planning/data_policy';
 
-const owner: BatchCapabilities = {
+const owner: PlanningCapabilities = {
   role: 'owner',
   canWrite: true,
   canAnonymise: true,
