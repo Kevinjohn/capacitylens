@@ -163,7 +163,7 @@ if the company already holds any of these, including archived ones.
 **Export JSON** downloads the current company's scheduling records. **Import JSON** replaces those
 records after you confirm; in signed-in server deployments, only an Owner can import.
 
-The file must be a full `capacitylens-beta` version `1` export. It includes the company and its
+The file must be a full `capacitylens-beta` version `2` export. It includes the company and its
 planning records, with their IDs and supported settings. It excludes members, sign-in details and
 browser preferences. A redacted export can be inspected but cannot replace company data. Invalid
 fields and missing links are refused rather than repaired.
