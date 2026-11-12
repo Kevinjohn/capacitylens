@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db';
 import logger from '@adonisjs/core/services/logger';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js';
 import { signIn, signUpAndIn } from '../../helpers/identities.js';
 import { masqueradeService } from '#services/auth/masquerade';

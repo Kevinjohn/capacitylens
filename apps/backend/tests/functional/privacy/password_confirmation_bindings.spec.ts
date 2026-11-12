@@ -2,7 +2,7 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
 import { getPlanningRevision } from '#services/planning_revision';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import { withTransaction } from '#services/with_transaction';
 import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
 import { freshDatabase } from '../../helpers/fresh_database.js';

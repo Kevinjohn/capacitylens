@@ -9,7 +9,7 @@ import {
   RegistrationEmailAlreadyRegisteredError,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import env from '#start/env';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import {
   asDataOwner,

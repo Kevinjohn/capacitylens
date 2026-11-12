@@ -2,7 +2,7 @@ import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
 import db from '@adonisjs/lucid/services/db';
 import { buildBetaExport, type BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
 import { withTransaction } from '#services/with_transaction';
 import hash from '@adonisjs/core/services/hash';

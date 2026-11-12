@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { readFile } from 'node:fs/promises';
 import { freshDatabase } from '../../helpers/fresh_database.js';
-import { replaceWithSeed } from '#services/state_repository';
+import { replaceWithSeed } from '#tests/helpers/state_fixture';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';

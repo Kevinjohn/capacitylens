@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
   accountId,

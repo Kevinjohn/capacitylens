@@ -13,7 +13,8 @@ import {
 } from './helpers.js';
 import { withTransaction } from '#services/with_transaction';
 import { countRestorableItems } from '#services/planning/restoration';
-import { encodeRow, readState } from '#services/state_repository';
+import { encodeRow } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 
 const tables = {
   allocations: 'allocations',

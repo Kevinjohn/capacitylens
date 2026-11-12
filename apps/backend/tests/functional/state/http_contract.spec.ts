@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
 import { freshDatabase } from '../../helpers/fresh_database.js';
-import { replaceWithSeed, resetState } from '#services/state_repository';
+import { replaceWithSeed, resetState } from '#tests/helpers/state_fixture';
 import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
 import db from '@adonisjs/lucid/services/db';
 

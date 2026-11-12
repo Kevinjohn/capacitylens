@@ -5,7 +5,7 @@ import {
   asDataOwner,
   createFixtureCompanyForOwner,
 } from '../../helpers/authenticated_data_fixture.js';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import { signUpAndIn } from '../../helpers/identities.js';
 
 const password = 'batman-secret-2026';

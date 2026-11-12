@@ -3,7 +3,7 @@ import db from '@adonisjs/lucid/services/db';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import app from '@adonisjs/core/services/app';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import { encodeRow } from '#services/state_repository';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';

@@ -6,7 +6,7 @@ import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { RegistrationEmailAlreadyRegisteredError } from '@kevinjohn/adonisjs-account-kit/errors';
 import limiter from '@adonisjs/limiter/services/main';
 import env from '#start/env';
-import { resetState } from '#services/state_repository';
+import { resetState } from '#tests/helpers/state_fixture';
 import { createIdentity, clearIdentities, signIn } from '../../helpers/identities.js';
 import {
   asDataOwner,

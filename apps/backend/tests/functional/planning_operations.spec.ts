@@ -3,7 +3,8 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { freshDatabase } from '../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { randomUUID } from 'node:crypto';
-import { readState, readStateWithClient, resetState } from '#services/state_repository';
+import { readStateWithClient } from '#services/state_repository';
+import { readState, resetState } from '#tests/helpers/state_fixture';
 import {
   executePlanningIntent as applyPlanningIntent,
   PlanningOperationError,

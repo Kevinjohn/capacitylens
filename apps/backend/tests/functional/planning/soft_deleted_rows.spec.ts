@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db';
 import { DateTime } from 'luxon';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import { retainedQuery } from '#services/planning/retained_rows';
 import Client from '#models/client';
 

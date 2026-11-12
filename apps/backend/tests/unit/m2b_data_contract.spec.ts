@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { seed } from '@capacitylens/shared/data/seed';
 import { encodeRow } from '#services/state_repository';
-import { readState } from '#services/state_repository';
+import { readState } from '#tests/helpers/state_fixture';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '../helpers/fresh_database.js';
 
