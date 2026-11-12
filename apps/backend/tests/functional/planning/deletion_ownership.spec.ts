@@ -315,12 +315,19 @@ test.group('planning deletion ownership', (suite) => {
       }
       const sessionId = await fixtureSession('u-bruce');
       const groupId = await group('a-studio', sessionId);
-      const removed = data.allocations.find((row) => row.accountId === 'a-studio')!;
+      // A snapshot taken before the rename carries the override under its earlier field name.
+      const removed = data.allocations.find(
+        (row) => row.accountId === 'a-studio' && row.ignoreWorkingDays === true
+      )!;
+      const { ignoreWorkingDays, ...legacyRow } = removed;
       await db.table('deleted_rows').insert({
         group_id: groupId,
         entity: 'allocations',
         row_id: removed.id,
-        payload_json: JSON.stringify({ kind: 'row', row: removed }),
+        payload_json: JSON.stringify({
+          kind: 'row',
+          row: { ...legacyRow, ignoreWeekends: ignoreWorkingDays },
+        }),
       });
       await db.from('allocations').where('id', removed.id).delete();
       const before = Object.fromEntries(
@@ -399,6 +406,8 @@ test.group('planning deletion ownership', (suite) => {
       assert.equal(retained?.account_id, removed.accountId);
       assert.equal(retained?.created_at, removed.createdAt);
       assert.equal(retained?.updated_at, removed.updatedAt);
+      // The legacy override is stored JSON-encoded, so the model can read the restored row.
+      assert.equal(retained?.ignore_working_days, 'true');
       assert.exists(retained?.deleted_at);
       assert.equal(retained?.deletion_group_id, groupId);
       assert.deepEqual(

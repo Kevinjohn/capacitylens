@@ -168,7 +168,7 @@ an Owner. Resolving that uncommon state currently needs the hosting operator's s
 ## Restore planning from a beta JSON export
 
 On the source installation, sign in as its Owner and use **Settings → Data and support → Import
-and export → Export JSON**. Keep the downloaded full `capacitylens-beta` version `1` document
+and export → Export JSON**. Keep the downloaded full `capacitylens-beta` version `2` document
 unchanged. A redacted file or an older alpha export cannot restore this installation.
 
 After completing the fresh Owner and company setup above, open **Import JSON** in the same section
