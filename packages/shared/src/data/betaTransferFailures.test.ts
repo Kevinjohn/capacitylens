@@ -238,10 +238,13 @@ describe('Beta transfer failure boundaries', () => {
     expect(() => prepareBetaImport(document, context)).toThrow(/duplicates/i);
   });
 
-  it.each([0, 1, 3, '2', null, undefined])('rejects unsupported beta version %s', (schemaVersion) => {
-    const document = { ...freshDocument(), schemaVersion };
-    expect(() => parseBetaExport(JSON.stringify(document))).toThrow(/schemaVersion/);
-  });
+  it.each([0, 1, 3, '2', null, undefined])(
+    'rejects unsupported beta version %s',
+    (schemaVersion) => {
+      const document = { ...freshDocument(), schemaVersion };
+      expect(() => parseBetaExport(JSON.stringify(document))).toThrow(/schemaVersion/);
+    },
+  );
 
   it.each(APP_DATA_KEYS)('requires the complete %s table', (key: AppDataKey) => {
     const document = freshDocument();
