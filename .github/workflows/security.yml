@@ -121,14 +121,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Mint CI-only credentials
-        # Random per run; the stack is ephemeral and holds no real data. Minted at runtime so
-        # no secret-shaped literal ever sits in the repository for scanners to flag, and masked
-        # so later steps' env listings do not print them.
-        run: |
-          auth_secret="$(openssl rand -hex 32)"
-          echo "::add-mask::$auth_secret"
-          echo "CAPACITYLENS_SECRET=$auth_secret" >> "$GITHUB_ENV"
       - name: Start production stack
         run: docker compose up --build --detach
       - name: Wait for the proxied API
