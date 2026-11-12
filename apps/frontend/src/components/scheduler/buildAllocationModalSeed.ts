@@ -37,18 +37,18 @@ function resolveInitialDaysOver({
   initialStart,
   initialUsesWorkingSpan,
   initialEffectiveWeek,
-  initialIgnoreWeekends,
+  initialIgnoreWorkingDays,
 }: {
   seedEnd: ISODate | undefined;
   initialStart: ISODate;
   initialUsesWorkingSpan: boolean;
   initialEffectiveWeek: ReturnType<typeof effectiveWorkingWeek> | null;
-  initialIgnoreWeekends: boolean;
+  initialIgnoreWorkingDays: boolean;
 }) {
   if (!seedEnd) return 1;
   if (
     initialUsesWorkingSpan &&
-    lacksEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWeekends)
+    lacksEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWorkingDays)
   ) {
     return 1;
   }
@@ -58,7 +58,7 @@ function resolveInitialDaysOver({
     1,
     spanDays(initialStart, seedEnd, {
       ...(workingDays ? { workingDays } : {}),
-      ignoreWeekends: initialIgnoreWeekends,
+      ignoreWorkingDays: initialIgnoreWorkingDays,
     }),
   );
 }
@@ -73,14 +73,14 @@ function resolveDraftSeedValues({
       initialResourceId: editing.resourceId,
       initialStart: editing.startDate,
       seedEnd: editing.endDate,
-      initialIgnoreWeekends: editing.ignoreWeekends ?? false,
+      initialIgnoreWorkingDays: editing.ignoreWorkingDays ?? false,
     };
   }
   return {
     initialResourceId: create?.resourceId ?? '',
     initialStart: create?.startDate ?? today,
     seedEnd: create?.endDate,
-    initialIgnoreWeekends: false,
+    initialIgnoreWorkingDays: false,
   };
 }
 
@@ -147,7 +147,7 @@ export function buildAllocationModalSeed({
     initialPlaceholderProjectId,
     initialStart,
     seedEnd,
-    initialIgnoreWeekends,
+    initialIgnoreWorkingDays,
   } = selection;
   const initialLocked = resolveInitialLocked({
     editing,
@@ -165,7 +165,7 @@ export function buildAllocationModalSeed({
     initialStart,
     initialUsesWorkingSpan,
     initialEffectiveWeek,
-    initialIgnoreWeekends,
+    initialIgnoreWorkingDays,
   });
   const initialCapacityHours = resolveInitialCapacityHours({ ...selection, initialDaysOver });
   return {

@@ -46,7 +46,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - A person's effective working week is the intersection of the company's global working days and
   their personal pattern; external parties use the company set verbatim. A company must keep at
   least one working day — an empty stored selection is repaired to the week-start default.
-- Normal allocations do not consume days outside the effective working week. `ignoreWeekends`
+- Normal allocations do not consume days outside the effective working week. `ignoreWorkingDays`
   (the **Ignore working days** checkbox) is the explicit exception; it never bypasses time off.
 - A company closure is a literal inclusive date span: no working-week filtering, whole days only
   and no per-person exception. Closures and personal time off are independent and may overlap
@@ -409,6 +409,9 @@ framework defaults; any other departure needs a decision recorded here first.
   propagation when extracting.
 - Public wire fields, stable identifiers and shipped data formats are not renamed as part of
   structural cleanup.
+- One exception: `ignoreWeekends` became `ignoreWorkingDays` (column `ignore_working_days`) in the
+  database, wire contract and export, with no alias, because no installation existed. The export
+  schema version rose with it, so earlier exports are refused.
 
 ### Production mail dependency compatibility
 

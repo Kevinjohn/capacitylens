@@ -188,7 +188,7 @@ recovery and cleanup acceptance.
 
 ## Beta transfer contract
 
-The beta-native document has `format: "capacitylens-beta"`, `schemaVersion: 1` and
+The beta-native document has `format: "capacitylens-beta"`, `schemaVersion: 2` and
 `completeness: "full" | "redacted"`. Its version is independent of database and legacy export
 versions. `data` contains exactly one account and all scoped tables, preserving IDs, timestamps
 and supported company settings. It excludes identity, sessions, memberships, roles, admission

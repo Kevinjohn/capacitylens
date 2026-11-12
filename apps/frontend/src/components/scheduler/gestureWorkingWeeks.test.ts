@@ -28,7 +28,7 @@ describe('hasEffectiveDaysFor', () => {
       }),
     );
 
-    expect(hasEffectiveDaysFor({ resourceId: 'person', ignoreWeekends: undefined })).toBe(true);
+    expect(hasEffectiveDaysFor({ resourceId: 'person', ignoreWorkingDays: undefined })).toBe(true);
   });
 
   it('rejects a resource whose effective working week is collapsed', () => {
@@ -39,7 +39,7 @@ describe('hasEffectiveDaysFor', () => {
       }),
     );
 
-    expect(hasEffectiveDaysFor({ resourceId: 'person', ignoreWeekends: false })).toBe(false);
+    expect(hasEffectiveDaysFor({ resourceId: 'person', ignoreWorkingDays: false })).toBe(false);
   });
 
   it('allows a collapsed resource when the allocation ignores working days', () => {
@@ -50,10 +50,10 @@ describe('hasEffectiveDaysFor', () => {
       }),
     );
 
-    expect(hasEffectiveDaysFor({ resourceId: 'person', ignoreWeekends: true })).toBe(true);
+    expect(hasEffectiveDaysFor({ resourceId: 'person', ignoreWorkingDays: true })).toBe(true);
   });
 
   it('allows a missing resource so the caller can apply its own deletion guard', () => {
-    expect(hasEffectiveDaysFor({ resourceId: 'deleted', ignoreWeekends: false })).toBe(true);
+    expect(hasEffectiveDaysFor({ resourceId: 'deleted', ignoreWorkingDays: false })).toBe(true);
   });
 });

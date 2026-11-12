@@ -65,7 +65,7 @@ function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID)
   // falls back to calendar-day volume math and rewrites hours that the capacity model says load none.
   if (
     mode === 'move' ||
-    hasEffectiveDaysFor({ resourceId, ignoreWeekends: bar.allocation.ignoreWeekends })
+    hasEffectiveDaysFor({ resourceId, ignoreWorkingDays: bar.allocation.ignoreWorkingDays })
   ) {
     return false;
   }
@@ -74,7 +74,9 @@ function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID)
 }
 
 interface ReadPreviewDatesInput {
-  bar: { allocation: Pick<Allocation, 'resourceId' | 'startDate' | 'endDate' | 'ignoreWeekends'> };
+  bar: {
+    allocation: Pick<Allocation, 'resourceId' | 'startDate' | 'endDate' | 'ignoreWorkingDays'>;
+  };
   runtime: Pick<GestureRuntime, 'previewDaysRef'>;
   input: Pick<DragResizePreviewInput, 'mode' | 'deltaDays'>;
   destination: Pick<LaneSnapshot, 'id'> | null;
@@ -119,7 +121,7 @@ function previewGesture(
     workingDays: previewDays,
     result,
     isReassignment: input.mode === 'move' && destination !== null,
-    ignoreWeekends: bar.allocation.ignoreWeekends,
+    ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
   });
   const settled = blocked
     ? readPreviewDates({ bar, runtime, input, destination: null }).result
@@ -155,7 +157,7 @@ function resolveCommitDates({ options, mode, deltaDays, resourceId }: ResolveCom
     options: {
       ...(workingDays !== undefined ? { workingDays } : {}),
       ...(sourceWorkingDays !== undefined ? { sourceWorkingDays } : {}),
-      ignoreWeekends: bar.allocation.ignoreWeekends,
+      ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
     },
     hoursPerDay: bar.allocation.hoursPerDay,
     isDays,
@@ -176,7 +178,7 @@ function refuseBlockedCommit({ options, mode, resourceId, dates }: CommitGateInp
   const blocked = isDropStartBlocked({
     resourceId,
     date: dates.startDate,
-    ignoreWeekends: bar.allocation.ignoreWeekends,
+    ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
   });
   if (blocked) useStore.getState().setNotice(m.scheduler_toast_non_working_drop(), 'error');
   return blocked;
@@ -299,7 +301,7 @@ function resolveKeyboardGesture(options: ControllerOptions, mode: DragMode, delt
   const workingDays = readWorkingDays(bar.allocation.resourceId);
   const gestureOptions = {
     ...(workingDays !== undefined ? { workingDays } : {}),
-    ignoreWeekends: bar.allocation.ignoreWeekends,
+    ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
   };
   const current = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate };
   const next = applyGesture({ mode, range: current, deltaDays, options: gestureOptions });
@@ -322,7 +324,7 @@ function refuseBlockedKeyboardGesture({ options, mode, current, next }: Keyboard
     isDropStartBlocked({
       resourceId: bar.allocation.resourceId,
       date: next.startDate,
-      ignoreWeekends: bar.allocation.ignoreWeekends,
+      ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
     });
   if (startBlocked) {
     state.setNotice(m.scheduler_toast_non_working_drop(), 'error');

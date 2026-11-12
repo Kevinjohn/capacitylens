@@ -24,7 +24,7 @@ const RESOURCE_NAME = 'Bruce Wayne Packaged Schedule';
 // The baseline is followed by planning deletion ownership, the member-view control migration and
 // legacy recovery conversion, transactional receipts, the password confirmation cutover and the
 // company-scope removal from password confirmations.
-const MIGRATION_COUNT = 7;
+const MIGRATION_COUNT = 8;
 
 function inspectDatabase(path, expectedResourceName) {
   const database = new DatabaseSync(path, { readOnly: true });

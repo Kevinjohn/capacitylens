@@ -228,7 +228,7 @@ export interface EndDateInput {
   isDays: boolean;
   resourceId: string;
   startDate: ISODate;
-  ignoreWeekends: boolean;
+  ignoreWorkingDays: boolean;
   daysOver: number;
   /** The span the form seeded from the stored allocation when it opened. */
   initialDaysOver: number;
@@ -245,7 +245,7 @@ export function resolveEndDate({
   isDays,
   resourceId,
   startDate,
-  ignoreWeekends,
+  ignoreWorkingDays,
   daysOver,
   initialDaysOver,
   effectiveEndDate,
@@ -255,7 +255,7 @@ export function resolveEndDate({
     (isDays || isBlocks) &&
     resourceId === editing.resourceId &&
     startDate === editing.startDate &&
-    ignoreWeekends === (editing.ignoreWeekends ?? false) &&
+    ignoreWorkingDays === (editing.ignoreWorkingDays ?? false) &&
     daysOver === initialDaysOver;
   return preserveStoredEnd ? editing.endDate : effectiveEndDate;
 }

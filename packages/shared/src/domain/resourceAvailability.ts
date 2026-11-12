@@ -9,7 +9,7 @@ import { throwDomainError } from './errors.js';
 /** The allocation span, resource and company working days an availability check needs. */
 export interface ResourceAvailabilityInput {
   allocation: Pick<Allocation, 'startDate' | 'endDate'> &
-    Partial<Pick<Allocation, 'ignoreWeekends'>>;
+    Partial<Pick<Allocation, 'ignoreWorkingDays'>>;
   resource: Pick<Resource, 'kind' | 'workingDays'> &
     Partial<Pick<Resource, 'firstAvailableDate' | 'lastAvailableDate'>>;
   /** Company working days are required so boundaries only apply to days on which this person is
@@ -19,7 +19,7 @@ export interface ResourceAvailabilityInput {
 
 /** Enforce inclusive person availability on scheduled days without mutating the input.
  * Dates must be validated ISO dates and the allocation range must fit the materialization limit.
- * Placeholders and external resources are exempt; person days use the effective working week unless ignoreWeekends is true.
+ * Placeholders and external resources are exempt; person days use the effective working week unless ignoreWorkingDays is true.
  * @throws DomainError when a scheduled day falls outside availability; do not persist the allocation. */
 export function assertAllocationWithinResourceAvailability({
   allocation,
@@ -33,7 +33,8 @@ export function assertAllocationWithinResourceAvailability({
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
   const scheduledDates = eachDayISO(allocation.startDate, allocation.endDate).filter(
     (date) =>
-      allocation.ignoreWeekends === true || effectiveWeekIncludes(effectiveWeek, weekdayOf(date)),
+      allocation.ignoreWorkingDays === true ||
+      effectiveWeekIncludes(effectiveWeek, weekdayOf(date)),
   );
   for (const date of scheduledDates) {
     if (first != null && date < first) {

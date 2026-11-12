@@ -65,7 +65,7 @@ export function applyCapacityMode({
 // Capacity arithmetic requires finite, non-negative hours validated at write boundaries.
 // Warn in development rather than wrap each hot-path calculation; NaN would otherwise
 // make conflict comparisons silently false. Effective weekdays govern ordinary load,
-// while ignoreWeekends may place work on zero-capacity days.
+// while ignoreWorkingDays may place work on zero-capacity days.
 /** Warns during development when a capacity calculation is not finite. */
 export function warnOnNonFiniteCapacity(hours: number): void {
   if (import.meta.env.DEV && !Number.isFinite(hours)) {

@@ -36,9 +36,9 @@ describe('spanDays', () => {
     expect(spanDays('2026-06-01', '2026-06-08', { workingDays: MON_FRI })).toBe(6);
   });
 
-  it('counts calendar days when ignoreWeekends opts out', () => {
+  it('counts calendar days when ignoreWorkingDays opts out', () => {
     expect(
-      spanDays('2026-06-01', '2026-06-08', { workingDays: MON_FRI, ignoreWeekends: true }),
+      spanDays('2026-06-01', '2026-06-08', { workingDays: MON_FRI, ignoreWorkingDays: true }),
     ).toBe(8);
   });
 
@@ -54,7 +54,7 @@ describe('endDateForSpan is the inverse of spanDays', () => {
   });
 
   it('calendar mode: plain inclusive span', () => {
-    expect(endDateForSpan('2026-06-01', 8, { workingDays: MON_FRI, ignoreWeekends: true })).toBe(
+    expect(endDateForSpan('2026-06-01', 8, { workingDays: MON_FRI, ignoreWorkingDays: true })).toBe(
       '2026-06-08',
     );
   });
@@ -72,7 +72,7 @@ describe('endDateForSpan is the inverse of spanDays', () => {
   });
 
   it('caps an absurd / NaN span so the derived end date stays a valid 4-digit-year date', () => {
-    const opts = { workingDays: MON_FRI, ignoreWeekends: true };
+    const opts = { workingDays: MON_FRI, ignoreWorkingDays: true };
     const capped = endDateForSpan('2026-06-01', MAX_SPAN_DAYS, opts);
     // A huge span clamps to the cap (instead of deriving a 5-digit-year date that throws
     // RangeError when the modal hint formats it).
@@ -82,7 +82,7 @@ describe('endDateForSpan is the inverse of spanDays', () => {
   });
 
   it('does not derive a five-digit year near the upper ISO-date boundary', () => {
-    expect(endDateForSpan('9999-12-31', MAX_SPAN_DAYS, { ignoreWeekends: true })).toBe(
+    expect(endDateForSpan('9999-12-31', MAX_SPAN_DAYS, { ignoreWorkingDays: true })).toBe(
       '9999-12-31',
     );
     expect(endDateForSpan('9999-12-31', MAX_SPAN_DAYS, { workingDays: [0] })).toBe('9999-12-31');

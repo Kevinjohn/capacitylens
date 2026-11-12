@@ -56,7 +56,7 @@ function validInput(overrides: Partial<CommandInput> = {}): CommandInput {
     daysOver: 2,
     initialDaysOver: 2,
     daysOfWork: 2,
-    ignoreWeekends: false,
+    ignoreWorkingDays: false,
     status: 'confirmed',
     note: '',
     noteEdited: false,
@@ -151,7 +151,7 @@ describe('createAllocationCommands submit', () => {
       hoursPerDay: 4,
       status: 'confirmed',
       task: null,
-      ignoreWeekends: false,
+      ignoreWorkingDays: false,
     });
     expect(input.onClose).toHaveBeenCalledOnce();
     expect(input.fail).not.toHaveBeenCalled();
@@ -221,7 +221,7 @@ describe('createAllocationCommands submit', () => {
       status: 'confirmed',
       task: null,
       projectId: 'p1',
-      ignoreWeekends: false,
+      ignoreWorkingDays: false,
       hoursPerDay: 4,
     });
     expect(input.onClose).toHaveBeenCalledOnce();
@@ -272,7 +272,7 @@ describe('createAllocationCommands text fields', () => {
   it('always ignores weekends for an external resource', () => {
     const external = validInput({ isExternal: true, hoursPerDay: 0, effHoursPerDay: 0 });
     expect(createAllocationCommands(external).validatedDraft()).toHaveProperty(
-      'ignoreWeekends',
+      'ignoreWorkingDays',
       true,
     );
   });

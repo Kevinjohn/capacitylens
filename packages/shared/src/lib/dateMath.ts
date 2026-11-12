@@ -215,7 +215,7 @@ export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean
 
 /** Should weekend/non-working days be treated specially? True only when the
  * resource has a partial working week (1–6 working days) and the allocation
- * hasn't opted out via `ignoreWeekends`. This is the single condition shared by
+ * hasn't opted out via `ignoreWorkingDays`. This is the single condition shared by
  * drag math (gestureMath) and the days/hours conversions (schedulingDays) so the
  * two can never disagree on what "a working day" means.
  *
@@ -223,9 +223,9 @@ export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean
  * Invalid weekday entries are ignored consistently with the other weekday calculations. */
 export function isWeekendAware(
   workingDays: Weekday[] | undefined,
-  ignoreWeekends: boolean | undefined,
+  ignoreWorkingDays: boolean | undefined,
 ): boolean {
-  if (ignoreWeekends || !workingDays) return false;
+  if (ignoreWorkingDays || !workingDays) return false;
   let mask = 0;
   for (const day of workingDays) {
     if (day >= 0 && day <= 6) mask |= 1 << day;
@@ -235,17 +235,17 @@ export function isWeekendAware(
 
 /** Does an allocation place work on a given day? A weekend-aware allocation works only the resource's
  * working weekdays (a bar that merely spans a non-working day does no work there), while an
- * allocation that opts into weekends (`ignoreWeekends`), or a resource with a full/empty working
+ * allocation that opts into weekends (`ignoreWorkingDays`), or a resource with a full/empty working
  * week, works every calendar day. The single per-day companion to `isWeekendAware`, shared by the
  * over-marker (`allocatedHoursOnDay`) and its advisory mirror (`capacityAdvisory`) so the two can't
  * disagree on which days an allocation works. `dayIsWorkingWeekday` is `isWorkingWeekday(date,
  * workingDays)`, passed in so the caller derives the weekday once per day, not once per allocation. */
 export function allocationWorksOnDay(
   workingDays: Weekday[] | undefined,
-  ignoreWeekends: boolean | undefined,
+  ignoreWorkingDays: boolean | undefined,
   dayIsWorkingWeekday: boolean,
 ): boolean {
-  return !isWeekendAware(workingDays, ignoreWeekends) || dayIsWorkingWeekday;
+  return !isWeekendAware(workingDays, ignoreWorkingDays) || dayIsWorkingWeekday;
 }
 
 /** Count the working days within the inclusive range [start, end], given which

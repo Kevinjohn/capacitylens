@@ -34,7 +34,7 @@ export const NULLABLE_FIELDS = {
   projects: { isPrivate: null, codeName: null, archivedAt: null, deletedAt: null },
   phases: {},
   activities: { projectId: null, phaseId: null, archivedAt: null, deletedAt: null },
-  allocations: { projectId: null, seriesId: null, note: null, task: null, ignoreWeekends: null },
+  allocations: { projectId: null, seriesId: null, note: null, task: null, ignoreWorkingDays: null },
   timeOff: { note: null },
   closures: {},
 } as const satisfies { [K in AppDataKey]: NullableProperties<AppData[K][number]> };

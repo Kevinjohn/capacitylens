@@ -68,7 +68,7 @@ const IMPORTED_FIELDS = {
     'status',
     'note',
     'task',
-    'ignoreWeekends',
+    'ignoreWorkingDays',
   ],
   timeOff: [...SCOPED_META_FIELDS, 'resourceId', 'startDate', 'endDate', 'type', 'note'],
   closures: [...SCOPED_META_FIELDS, 'name', 'startDate', 'endDate'],

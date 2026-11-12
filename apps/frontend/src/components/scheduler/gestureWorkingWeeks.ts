@@ -26,30 +26,30 @@ export function readWorkingDays(resourceId: ID) {
 interface EffectiveDaysQuery {
   resourceId: ID;
   /** The allocation's opt-out: it may occupy any day regardless of the resource's week. */
-  ignoreWeekends: boolean | null | undefined;
+  ignoreWorkingDays: boolean | null | undefined;
 }
 
 /** Does this allocation have any day it could occupy on `resourceId`? False only for a collapsed
  * working week, which a weekend-aware gesture cannot place anything into. */
-export function hasEffectiveDaysFor({ resourceId, ignoreWeekends }: EffectiveDaysQuery) {
+export function hasEffectiveDaysFor({ resourceId, ignoreWorkingDays }: EffectiveDaysQuery) {
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return true;
   return !lacksEffectiveWorkingDays(
     effectiveWorkingWeek(resource, accountWorkingDays),
-    ignoreWeekends ?? undefined,
+    ignoreWorkingDays ?? undefined,
   );
 }
 
 interface DropStartQuery {
   resourceId: ID;
   date: ISODate;
-  ignoreWeekends: boolean | null | undefined;
+  ignoreWorkingDays: boolean | null | undefined;
 }
 
 interface DropStartWorkingDaysQuery {
   workingDays: Weekday[] | undefined;
   date: ISODate;
-  ignoreWeekends: boolean | null | undefined;
+  ignoreWorkingDays: boolean | null | undefined;
 }
 
 interface PreviewDropQuery {
@@ -57,20 +57,20 @@ interface PreviewDropQuery {
   result:
     { kind: 'blocked' } | { kind: 'unchanged' } | { kind: 'ready'; dates: { startDate: ISODate } };
   isReassignment: boolean;
-  ignoreWeekends: boolean | null | undefined;
+  ignoreWorkingDays: boolean | null | undefined;
 }
 
 /** Would a drop starting on `date` be refused because `resourceId` does not work that day? The one
  * answer the live drag preview and the commit both ask, so the bar cannot draw a placement the
  * release is about to reject. An absent resource is not blocked, its own gate rejects it. */
-export function isDropStartBlocked({ resourceId, date, ignoreWeekends }: DropStartQuery) {
+export function isDropStartBlocked({ resourceId, date, ignoreWorkingDays }: DropStartQuery) {
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return false;
   return isAllocationMoveStartBlocked({
     resource,
     date,
     accountWorkingDays,
-    ignoreWorkingDays: ignoreWeekends ?? undefined,
+    ignoreWorkingDays: ignoreWorkingDays ?? undefined,
   });
 }
 
@@ -79,9 +79,9 @@ export function isDropStartBlocked({ resourceId, date, ignoreWeekends }: DropSta
 export function isDropStartBlockedForWorkingDays({
   workingDays,
   date,
-  ignoreWeekends,
+  ignoreWorkingDays,
 }: DropStartWorkingDaysQuery) {
-  if (ignoreWeekends || workingDays === undefined) return false;
+  if (ignoreWorkingDays || workingDays === undefined) return false;
   return !workingDays.includes(weekdayOf(date));
 }
 
@@ -90,7 +90,7 @@ export function isPreviewDropBlocked({
   workingDays,
   result,
   isReassignment,
-  ignoreWeekends,
+  ignoreWorkingDays,
 }: PreviewDropQuery) {
   if (!isReassignment || workingDays === undefined) return false;
   if (result.kind === 'blocked') return true;
@@ -98,7 +98,7 @@ export function isPreviewDropBlocked({
   return isDropStartBlockedForWorkingDays({
     workingDays,
     date: result.dates.startDate,
-    ignoreWeekends,
+    ignoreWorkingDays,
   });
 }
 

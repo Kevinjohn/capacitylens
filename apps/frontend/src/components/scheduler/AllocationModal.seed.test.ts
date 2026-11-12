@@ -51,7 +51,7 @@ describe('buildAllocationModalSeed', () => {
       hoursPerDay: 0,
       status: 'tentative',
       note: '',
-      ignoreWeekends: false,
+      ignoreWorkingDays: false,
     });
 
     const seed = buildAllocationModalSeed({
