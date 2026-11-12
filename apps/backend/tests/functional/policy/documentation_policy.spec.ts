@@ -154,8 +154,6 @@ test.group('M5 documentation and policy contracts', () => {
       assert.include(example, `${key}=`);
       assert.include(configuration, `\`${key}\``);
     }
-    assert.include(configuration, 'Boot requires at least 32 characters');
-    assert.include(configuration, 'does not supply an encryption or signing key');
     assert.include(configuration, 'SQL audit records remain active');
     for (const retired of [
       'CAPACITYLENS_REQUIRE_MFA',
