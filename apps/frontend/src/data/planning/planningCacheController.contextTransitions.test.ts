@@ -50,26 +50,4 @@ describe('planning context transitions', () => {
     expect(h.state().planning.status).toBe('idle');
     expect(() => h.controller.begin({})).toThrow(/read-only/);
   });
-
-  it('resets to ready at the imported revision and ignores a read started before a demo import', async () => {
-    const h = await readyWithHistory();
-    const read = deferred<PlanningSnapshot>();
-    h.read.mockImplementationOnce(() => read.promise);
-    const refreshing = h.controller.refresh();
-    const signal = h.read.mock.calls.at(-1)?.[1];
-    const planning = h.controller.invalidateAfterDemoImport(context, 9);
-    expect(signal?.aborted).toBe(true);
-    h.store.setState(() => ({ planning }));
-    read.resolve(snapshot(2, 'Pre-import name'));
-    await expect(refreshing).resolves.toBe(false);
-    expect(h.state().planning).toMatchObject({
-      status: 'ready',
-      revision: 9,
-      canWrite: true,
-      pending: null,
-      outcome: null,
-      history: { past: [], future: [], tipRevision: null },
-    });
-    await expect(h.controller.undo()).resolves.toBe(false);
-  });
 });

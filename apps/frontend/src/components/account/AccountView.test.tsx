@@ -3,11 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
 
-const demoMode = vi.hoisted(() => ({ active: false }));
-vi.mock('@/lib/fakeAuth', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/fakeAuth')>();
-  return { ...original, useDemoAuthActive: () => demoMode.active };
-});
 vi.mock('@/components/settings/SecuritySection', () => ({
   SecuritySection: ({
     passwordOpen,
@@ -32,9 +27,7 @@ const signOut = vi.fn();
 function auth(authMode: AuthContextValue['authMode']): AuthContextValue {
   return {
     authMode,
-    user:
-      authMode === 'off' ? null : { id: 'u1', name: 'Diana Prince', email: 'diana@example.test' },
-    canCreateAccount: true,
+    user: { id: 'u1', name: 'Diana Prince', email: 'diana@example.test' },
     refreshAuth: async () => {},
     signOut,
   };
@@ -115,26 +108,5 @@ describe('AccountView', () => {
     expect(cells[1]).toHaveTextContent('diana@example.test');
     expect(cells[2]).toHaveTextContent('diana@example.test');
     expect(screen.getByLabelText('diana@example.test')).toHaveClass('truncate');
-  });
-
-  it('does not invent credential controls when authentication is off', () => {
-    renderAccount('off');
-    expect(screen.queryByText('Sign-in is off')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Change password' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete account' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
-  });
-
-  it('shows the demo identity without password or sign-out controls', () => {
-    demoMode.active = true;
-    try {
-      renderAccount('off');
-      expect(screen.getByText('Bruce Wayne')).toBeInTheDocument();
-      expect(screen.queryByText('Demo access')).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Change password' })).not.toBeInTheDocument();
-    } finally {
-      demoMode.active = false;
-    }
   });
 });

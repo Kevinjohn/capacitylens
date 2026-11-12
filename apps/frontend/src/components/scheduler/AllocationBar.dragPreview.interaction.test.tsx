@@ -4,8 +4,12 @@ import { screen, fireEvent, act } from '@testing-library/react';
 import { AllocationBar } from './AllocationBar';
 import { buildAllocationBarInset } from './layout';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, makeResourceDraft } from '@/test/fixtures';
-import { renderWithTooltip as render, GEOM, indexAtClientX } from './__tests__/schedulerTestKit';
+import { resetStoreWithData, resetStoreWithAccount, makeResourceDraft } from '@/test/fixtures';
+import {
+  renderWithOwnerAndTooltip as render,
+  GEOM,
+  indexAtClientX,
+} from './__tests__/schedulerTestKit';
 
 import {
   barFor,
@@ -487,14 +491,12 @@ function registerSourceCalendarTest() {
     });
     // Keep the destination lane in the DOM while its source resource is removed from live state,
     // matching a virtualized row being deleted during an armed gesture.
-    useStore.getState().replaceAll({
-      ...useStore.getState().data,
-      resources: useStore.getState().data.resources.filter((resource) => resource.id !== src.id),
-    });
-    // Publish the fixture's live-state change before the eventual typed reassignment.
-    await act(async () => {
-      await useStore.getState().refreshPlanning();
-    });
+    await act(async () =>
+      resetStoreWithData({
+        ...useStore.getState().data,
+        resources: useStore.getState().data.resources.filter((resource) => resource.id !== src.id),
+      }),
+    );
     act(() => {
       document.dispatchEvent(
         new MouseEvent('pointermove', {

@@ -5,8 +5,8 @@ description: Sign in with a password, accept an invitation, wait for approval an
 
 # Sign-in and access
 
-Everyone signs in with an email address and password. The in-memory demo does not need a real
-sign-in; every persisted server requires a signed-in, approved company member. CapacityLens has no
+Everyone signs in with an email address and password. The disposable demo prints its development sign-in in the terminal. Every server requires a signed-in,
+approved company member. CapacityLens has no
 Google, Microsoft or other company sign-in.
 
 ## Join through an invitation

@@ -72,8 +72,7 @@ function renderAs({
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const auth: AuthContextValue = {
     authMode,
-    user: authMode === 'off' ? null : { id: 'bruce', email: 'bruce@wayne.test' },
-    canCreateAccount: false,
+    user: { id: 'bruce', email: 'bruce@wayne.test' },
     refreshAuth,
     signOut: async () => {},
   };

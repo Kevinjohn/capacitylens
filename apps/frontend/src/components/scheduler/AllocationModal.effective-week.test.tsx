@@ -1,6 +1,6 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { AllocationBar } from './AllocationBar';
@@ -9,7 +9,7 @@ import {
   chooseOption,
   GEOM,
   indexAtClientX,
-  renderWithTooltip,
+  renderWithOwnerAndTooltip,
 } from './__tests__/schedulerTestKit';
 import { settlePlanning } from './__tests__/allocationBarInteractionTestKit';
 import {
@@ -18,6 +18,7 @@ import {
   resetAllocationModalStore,
   person,
   enableDays,
+  renderAsOwner,
 } from './__tests__/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
@@ -59,12 +60,17 @@ describe('#257: modal and gesture effective-week agreement', () => {
       }),
     );
     const user = userEvent.setup();
-    const modal = render(
+    const modal = renderAsOwner(
       <AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />,
     );
 
     fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '5' } });
     await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(
+        useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      ).toMatchObject({ endDate: '2026-06-08', hoursPerDay: 6.4 }),
+    );
     const modalAllocation = required(
       useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
       'Expected the modal-resized allocation.',
@@ -78,7 +84,7 @@ describe('#257: modal and gesture effective-week agreement', () => {
       useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
       'Expected the reset allocation.',
     );
-    renderWithTooltip(
+    renderWithOwnerAndTooltip(
       <AllocationBar
         bar={{
           allocation: resetAllocation,
@@ -127,7 +133,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await user.type(screen.getByLabelText('Note'), 'Still editable');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -151,7 +157,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-05', endDate: '2026-06-05' }}
@@ -187,7 +193,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await user.click(screen.getByRole('button', { name: 'Duplicate' }));
 
@@ -215,7 +221,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
       }),
     );
     const user = userEvent.setup();
-    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Duplicate' }));
 
@@ -241,7 +247,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
       }),
     );
     const user = userEvent.setup();
-    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Duplicate' }));
 

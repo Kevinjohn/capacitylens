@@ -4,7 +4,7 @@ As a company member, I want to collapse or expand the desktop sidebar so that I 
 
 **Status:** Current
 
-**Access:** Owner, Admin, Editor, Viewer; also available in demo mode.
+**Access:** Owner, Admin, Editor, Viewer.
 
 **Entry:** Sidebar header button (accessible name **Collapse menu** or **Expand menu**); ⌘B or Ctrl+B.
 

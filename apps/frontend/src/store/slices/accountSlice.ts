@@ -1,87 +1,27 @@
 import type { StateCreator } from 'zustand';
-import { isPresetColor } from '@capacitylens/shared/lib/color';
-import { newId } from '@capacitylens/shared/lib/id';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { m } from '@/i18n';
-import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import type { Account, ID } from '@capacitylens/shared/types/entities';
-import { buildClearedSession, resetSchedulerView, stamp } from '@/store/storeInternal';
-import type { StoreInternals } from '@/store/storeInternal';
+import type { ID } from '@capacitylens/shared/types/entities';
+import { buildClearedSession, resetSchedulerView } from '@/store/storeConstants';
 import { readCurrentWeekAnchor } from './schedulerSlice';
-import type { Draft, StoreState } from '@/store/types';
+import type { StoreState } from '@/store/types';
 
 type AccountSlice = Pick<
   StoreState,
   | 'data'
   | 'activeAccountId'
-  | 'previousAccountId'
   | 'accountSummaries'
   | 'accountSummariesComplete'
   | 'accountSummariesAmbiguous'
   | 'accountSummariesRequestId'
-  | 'addAccount'
   | 'setActiveAccount'
   | 'beginAccountSummariesRequest'
   | 'setAccountSummaries'
 >;
 
 type AccountSliceCreator = StateCreator<StoreState, [], [], AccountSlice>;
-type AccountSliceInternals = Pick<
-  StoreInternals,
-  'createGuardedAction' | 'createGuardedValueAction' | 'assertWorkingDays' | 'snapColor' | 'mutate'
->;
 type AccountSliceSet = Parameters<AccountSliceCreator>[0];
 type AccountSliceGet = Parameters<AccountSliceCreator>[1];
-
-interface AccountActionContext {
-  internals: AccountSliceInternals;
-  set: AccountSliceSet;
-  get: AccountSliceGet;
-}
-
-function createAddAccountAction({
-  internals,
-  set,
-}: AccountActionContext): StoreState['addAccount'] {
-  const { createGuardedValueAction, assertWorkingDays, snapColor, mutate } = internals;
-  return createGuardedValueAction((input: Draft<Account>): Account | null => {
-    if (!isPresetColor(input.color)) {
-      throw new Error('A colour must be selected from the available swatches.');
-    }
-    const timestamps = stamp();
-    const weekStartsOn = input.weekStartsOn ?? 1;
-    if (input.workingDays != null) assertWorkingDays(input.workingDays);
-    const entity: Account = {
-      ...NULLABLE_FIELDS.accounts,
-      schedulingMode: 'days',
-      disciplinesEnabled: false,
-      placeholdersEnabled: false,
-      externalEnabled: false,
-      inlineActivityCreateEnabled: false,
-      ...input,
-      workingDays: normalizeAccountWorkingDays(input.workingDays, weekStartsOn),
-      color: snapColor({ color: input.color }),
-      id: newId(),
-      ...timestamps,
-    };
-    const internal = buildInternalClient(entity.id, timestamps.createdAt);
-    mutate((data) => ({
-      ...data,
-      accounts: [...data.accounts, entity],
-      clients: [...data.clients, internal],
-    }));
-    set((state) => ({
-      accountSummariesRequestId: state.accountSummariesRequestId + 1,
-      accountSummariesComplete: true,
-      accountSummaries: state.accountSummaries.some((account) => account.id === entity.id)
-        ? state.accountSummaries
-        : [...state.accountSummaries, { id: entity.id, name: entity.name, role: 'owner' as const }],
-    }));
-    return entity;
-  }, null);
-}
 
 function resolveAccountSelection(
   rawId: ID | null,
@@ -95,7 +35,7 @@ function resolveAccountSelection(
     return { id: rawId, unknown: false };
   }
   console.warn(
-    `setActiveAccount: no company with id ${JSON.stringify(rawId)} — returning to the picker`,
+    `setActiveAccount: no company with id ${JSON.stringify(rawId)} — clearing selection`,
   );
   return { id: null, unknown: true };
 }
@@ -114,10 +54,10 @@ function buildAccountNoticeTransition({
   return switching ? { notice: null, ...buildClearedSession() } : {};
 }
 
-function createSetActiveAccountAction({
-  set,
-  get,
-}: AccountActionContext): StoreState['setActiveAccount'] {
+function createSetActiveAccountAction(
+  set: AccountSliceSet,
+  get: AccountSliceGet,
+): StoreState['setActiveAccount'] {
   return (rawId) => {
     const { id, unknown } = resolveAccountSelection(rawId, get);
     set((state) => {
@@ -132,9 +72,6 @@ function createSetActiveAccountAction({
         activeRole: switching && state.activeRole !== null ? 'viewer' : state.activeRole,
         activeRoleStatus:
           switching && state.activeRole !== null ? 'pending' : state.activeRoleStatus,
-        previousAccountId: id === null ? state.activeAccountId : null,
-        past: [],
-        future: [],
         ...buildAccountNoticeTransition({ switching: switching, unknown: unknown }),
         ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(state.data, id)),
       };
@@ -142,10 +79,10 @@ function createSetActiveAccountAction({
   };
 }
 
-function createSetAccountSummariesAction({
-  set,
-  get,
-}: AccountActionContext): StoreState['setAccountSummaries'] {
+function createSetAccountSummariesAction(
+  set: AccountSliceSet,
+  get: AccountSliceGet,
+): StoreState['setAccountSummaries'] {
   return ({ list, requestId, complete = true, ambiguous = false }) => {
     if (requestId !== undefined) {
       if (requestId !== get().accountSummariesRequestId) return false;
@@ -166,30 +103,25 @@ function createSetAccountSummariesAction({
   };
 }
 
-/** Create account actions for the store using shared store internals. */
-export function createAccountSlice(
-  internals: AccountSliceInternals,
-): StateCreator<StoreState, [], [], AccountSlice> {
+/** Create account selection and directory actions for the store. */
+export function createAccountSlice(): StateCreator<StoreState, [], [], AccountSlice> {
   return (set, get) => {
-    const context = { internals, set, get };
     return {
       data: emptyAppData(),
       activeAccountId: null,
-      previousAccountId: null,
       accountSummaries: [],
       accountSummariesComplete: false,
       accountSummariesAmbiguous: false,
       accountSummariesRequestId: 0,
-      addAccount: createAddAccountAction(context),
-      setActiveAccount: createSetActiveAccountAction(context),
+      setActiveAccount: createSetActiveAccountAction(set, get),
 
-      // Plain transient state (not mutate): never on the undo/redo stack or in AppData/export.
+      // Directory state is transient and never part of AppData/export.
       beginAccountSummariesRequest: () => {
         const requestId = get().accountSummariesRequestId + 1;
         set({ accountSummariesRequestId: requestId });
         return requestId;
       },
-      setAccountSummaries: createSetAccountSummariesAction(context),
+      setAccountSummaries: createSetAccountSummariesAction(set, get),
     };
   };
 }

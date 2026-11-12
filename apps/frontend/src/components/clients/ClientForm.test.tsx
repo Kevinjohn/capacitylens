@@ -1,12 +1,16 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render as renderTestingLibrary, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClientForm } from './ClientForm';
 import { useStore } from '@/store/useStore';
 import { resolveColorName } from '@/lib/palette';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, resetStoreWithAccount } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -198,7 +202,7 @@ it('hides owner-only privacy controls and locks the redacted name for a non-owne
     useStore.getState().addClient({ name: 'Real client', color: '#ff0000' }),
   );
   const client = { ...created, name: '"Nightwing"', isPrivate: true };
-  useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
+  loadPlanningData({ ...useStore.getState().data, clients: [client] });
   render(
     <PermissionContext.Provider value={{ role: 'editor' }}>
       <ClientForm client={client} onClose={vi.fn()} />
@@ -234,7 +238,7 @@ it('updates the client name in the store and calls onClose', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
   const client = await requireCreated(
-    useStore.getState().addClient({ name: 'Old Name', color: '#ff0000' }),
+    useStore.getState().addClient({ name: 'Old Name', color: '#2d75da' }),
   );
   render(<ClientForm client={client} onClose={onClose} />);
 
@@ -309,7 +313,7 @@ it('keeps the form open when the client vanished during editing', async () => {
   render(<ClientForm client={client} onClose={onClose} />);
 
   const data = useStore.getState().data;
-  useStore.getState().replaceAll({
+  loadPlanningData({
     ...data,
     clients: data.clients.filter((candidate) => candidate.id !== client.id),
   });

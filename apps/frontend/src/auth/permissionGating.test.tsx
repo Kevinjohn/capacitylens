@@ -1,11 +1,14 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render as rtlRender, screen } from '@testing-library/react';
 import type { RenderOptions } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { PermissionContext } from './permissionContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { PrivateNameFields } from '@/components/common/PrivateNameFields';
+import { usePrivateNameFields } from '@/components/common/usePrivateNameFields';
+import { TimeOffForm } from '@/components/timeoff/TimeOffForm';
+import { m } from '@/i18n';
 
 // Isolated AllocationBar renders need a tooltip provider.
 const render = (ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) =>
@@ -16,7 +19,8 @@ import { buildColumnGeometry } from '@/components/scheduler/columnGeometry';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, makeResourceDraft, requireValue } from '@/test/fixtures';
+import { requireCreated } from '@/test/requireCreated';
+import { loadPlanningData, resetStoreWithAccount, makeResourceDraft } from '@/test/fixtures';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import type { Role } from '@capacitylens/shared/domain/access';
@@ -26,8 +30,13 @@ function withRole(role: Role | null, ui: ReactNode) {
   return render(<PermissionContext.Provider value={{ role }}>{ui}</PermissionContext.Provider>);
 }
 
+function PrivateNameFieldsHarness() {
+  const fields = usePrivateNameFields({ isPrivate: true, codeName: 'Cipher' }, vi.fn());
+  return <PrivateNameFields fields={fields} errorField={null} errorId="private-name-error" />;
+}
+
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData());
+  loadPlanningData(emptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setActiveRole(null);
   useStore.getState().setNotice(null);
@@ -46,14 +55,14 @@ describe('useCanEdit gates the ListPage create affordance', () => {
     expect(screen.getByRole('button', { name: 'Add client' })).toBeInTheDocument();
   });
 
-  it('role null keeps the "Add" button outside masquerade', () => {
+  it('role null hides the "Add" button', () => {
     withRole(null, <ListPage title="Clients" addLabel="Add client" onAdd={onAdd} />);
-    expect(screen.getByRole('button', { name: 'Add client' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add client' })).not.toBeInTheDocument();
   });
 
-  it('REGRESSION GUARD: NO provider at all keeps the "Add" button (default-editable)', () => {
+  it('fails closed when the permission provider is missing', () => {
     render(<ListPage title="Clients" addLabel="Add client" onAdd={onAdd} />);
-    expect(screen.getByRole('button', { name: 'Add client' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add client' })).not.toBeInTheDocument();
   });
 });
 
@@ -61,11 +70,6 @@ describe('useCanEdit gates direct AddButton create affordances', () => {
   it('hides a direct create action from a viewer by default', () => {
     withRole('viewer', <AddButton label="Add placeholder" onClick={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Add placeholder' })).not.toBeInTheDocument();
-  });
-
-  it('supports a separately-authorized create action through an explicit opt-out', () => {
-    withRole('viewer', <AddButton label="New company" onClick={vi.fn()} requiresEdit={false} />);
-    expect(screen.getByRole('button', { name: 'New company' })).toBeInTheDocument();
   });
 });
 
@@ -119,12 +123,42 @@ describe('useCanEdit gates the AllocationBar resize grips', () => {
     expect(screen.getByTestId('allocation-bar')).toHaveAttribute('role', 'button');
   });
 
-  it('role null / no provider keeps the grips outside masquerade', () => {
+  it('role null / no provider hides resize grips', () => {
     render(
       <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
     );
-    expect(screen.getByTestId('resize-start')).toBeInTheDocument();
-    expect(screen.getByTestId('resize-end')).toBeInTheDocument();
+    expect(screen.queryByTestId('resize-start')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('resize-end')).not.toBeInTheDocument();
+  });
+});
+
+describe('private name fields require a resolved role', () => {
+  it('hides private name controls and protects an existing name when role is null', () => {
+    withRole(null, <PrivateNameFieldsHarness />);
+
+    expect(
+      screen.queryByRole('switch', { name: m.form_private_toggle_label() }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: m.form_private_code_name_label() }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(m.form_private_owner_only_hint())).toBeInTheDocument();
+  });
+
+  it('hides TimeOff notes when the permission provider has no resolved role', async () => {
+    await resetStoreWithAccount();
+    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
+
+    render(
+      <PermissionContext.Provider value={{ role: null }}>
+        <TimeOffForm
+          defaults={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-01' }}
+          onClose={vi.fn()}
+        />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
   });
 });
 
@@ -139,7 +173,7 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
     expect(useStore.getState().data.resources).toHaveLength(0);
     expect(useStore.getState().notice?.message).toMatch(/read-only/i);
 
-    useStore.getState().setActiveRole(null);
+    useStore.getState().setActiveRole('owner');
     const seeded = await requireCreated(
       useStore.getState().addResource(makeResourceDraft({ name: 'Seeded' })),
     );
@@ -149,18 +183,10 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
     await useStore.getState().updateResource(seeded.id, { name: 'Renamed' });
     expect(useStore.getState().data.resources[0]?.name).toBe('Seeded');
 
-    // Lifecycle mutations must apply the same Viewer guard as direct entity updates.
-    await useStore.getState().archiveEntity('resources', seeded.id);
-    expect(useStore.getState().data.resources).toHaveLength(1);
-    expect(requireValue(useStore.getState().data.resources[0], 'viewer resource')).toHaveProperty(
-      'archivedAt',
-      null,
-    );
-
     expect(useStore.getState().data.resources).toHaveLength(1);
   });
 
-  it.each([null, 'editor', 'owner', 'admin'] as const)(
+  it.each(['editor', 'owner', 'admin'] as const)(
     'role %s permits the mutation outside masquerade',
     async (role) => {
       useStore.getState().setActiveRole(role);
@@ -184,13 +210,4 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
       expect(useStore.getState().notice?.message).not.toMatch(/you don't have edit access/i);
     },
   );
-
-  it('importData no-ops for a viewer (zero-effect summary, slice untouched)', async () => {
-    useStore.getState().setActiveRole(null);
-    await useStore.getState().addResource(makeResourceDraft({ name: 'Existing' }));
-    useStore.getState().setActiveRole('viewer');
-    const summary = useStore.getState().importData({ ...emptyAppData(), resources: [] });
-    expect(summary).toEqual({ imported: 0, skipped: 0 });
-    expect(useStore.getState().data.resources).toHaveLength(1);
-  });
 });

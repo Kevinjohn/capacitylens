@@ -6,13 +6,8 @@ import { m } from '@/i18n';
 import { resolveResetPasswordFailureMessage } from './resetPasswordFailure';
 import { ResetPassword } from './ResetPassword';
 
-const apiConfigMock = vi.hoisted(() => ({
-  isServerConfigured: vi.fn(() => true),
-}));
-
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
-  isServerConfigured: apiConfigMock.isServerConfigured,
 }));
 
 function renderForm(path = '/reset-password/single-use-token', route = '/reset-password/:token') {
@@ -34,7 +29,6 @@ function submitPasswords(password: string, confirmation = password) {
 }
 
 afterEach(() => {
-  apiConfigMock.isServerConfigured.mockReturnValue(true);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -171,18 +165,6 @@ describe('ResetPassword — terminal request outcomes', () => {
 
     expect(await screen.findByTestId('reset-success')).toHaveTextContent(m.reset_unknown_outcome());
     expect(screen.queryByTestId('reset-submit')).not.toBeInTheDocument();
-  });
-
-  it('explains that password reset is unavailable in demo mode without rendering a form', () => {
-    apiConfigMock.isServerConfigured.mockReturnValue(false);
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-
-    renderForm();
-
-    expect(screen.getByText(m.reset_local_mode({ app: 'CapacityLens' }))).toBeInTheDocument();
-    expect(screen.queryByTestId('reset-submit')).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it.each([408, 503])(

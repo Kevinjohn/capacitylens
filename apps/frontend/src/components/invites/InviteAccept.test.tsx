@@ -7,7 +7,6 @@ import { InviteAccept } from './InviteAccept';
 
 vi.mock('@/data/apiConfig', () => ({
   API_BASE: 'http://api.test',
-  isServerConfigured: () => true,
 }));
 
 const preview = {

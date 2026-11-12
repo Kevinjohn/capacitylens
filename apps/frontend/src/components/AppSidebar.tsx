@@ -3,9 +3,6 @@ import { matchPath, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/authContext';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { resolveAccessLabel } from '@/lib/accessCopy';
-import { resolveAccessExperience } from '@/lib/resolveAccessExperience';
-import { FAKE_USER } from '@/lib/fakeAuth';
-import demoAvatarUrl from '@/assets/avatar-demo.svg';
 import { DEFAULT_COLORS } from '@/lib/palette';
 import { Avatar } from './common/ui';
 import { ACCOUNT_LINK, HELP_LINK } from '@/lib/navLinks';
@@ -39,9 +36,7 @@ interface AppSidebarProps {
   activeAccount: { name: string } | undefined;
 
   adminLinks: NavigationLinkDefinition[];
-  demoAuthActive: boolean;
   navLinks: NavigationLinkDefinition[];
-  onSwitchAccount: () => void;
   onShowOrientation: (trigger: HTMLButtonElement, mobile: boolean) => void;
   open: boolean;
 }
@@ -50,9 +45,7 @@ interface AppSidebarProps {
 export function AppSidebar({
   activeAccount,
   adminLinks,
-  demoAuthActive,
   navLinks,
-  onSwitchAccount,
   onShowOrientation,
   open,
 }: AppSidebarProps) {
@@ -91,8 +84,6 @@ export function AppSidebar({
       />
       <SidebarAccountFooter
         activeAccount={activeAccount}
-        demoAuthActive={demoAuthActive}
-        onSwitchAccount={onSwitchAccount}
         onNavigate={closeOnMobile}
         pathname={pathname}
       />
@@ -188,14 +179,10 @@ function SidebarNavigation({
 
 function SidebarAccountFooter({
   activeAccount,
-  demoAuthActive,
-  onSwitchAccount,
   onNavigate,
   pathname,
 }: {
   activeAccount: AppSidebarProps['activeAccount'];
-  demoAuthActive: boolean;
-  onSwitchAccount: () => void;
   onNavigate: () => void;
   pathname: string;
 }) {
@@ -211,24 +198,11 @@ function SidebarAccountFooter({
             </div>
             <ActiveRoleBadge />
           </div>
-          {demoAuthActive && (
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
-                  {m.nav_switch_company()}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          )}
         </div>
       )}
       <SidebarMenu>
         <HelpMenuItem onNavigate={onNavigate} pathname={pathname} />
-        <SessionMenuItem
-          demoAuthActive={demoAuthActive}
-          onNavigate={onNavigate}
-          pathname={pathname}
-        />
+        <SessionMenuItem onNavigate={onNavigate} pathname={pathname} />
       </SidebarMenu>
     </SidebarFooter>
   );
@@ -310,23 +284,11 @@ function ThemeToggleMenuItem() {
   );
 }
 
-function SessionMenuItem({
-  demoAuthActive,
-  onNavigate,
-  pathname,
-}: {
-  demoAuthActive: boolean;
-  onNavigate: () => void;
-  pathname: string;
-}) {
-  const { authMode, user } = useAuth();
+function SessionMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pathname: string }) {
+  const { user } = useAuth();
 
-  let name: string = FAKE_USER.name;
-  let imageUrl: string | undefined = demoAvatarUrl;
-  if (!demoAuthActive) {
-    name = user?.name ?? user?.email ?? m.settings_signed_in_unknown();
-    imageUrl = user?.image ?? undefined;
-  }
+  const name = user?.name ?? user?.email ?? m.settings_signed_in_unknown();
+  const imageUrl = user?.image ?? undefined;
 
   return (
     <SidebarMenuItem>
@@ -339,9 +301,7 @@ function SessionMenuItem({
         <NavLink
           to={ACCOUNT_LINK.to}
           onClick={onNavigate}
-          {...(demoAuthActive || authMode !== 'off'
-            ? { title: m.nav_signed_in_as({ who: name }) }
-            : {})}
+          title={m.nav_signed_in_as({ who: name })}
         >
           <Avatar
             name={name}
@@ -359,11 +319,8 @@ function SessionMenuItem({
 function ActiveRoleBadge() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const accessExperience = resolveAccessExperience();
-  const resolvedRole =
-    accessExperience === 'authenticated' && permissionStatus === 'resolved' ? role : null;
+  const resolvedRole = permissionStatus === 'resolved' ? role : null;
   const label = resolveAccessLabel({
-    experience: accessExperience,
     permissionStatus,
     role: resolvedRole,
   });

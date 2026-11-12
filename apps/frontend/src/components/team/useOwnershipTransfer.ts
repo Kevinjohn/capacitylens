@@ -191,7 +191,7 @@ export function useOwnershipTransfer(
     masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
   };
   const available =
-    authMode !== 'off' &&
+    authMode !== null &&
     user !== null &&
     role === 'owner' &&
     permissionStatus === 'resolved' &&

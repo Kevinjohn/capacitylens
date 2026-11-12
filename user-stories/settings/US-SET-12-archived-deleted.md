@@ -35,13 +35,11 @@ Archive, restore and individual anonymisation paths are shown. The separate [who
 flowchart TD
 archive["useLifecycleActions.run: archive or unarchive"] --> command["Build resource or catalogue lifecycle PlanningCommand"]
   command --> send["sendPlanningCommand: createStorePlanningTransport selects transport"]
-  send -->|server| server["PlanningController → mutatePlanning → transitionLifecycle"]
-  send -->|demo| demo["createVolatilePlanningTransport.execute applies intent in memory"]
+  send --> server["PlanningController → mutatePlanning → transitionLifecycle"]
   server --> view["Planning cache reconciles; active and archived views refresh"]
-  demo --> view
   individual["useLifecycleActions.run: anonymise"] --> configured{"isServerConfigured?"}
   configured -->|yes| named["dispatchServerLifecycle: resource anonymise endpoint and fresh read"]
   configured -->|no| local["dispatchLocalLifecycle: anonymiseResource in page memory"]
 ```
 
-**Code references:** [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [lifecycleSlice.ts](../../apps/frontend/src/store/slices/lifecycleSlice.ts), [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts), [anonymise_controller.ts](../../apps/backend/app/controllers/anonymise_controller.ts), [anonymise.ts](../../apps/backend/app/services/anonymise.ts)
+**Code references:** [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts), [anonymise_controller.ts](../../apps/backend/app/controllers/anonymise_controller.ts), [anonymise.ts](../../apps/backend/app/services/anonymise.ts)

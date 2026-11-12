@@ -119,13 +119,13 @@ function ExampleDataSection() {
 }
 
 /** Exposes export, import, and local data controls allowed by the current mode. */
-export function SettingsDataSection({ serverMode }: { serverMode: boolean }) {
+export function SettingsDataSection() {
   const canAddExampleData = useCan('members:manage');
   const companyIsEmpty = useCompanyIsEmpty();
   return (
     <>
-      {serverMode && canAddExampleData && companyIsEmpty && <ExampleDataSection />}
-      <CompanyAnonymiseSection serverMode={serverMode} />
+      {canAddExampleData && companyIsEmpty && <ExampleDataSection />}
+      <CompanyAnonymiseSection />
     </>
   );
 }

@@ -19,7 +19,7 @@ const expectedAnchors = [
   '[data-testid="scheduler-toolbar"]',
 ];
 const navigate = vi.fn();
-const launchTour = () => startTour({ role: 'owner', navigate, serverMode: true });
+const launchTour = () => startTour({ role: 'owner', navigate });
 function getDriverConfig(): Config {
   const config = driverMock.mock.calls[0]?.[0];
   if (!config) throw new Error('driver mock was not called with a config');
@@ -149,7 +149,7 @@ function registerLifecycleTests() {
   it('shares one tour across launchers during loading and allows a new tour after teardown', async () => {
     document.body.classList.add('driver-active');
     const first = launchTour();
-    const second = startTour({ role: 'viewer', navigate, serverMode: true });
+    const second = startTour({ role: 'viewer', navigate });
     expect(second).toBe(first);
     await vi.waitFor(() => expect(driveSpy).toHaveBeenCalledOnce());
     expect(driverMock).toHaveBeenCalledOnce();
@@ -157,7 +157,7 @@ function registerLifecycleTests() {
 
     document.body.classList.remove('driver-active');
     await Promise.all([first, second]);
-    await startTour({ role: 'viewer', navigate, serverMode: true });
+    await startTour({ role: 'viewer', navigate });
     expect(driverMock).toHaveBeenCalledTimes(2);
     expect(getDriverConfig().steps).toHaveLength(8);
     expect(driverMock.mock.calls[1]?.[0]?.steps).toHaveLength(2);
@@ -206,12 +206,12 @@ function registerLifecycleTests() {
 
   it('navigates to the schedule before starting when launched off-page', async () => {
     window.history.replaceState({}, '', '/settings');
-    await startTour({ role: 'editor', navigate, serverMode: true });
+    await startTour({ role: 'editor', navigate });
     expect(navigate).toHaveBeenCalledWith('/');
   });
 
   it('launches only the two reading stops for a Viewer', async () => {
-    await startTour({ role: 'viewer', navigate, serverMode: true });
+    await startTour({ role: 'viewer', navigate });
     expect(getDriverConfig().steps?.map((step) => step.element)).toEqual([
       '[data-testid="scheduler-grid"]',
       '[data-testid="scheduler-toolbar"]',

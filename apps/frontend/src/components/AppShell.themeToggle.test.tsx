@@ -3,23 +3,17 @@ import { act, fireEvent, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
-import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { loadPlanningData, makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { stubMatchMedia } from '@/test/stubMatchMedia';
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
-
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: '',
-  isDemoMode: () => true,
-  isServerConfigured: () => false,
-}));
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 beforeEach(() => {
-  localStorage.setItem('capacitylens/productOrientation/v1/demo/acct-test', 'dismissed');
-  useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
+  localStorage.setItem('capacitylens/productOrientation/v1/local/acct-test', 'dismissed');
+  loadPlanningData(makeAppData({ accounts: [makeAccount()] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().setHydrated(true);
 });

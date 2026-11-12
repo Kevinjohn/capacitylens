@@ -3,6 +3,7 @@ import type { RenderOptions } from '@testing-library/react';
 import type userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { OwnerPermissions } from '@/test/ownerPermissions';
 import { buildColumnGeometry } from '@/components/scheduler/columnGeometry';
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import type { AppData } from '@capacitylens/shared/types/entities';
@@ -20,6 +21,19 @@ import {
 /** Provides the tooltip ancestor required by isolated bars; the full scheduler supplies its own shared provider. */
 export function renderWithTooltip(ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) {
   return rtlRender(ui, { wrapper: TooltipProvider, ...options });
+}
+
+/** Provides resolved Owner authority and the tooltip ancestor required by ordinary isolated bars. */
+export function renderWithOwnerAndTooltip(ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) {
+  function OwnerPermissionsAndTooltip({ children }: { children: ReactNode }) {
+    return (
+      <OwnerPermissions>
+        <TooltipProvider>{children}</TooltipProvider>
+      </OwnerPermissions>
+    );
+  }
+
+  return rtlRender(ui, { wrapper: OwnerPermissionsAndTooltip, ...options });
 }
 
 /** Uniform June geometry with 48-pixel day columns and weekend minimisation disabled. */

@@ -65,13 +65,12 @@ describe('SPA content security policy', () => {
     expect(nginx).toContain('Cache-Control "public, max-age=31536000, immutable"');
   });
 
-  it('renders a static-only demo config without a local API or certificate dependency', () => {
+  it('renders a remote client config without a local API or certificate dependency', () => {
     const rendered = renderClientNginx(clientNginxTemplate, {
-      VITE_CAPACITYLENS_DEMO: '1',
-      VITE_CAPACITYLENS_API: 'https://ignored.example.test',
+      VITE_CAPACITYLENS_API: 'https://api.example.test',
     });
 
-    expect(rendered).toContain('set $capacitylens_connect_src "\'self\'"');
+    expect(rendered).toContain('set $capacitylens_connect_src "\'self\' https://api.example.test"');
     expect(rendered).toContain('location /api/');
     expect(rendered).not.toContain('__CAPACITYLENS_CONNECT_SOURCES__');
     expect(rendered).not.toContain('proxy_pass');
@@ -81,13 +80,12 @@ describe('SPA content security policy', () => {
 
   it('allows only the configured remote API origin in a client-only build', () => {
     const rendered = renderClientNginx(clientNginxTemplate, {
-      VITE_CAPACITYLENS_DEMO: '',
       VITE_CAPACITYLENS_API: '  https://API.EXAMPLE.test:443///  ',
     });
 
     expect(rendered).toContain('set $capacitylens_connect_src "\'self\' https://api.example.test"');
     expect(() => renderClientNginx(clientNginxTemplate, {})).toThrow(
-      /requires VITE_CAPACITYLENS_DEMO=1/,
+      /requires a remote VITE_CAPACITYLENS_API origin/,
     );
     expect(() =>
       renderClientNginx(clientNginxTemplate, {

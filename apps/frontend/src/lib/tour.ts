@@ -62,7 +62,6 @@ function buildDriverSteps(steps: ReturnType<typeof buildRoleTour>) {
 interface TourInput {
   role: Role | null;
   navigate: (path: string) => void;
-  serverMode: boolean;
 }
 
 let currentTour: Promise<void> | null = null;
@@ -75,7 +74,7 @@ export function startTour(input: TourInput): Promise<void> {
   return currentTour;
 }
 
-async function runTour({ role, navigate, serverMode }: TourInput): Promise<void> {
+async function runTour({ role, navigate }: TourInput): Promise<void> {
   if (window.location.pathname !== '/') navigate('/');
   const { driver } = await import('driver.js');
   await new Promise<void>((resolve, reject) => {
@@ -99,7 +98,7 @@ async function runTour({ role, navigate, serverMode }: TourInput): Promise<void>
         disableActiveInteraction: true,
         // Defining onDestroyStarted transfers cleanup ownership to the callback in driver.js.
         onDestroyStarted: (_element, _step, { driver: activeTour }) => activeTour.destroy(),
-        steps: buildDriverSteps(buildRoleTour({ role, serverMode })),
+        steps: buildDriverSteps(buildRoleTour({ role })),
       });
       // driver.js 1.7 does not call onDestroyed when teardown lands during some transition states.
       // The body class is its authoritative lifecycle marker, so observe that actual state instead

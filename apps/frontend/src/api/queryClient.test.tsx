@@ -104,7 +104,6 @@ describe('QueryCacheLifecycle', () => {
     const authValue = (id: string | null) => ({
       authMode: 'password-only' as const,
       user: id ? { id } : null,
-      canCreateAccount: true,
       refreshAuth: async () => {},
       signOut: async () => {},
     });

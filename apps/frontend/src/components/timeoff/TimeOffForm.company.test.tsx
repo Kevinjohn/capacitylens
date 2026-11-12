@@ -1,9 +1,13 @@
 import { requireCreated } from '@/test/requireCreated';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render as renderTestingLibrary, screen } from '@testing-library/react';
 import { TimeOffForm } from './TimeOffForm';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount, setPlaceholdersEnabled, WORKDAYS } from '@/test/fixtures';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
+  renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 const personDraft = {
   kind: 'person' as const,

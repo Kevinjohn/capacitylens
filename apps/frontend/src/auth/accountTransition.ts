@@ -2,7 +2,6 @@ import type {
   ClientMasqueradeEndReason,
   MasqueradeStatus,
 } from '@capacitylens/shared/domain/masquerade';
-import { isServerConfigured } from '@/data/apiConfig';
 import { useStore } from '@/store/useStore';
 import { masqueradeApi } from './masqueradeApi';
 
@@ -14,13 +13,6 @@ async function loadMasqueradeController() {
 /** The authenticated account-switch boundary. It ends any current read projection before the
  * persistence subscriber installs another account's slice. */
 export async function transitionAccount(accountId: string | null): Promise<boolean> {
-  if (!isServerConfigured()) {
-    useStore.getState().setActiveAccount(accountId);
-    return true;
-  }
-  // Load the controller only when an authenticated transition actually runs. This keeps demo and
-  // isolated component tests from initializing the server-persistence owner merely by importing a
-  // picker component, and avoids a cycle through the account-summary refresh helper.
   const controller = await loadMasqueradeController();
   return controller.transitionAccount(accountId);
 }

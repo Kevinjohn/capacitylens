@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render as rtlRender, screen, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import userEvent from '@testing-library/user-event';
 import { SettingsView } from './SettingsView';
 import { AuthContext } from '@/auth/authContext';
@@ -7,6 +8,9 @@ import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { resolveDateStyle } from '@/store/selectors';
+import { OwnerPermissions } from '@/test/ownerPermissions';
+
+const render = (ui: ReactNode) => rtlRender(<OwnerPermissions>{ui}</OwnerPermissions>);
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 
@@ -359,7 +363,6 @@ it('does not duplicate personal identity or Sign out when the server reports an 
       value={{
         authMode: 'password-only',
         user: { id: 'u1', email: 'tester@capacitylens.dev' },
-        canCreateAccount: true,
         refreshAuth: async () => {},
         signOut,
       }}

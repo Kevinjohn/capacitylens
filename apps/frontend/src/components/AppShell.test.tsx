@@ -1,28 +1,33 @@
 import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { screen, act, fireEvent, waitFor, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { PlanningControllerError } from '@/data/planning/planningCacheController';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
-import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import type { AccountSummary } from '@/store/useStore';
+import { loadPlanningData, makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { stubMatchMedia } from '@/test/stubMatchMedia';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
-import * as accountTransition from '@/auth/accountTransition';
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
+import { AuthContext } from '@/auth/authContext';
+import { buildProductOrientationKey } from '@/lib/productOrientation';
+
+const authenticatedUser = {
+  authMode: 'password-only' as const,
+  user: { id: 'app-shell-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
+  refreshAuth: async () => {},
+  signOut: async () => {},
+};
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
-const runtimeFlags = vi.hoisted(() => ({ serverMode: false }));
+let accountDirectoryResponse: AccountSummary[] = [];
+let accountDirectoryPending = false;
 vi.mock('@/i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/i18n')>()),
   syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
-}));
-
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: '',
-  isDemoMode: () => !runtimeFlags.serverMode,
-  isServerConfigured: () => runtimeFlags.serverMode,
 }));
 
 afterEach(() => {
@@ -32,10 +37,35 @@ afterEach(() => {
 
 beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
-  runtimeFlags.serverMode = false;
+  accountDirectoryResponse = [{ id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' }];
+  accountDirectoryPending = false;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost');
+      if (url.pathname.replace(/\/$/, '') === '/api/accounts') {
+        if (accountDirectoryPending) return new Promise<Response>(() => {});
+        return Response.json(
+          accountDirectoryResponse.map(({ id, name, role, roleStatus }) => ({
+            id,
+            name,
+            role: roleStatus === 'unavailable' ? 'unknown-role' : role,
+          })),
+        );
+      }
+      if (url.pathname.includes('/getting-started')) return Response.json({ dismissed: true });
+      return Response.json({ active: false, contextToken: 'idle' });
+    }),
+  );
   // Seed an active account so these tests exercise the shell.
-  localStorage.setItem('capacitylens/productOrientation/v1/demo/acct-test', 'dismissed');
-  useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
+  localStorage.setItem(
+    buildProductOrientationKey(authenticatedUser.user.id, DEFAULT_ACCOUNT_ID),
+    'dismissed',
+  );
+  loadPlanningData(makeAppData({ accounts: [makeAccount()] }));
+  useStore.getState().setAccountSummaries({
+    list: [{ id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' }],
+  });
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().clearFilters();
   // Clear any leftover transient notice so a prior test's Sonner toast can't bleed in (the
@@ -51,7 +81,7 @@ function renderAppShell({
   initialEntries = ['/'],
   includeLocationProbe = false,
 }: RenderAppShellOptions = {}) {
-  return render(
+  return renderAuthenticated(
     <MemoryRouter initialEntries={initialEntries}>
       <AppShell />
       {includeLocationProbe && <LocationProbe />}
@@ -59,12 +89,8 @@ function renderAppShell({
   );
 }
 
-function mockNavigationType(type: NavigationTimingType) {
-  vi.spyOn(performance, 'getEntriesByType').mockImplementation((entryType) =>
-    entryType === 'navigation'
-      ? ([{ type } as PerformanceNavigationTiming] satisfies PerformanceEntry[])
-      : [],
-  );
+function renderAuthenticated(ui: ReactElement) {
+  return render(<AuthContext.Provider value={authenticatedUser}>{ui}</AuthContext.Provider>);
 }
 
 function LocationProbe() {
@@ -136,7 +162,7 @@ it('hides old actor route data during a member-view projection while keeping rec
     },
   });
 
-  render(
+  renderAuthenticated(
     <MemoryRouter initialEntries={['/']}>
       <Routes>
         <Route element={<AppShell />}>
@@ -214,7 +240,8 @@ it('waits for initial hydration before consuming a joined-account handoff', asyn
       useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID),
     ).toBe(true),
   );
-  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
+  expect(screen.getByRole('status')).toHaveTextContent('Loading');
 
   act(() => useStore.getState().setHydrated(true));
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
@@ -223,7 +250,8 @@ it('waits for initial hydration before consuming a joined-account handoff', asyn
 it('does not reactivate a consumed joined-account handoff after a later account-list refresh', async () => {
   const otherAccountId = 'acct-other';
   const accounts = [makeAccount(), makeAccount({ id: otherAccountId, name: 'Other Co' })];
-  useStore.getState().replaceAll(makeAppData({ accounts }));
+  accountDirectoryResponse = accounts.map(({ id, name }) => ({ id, name, role: 'owner' }));
+  loadPlanningData(makeAppData({ accounts }));
   useStore
     .getState()
     .setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: 'owner' })) });
@@ -267,55 +295,29 @@ it('does not apply a late joined-account handoff after an explicit company choic
   expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
 });
 
-it('keeps the company picker on first entry even when exactly one company is available', async () => {
-  mockNavigationType('navigate');
-  useStore.setState({ activeAccountId: null, previousAccountId: null });
-
-  renderAppShell({ initialEntries: ['/clients'], includeLocationProbe: true });
-
-  expect(await screen.findByRole('heading', { name: 'Choose a company' })).toBeInTheDocument();
-  expect(useStore.getState().activeAccountId).toBeNull();
-  expect(screen.getByTestId('location-probe')).toHaveTextContent('/clients');
-});
-
-it('reopens the sole valid company on reload without changing the requested route', async () => {
-  mockNavigationType('reload');
-  useStore.setState({ activeAccountId: null, previousAccountId: null });
-
-  renderAppShell({
-    initialEntries: ['/clients?view=archived#client-list'],
-    includeLocationProbe: true,
-  });
-
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
-  expect(screen.getByTestId('location-probe')).toHaveTextContent(
-    '/clients?view=archived#client-list',
-  );
-  expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
-});
-
-it('keeps the picker on a multi-company reload', async () => {
-  mockNavigationType('reload');
+it('shows an installation error when the account directory contains multiple memberships', async () => {
   const accounts = [makeAccount(), makeAccount({ id: 'acct-other', name: 'Other Co' })];
-  useStore.getState().replaceAll(makeAppData({ accounts }));
+  accountDirectoryResponse = accounts.map(({ id, name }) => ({ id, name, role: 'owner' }));
+  loadPlanningData(makeAppData({ accounts }));
   useStore.setState({
     activeAccountId: null,
-    previousAccountId: null,
     accountSummaries: accounts.map(({ id, name }) => ({ id, name, role: 'owner' as const })),
   });
 
-  renderAppShell({});
+  renderAppShell({ initialEntries: ['/account'] });
 
-  expect(await screen.findByRole('heading', { name: 'Choose a company' })).toBeInTheDocument();
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'This installation has more than one company. Contact your administrator to resolve it.',
+  );
+  expect(screen.queryByRole('button', { name: 'Other Co' })).not.toBeInTheDocument();
   expect(useStore.getState().activeAccountId).toBeNull();
 });
 
-it('keeps the picker when one valid company came from an incomplete directory', async () => {
-  mockNavigationType('reload');
-  useStore.getState().replaceAll(emptyAppData());
+it('loads until the directory is complete, then opens its sole company', async () => {
+  accountDirectoryPending = true;
+  loadPlanningData(emptyAppData());
   useStore.setState({
     activeAccountId: null,
-    previousAccountId: null,
     accountSummaries: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
     accountSummariesComplete: false,
   });
@@ -323,39 +325,6 @@ it('keeps the picker when one valid company came from an incomplete directory', 
   renderAppShell({});
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole('heading', { name: 'Set up your company' })).toBeInTheDocument();
-
-  act(() => {
-    void useStore.getState().setAccountSummaries({
-      list: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
-      complete: true,
-    });
-  });
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe('only-valid-row'));
-});
-
-it('opens the completed sole server company after an incomplete read, ignoring stale picker history', async () => {
-  runtimeFlags.serverMode = true;
-  mockNavigationType('navigate');
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => new Response('{}', { status: 503 })),
-  );
-  useStore.setState({
-    activeAccountId: null,
-    previousAccountId: 'stale-company-id',
-    accountSummaries: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
-    accountSummariesComplete: false,
-  });
-  const transition = vi
-    .spyOn(accountTransition, 'transitionAccount')
-    .mockImplementation(async (accountId) => {
-      useStore.getState().setActiveAccount(accountId);
-      return true;
-    });
-
-  renderAppShell({});
-  expect(useStore.getState().activeAccountId).toBeNull();
   expect(screen.getByRole('status')).toHaveTextContent('Loading');
 
   act(() => {
@@ -365,72 +334,20 @@ it('opens the completed sole server company after an incomplete read, ignoring s
     });
   });
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe('only-valid-row'));
-  expect(transition).toHaveBeenCalledWith('only-valid-row');
 });
 
-it('re-enters the sole server company after it is closed without a reload', async () => {
-  runtimeFlags.serverMode = true;
-  mockNavigationType('navigate');
-  const summary = { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' as const };
+it('waits when the sole membership role is unavailable', async () => {
+  accountDirectoryResponse = [
+    {
+      id: 'unavailable-account',
+      name: 'Unavailable Co',
+      role: 'viewer',
+      roleStatus: 'unavailable',
+    },
+  ];
+  loadPlanningData(emptyAppData());
   useStore.setState({
     activeAccountId: null,
-    previousAccountId: null,
-    accountSummaries: [summary],
-    accountSummariesComplete: true,
-  });
-  const transition = vi
-    .spyOn(accountTransition, 'transitionAccount')
-    .mockImplementation(async (accountId) => {
-      useStore.getState().setActiveAccount(accountId);
-      return true;
-    });
-
-  renderAppShell({});
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
-
-  act(() => {
-    useStore.getState().setActiveAccount(null);
-  });
-
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
-  expect(transition).toHaveBeenCalledTimes(2);
-});
-
-it('keeps the picker when the browser cannot classify the navigation', async () => {
-  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  vi.spyOn(performance, 'getEntriesByType').mockImplementation(() => {
-    throw new DOMException('Performance unavailable');
-  });
-  useStore.setState({ activeAccountId: null, previousAccountId: null });
-
-  renderAppShell({});
-
-  expect(await screen.findByRole('heading', { name: 'Choose a company' })).toBeInTheDocument();
-  expect(useStore.getState().activeAccountId).toBeNull();
-  expect(warn).toHaveBeenCalledWith(
-    expect.stringContaining('navigation type could not be read'),
-    expect.any(DOMException),
-  );
-});
-
-it('keeps an explicit Switch company action on the picker after a reload', async () => {
-  mockNavigationType('reload');
-  renderAppShell({});
-  expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
-
-  expect(await screen.findByRole('heading', { name: 'Choose a company' })).toBeInTheDocument();
-  expect(useStore.getState().activeAccountId).toBeNull();
-  expect(useStore.getState().previousAccountId).toBe(DEFAULT_ACCOUNT_ID);
-});
-
-it('does not mistake an unavailable sole membership for a valid reload destination', async () => {
-  mockNavigationType('reload');
-  useStore.getState().replaceAll(emptyAppData());
-  useStore.setState({
-    activeAccountId: null,
-    previousAccountId: null,
     accountSummaries: [
       {
         id: 'unavailable-account',
@@ -444,12 +361,11 @@ it('does not mistake an unavailable sole membership for a valid reload destinati
   renderAppShell({});
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole('heading', { name: 'Set up your company' })).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('Loading');
 });
 
 it('opens the sole server-selected company after a reload even when an invite handoff is present', async () => {
-  mockNavigationType('reload');
-  useStore.setState({ activeAccountId: null, previousAccountId: null });
+  useStore.setState({ activeAccountId: null });
 
   renderAppShell({ initialEntries: ['/clients?joinedAccount=not-yet-authorized'] });
 
@@ -457,27 +373,23 @@ it('opens the sole server-selected company after a reload even when an invite ha
   expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
 });
 
-it('does not reactivate a sole company after its loaded slice proves missing', async () => {
-  mockNavigationType('reload');
+it('keeps the server-selected company when its active slice is empty', async () => {
   const summary = { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' as const };
   useStore.setState({
     activeAccountId: null,
-    previousAccountId: null,
     accountSummaries: [summary],
   });
   renderAppShell({});
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
 
   act(() => {
-    useStore.getState().replaceAll(emptyAppData());
+    loadPlanningData(emptyAppData());
     useStore.getState().setAccountSummaries({ list: [summary] });
   });
 
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole('heading', { name: 'Set up your company' })).toBeInTheDocument();
-  expect(screen.getByText('Create your company to start planning.')).toBeInTheDocument();
-  expect(screen.queryByText(/Ask an admin for an invite/)).not.toBeInTheDocument();
-  expect(useStore.getState().notice?.message).toBe('That company no longer exists.');
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
+  expect(useStore.getState().notice).toBeNull();
 });
 
 it('guards navigation while a typed planning write is unacknowledged', () => {
@@ -549,7 +461,7 @@ function registerLoadingAccountLocaleTest(): void {
   it("preserves the last locale while a selected company's slice is still loading", async () => {
     const currentAccount = makeAccount({ language: 'en' });
     const destinationAccount = makeAccount({ id: 'acct-other', name: 'Other Co' });
-    useStore.getState().replaceAll(makeAppData({ accounts: [currentAccount] }));
+    loadPlanningData(makeAppData({ accounts: [currentAccount] }));
     renderAppShell({});
     await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith('en'));
     i18nMocks.syncLocaleFromAccount.mockClear();
@@ -616,93 +528,6 @@ function registerAccountNavigationStateTest(): void {
     expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account');
     expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
   });
-
-  it('returns to the company picker from Account only after a successful switch', async () => {
-    const transition = vi
-      .spyOn(accountTransition, 'transitionAccount')
-      .mockImplementation(async (accountId) => {
-        useStore.getState().setActiveAccount(accountId);
-        return true;
-      });
-    render(
-      <MemoryRouter initialEntries={['/account']}>
-        <AppShell />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
-
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Choose a company' })).toBeInTheDocument(),
-    );
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/');
-    expect(transition).toHaveBeenCalledWith(null);
-  });
-
-  it('keeps Account in place when a company switch is cancelled or fails', async () => {
-    const transition = vi.spyOn(accountTransition, 'transitionAccount').mockResolvedValue(false);
-    render(
-      <MemoryRouter initialEntries={['/account']}>
-        <AppShell />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
-    await waitFor(() => expect(transition).toHaveBeenCalledWith(null));
-
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/account');
-    expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
-  });
-}
-
-function registerAccountSwitchRouteTest(): void {
-  it('keeps the current non-Account route after a successful switch', async () => {
-    const transition = vi
-      .spyOn(accountTransition, 'transitionAccount')
-      .mockImplementation(async (accountId) => {
-        useStore.getState().setActiveAccount(accountId);
-        return true;
-      });
-    render(
-      <MemoryRouter initialEntries={['/clients']}>
-        <AppShell />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
-
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Choose a company' })).toBeInTheDocument(),
-    );
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/clients');
-    expect(transition).toHaveBeenCalledWith(null);
-  });
-
-  it('returns to the company picker from an Account route with a trailing slash', async () => {
-    const transition = vi
-      .spyOn(accountTransition, 'transitionAccount')
-      .mockImplementation(async (accountId) => {
-        useStore.getState().setActiveAccount(accountId);
-        return true;
-      });
-    render(
-      <MemoryRouter initialEntries={['/account/']}>
-        <AppShell />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Switch company' }));
-
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Choose a company' })).toBeInTheDocument(),
-    );
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/');
-    expect(transition).toHaveBeenCalledWith(null);
-  });
 }
 
 function registerNavigationBrandNameTest(): void {
@@ -727,7 +552,7 @@ function registerSidebarSignOutTest(): void {
     renderAppShell({});
 
     expect(screen.getByText('Test Co')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Switch company' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Switch company' })).not.toBeInTheDocument();
     const account = screen.getByRole('link', { name: 'Account' });
     expect(account.querySelector("[data-slot='avatar']")).not.toBeNull();
     expect(screen.queryByTestId('nav-sign-out')).not.toBeInTheDocument();
@@ -735,34 +560,38 @@ function registerSidebarSignOutTest(): void {
 }
 
 function registerPinnedNavigationOrderTest(): void {
-  it('pins Team & access, Settings and Diagnostics, in that order, after every other destination', () => {
+  it('pins Team & access, Settings and Diagnostics, in that order, after every other destination', async () => {
     renderAppShell({});
 
     // Scoped to the nav landmark so the skip-to-content link above the sidebar stays out of it.
-    const order = within(screen.getByRole('navigation'))
-      .getAllByRole('link')
-      .map((link) => link.getAttribute('href'));
-    expect(order).toEqual([
-      '/overview',
-      '/',
-      '/resources',
-      '/disciplines',
-      '/clients',
-      '/projects',
-      '/activities',
-      '/timeoff',
-      '/team',
-      '/settings',
-      '/diagnostics',
-    ]);
+    await waitFor(() => {
+      const order = within(screen.getByRole('navigation'))
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href'));
+      expect(order).toEqual([
+        '/overview',
+        '/',
+        '/resources',
+        '/disciplines',
+        '/clients',
+        '/projects',
+        '/activities',
+        '/timeoff',
+        '/team',
+        '/settings',
+        '/diagnostics',
+      ]);
+    });
   });
 }
 
 function registerNavigationRoutesTest(): void {
-  it('nav links point to correct routes', () => {
+  it('nav links point to correct routes', async () => {
     renderAppShell({});
 
-    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/overview');
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/overview'),
+    );
     expect(screen.getByRole('link', { name: 'Schedule' })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: 'Resources' })).toHaveAttribute('href', '/resources');
     expect(screen.getByRole('link', { name: 'Team & access' })).toHaveAttribute('href', '/team');
@@ -1248,7 +1077,6 @@ describe('AppShell navigation links', () => {
   registerLoadingAccountLocaleTest();
   registerExpectedNavigationLinksTest();
   registerAccountNavigationStateTest();
-  registerAccountSwitchRouteTest();
   registerNavigationBrandNameTest();
   registerImportExportAbsenceTest();
   registerSidebarSignOutTest();
@@ -1331,22 +1159,15 @@ describe('AppShell planning problems', () => {
 });
 
 describe('AppShell undo/redo keyboard', () => {
-  // The shortcuts drive the planning controller's typed history, never the legacy snapshot stack.
+  // The shortcuts drive the planning controller's typed history.
   function withPlanningHistorySpies(run: (spies: { undo: Mock; redo: Mock }) => void) {
-    const { undoPlanning, redoPlanning, undo, redo } = useStore.getState();
+    const { undoPlanning, redoPlanning } = useStore.getState();
     const spies = { undo: vi.fn(async () => true), redo: vi.fn(async () => true) };
-    const legacy = vi.fn();
-    useStore.setState({
-      undoPlanning: spies.undo,
-      redoPlanning: spies.redo,
-      undo: legacy,
-      redo: legacy,
-    });
+    useStore.setState({ undoPlanning: spies.undo, redoPlanning: spies.redo });
     try {
       run(spies);
-      expect(legacy).not.toHaveBeenCalled();
     } finally {
-      useStore.setState({ undoPlanning, redoPlanning, undo, redo });
+      useStore.setState({ undoPlanning, redoPlanning });
     }
   }
 
@@ -1475,15 +1296,4 @@ describe('AppShell transient notice', () => {
   registerPersistentErrorNoticeTest();
   registerPersistentWarningNoticeTest();
   registerNoticeReplacementRaceTest();
-});
-
-describe('AppShell demo entry', () => {
-  it('opens the demo on the company picker without a sign-in step', () => {
-    useStore.getState().setActiveAccount(null);
-    useStore.getState().setHydrated(true);
-    renderAppShell({});
-
-    expect(screen.getByText('Choose a company')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Choose an account' })).not.toBeInTheDocument();
-  });
 });

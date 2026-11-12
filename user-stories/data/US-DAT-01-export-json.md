@@ -11,7 +11,7 @@ As a company member, I want to export company data so that I can inspect or tran
 ## Acceptance criteria
 
 - **Export JSON** downloads `capacitylens-data.json`, a beta export of the selected company.
-- On a server, Owner and Admin exports reload the company including archived records; Editor and Viewer exports contain the active records already loaded in the page. Owners and demo users get real private names; other roles get the code names they see.
+- On a server, Owner and Admin exports reload the company including archived records; Editor and Viewer exports contain the active records already loaded in the page. Owners get real private names; other roles get the code names they see.
 - The export excludes identities, memberships, sessions, admission records and device preferences.
 
 ## User flow
@@ -27,7 +27,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  button["ImportExport Export JSON calls useExportAction.exportData"] --> mode["useExportAction chooses the source: page data for demo, Editor or Viewer"]
+  button["ImportExport Export JSON calls useExportAction.exportData"] --> mode["useExportAction chooses the source: page data for Editor or Viewer"]
   mode --> fetch["Owner or Admin on a server: fetchInactiveSlice reads archived rows too"]
   fetch --> route["GET api.state reaches ExportsController.show and transformState"]
   mode --> build["buildBetaExport selects role-appropriate completeness"]

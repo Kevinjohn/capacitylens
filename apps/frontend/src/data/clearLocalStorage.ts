@@ -29,7 +29,7 @@ export function readCapacitylensLocalStorage(
 }
 
 /** Removes application-prefixed localStorage keys and returns the number removed.
- * Scheduling data is server-owned or memory-only in demo mode. Keys are snapshotted
+ * Scheduling data is server-owned. Keys are snapshotted
  * before deletion because live indexes change after each removal.
  * @throws When storage access fails; earlier removals are not rolled back.
  */

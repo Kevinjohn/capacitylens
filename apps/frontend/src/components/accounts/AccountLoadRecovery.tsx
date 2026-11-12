@@ -7,11 +7,9 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/comp
 export function AccountLoadRecovery({
   accountName,
   onRetry,
-  onChooseAnother,
 }: {
   accountName: string;
   onRetry: () => Promise<boolean>;
-  onChooseAnother?: () => void;
 }) {
   const [retrying, setRetrying] = useState(false);
   // Local-only: this recovery stage renders instead of the app shell's own children, so the
@@ -48,11 +46,6 @@ export function AccountLoadRecovery({
             </p>
           )}
           <div className="flex justify-end gap-2">
-            {onChooseAnother && (
-              <Button size="sm" variant="outline" onClick={onChooseAnother}>
-                {m.account_load_choose_another()}
-              </Button>
-            )}
             <Button size="sm" onClick={retry} disabled={retrying}>
               {m.account_load_retry()}
             </Button>

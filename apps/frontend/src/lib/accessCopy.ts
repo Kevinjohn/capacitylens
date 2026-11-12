@@ -1,6 +1,5 @@
 import type { Role } from '@capacitylens/shared/domain/access';
 import { m } from '@/i18n';
-import type { AccessExperience } from './resolveAccessExperience';
 
 /** Permission check state used to select access messaging. */
 export type AccessPermissionStatus = 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
@@ -34,17 +33,15 @@ export function resolveRoleSummary(role: Role): string {
 }
 
 interface AccessCopyInput {
-  experience: AccessExperience;
   permissionStatus: AccessPermissionStatus;
   role: Role | null;
 }
 
-type AccessState = 'demo' | 'checking' | 'not-applicable' | 'unavailable';
+type AccessState = 'checking' | 'not-applicable' | 'unavailable';
 type AccessCopyResult = { kind: AccessState } | { kind: 'role'; role: Role };
 
 // Resolve precedence once so access labels and explanations cannot disagree.
 function resolveAccessState(input: AccessCopyInput): AccessCopyResult {
-  if (input.experience === 'demo') return { kind: 'demo' };
   if (input.permissionStatus === 'pending') return { kind: 'checking' };
   if (input.permissionStatus === 'not-applicable') return { kind: 'not-applicable' };
   if (input.permissionStatus === 'unavailable' || input.role === null) {
@@ -56,20 +53,18 @@ function resolveAccessState(input: AccessCopyInput): AccessCopyResult {
 // Uncalled message references, called at lookup: Paraglide resolves the active locale at call
 // time, so a resolved string captured at module load would freeze to the import-time language.
 const STATE_LABELS: Record<AccessState, () => string> = {
-  demo: m.access_demo_label,
   checking: m.access_checking_label,
   'not-applicable': m.access_not_applicable_label,
   unavailable: m.access_unavailable_label,
 };
 
 const STATE_SUMMARIES: Record<AccessState, () => string> = {
-  demo: m.access_demo_summary,
   checking: m.access_checking_summary,
   'not-applicable': m.access_not_applicable_summary,
   unavailable: m.access_unavailable_summary,
 };
 
-/** Single product-facing label for demo, open and authenticated access. */
+/** Single product-facing label for authenticated access. */
 export function resolveAccessLabel(input: AccessCopyInput): string {
   const state = resolveAccessState(input);
   return state.kind === 'role' ? resolveRoleLabel(state.role) : STATE_LABELS[state.kind]();

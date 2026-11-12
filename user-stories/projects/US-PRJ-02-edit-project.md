@@ -14,7 +14,7 @@ As an Editor, I want to edit a project’s name, client and colour so that its u
 | ------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Client        | Picker          | Required; Internal first, then active clients by name; a current archived client stays selected but cannot be chosen again |
 | Name          | Text field      | Required; current value prefilled; read-only for non-Owners when the project uses a code name                              |
-| Use code name | Switch          | Owner only (anyone in demo mode); current value prefilled                                                                  |
+| Use code name | Switch          | Owner only; current value prefilled                                                                                        |
 | Code name     | Text field      | Owner only; shown and required when Use code name is on                                                                    |
 | Colour        | Preset swatches | Current colour preselected; hidden when the client is Internal                                                             |
 
@@ -39,9 +39,8 @@ flowchart TD
   A["ProjectForm.useProjectSubmit"] --> B["useStore.updateProject → createTypedPlanningActions.updateProject"]
   B --> C["updateCatalogue → allocationSlice.send"]
   C --> D["createPlanningCacheController.execute"] --> E{"createStorePlanningTransport"}
-  E -->|server| F["createPlanningTransport.sendOperation → api.planning.project.update"] --> G["PlanningController.projectUpdate → mutatePlanning begins the scoped transaction"]
+  E --> F["createPlanningTransport.sendOperation → api.planning.project.update"] --> G["PlanningController.projectUpdate → mutatePlanning begins the scoped transaction"]
   G --> H["executePlanningIntent applies intent → writeRow persists row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt updates planning state; ProjectList renders"]
-  E -->|demo| I["createVolatilePlanningTransport.execute → apply in page memory"] --> J
 ```
 
-**Code references:** [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [volatilePlanningTransport.ts](../../apps/frontend/src/data/planning/volatilePlanningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+**Code references:** [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts) · [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts) · [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)

@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { resolveCapacityOverviewAccessDecision } from './capacityOverviewAccess';
 
 describe('resolveCapacityOverviewAccessDecision', () => {
-  it('allows trusted auth-off/demo mode', () => {
+  it('denies access when no account role applies', () => {
     expect(
       resolveCapacityOverviewAccessDecision({
         role: null,
         status: 'not-applicable',
         access: 'owner_admin',
       }),
-    ).toBe('allowed');
+    ).toBe('denied');
   });
 
   it('waits while an authenticated role is unresolved', () => {

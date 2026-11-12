@@ -12,7 +12,6 @@ As a company member, I want to see my role and its capabilities so that I unders
 
 - **Your access** shows the member’s role and a summary of what it allows. **See full capabilities** expands a list marking each capability Allowed or Not allowed (view the schedule, edit scheduling data, manage members and invites, see time-off notes, see private real names, transfer ownership); **Hide full capabilities** collapses it.
 - Owners and Admins also see member management; other roles see that an Owner or Admin manages invitations and membership changes.
-- In demo mode the card reads **Demo access** with no capability list, warns that invites and role enforcement are unavailable, and notes that Team & access lists people who sign in, not scheduled resources.
 - A signed-in person without company access sees the applicable limited-access screen instead of Team & access.
 
 ## User flow
@@ -24,7 +23,7 @@ flowchart TD
     Expand --> Review["Review what the role can do"]
     Review --> Hide["Select Hide full capabilities"]
     Hide --> Role
-    Other["Demo or limited access"] --> Note["Read the relevant note or next step"]
+    Other["Limited access"] --> Note["Read the relevant note or next step"]
 ```
 
 ## Code flow
@@ -35,7 +34,6 @@ flowchart TD
     View --> Card["CurrentAccessCard renders role and summary"]
     Card --> Toggle["Local capabilitiesOpen state toggles CapabilityList"]
     Toggle --> Capabilities["listCapabilities uses shared can and visibility rules"]
-    View --> Demo["AccessManagement shows demo note"]
     Auth["AuthProvider routes limited access to AccessScreen"] --> Limited["AccessScreen shows applicable next step"]
 ```
 

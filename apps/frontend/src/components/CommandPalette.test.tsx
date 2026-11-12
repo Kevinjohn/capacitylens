@@ -5,8 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { CommandPalette } from './CommandPalette';
 import { PermissionContext } from '@/auth/permissionContext';
+import { OwnerPermissions } from '@/test/ownerPermissions';
 import { useStore, buildEmptyFilters } from '@/store/useStore';
 import {
+  resetStoreWithData,
   makeResourceDraft,
   DEFAULT_ACCOUNT_ID,
   resetStoreWithAccount,
@@ -18,10 +20,12 @@ import { m } from '@/i18n';
 
 function renderPalette(onClose = () => {}) {
   return render(
-    <MemoryRouter>
-      <CommandPalette onClose={onClose} />
-      <LocationProbe />
-    </MemoryRouter>,
+    <OwnerPermissions>
+      <MemoryRouter>
+        <CommandPalette onClose={onClose} />
+        <LocationProbe />
+      </MemoryRouter>
+    </OwnerPermissions>,
   );
 }
 
@@ -48,14 +52,12 @@ async function addInternalSearchItems() {
   const internal =
     data.clients.find((client) => client.builtin === true) ??
     buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
-  useStore.getState().replaceAll({
+  await resetStoreWithData({
     ...data,
     clients: data.clients.some((client) => client.id === internal.id)
       ? data.clients
       : [...data.clients, internal],
   });
-  useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-  await useStore.getState().refreshPlanning();
   await useStore.getState().addProject({
     name: 'Obsidian Programme',
     clientId: internal.id,

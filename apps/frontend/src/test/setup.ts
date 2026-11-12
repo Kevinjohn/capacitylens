@@ -2,11 +2,10 @@ import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-// Unit tests have no API server, so the store's planning cache uses the demo build's volatile transport.
+// Store tests own their transport and reset source without changing the production demo.
 vi.mock('@/data/planning/storePlanningTransport', async () => {
-  const { createVolatilePlanningTransport } =
-    await import('@/data/planning/volatilePlanningTransport');
-  return { createStorePlanningTransport: createVolatilePlanningTransport };
+  const { createTestPlanningTransport } = await import('./createTestPlanningTransport');
+  return { createStorePlanningTransport: createTestPlanningTransport };
 });
 
 class MemoryStorage implements Storage {

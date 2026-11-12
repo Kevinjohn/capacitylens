@@ -91,7 +91,6 @@ describe('spawnPnpmSync', () => {
 
 describe('package presets', () => {
   it.each([
-    ['dev-demo', ['run', 'dev:web'], 'VITE_CAPACITYLENS_DEMO'],
     ['webkit', ['exec', 'playwright', 'test', '--project=webkit'], 'CAPACITYLENS_WEBKIT_ONLY'],
     ['firefox', ['exec', 'playwright', 'test', '--project=firefox'], 'CAPACITYLENS_FIREFOX_ONLY'],
   ])(

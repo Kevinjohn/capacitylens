@@ -15,7 +15,7 @@ they can do that day.
 
 <video controls muted playsinline preload="metadata" src="./screenshots/demo.mp4" aria-label="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is reassigned to a colleague, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." style="width: 100%; border-radius: 8px;"></video>
 
-Illustrative October 2026 walkthrough with fictional data. Dates and sample bookings in the current demo vary; check each person’s capacity indicators when moving work.
+Historical October 2026 walkthrough with fictional data. It shows the former demo’s company picker and switcher, which are absent from the current interface. The current server demo requires sign-in and opens one sample company; dates and bookings vary.
 
 You book work by the day and read the plan by the week. CapacityLens does not track tasks,
 budgets or timesheets.
@@ -50,7 +50,7 @@ Doing all of it yourself? Small agencies often do.
 
 Want a look first? Watch the walkthrough above. If you are comfortable with a terminal,
 [try the demo](/getting-started/try-the-demo) on your own computer with sample data: it needs the
-developer tools Node and git, but no server and no sign-in.
+developer tools Node and git, and runs a disposable local server with a printed sign-in.
 
 ## How setup fits together
 

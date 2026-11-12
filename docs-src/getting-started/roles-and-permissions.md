@@ -44,7 +44,7 @@ covers each action. If a company has no Owner at all, follow
 Three separate things can look like a [person](/reference/glossary#person) in the interface:
 
 - A **sign-in identity**: the email and password someone uses to reach CapacityLens. A production
-  installation contains one company; the in-memory demo has two fictional companies and no sign-in
+  installation contains one company; the disposable demo has one fictional sample company and a development sign-in
   identities.
 - A **member**: that identity's role in the installation's company, created by
   [inviting them](/admin/invite-teammates).
@@ -75,7 +75,7 @@ for lower roles:
 | Editor | Five, ending with the two Viewer stops                        |
 | Viewer | Two, read-only                                                |
 
-On an installed server, the Admin tour includes a stop about example data; the demo leaves it out.
+The Admin tour includes a stop about example data, including in the disposable demo.
 The tour is unavailable while permissions are being checked or can't be confirmed.
 
 ## View the company as a member

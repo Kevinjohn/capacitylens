@@ -1,6 +1,6 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { act, render, screen, fireEvent } from '@testing-library/react';
+import { act, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
@@ -13,6 +13,7 @@ import {
   completeAssignment,
   person,
   resetAllocationModalStore,
+  renderAsOwner,
 } from './__tests__/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
@@ -41,12 +42,12 @@ beforeEach(async () => {
 describe('AllocationModal Enter key submission', () => {
   it('operates the Hours / day select with the keyboard', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
     );
     const resourceId = resource.id;
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -72,12 +73,12 @@ describe('AllocationModal Enter key submission', () => {
 
   it('submits when Enter is pressed in the single-line Note input', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
     );
     const resourceId = resource.id;
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -99,13 +100,13 @@ describe('AllocationModal Enter key submission', () => {
 
   it('pressing Enter in the new-activity input calls onAddActivity, not submit', async () => {
     const resource = await requireCreated(
-      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#111' })),
+      useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
     );
     const resourceId = resource.id;
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -134,7 +135,7 @@ describe('AllocationModal submit exclusion', () => {
     const addAllocation = vi.spyOn(useStore.getState(), 'addAllocation');
     const user = userEvent.setup();
     let closeModal = () => {};
-    const view = render(
+    const view = renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
@@ -168,7 +169,7 @@ describe('AllocationModal lifecycle', () => {
       }),
     );
     const onClose = vi.fn();
-    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await act(() => useStore.getState().deleteAllocation(allocation.id));
 
@@ -188,22 +189,10 @@ describe('AllocationModal lifecycle', () => {
       }),
     );
     const onClose = vi.fn();
-    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
     fireEvent.change(screen.getByLabelText('End'), { target: { value: '2026-06-05' } });
     const revision = useStore.getState().planning.revision;
-    await act(async () => {
-      useStore.setState((state) => ({
-        data: {
-          ...state.data,
-          allocations: state.data.allocations.map((row) =>
-            row.id === allocation.id
-              ? { ...row, hoursPerDay: 4, updatedAt: '2026-06-04T12:00:00Z' }
-              : row,
-          ),
-        },
-      }));
-      await useStore.getState().refreshPlanning();
-    });
+    await useStore.getState().updateAllocation(allocation.id, { hoursPerDay: 4 });
     expect(useStore.getState().planning.revision).toBe((revision ?? 0) + 1);
     await userEvent.setup().click(screen.getByRole('button', { name: 'Save' }));
     expect(screen.getByRole('alert')).toHaveTextContent(/changed/);
@@ -252,7 +241,7 @@ describe('AllocationModal lifecycle', () => {
           return creation;
         });
       const onClose = vi.fn();
-      render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+      renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
       fireEvent.change(screen.getByLabelText('End'), { target: { value: '2026-06-05' } });
       fireEvent.change(screen.getByLabelText('New activity name'), {
         target: { value: 'Gotham review' },
@@ -311,7 +300,7 @@ describe('AllocationModal lifecycle', () => {
   it('preserves a partially edited draft across equivalent parent props', async () => {
     const resource = await requireCreated(useStore.getState().addResource(person('Barbara')));
     const onClose = vi.fn();
-    const view = render(
+    const view = renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
