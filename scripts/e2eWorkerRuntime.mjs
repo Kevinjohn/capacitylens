@@ -150,6 +150,8 @@ async function acquireLease(lane, slot) {
           });
         await waitForRecordedGroups(owner.groups);
         if (owner.resetToken) await cleanupResetControlEndpoints(owner.resetToken);
+        // An owner that died between writing and publishing a record update leaves its temporary file.
+        await rm(`${oldPaths.owner}.${owner.pid}.tmp`, { force: true });
         // A delayed reaper removes only this dead owner's unique filename. A successor's
         // distinct owner keeps its directory nonempty and therefore cannot be removed.
         await releaseLease(oldPaths);
@@ -352,7 +354,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
     renameSync(ownerTmp, paths.owner);
   };
 
-  const stop = async ({ removeDatabase = true, removeCache = true } = {}) => {
+  const stop = async ({ removeDatabase = true } = {}) => {
     if (stopped) return;
     stopped = true;
     let terminationError;
@@ -378,7 +380,7 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
     }
     if (!terminationError) {
       if (removeDatabase) await removeDatabaseFiles(target);
-      if (removeCache) await rm(viteCachePath, { recursive: true, force: true });
+      await rm(viteCachePath, { recursive: true, force: true });
       await releaseLease(paths);
     }
     if (terminationError) throw terminationError;

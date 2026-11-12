@@ -28,7 +28,7 @@ function stop() {
     process.exit(0);
     return;
   }
-  if (service && service.exitCode === null && service.signalCode === null) {
+  if (service.exitCode === null && service.signalCode === null) {
     try {
       service.kill('SIGTERM');
     } catch (error) {

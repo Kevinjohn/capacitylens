@@ -71,23 +71,21 @@ export const test = base.extend<CapacityLensFixtures>({
     }
   },
   newObservedContext: async ({ browser, pageErrorObserver }, use) => {
-    const contexts = new Set<BrowserContext>();
-    const listeners = new Map<BrowserContext, (page: Page) => void>();
+    const observePage = pageErrorObserver.observePage;
+    const contexts: BrowserContext[] = [];
     try {
       await use(async (options) => {
         const context = await browser.newContext(options);
-        const observePage = pageErrorObserver.observePage;
         context.pages().forEach(observePage);
         context.on('page', observePage);
-        contexts.add(context);
-        listeners.set(context, observePage);
+        contexts.push(context);
         return context;
       });
     } finally {
       // Close whatever the spec left open so no secondary context outlives its test.
       await Promise.all(
-        [...contexts].map(async (context) => {
-          context.off('page', listeners.get(context)!);
+        contexts.map(async (context) => {
+          context.off('page', observePage);
           await context.close();
         }),
       );

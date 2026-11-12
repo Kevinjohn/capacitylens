@@ -84,16 +84,10 @@ async function withDataListenersPaused<T>(target: ServerTarget, restore: () => T
 
   const token = resetControlToken;
   const deadline = Date.now() + resetControlTimeoutMs;
+  let result: T;
   try {
     await requestResetControl(token, 'vite', 'pause', resetControlTimeoutMs);
     await requestResetControl(token, 'api', 'pause', Math.max(1, deadline - Date.now()));
-  } catch (error) {
-    await resumePair(token, error);
-    throw error;
-  }
-
-  let result: T;
-  try {
     result = restore();
   } catch (error) {
     await resumePair(token, error);

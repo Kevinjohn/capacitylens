@@ -346,14 +346,10 @@ export function createRetirableListener(
     shouldReject: (socket) => paused || retired.has(socket),
     status,
     async pause(timeoutMs) {
-      if (!paused) paused = true;
+      paused = true;
       const deadline = Date.now() + timeoutMs;
       const listenerClosed = new Promise<void>((resolve, reject) => {
-        try {
-          server.close((error) => (error ? reject(error) : resolve()));
-        } catch (error) {
-          reject(error);
-        }
+        server.close((error) => (error ? reject(error) : resolve()));
       });
       for (const socket of sockets) {
         retired.add(socket);
