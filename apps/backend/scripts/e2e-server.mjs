@@ -55,7 +55,9 @@ const env = {
   CAPACITYLENS_MAIL_PASSWORD: '',
   CAPACITYLENS_MAIL_FROM: '',
   CAPACITYLENS_TRUST_PROXY_HEADERS: 'false',
-  ...(flavour === 'db' ? { CAPACITYLENS_RATE_LIMIT: '1000' } : {}),
+  // The limiter stays in the request path without throttling the suite: at 1,000 requests a
+  // minute a fast local run had fixture sign-ins refused with 429 midway through.
+  ...(flavour === 'db' ? { CAPACITYLENS_RATE_LIMIT: '1000000' } : {}),
   PORT: String(port),
 };
 
