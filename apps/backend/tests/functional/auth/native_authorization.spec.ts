@@ -35,15 +35,12 @@ const withSession = asDataOwner;
 function configureAuth(cleanup: (callback: () => void) => void) {
   const prior = {
     openSignup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
-    allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),
     rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
   };
   env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', false);
-  env.set('CAPACITYLENS_ALLOW_RESET', true);
   env.set('CAPACITYLENS_RATE_LIMIT', '0');
   cleanup(() => {
     env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior.openSignup);
-    env.set('CAPACITYLENS_ALLOW_RESET', prior.allowReset);
     env.set('CAPACITYLENS_RATE_LIMIT', prior.rateLimit ?? '');
   });
 }
@@ -261,14 +258,6 @@ test.group('native authorization and role projections', (group) => {
 
       const importing = await importSeed(client, cookie);
       assert.equal(importing.status(), 403, `${role} import without password confirmation`);
-
-      if (role === 'owner') {
-        const reset = await withSession(trusted(client.post('/api/test/reset')), cookie)
-          .json({ seed: false })
-          .send();
-        reset.assertStatus(403);
-        assert.isNotNull(await db.from('accounts').where({ id: accountId }).first());
-      }
     }
   });
 

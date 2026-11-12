@@ -155,7 +155,6 @@ const companyTables = [
   'deleted_groups',
   'deleted_rows',
   'account_member_resources',
-  'ownership_transfers',
   'company_settings',
   'account_getting_started_dismissals',
   'request_receipts',
