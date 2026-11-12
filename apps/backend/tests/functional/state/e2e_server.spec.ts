@@ -145,7 +145,8 @@ test('both E2E server flavours require sign-in and expose no installation reset 
           'no reset route answers an authenticated administrator'
         );
         assert.deepEqual(await memberlessReset.json(), {
-          error: 'Installation reset is unavailable with authentication enabled.',
+          code: 'NOT_FOUND',
+          error: 'Not found.',
         });
       }
     } finally {
