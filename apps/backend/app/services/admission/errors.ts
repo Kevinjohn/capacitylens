@@ -18,7 +18,7 @@ export class AdmissionError extends RefusalError {
 
 /** Refuses malformed admission input before any product write. */
 export function invalidAdmission(message = 'Invalid admission request.'): never {
-  throw new AdmissionError(message, 400, 'INVALID_INPUT');
+  throw new AdmissionError(message, 400, 'VALIDATION_ERROR');
 }
 
 /** Conceals a missing or cross-company control record. */

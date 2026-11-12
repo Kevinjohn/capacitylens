@@ -18,7 +18,7 @@ export default class OwnershipController {
     if (!validBody(ctx.request.body())) {
       return ctx.response.badRequest({
         error: 'An eligible target user is required.',
-        code: 'VALIDATION_FAILED',
+        code: 'VALIDATION_ERROR',
       });
     }
     const command = readAccountCommand(ctx);

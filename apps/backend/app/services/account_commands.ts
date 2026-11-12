@@ -29,7 +29,7 @@ export function readAccountCommand(ctx: HttpContext): AccountCommandIdentity {
     return { commandId: randomUUID(), requestKey: randomUUID() };
   }
   if (!isAccountCommandId(commandId) || !isAccountIdempotencyKey(requestKey)) {
-    throw new AccountCommandError('Invalid or unpaired command headers.', 400, 'VALIDATION_FAILED');
+    throw new AccountCommandError('Invalid or unpaired command headers.', 400, 'VALIDATION_ERROR');
   }
   return { commandId, requestKey };
 }
@@ -40,7 +40,7 @@ export function toAccountCommandError(error: unknown): unknown {
     return new AccountCommandError('Command identity already used.', 409, 'IDEMPOTENCY_CONFLICT');
   }
   if (error instanceof E_INVALID_COMMAND_VALUE) {
-    return new AccountCommandError('Invalid command payload.', 400, 'VALIDATION_FAILED');
+    return new AccountCommandError('Invalid command payload.', 400, 'VALIDATION_ERROR');
   }
   return error;
 }

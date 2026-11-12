@@ -12,7 +12,7 @@ test('package command refusals retain the exact HTTP status and body', ({ assert
     [
       new E_INVALID_COMMAND_VALUE(),
       400,
-      { error: 'Invalid command payload.', code: 'VALIDATION_FAILED' },
+      { error: 'Invalid command payload.', code: 'VALIDATION_ERROR' },
     ],
     [
       new E_DUPLICATE_REQUEST_CONFLICT(),
