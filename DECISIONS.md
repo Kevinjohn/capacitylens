@@ -248,10 +248,13 @@ This is the short, present-tense record of decisions that constrain future work.
   classifications. Control state and events stay in database backups, outside scheduling exports.
   Upgrades end legacy projections without converting their tokens into new authority.
 - Cross-site writes are refused by the Origin / Sec-Fetch-Site check, with one exemption for a
-  same-host Origin that claims `https` behind a TLS-terminating proxy. Shield owns HSTS, `nosniff`
-  and frame protection; HSTS is sent only when the public URL is HTTPS. There is no CSP report
-  route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
+  same-host Origin that claims `https` behind a TLS-terminating proxy. Shield owns HSTS, `nosniff`,
+  frame protection and the CSP. HSTS is sent only when the public URL is HTTPS. There is no CSP
+  report route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.
+- Logs correlate a request by the framework's `request_id`. The server always generates it (a
+  UUID, echoed in the `X-Request-Id` response header); a client-supplied `X-Request-Id` is
+  discarded before the framework reads it, so no client text becomes the id.
 - Validation and domain errors use the flat `{ error, code? }` contract. Vine runs behind one
   response adapter; the SPA keys its presentation on `code`.
 - Rate limits on authentication and the API use `@adonisjs/limiter`.
