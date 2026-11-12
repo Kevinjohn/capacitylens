@@ -76,6 +76,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
 
   const browserSignIn = await page.context().request.post(`${AUTH_API}/api/auth/sign-in`, {
     data: { email: first.email, password: AUTH_PASSWORD },
+    headers: { 'sec-fetch-site': 'same-origin' },
   });
   expect(browserSignIn.status()).toBe(200);
   await page.goto('/');
