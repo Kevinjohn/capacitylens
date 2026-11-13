@@ -57,6 +57,10 @@ test.describe('Company details', () => {
 
   test('Settings page passes axe accessibility check', async ({ page }) => {
     await openApp(page, '/settings');
+    // The page shell lands before the membership role resolves; until then every editable control
+    // renders disabled. A scan that overlaps that change samples dimmed labels beside enabled
+    // controls and reports false contrast failures, so wait for the settled editable state.
+    await expect(page.getByRole('checkbox', { name: 'Monday', exact: true })).toBeEnabled();
     const results = await new AxeBuilder({ page }).analyze();
     const blocking = results.violations.filter(
       (v) => v.impact === 'serious' || v.impact === 'critical',
