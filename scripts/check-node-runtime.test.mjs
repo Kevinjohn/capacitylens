@@ -18,9 +18,9 @@ test('runtime boundaries reject unsupported versions before application startup'
   }
 });
 
-// A preload reports Node 22 to the entry point under test, so the refusal runs on a supported runtime.
-const reportNode22 = `data:text/javascript,${encodeURIComponent(
-  "Object.defineProperty(process, 'versions', { value: { ...process.versions, node: '22.23.5' } });",
+// A preload reports an unsupported Node to the entry point under test, so the refusal runs on a supported runtime.
+const reportUnsupportedNode = `data:text/javascript,${encodeURIComponent(
+  "Object.defineProperty(process, 'versions', { value: { ...process.versions, node: '23.9.0' } });",
 )}`;
 
 test('the lane launcher refuses an unsupported runtime before starting its command', () => {
@@ -28,7 +28,7 @@ test('the lane launcher refuses an unsupported runtime before starting its comma
     process.execPath,
     [
       '--import',
-      reportNode22,
+      reportUnsupportedNode,
       fileURLToPath(new URL('./with-lane.mjs', import.meta.url)),
       process.execPath,
       '-e',
@@ -37,7 +37,7 @@ test('the lane launcher refuses an unsupported runtime before starting its comma
     { encoding: 'utf8', timeout: 60_000 },
   );
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /CapacityLens requires Node .*found Node 22\.23\.5/);
+  assert.match(result.stderr, /CapacityLens requires Node .*found Node 23\.9\.0/);
   assert.doesNotMatch(result.stdout, /command ran/);
 });
 
@@ -48,7 +48,7 @@ test('the backend test entry refuses an unsupported runtime before booting the a
       '--import',
       '@poppinss/ts-exec',
       '--import',
-      reportNode22,
+      reportUnsupportedNode,
       'bin/test.ts',
       '--files',
       'no-such-spec',
@@ -60,6 +60,6 @@ test('the backend test entry refuses an unsupported runtime before booting the a
     },
   );
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /CapacityLens requires Node .*found Node 22\.23\.5/);
+  assert.match(result.stderr, /CapacityLens requires Node .*found Node 23\.9\.0/);
   assert.doesNotMatch(result.stdout + result.stderr, /booting application/);
 });
