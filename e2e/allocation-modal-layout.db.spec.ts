@@ -4,6 +4,7 @@ import {
   dismissLandscapeHint,
   enableInlineActivityCreation,
   changeCompanySetting,
+  expectEditableBar,
   openApp,
   resetSchedulerScroll,
   selectShadOption,
@@ -197,6 +198,9 @@ function registerAlignsCreateRepeatStatusErrorTest() {
 }
 
 async function assertEditSchedulingRow(page: Page, testInfo: TestInfo) {
+  await expectEditableBar(
+    page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).first(),
+  );
   await page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Edit allocation' });
   await expectLabelControl(dialog.getByRole('combobox', { name: 'Assignee' }));

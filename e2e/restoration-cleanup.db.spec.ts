@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp, resetSchedulerScroll, setZoom } from './browserTestSupport';
+import { expectEditableBar, openApp, resetSchedulerScroll, setZoom } from './browserTestSupport';
 
 test('privacy cleanup warns once, preserves the cancelled draft and skips warning after Restore is cleared', async ({
   page,
@@ -9,6 +9,7 @@ test('privacy cleanup warns once, preserves the cancelled draft and skips warnin
   await setZoom(page, 4);
   await resetSchedulerScroll(page);
   await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
+  await expectEditableBar(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }));
   await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click();
   await page
     .getByRole('dialog', { name: 'Edit allocation' })

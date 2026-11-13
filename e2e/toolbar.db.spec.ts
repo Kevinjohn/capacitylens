@@ -1,6 +1,7 @@
 import { test, expect } from './dbFixtures';
 import {
   boundingBoxOrThrow as box,
+  expectEditableBar,
   openApp,
   resetSchedulerScroll,
   setZoom,
@@ -233,6 +234,7 @@ function registerUndoesRedoesKeyboardIgnoresShortcutTests() {
     const undoBtn = page.getByTestId('undo-button');
     const redoBtn = page.getByTestId('redo-button');
     const before = await page.getByTestId('allocation-bar').count();
+    await expectEditableBar(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }));
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click();
     await page
       .getByRole('dialog', { name: 'Edit allocation' })
