@@ -48,7 +48,7 @@ const workspaceInput = /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|t
 // still exists, so a deleted file or a change to them can fail it without touching backend code.
 const documentationPolicySpec = 'apps/backend/tests/functional/policy/documentation_policy.spec.ts';
 const documentationPolicyInput =
-  /^(?:user-stories\/|docs-src\/|packaging\/|apps\/frontend\/messages\/|README\.md$|CHANGELOG(?:-ARCHIVE)?\.md$)/;
+  /^(?:user-stories\/|docs-src\/|packaging\/|apps\/frontend\/messages\/|README\.md$|CHANGELOG-ARCHIVE\.md$)/;
 // A filter that matches nothing reports success; these markers turn it into a failure.
 // Specs run on their own; any other end-to-end input can affect every spec.
 const e2eSpec = /^e2e\/.+\.spec\.ts$/;

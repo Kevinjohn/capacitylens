@@ -123,7 +123,7 @@ the [architecture reference](docs-src/reference/architecture.md) and the
 
 [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·
 [Reviews and compliance](docs-src/security/reviews.md) ·
-[ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) · [Changelog](CHANGELOG.md) ·
+[ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) · [Releases](https://github.com/Kevinjohn/capacitylens/releases) ·
 [Trademarks](TRADEMARKS.md)
 
 ## Licence

@@ -351,7 +351,7 @@ test('deleted files and documentation policy inputs run the documentation policy
     [['apps/frontend/src/components/a.test.tsx'], (path) => path === policy],
     [['user-stories/navigation/US-NAV-15.md'], everything],
     [['README.md'], everything],
-    [['CHANGELOG.md'], everything],
+    [['CHANGELOG-ARCHIVE.md'], everything],
   ]) {
     const files = step(planChecks(paths, exists), 'test: 1 backend spec').args;
     assert.deepEqual(files.slice(-2), ['--files', policy.slice('apps/backend/'.length)], paths[0]);

@@ -72,7 +72,7 @@ The remaining assessment retains its original review date.
 | --- | --- | --- |
 | `OSPS-AC-04.01` — Do CI jobs without explicit permissions receive least privilege by default? | Met | Workflows set top-level read-only permissions and elevate individual jobs only where required. |
 | `OSPS-BR-02.01` — Does every official release have a unique identifier? | Met | Releases use Semantic Versioning tags, including explicit prerelease identifiers. |
-| `OSPS-BR-04.01` — Does every release describe functional and security changes? | Met | GitHub release notes and [`CHANGELOG.md`](https://github.com/Kevinjohn/capacitylens/blob/main/CHANGELOG.md) provide human-readable changes and security entries. |
+| `OSPS-BR-04.01` — Does every release describe functional and security changes? | Met | [GitHub release notes](https://github.com/Kevinjohn/capacitylens/releases) provide human-readable changes and security entries. |
 | `OSPS-BR-05.01` — Does the build use standard tooling to obtain dependencies? | Met | pnpm reads the workspace manifests and exact lockfile. |
 | `OSPS-BR-06.01` — Are release assets signed or represented in a signed manifest containing hashes? | Met | The release workflow creates GitHub build attestations and publishes an in-toto provenance bundle for the packaged build and SPDX SBOM. |
 | `OSPS-DO-06.01` — Is dependency selection, retrieval and tracking documented? | Met | [`CONTRIBUTING.md`](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md) documents pnpm-based setup and validation; the root manifest, lockfile and Dependabot configuration track dependencies. |
@@ -88,7 +88,7 @@ The remaining assessment retains its original review date.
 | `OSPS-SA-03.01` — Has the project performed a security assessment? | Met | The ASVS ledger, threat model and control inventories identify likely and high-impact risks. |
 | `OSPS-VM-01.01` — Is there a coordinated-disclosure policy with a response timeframe? | Met | `SECURITY.md` requests private reports, targets acknowledgement within five working days and explains validation, repair and advisory publication. |
 | `OSPS-VM-03.01` — Can reporters contact the project privately about vulnerabilities? | Met | GitHub Private Vulnerability Reporting is the primary documented route. |
-| `OSPS-VM-04.01` — Will discovered vulnerabilities be published publicly? | Met | `SECURITY.md` commits to publishing an advisory after a patched release; release notes and the changelog record relevant fixes. |
+| `OSPS-VM-04.01` — Will discovered vulnerabilities be published publicly? | Met | `SECURITY.md` commits to publishing an advisory after a patched release; release notes record relevant fixes. |
 
 Level 2 is not currently claimable because `OSPS-QA-06.01` remains unmet.
 
