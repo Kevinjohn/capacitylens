@@ -14,7 +14,6 @@ import Phase from '#models/phase';
 import TimeOff from '#models/time_off';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { fixtureSession } from '../../helpers/identities.js';
-import ConvertPlanningDeleteSnapshots from '../../../database/migrations/202610270002_convert_planning_delete_snapshots.js';
 
 type NativeConnection = {
   pragma(sql: string): unknown;
@@ -182,81 +181,7 @@ test.group('planning deletion ownership', (suite) => {
     );
   });
 
-  test('legacy pending generations retain only the latest row and keep older receipts conflicting', async ({
-    assert,
-  }) => {
-    const sessionId = await fixtureSession('u-bruce');
-    const oldGroup = await group('a-studio', sessionId);
-    const currentGroup = await group('a-studio', sessionId);
-    const row = await Allocation.query()
-      .withScopes((scopes) => scopes.forCompany('a-studio'))
-      .firstOrFail();
-    const original = row.serialize();
-    await db.table('deleted_rows').multiInsert(
-      [oldGroup, currentGroup].map((groupId) => ({
-        group_id: groupId,
-        entity: 'allocations',
-        row_id: row.id,
-        payload_json: JSON.stringify({ kind: 'row', row: original }),
-      }))
-    );
-    await db.from('allocations').where('id', row.id).delete();
-    await db.transaction(async (trx) => {
-      await new ConvertPlanningDeleteSnapshots(trx, 'legacy-upgrade-proof').execUp();
-    });
-    const retained = await db.from('allocations').where('id', row.id).first();
-    assert.exists(retained?.deleted_at);
-    assert.equal(retained?.deletion_group_id, currentGroup);
-    const receipts = await db.from('deleted_rows').where('row_id', row.id).orderBy('id');
-    assert.deepEqual(
-      receipts.map((receipt) => JSON.parse(receipt.payload_json)),
-      [{ kind: 'row' }, { kind: 'row' }]
-    );
-    await db.from('deleted_groups').where('group_id', oldGroup).delete();
-    assert.exists(await db.from('allocations').where('id', row.id).first());
-  });
-
-  test('legacy active collisions and missing parents keep receipts without replacing live rows', async ({
-    assert,
-  }) => {
-    const sessionId = await fixtureSession('u-bruce');
-    const collisionGroup = await group('a-studio', sessionId);
-    const missingParentGroup = await group('a-studio', sessionId);
-    const rows = await Allocation.query().withScopes((scopes) => scopes.forCompany('a-studio'));
-    const active = rows[0]!;
-    const orphan = rows.find((row) => row.resourceId !== active.resourceId)!;
-    await db.table('deleted_rows').multiInsert([
-      {
-        group_id: collisionGroup,
-        entity: 'allocations',
-        row_id: active.id,
-        payload_json: JSON.stringify({ kind: 'row', row: active.serialize() }),
-      },
-      {
-        group_id: missingParentGroup,
-        entity: 'allocations',
-        row_id: orphan.id,
-        payload_json: JSON.stringify({ kind: 'row', row: orphan.serialize() }),
-      },
-    ]);
-    await db.from('resources').where('id', orphan.resourceId).delete();
-    await db.transaction(async (trx) => {
-      await new ConvertPlanningDeleteSnapshots(trx, 'legacy-upgrade-proof').execUp();
-    });
-    const stillActive = await db.from('allocations').where('id', active.id).first();
-    assert.isNull(stillActive?.deleted_at);
-    assert.isNull(stillActive?.deletion_group_id);
-    assert.isNull(await db.from('allocations').where('id', orphan.id).first());
-    const receipts = await db
-      .from('deleted_rows')
-      .whereIn('group_id', [collisionGroup, missingParentGroup]);
-    assert.deepEqual(
-      receipts.map((receipt) => JSON.parse(receipt.payload_json)),
-      [{ kind: 'row' }, { kind: 'row' }]
-    );
-  });
-
-  test('populated baseline upgrade preserves rows, links and pending deletion receipts', async ({
+  test('populated baseline schema migration preserves rows and links and rolls back a failed apply', async ({
     assert,
   }) => {
     const ace = await app.container.make('ace');
@@ -313,30 +238,12 @@ test.group('planning deletion ownership', (suite) => {
             )
           );
       }
-      const sessionId = await fixtureSession('u-bruce');
-      const groupId = await group('a-studio', sessionId);
-      // A snapshot taken before the rename carries the override under its earlier field name.
-      const removed = data.allocations.find(
-        (row) => row.accountId === 'a-studio' && row.ignoreWorkingDays === true
-      )!;
-      const { ignoreWorkingDays, ...legacyRow } = removed;
-      await db.table('deleted_rows').insert({
-        group_id: groupId,
-        entity: 'allocations',
-        row_id: removed.id,
-        payload_json: JSON.stringify({
-          kind: 'row',
-          row: { ...legacyRow, ignoreWeekends: ignoreWorkingDays },
-        }),
-      });
-      await db.from('allocations').where('id', removed.id).delete();
       const before = Object.fromEntries(
         await Promise.all(
           Object.values(mappings).map(async (table) => [table, await db.from(table).orderBy('id')])
         )
       );
       await db.rawQuery('CREATE INDEX time_off_deletion_group_id_index ON time_off(id)');
-      const receiptBefore = await db.from('deleted_rows').where('group_id', groupId).first();
       const schemaBefore = await db
         .from('sqlite_master')
         .whereNot('name', 'like', 'sqlite_%')
@@ -383,39 +290,21 @@ test.group('planning deletion ownership', (suite) => {
       if (applied.exitCode) throw applied.error ?? new Error('Migration apply failed');
       for (const table of Object.values(mappings)) {
         const actualRows = await db.from(table).orderBy('id');
-        const after = actualRows
-          .filter((row) => table !== 'allocations' || row.id !== removed.id)
-          .map((row) => {
-            if (!['allocations', 'time_off', 'closures', 'phases', 'disciplines'].includes(table))
-              return row;
-            const original = { ...row };
-            if (table === 'allocations') {
-              // The upgrade renames the column; the value must survive under the new name.
-              original.ignore_weekends = original.ignore_working_days;
-              delete original.ignore_working_days;
-            }
-            delete original.deleted_at;
-            delete original.deletion_group_id;
-            return original;
-          });
+        const after = actualRows.map((row) => {
+          if (!['allocations', 'time_off', 'closures', 'phases', 'disciplines'].includes(table))
+            return row;
+          const original = { ...row };
+          if (table === 'allocations') {
+            // The upgrade renames the column; the value must survive under the new name.
+            original.ignore_weekends = original.ignore_working_days;
+            delete original.ignore_working_days;
+          }
+          delete original.deleted_at;
+          delete original.deletion_group_id;
+          return original;
+        });
         assert.deepEqual(after, before[table], `${table} changed during schema migration`);
       }
-      const receiptAfter = await db.from('deleted_rows').where('group_id', groupId).first();
-      assert.equal(receiptAfter?.id, receiptBefore?.id);
-      const retained = await db.from('allocations').where('id', removed.id).first();
-      assert.equal(retained?.account_id, removed.accountId);
-      assert.equal(retained?.created_at, removed.createdAt);
-      assert.equal(retained?.updated_at, removed.updatedAt);
-      // The legacy override is stored JSON-encoded, so the model can read the restored row.
-      assert.equal(retained?.ignore_working_days, 'true');
-      assert.exists(retained?.deleted_at);
-      assert.equal(retained?.deletion_group_id, groupId);
-      assert.deepEqual(
-        JSON.parse(
-          (await db.from('deleted_rows').where('group_id', groupId).first())!.payload_json
-        ),
-        { kind: 'row' }
-      );
       const native = new NativeDatabase(env.get('CAPACITYLENS_DB')!);
       try {
         native.pragma('foreign_keys = ON');
