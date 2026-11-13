@@ -7,6 +7,11 @@ on:
         description: Existing release tag whose images to publish when they are not yet in the registry. Leave empty to run only the smoke.
         required: false
         type: string
+      first_publication:
+        description: Only for the first publication of the images. Treat a registry "denied" answer as not yet published.
+        required: false
+        type: boolean
+        default: false
   push:
     branches: [main]
     tags: ['v*']
@@ -88,6 +93,7 @@ jobs:
       packages: write
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      FIRST_PUBLICATION: ${{ inputs.first_publication == true }}
       APP_KEY: capacitylens-container-test-key-0123456789abcdef
       CAPACITYLENS_PUBLIC_URL: https://localhost
       WEB_PORT: '8080'
@@ -114,10 +120,13 @@ jobs:
           printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
           # Published image tags are never rebuilt or replaced: a complete pair stops here, and a
           # partial pair fails instead of pushing a second build under the same version.
-          has() { docker manifest inspect "ghcr.io/kevinjohn/capacitylens-$1:$version" >/dev/null 2>&1; }
-          if has api && has web; then
+          # A registry error stops the job; only a definite 'not found' counts as unpublished.
+          state() { scripts/published-image-state.sh "ghcr.io/kevinjohn/capacitylens-$1:$version"; }
+          api=$(state api)
+          web=$(state web)
+          if [ "$api" = present ] && [ "$web" = present ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
-          elif has api || has web; then
+          elif [ "$api" = present ] || [ "$web" = present ]; then
             echo "::error::$version has only one of its two images. Delete that package version, then dispatch this workflow again."
             exit 1
           else
