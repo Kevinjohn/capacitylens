@@ -213,7 +213,7 @@ test.group('general HTTP logging privacy', (group) => {
 
     assert.equal(result.status(), 401);
     assert.include(output, 'GET');
-    assert.include(output, '"path":"/*"');
+    assert.include(output, '"path":"/api/*"');
     assert.include(output, '401');
     assert.notInclude(output, auth);
     assert.notInclude(output, cookie);

@@ -1,21 +1,19 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import app from '@adonisjs/core/services/app';
-import { errors as authErrors } from '@adonisjs/auth';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   AccountAdmission,
   AdmissionRequiredError,
 } from '@kevinjohn/adonisjs-account-kit/admission';
 import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
-import type { CurrentAccountInput, Trx } from '@kevinjohn/adonisjs-account-kit/types';
-import type User from '#models/user';
+import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import { users } from '#services/account_kit/users';
+import { managedGuard } from '#services/auth/managed_guard';
 import { capturedMasqueradeContext } from '#services/auth/masquerade_request';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import type { KitContext } from '@kevinjohn/adonisjs-confirm-action-with-password';
 
-const revisionKey = 'accountKitRevision';
 const handleKey = 'accountKitSession';
 
 /** The signed-in principal, as the Account Kit verified it in the current transaction. */
@@ -31,53 +29,9 @@ export interface CurrentActor {
   masqueradeContext?: ResolvedContext;
 }
 
-/** The Account Kit guard port for the existing `web` session guard. */
-export function sessionGuard(ctx: HttpContext) {
-  const guard = ctx.auth.use('web');
-  return {
-    strategy: 'session' as const,
-    name: 'web',
-    async establish(userId: string | number, revision: string | null, handle?: string) {
-      const { default: UserModel } = await import('#models/user');
-      ctx.session.regenerate();
-      await guard.login(await UserModel.findOrFail(String(userId)));
-      ctx.session.put(revisionKey, revision ?? '');
-      if (handle) ctx.session.put(handleKey, handle);
-      return undefined;
-    },
-    async terminate() {
-      await guard.logout();
-      ctx.session.clear();
-      ctx.session.regenerate();
-    },
-  };
-}
-
-/** The trusted session facts the Kit checks: user, credential revision and registry handle. */
-export async function accountInput(ctx: HttpContext): Promise<CurrentAccountInput> {
-  let user: User;
-  try {
-    user = (await ctx.auth.use('web').authenticate()) as User;
-  } catch (error) {
-    // Only a missing or rejected session is a sign-out; a database fault must surface as one.
-    if (error instanceof authErrors.E_UNAUTHORIZED_ACCESS) throw new InvalidSessionError();
-    throw error;
-  }
-  const revision: unknown = ctx.session.get(revisionKey);
-  const handle: unknown = ctx.session.get(handleKey);
-  if (typeof revision !== 'string' || typeof handle !== 'string' || !handle) {
-    throw new InvalidSessionError();
-  }
-  return {
-    userId: String(user.id),
-    revision: revision === '' ? null : revision,
-    sessionHandle: handle,
-  };
-}
-
 /** The signed-in Account Kit account, checked in the Kit's own transaction. */
 export async function currentAccount(ctx: HttpContext) {
-  return accountKit.authentication.current(await accountInput(ctx));
+  return accountKit.authentication.current(await managedGuard.current(ctx));
 }
 
 /** The Kit's admission decision for an account, read under the lock `trx` already holds. */
@@ -110,7 +64,7 @@ export async function withActor<T>(
   run: (actor: CurrentActor, trx: Trx) => Promise<T>,
   options: { limited?: boolean } = {}
 ): Promise<T> {
-  const input = await accountInput(ctx);
+  const input = await managedGuard.current(ctx);
   return accountKit.authentication.withCurrent(input, async (context) => {
     const { account, signInId, trx } = context;
     if (signInId === undefined) throw new InvalidSessionError();

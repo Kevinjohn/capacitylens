@@ -5,10 +5,11 @@ import {
   passwordConfirmationActor,
   type PasswordConfirmationKind,
 } from '#services/auth/password_confirmation';
-import { accountInput, withActor } from '#services/auth/current_actor';
+import { withActor } from '#services/auth/current_actor';
 import { classifyLogError, reportPrivateFailure } from '#services/logging_safety';
 import { hasOnlyFields } from '#services/request_helpers';
 import { parseRequestDocument } from '#services/beta_account_transfer';
+import { managedGuard } from '#services/auth/managed_guard';
 
 type ConfirmationRequest = {
   action: PasswordConfirmationKind;
@@ -59,7 +60,7 @@ export default class PasswordConfirmationsController {
       passwordConfirmationActor(body.accountId, trx, body.action)
     );
     const { confirmationId } = await passwordConfirmations.confirmPassword(
-      await accountInput(ctx),
+      await managedGuard.current(ctx),
       {
         action: body.action,
         scope: body.accountId,

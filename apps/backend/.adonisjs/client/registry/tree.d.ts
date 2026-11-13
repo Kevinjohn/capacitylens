@@ -142,5 +142,6 @@ export interface ApiDefinition {
     }
     health: typeof routes['api.health']
     diagnostics: typeof routes['api.diagnostics']
+    notFound: typeof routes['api.not-found']
   }
 }

@@ -14,17 +14,13 @@ import { requiresFirstCompanySetup } from '#services/first_company_setup';
 import { isMembershipRequired } from '#services/membership/admission_membership';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { buildUserProjection } from '#services/auth/user_projection';
-import {
-  accountInput,
-  admissionDecision,
-  sessionGuard,
-  withActor,
-} from '#services/auth/current_actor';
+import { admissionDecision, withActor } from '#services/auth/current_actor';
 import { errors as vineErrors } from '@vinejs/vine';
 import { signInValidator, signUpValidator } from '#validators/auth_requests';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { hasNoCompany } from '#services/installation_company';
+import { managedGuard } from '#services/auth/managed_guard';
 
 function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
   if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
@@ -141,11 +137,11 @@ export default class AuthController {
   async signOut(ctx: HttpContext) {
     let current: CurrentAccountInput | undefined;
     try {
-      current = await accountInput(ctx);
+      current = await managedGuard.current(ctx);
     } catch (error) {
       if (!(error instanceof InvalidSessionError)) throw error;
     }
-    await accountKit.authentication.logout(sessionGuard(ctx), undefined, current);
+    await accountKit.authentication.logout(managedGuard.forRequest(ctx), undefined, current);
     return ctx.response.ok({ ok: true });
   }
 }
