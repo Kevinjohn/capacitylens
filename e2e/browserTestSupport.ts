@@ -271,6 +271,16 @@ export async function waitForAppLanding(page: Page, landedOn: Locator): Promise<
 }
 
 /** Opens the authenticated fixture company and dismisses non-blocking orientation. */
+/** Wait until the bar accepts pointer input and the schedule has stopped moving.
+ *
+ * Bars render read-only (`role="img"`, no pointer handlers) until the membership role resolves,
+ * which can be after the planning data has drawn them. The same update inserts the getting-started
+ * strip above the schedule, moving every row down. A click or a measured drag before it is ignored
+ * or lands on another row (#1928). */
+export async function expectEditableBar(bar: Locator): Promise<void> {
+  await expect(bar).toHaveRole('button');
+}
+
 export async function openApp(page: Page, path = '/'): Promise<void> {
   await freezeBrowserDate(page);
   await page.goto(path);

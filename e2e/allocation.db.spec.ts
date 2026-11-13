@@ -1,5 +1,6 @@
 import { test, expect } from './dbFixtures';
 import {
+  expectEditableBar,
   goToSeedWeek,
   openApp,
   resetSchedulerScroll,
@@ -250,6 +251,7 @@ function registerEditsMonthlyOccurrenceDeletesSeriesTest() {
 
 function registerEditsAllocationReflectsChangeBarTest() {
   test('edits an allocation and reflects the change on the bar', async ({ page }) => {
+    await expectEditableBar(page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }));
     await page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).click();
     const dialog = page.getByRole('dialog', { name: 'Edit allocation' });
     await selectShadOption(dialog.getByRole('combobox', { name: 'Hours / day' }), '4');
@@ -264,6 +266,7 @@ function registerDuplicatesAllocationEditDialogTest() {
   test('duplicates an allocation from the edit dialog', async ({ page }) => {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
     const before = await page.getByTestId('allocation-bar').count();
+    await expectEditableBar(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }));
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click();
     const dialog = page.getByRole('dialog', { name: 'Edit allocation' });
     await expect(dialog.getByRole('combobox', { name: 'Repeat' })).toHaveCount(0);
@@ -286,6 +289,7 @@ function registerDeletesAllocationEditDialogRestoresTest() {
     expect(allocationId).toBeTruthy();
     expect(originalResourceId).toBeTruthy();
 
+    await expectEditableBar(original);
     await original.click();
     const editor = page.getByRole('dialog', { name: 'Edit allocation' });
     await editor.getByRole('button', { name: 'Delete' }).click();
@@ -351,6 +355,7 @@ function registerAddsNewActivityInlineUsesTest() {
 
 function registerReassignsAllocationAnotherResourceDialogTest() {
   test('reassigns an allocation to another resource via the dialog', async ({ page }) => {
+    await expectEditableBar(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }));
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click();
     await selectShadOption(
       page.getByRole('dialog', { name: 'Edit allocation' }).getByLabel('Assignee'),

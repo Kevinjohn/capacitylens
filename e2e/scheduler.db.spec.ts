@@ -4,6 +4,7 @@ import {
   boundingBoxOrThrow as box,
   disableWeekSnap,
   dismissLandscapeHint,
+  expectEditableBar,
   goToSeedWeek,
   openApp,
   probeSchedulerGeometry as probe,
@@ -168,6 +169,8 @@ function registerDrawsNewAllocationEmptyPartTest() {
     const before = await page.getByTestId('allocation-bar').count();
 
     await resetSchedulerScroll(page);
+    // Drawing on a lane needs the same resolved role as editing a bar (#1928).
+    await expectEditableBar(page.getByTestId('allocation-bar').first());
     const lane = page.getByTestId('resource-lane').first();
     const b = await box(lane);
     const y = b.y + b.height / 2;
@@ -196,6 +199,7 @@ function registerDragsBarMoveLaterTest() {
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
     const lane = bar.locator('xpath=ancestor::*[@data-testid="resource-lane"]');
+    await expectEditableBar(bar);
     const b0 = await box(bar);
     const cx = b0.x + b0.width / 2;
     const cy = b0.y + b0.height / 2;
@@ -453,6 +457,7 @@ function registerShowsDetailPopoverHoverUSTests() {
     const timeline = await box(resourceHeader);
     await scrollSchedulerForwardOneWeek(page, grid);
 
+    await expectEditableBar(bar);
     const clippedBar = await box(bar);
     const gridBox = await box(grid);
     const visibleLeft = Math.max(clippedBar.x, timeline.x + timeline.width);
@@ -480,6 +485,7 @@ function registerShowsDetailPopoverHoverUSTests() {
 
     const grid = page.getByTestId('scheduler-grid');
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
+    await expectEditableBar(bar);
     const barBox = await box(bar);
     const gridBox = await box(grid);
     const visibleLeft = barBox.x;
@@ -625,6 +631,7 @@ function registerAllocationStatusNoteVisuallyDistinctTest() {
         .filter({ hasText: 'Visual Design' }),
     ).toHaveAttribute('data-status', 'tentative');
 
+    await expectEditableBar(page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }));
     await page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).click();
     const dialog = page.getByRole('dialog', { name: 'Edit allocation' });
     await dialog

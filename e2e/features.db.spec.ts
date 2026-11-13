@@ -1,7 +1,7 @@
 import { test, expect } from './dbFixtures';
-import type { Locator } from './dbFixtures';
 import {
   boundingBoxOrThrow as box,
+  expectEditableBar,
   openApp,
   resetSchedulerScroll,
   selectShadOption,
@@ -10,16 +10,6 @@ import {
   showScheduleFilters,
   waitForWeekSnap,
 } from './browserTestSupport';
-
-/** Wait until the bar accepts pointer input and the schedule has stopped moving.
- *
- * Bars render read-only (`role="img"`, no pointer handlers) until the membership role resolves,
- * which can be after the planning data has drawn them. The same update inserts the getting-started
- * strip above the schedule, moving every row down. A click or a measured drag before it is ignored
- * or lands on another row (#1928). */
-async function expectEditableBar(bar: Locator): Promise<void> {
-  await expect(bar).toHaveRole('button');
-}
 
 function registerFilteringProjectNarrowsScheduleProjectTest() {
   test('filtering by project narrows the schedule to that project', async ({ page }) => {
