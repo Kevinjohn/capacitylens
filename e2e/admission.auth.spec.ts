@@ -52,8 +52,9 @@ test('an invited person accepts, waits for approval, and enters with the invited
     await ownerContext.close();
   }
 
-  // Approving an invited person also adds their membership, so the next check opens the company.
+  // The operator's invitation names no company, so the approved person joins with the invited role.
   await admission.getByRole('button', { name: 'Check again' }).click();
+  await page.getByTestId('access-join-company').click();
   await waitForAppLanding(page, page.locator('#main'));
   await page.getByRole('link', { name: 'Team & access' }).click();
   await expect(page.getByTestId('current-access')).toContainText('Editor');
