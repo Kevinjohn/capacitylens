@@ -25,7 +25,6 @@ const MODE_FLAGS = [
   'CAPACITYLENS_FIREFOX',
   'CAPACITYLENS_FIREFOX_ONLY',
   'CAPACITYLENS_BROWSER_ONLY',
-  'CAPACITYLENS_REHEARSAL_URL',
 ];
 
 /** Explicit presets replace all inherited mode selection while preserving unrelated settings. */

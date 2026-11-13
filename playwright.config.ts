@@ -63,7 +63,6 @@ export default defineConfig({
           {
             name: 'auth-backed',
             testMatch: authSpec,
-            testIgnore: '**/microsoft-verification.auth.spec.ts',
             workers: 1,
             use: {
               ...devices['Desktop Chrome'],
