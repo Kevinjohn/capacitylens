@@ -280,6 +280,8 @@ function registerDeletesAllocationEditDialogRestoresTest() {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
     const before = await page.getByTestId('allocation-bar').count();
     const original = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
+    // The read-only bar's label omits the editing instructions, so read it once editable.
+    await expectEditableBar(original);
     const allocationId = await original.getAttribute('data-alloc-id');
     const originalStatus = await original.getAttribute('data-status');
     const originalLabel = await original.getAttribute('aria-label');
@@ -289,7 +291,6 @@ function registerDeletesAllocationEditDialogRestoresTest() {
     expect(allocationId).toBeTruthy();
     expect(originalResourceId).toBeTruthy();
 
-    await expectEditableBar(original);
     await original.click();
     const editor = page.getByRole('dialog', { name: 'Edit allocation' });
     await editor.getByRole('button', { name: 'Delete' }).click();
