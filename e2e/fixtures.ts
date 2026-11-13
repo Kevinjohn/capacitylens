@@ -17,6 +17,26 @@ type CapacityLensFixtures = {
   pageErrorObserver: PageErrorObserver;
 };
 
+/**
+ * WebKit refuses a fetch started while its document unloads and logs the refusal as a JavaScript
+ * console error, which Playwright reports as a page error even when the application handles the
+ * rejection. A same-origin request is never subject to an access-control check, so only that
+ * shape is ignored; a cross-origin denial still fails the test.
+ */
+function isWebKitUnloadFetchRefusal(error: Error, page: Page, browserName: string): boolean {
+  if (browserName !== 'webkit') return false;
+  // Playwright splits the message at its first colon, so the whole URL survives only in the stack.
+  const url = /^Fetch API cannot load (\S+) due to access control checks\.$/.exec(
+    error.stack?.split('\n', 1)[0] ?? '',
+  )?.[1];
+  return (
+    url !== undefined &&
+    URL.canParse(url) &&
+    URL.canParse(page.url()) &&
+    new URL(url).origin === new URL(page.url()).origin
+  );
+}
+
 /** Every browser spec fails if application code raises on any page registered with the fixture. */
 export const test = base.extend<CapacityLensFixtures>({
   authCompanyIsolation: [
@@ -36,19 +56,19 @@ export const test = base.extend<CapacityLensFixtures>({
     { auto: true },
   ],
   pageErrorObserver: [
-    // Playwright requires a destructuring pattern even when an automatic fixture has no inputs.
-    // eslint-disable-next-line no-empty-pattern
-    async ({}, use) => {
+    async ({ browserName }, use) => {
       const errors: Error[] = [];
-      const observedPages = new Set<Page>();
-      const recordError = (error: Error) => errors.push(error);
+      const observedPages = new Map<Page, (error: Error) => void>();
       const observePage = (page: Page) => {
         if (observedPages.has(page)) return;
-        observedPages.add(page);
+        const recordError = (error: Error) => {
+          if (!isWebKitUnloadFetchRefusal(error, page, browserName)) errors.push(error);
+        };
+        observedPages.set(page, recordError);
         page.on('pageerror', recordError);
       };
       await use({ observePage });
-      observedPages.forEach((page) => page.off('pageerror', recordError));
+      observedPages.forEach((recordError, page) => page.off('pageerror', recordError));
       if (errors.length > 0) {
         const details = errors
           .map((error, index) => `${index + 1}. ${error.stack ?? error.message}`)
