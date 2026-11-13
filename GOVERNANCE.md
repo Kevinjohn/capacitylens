@@ -31,7 +31,7 @@ changes. Any future expansion of maintainer rights and the process for removing 
 recorded here publicly.
 
 Releases follow Semantic Versioning. Before 1.0, minor versions may contain breaking changes, which
-must be called out in `CHANGELOG.md` with migration instructions.
+must be called out in the release notes with migration instructions.
 
 Conflicts of interest—especially changes that benefit a hosted offering at the expense of
 self-hosters—should be disclosed. The open-source application remains usable independently; hosted

@@ -69,22 +69,7 @@ function markdownSlug(heading: string): string {
 }
 
 test.group('M5 documentation and policy contracts', () => {
-  test('keeps current and archived changelog releases linked in heading order', ({ assert }) => {
-    const changelog = read('CHANGELOG.md');
-    const headings = [...changelog.matchAll(/^## \[([^\]]+)\]/gm)].map((match) => match[1]);
-    const references = new Map(
-      [...changelog.matchAll(/^\[([^\]]+)\]: (\S+)$/gm)].map((match) => [match[1], match[2]])
-    );
-    const releases = headings.filter((heading) => heading !== 'Unreleased');
-    const version = (JSON.parse(read('package.json')) as { version: string }).version;
-
-    assert.deepEqual(
-      [...references.keys()].filter((label) => headings.includes(label)),
-      headings
-    );
-    assert.equal(releases[0], version);
-    assert.include(references.get('Unreleased') ?? '', `/compare/v${version}...HEAD`);
-
+  test('keeps archived changelog releases linked in heading order', ({ assert }) => {
     const archive = read('CHANGELOG-ARCHIVE.md');
     const archivedHeadings = [...archive.matchAll(/^## \[([^\]]+)\]/gm)].map((match) => match[1]);
     const archivedRefs = [...archive.matchAll(/^\[([^\]]+)\]: \S+$/gm)].map((match) => match[1]);

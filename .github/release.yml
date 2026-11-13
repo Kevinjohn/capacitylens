@@ -1,0 +1,27 @@
+# Categories for GitHub's generated release notes. Each pull request appears once, under the first
+# category whose label it carries.
+changelog:
+  categories:
+    - title: Breaking changes
+      labels:
+        - breaking
+    - title: Added
+      labels:
+        - enhancement
+    - title: Fixed
+      labels:
+        - bug
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Maintenance
+      labels:
+        - maintenance
+        - tech-debt
+        - github_actions
+    - title: Other changes
+      labels:
+        - '*'
