@@ -4,7 +4,11 @@ import db from '@adonisjs/lucid/services/db';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
-import { pruneRequestReceipts, pruneViewAs } from '#services/storage_maintenance';
+import {
+  createMaintenance,
+  pruneRequestReceipts,
+  pruneViewAs,
+} from '#services/storage_maintenance';
 
 const PRUNE_INTERVAL_MS = 60 * 60_000;
 
@@ -76,17 +80,19 @@ export default class ConfigurationProvider {
       });
     });
     if (this.app.getEnvironment() !== 'web' || this.app.inTest) return;
-    const report = (task: string) => (error: unknown) => {
-      console.error(`${task} failed`, error instanceof Error ? error.name : error);
-    };
     // Each task reports its own failure, so one failing does not skip the others.
-    const prune = async () => {
-      await accountKit.maintenance.prune().catch(report('Account sign-in pruning'));
-      await pruneRequestReceipts().catch(report('Request receipt pruning'));
-      await pruneViewAs(this.app).catch(report('View-as pruning'));
-    };
-    void prune();
-    this.pruneTimer = setInterval(() => void prune(), PRUNE_INTERVAL_MS);
+    const maintenance = createMaintenance(
+      [
+        ['Account sign-in pruning', () => accountKit.maintenance.prune()],
+        ['Request receipt pruning', () => pruneRequestReceipts()],
+        ['View-as pruning', () => pruneViewAs(this.app)],
+      ],
+      (task, error) => console.error(`${task} failed`, error instanceof Error ? error.name : error)
+    );
+    // A pass still in flight would reopen the database after shutdown closed it.
+    this.app.terminating(() => maintenance.stop());
+    void maintenance.run();
+    this.pruneTimer = setInterval(() => void maintenance.run(), PRUNE_INTERVAL_MS);
     this.pruneTimer.unref();
   }
 
