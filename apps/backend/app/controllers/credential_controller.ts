@@ -12,8 +12,9 @@ import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { isMailConfigured } from '#services/mail_delivery';
 import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
-import { accountInput, currentAccount, sessionGuard } from '#services/auth/current_actor';
+import { currentAccount } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
+import { managedGuard } from '#services/auth/managed_guard';
 
 function password(value: unknown): value is string {
   return typeof value === 'string' && !passwordLengthFailure(value);
@@ -130,7 +131,7 @@ export default class CredentialController {
       if (!isCommittedFailure(error)) throw error;
       outcome = 'committed';
     }
-    await sessionGuard(ctx).terminate();
+    await managedGuard.forRequest(ctx).terminate();
     if (outcome === 'committed') return ctx.response.serviceUnavailable(committed);
     return ctx.response.ok({ ok: true, signedOut: true });
   }
@@ -146,7 +147,7 @@ export default class CredentialController {
     if (!hasOnlyFields(body, ['currentPassword']) || typeof body.currentPassword !== 'string') {
       return ctx.response.badRequest({ error: 'Invalid credential request.' });
     }
-    const input = await accountInput(ctx);
+    const input = await managedGuard.current(ctx);
     const request = { action: 'delete-account', scope: String(input.userId), intent: {} };
     const { confirmationId } = await passwordConfirmations.confirmPassword(input, {
       ...request,
@@ -176,7 +177,7 @@ export default class CredentialController {
       if (!isCommittedFailure(error)) throw error;
       outcome = 'committed';
     }
-    await sessionGuard(ctx).terminate();
+    await managedGuard.forRequest(ctx).terminate();
     if (outcome === 'committed') return ctx.response.serviceUnavailable(deletionCommitted);
     return ctx.response.ok({ ok: true, signedOut: true });
   }

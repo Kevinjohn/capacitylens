@@ -271,6 +271,12 @@ This is the short, present-tense record of decisions that constrain future work.
   stop. Package operations never run inside the single-connection product transaction. Covered
   writes require the context captured for the action, including idle-mode writes; stale actions are
   refused and never automatically replayed.
+- One router middleware gates every route by its name before the handler runs, using Account Kit's
+  managed guard: public routes pass, limited routes need a valid sign-in, and every other route
+  also needs a confirmed address and admission. A route name in no list gets the strictest check;
+  only the health probes and the application shell have no name. Routes under `/api/auth` are
+  public at the gate because their handlers answer a signed-out caller themselves. The gate adds
+  an early refusal; it does not replace the check inside the product transaction.
 - One global server middleware enforces view-as policy before routing: while a mode is active it
   refuses every unsafe request and the listed identity, membership and administration reads. The
   package's effective guard and route markers are not used, because product routes resolve their
