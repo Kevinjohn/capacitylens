@@ -1,16 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import {
-  MasqueradeError as PackageMasqueradeError,
-  createMasqueradeService,
-} from '@kevinjohn/adonisjs-masquerade';
+import { MasqueradeError as PackageMasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import type { MasqueradeService, ModeView } from '@kevinjohn/adonisjs-masquerade';
 import app from '@adonisjs/core/services/app';
-import logger from '@adonisjs/core/services/logger';
 import db from '@adonisjs/lucid/services/db';
-import config from '#config/masquerade';
 import { nativeAdapter } from '#config/masquerade';
 import { actorIn } from '#services/auth/current_actor';
-import { capturedMasqueradeContext } from '#services/auth/masquerade_request';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import {
   listActiveCompanyIds,
@@ -22,29 +16,10 @@ import type { Role } from '@capacitylens/shared/account/types';
 
 export { PackageMasqueradeError as MasqueradeError };
 
-let servicePromise: Promise<MasqueradeService<HttpContext>> | undefined;
-
-/**
- * Lazily opens the package control store outside any product transaction. A successful promise is
- * cached and shared by concurrent callers; a rejected one is dropped so the next call retries.
- */
-export function masqueradeService() {
-  if (servicePromise) return servicePromise;
-  const pending = createMasqueradeService(config, {
-    environment: app.nodeEnvironment,
-    authenticateActor: (ctx) => nativeAdapter.authenticateActor(ctx),
-    emitter: { emit: () => undefined },
-    logger: {
-      info: (event) => logger.info(event),
-      error: (event) => logger.error(event),
-    },
-    observerErrorHandler: (error) => logger.error({ code: 'E_MASQUERADE_OBSERVER_FAILED', error }),
-  });
-  servicePromise = pending;
-  pending.catch(() => {
-    if (servicePromise === pending) servicePromise = undefined;
-  });
-  return pending;
+/** The Masquerade service the package's provider builds and owns. */
+export async function masqueradeService(): Promise<MasqueradeService<HttpContext>> {
+  const runtime = await app.container.make('masquerade.runtime');
+  return runtime.service;
 }
 
 /** Current package mode with product display details, read outside any product transaction. */
@@ -133,14 +108,14 @@ export async function endMasquerade(ctx: HttpContext) {
   });
 }
 
-/** Resolves only the identity captured before the product transaction; never substitutes on error. */
+/** Resolves only the identity admitted before the product transaction; never substitutes on error. */
 export async function effectiveReadPrincipal(
   ctx: HttpContext,
   trx: TransactionClientContract,
   requestedAccountId?: string
 ) {
   const actor = actorIn(trx);
-  const context = capturedMasqueradeContext(ctx);
+  const context = actor.masqueradeContext;
   if (!context || context.actorId !== actor.userId) {
     throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
   }

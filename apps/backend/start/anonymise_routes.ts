@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router';
+import { asMember } from '#start/route_guards';
 
 const AnonymiseController = () => import('#controllers/anonymise_controller');
 
@@ -6,8 +7,10 @@ const AnonymiseController = () => import('#controllers/anonymise_controller');
 export function registerAnonymiseRoutes() {
   router
     .post('/api/accounts/:accountId/anonymise', [AnonymiseController, 'company'])
-    .as('api.accounts.anonymise');
+    .as('api.accounts.anonymise')
+    .use(asMember());
   router
     .post('/api/accounts/:accountId/resources/:id/anonymise', [AnonymiseController, 'resource'])
-    .as('api.resources.anonymise');
+    .as('api.resources.anonymise')
+    .use(asMember());
 }

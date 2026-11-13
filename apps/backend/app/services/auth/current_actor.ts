@@ -9,7 +9,6 @@ import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-a
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import { users } from '#services/account_kit/users';
 import { managedGuard } from '#services/auth/managed_guard';
-import { capturedMasqueradeContext } from '#services/auth/masquerade_request';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import type { ResolvedContext } from '@kevinjohn/adonisjs-masquerade';
 import type { KitContext } from '@kevinjohn/adonisjs-confirm-action-with-password';
@@ -25,7 +24,7 @@ export interface CurrentActor {
   displayName: string | null;
   /** False until the address is confirmed; only limited routes see such an actor. */
   emailVerified: boolean;
-  /** Immutable package admission captured before this request's product transaction. */
+  /** The Masquerade package's admission for a member route, captured before the transaction. */
   masqueradeContext?: ResolvedContext;
 }
 
@@ -53,6 +52,18 @@ export async function requireConfirmedAdmission(account: KitContext['account'], 
 }
 
 /**
+ * The view-as context the Masquerade package admitted for this request, or `undefined` on a route
+ * that does not use the effective guard. The package caches one admission per request, and this
+ * reads it before the product transaction opens.
+ */
+async function admittedMasqueradeContext(ctx: HttpContext): Promise<ResolvedContext | undefined> {
+  const runtime = await ctx.containerResolver.make('masquerade.runtime');
+  if (runtime.selectGuard(ctx).kind !== 'effective') return undefined;
+  const admitted = await runtime.admit(ctx);
+  return admitted.context;
+}
+
+/**
  * Runs `run` in the Account Kit's transaction after it has verified the session, its credential
  * revision and its registry row under the account lock; a concurrent revocation or credential
  * change waits for the commit or is observed first. Product access additionally requires a
@@ -65,6 +76,7 @@ export async function withActor<T>(
   options: { limited?: boolean } = {}
 ): Promise<T> {
   const input = await managedGuard.current(ctx);
+  const masqueradeContext = await admittedMasqueradeContext(ctx);
   return accountKit.authentication.withCurrent(input, async (context) => {
     const { account, signInId, trx } = context;
     if (signInId === undefined) throw new InvalidSessionError();
@@ -82,10 +94,9 @@ export async function withActor<T>(
       email: account.email,
       displayName: row?.display_name ?? null,
       emailVerified: account.active,
-      masqueradeContext: capturedMasqueradeContext(ctx),
+      masqueradeContext,
     };
-    const captured = capturedMasqueradeContext(ctx);
-    if (captured && captured.actorId !== actor.userId) {
+    if (masqueradeContext && masqueradeContext.actorId !== actor.userId) {
       throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
     }
     actors.set(trx, actor);

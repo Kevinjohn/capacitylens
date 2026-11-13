@@ -8,7 +8,7 @@ import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { resetState } from '#tests/helpers/state_fixture';
 import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js';
 import { signIn, signUpAndIn } from '../../helpers/identities.js';
-import { masqueradeService } from '#services/auth/masquerade';
+import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
 import app from '@adonisjs/core/services/app';
 import { pruneViewAs } from '#services/storage_maintenance';
 
@@ -200,7 +200,7 @@ test.group('native read-only masquerade', (group) => {
     assert,
   }) => {
     const { cookie } = await fixture(client);
-    const service = await masqueradeService();
+    const service = await masqueradeAdmission();
     const serviceWithTestFailure = service as unknown as {
       resolve(request: HttpContext): Promise<ResolvedContext>;
     };
@@ -230,7 +230,7 @@ test.group('native read-only masquerade', (group) => {
   }) => {
     const { cookie, ownerId, targetId } = await fixture(client);
     const idleToken = await contextToken(client, cookie);
-    const service = await masqueradeService();
+    const service = await masqueradeAdmission();
     const serviceWithTestGate = service as unknown as {
       resolve(request: HttpContext): Promise<ResolvedContext>;
     };
@@ -316,7 +316,7 @@ test.group('native read-only masquerade', (group) => {
     const started = await startView(client, sessionCookie, targetId);
     started.assertStatus(200);
     const activeToken = (started.body() as { contextToken: string }).contextToken;
-    const service = await masqueradeService();
+    const service = await masqueradeAdmission();
     const serviceWithTestGate = service as unknown as {
       resolve(request: HttpContext): Promise<ResolvedContext>;
     };
