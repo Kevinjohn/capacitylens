@@ -47,6 +47,7 @@ export default defineConfig({
     accountKitCommands,
     () => import('@kevinjohn/adonisjs-account-kit/admission/commands'),
     () => import('@kevinjohn/adonisjs-access-control/commands'),
+    () => import('@kevinjohn/adonisjs-masquerade/commands'),
   ],
 
   /*

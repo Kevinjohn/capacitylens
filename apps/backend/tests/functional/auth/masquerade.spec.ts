@@ -9,6 +9,8 @@ import { resetState } from '#tests/helpers/state_fixture';
 import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js';
 import { signIn, signUpAndIn } from '../../helpers/identities.js';
 import { masqueradeService } from '#services/auth/masquerade';
+import app from '@adonisjs/core/services/app';
+import { pruneViewAs } from '#services/storage_maintenance';
 
 const password = 'batman-secret-2026';
 
@@ -695,6 +697,39 @@ test.group('native read-only masquerade', (group) => {
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
     assert.equal((started.body() as { targetUserId: string }).targetUserId, targetId);
+  });
+
+  test('the scheduled prune ends an expired mode and deletes events past retention', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, ownerId, targetId } = await fixture(client);
+    const started = await startView(client, cookie, targetId);
+    started.assertStatus(200);
+    const now = Date.now();
+    const owner = { authority_namespace: 'capacitylens', actor_id: ownerId };
+    await db
+      .from('masquerade_modes')
+      .where(owner)
+      .update({
+        started_at: new Date(now - 31 * 60_000).toISOString(),
+        expires_at: new Date(now - 16 * 60_000).toISOString(),
+      });
+    // The start event is aged past the 365-day retention; the expiry event written by this pass is not.
+    await db
+      .from('masquerade_events')
+      .where({ actor_id: ownerId, kind: 'started' })
+      .update({ at: new Date(now - 366 * 24 * 60 * 60_000).toISOString() });
+
+    await pruneViewAs(app);
+
+    const mode = await db.from('masquerade_modes').where(owner).firstOrFail();
+    assert.notEqual(mode.state, 'active');
+    const events = await db.from('masquerade_events').where('actor_id', ownerId);
+    assert.deepEqual(
+      events.map((event) => event.kind),
+      ['expired']
+    );
   });
 
   test('expires package mode on status and rejects the pre-expiry context token', async ({
