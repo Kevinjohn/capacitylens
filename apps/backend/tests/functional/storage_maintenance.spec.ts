@@ -2,7 +2,11 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '../helpers/fresh_database.js';
 import { resetState } from '#tests/helpers/state_fixture';
-import { REQUEST_RECEIPT_RETENTION_MS, pruneRequestReceipts } from '#services/storage_maintenance';
+import {
+  REQUEST_RECEIPT_RETENTION_MS,
+  createMaintenance,
+  pruneRequestReceipts,
+} from '#services/storage_maintenance';
 
 test.group('storage maintenance', (group) => {
   group.setup(() => freshDatabase());
@@ -43,5 +47,54 @@ test.group('storage maintenance', (group) => {
       kept.map((row) => row.id),
       ['completed-at-window', 'pending-past-window']
     );
+  });
+});
+
+test.group('maintenance passes', () => {
+  test('a failing task is reported and the next one still runs', async ({ assert }) => {
+    const ran: string[] = [];
+    const reported: [string, unknown][] = [];
+    const failure = new Error('prune refused');
+    const maintenance = createMaintenance(
+      [
+        ['first', () => Promise.reject(failure)],
+        ['second', async () => void ran.push('second')],
+      ],
+      (task, error) => reported.push([task, error])
+    );
+    await maintenance.run();
+    assert.deepEqual(ran, ['second']);
+    assert.deepEqual(reported, [['first', failure]]);
+  });
+
+  test('stopping waits for the task in flight and starts no further task', async ({ assert }) => {
+    const ran: string[] = [];
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const maintenance = createMaintenance(
+      [
+        [
+          'first',
+          async () => {
+            ran.push('first started');
+            await held;
+            ran.push('first ended');
+          },
+        ],
+        ['second', async () => void ran.push('second')],
+      ],
+      () => assert.fail('No task fails')
+    );
+    void maintenance.run();
+    await Promise.resolve();
+    let stopped = false;
+    const stopping = maintenance.stop().then(() => (stopped = true));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.isFalse(stopped);
+    release();
+    await stopping;
+    assert.deepEqual(ran, ['first started', 'first ended']);
+    await maintenance.run();
+    assert.deepEqual(ran, ['first started', 'first ended']);
   });
 });
