@@ -58,8 +58,8 @@ The suites cover the frontend, backend and shared workspace packages.
 
 - Axe finds common problems such as missing names and low contrast. It does not replace testing
   with assistive technology.
-- Mutation testing covers only the pure scheduling and helper code, not the server or React
-  screens.
+- Mutation checks are done by hand on the code a change touches. No tool measures how well the
+  tests detect changes to the rest of the code.
 
 The repository README shows CI status, code coverage, CodeQL, OpenSSF Scorecard and OpenSSF
 Baseline badges. The [OpenSSF Baseline assessment](/security/OpenSSF-best-practices-dev) has the
