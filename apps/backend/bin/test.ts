@@ -10,6 +10,9 @@
 |
 */
 
+const { assertSupportedNodeVersion } = await import('#start/node_version');
+assertSupportedNodeVersion();
+
 process.env.NODE_ENV = 'test';
 
 import { fileURLToPath } from 'node:url';
