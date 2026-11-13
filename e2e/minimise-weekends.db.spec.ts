@@ -2,6 +2,7 @@ import { test, expect } from './dbFixtures';
 import {
   boundingBoxOrThrow as box,
   disableWeekSnap,
+  expectEditableBar,
   nudgeScheduler as nudge,
   openApp,
   probeSchedulerGeometry as probe,
@@ -134,6 +135,7 @@ function registerBarDraggedAcrossNarrowedWeekendTest() {
     await setZoom(page, 1);
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' });
+    await expectEditableBar(bar);
     await bar.click();
     let dialog = page.getByRole('dialog', { name: 'Edit allocation' });
     const startBefore = await dialog.getByLabel(/^Start Date/).inputValue();

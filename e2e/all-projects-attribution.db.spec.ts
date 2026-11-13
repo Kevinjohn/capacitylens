@@ -3,6 +3,7 @@ import type { Locator, Page } from './dbFixtures';
 import {
   boundingBoxOrThrow,
   enableInlineActivityCreation,
+  expectEditableBar,
   openApp,
   resetSchedulerScroll,
   selectShadOption,
@@ -96,6 +97,7 @@ test('keeps a legacy unattributed edit unchanged and places inline activities in
     .locator('[data-resource-id="r-alex"]')
     .getByTestId('allocation-bar')
     .filter({ hasText: 'Design' });
+  await expectEditableBar(legacy);
   await legacy.click();
   let editor = page.getByRole('dialog', { name: 'Edit allocation' });
   await expect(editor.getByLabel('Project', { exact: true })).toHaveText('No specific project');
