@@ -36,10 +36,6 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 coverage/
-# Stryker mutation output: report and sandbox are generated locally.
-/reports/
-.stryker-tmp/
-stryker.log
 
 # Design and competitor reference scraps are not app assets.
 /_input/

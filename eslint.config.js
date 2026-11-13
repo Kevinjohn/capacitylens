@@ -113,8 +113,6 @@ export default defineConfig([
     '**/node_modules',
     // Paraglide generates this runtime from committed sources, so linting skips it.
     'apps/frontend/src/paraglide',
-    // Stryker copies the repository into generated sandboxes; linting those copies duplicates work and confuses project lookup.
-    '.stryker-tmp',
     'reports',
     // Linters skip both documentation trees: docs/ is generated, and docs-src/ contains
     // prose and the VitePress config.

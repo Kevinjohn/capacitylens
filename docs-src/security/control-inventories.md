@@ -111,7 +111,7 @@ access, retention, time synchronization, alerting and any external log collectio
   in Node and configured SMTP. Account Kit is pinned by lockfile integrity and is outside
   Dependabot's direct package release tracking.
 - Build/test inputs include pnpm registry packages, GitHub Actions, CodeQL, Playwright browsers,
-  Vitest, ESLint, Stryker, Gitleaks, Syft/Anchore, Trivy and OWASP ZAP.
+  Vitest, ESLint, Gitleaks, Syft/Anchore, Trivy and OWASP ZAP.
 - `pnpm-lock.yaml` pins the dependency graph. Reviewed overrides keep vulnerable transitive
   packages on compatible patched releases where needed. GitHub actions are full-commit pinned;
   Dependabot covers npm and Actions.

@@ -15,7 +15,7 @@ The suites cover the frontend, backend and shared workspace packages.
 | Backend tests | Japa | API behavior, authorization, SQLite, backups and sign-in |
 | End-to-end tests | Playwright | Authenticated SQLite interaction checks and scheduler gestures in real browsers |
 | Accessibility checks | axe, inside the end-to-end tests | Automated accessibility rules on key screens |
-| Mutation testing | Stryker | Whether focused tests detect changes to scheduling logic; run on demand |
+| Mutation checks | By hand, in review | Whether the tests for the changed code fail when that code is reverted or altered; see step 6 of [Contributing](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md#your-first-change) |
 
 ## Limits of each suite
 
