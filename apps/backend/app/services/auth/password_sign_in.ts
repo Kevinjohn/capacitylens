@@ -2,9 +2,10 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { InvalidCredentialsError, ThrottledError } from '@kevinjohn/adonisjs-account-kit/errors';
 import env from '#start/env';
-import { sessionGuard, withActor } from '#services/auth/current_actor';
+import { withActor } from '#services/auth/current_actor';
 import { recordMemberSignIn } from '#services/membership/sign_in_tracking';
 import { buildUserProjection } from '#services/auth/user_projection';
+import { managedGuard } from '#services/auth/managed_guard';
 
 function logSignInOutcome(ctx: HttpContext, outcome: 'success' | 'failure' | 'throttled') {
   if (env.get('CAPACITYLENS_LOG') !== '1') return;
@@ -31,7 +32,7 @@ export async function signInWithPassword(ctx: HttpContext, email: string, passwo
         clientKey: ctx.request.ip(),
         sessionLabel: ctx.request.header('user-agent')?.slice(0, 200),
       },
-      sessionGuard(ctx)
+      managedGuard.forRequest(ctx)
     );
   } catch (error) {
     // Record expected credential refusals, then preserve the original package failure.

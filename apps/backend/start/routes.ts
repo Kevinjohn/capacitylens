@@ -42,9 +42,11 @@ router.get('/health/ready', async ({ response }) => {
   }
 });
 registerDiagnosticsRoutes();
+router
+  .get('/api/*', ({ response }) => response.notFound({ error: 'Not found' }))
+  .as('api.not-found');
 router.get('*', async ({ request, response }) => {
   const path = request.url().split('?', 1)[0];
-  if (path.startsWith('/api/')) return response.notFound({ error: 'Not found' });
   const lastSegment = path.slice(path.lastIndexOf('/') + 1);
   if (
     path.startsWith('/assets/') ||
