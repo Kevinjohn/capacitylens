@@ -76,3 +76,20 @@ for (const state of ['isTerminating', 'isTerminated'] as const) {
     await provider.shutdown();
   });
 }
+
+test('a running server stops background maintenance when shutdown begins', async ({ assert }) => {
+  const hooks: Array<() => unknown> = [];
+  const application = {
+    container: { make: async () => ({ on() {} }) },
+    getEnvironment: () => 'web',
+    inTest: false,
+    isTerminating: false,
+    isTerminated: false,
+    terminating: (hook: () => unknown) => hooks.push(hook),
+  };
+  const provider = new ConfigurationProvider(application as never);
+  await provider.ready();
+  assert.lengthOf(hooks, 1, 'the provider registers one shutdown hook');
+  await hooks[0]();
+  await provider.shutdown();
+});
