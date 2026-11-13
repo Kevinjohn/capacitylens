@@ -24,6 +24,7 @@ const authenticatedUser = {
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 let accountDirectoryResponse: AccountSummary[] = [];
 let accountDirectoryPending = false;
+let accountDirectoryRefused = false;
 vi.mock('@/i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/i18n')>()),
   syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
@@ -38,12 +39,17 @@ beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
   accountDirectoryResponse = [{ id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' }];
   accountDirectoryPending = false;
+  accountDirectoryRefused = false;
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost');
       if (url.pathname.replace(/\/$/, '') === '/api/accounts') {
         if (accountDirectoryPending) return new Promise<Response>(() => {});
+        // The server refuses the directory when the installation holds more than one company.
+        if (accountDirectoryRefused) {
+          return Response.json({ code: 'MULTIPLE_COMPANIES' }, { status: 409 });
+        }
         return Response.json(
           accountDirectoryResponse.map(({ id, name, role, roleStatus }) => ({
             id,
@@ -296,7 +302,7 @@ it('does not apply a late joined-account handoff after an explicit company choic
 
 it('shows an installation error when the account directory contains multiple memberships', async () => {
   const accounts = [makeAccount(), makeAccount({ id: 'acct-other', name: 'Other Co' })];
-  accountDirectoryResponse = accounts.map(({ id, name }) => ({ id, name, role: 'owner' }));
+  accountDirectoryRefused = true;
   loadPlanningData(makeAppData({ accounts }));
   useStore.setState({
     activeAccountId: null,
