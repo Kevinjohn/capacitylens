@@ -55,7 +55,7 @@ test('a published image is present', () => {
   assert.equal(result.status, 0);
 });
 
-for (const stderr of ['manifest unknown', 'No such manifest: x']) {
+for (const stderr of ['manifest unknown', 'No such manifest: x', 'name unknown']) {
   test(`a registry answer of "${stderr}" means the image is absent`, () => {
     const result = run([{ stderr, status: 1 }]);
     assert.equal(result.stdout, 'absent\n');
