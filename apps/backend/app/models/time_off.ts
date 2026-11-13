@@ -5,7 +5,7 @@ import type { DateTime } from 'luxon';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
 import type { ISODate, ISOTimestamp } from '@capacitylens/shared/types/entities';
 import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
-import { isoDateColumn, isoTimestampColumn } from '#models/scalar_column';
+import { isoDateColumn, isoTimestampColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 export default class TimeOff extends SoftDeletes(TimeOffSchema) {
   static forCompany = forCompany;
   static forWholeInstallation = forWholeInstallation;

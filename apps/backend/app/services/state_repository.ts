@@ -18,7 +18,7 @@ import TimeOff from '#models/time_off';
 import type { BaseModel } from '@adonisjs/lucid/orm';
 import type { QueryClientContract } from '@adonisjs/lucid/types/database';
 import type { ModelColumnOptions } from '@adonisjs/lucid/types/model';
-import { isJsonColumn } from '#models/json_column';
+import { isJsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 
 export const tables = {
   accounts: 'accounts',

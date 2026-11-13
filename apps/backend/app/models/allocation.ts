@@ -3,11 +3,14 @@ import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import { deletedAtColumn } from '#models/scalar_column';
 import type { DateTime } from 'luxon';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
-import { jsonColumn } from '#models/json_column';
-import { isBoolean } from '#models/json_column';
-import { isoDateColumn, isoTimestampColumn } from '#models/scalar_column';
 import type { ISODate, ISOTimestamp } from '@capacitylens/shared/types/entities';
 import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
+import {
+  isBoolean,
+  isoDateColumn,
+  isoTimestampColumn,
+  jsonColumn,
+} from '@kevinjohn/adonisjs-lucid-checked-columns';
 export default class Allocation extends SoftDeletes(AllocationSchema) {
   static forCompany = forCompany;
   static forWholeInstallation = forWholeInstallation;
