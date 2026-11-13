@@ -11,7 +11,7 @@ export async function hasMultipleCompanies(reader: CompanyReader): Promise<boole
 
 /** Whether first-company setup has not happened yet. */
 export async function hasNoCompany(reader: CompanyReader): Promise<boolean> {
-  return !(await reader.from('accounts').select('id').first());
+  return !(await reader.from('accounts').first());
 }
 
 /**
