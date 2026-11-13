@@ -86,7 +86,9 @@ maintenance. The operator guides cover
 [backups](https://kevinjohn.github.io/capacitylens/self-hosting/backups-and-restore.html),
 [upgrades](https://kevinjohn.github.io/capacitylens/self-hosting/upgrades.html) and
 [monitoring](https://kevinjohn.github.io/capacitylens/self-hosting/monitoring.html). Docker
-support remains optional. Proxies in separate containers or on separate machines are not yet
+support remains optional; see
+[Install with Docker](https://kevinjohn.github.io/capacitylens/self-hosting/install-with-docker.html).
+For the native installation, proxies in separate containers or on separate machines are not yet
 supported; use the native same-machine proxy setup for the first release. Sign-in is by password,
 and invitations and password resets need email delivery. See
 [sign-in and access](https://kevinjohn.github.io/capacitylens/company-login/index.html).

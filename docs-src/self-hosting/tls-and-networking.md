@@ -16,8 +16,10 @@ from that trusted proxy. The application trusts forwarded headers from loopback 
 so the proxy must run on the same host. The provided native archive includes Caddy and nginx examples; review them
 for your hostname, certificate paths and network before installation.
 
-A proxy on a separate machine or in a separate container is not supported: every client behind it
-would share the proxy's request-limit budget. Use a same-machine proxy that connects over loopback; do not widen trust to arbitrary
+For the native installation, a proxy on a separate machine or in a separate container is not
+supported: every client behind it would share the proxy's request-limit budget. The
+[Docker Compose stack](/self-hosting/install-with-docker) is the exception: its API trusts forwarded
+headers only from the private Compose network. Use a same-machine proxy that connects over loopback; do not widen trust to arbitrary
 forwarded headers.
 
 ## Caddy
