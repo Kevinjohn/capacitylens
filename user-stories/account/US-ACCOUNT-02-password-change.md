@@ -38,7 +38,7 @@ flowchart TD
   client --> route["auth_routes maps change-password to CredentialController.changePassword"]
   route --> kit["Account Kit emailPasswordManagement.changePassword"]
   kit --> sessions["Account Kit changePassword call owns password and other-session effects"]
-  sessions --> session["CredentialController invokes sessionGuard.terminate for this session"]
+  sessions --> session["CredentialController ends this session through the managed guard"]
   session --> reload["usePasswordChange.submit navigates to / to sign in with the new password"]
   kit --> error["Rejected credential returns a visible field error"]
 ```

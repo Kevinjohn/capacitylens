@@ -554,6 +554,12 @@ const routes = {
     tokens: [[0,"api"],[0,"diagnostics"]],
     types: placeholder as Registry['api.diagnostics']['types'],
   },
+  'api.not-found': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/*',
+    tokens: [[0,"api"],[2,"*"]],
+    types: placeholder as Registry['api.not-found']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

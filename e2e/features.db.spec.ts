@@ -1,4 +1,5 @@
 import { test, expect } from './dbFixtures';
+import type { Locator } from './dbFixtures';
 import {
   boundingBoxOrThrow as box,
   openApp,
@@ -9,6 +10,16 @@ import {
   showScheduleFilters,
   waitForWeekSnap,
 } from './browserTestSupport';
+
+/** Wait until the bar accepts pointer input and the schedule has stopped moving.
+ *
+ * Bars render read-only (`role="img"`, no pointer handlers) until the membership role resolves,
+ * which can be after the planning data has drawn them. The same update inserts the getting-started
+ * strip above the schedule, moving every row down. A click or a measured drag before it is ignored
+ * or lands on another row (#1928). */
+async function expectEditableBar(bar: Locator): Promise<void> {
+  await expect(bar).toHaveRole('button');
+}
 
 function registerFilteringProjectNarrowsScheduleProjectTest() {
   test('filtering by project narrows the schedule to that project', async ({ page }) => {
@@ -35,7 +46,9 @@ function registerUndoRestoresDeletedAllocationTest() {
     await expect(bars).toHaveCount(6);
     const n = await bars.count();
 
-    await bars.filter({ hasText: 'Brand System' }).click();
+    const bar = bars.filter({ hasText: 'Brand System' });
+    await expectEditableBar(bar);
+    await bar.click();
     await expect(page.getByRole('dialog', { name: 'Edit allocation' })).toBeVisible();
     await page.getByRole('button', { name: 'Delete' }).click();
     await page
@@ -48,6 +61,9 @@ function registerUndoRestoresDeletedAllocationTest() {
     // covered in toolbar.spec.ts. Click an empty corner of the grid first so the shortcut
     // isn't swallowed by a focused input.
     await page.getByTestId('scheduler-grid').click({ position: { x: 5, y: 5 } });
+    // The bar disappears on the delete receipt, but undo stays unavailable until the planning
+    // re-read that follows it has finished; the shortcut does nothing before then (#1928).
+    await expect(page.getByTestId('undo-button')).toBeEnabled();
     await page.keyboard.press('Meta+z');
     await expect(bars).toHaveCount(n);
   });
@@ -98,6 +114,7 @@ function registerDraggingAllocationOntoAnotherRowTest() {
     await setZoom(page, 4);
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
+    await expectEditableBar(bar);
     const b0 = await box(bar);
     // Target the resource by its stable ID so seed reordering cannot change the destination.
     const clarkLane = page.locator('[data-resource-id="r-nike"]');

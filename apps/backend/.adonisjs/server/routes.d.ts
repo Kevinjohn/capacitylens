@@ -95,6 +95,7 @@ export type ScannedRoutes = {
     'api.ownership.transfer': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }
+    'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   GET: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -113,6 +114,7 @@ export type ScannedRoutes = {
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }
+    'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   HEAD: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -131,6 +133,7 @@ export type ScannedRoutes = {
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }
+    'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   POST: {
     'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }

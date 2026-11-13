@@ -1191,6 +1191,19 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/diagnostics_controller').default['show']>>>
     }
   }
+  'api.not-found': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/*'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { '*': ParamValue[] }
+      query: {}
+      response: unknown
+      errorResponse: unknown
+      rawResponse: ExtractRawResponse<unknown>
+    }
+  }
 }
 
 export namespace Route {

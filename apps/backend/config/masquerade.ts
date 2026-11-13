@@ -4,7 +4,7 @@ import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { defineConfig } from '@kevinjohn/adonisjs-masquerade';
 import { accountKitAuthority } from '@kevinjohn/adonisjs-masquerade/account-kit';
 import { LucidControlStore } from '@kevinjohn/adonisjs-masquerade/stores/lucid';
-import { accountInput } from '#services/auth/current_actor';
+import { managedGuard } from '#services/auth/managed_guard';
 import { sessionUsers } from '#config/auth';
 import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
 import access from '#config/access_control';
@@ -18,11 +18,7 @@ export const nativeAdapter = accountKitAuthority<MasqueradeUser>({
   incarnation: 'id',
   provider: sessionUsers,
   kit: () => accountKit,
-  managedGuard: {
-    name: 'web',
-    strategy: 'session',
-    current: accountInput,
-  },
+  managedGuard,
 });
 
 function requestedAccountId(request?: HttpContext): string | null {

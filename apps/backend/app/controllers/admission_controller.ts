@@ -1,11 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import app from '@adonisjs/core/services/app';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { accountInput, currentAccount, withActor } from '#services/auth/current_actor';
+import { currentAccount, withActor } from '#services/auth/current_actor';
 import { completeMembership } from '#services/membership/admission_membership';
 
 import { admissionQueryValidator } from '#validators/admission_query';
 import { errors as vineErrors } from '@vinejs/vine';
+import { managedGuard } from '#services/auth/managed_guard';
 
 const admission = () => app.container.make(AccountAdmission);
 
@@ -22,13 +23,13 @@ function userIdParam(value: unknown) {
 export default class AdmissionController {
   async show(ctx: HttpContext) {
     const service = await admission();
-    const { decision } = await service.current(await accountInput(ctx));
+    const { decision } = await service.current(await managedGuard.current(ctx));
     return ctx.response.ok({ decision });
   }
 
   async request(ctx: HttpContext) {
     const service = await admission();
-    const record = await service.request(await accountInput(ctx));
+    const record = await service.request(await managedGuard.current(ctx));
     return ctx.response.ok({ requestedAt: record.requestedAt });
   }
 
