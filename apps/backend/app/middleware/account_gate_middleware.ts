@@ -7,6 +7,7 @@ import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { managedAccountMiddleware } from '@kevinjohn/adonisjs-account-kit/http';
 import { managedGuard } from '#services/auth/managed_guard';
 import { routeAccess } from '#services/auth/route_access';
+import { sendRefusal } from '#services/planning/http_refusal';
 
 const checks = {
   limited: managedAccountMiddleware({
@@ -35,6 +36,8 @@ export default class AccountGateMiddleware {
         if (error instanceof InvalidSessionError) {
           return ctx.response.unauthorized({ error: 'Sign-in required.' });
         }
+        // Planning handlers answer a refusal in their own wording; the gate keeps that body.
+        if (ctx.route?.name?.startsWith('api.planning.')) return sendRefusal(error, ctx);
         throw error;
       }
     }

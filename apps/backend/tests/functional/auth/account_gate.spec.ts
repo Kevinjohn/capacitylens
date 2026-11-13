@@ -64,10 +64,20 @@ test.group('account gate', (group) => {
     const { cookie, cookieHeader } = await signIn(client, waiting);
     const get = (path: string) => client.get(path).header('cookie', cookieHeader).send();
 
-    for (const path of [`/api/accounts/${accountId}/planning`, '/api/accounts', '/api/state']) {
+    // Planning routes word the refusal their own way; the gate keeps each route's body.
+    const planningRefusal = 'Company access needs admission.';
+    const productRefusal = 'Your access to this company is waiting on admission.';
+    for (const [path, error] of [
+      [`/api/accounts/${accountId}/planning`, planningRefusal],
+      ['/api/accounts', productRefusal],
+      ['/api/state', productRefusal],
+    ] as const) {
       const refused = await get(path);
       refused.assertStatus(403);
-      assert.equal((refused.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
+      const body = refused.body() as { code?: string; error?: string; decision?: unknown };
+      assert.equal(body.code, 'ADMISSION_REQUIRED');
+      assert.equal(body.error, error);
+      assert.isObject(body.decision);
     }
     // The body is invalid; the gate answers before the handler reads it.
     const write = await asDataOwner(client.post(`/api/accounts/${accountId}/clients`), cookie)
@@ -75,6 +85,7 @@ test.group('account gate', (group) => {
       .send();
     write.assertStatus(403);
     assert.equal((write.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
+    assert.equal((write.body() as { error?: string }).error, planningRefusal);
 
     for (const [path, status] of [
       ['/api/admission', 200],
@@ -86,9 +97,28 @@ test.group('account gate', (group) => {
     }
     const requested = await asDataOwner(client.post('/api/admission/request'), cookie).send();
     requested.assertStatus(200);
-    // Listing requests is limited at the gate; the Kit then refuses a person with no authority.
+    // The remaining limited routes pass the gate; their handlers then refuse a person with no
+    // authority, in their own words.
+    const ownerRow = await db.from('users').where('email', owner).firstOrFail();
+    const ownerId = String(ownerRow.id);
     const listed = await get('/api/admission/requests');
     listed.assertStatus(403);
+    const limited = [listed];
+    for (const action of ['approve', 'reject', 'revoke']) {
+      limited.push(
+        await asDataOwner(client.post(`/api/admission/${ownerId}/${action}`), cookie).send()
+      );
+    }
+    limited.push(
+      await asDataOwner(client.post(`/api/accounts/${accountId}/masquerade`), cookie)
+        .json({ userId: ownerId })
+        .send(),
+      await asDataOwner(client.delete('/api/masquerade'), cookie).send()
+    );
+    for (const response of limited) {
+      assert.notEqual(response.status(), 401);
+      assert.notEqual((response.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
+    }
   });
 
   test('a session that lost its registry handle is refused', async ({ client, assert }) => {
