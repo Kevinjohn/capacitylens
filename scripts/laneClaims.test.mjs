@@ -307,7 +307,6 @@ test('explicit browser presets clear conflicting inherited mode flags', () => {
   const inherited = {
     CAPACITYLENS_WEBKIT_ONLY: '1',
     CAPACITYLENS_FIREFOX_ONLY: '1',
-    CAPACITYLENS_REHEARSAL_URL: 'https://example.invalid',
     KEEP_THIS: 'yes',
   };
   for (const preset of Object.values(E2E_RUN_PRESETS)) {

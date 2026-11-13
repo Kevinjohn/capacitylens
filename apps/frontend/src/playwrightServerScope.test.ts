@@ -14,13 +14,11 @@ describe('Playwright server scope', () => {
     },
   );
 
-  it('ignores retired rehearsal settings and rejects contradictory browser modes', () => {
-    expect(
-      resolvePlaywrightRunMode({
-        CAPACITYLENS_WEBKIT_ONLY: '1',
-        CAPACITYLENS_REHEARSAL_URL: 'http://rehearsal.test',
-      }),
-    ).toEqual({ projects: ['webkit'], serverProfile: 'workers' });
+  it('selects one engine and rejects contradictory browser modes', () => {
+    expect(resolvePlaywrightRunMode({ CAPACITYLENS_WEBKIT_ONLY: '1' })).toEqual({
+      projects: ['webkit'],
+      serverProfile: 'workers',
+    });
     expect(() =>
       resolvePlaywrightRunMode({ CAPACITYLENS_WEBKIT_ONLY: '1', CAPACITYLENS_FIREFOX_ONLY: '1' }),
     ).toThrow(/cannot be combined|mutually exclusive/);
