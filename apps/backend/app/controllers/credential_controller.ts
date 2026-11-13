@@ -170,10 +170,7 @@ export default class CredentialController {
           code: 'CURRENT_PASSWORD_INCORRECT',
         });
       }
-      if (
-        error instanceof AccessControlError &&
-        error.code === 'E_ACCESS_CONTROL_OWNER_PROTECTED'
-      ) {
+      if (error instanceof AccessControlError && error.code === 'E_ACCESS_CONTROL_LAST_OWNER') {
         return ctx.response.conflict({ error: 'Transfer ownership first.', code: 'LAST_OWNER' });
       }
       if (!isCommittedFailure(error)) throw error;

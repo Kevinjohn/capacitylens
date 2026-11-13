@@ -15,7 +15,7 @@ import {
   asDataOwner,
   createFixtureCompanyForOwner,
 } from '../../helpers/authenticated_data_fixture.js';
-import { rememberSessionCookie } from '../../helpers/identities.js';
+import { bootstrapInvitation, rememberSessionCookie } from '../../helpers/identities.js';
 import {
   captureMail,
   clearIdentities,
@@ -141,33 +141,74 @@ test.group('company invitations', (group) => {
     await expectStatus(client.get(`/api/invites/${token}/preview`).send(), 404);
   });
 
-  test('one acceptance applies every pending invitation for the address into one membership', async ({
+  test('a company invitation is stored with its company and one without a company is refused', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    captureMail(cleanup);
+    const ownerId = await company();
+    const { cookie } = await signIn(client, owner);
+    const sent = await invite(client, cookie, invitee);
+    sent.assertStatus(201);
+    const stored = await db.from('account_invitations').where('email', invitee);
+    assert.lengthOf(stored, 1);
+    assert.include(stored[0], { scope: accountId, role: 'editor' });
+    // Only the operator issues an invitation without a company; a member's send needs one.
+    await assert.rejects(() =>
+      accountKit.invitations.send({
+        actorId: ownerId,
+        email: 'diana.prince@wayne.example',
+        role: 'editor',
+      })
+    );
+    await assert.rejects(() =>
+      accountKit.invitations.send({
+        actorId: ownerId,
+        email: 'diana.prince@wayne.example',
+        role: 'editor',
+        scope: 'a-lexcorp',
+      })
+    );
+    assert.lengthOf(await db.from('account_invitations'), 1);
+  });
+
+  test('acceptance joins the invitation company with the invited role; an operator invitation adds nothing', async ({
     client,
     assert,
     cleanup,
   }) => {
     const mail = captureMail(cleanup);
-    const ownerId = await company();
+    await company();
     const { cookie } = await signIn(client, owner);
-    const sent = await invite(client, cookie, invitee);
+    const sent = await invite(client, cookie, invitee, 'admin');
     sent.assertStatus(201);
     const token = mail.tokenFor(invitee);
-    // Operators can scope invitations (`account-kit:invite --scope`); the product keeps one
-    // membership with the default-scope role, whichever link is opened.
-    await accountKit.invitations.send({
-      actorId: ownerId,
-      email: invitee,
-      role: 'viewer',
-      scope: 'alpha',
-    });
-    const accepted = await accept(client, mail.tokenFor(invitee));
+    // The operator's invitation carries no company; one acceptance spends both.
+    await bootstrapInvitation(invitee);
+    assert.lengthOf(await db.from('account_invitations').where('email', invitee), 2);
+    const accepted = await accept(client, token);
     accepted.assertStatus(201);
     const userId = (accepted.body() as { user: { id: string } }).user.id;
     const memberships = await db.from('memberships').where('user_id', userId);
     assert.lengthOf(memberships, 1);
-    assert.include(memberships[0], { scope_id: accountId, role: 'editor', status: 'active' });
+    assert.include(memberships[0], { scope_id: accountId, role: 'admin', status: 'active' });
     assert.isEmpty(await db.from('account_invitations').where('email', invitee));
     await expectStatus(accept(client, token), 400);
+  });
+
+  test('the operator invitation alone creates no membership once the company exists', async ({
+    client,
+    assert,
+  }) => {
+    await company();
+    const accepted = await accept(client, await bootstrapInvitation(invitee));
+    accepted.assertStatus(201);
+    const userId = (accepted.body() as { user: { id: string } }).user.id;
+    assert.isEmpty(await db.from('memberships').where('user_id', userId));
+    assert.isEmpty(
+      await db.from('audit_entries').where({ actor_id: userId, action: 'invitation.accepted' })
+    );
   });
 
   test('only Owners and Admins invite, never as Owner, and never without mail', async ({
