@@ -4,7 +4,8 @@ import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
 import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
-import { deletedAtColumn, isoTimestampColumn } from '#models/scalar_column';
+import { deletedAtColumn } from '#models/scalar_column';
+import { isoTimestampColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 export default class Activity extends SoftDeletes(ActivitySchema) {
   static forCompany = forCompany;
   static forWholeInstallation = forWholeInstallation;

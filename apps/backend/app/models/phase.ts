@@ -5,7 +5,7 @@ import type { DateTime } from 'luxon';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
 import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
-import { isoTimestampColumn } from '#models/scalar_column';
+import { isoTimestampColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 export default class Phase extends SoftDeletes(PhaseSchema) {
   static forCompany = forCompany;
   static forWholeInstallation = forWholeInstallation;

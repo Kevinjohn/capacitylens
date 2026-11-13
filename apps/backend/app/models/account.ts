@@ -5,8 +5,13 @@ import type {
   Weekday,
 } from '@capacitylens/shared/types/entities';
 import { AccountSchema } from '#database/schema';
-import { isArrayOf, isBoolean, isOneOf, jsonColumn } from '#models/json_column';
-import { isoTimestampColumn } from '#models/scalar_column';
+import {
+  isArrayOf,
+  isBoolean,
+  isOneOf,
+  isoTimestampColumn,
+  jsonColumn,
+} from '@kevinjohn/adonisjs-lucid-checked-columns';
 
 const isWeekday = isOneOf([0, 1, 2, 3, 4, 5, 6] as const);
 
