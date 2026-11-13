@@ -17,7 +17,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
    `pnpm run docs:build` and commit the generated `docs/` output. No other checks are needed.
 6. Code changes: add a test that fails without the change, then run the checks in
    [Before opening a pull request](#before-opening-a-pull-request).
-7. Add an entry under `CHANGELOG.md` → `Unreleased` if users will notice the change.
+7. Write the pull-request title as the release-note line, for a person using the product, and give
+   the pull request one category label (see [Pull requests](#pull-requests)).
 8. Commit with a sign-off: `git commit -s -m "Describe the change"` (see [Pull requests](#pull-requests)).
 9. Push your branch and open a pull request; the template lists what to include.
 10. Leave the pull request open and respond to review. Merging is the maintainer's decision.
@@ -330,7 +331,10 @@ failure paths, including missing or invalid configuration.
 - Link an issue when one exists.
 - Keep unrelated formatting and refactors out of the patch.
 - Note operational, migration, privacy or accessibility impact.
-- Add an entry under `CHANGELOG.md` → `Unreleased` for user-visible changes.
+- The pull-request title is the release-note line: write it for a person using the product. Add one
+  category label: `enhancement`, `bug`, `documentation`, `dependencies`, `maintenance` or
+  `tech-debt`. A breaking API change uses `breaking` and says what to change in the first line of
+  the description.
 
 Document implementation, design and investigation plans in GitHub issues. Do not add standalone
 planning or ideation Markdown files to the repository.
@@ -349,6 +353,18 @@ other automated contributors must use an attributable author or committer sign-o
 
 By contributing, you agree that your contribution is licensed under AGPL-3.0-only. The project
 does not currently require a copyright assignment or CLA.
+
+## Releases
+
+Release notes are generated from merged pull-request titles and grouped by label through
+[`.github/release.yml`](.github/release.yml). To release, bump the version in `package.json`, tag
+that commit, then create a draft with generated notes and edit it before publishing:
+
+```bash
+gh release create <tag> --generate-notes --draft
+```
+
+[CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md) is frozen and holds releases up to 0.75.0-alpha.1.
 
 ## Community and security
 
