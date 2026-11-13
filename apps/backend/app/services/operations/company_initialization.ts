@@ -6,7 +6,7 @@ import { isAdmitted } from '#services/account_kit/policy';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import access from '#config/access_control';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
-import { operatorDatabasePath, withOperatorDatabase } from './operator_database.js';
+import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
 
 /** Establish the first company role for an existing native identity without changing admission. */
 export async function initializeCompany(input: {
@@ -14,13 +14,13 @@ export async function initializeCompany(input: {
   companyName: string;
   confirmServerStopped: boolean;
 }) {
-  operatorDatabasePath(input.confirmServerStopped);
+  operatorDatabasePath(db, input.confirmServerStopped);
   const email = normalizeAccountEmail(input.email);
   const name = parseUserName(input.companyName);
   if (!isAccountEmail(email) || name === null) {
     throw new Error('Refusing invalid email or company name');
   }
-  return withOperatorDatabase(async () => {
+  return withOperatorDatabase(db, async () => {
     await assertSchemaIntegrity();
     // The Kit runner holds the writer lock its package writes rely on.
     return transaction(db, async (trx) => {

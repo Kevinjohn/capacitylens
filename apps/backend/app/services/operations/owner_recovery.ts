@@ -5,7 +5,7 @@ import access from '#config/access_control';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { withTransaction } from '#services/with_transaction';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
-import { operatorDatabasePath, withOperatorDatabase } from './operator_database.js';
+import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
 
 const ineligible = 'Recovery requires a sole active Owner with a local password';
 
@@ -32,10 +32,10 @@ async function soleOwnerAccounts(userId: string, trx: Pick<Trx, 'from'>) {
  * is written after issuance; if it fails no link is shown, and the unseen link simply expires.
  */
 export async function recoverOwner(input: { email: string; confirmServerStopped: boolean }) {
-  operatorDatabasePath(input.confirmServerStopped);
+  operatorDatabasePath(db, input.confirmServerStopped);
   const email = normalizeAccountEmail(input.email);
   if (!isAccountEmail(email)) throw new Error('The target is not a valid account address');
-  return withOperatorDatabase(async () => {
+  return withOperatorDatabase(db, async () => {
     await assertSchemaIntegrity();
     const user = await db.from('users').where('email', email).select('id', 'password').first();
     if (!user?.password) throw new Error(ineligible);

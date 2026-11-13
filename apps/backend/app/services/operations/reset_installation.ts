@@ -2,10 +2,14 @@ import { closeSync, existsSync, lstatSync, mkdtempSync, openSync, renameSync } f
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import app from '@adonisjs/core/services/app';
-import { operatorDatabasePath, withOperatorDatabase } from './operator_database.js';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
-import { createBundle } from '@kevinjohn/adonisjs-sqlite-backup';
-import { syncPath } from './durability.js';
+import db from '@adonisjs/lucid/services/db';
+import {
+  createBundle,
+  operatorDatabasePath,
+  syncPath,
+  withOperatorDatabase,
+} from '@kevinjohn/adonisjs-sqlite-backup';
 
 function destinationEntryExists(path: string) {
   try {
@@ -25,7 +29,7 @@ export async function resetInstallation(input: {
 }) {
   if (app.inProduction) throw new Error('app:reset is unavailable in production');
   if (!input.disposable) throw new Error('app:reset requires --disposable');
-  const sourcePath = resolve(operatorDatabasePath(input.confirmServerStopped));
+  const sourcePath = resolve(operatorDatabasePath(db, input.confirmServerStopped));
   const databasePath = resolve(input.newDatabasePath);
   if (
     sourcePath === databasePath ||
@@ -53,7 +57,7 @@ export async function resetInstallation(input: {
   };
   let stage = 'source validation';
   try {
-    await withOperatorDatabase(async (connection) => {
+    await withOperatorDatabase(db, async (connection) => {
       await assertSchemaIntegrity();
       // wx reserves the destination against concurrent operators; an unsuccessful reset leaves it visible.
       closeSync(openSync(databasePath, 'wx', 0o600));
