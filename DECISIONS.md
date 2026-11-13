@@ -241,6 +241,9 @@ This is the short, present-tense record of decisions that constrain future work.
   signup is enabled in configuration. The stopped-server operator initializer remains a recovery
   option and also requires an admitted identity. No environment variable grants company ownership.
   A development-only demo command may, on an empty disposable database, create the sample company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
+- The development bootstrap identity is the one account written straight into `users`, already
+  confirmed and with a known password. The kit creates an account only unconfirmed, with a mailed
+  proof. Production refuses the setting that enables it.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
   for a locked-out Owner is the kit's operator command, never an in-product action.
