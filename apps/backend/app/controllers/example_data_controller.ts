@@ -1,24 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { buildExampleCompany, countExampleRows } from '@capacitylens/shared/data/exampleCompany';
-import { todayISO } from '@capacitylens/shared/lib/dateMath';
-import { encodeRow, readStateWithClient } from '#services/state_repository';
-import { TABLE_NAMES } from '#services/planning/entity_policy';
 import { withActor } from '#services/auth/current_actor';
-import { writeAudit } from '#services/audit';
+import { addExampleData } from '#services/example_data';
 import { EntityWriteError } from '#services/planning/errors';
 import { assertCompanyAction } from '#services/auth/authorization';
-import { advancePlanningRevision } from '#services/planning_revision';
-
-const INSERT_ORDER = [
-  'clients',
-  'disciplines',
-  'projects',
-  'phases',
-  'resources',
-  'activities',
-  'allocations',
-  'timeOff',
-] as const;
 
 export default class ExampleDataController {
   async store(ctx: HttpContext) {
@@ -27,49 +11,7 @@ export default class ExampleDataController {
     try {
       const added = await withActor(ctx, async (_actor, trx) => {
         const actor = await assertCompanyAction(accountId, 'members:manage', trx);
-        const state = await readStateWithClient(trx, accountId, true);
-        const account = state.accounts.at(0);
-        if (!account) throw new EntityWriteError('Company not found.', 404);
-        if (
-          state.resources.length > 0 ||
-          state.clients.some((client) => client.builtin !== true) ||
-          state.projects.length > 0 ||
-          state.allocations.length > 0
-        ) {
-          throw new EntityWriteError(
-            'Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.',
-            409,
-            undefined,
-            'EXAMPLE_DATA_COMPANY_NOT_EMPTY'
-          );
-        }
-        const sample = buildExampleCompany({
-          accountId,
-          referenceDate: todayISO(account.timezone ?? undefined),
-          weekStartsOn: account.weekStartsOn ?? 1,
-        });
-        for (const key of INSERT_ORDER) {
-          const rows = sample[key];
-          if (rows.length > 0) {
-            await trx
-              .table(TABLE_NAMES[key])
-              .multiInsert(
-                rows.map((row) =>
-                  encodeRow(TABLE_NAMES[key], row as unknown as Record<string, unknown>)
-                )
-              );
-          }
-        }
-        await writeAudit(trx, {
-          accountId,
-          actorId: actor.actorId,
-          action: 'exampleData',
-          entity: 'account',
-          entityId: accountId,
-          fields: Object.keys(sample),
-        });
-        await advancePlanningRevision(trx, accountId);
-        return countExampleRows(sample);
+        return addExampleData(trx, accountId, actor.actorId);
       });
       try {
         logger.info({ accountId, added }, 'Example data committed');

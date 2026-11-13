@@ -13,7 +13,7 @@ export interface CapacityOverviewPeriod {
   key: CapacityOverviewPeriodKey;
   start: ISODate;
   end: ISODate;
-  /** The first column starts today; the remaining columns are complete workspace weeks. */
+  /** The first column starts today; the remaining columns are complete company weeks. */
   partial: boolean;
 }
 
@@ -41,7 +41,7 @@ function buildPeriodKey(index: number): CapacityOverviewPeriodKey {
   return `week-${index + 1}`;
 }
 
-/** Build the remainder of the current workspace week followed by complete weeks up to the horizon. */
+/** Build the remainder of the current company week followed by complete weeks up to the horizon. */
 export function buildCapacityOverviewPeriods({
   today,
   weekStartsOn = 1,

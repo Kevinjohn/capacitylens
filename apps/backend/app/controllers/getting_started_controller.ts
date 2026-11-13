@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import vine, { errors as vineErrors } from '@vinejs/vine';
 import { withActor } from '#services/auth/current_actor';
 import { assertCompanyAction, IdentityAuthorityError } from '#services/auth/authorization';
+import { dismissGettingStarted, isGettingStartedDismissed } from '#services/getting_started';
 
 const dismissal = vine.compile(vine.object({ dismissed: vine.literal(true) }));
 
@@ -11,11 +12,9 @@ export default class GettingStartedController {
     const { params, response } = ctx;
     return withActor(ctx, async (_actor, trx) => {
       await assertCompanyAction(params.accountId, 'planning:read', trx);
-      const row = await trx
-        .from('account_getting_started_dismissals')
-        .where('account_id', params.accountId)
-        .first();
-      return response.ok({ dismissed: Boolean(row) });
+      return response.ok({
+        dismissed: await isGettingStartedDismissed(trx, params.accountId),
+      });
     });
   }
 
@@ -33,16 +32,7 @@ export default class GettingStartedController {
       if (!isOwnerOrAdmin(role)) {
         throw new IdentityAuthorityError('Forbidden.');
       }
-      await trx
-        .table('account_getting_started_dismissals')
-        .insert({
-          id: crypto.randomUUID(),
-          account_id: params.accountId,
-          created_at: now,
-          updated_at: now,
-        })
-        .onConflict('account_id')
-        .ignore();
+      await dismissGettingStarted(trx, params.accountId, now);
     });
     return response.ok({ dismissed: true });
   }

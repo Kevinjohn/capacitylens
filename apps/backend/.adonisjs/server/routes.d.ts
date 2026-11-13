@@ -86,8 +86,8 @@ export type ScannedRoutes = {
     'api.admission.approve': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'api.admission.reject': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'api.admission.revoke': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
-    'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
+    'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
+    'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
@@ -208,11 +208,11 @@ export type ScannedRoutes = {
   PUT: {
     'api.getting-started.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.members.tracking': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
+    'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
   }
   DELETE: {
     'api.invites.revoke': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
-    'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
+    'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.masquerade.end': { paramsTuple?: []; params?: {} }
   }
 }

@@ -33,18 +33,18 @@ describe('useMemberResourceLinkRequest', () => {
     );
     const reload = vi.fn(() => 1);
     const { result, rerender } = renderHook(
-      ({ workspaceId }) =>
+      ({ companyId }) =>
         useMemberResourceLinkRequests({
-          workspaceId,
+          companyId,
           reload,
           acceptedReadGeneration: 0,
         })(member),
-      { initialProps: { workspaceId: 'a-studio' as string | null } },
+      { initialProps: { companyId: 'a-studio' as string | null } },
     );
 
     act(() => result.current.change('r-bruce'));
     expect(result.current.pending).toBe(true);
-    rerender({ workspaceId: 'a-loft' });
+    rerender({ companyId: 'a-loft' });
     await act(async () => {
       settle({ kind: 'unknown', status: 409, message: 'The operation may have completed.' });
       await Promise.resolve();
@@ -64,7 +64,7 @@ describe('useMemberResourceLinkRequest', () => {
     const { result, rerender } = renderHook(
       ({ acceptedReadGeneration }) =>
         useMemberResourceLinkRequests({
-          workspaceId: 'a-studio',
+          companyId: 'a-studio',
           reload,
           acceptedReadGeneration,
         })(member),

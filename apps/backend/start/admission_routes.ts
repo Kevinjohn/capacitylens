@@ -42,13 +42,13 @@ export function registerAdmissionRoutes() {
     .as('api.admission.revoke');
 
   router
-    .put('/api/accounts/:accountId/members/:principalId/resource-link', [
+    .put('/api/accounts/:accountId/members/:userId/resource-link', [
       MemberResourcesController,
       'setLink',
     ])
     .as('api.member-resources.set');
   router
-    .delete('/api/accounts/:accountId/members/:principalId/resource-link', [
+    .delete('/api/accounts/:accountId/members/:userId/resource-link', [
       MemberResourcesController,
       'clearLink',
     ])

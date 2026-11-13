@@ -111,7 +111,7 @@ async function sendTransfer(
 ): Promise<OwnershipTransferResult | null> {
   try {
     return await teamAccessClient.transferOwnership({
-      workspaceId: accountId,
+      companyId: accountId,
       targetPrincipalId,
       confirmationId,
     });

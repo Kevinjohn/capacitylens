@@ -23,7 +23,7 @@ function parseReceipt(value: unknown): OwnershipTransferReceipt | null {
 /** Sends one confirmed owner-to-admin transfer through the typed account command boundary. */
 export const ownershipTransferAccess = {
   async transferOwnership(input: {
-    workspaceId: string;
+    companyId: string;
     targetPrincipalId: string;
     confirmationId: string;
   }): Promise<TeamAccessResult<OwnershipTransferReceipt>> {

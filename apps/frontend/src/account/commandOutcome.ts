@@ -32,7 +32,7 @@ async function readResponseBody(response: Response, parsedBody: unknown): Promis
 }
 
 /** Keep unknown-outcome retry ceremonies distinct when one UI operation accepts different
- * semantic payloads. Without this binding, changing (for example) the workspace name after a 5xx
+ * semantic payloads. Without this binding, changing (for example) the company name after a 5xx
  * reuses the old command, receives IDEMPOTENCY_CONFLICT, clears the only recovery handle, and can
  * then submit a fresh duplicate while the original outcome is still unknown. */
 export async function buildPayloadOperationKey(operation: string, body: unknown): Promise<string> {

@@ -75,7 +75,7 @@ export const hasPlaceholdersEnabled = createAccountFieldSelector('placeholdersEn
 export const hasExternalResourcesEnabled = createAccountFieldSelector('externalEnabled', false);
 
 /** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as
- * false (disabled). Single source so Settings and the modal use the same workspace value. */
+ * false (disabled). Single source so Settings and the modal use the same company value. */
 export const canCreateInlineActivity = createAccountFieldSelector(
   'inlineActivityCreateEnabled',
   false,
