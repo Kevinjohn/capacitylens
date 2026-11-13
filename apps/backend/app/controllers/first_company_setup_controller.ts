@@ -6,7 +6,7 @@ import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings';
 
 /**
  * Establishes company access only for the sole confirmed, admitted principal on an empty
- * installation. The Kit's account lock and the installation lock row serialise competing setups.
+ * installation. The Kit's account transaction serialises competing setups.
  */
 export default class FirstCompanySetupController {
   async store(ctx: HttpContext) {
@@ -19,7 +19,6 @@ export default class FirstCompanySetupController {
       });
     }
     const result = await withActor(ctx, async (actor, trx) => {
-      await trx.from('account_transaction_lock').where('id', 1).increment('version', 1);
       if (!(await requiresFirstCompanySetup(actor.userId, trx))) return null;
       return createInitialCompany(trx, {
         name: input.name,
