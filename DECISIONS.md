@@ -209,6 +209,10 @@ This is the short, present-tense record of decisions that constrain future work.
   already-registered address; identities are never merged by email. When an existing limited
   account needs invitation evidence, the operator uses the kit's `grant-invitation` command. An
   invitation never proposes or creates a Resource; link the member to a Resource after they join.
+- A company invitation carries its company id. Access Control's Account Kit callbacks decide who
+  may invite, create the invited membership and remove memberships when an account is deleted; the
+  product adds the audit entry and planning revision in the same transaction. An invitation without
+  a company, such as the operator's, creates no membership.
 - Invitations, address confirmation and password resets need configured mail delivery. Without
   it they are refused with an explanation rather than falling back to a copyable link.
 - Sessions use the kit's database-backed registry with a 14-day idle expiry. Changing or resetting
