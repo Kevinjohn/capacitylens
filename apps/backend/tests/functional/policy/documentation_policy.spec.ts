@@ -178,7 +178,17 @@ test.group('M5 documentation and policy contracts', () => {
 
   test('documents the current standalone Docker lifecycle and persistent data', ({ assert }) => {
     const dockerGuide = read('docs-src/self-hosting/install-with-docker.md');
+    // Published images are the default; a source build is the stated alternative.
+    assert.include(dockerGuide, 'docker compose up --detach --wait');
+    assert.include(dockerGuide, 'docker compose --profile caddy up --detach --wait');
     assert.include(dockerGuide, 'docker compose up --build --detach --wait');
+    assert.include(dockerGuide, '`CAPACITYLENS_VERSION`');
+    assert.include(dockerGuide, '/vX.Y.Z/docker-compose.yml');
+    assert.include(dockerGuide, '`capacitylens-caddy-data`');
+    assert.isBelow(
+      dockerGuide.indexOf('docker compose up --detach --wait'),
+      dockerGuide.indexOf('docker compose up --build --detach --wait')
+    );
     assert.include(dockerGuide, '`app:upgrade`');
     assert.include(dockerGuide, '`capacitylens-db`');
     assert.include(dockerGuide, '`capacitylens-backups`');

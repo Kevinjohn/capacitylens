@@ -2,27 +2,41 @@ name: Docker
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag whose images to publish when they are not yet in the registry. Leave empty to run only the smoke.
+        required: false
+        type: string
   push:
     branches: [main]
     tags: ['v*']
+  release:
+    types: [published]
 
 permissions:
   contents: read
 
+# A release and its tag push share a ref; the event name keeps the tag's smoke from cancelling the
+# publication.
 concurrency:
-  group: docker-${{ github.ref }}
-  cancel-in-progress: true
+  group: docker-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   smoke:
     name: Build and smoke standalone images
+    # A publication runs the same smoke on the images it is about to push.
+    if: github.event_name != 'release' && inputs.tag == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       # Disposable, isolated smoke fixture. Production refuses a plain-HTTP public address, so links
-      # name HTTPS while the smoke talks to the loopback port.
+      # name HTTPS while the smoke talks to the loopback port. For `localhost` the Caddy profile
+      # issues a certificate from its own authority instead of asking a public one.
       APP_KEY: capacitylens-container-test-key-0123456789abcdef
-      CAPACITYLENS_PUBLIC_URL: https://127.0.0.1:8080
+      CAPACITYLENS_PUBLIC_URL: https://localhost
+      # Tags the images built from this checkout; nothing is pulled or pushed.
+      CAPACITYLENS_VERSION: smoke
       WEB_PORT: '8080'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,9 +62,92 @@ jobs:
           node-version-file: .nvmrc
       - name: Check first sign-in, company setup and persistence across API recreation
         run: node scripts/smoke-docker-compose.mjs
+      - name: Check HTTPS through the Caddy profile
+        run: |
+          set -euo pipefail
+          docker compose --profile caddy up --no-build --detach --wait --wait-timeout 120
+          curl --fail --silent --show-error --insecure --retry 10 --retry-delay 2 --retry-all-errors \
+            https://localhost/health/ready > /tmp/ready-https.json
+          node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/ready-https.json')); if(r.isHealthy!==true) throw Error('Not ready over HTTPS')"
+          redirect="$(curl --silent --show-error --output /dev/null --write-out '%{redirect_url}' http://localhost/)"
+          test "$redirect" = https://localhost/
       - name: Show failure diagnostics
         if: failure()
-        run: docker compose logs --no-color
+        run: docker compose --profile caddy logs --no-color
       - name: Remove disposable containers and volumes
         if: always()
-        run: docker compose down --volumes --remove-orphans
+        run: docker compose --profile caddy down --volumes --remove-orphans
+
+  publish:
+    name: Publish release images
+    if: github.event_name == 'release' || inputs.tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      APP_KEY: capacitylens-container-test-key-0123456789abcdef
+      CAPACITYLENS_PUBLIC_URL: https://localhost
+      WEB_PORT: '8080'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - name: Resolve the version and stop when its images are already published
+        id: version
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          case "$RELEASE_TAG" in v[0-9]*) ;; *) echo "::error::$RELEASE_TAG is not a release tag."; exit 1;; esac
+          version="${RELEASE_TAG#v}"
+          if ! grep -q 'ghcr.io/kevinjohn/capacitylens-api:' docker-compose.yml; then
+            echo "::error::$RELEASE_TAG predates the published images, so its Compose file cannot name them."
+            exit 1
+          fi
+          echo "CAPACITYLENS_VERSION=$version" >> "$GITHUB_ENV"
+          echo "VITE_CAPACITYLENS_BUILD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
+          # Published image tags are never rebuilt or replaced: a complete pair stops here, and a
+          # partial pair fails instead of pushing a second build under the same version.
+          has() { docker manifest inspect "ghcr.io/kevinjohn/capacitylens-$1:$version" >/dev/null 2>&1; }
+          if has api && has web; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          elif has api || has web; then
+            echo "::error::$version has only one of its two images. Delete that package version, then dispatch this workflow again."
+            exit 1
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build and wait for readiness
+        if: steps.version.outputs.present != 'true'
+        run: docker compose up --build --detach --wait --wait-timeout 180
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Check first sign-in, company setup and persistence across API recreation
+        if: steps.version.outputs.present != 'true'
+        run: node scripts/smoke-docker-compose.mjs
+      - name: Publish the images
+        if: steps.version.outputs.present != 'true'
+        run: docker compose push api web
+      - name: Run the published images without building
+        run: |
+          set -euo pipefail
+          # Start from an empty host: no containers, volumes or local images, as a new installation has.
+          docker compose down --volumes --remove-orphans --rmi all
+          docker compose --profile caddy up --no-build --pull always --detach --wait --wait-timeout 180
+          curl --fail --silent --show-error --insecure --retry 10 --retry-delay 2 --retry-all-errors \
+            https://localhost/health/ready > /tmp/ready-https.json
+          node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/ready-https.json')); if(r.isHealthy!==true) throw Error('Not ready over HTTPS')"
+          node scripts/smoke-docker-compose.mjs
+      - name: Show failure diagnostics
+        if: failure()
+        run: docker compose --profile caddy logs --no-color
+      - name: Remove disposable containers and volumes
+        if: always()
+        run: docker compose --profile caddy down --volumes --remove-orphans

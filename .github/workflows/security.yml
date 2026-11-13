@@ -117,6 +117,8 @@ jobs:
       # Production refuses a plain-HTTP public address, so links name HTTPS while ZAP scans the
       # loopback port directly.
       CAPACITYLENS_PUBLIC_URL: https://localhost:8080
+      # Tags the images this job builds from source; nothing is pulled or pushed.
+      CAPACITYLENS_VERSION: security
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
