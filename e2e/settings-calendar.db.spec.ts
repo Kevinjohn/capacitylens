@@ -10,6 +10,9 @@ test.describe('Company details', () => {
   test('vertically centres every section title with its help action', async ({ page }) => {
     await openApp(page, '/settings');
     await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+    // Sections that need an editing role appear only once the membership role resolves, so count
+    // them in the settled editable state.
+    await expect(page.getByRole('checkbox', { name: 'Monday', exact: true })).toBeEnabled();
 
     const titles = page.locator('[data-slot="settings-row"] h3');
     const helpActions = page.locator('[data-slot="settings-row"] button[aria-label^="About "]');
