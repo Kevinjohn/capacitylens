@@ -3,6 +3,9 @@ packages:
   - apps/*
   - packages/*
 
+# Refuse to install on a Node version outside the root `engines` range instead of warning.
+engineStrict: true
+
 # Inject workspace build outputs so deployed dependencies remain self-contained.
 # Production packaging uses the reviewed legacy adapter for the pinned release-asset packages.
 injectWorkspacePackages: true

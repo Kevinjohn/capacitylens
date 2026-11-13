@@ -5,6 +5,7 @@
 // Claim before starting the child because configuration files resolve ports before global setup can run.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { assertSupportedNodeVersion } from '../apps/backend/start/node_version.ts';
 import { mirrorChildExit } from './devProcesses.mjs';
 import { assertLaneFree, resolveLaunchClaim } from './laneClaims.mjs';
 import {
@@ -13,6 +14,14 @@ import {
   SHARE_ENVIRONMENT_KEY,
   portsForLane,
 } from './ports.mjs';
+
+// Refuse an unsupported runtime before a lane is claimed, so nothing is left to release.
+try {
+  assertSupportedNodeVersion();
+} catch (error) {
+  console.error(`with-lane: ${error.message}`);
+  process.exit(1);
+}
 
 const worktree = fileURLToPath(new URL('../', import.meta.url)).replace(/\/$/, '');
 const [command, ...args] = process.argv.slice(2);
