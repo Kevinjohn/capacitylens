@@ -32,7 +32,7 @@ case "$count" in
 ${cases}
 esac
 `,
-      { mode: 0o755 }
+      { mode: 0o755 },
     );
     return spawnSync(script, ['ghcr.io/kevinjohn/capacitylens-api:1.2.3'], {
       encoding: 'utf8',
