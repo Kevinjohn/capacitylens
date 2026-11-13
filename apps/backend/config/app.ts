@@ -1,4 +1,4 @@
-import { isPrivatePeer } from '#config/proxy_trust';
+import { isPrivatePeer } from '@kevinjohn/adonisjs-origin-guard';
 import { publicOrigin } from '#config/public_origin';
 import env from '#start/env';
 import { defineConfig } from '@adonisjs/core/http';

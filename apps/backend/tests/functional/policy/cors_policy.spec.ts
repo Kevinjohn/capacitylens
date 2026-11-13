@@ -31,50 +31,19 @@ test('only a development server appends the dev launcher web origins', ({ assert
 // An unmatched route answers 404 once the origin guard admits the write, and 403 when it refuses.
 test.group('unsafe-request origin guard', (group) => {
   group.setup(() => freshDatabase());
-  test('{name}')
-    .with<{ name: string; headers: Record<string, string>; status: number }[]>([
-      { name: 'admits the public origin', headers: { origin: publicOrigin.origin }, status: 404 },
-      {
-        name: 'admits an explicit CORS origin',
-        headers: { origin: 'http://localhost:5173' },
-        status: 404,
-      },
-      {
-        name: 'admits a same-origin fetch without Origin',
-        headers: { 'sec-fetch-site': 'same-origin' },
-        status: 404,
-      },
-      { name: 'refuses a write with neither Origin nor Sec-Fetch-Site', headers: {}, status: 403 },
-      {
-        name: 'refuses a same-site write without Origin',
-        headers: { 'sec-fetch-site': 'same-site' },
-        status: 403,
-      },
-      {
-        name: 'refuses an Origin that only matches after normalising',
-        headers: { origin: `${publicOrigin.origin.toUpperCase()}/` },
-        status: 403,
-      },
-      {
-        name: 'refuses a mismatched Origin despite Sec-Fetch-Site same-origin',
-        headers: { 'origin': 'http://evil.example', 'sec-fetch-site': 'same-origin' },
-        status: 403,
-      },
-      {
-        name: 'refuses a hostile Origin matched by a spoofed Host',
-        headers: { origin: 'http://evil.example', host: 'evil.example' },
-        status: 403,
-      },
-      {
-        name: 'refuses an https Origin for the http public host',
-        headers: { origin: publicOrigin.origin.replace(/^http:/, 'https:') },
-        status: 403,
-      },
-    ])
-    .run(async ({ client, assert }, { headers, status }) => {
-      const response = await client.post('/api/no-such-route').headers(headers);
-      response.assertStatus(status);
-      if (status === 403)
-        assert.deepEqual(response.body(), { error: 'Cross-site request rejected.' });
-    });
+  test('is registered: admits the public origin and refuses a hostile one', async ({
+    client,
+    assert,
+  }) => {
+    const admitted = await client
+      .post('/api/no-such-route')
+      .headers({ origin: publicOrigin.origin });
+    admitted.assertStatus(404);
+    const refused = await client
+      .post('/api/no-such-route')
+      .headers({ origin: 'http://evil.example' });
+    refused.assertStatus(403);
+    assert.deepEqual(refused.body(), { error: 'Cross-site request rejected.' });
+    assert.equal(refused.header('cache-control'), 'no-store');
+  });
 });

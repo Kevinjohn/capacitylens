@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { NextFn } from '@adonisjs/core/types/http';
-import { isTrustedUnsafeOrigin } from '#services/cors_policy';
 export default class SecurityHeadersMiddleware {
   async handle({ request, response }: HttpContext, next: NextFn) {
     response.header('Cross-Origin-Opener-Policy', 'same-origin');
@@ -10,16 +9,6 @@ export default class SecurityHeadersMiddleware {
     response.header('Access-Control-Expose-Headers', 'x-capacitylens-audit-warning');
     response.header('Cache-Control', 'no-store');
     response.header('Pragma', 'no-cache');
-    const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(request.method());
-    if (
-      unsafe &&
-      !isTrustedUnsafeOrigin({
-        origin: request.header('origin'),
-        fetchSite: request.header('sec-fetch-site'),
-      })
-    ) {
-      return response.forbidden({ error: 'Cross-site request rejected.' });
-    }
     await next();
     const body = response.getBody();
     if (
