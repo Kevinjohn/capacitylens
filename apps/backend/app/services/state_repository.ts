@@ -19,6 +19,7 @@ import type { BaseModel } from '@adonisjs/lucid/orm';
 import type { QueryClientContract } from '@adonisjs/lucid/types/database';
 import type { ModelColumnOptions } from '@adonisjs/lucid/types/model';
 import { isJsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
+import { hasNoCompany } from '#services/installation_company';
 
 export const tables = {
   accounts: 'accounts',
@@ -180,7 +181,7 @@ export async function checkDatabase() {
 /** Insert the single disposable company graph and its authority in one transaction. */
 export async function insertDisposableDemoSeed(ownerId: string) {
   await withTransaction(async (trx) => {
-    if (await trx.from('accounts').first()) {
+    if (!(await hasNoCompany(trx))) {
       throw new Error('Refusing demo seed: companies already exist');
     }
     if (await trx.from('memberships').first()) {

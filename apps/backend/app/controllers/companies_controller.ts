@@ -2,11 +2,11 @@ import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
 import access from '#config/access_control';
 import { withActor } from '#services/auth/current_actor';
+import { hasMultipleCompanies } from '#services/installation_company';
 
 export default class CompaniesController {
   async index(ctx: HttpContext) {
-    const installationAccounts = await db.from('accounts').count('* as count').first();
-    if (Number(installationAccounts?.count ?? 0) > 1) {
+    if (await hasMultipleCompanies(db)) {
       return ctx.response.conflict({
         error:
           'This installation has more than one company. Contact the administrator to resolve it.',

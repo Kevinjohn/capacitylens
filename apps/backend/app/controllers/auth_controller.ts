@@ -24,6 +24,7 @@ import { errors as vineErrors } from '@vinejs/vine';
 import { signInValidator, signUpValidator } from '#validators/auth_requests';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
+import { hasNoCompany } from '#services/installation_company';
 
 function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
   if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
@@ -102,7 +103,7 @@ export default class AuthController {
       return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-up') });
     }
     const { email, name } = body;
-    if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || !(await db.from('accounts').first())) {
+    if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || (await hasNoCompany(db))) {
       return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
     }
     try {

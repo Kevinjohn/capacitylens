@@ -5,6 +5,7 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
 import { insertDisposableDemoSeed } from '#services/state_repository';
 import env from '#start/env';
+import { hasNoCompany } from '#services/installation_company';
 
 /** The demo commands run only on the per-launch storage `pnpm run dev:demo` creates under tmp/. */
 export function assertDisposableDemoDatabase(app: ApplicationService) {
@@ -23,7 +24,7 @@ export function assertDisposableDemoDatabase(app: ApplicationService) {
 /** Demo preparation and seeding are restricted to an empty development installation. */
 export async function assertEmptyDemoInstallation(app: ApplicationService) {
   if (app.inProduction) throw new Error('Disposable demo preparation is forbidden in production');
-  if (await db.from('accounts').first()) {
+  if (!(await hasNoCompany(db))) {
     throw new Error('Refusing demo seed: companies already exist');
   }
   if (await db.from('memberships').first()) {

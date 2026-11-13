@@ -7,6 +7,7 @@ import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/acco
 import access from '#config/access_control';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
+import { hasNoCompany } from '#services/installation_company';
 
 /** Establish the first company role for an existing native identity without changing admission. */
 export async function initializeCompany(input: {
@@ -24,10 +25,7 @@ export async function initializeCompany(input: {
     await assertSchemaIntegrity();
     // The Kit runner holds the writer lock its package writes rely on.
     return transaction(db, async (trx) => {
-      if (
-        (await trx.from('accounts').first()) ||
-        (await trx.from(access.config.membershipsTable).first())
-      ) {
+      if (!(await hasNoCompany(trx)) || (await trx.from(access.config.membershipsTable).first())) {
         throw new Error('Refusing company initialization: installation already has company access');
       }
       const principal = await trx

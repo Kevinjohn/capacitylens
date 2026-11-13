@@ -85,6 +85,12 @@ This is the short, present-tense record of decisions that constrain future work.
   creates that company; the UI offers no company switcher or additional-company creation. Tenant
   scoping, memberships and the account directory remain enforced, and ambiguous installations
   report an error.
+- The one-company rule has one server home, `app/services/installation_company.ts`. Every server
+  check of the limit, or of whether a company exists yet, reads through it. The client shows the
+  server's refusal and does not count companies itself.
+- Code that works across several companies stays on purpose: an export without a named company
+  merges every company the person belongs to, and view-as searches every membership when no company
+  is named.
 - Planning reads return current authority, one integer company revision and the complete,
   confidentially projected company slice from one transaction. Every typed mutation carries the
   `baseRevision` it was drafted against; a mismatch returns 409 and the client refetches. No

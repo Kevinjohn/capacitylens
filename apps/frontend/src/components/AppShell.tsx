@@ -286,7 +286,7 @@ export function AppShell() {
       <GatedApp
         hydrated={hydrated}
         hasActiveAccount={activeAccount !== undefined}
-        ambiguousAccountDirectory={accountSummariesAmbiguous || accountSummaries.length > 1}
+        ambiguousAccountDirectory={accountSummariesAmbiguous}
         allowWithoutActiveAccount={
           accountRoute || (masquerade.kind !== 'inactive' && masquerade.state !== undefined)
         }

@@ -3,6 +3,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import access from '#config/access_control';
 import { hasOnlyFields } from '#services/request_helpers';
 import { parseUserName } from '@capacitylens/shared/lib/strings';
+import { hasNoCompany } from '#services/installation_company';
 
 /** Only the sole native principal can claim an entirely uninitialized installation. */
 export async function requiresFirstCompanySetup(
@@ -13,7 +14,7 @@ export async function requiresFirstCompanySetup(
   return (
     users.length === 1 &&
     String(users[0]?.id) === userId &&
-    !(await connection.from('accounts').select('id').first()) &&
+    (await hasNoCompany(connection)) &&
     !(await connection.from(access.config.membershipsTable).select('id').first())
   );
 }
