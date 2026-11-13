@@ -10,10 +10,10 @@ import Database from 'better-sqlite3';
 import {
   createBundle,
   listBundles,
+  preMigrationBackupDirectory,
   prepareDirectory,
   verifyBundle,
 } from '@kevinjohn/adonisjs-sqlite-backup';
-import { preMigrationBackupDirectory } from '../../commands/app_upgrade.js';
 import { scratchBackendFilter } from './operator_command_support.js';
 
 const appRoot = process.cwd();
