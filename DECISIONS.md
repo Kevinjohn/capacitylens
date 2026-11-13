@@ -276,6 +276,9 @@ This is the short, present-tense record of decisions that constrain future work.
   ports 5173 and 5273 are trusted. With no Origin, only `Sec-Fetch-Site: same-origin` is accepted.
   Shield owns HSTS, `nosniff`, frame protection and the CSP. HSTS is sent only when the public URL
   is HTTPS. There is no CSP report route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
+- `@kevinjohn/adonisjs-origin-guard` supplies the unsafe-request origin check, the origin parsers
+  and the private-peer list used for proxy trust. Its middleware runs straight after the security
+  headers, so a refusal still carries them.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.
 - Logs correlate a request by the framework's `request_id`. The server always generates it (a
   UUID, echoed in the `X-Request-Id` response header); a client-supplied `X-Request-Id` is
