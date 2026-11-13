@@ -31,12 +31,9 @@ This is the short, present-tense record of decisions that constrain future work.
   guidance again.
 - A new setting needs a user who cannot proceed without it. Prefer deriving a value from what the
   operator or company already told us.
-- Intentional friction against task tracking: inline **Add activity** and the **Task** field stay
-  opt-in company settings, off by default. Early users treated activities as a task list; one
-  company reached about 300 activities and scheduled hour by hour instead of blocking days on a
-  project. CapacityLens is a week-granularity capacity view, and the friction is deliberate.
-- CapacityLens is a single product. The earlier sibling-product framing is retired; there is one
-  product, one repository and one set of releases.
+- Inline **Add activity** and the **Task** field stay opt-in company settings, off by default, as
+  deliberate friction against task tracking.
+- CapacityLens is a single product with one repository and one set of releases.
 - The global sidebar shortcut (⌘B / Ctrl+B) yields while text entry or IME composition owns the
   keyboard and while any modal is open; those contexts keep both the chord and page layout stable.
 - English is the only locale. The message layer and the company `language` field stay: the field
@@ -62,16 +59,13 @@ This is the short, present-tense record of decisions that constrain future work.
 - Displayed utilisation is calculated over the visible 1/2/4/6/8-week window.
 - `overSoon` is calculated over a fixed forward 14-day window from today and never changes with
   zoom or pan.
-- The visible span is chosen from a **Weeks visible** dropdown, not a row of always-on buttons. The
-  five spans are unchanged; the schedule's top bar is reserved for the controls people reach for
-  every session.
-- The schedule's jump-to-date picker is not shown. Planners rarely look far ahead, and when they do
-  a month list is the likelier affordance; that design is deferred rather than decided. The control
-  remains in the codebase and under test so restoring or reusing it is a one-line change.
+- The visible span is chosen from a **Weeks visible** dropdown, not a row of always-on buttons; the
+  schedule's top bar is reserved for the controls people reach for every session.
+- The schedule's jump-to-date picker is not shown. The control remains in the codebase and under
+  test.
 - Narrowing a resource's availability (working pattern, weekly capacity or employment type)
   leaves existing allocations in place; capacity and utilisation are recalculated so they show
-  as over-capacity rather than being moved, split or deleted (2026-09-11). Follow-up:
-  https://github.com/Kevinjohn/capacitylens/issues/802.
+  as over-capacity rather than being moved, split or deleted.
 
 ## Data and tenancy
 
@@ -170,10 +164,8 @@ This is the short, present-tense record of decisions that constrain future work.
   (`request_receipts`) inside the caller's transaction. The wire contract keeps the standard
   `Idempotency-Key` header, and CapacityLens's own names follow it (`idempotencyKey`,
   `isAccountIdempotencyKey`, `IDEMPOTENCY_CONFLICT`); only values passed to the package use its
-  `requestKey` name (9 November 2026). Receipts are scoped to one actor's operation, so the same
-  command headers sent by another actor or for another operation run as a new command. The
-  migration does not carry `command_results` receipts over: a command retried across that upgrade
-  runs again.
+  `requestKey` name. Receipts are scoped to one actor's operation, so the same command headers sent
+  by another actor or for another operation run as a new command.
 
 ## Browser data
 
@@ -214,11 +206,27 @@ This is the short, present-tense record of decisions that constrain future work.
 - Sessions use the kit's database-backed registry with a 14-day idle expiry. Changing or resetting
   a password ends every session, including the current one. Administrator password resets and
   session revocation for other members are deferred; the operator's kit commands cover recovery.
-- Ownership transfer, whole-company import and company-wide people anonymisation require proof for
-  each action, and no time-based fresh-session window replaces it. Each proof is
-  single-use, bound to the real principal, Kit session, company and exact operation, verifies the
-  current password and is spent in the same transaction as the change. The pinned confirm-action-with-password package owns issuance, credential/session/request binding, expiry and
-  transactional consumption; product code owns live company authority and the response contract.
+- Ownership transfer, whole-company import and company-wide people anonymisation each require a
+  password confirmation for that action; no time-based fresh-session window replaces it.
+- A password confirmation is single-use, lasts five minutes and binds the real principal, Kit
+  session, live credential revision, company, action and exact intent. It verifies the current
+  password and is spent in the same transaction as the change, including ownership transfer's
+  idempotency execution boundary.
+- `@kevinjohn/adonisjs-confirm-action-with-password` 0.1.1, used with exactly Account Kit 0.3.4,
+  owns issuance, credential/session/request binding, expiry and transactional consumption. Product
+  code owns live company authority and the response contract; its pre-flight and transactional
+  policy require a confirmed email, admission, a live Owner and no view-as mode. Credential writes
+  remain Account Kit-owned.
+- Wrong passwords are limited per account before hashing: five failures per minute, then a
+  20-minute block. A successful confirmation resets only that account's budget.
+- Confirmations are pruned globally after successful issuance, outside every transaction; a pruning
+  failure cannot fail the issuance response.
+- Account deletion issues and spends its own `delete-account` confirmation, scoped to the person's
+  id with no company authority, just before Account Kit's deletion transaction. The Kit's own
+  current-password check stays because it cannot be turned off. A confirmation's scope carries no
+  foreign key to `accounts`.
+- The wire names are `POST /api/auth/password-confirmation`, `confirmationId`,
+  `PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
 - Production requires an HTTPS public URL; plain HTTP is accepted only for loopback development.
@@ -254,10 +262,9 @@ This is the short, present-tense record of decisions that constrain future work.
   actor through `withActor`, not the AdonisJS auth middleware those markers depend on. A new
   sensitive read route must be added to the middleware's list. Revisit if product routes adopt the
   auth middleware.
-- Package events are authoritative for new view-as lifecycle audit. Historical product audit stays
-  intact, but new events do not retain a company ID or separate explicit/company-switch/sign-out
-  classifications. Control state and events stay in database backups, outside scheduling exports.
-  Upgrades end legacy projections without converting their tokens into new authority.
+- Package events are authoritative for view-as lifecycle audit. They carry no company ID and no
+  separate explicit, company-switch or sign-out classification. Control state and events stay in
+  database backups, outside scheduling exports.
 - Unsafe requests are accepted only from the public URL's origin or a `CAPACITYLENS_CORS_ORIGIN`
   entry; when that is unset outside production, the built-in `localhost` and `127.0.0.1` origins on
   ports 5173 and 5273 are trusted. With no Origin, only `Sec-Fetch-Site: same-origin` is accepted.
@@ -273,70 +280,6 @@ This is the short, present-tense record of decisions that constrain future work.
 - CapacityLens ships no analytics. Mail delivers addressed invitations, address confirmations and
   password resets only.
 - Errors on data paths are surfaced, not swallowed.
-
-### Password confirmation package adoption (9 November 2026)
-
-This supersedes the retention decision in the historical capability audit below. CapacityLens uses
-`@kevinjohn/adonisjs-confirm-action-with-password` 0.1.1 with exactly Account Kit 0.3.4. Its five-minute confirmations bind
-the user, sign-in, live credential revision, company, action and exact intent. Host pre-flight and
-transactional policy retain confirmed-email, admission, live Owner and no-masquerade requirements.
-The app's database limiter reserves attempts per account before hashing: five failures per minute,
-then a 20-minute block. A successful confirmation resets only that account's budget.
-
-Consumption shares the product transaction, including ownership transfer's idempotency execution
-boundary. The forward-only migration replaces outstanding legacy proofs without copying, creates `password_confirmations` and adds
-`scope -> accounts.id ON DELETE CASCADE`. Credential writes remain Account Kit-owned. Global pruning
-runs after successful issuance outside every transaction and cannot fail the issuance response.
-
-Account deletion is the exception (11 November 2026, #1792): the deletion request itself issues
-and spends its `delete-account` confirmation, scoped to the person's own id with no company
-authority, just before Account Kit's own deletion transaction. The Kit's own current-password check
-stays because it cannot be turned off. The `scope -> accounts.id` foreign
-key is dropped for this; confirmations last five minutes and are pruned globally.
-
-The product calls these password confirmations, not action proofs (9 November 2026): the endpoint is
-`POST /api/auth/password-confirmation`, requests carry `confirmationId`, and refusals use
-`PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`. Behaviour is unchanged. The old
-path has no alias: the API is pre-1.0 and its only client is in this repository.
-
-### Password confirmation capability audit (26 October 2026)
-
-Retain the product proof for ownership transfer, import and company-wide people anonymisation. The installed
-Account Kit 0.1.2 has recent-password proofs, but its public contract does not provide all the
-bindings and caller-owned transactional consumption needed by these operations. A time-based
-confirmation or a different proof purpose is not an equivalent replacement.
-
-This source audit checked application revision `f52bee5fe75604b33c1191294a80259825461aba` and
-the then-vendored Account Kit 0.1.2 archive
-(SHA-256 `18696d27971605dbbada54ccb9066260499fc9ab3f258cd7684ed6098dacf573`).
-The archive's `build/src/account_kit.d.ts`, `social_enums.d.ts`, `social_proofs.d.ts`, package
-exports and bundled proof implementation establish the Kit column below. This is not a claim that
-Kit runtime parity tests passed.
-
-| Required guarantee                                          | Product implementation                                                                                                                                               | Installed Kit contract                                                                                                                 |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Confirm the real principal's current password               | Verifies the password, then rechecks the live principal and password before issuing                                                                                  | `socialAuthentication.provePassword` accepts the current principal, password and purpose; that optional capability is not enabled here |
-| Bind the intended operation                                 | Binds `transfer-ownership`, `import` or `anonymise`                                                                                                                  | Fixed purposes cover social linking/unlinking, password/email changes and account export/deletion; not these product operations        |
-| Bind the principal                                          | Stores and conditionally matches `user_id`                                                                                                                           | Stores and conditionally matches `user_id`                                                                                             |
-| Bind the current session and company                        | Stores and conditionally matches both identifiers                                                                                                                    | No session or company binding in the inspected proof issuance/consumption contract                                                     |
-| Reject a proof after its session ends                       | The session foreign key deletes its proofs; spending through `withActor` also rejects an ended session                                                               | Checks credential revision but has no issuing-session binding; credential invalidation is not session-specific revocation              |
-| Bind the exact contents without storing the import document | Matches a SHA-256 hash of the action, company and canonical intent                                                                                                   | No exact-intent argument or stored binding in the inspected proof contract                                                             |
-| Expiry and conditional single use                           | Five-minute expiry and one conditional spend                                                                                                                         | Internal implementation has expiry, single-use consumption and credential-revision checking; these alone do not establish full parity  |
-| Spend with mutation and audit, rolling all back together    | Uses the caller's Lucid transaction                                                                                                                                  | Internal helpers accept a transaction, but they are not a supported exported caller-transaction API for arbitrary product mutations    |
-| Recheck authority and refuse view-as                        | Requires a live Owner and refuses masquerade at issuance and before a new protected mutation; a committed ownership-transfer receipt may still replay after demotion | Product membership, role and projection policy must remain product-owned; no equivalent combined product operation is established      |
-
-The owning product code is
-[`password_confirmation.ts`](apps/backend/app/services/auth/password_confirmation.ts) and
-[`password_confirmations_controller.ts`](apps/backend/app/controllers/password_confirmations_controller.ts).
-Existing regression sources cover the protected mutation boundaries in
-[`transfer_apply.spec.ts`](apps/backend/tests/functional/transfer_apply.spec.ts),
-[`ownership_transfer.spec.ts`](apps/backend/tests/functional/membership/ownership_transfer.spec.ts)
-and [`anonymise.spec.ts`](apps/backend/tests/functional/anonymise.spec.ts), including refusal and
-audit-failure rollback paths. Inspecting those sources is not new runtime validation.
-
-The result for [#1597](https://github.com/Kevinjohn/capacitylens/issues/1597) is **no migration**.
-Reassess when a supported Kit release exposes equivalent principal/session/company/action/intent
-binding and transactional consumption. Internal declarations are not an integration contract.
 
 ## AdonisJS framework departures
 
@@ -379,32 +322,28 @@ framework defaults; any other departure needs a decision recorded here first.
   (`CAPACITYLENS_TRUST_PROXY_HEADERS=private`), so each client keeps its own request limits.
 - The empty `social_*` tables and `login_link_tokens` stay: Account Kit 0.3.4 visits them in its
   hourly prune, account deletion and every credential change, whichever capabilities are enabled.
+- Production deployment omits optional dependencies, which keeps the assembler and its unpatched
+  `braces` transitive dependency out of shipped runtimes. The production audit uses the same
+  optional-free graph and fails on high severity.
+- SMTP is the only mail transport. Nodemailer stays on 10.x at 10.1.4 or later; the Postmark
+  transport is unsupported because it is incompatible with Nodemailer 10.
 
 ## Open source
 
-- The repository is AGPL-3.0-only. Contributions use DCO sign-off; there is no CLA or copyright
-  assignment. CapacityLens names and logos are not granted by the licence; see `TRADEMARKS.md`.
+- The repository is AGPL-3.0-only. CapacityLens names and logos are not granted by the licence; see
+  `TRADEMARKS.md`.
 
 ## Continuous integration
 
-- Keep dependencies current within the supported launch environment. Patch and minor updates must
-  preserve the declared Node runtime floors, browser build target and production host boundary.
-  Raising a minimum requirement is a separate product decision justified by a concrete benefit,
-  not an incidental consequence of updating a package.
-- The launch dependency baseline uses TypeScript 5.9.3, pinned in the root, backend and frontend
-  manifests. Package consumer peer ranges may allow a newer compiler without changing this
-  baseline. A dependency that requires a higher compiler, Node floor or browser target needs a
-  separate launch-compatibility decision supported by validation ([issue #1731](https://github.com/Kevinjohn/capacitylens/issues/1731)).
+- Patch and minor dependency updates preserve the declared Node runtime floors, the TypeScript
+  5.9.3 compiler baseline, the browser build target and the production host boundary. Raising any
+  of them is a separate product decision supported by validation, never a side effect of updating a
+  package.
 - Keep formatting, type checking, lint, dependency security checks, product builds and meaningful
   unit, functional and browser tests. No coverage floor, file-size cap, test-size cap, suppression
   ratchet or custom structural rule. Add a focused check only when experience shows it protects a
   concrete invariant.
 - Local commands and CI validate the same behaviour. A test run passes only when its process exits.
-- CodeQL runs in the public security workflow. Dependabot proposes npm patch and minor updates
-  weekly in separate groups and ignores automatic major updates. GitHub Actions and Docker
-  updates remain monthly and patch-only. A monthly workflow reports newer major versions for
-  installed direct workspace dependencies in one standing issue; it uses the pinned Node/pnpm
-  toolchain, makes no dependency changes, and closes the issue when no newer majors remain.
 - `CAPACITYLENS_ALLOW_RESET` stays: it is the only switch that loads the browser-test worker reset
   harness, and production refuses to start with it set. There is no HTTP reset route.
 
@@ -415,26 +354,3 @@ framework defaults; any other departure needs a decision recorded here first.
   propagation when extracting.
 - Public wire fields, stable identifiers and shipped data formats are not renamed as part of
   structural cleanup.
-- One exception: `ignoreWeekends` became `ignoreWorkingDays` (column `ignore_working_days`) in the
-  database, wire contract and export, with no alias, because no installation existed. The export
-  schema version rose with it, so earlier exports are refused.
-
-### Production mail dependency compatibility
-
-Production deployment omits optional dependencies, keeping the assembler and its unpatched braces
-transitive dependency out of shipped runtimes. Development tooling still contains that advisory;
-this is not a claim that every workspace dependency is patched. The production audit uses the same
-optional-free graph and retains its high-severity failure threshold.
-
-The `@adonisjs/mail>nodemailer` override keeps SMTP on Nodemailer 10 and at least 10.1.4, which fixes
-three address-parser advisories. CapacityLens configures SMTP only. Authenticated TLS delivery,
-attachment encoding, authentication and recipient refusal, and pooled connection closure are
-verified through the public Adonis SMTP adapter. Nodemailer 10 is incompatible with the unused
-Postmark transport's internal MIME import; Postmark is unsupported and must be reassessed before
-enabling that transport.
-
-The `qs` floor addresses GHSA-q8mj-m7cp-5q26, GHSA-4mjr-xmp4-gh2g and GHSA-x5fp-wj9c-mxmx, all fixed by 6.16.0. `typed-rest-client@2.3.1` requests
-`qs@6.15.1` exactly, so this is a reviewed compatibility exception. Other security overrides are
-limited to affected version ranges and keep the consumer's supported major line. VitePress 1.x
-declares Vite 5 while its Vue plugin accepts Vite 6; its documentation-build override uses the
-patched Vite 6 line.
