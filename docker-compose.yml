@@ -1,7 +1,10 @@
 name: capacitylens
 
 services:
+  # `docker compose up` pulls the published release images named below. `docker compose up --build`
+  # builds the same images from a source checkout instead.
   api:
+    image: ghcr.io/kevinjohn/capacitylens-api:${CAPACITYLENS_VERSION:?set CAPACITYLENS_VERSION to the release to run, for example 0.76.0}
     build:
       context: .
       target: api
@@ -51,6 +54,7 @@ services:
 
   # Finish backup and migration checks before the web process can open the database.
   upgrade:
+    image: ghcr.io/kevinjohn/capacitylens-api:${CAPACITYLENS_VERSION:?set CAPACITYLENS_VERSION to the release to run, for example 0.76.0}
     build:
       context: .
       target: api
@@ -69,6 +73,7 @@ services:
       disable: true
 
   web:
+    image: ghcr.io/kevinjohn/capacitylens-web:${CAPACITYLENS_VERSION:?set CAPACITYLENS_VERSION to the release to run, for example 0.76.0}
     build:
       context: .
       target: web
@@ -107,6 +112,45 @@ services:
       # nothing else reach that address: any private peer can choose its forwarded client address.
       - '${WEB_BIND_IP:-127.0.0.1}:${WEB_PORT:-8080}:8080'
 
+  # Optional public HTTPS: `docker compose --profile caddy up` adds Caddy on ports 80 and 443. It
+  # obtains and renews a certificate for the host in CAPACITYLENS_PUBLIC_URL and forwards to `web`
+  # over the private Compose network. Without the profile, an existing edge proxy uses the loopback
+  # port above. Caddy replaces a client's own forwarding headers, so nginx still sees one trusted hop.
+  caddy:
+    profiles:
+      - caddy
+    image: docker.io/library/caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    command:
+      - caddy
+      - reverse-proxy
+      - --from
+      - ${CAPACITYLENS_PUBLIC_URL:?set CAPACITYLENS_PUBLIC_URL to the public HTTPS address}
+      - --to
+      - web:8080
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    stop_grace_period: 15s
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    # Certificates and their account key live in the data volume; losing it requests new ones.
+    volumes:
+      - capacitylens-caddy-data:/data
+      - capacitylens-caddy-config:/config
+
   # Explicitly target this service with a remote API origin:
   #   VITE_CAPACITYLENS_API=https://api.example.test docker compose up --build -d web-client
   # Because a service name was supplied, Compose starts only this profile and its dependencies
@@ -143,3 +187,5 @@ services:
 volumes:
   capacitylens-db:
   capacitylens-backups:
+  capacitylens-caddy-data:
+  capacitylens-caddy-config:
