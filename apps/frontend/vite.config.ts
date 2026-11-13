@@ -194,7 +194,7 @@ export default defineConfig(({ mode, command }) => {
   const vitePort = workerServe
     ? parsePort(process.env.CAPACITYLENS_VITE_PORT, servicePort, 'CAPACITYLENS_VITE_PORT')
     : servicePort;
-  // Stryker loads this config from the repository root, so resolve frontend paths from the config file.
+  // Scripts load this config from the repository root, so resolve frontend paths from the config file.
   const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
   const fileEnv = loadEnv(mode, frontendRoot, 'VITE_CAPACITYLENS_');
   const clientEnv = (name: 'VITE_CAPACITYLENS_API' | 'VITE_CAPACITYLENS_FEEDBACK_MAILTO') =>

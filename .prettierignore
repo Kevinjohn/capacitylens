@@ -15,7 +15,6 @@ playwright-report
 test-results
 reports
 code-reviews
-.stryker-tmp
 
 # Paraglide output is generated from messages/*.json.
 apps/frontend/src/paraglide

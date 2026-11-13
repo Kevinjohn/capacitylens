@@ -15,8 +15,9 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 4. Make one focused change. Keep unrelated formatting and refactors out.
 5. Typo and documentation changes: run `pnpm run format`. If you edited `docs-src/`, also run
    `pnpm run docs:build` and commit the generated `docs/` output. No other checks are needed.
-6. Code changes: add a test that fails without the change, then run the checks in
-   [Before opening a pull request](#before-opening-a-pull-request).
+6. Code changes: add a test that fails without the change. To show it, commit, revert or alter the
+   changed code, run the focused test, confirm it fails, then restore the change. Then run the
+   checks in [Before opening a pull request](#before-opening-a-pull-request).
 7. Write the pull-request title as the release-note line, for a person using the product, and give
    the pull request one category label (see [Pull requests](#pull-requests)).
 8. Commit with a sign-off: `git commit -s -m "Describe the change"` (see [Pull requests](#pull-requests)).
