@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { RefusalError } from '#exceptions/refusal_error';
 import { UserSchema } from '#database/schema';
 import { beforeCreate, beforeSave, column } from '@adonisjs/lucid/orm';
+import { hasNoCompany } from '#services/installation_company';
 
 export class FirstCompanyPendingError extends RefusalError {
   constructor() {
@@ -33,7 +34,7 @@ export default class User extends UserSchema {
     user.createdAt = new Date().toISOString();
     const trx = user.$trx;
     if (!trx) throw new Error('Identities are created only inside the Account Kit transaction.');
-    if (await trx.from('accounts').select('id').first()) return;
+    if (!(await hasNoCompany(trx))) return;
     if (user.unverifiedEmail !== null || (await trx.from('users').select('id').first())) {
       throw new FirstCompanyPendingError();
     }

@@ -1,7 +1,8 @@
 import app from '@adonisjs/core/services/app';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { installationCompanyId, isInvitableRole } from '#services/account_kit/policy';
+import { isInvitableRole } from '#services/account_kit/policy';
+import { hasNoCompany, installationCompanyId } from '#services/installation_company';
 import { AdmissionError } from '#services/admission/errors';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
@@ -50,7 +51,7 @@ export async function completeMembership(userId: string, trx: TransactionClientC
 /** Whether any company exists while this identity has no membership row in any company. */
 export async function isMembershipRequired(userId: string, trx: TransactionClientContract) {
   return (
-    Boolean(await trx.from('accounts').select('id').first()) &&
+    !(await hasNoCompany(trx)) &&
     !(await trx.from(access.config.membershipsTable).where('user_id', userId).first())
   );
 }

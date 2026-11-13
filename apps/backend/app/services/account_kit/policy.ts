@@ -14,7 +14,7 @@ import access from '#config/access_control';
 import { activeCompanyRole } from '#services/auth/authorization';
 import { advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
-import { AdmissionError } from '#services/admission/errors';
+import { installationCompanyId } from '#services/installation_company';
 
 /** Roles an invitation may carry; ownership moves only through company setup or transfer. */
 export const INVITABLE_ROLES = ['viewer', 'editor', 'admin'] as const;
@@ -22,20 +22,6 @@ export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 
 export function isInvitableRole(value: unknown): value is InvitableRole {
   return INVITABLE_ROLES.includes(value as InvitableRole);
-}
-
-/** The installation's single company, or null before first setup. */
-export async function installationCompanyId(trx: Pick<Trx, 'from'>): Promise<string | null> {
-  const rows = await trx.from('accounts').select('id').limit(2);
-  // Only seeded development data holds two companies; say so rather than fail with a 500.
-  if (rows.length > 1) {
-    throw new AdmissionError(
-      'This installation has more than one company. Accounts need a single-company database.',
-      409,
-      'MULTIPLE_COMPANIES'
-    );
-  }
-  return rows[0] ? String(rows[0].id) : null;
 }
 
 /** Admission is read through the supplied transaction so a callback never opens a second one. */

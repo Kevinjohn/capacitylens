@@ -296,7 +296,7 @@ test.group('address confirmation', (group) => {
     assert.equal(confirmed.body().code, 'VERIFICATION_COMMITTED');
   });
 
-  test('a database holding two companies refuses membership completion with a clear conflict', async ({
+  test('a database holding two companies refuses membership completion and the company list', async ({
     client: api,
     assert,
   }) => {
@@ -306,5 +306,11 @@ test.group('address confirmation', (group) => {
     const completed = await as(cookie).post(api, '/api/admission/complete');
     completed.assertStatus(409);
     assert.equal(completed.body().code, 'MULTIPLE_COMPANIES');
+    const companies = await as(cookie).get(api, '/api/accounts');
+    companies.assertStatus(409);
+    assert.deepEqual(companies.body(), {
+      error:
+        'This installation has more than one company. Contact the administrator to resolve it.',
+    });
   });
 });
