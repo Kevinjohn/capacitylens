@@ -80,6 +80,9 @@ export default class ConfigurationProvider {
       });
     });
     if (this.app.getEnvironment() !== 'web' || this.app.inTest) return;
+    // Shutdown can begin while an earlier provider is still getting ready; a pass started after
+    // that would reopen the database once it has been closed.
+    if (this.app.isTerminating || this.app.isTerminated) return;
     // Each task reports its own failure, so one failing does not skip the others.
     const maintenance = createMaintenance(
       [

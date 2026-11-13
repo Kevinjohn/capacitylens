@@ -3,7 +3,7 @@ import {
   bootstrapRecoveryMessage,
   recordBootstrapAdmission,
 } from '#services/development_bootstrap';
-import { assertProductionPosture } from '#providers/configuration_provider';
+import ConfigurationProvider, { assertProductionPosture } from '#providers/configuration_provider';
 
 test('production refuses bootstrap, invalid limiter, and reset settings', ({ assert }) => {
   const safe = { allowReset: false, rateLimit: '300' };
@@ -54,5 +54,25 @@ for (const failedOperation of ['grantInvitation', 'approve'] as const) {
       calls,
       failedOperation === 'grantInvitation' ? ['grantInvitation'] : ['grantInvitation', 'approve']
     );
+  });
+}
+
+for (const state of ['isTerminating', 'isTerminated'] as const) {
+  test(`a server whose shutdown already began (${state}) starts no maintenance`, async ({
+    assert,
+  }) => {
+    const hooks: unknown[] = [];
+    const application = {
+      container: { make: async () => ({ on() {} }) },
+      getEnvironment: () => 'web',
+      inTest: false,
+      isTerminating: state === 'isTerminating',
+      isTerminated: state === 'isTerminated',
+      terminating: (hook: unknown) => hooks.push(hook),
+    };
+    const provider = new ConfigurationProvider(application as never);
+    await provider.ready();
+    await provider.shutdown();
+    assert.lengthOf(hooks, 0);
   });
 }
