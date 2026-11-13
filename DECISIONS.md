@@ -166,6 +166,8 @@ This is the short, present-tense record of decisions that constrain future work.
   `isAccountIdempotencyKey`, `IDEMPOTENCY_CONFLICT`); only values passed to the package use its
   `requestKey` name. Receipts are scoped to one actor's operation, so the same command headers sent
   by another actor or for another operation run as a new command.
+- Completed request receipts are deleted 24 hours after their last update, at startup and hourly.
+  Pending receipts stay. A command retried after its receipt is deleted runs as a new command.
 
 ## Browser data
 
@@ -265,6 +267,10 @@ This is the short, present-tense record of decisions that constrain future work.
 - Package events are authoritative for view-as lifecycle audit. They carry no company ID and no
   separate explicit, company-switch or sign-out classification. Control state and events stay in
   database backups, outside scheduling exports.
+- View-as events are kept for 365 days. The server runs the package's `masquerade:prune` at
+  startup and hourly: it ends expired modes and deletes older events. A failed pass is logged and
+  retried on the next one. The operator can also run `masquerade:prune`, `masquerade:status` and
+  `masquerade:stop`.
 - Unsafe requests are accepted only from the public URL's origin or a `CAPACITYLENS_CORS_ORIGIN`
   entry; when that is unset outside production, the built-in `localhost` and `127.0.0.1` origins on
   ports 5173 and 5273 are trusted. With no Origin, only `Sec-Fetch-Site: same-origin` is accepted.

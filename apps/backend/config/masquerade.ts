@@ -71,5 +71,5 @@ export default defineConfig<MasqueradeUser, HttpContext>({
   durationSeconds: 900,
   maxDurationSeconds: 900,
   contextEnforcement: 'enforce',
-  retention: 'host-managed',
+  retention: { days: 365 },
 });
