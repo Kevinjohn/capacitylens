@@ -8,14 +8,12 @@ set -euo pipefail
 image="$1"
 
 attempt() {
-  local error
-  if error="$(docker manifest inspect "$image" 2>&1 >/dev/null)"; then
+  if last_error="$(docker manifest inspect "$image" 2>&1 >/dev/null)"; then
     echo present
     return 0
   fi
-  last_error="$error"
-  if grep -qiE 'no such manifest|manifest unknown|name unknown' <<<"$error" ||
-    { [ "${FIRST_PUBLICATION:-}" = true ] && grep -qi 'denied' <<<"$error"; }; then
+  if grep -qiE 'no such manifest|manifest unknown|name unknown' <<<"$last_error" ||
+    { [ "${FIRST_PUBLICATION:-}" = true ] && grep -qi 'denied' <<<"$last_error"; }; then
     echo absent
     return 0
   fi
