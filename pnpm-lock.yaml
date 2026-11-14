@@ -153,8 +153,8 @@ importers:
         specifier: https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.7/kevinjohn-adonisjs-lucid-soft-delete-0.1.7.tgz
         version: https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.7/kevinjohn-adonisjs-lucid-soft-delete-0.1.7.tgz(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@adonisjs/lucid@22.4.2(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(luxon@3.7.2)(typescript@5.9.3)
       '@kevinjohn/adonisjs-masquerade':
-        specifier: https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.8/kevinjohn-adonisjs-masquerade-0.2.8.tgz
-        version: https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.8/kevinjohn-adonisjs-masquerade-0.2.8.tgz(b57ef579206ad3dc197373c783068c08)
+        specifier: https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.9/kevinjohn-adonisjs-masquerade-0.2.9.tgz
+        version: https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.9/kevinjohn-adonisjs-masquerade-0.2.9.tgz(b57ef579206ad3dc197373c783068c08)
       '@kevinjohn/adonisjs-origin-guard':
         specifier: https://github.com/Kevinjohn/oss-adonisjs-origin-guard/releases/download/v0.1.0/kevinjohn-adonisjs-origin-guard-0.1.0.tgz
         version: https://github.com/Kevinjohn/oss-adonisjs-origin-guard/releases/download/v0.1.0/kevinjohn-adonisjs-origin-guard-0.1.0.tgz(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1))
@@ -1567,9 +1567,9 @@ packages:
       typescript:
         optional: true
 
-  '@kevinjohn/adonisjs-masquerade@https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.8/kevinjohn-adonisjs-masquerade-0.2.8.tgz':
-    resolution: {integrity: sha512-MSqJACyk4bccQBv2U7J7GGdjXcV+1U0sdaCn0BfHos4eC9/lYXv9NvkNJ6VjKVDwVD/o7AK9pplhBQsOzx9BaQ==, tarball: https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.8/kevinjohn-adonisjs-masquerade-0.2.8.tgz}
-    version: 0.2.8
+  '@kevinjohn/adonisjs-masquerade@https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.9/kevinjohn-adonisjs-masquerade-0.2.9.tgz':
+    resolution: {integrity: sha512-4lXTNbASnN9qp2jGc3sWKl/HniUZpj2lUeueQ5wrW6rSRnsJwVaVNPW27WAMJaV9qfGhxIXABtxW2asFRTaPtg==, tarball: https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.9/kevinjohn-adonisjs-masquerade-0.2.9.tgz}
+    version: 0.2.9
     engines: {node: '>=24.0.0'}
     peerDependencies:
       '@adonisjs/assembler': ^8.0.0
@@ -7482,7 +7482,7 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  '@kevinjohn/adonisjs-masquerade@https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.8/kevinjohn-adonisjs-masquerade-0.2.8.tgz(b57ef579206ad3dc197373c783068c08)':
+  '@kevinjohn/adonisjs-masquerade@https://github.com/Kevinjohn/oss-adonisjs-masquerade/releases/download/v0.2.9/kevinjohn-adonisjs-masquerade-0.2.9.tgz(b57ef579206ad3dc197373c783068c08)':
     dependencies:
       '@adonisjs/auth': 10.1.0(f1ec7faa977c7308d7efd0b7d9eb9056)
       '@adonisjs/core': 7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(youch@4.1.1)
