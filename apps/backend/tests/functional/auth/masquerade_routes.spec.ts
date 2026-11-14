@@ -1,5 +1,6 @@
 import { test } from '@japa/runner';
 import app from '@adonisjs/core/services/app';
+import router from '@adonisjs/core/services/router';
 
 /** Each route line of `node ace masquerade:routes`, without column padding. */
 async function routeReport() {
@@ -78,5 +79,26 @@ test.group('view-as route classification', () => {
     );
     assert.isAbove(memberRoutes.length, 0);
     for (const line of memberRoutes) assert.match(line, /\[BUSINESS (READ|MUTATION)\]$/);
+  });
+
+  test('own-account routes carry the account blocker, and only sign-out is exempt', async ({
+    assert,
+  }) => {
+    const blocked = Object.values(router.toJSON())
+      .flat()
+      .filter((route) =>
+        [...route.middleware.all()].some(
+          (entry) =>
+            typeof entry === 'object' &&
+            'name' in entry &&
+            entry.name === 'accountKitAccountBlocker'
+        )
+      )
+      .map((route) => route.pattern);
+    const ownAccount = reviewedUnclassified
+      .map((line) => line.split(' ')[1]!)
+      .filter((pattern) => pattern.startsWith('/api/auth/') || pattern.startsWith('/api/invites/'))
+      .filter((pattern) => pattern !== '/api/auth/sign-out');
+    assert.sameMembers(blocked, ownAccount);
   });
 });
