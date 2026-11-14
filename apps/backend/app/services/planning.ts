@@ -1,11 +1,8 @@
 import { activeOnly, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import {
-  getActiveMembership,
-  createMemberBouncer,
-  requireStoredRole,
-} from '#services/auth/authorization';
+import { getActiveMembership, requireStoredRole } from '#services/auth/authorization';
+import access from '#config/access_control';
 import { effectiveReadPrincipal } from '#services/auth/masquerade';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
@@ -64,24 +61,23 @@ async function currentAuthority(
       'Company membership is unavailable.'
     );
   }
-  // Bouncer abilities are bound to the effective member, whose membership this is.
-  const bouncer = createMemberBouncer(principal.effectiveId, membership);
-  if (!(await bouncer.allows('planning:read'))) {
+  // Abilities belong to the effective member, whose membership this is.
+  const role = requireStoredRole(membership);
+  if (!access.can(role, 'planning:read')) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
   const masquerading = principal.isMasquerading;
-  const role = requireStoredRole(membership);
   const authority: PlanningAuthority = {
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,
     role,
-    canWrite: !masquerading && (await bouncer.allows('planning:write')),
+    canWrite: !masquerading && access.can(role, 'planning:write'),
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   };
   const capabilities: PlanningCapabilities = {
     ...authority,
-    canAnonymise: !masquerading && (await bouncer.allows('resources:anonymise')),
+    canAnonymise: !masquerading && access.can(role, 'resources:anonymise'),
   };
   return { authority, capabilities };
 }
