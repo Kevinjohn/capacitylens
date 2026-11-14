@@ -73,7 +73,7 @@ PATCH /api/accounts/:accountId/allocations/:id
   "intent": { "operation": "allocation.update", "id": "<id>", "changes": { "hoursPerDay": 6 } } }
 ```
 
-Two router middleware gates run, in this order, before the controller and can refuse:
+Three router middleware gates run, in this order, before the controller and can refuse:
 
 - P1. `apps/backend/app/middleware/account_gate_middleware.ts` selects a check by
   route name (`apps/backend/app/services/auth/route_access.ts`). Account Kit's
@@ -87,6 +87,10 @@ Two router middleware gates run, in this order, before the controller and can re
   `MASQUERADE_CONTEXT_REQUIRED`), refuses a stale header on any method (409
   `MASQUERADE_CONTEXT_CHANGED`), and refuses every unsafe request, and reads marked
   `asMemberOnly()`, while viewing as another member (403 `MASQUERADE_READ_ONLY`).
+- P3. On a route with `:accountId` in its path, `apps/backend/app/middleware/company_scope_middleware.ts`
+  runs Access Control's `scope` middleware for the authenticated user (the viewed-as member under
+  view-as) and refuses one without an active membership: 403 `ACCOUNT_MEMBERSHIP_LOST` on planning
+  routes, 403 `IDENTITY_AUTHORITY_DENIED` elsewhere.
 
 Then, in order:
 
@@ -105,9 +109,9 @@ Then, in order:
    binds the captured view-as context. Every later step uses this one transaction handle.
 6. `currentAuthority` resolves the effective principal (view-as re-check in
    `apps/backend/app/services/auth/masquerade.ts`), the live membership role
-   (`activeMembership` in `apps/backend/app/services/auth/authorization.ts`), the Access Control
-   Bouncer `planning:read` ability and the company row. `canWrite` is the `planning:write` ability,
-   false under view-as.
+   (`getActiveMembership` in `apps/backend/app/services/auth/authorization.ts`), the Access Control
+   `planning:read` permission for that role and the company row. `canWrite` is the `planning:write`
+   permission, false under view-as.
 7. The write is refused unless `canWrite` holds.
 8. Idempotency: a row in `planning_mutations` with this `mutationId` means `MUTATION_ID_REUSED`.
 9. `assertPlanningBaseRevision` (`apps/backend/app/services/planning_revision.ts`) refuses a stale
