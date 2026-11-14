@@ -70,7 +70,7 @@ await assertCompanyAction(accountId, 'write', trx); // throws if refused
 | `normalize`        | Returns a repaired copy of the same type.                                                            | `normalizeAccountEmail` in `packages/shared/src/account/validation.ts`            |
 | `resolve`          | Picks one concrete value from preferences or candidates.                                             | `resolveBarColor` in `packages/shared/src/lib/color.ts`                           |
 | `build`            | Derives a new structure from its inputs. Pure.                                                       | `buildColumnGeometry` in `apps/frontend/src/components/scheduler/columnGeometry.ts` |
-| `create`           | Constructs something with identity or capabilities.                                                  | `createMemberBouncer` in `apps/backend/app/services/auth/authorization.ts`           |
+| `create`           | Constructs something with identity or capabilities.                                                  | `createMaintenance` in `apps/backend/app/services/storage_maintenance.ts`            |
 | `make`             | Test fixtures only.                                                                                  | `makeResource` in `apps/frontend/src/test/fixtures.ts`                            |
 | `use`              | A React hook.                                                                                        | `useScopedData` in `apps/frontend/src/store/useScopedData.ts`                     |
 
