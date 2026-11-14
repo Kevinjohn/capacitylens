@@ -185,7 +185,7 @@
   "devDependencies": {
     "@types/node": "^24.19.2",
     "fast-check": "^4.10.2",
-    "vite": "^8.3.5",
+    "vite": "^8.3.8",
     "vitest": "^4.1.12"
   },
   "scripts": {

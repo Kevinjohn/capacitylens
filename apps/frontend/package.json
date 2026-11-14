@@ -19,7 +19,7 @@
     "radix-ui": "^1.6.7",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.4",
+    "react-router-dom": "^7.18.5",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "zustand": "^5.0.16"
@@ -35,22 +35,22 @@
   },
   "devDependencies": {
     "@inlang/paraglide-js": "^2.29.3",
-    "@inlang/plugin-m-function-matcher": "2.4.0",
+    "@inlang/plugin-m-function-matcher": "2.4.3",
     "@inlang/plugin-message-format": "4.5.6",
-    "@tailwindcss/vite": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.5",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "~6.9.1",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.8",
+    "@testing-library/user-event": "^14.6.9",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "~6.1.2",
     "@vitest/coverage-v8": "^4.1.12",
     "jsdom": "^29.1.1",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^4.3.5",
     "typescript": "5.9.3",
-    "vite": "^8.3.5",
+    "vite": "^8.3.8",
     "vitest": "^4.1.12"
   }
 }
