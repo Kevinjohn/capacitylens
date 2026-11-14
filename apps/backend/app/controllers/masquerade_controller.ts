@@ -6,24 +6,11 @@ import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { hasOnlyFields } from '#services/request_helpers';
 import { signedInSession } from '#services/auth/current_actor';
 
+/** Package refusals reach the global handler's single mapping; only the authority refusal is reworded. */
 async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
   try {
     return await work();
   } catch (error) {
-    if (error instanceof MasqueradeError) {
-      const status = error.code === 'E_MASQUERADE_INVALID_INPUT' ? 400 : error.status;
-      const code =
-        error.code === 'E_MASQUERADE_CONTEXT_REQUIRED'
-          ? 'MASQUERADE_CONTEXT_REQUIRED'
-          : error.code === 'E_MASQUERADE_CONTEXT_CHANGED'
-            ? 'MASQUERADE_CONTEXT_CHANGED'
-            : error.code === 'E_MASQUERADE_ACTION_BLOCKED'
-              ? 'MASQUERADE_READ_ONLY'
-              : error.code === 'E_MASQUERADE_INVALID_INPUT'
-                ? 'VALIDATION_ERROR'
-                : error.code;
-      return ctx.response.status(status).send({ error: error.message, code });
-    }
     if (error instanceof IdentityAuthorityError) {
       return ctx.response
         .status(error.status)

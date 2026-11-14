@@ -2,6 +2,7 @@ import { RefusalError } from '#exceptions/refusal_error';
 import type { HttpContext } from '@adonisjs/core/http';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
+import { refuseWhileViewing } from '#services/auth/password_confirmation';
 import { withActor, kitContextIn } from '#services/auth/current_actor';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { runAccountCommand, type AccountCommandIdentity } from '#services/account_commands';
@@ -24,9 +25,7 @@ export async function transferOwnership(
     return runAccountCommand(trx, {
       name: 'transfer-ownership',
       authorizeAccess: async () => {
-        if (actor.masqueradeContext?.isMasquerading) {
-          throw new IdentityAuthorityError('Masquerade is read-only.');
-        }
+        refuseWhileViewing(actor);
         // A membership proves its company exists, so an unknown company is refused like any other
         // company the caller does not belong to.
         currentRole = await activeCompanyRole(actor.userId, accountId, trx);

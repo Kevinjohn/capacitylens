@@ -11,6 +11,7 @@ import { signIn, signUpAndIn } from '../../helpers/identities.js';
 import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
 import app from '@adonisjs/core/services/app';
 import { pruneViewAs } from '#services/storage_maintenance';
+import { masqueradeService } from '#services/auth/masquerade';
 
 const password = 'batman-secret-2026';
 
@@ -905,5 +906,73 @@ test.group('native read-only masquerade', (group) => {
       .json({ targetUserId: targetId })
       .send();
     anonymousStart.assertStatus(401);
+  });
+
+  test('view-as controls answer package refusals with the shared error codes', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, targetId } = await fixture(client);
+    const outsiderId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await db.table('users').insert({
+      id: outsiderId,
+      email: 'diana.prince@themyscira.example',
+      display_name: 'Diana Prince',
+      email_verified_at: now,
+      password: null,
+      created_at: now,
+      updated_at: now,
+    });
+    const outsider = await startView(client, cookie, outsiderId);
+    outsider.assertStatus(403);
+    assert.deepEqual(outsider.body(), {
+      error: 'This action is not allowed.',
+      code: 'AUTHORIZATION_DENIED',
+    });
+
+    const started = await startView(client, cookie, targetId);
+    started.assertStatus(200);
+    const again = await startView(client, cookie, targetId);
+    again.assertStatus(409);
+    assert.deepEqual(again.body(), {
+      error: 'Masquerade is already active.',
+      code: 'MASQUERADE_ACTIVE',
+    });
+    const activeToken = await contextToken(client, cookie);
+    const ended = await asSession(
+      client.delete('/api/masquerade').header('sec-fetch-site', 'same-origin'),
+      cookie,
+      activeToken
+    )
+      .json({ token: activeToken, reason: 'explicit' })
+      .send();
+    ended.assertStatus(200);
+
+    const service = await masqueradeService();
+    const originalStart = service.start;
+    try {
+      for (const [code, status, body] of [
+        [
+          'E_MASQUERADE_UNAUTHENTICATED',
+          401,
+          { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' },
+        ],
+        [
+          'E_MASQUERADE_UNAVAILABLE',
+          503,
+          { error: 'Masquerade is unavailable.', code: 'MASQUERADE_UNAVAILABLE' },
+        ],
+      ] as const) {
+        service.start = async () => {
+          throw new MasqueradeError(code);
+        };
+        const refused = await startView(client, cookie, targetId);
+        refused.assertStatus(status);
+        assert.deepEqual(refused.body(), body);
+      }
+    } finally {
+      service.start = originalStart;
+    }
   });
 });

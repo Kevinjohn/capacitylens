@@ -27,41 +27,30 @@ function requestedAccountId(request?: HttpContext): string | null {
   return typeof value === 'string' && value ? value : null;
 }
 
+/**
+ * Whether the actor may view the target in the request's company, or in any company the actor
+ * belongs to when the request names none: the actor holds `viewAs:use` there and the target is an
+ * active member.
+ */
+async function sharesViewAsCompany(actorId: string, targetId: string, request?: HttpContext) {
+  const accountId = requestedAccountId(request);
+  const companies = accountId ? [accountId] : await listActiveCompanyIds(actorId, undefined);
+  for (const companyId of companies) {
+    const actorRole = await activeCompanyRole(actorId, companyId, undefined);
+    const targetRole = await activeCompanyRole(targetId, companyId, undefined);
+    if (actorRole && access.can(actorRole, 'viewAs:use') && targetRole) return true;
+  }
+  return false;
+}
+
 export default defineConfig<MasqueradeUser, HttpContext>({
   authority: nativeAdapter.authority,
   policy: {
     async canMasquerade({ actor, target, request }) {
-      const accountId = requestedAccountId(request);
-      if (accountId) {
-        const actorRole = await activeCompanyRole(actor.id, accountId, undefined);
-        const targetRole = await activeCompanyRole(target.id, accountId, undefined);
-        return Boolean(
-          actorRole && access.can(actorRole, 'viewAs:use') && targetRole && actor.id !== target.id
-        );
-      }
-      const roles = await listActiveCompanyIds(actor.id, undefined);
-      for (const memberAccountId of roles) {
-        const role = await activeCompanyRole(actor.id, memberAccountId, undefined);
-        const targetRole = await activeCompanyRole(target.id, memberAccountId, undefined);
-        if (role && access.can(role, 'viewAs:use') && targetRole) return actor.id !== target.id;
-      }
-      return false;
+      return actor.id !== target.id && (await sharesViewAsCompany(actor.id, target.id, request));
     },
-    async canUseRequest({ actor, target, request }) {
-      const accountId = requestedAccountId(request);
-      if (accountId) {
-        const actorRole = await activeCompanyRole(actor.id, accountId, undefined);
-        const targetRole = await activeCompanyRole(target.id, accountId, undefined);
-        return Boolean(actorRole && access.can(actorRole, 'viewAs:use') && targetRole);
-      }
-      const memberships = await listActiveCompanyIds(actor.id, undefined);
-      for (const memberAccountId of memberships) {
-        const actorRole = await activeCompanyRole(actor.id, memberAccountId, undefined);
-        const targetRole = await activeCompanyRole(target.id, memberAccountId, undefined);
-        if (actorRole && access.can(actorRole, 'viewAs:use') && targetRole) return true;
-      }
-      return false;
-    },
+    canUseRequest: ({ actor, target, request }) =>
+      sharesViewAsCompany(actor.id, target.id, request),
   },
   // The package opens the store while providers boot, before the `db` service import resolves.
   store: async () => {

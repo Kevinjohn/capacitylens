@@ -30,6 +30,15 @@ export class PasswordConfirmationError extends RefusalError {
   }
 }
 
+/**
+ * Refuses password-confirmed work while a view-as mode is active. Every issuance and spend calls
+ * this; the confirmation package's `authorize` hook runs in its own transaction and cannot see the
+ * request's mode.
+ */
+export function refuseWhileViewing(actor: CurrentActor) {
+  if (actor.masqueradeContext?.isMasquerading) throw new PasswordConfirmationError();
+}
+
 /** Resolves live authority for a password confirmation request or spend inside `withActor`. */
 export async function passwordConfirmationActor(
   accountId: string,
@@ -37,7 +46,7 @@ export async function passwordConfirmationActor(
   kind: PasswordConfirmationKind
 ): Promise<CurrentActor> {
   const actor = actorIn(trx);
-  if (actor.masqueradeContext?.isMasquerading) throw new PasswordConfirmationError();
+  refuseWhileViewing(actor);
   // The company id arrives in a request body with no length bound, and the membership lookup
   // rejects an overlong id as a fault. This probe turns any unknown id into the proof refusal.
   if (!(await trx.from('accounts').where('id', accountId).select('id').first())) {
