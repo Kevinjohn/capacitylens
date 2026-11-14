@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import db from '@adonisjs/lucid/services/db';
+import app from '@adonisjs/core/services/app';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { defineConfig } from '@kevinjohn/adonisjs-masquerade';
 import { accountKitAuthority } from '@kevinjohn/adonisjs-masquerade/account-kit';
@@ -63,7 +63,11 @@ export default defineConfig<MasqueradeUser, HttpContext>({
       return false;
     },
   },
-  store: async () => new LucidControlStore(db.connection()),
+  // The package opens the store while providers boot, before the `db` service import resolves.
+  store: async () => {
+    const database = await app.container.make('lucid.db');
+    return new LucidControlStore(database.connection());
+  },
   durationSeconds: 900,
   maxDurationSeconds: 900,
   contextEnforcement: 'enforce',

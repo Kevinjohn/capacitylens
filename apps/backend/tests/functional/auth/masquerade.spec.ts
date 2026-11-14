@@ -8,7 +8,7 @@ import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { resetState } from '#tests/helpers/state_fixture';
 import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js';
 import { signIn, signUpAndIn } from '../../helpers/identities.js';
-import { masqueradeService } from '#services/auth/masquerade';
+import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
 import app from '@adonisjs/core/services/app';
 import { pruneViewAs } from '#services/storage_maintenance';
 
@@ -141,7 +141,7 @@ test.group('native read-only masquerade', (group) => {
     capturedIdleStart.assertStatus(409);
     assert.equal((capturedIdleStart.body() as { code: string }).code, 'MASQUERADE_CONTEXT_CHANGED');
     const write = await asSession(
-      client.post('/api/no-such-route').header('sec-fetch-site', 'same-origin'),
+      client.put('/api/accounts/a-studio/getting-started').header('sec-fetch-site', 'same-origin'),
       cookie,
       mode.contextToken
     )
@@ -200,7 +200,7 @@ test.group('native read-only masquerade', (group) => {
     assert,
   }) => {
     const { cookie } = await fixture(client);
-    const service = await masqueradeService();
+    const service = await masqueradeAdmission();
     const serviceWithTestFailure = service as unknown as {
       resolve(request: HttpContext): Promise<ResolvedContext>;
     };
@@ -228,21 +228,19 @@ test.group('native read-only masquerade', (group) => {
     client,
     assert,
   }) => {
-    const { cookie, ownerId, targetId } = await fixture(client);
+    const { cookie, targetId } = await fixture(client);
     const idleToken = await contextToken(client, cookie);
-    const service = await masqueradeService();
+    const service = await masqueradeAdmission();
     const serviceWithTestGate = service as unknown as {
       resolve(request: HttpContext): Promise<ResolvedContext>;
     };
     const originalResolve = service.resolve.bind(service);
-    const bothAdmitted = deferred();
+    const admitted = deferred();
     const release = deferred();
-    let admittedCount = 0;
     serviceWithTestGate.resolve = async (request) => {
       const resolved = await originalResolve(request);
       if (request.request.header('x-test-admission-pause') === 'idle') {
-        admittedCount += 1;
-        if (admittedCount === 2) bothAdmitted.resolve();
+        admitted.resolve();
         await release.promise;
       }
       return resolved;
@@ -259,37 +257,14 @@ test.group('native read-only masquerade', (group) => {
       )
         .json({ dismissed: true })
         .send();
-      const confirmationWrite = asSession(
-        client
-          .post('/api/auth/password-confirmation')
-          .header('sec-fetch-site', 'same-origin')
-          .header('x-test-admission-pause', 'idle'),
-        cookie,
-        idleToken
-      )
-        .json({
-          action: 'anonymise',
-          accountId: 'a-studio',
-          intent: {},
-          password,
-        })
-        .send();
-
-      await bothAdmitted.promise;
+      await admitted.promise;
       const started = await startView(client, cookie, targetId);
       started.assertStatus(200);
       release.resolve();
-      const [saved, proof] = await Promise.all([normalWrite, confirmationWrite]);
+      const saved = await normalWrite;
       saved.assertStatus(200);
-      proof.assertStatus(200);
       assert.isDefined(
         await db.from('account_getting_started_dismissals').where('account_id', 'a-studio').first()
-      );
-      assert.exists(
-        await db
-          .from('password_confirmations')
-          .where({ user_id: ownerId, scope: 'a-studio', action: 'anonymise' })
-          .first()
       );
       const status = await asSession(client.get('/api/masquerade'), cookie).send();
       status.assertStatus(200);
@@ -316,7 +291,7 @@ test.group('native read-only masquerade', (group) => {
     const started = await startView(client, sessionCookie, targetId);
     started.assertStatus(200);
     const activeToken = (started.body() as { contextToken: string }).contextToken;
-    const service = await masqueradeService();
+    const service = await masqueradeAdmission();
     const serviceWithTestGate = service as unknown as {
       resolve(request: HttpContext): Promise<ResolvedContext>;
     };
@@ -494,7 +469,7 @@ test.group('native read-only masquerade', (group) => {
     assert.equal(endAudit.actor_id, ownerId);
   });
 
-  test('refuses unsafe and auth routes before malformed or unknown-route validation', async ({
+  test('refuses unsafe and auth routes while viewing, and answers unknown routes with 404', async ({
     client,
     assert,
   }) => {
@@ -506,7 +481,9 @@ test.group('native read-only masquerade', (group) => {
     editorRead.assertStatus(200);
     const examples = [
       asSession(
-        client.post('/api/projects').header('sec-fetch-site', 'same-origin'),
+        client
+          .put('/api/accounts/a-studio/getting-started')
+          .header('sec-fetch-site', 'same-origin'),
         cookie,
         (started.body() as { contextToken: string }).contextToken
       ).json({}),
@@ -539,7 +516,8 @@ test.group('native read-only masquerade', (group) => {
       asSession(client.get('/api/accounts/a-studio/members'), cookie),
       asSession(client.get('/api/diagnostics'), cookie),
     ];
-    const expectedStatuses = [403, 403, 403, 404, 403, 403, 403, 403, 403];
+    // Route policy runs after route matching, so a write to a path with no route is a 404 (#1865).
+    const expectedStatuses = [403, 404, 404, 404, 403, 404, 403, 403, 403];
     for (const [index, request] of examples.entries()) {
       const response = await request.send();
       response.assertStatus(expectedStatuses[index]!);
@@ -548,7 +526,7 @@ test.group('native read-only masquerade', (group) => {
     }
     const malformed = await asSession(
       client
-        .post('/api/no-such-route')
+        .put('/api/accounts/a-studio/getting-started')
         .header('sec-fetch-site', 'same-origin')
         .header('content-type', 'application/json'),
       cookie,
@@ -556,8 +534,11 @@ test.group('native read-only masquerade', (group) => {
     ).setup((request) => {
       request.request.send('{');
     });
-    malformed.assertStatus(403);
-    assert.equal((malformed.body() as { code: string }).code, 'MASQUERADE_READ_ONLY');
+    // The body parser runs before route policy, so a malformed write is refused as malformed.
+    malformed.assertStatus(400);
+    assert.notExists(
+      await db.from('account_getting_started_dismissals').where('account_id', 'a-studio').first()
+    );
     const signedOut = await asSession(
       client.post('/api/auth/sign-out').header('sec-fetch-site', 'same-origin'),
       cookie

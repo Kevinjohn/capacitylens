@@ -277,12 +277,15 @@ This is the short, present-tense record of decisions that constrain future work.
   only the health probes and the application shell have no name. Routes under `/api/auth` are
   public at the gate because their handlers answer a signed-out caller themselves. The gate adds
   an early refusal; it does not replace the check inside the product transaction.
-- One global server middleware enforces view-as policy before routing: while a mode is active it
-  refuses every unsafe request and the listed identity, membership and administration reads. The
-  package's effective guard and route markers are not used, because product routes resolve their
-  actor through `withActor`, not the AdonisJS auth middleware those markers depend on. A new
-  sensitive read route must be added to the middleware's list. Revisit if product routes adopt the
-  auth middleware.
+- View-as policy is declared where each route is registered (`start/route_guards.ts`) and enforced
+  by the Masquerade package's context middleware after route matching. Member routes use the
+  package's effective guard and are refused for writes while a mode is active; `asMemberOnly()`
+  marks reads that are refused outright; the view-as controls run on the raw guard; routes about
+  the signed-in person's own account carry Account Kit's account blocker. No route allows writes
+  under view-as. A request carrying a stale `X-Masquerade-Context` is refused, reads included.
+  `tests/functional/auth/masquerade_routes.spec.ts` pins every route's classification from
+  `node ace masquerade:routes`. Because policy runs after routing and body parsing, a write to a
+  path with no route answers 404 and a malformed body answers 400, not `MASQUERADE_READ_ONLY`.
 - Package events are authoritative for view-as lifecycle audit. They carry no company ID and no
   separate explicit, company-switch or sign-out classification. Control state and events stay in
   database backups, outside scheduling exports.

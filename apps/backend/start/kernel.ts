@@ -31,7 +31,6 @@ server.use([
   () => import('#middleware/origin_guard_middleware'),
   () => import('#middleware/api_rate_limit_middleware'),
   () => import('@adonisjs/auth/initialize_auth_middleware'),
-  () => import('#middleware/masquerade_read_only_middleware'),
   () => import('@adonisjs/static/static_middleware'),
   () => import('#middleware/force_json_response_middleware'),
   () => import('#middleware/container_bindings_middleware'),
@@ -45,4 +44,14 @@ server.use([
 router.use([
   () => import('@adonisjs/core/bodyparser_middleware'),
   () => import('#middleware/account_gate_middleware'),
+  () => import('#middleware/masquerade_context_middleware'),
 ]);
+
+/** Named middleware, applied where each route is registered. */
+export const middleware = router.named({
+  auth: () => import('#middleware/auth_middleware'),
+  accountKitAccountBlocker: async () => {
+    const module = await import('@kevinjohn/adonisjs-masquerade/account-kit/middleware');
+    return { default: module.AccountKitAccountBlocker };
+  },
+});

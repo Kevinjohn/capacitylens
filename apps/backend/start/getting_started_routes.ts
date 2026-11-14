@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router';
+import { asMember, asMemberOnly } from '#start/route_guards';
 
 const GettingStartedController = () => import('#controllers/getting_started_controller');
 
@@ -6,8 +7,10 @@ const GettingStartedController = () => import('#controllers/getting_started_cont
 export function registerGettingStartedRoutes() {
   router
     .get('/api/accounts/:accountId/getting-started', [GettingStartedController, 'show'])
-    .as('api.getting-started.show');
+    .as('api.getting-started.show')
+    .use(asMemberOnly());
   router
     .put('/api/accounts/:accountId/getting-started', [GettingStartedController, 'update'])
-    .as('api.getting-started.update');
+    .as('api.getting-started.update')
+    .use(asMember());
 }

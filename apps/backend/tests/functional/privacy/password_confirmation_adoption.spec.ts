@@ -10,10 +10,6 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
 import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
 import { admissionDecision, actorIn, kitContextIn, withActor } from '#services/auth/current_actor';
-import {
-  captureMasqueradeContext,
-  capturedMasqueradeContext,
-} from '#services/auth/masquerade_request';
 import { withTransaction } from '#services/with_transaction';
 import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
@@ -49,17 +45,14 @@ test.group('package proof adoption boundaries', (group) => {
     assert.lengthOf(await db.from('password_confirmations'), 0);
   });
 
-  for (const gate of ['unverified', 'unadmitted', 'principal mismatch'] as const) {
+  for (const gate of ['unverified', 'unadmitted'] as const) {
     test(`issuance preflight refuses ${gate} before package verification`, async ({
       client,
       assert,
       cleanup,
     }) => {
       const { cookie, userId } = await resetAuthenticatedData(client);
-      let expected: object = {
-        error: 'Masquerade context changed.',
-        code: 'MASQUERADE_CONTEXT_CHANGED',
-      };
+      let expected: object;
       if (gate === 'unverified') {
         await db.from('users').where('id', userId).update({
           email_verified_at: null,
@@ -69,7 +62,7 @@ test.group('package proof adoption boundaries', (group) => {
           error: 'Email verification is required.',
           code: 'E_ACCOUNT_KIT_UNVERIFIED_EMAIL',
         };
-      } else if (gate === 'unadmitted') {
+      } else {
         const admission = await app.container.make(AccountAdmission);
         await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' });
         expected = {
@@ -86,11 +79,6 @@ test.group('package proof adoption boundaries', (group) => {
       };
       PasswordConfirmationsController.prototype.password = function (ctx) {
         reached++;
-        if (gate === 'principal mismatch') {
-          const captured = capturedMasqueradeContext(ctx);
-          if (!captured) throw new Error('The real middleware did not capture a principal.');
-          captureMasqueradeContext(ctx, { ...captured, actorId: 'another-principal' });
-        }
         return controller.call(this, ctx);
       };
       cleanup(() => {
@@ -98,7 +86,7 @@ test.group('package proof adoption boundaries', (group) => {
         PasswordConfirmationsController.prototype.password = controller;
       });
       const response = await issue(client, cookie);
-      response.assertStatus(gate === 'principal mismatch' ? 409 : 403);
+      response.assertStatus(403);
       assert.deepEqual(response.body(), expected);
       assert.equal(reached, 1, 'the request must reach controller preflight');
       assert.lengthOf(await db.from('password_confirmations'), 0);

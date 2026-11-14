@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { masqueradeService } from '#services/auth/masquerade';
+import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
 import { requestBarrier } from '../../helpers/request_barrier.js';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -325,7 +325,7 @@ db.exec('COMMIT')`,
       const before = await readState(accountId, true);
       const revisions = await db.from('company_planning_revisions');
       const audits = await db.from('audit_entries');
-      const service = await masqueradeService();
+      const service = await masqueradeAdmission();
       const original = service.resolve.bind(service);
       const barrier = requestBarrier();
       service.resolve = async (request: HttpContext) => {

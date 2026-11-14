@@ -10,7 +10,7 @@ import {
 } from '../../helpers/authenticated_data_fixture.js';
 import { clearIdentities, createIdentity, signIn, expectStatus } from '../../helpers/identities.js';
 import { requestBarrier } from '../../helpers/request_barrier.js';
-import { masqueradeService } from '#services/auth/masquerade';
+import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
 
 const email = 'bruce.wayne@wayne.example';
 const password = 'batman-secret-2026';
@@ -69,7 +69,7 @@ test.group('password sign-in and sessions', (group) => {
     const session = await db.from('adonis_sessions').select('id').first();
     assert.isNotNull(session, 'sign-in creates a database-backed Adonis session');
 
-    const service = await masqueradeService();
+    const service = await masqueradeAdmission();
     const original = service.resolve.bind(service);
     const barrier = requestBarrier();
     service.resolve = async (request) => {
@@ -205,7 +205,7 @@ test.group('password sign-in and sessions', (group) => {
   }) => {
     const userId = await owner();
     const { cookie } = await signIn(client, email, password);
-    const service = await masqueradeService();
+    const service = await masqueradeAdmission();
     const original = service.resolve.bind(service);
     const barrier = requestBarrier();
     service.resolve = async (request) => {
