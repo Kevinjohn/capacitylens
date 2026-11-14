@@ -34,7 +34,7 @@ apps/backend/
     health/               database readiness check
   app/models/             Lucid models; every scoped row carries its company id
   app/transformers/       role-based projection of company state
-  app/middleware/         view-as read-only gate, trusted-local session gate, headers, logging
+  app/middleware/         view-as context gate, trusted-local session gate, headers, logging
   app/exceptions/         global error-to-HTTP mapping
   start/                  routes, kernel middleware stacks, env schema, Node version gate
   config/                 Account Kit, admission, masquerade, backup, session and mail config
@@ -73,18 +73,20 @@ PATCH /api/accounts/:accountId/allocations/:id
   "intent": { "operation": "allocation.update", "id": "<id>", "changes": { "hoursPerDay": 6 } } }
 ```
 
-Two middleware gates run before the controller and can refuse:
+Two router middleware gates run, in this order, before the controller and can refuse:
 
-- P1. `apps/backend/app/middleware/masquerade_read_only_middleware.ts` (server stack) resolves
-  view-as mode, requires the context header on unsafe methods (428
-  `MASQUERADE_CONTEXT_REQUIRED`) and refuses every unsafe request while viewing as another
-  member (403 `MASQUERADE_READ_ONLY`).
-- P2. `apps/backend/app/middleware/account_gate_middleware.ts` (router stack) selects a check by
+- P1. `apps/backend/app/middleware/account_gate_middleware.ts` selects a check by
   route name (`apps/backend/app/services/auth/route_access.ts`). Account Kit's
   `admissionMiddleware` refuses a product route unless the session is valid, the address is
   confirmed and the person is admitted; its `managedAccountMiddleware` asks only for a valid
   session on the limited routes; public routes pass. Without a valid session the answer is 401
   `{ error: 'Sign-in required.' }` with no code.
+- P2. `apps/backend/app/middleware/masquerade_context_middleware.ts` runs the Masquerade
+  package's context middleware on routes using the effective guard (`start/route_guards.ts`). It
+  admits the view-as mode, requires the current context header on unsafe methods (428
+  `MASQUERADE_CONTEXT_REQUIRED`), refuses a stale header on any method (409
+  `MASQUERADE_CONTEXT_CHANGED`), and refuses every unsafe request, and reads marked
+  `asMemberOnly()`, while viewing as another member (403 `MASQUERADE_READ_ONLY`).
 
 Then, in order:
 
@@ -145,7 +147,7 @@ Then, in order:
 | `RESTORATION_CONFIRMATION_REQUIRED` | 409 | Pending restoration groups would be cleared; body has `restorableItemCount` |
 | `RESTORATION_CONFIRMATION_STALE` | 409 | The confirmed count no longer matches; body has the new count |
 | No code | 409 | Built-in client, frozen setting or restoration conflict; an error message without a code |
-| `MASQUERADE_*` | 403, 409, 428 | Refused by the view-as middleware before the controller |
+| `MASQUERADE_*` | 403, 409, 428 | Refused by the view-as context middleware before the controller |
 | Account Kit codes | Kit | Session, address or admission refusals (`ADMISSION_REQUIRED` 403) pass through |
 | No code | 401 | No valid session (trusted-local middleware) |
 | None | 500 | Unexpected fault; the transaction rolled back |
