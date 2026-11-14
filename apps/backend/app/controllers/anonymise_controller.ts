@@ -4,7 +4,7 @@ import { anonymiseResources } from '#services/anonymise';
 import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { hasOnlyFields } from '#services/request_helpers';
-import { getActiveMembership, createMemberBouncer } from '#services/auth/authorization';
+import { assertCompanyAction, IdentityAuthorityError } from '#services/auth/authorization';
 
 export default class AnonymiseController {
   async resource(ctx: HttpContext) {
@@ -15,9 +15,11 @@ export default class AnonymiseController {
     const { accountId, id } = ctx.params;
     const applied = await withActor(ctx, async (actor, trx) => {
       if (actor.masqueradeContext?.isMasquerading) return 'forbidden';
-      const membership = await getActiveMembership(actor.userId, accountId, trx);
-      if (!(await createMemberBouncer(actor.userId, membership).allows('resources:anonymise'))) {
-        return 'forbidden';
+      try {
+        await assertCompanyAction(accountId, 'resources:anonymise', trx);
+      } catch (error) {
+        if (error instanceof IdentityAuthorityError) return 'forbidden';
+        throw error;
       }
       return anonymiseResources(trx, accountId, actor.userId, id);
     });

@@ -1,5 +1,11 @@
 import router from '@adonisjs/core/services/router';
-import { asMember, asMemberOnly, asOwnAccount } from '#start/route_guards';
+import {
+  asCompanyMember,
+  asCompanyMemberOnly,
+  asMember,
+  asMemberOnly,
+  asOwnAccount,
+} from '#start/route_guards';
 
 const InvitationsController = () => import('#controllers/invitations_controller');
 const AdmissionController = () => import('#controllers/admission_controller');
@@ -14,15 +20,15 @@ export function registerAdmissionRoutes() {
   router
     .get('/api/accounts/:accountId/invites', [InvitationsController, 'index'])
     .as('api.invites.index')
-    .use(asMemberOnly());
+    .use(asCompanyMemberOnly());
   router
     .post('/api/accounts/:accountId/invites/:id/resend', [InvitationsController, 'resend'])
     .as('api.invites.resend')
-    .use(asMember());
+    .use(asCompanyMember());
   router
     .delete('/api/accounts/:accountId/invites/:id', [InvitationsController, 'revoke'])
     .as('api.invites.revoke')
-    .use(asMember());
+    .use(asCompanyMember());
   router
     .get('/api/invites/:token/preview', [InvitationsController, 'preview'])
     .as('api.invites.preview')
@@ -67,16 +73,16 @@ export function registerAdmissionRoutes() {
       'setLink',
     ])
     .as('api.member-resources.set')
-    .use(asMember());
+    .use(asCompanyMember());
   router
     .delete('/api/accounts/:accountId/members/:userId/resource-link', [
       MemberResourcesController,
       'clearLink',
     ])
     .as('api.member-resources.clear')
-    .use(asMember());
+    .use(asCompanyMember());
   router
     .get('/api/accounts/:accountId/resource-avatars', [MemberResourcesController, 'avatars'])
     .as('api.member-resources.avatars')
-    .use(asMemberOnly());
+    .use(asCompanyMemberOnly());
 }

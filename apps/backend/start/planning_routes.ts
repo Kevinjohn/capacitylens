@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router';
-import { asMember } from '#start/route_guards';
+import { asPlanningMember } from '#start/route_guards';
 import { sensitive } from '@kevinjohn/adonisjs-masquerade/http';
 const PlanningController = () => import('#controllers/planning_controller');
 
@@ -176,4 +176,4 @@ router
       .patch('/api/accounts/:accountId/settings', [PlanningController, 'settingsUpdate'])
       .as('api.planning.settings.update');
   })
-  .use(asMember());
+  .use(asPlanningMember());

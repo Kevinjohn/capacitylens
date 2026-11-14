@@ -191,8 +191,11 @@ This is the short, present-tense record of decisions that constrain future work.
   outcome. Password sign-in is the only sign-in method; there are no identity providers.
 - Company memberships are stored and ruled by `@kevinjohn/adonisjs-access-control`: its
   `memberships` table, the roles viewer < editor < admin < owner, and the permission keys declared
-  once in `packages/shared/src/domain/access.ts`. The server authorizes through the package's
-  Bouncer abilities with the membership read in the request transaction; the browser reads the same
+  once in `packages/shared/src/domain/access.ts`. Every route with `:accountId` in its path runs
+  the package's `scope` middleware after authentication; it refuses a caller without an active
+  membership before the handler, with the refusal the handler would give. The server still
+  authorizes inside the request transaction through the package's `memberships.authorize`; a route
+  that takes the company id from the body has only that check. The browser reads the same
   declaration only to show or hide controls. A membership is active or suspended. Nobody manages
   their own membership, and an Admin cannot manage the Owner.
 - Admission is cumulative and owned by the kit: an optional allowed email domain

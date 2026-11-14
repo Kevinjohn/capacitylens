@@ -50,6 +50,7 @@ router.use([
 /** Named middleware, applied where each route is registered. */
 export const middleware = router.named({
   auth: () => import('#middleware/auth_middleware'),
+  companyScope: () => import('#middleware/company_scope_middleware'),
   accountKitAccountBlocker: async () => {
     const module = await import('@kevinjohn/adonisjs-masquerade/account-kit/middleware');
     return { default: module.AccountKitAccountBlocker };

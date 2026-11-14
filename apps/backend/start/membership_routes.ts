@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router';
-import { asMember, asMemberOnly } from '#start/route_guards';
+import { asCompanyMember, asCompanyMemberOnly } from '#start/route_guards';
 
 const MembersController = () => import('#controllers/members_controller');
 
@@ -8,17 +8,17 @@ export function registerMembershipRoutes() {
   router
     .get('/api/accounts/:accountId/members', [MembersController, 'index'])
     .as('api.members.index')
-    .use(asMemberOnly());
+    .use(asCompanyMemberOnly());
   router
     .put('/api/accounts/:accountId/member-sign-in-tracking', [MembersController, 'tracking'])
     .as('api.members.tracking')
-    .use(asMember());
+    .use(asCompanyMember());
   router
     .patch('/api/accounts/:accountId/members/:userId', [MembersController, 'changeRole'])
     .as('api.members.role')
-    .use(asMember());
+    .use(asCompanyMember());
   router
     .patch('/api/accounts/:accountId/members/:userId/status', [MembersController, 'changeStatus'])
     .as('api.members.status')
-    .use(asMember());
+    .use(asCompanyMember());
 }

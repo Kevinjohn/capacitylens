@@ -1,5 +1,5 @@
-import { Bouncer } from '@adonisjs/bouncer';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import type { Membership } from '@kevinjohn/adonisjs-access-control/types';
 import { isAccountRole, type Role } from '@capacitylens/shared/account/types';
 import type { PermissionKey } from '@capacitylens/shared/domain/access';
@@ -38,14 +38,6 @@ export async function activeCompanyRole(
   return membership ? requireStoredRole(membership) : null;
 }
 
-/** Builds a Bouncer whose abilities are the Access Control permission keys for this membership. */
-export function createMemberBouncer(userId: string, membership: Membership | null) {
-  return new Bouncer(
-    { id: userId },
-    access.abilities(() => membership)
-  );
-}
-
 /** Authorizes one company permission from live membership inside the actor's verified transaction. */
 export async function assertCompanyAction(
   accountId: string,
@@ -53,11 +45,20 @@ export async function assertCompanyAction(
   trx: TransactionClientContract
 ): Promise<{ actorId: string; role: Role }> {
   const actor = actorIn(trx);
-  const membership = await getActiveMembership(actor.userId, accountId, trx);
-  if (!membership || !(await createMemberBouncer(actor.userId, membership).allows(key))) {
-    throw new IdentityAuthorityError('Forbidden.');
+  try {
+    const membership = await access.memberships.authorize({
+      scopeId: accountId,
+      userId: actor.userId,
+      permission: key,
+      trx,
+    });
+    return { actorId: actor.userId, role: requireStoredRole(membership) };
+  } catch (error) {
+    if (error instanceof AccessControlError && error.code === 'E_ACCESS_CONTROL_FORBIDDEN') {
+      throw new IdentityAuthorityError('Forbidden.');
+    }
+    throw error;
   }
-  return { actorId: actor.userId, role: requireStoredRole(membership) };
 }
 
 /** Lists the user's active company ids in ascending order, reading through the caller's transaction. */
