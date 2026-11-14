@@ -66,8 +66,10 @@ with a startup warning, and values above 10,000 clamp to 10,000 with a warning. 
 bundles in the separate `pre-migration/` directory and reset archives are excluded from scheduled retention. Manual create uses `db:backup create`; run `db:backup prune` explicitly for manual retention. Check backup logs and
 completed files separately from database readiness; see [Backups and restore](/self-hosting/backups-and-restore).
 
-A proxy on a separate machine or in a separate container is not supported: every client behind it
-would share the proxy's request-limit budget. Use a same-machine proxy that connects over loopback; do not widen trust to arbitrary
+For the native installation, a proxy on a separate machine or in a separate container is not
+supported: every client behind it would share the proxy's request-limit budget. The
+[Docker Compose stack](/self-hosting/install-with-docker) is the exception: its API trusts forwarded
+headers only from the private Compose network. Use a same-machine proxy that connects over loopback; do not widen trust to arbitrary
 forwarded headers.
 
 ## Network and logging

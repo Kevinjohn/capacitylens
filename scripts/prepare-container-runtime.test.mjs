@@ -69,6 +69,8 @@ test('Compose upgrades before API startup and preserves the private persistent d
   assert.equal(compose.services.api.environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, undefined);
   assert.deepEqual(Object.keys(compose.volumes).sort(), [
     'capacitylens-backups',
+    'capacitylens-caddy-config',
+    'capacitylens-caddy-data',
     'capacitylens-db',
   ]);
   const workflow = YAML.parse(
@@ -77,6 +79,76 @@ test('Compose upgrades before API startup and preserves the private persistent d
   assert.deepEqual(workflow.on.push.branches, ['main']);
   assert.equal(Object.hasOwn(workflow.on, 'pull_request'), false);
   assert.equal(Object.hasOwn(workflow.on, 'workflow_dispatch'), true);
+});
+
+test('Compose runs the published release images by default and can still build them', async () => {
+  const { default: YAML } = await import('yaml');
+  const compose = YAML.parse(
+    await readFile(new URL('../docker-compose.yml', import.meta.url), 'utf8'),
+  );
+  // No default version: an unset release must stop Compose instead of running an arbitrary image.
+  const published = (name) =>
+    new RegExp(`^ghcr\\.io/kevinjohn/capacitylens-${name}:\\$\\{CAPACITYLENS_VERSION:\\?[^}]+\\}$`);
+  assert.match(compose.services.api.image, published('api'));
+  assert.equal(compose.services.upgrade.image, compose.services.api.image);
+  assert.match(compose.services.web.image, published('web'));
+  assert.deepEqual(compose.services.api.build, { context: '.', target: 'api' });
+  assert.deepEqual(compose.services.upgrade.build, { context: '.', target: 'api' });
+  assert.equal(compose.services.web.build.target, 'web');
+  // The remote-API client bakes its origin in at build time, so no published image can serve it.
+  assert.equal(compose.services['web-client'].image, undefined);
+
+  const dockerfile = await readFile(new URL('../Dockerfile', import.meta.url), 'utf8');
+  assert.equal(
+    dockerfile.split('org.opencontainers.image.source="https://github.com/Kevinjohn/capacitylens"')
+      .length,
+    3,
+    'the api and web images each link to the repository',
+  );
+
+  const workflow = YAML.parse(
+    await readFile(new URL('../.github/workflows/docker.yml', import.meta.url), 'utf8'),
+  );
+  assert.deepEqual(workflow.on.release.types, ['published']);
+  const { publish, smoke } = workflow.jobs;
+  assert.deepEqual(publish.permissions, { contents: 'read', packages: 'write' });
+  assert.deepEqual(workflow.permissions, { contents: 'read' });
+  assert.equal(smoke.permissions, undefined);
+  const commands = publish.steps.map((step) => step.run ?? '');
+  const position = (text) => commands.findIndex((run) => run.includes(text));
+  // Images are smoked before they are pushed, and the pushed images are then run without a build.
+  assert.ok(position('node scripts/smoke-docker-compose.mjs') >= 0);
+  assert.ok(
+    position('node scripts/smoke-docker-compose.mjs') < position('docker compose push api web'),
+  );
+  assert.ok(position('docker compose push api web') < position('--no-build --pull always'));
+  assert.ok(smoke.steps.some((step) => (step.run ?? '').includes('--profile caddy up')));
+});
+
+test('the optional Caddy profile serves HTTPS in front of the web container only', async () => {
+  const { default: YAML } = await import('yaml');
+  const compose = YAML.parse(
+    await readFile(new URL('../docker-compose.yml', import.meta.url), 'utf8'),
+  );
+  const { caddy } = compose.services;
+  // Without the profile the stack is unchanged: no service outside it publishes 80 or 443.
+  assert.deepEqual(caddy.profiles, ['caddy']);
+  for (const [name, service] of Object.entries(compose.services))
+    if (name !== 'caddy') assert.equal(service.profiles?.includes('caddy') ?? false, false);
+  assert.deepEqual(caddy.ports, ['80:80', '443:443', '443:443/udp']);
+  assert.match(caddy.image, /^docker\.io\/library\/caddy:[\d.]+-alpine@sha256:[0-9a-f]{64}$/);
+  assert.deepEqual(caddy.command.slice(0, 3), ['caddy', 'reverse-proxy', '--from']);
+  assert.match(caddy.command[3], /^\$\{CAPACITYLENS_PUBLIC_URL:\?/);
+  assert.deepEqual(caddy.command.slice(4), ['--to', 'web:8080']);
+  assert.equal(caddy.depends_on.web.condition, 'service_healthy');
+  assert.equal(caddy.read_only, true);
+  assert.deepEqual(caddy.cap_drop, ['ALL']);
+  assert.deepEqual(caddy.cap_add, ['NET_BIND_SERVICE']);
+  assert.deepEqual(caddy.security_opt, ['no-new-privileges:true']);
+  assert.deepEqual(caddy.volumes, [
+    'capacitylens-caddy-data:/data',
+    'capacitylens-caddy-config:/config',
+  ]);
 });
 
 test('native compilation tools are installed before dependencies and stay outside the runtime stage', async () => {

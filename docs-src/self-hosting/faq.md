@@ -10,8 +10,8 @@ next: false
 
 ### Do I need Docker?
 
-No. Use the [native release archive](/self-hosting/install-without-docker). Docker deployment for
-the current application has not been validated; see [Install with Docker](/self-hosting/install-with-docker).
+No. The [native release archive](/self-hosting/install-without-docker) is the expected installation.
+Each release also publishes Docker images; see [Install with Docker](/self-hosting/install-with-docker).
 
 ### Which Node version should I use?
 
