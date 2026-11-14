@@ -75,7 +75,7 @@
     "@adonisjs/shield": "9.0.0",
     "@adonisjs/static": "2.0.1",
     "@capacitylens/shared": "workspace:*",
-    "@kevinjohn/adonisjs-access-control": "https://github.com/Kevinjohn/oss-adonisjs-access-control/releases/download/v0.1.7/kevinjohn-adonisjs-access-control-0.1.7.tgz",
+    "@kevinjohn/adonisjs-access-control": "https://github.com/Kevinjohn/oss-adonisjs-access-control/releases/download/v0.1.8/kevinjohn-adonisjs-access-control-0.1.8.tgz",
     "@kevinjohn/adonisjs-account-kit": "https://github.com/Kevinjohn/oss-adonisjs-account-kit/releases/download/v0.3.4/kevinjohn-adonisjs-account-kit-0.3.4.tgz",
     "@kevinjohn/adonisjs-confirm-action-with-password": "https://github.com/Kevinjohn/oss-adonisjs-confirm-action-with-password/releases/download/v0.1.1/kevinjohn-adonisjs-confirm-action-with-password-0.1.1.tgz",
     "@kevinjohn/adonisjs-duplicate-request-guard": "https://github.com/Kevinjohn/oss-adonisjs-duplicate-request-guard/releases/download/v0.1.0/kevinjohn-adonisjs-duplicate-request-guard-0.1.0.tgz",
