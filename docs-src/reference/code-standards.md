@@ -180,8 +180,11 @@ export async function assertCompanyAction(
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
 export default class Client extends SoftDeletes(ClientSchema) {
 
-/** Captures one package admission and enforces context/read-only policy before route parsing. */
-export default class MasqueradeReadOnlyMiddleware {
+/**
+ * The Masquerade package's route policy: on a member route it admits the view-as mode, requires
+ * the captured context on a write, and refuses writes and sensitive routes while a mode is active.
+ */
+export default class MasqueradeContextMiddleware {
 ```
 
 The second and fourth are in the tree today. The first and third are the shape to add when you
