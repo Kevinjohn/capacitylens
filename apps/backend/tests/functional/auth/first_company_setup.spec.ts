@@ -108,6 +108,23 @@ test.group('authenticated first company setup', (group) => {
     assert.lengthOf(await db.from('accounts'), 1);
   });
 
+  test('a Sunday week start gives the first company Sunday through Thursday working days', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie } = await acceptBootstrap(client);
+    const setup = await asDataOwner(client.post('/api/installation/company'), cookie)
+      .json({ name: 'Wayne Enterprises', weekStartsOn: 0 })
+      .send();
+    setup.assertStatus(201);
+    const state = await asDataOwner(
+      client.get('/api/state').qs({ accountId: setup.body().accountId }),
+      cookie
+    ).send();
+    state.assertStatus(200);
+    assert.deepEqual(state.body().accounts[0].workingDays, [0, 1, 2, 3, 4]);
+  });
+
   for (const choice of [
     { description: 'name-only caller', fields: {}, weekStart: 1, timezone: 'Etc/GMT' },
     {
