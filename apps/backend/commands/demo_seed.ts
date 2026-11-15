@@ -4,7 +4,7 @@ import { assertDisposableDemoDatabase, seedDisposableDemo } from '#services/disp
 
 export default class DemoCommand extends BaseCommand {
   static commandName = 'capacitylens:demo:seed';
-  static description = 'Prepare the disposable development demo installation';
+  static description = 'Seed the disposable development demo installation';
   static options: CommandOptions = { startApp: true };
   async run() {
     try {
