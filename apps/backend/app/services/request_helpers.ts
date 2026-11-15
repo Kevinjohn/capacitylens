@@ -1,5 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http';
 
+/** Account identity ids accepted in admission and ownership requests. */
+export const USER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+
 /** Reports whether a request body is a plain object that carries no key outside `allowed`. */
 export function hasOnlyFields(
   value: unknown,

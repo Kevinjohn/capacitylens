@@ -20,22 +20,27 @@ function registerBeforeEachHooks() {
 }
 
 function registerCreatesAllocationRowButtonAssigneeTest() {
-  test('creates an allocation from the row + button (assignee preselected)', async ({ page }) => {
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
-    const before = await page.getByTestId('allocation-bar').count();
-    await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New allocation' });
-    // The assignee is fixed in create mode, so the dialog title identifies the resource.
-    await expect(dialog.getByRole('heading')).toContainText('Clark Kent');
-    await expect(dialog.getByLabel('Assignee')).toHaveCount(0);
-    await selectShadOption(dialog.getByLabel('Project', { exact: true }), 'p-acme');
-    await selectShadOption(
-      dialog.getByRole('combobox', { name: 'Activity', exact: true }),
-      't-wires',
-    );
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1);
-  });
+  // Tagged for the short browser journey that runs on every main push.
+  test(
+    'creates an allocation from the row + button (assignee preselected)',
+    { tag: '@journey' },
+    async ({ page }) => {
+      await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
+      const before = await page.getByTestId('allocation-bar').count();
+      await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
+      const dialog = page.getByRole('dialog', { name: 'New allocation' });
+      // The assignee is fixed in create mode, so the dialog title identifies the resource.
+      await expect(dialog.getByRole('heading')).toContainText('Clark Kent');
+      await expect(dialog.getByLabel('Assignee')).toHaveCount(0);
+      await selectShadOption(dialog.getByLabel('Project', { exact: true }), 'p-acme');
+      await selectShadOption(
+        dialog.getByRole('combobox', { name: 'Activity', exact: true }),
+        't-wires',
+      );
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1);
+    },
+  );
 }
 
 function registerSeparatesAllocationScopesSortsChoicesTest() {

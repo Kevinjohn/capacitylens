@@ -208,11 +208,6 @@ export function todayISO(timeZone?: string, now: number = Date.now()): ISODate {
   return assertFourDigitISODate(`${get('year')}-${get('month')}-${get('day')}`);
 }
 
-/** Is `date`'s weekday one of `workingDays`? */
-export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean {
-  return workingDays.includes(weekdayOf(date));
-}
-
 /** Should weekend/non-working days be treated specially? True only when the
  * resource has a partial working week (1–6 working days) and the allocation
  * hasn't opted out via `ignoreWorkingDays`. This is the single condition shared by
@@ -238,8 +233,8 @@ export function isWeekendAware(
  * allocation that opts into weekends (`ignoreWorkingDays`), or a resource with a full/empty working
  * week, works every calendar day. The single per-day companion to `isWeekendAware`, shared by the
  * over-marker (`allocatedHoursOnDay`) and its advisory mirror (`capacityAdvisory`) so the two can't
- * disagree on which days an allocation works. `dayIsWorkingWeekday` is `isWorkingWeekday(date,
- * workingDays)`, passed in so the caller derives the weekday once per day, not once per allocation. */
+ * disagree on which days an allocation works. `dayIsWorkingWeekday` tells whether the date's
+ * weekday belongs to the working week, passed in so the caller derives it once per day, not once per allocation. */
 export function allocationWorksOnDay(
   workingDays: Weekday[] | undefined,
   ignoreWorkingDays: boolean | undefined,

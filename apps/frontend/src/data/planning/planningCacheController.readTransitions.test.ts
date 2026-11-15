@@ -17,7 +17,7 @@ describe('planning read transitions', () => {
     const refreshing = h.controller.refresh();
     expect(h.state().planning.status).toBe('loading');
     expect(isPlanningHistoryReady(h.state().planning)).toBe(false);
-    expect(() => h.controller.begin({})).toThrow(/not ready/);
+    expect(() => h.controller.begin()).toThrow(/not ready/);
     await expect(h.controller.undo()).resolves.toBe(false);
     read.resolve(snapshot(2));
     await refreshing;
@@ -34,7 +34,7 @@ describe('planning read transitions', () => {
     expect(readPlanningProblem(h.state().planning)).toBe('unavailable');
     expect(h.state().data.clients[0]?.name).toBe('Wayne Enterprises');
     expect(h.state().planning.history.past).toHaveLength(1);
-    expect(() => h.controller.begin({})).toThrow(/not ready/);
+    expect(() => h.controller.begin()).toThrow(/not ready/);
     await expect(h.controller.undo()).resolves.toBe(false);
 
     await expect(h.controller.refresh()).resolves.toBe(true);

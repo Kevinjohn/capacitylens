@@ -11,24 +11,23 @@ describe('validateAuthUser', () => {
       futureField: 'retained',
     };
 
-    expect(parseAuthUser({ value: value, requireEmail: true })).toBe(value);
+    expect(parseAuthUser({ value: value })).toBe(value);
   });
 
   it.each([
     null,
     [],
     {},
-    { id: '' },
-    { id: 'user-1', name: 1 },
+    { id: '', email: 'user@example.test' },
+    { id: 'user-1', name: 1, email: 'user@example.test' },
     { id: 'user-1', email: 1 },
-    { id: 'user-1', image: 1 },
+    { id: 'user-1', image: 1, email: 'user@example.test' },
   ])('rejects a malformed auth response: %j', (value) => {
     expect(parseAuthUser({ value: value })).toBeNull();
   });
 
-  it('requires a non-blank email only at boundaries that request it', () => {
-    expect(parseAuthUser({ value: { id: 'user-1' } })).toEqual({ id: 'user-1' });
-    expect(parseAuthUser({ value: { id: 'user-1' }, requireEmail: true })).toBeNull();
-    expect(parseAuthUser({ value: { id: 'user-1', email: '   ' }, requireEmail: true })).toBeNull();
+  it('requires a non-blank email', () => {
+    expect(parseAuthUser({ value: { id: 'user-1' } })).toBeNull();
+    expect(parseAuthUser({ value: { id: 'user-1', email: '   ' } })).toBeNull();
   });
 });

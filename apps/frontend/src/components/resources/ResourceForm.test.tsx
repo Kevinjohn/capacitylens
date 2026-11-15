@@ -6,7 +6,12 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { ResourceForm } from './ResourceForm';
 import { useStore } from '@/store/useStore';
-import { requireValue, resetStoreWithAccount } from '@/test/fixtures';
+import {
+  makeResource,
+  makeResourceDraft,
+  requireValue,
+  resetStoreWithAccount,
+} from '@/test/fixtures';
 import { PlanningControllerError } from '@/data/planning/planningCacheController';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
@@ -705,33 +710,31 @@ it('persists a mutually exclusive mixed full, half and non-working pattern', asy
   });
 });
 
-it('hides working hours and normalises a legacy custom value to eight on edit', async () => {
+it('hides working hours when editing a person', () => {
+  render(<ResourceForm resource={makeResource({ workingHoursPerDay: 6 })} onClose={vi.fn()} />);
+
+  expect(screen.queryByLabelText('Working hours / day')).not.toBeInTheDocument();
+});
+
+it('preserves a six-hour working day when editing a person’s role', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
   const resource = await requireCreated(
-    useStore.getState().addResource({
-      kind: 'person',
-      name: 'Alice',
-      role: 'Designer',
-      employmentType: 'permanent',
-      engagement: 'studio' as const,
-      workingHoursPerDay: 6,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: '#737373',
-    }),
+    useStore
+      .getState()
+      .addResource(makeResourceDraft({ name: 'Barbara Gordon', workingHoursPerDay: 6 })),
   );
   render(<ResourceForm resource={resource} onClose={onClose} />);
 
-  expect(screen.queryByLabelText('Working hours / day')).not.toBeInTheDocument();
   await user.clear(screen.getByLabelText('Role'));
   await user.type(screen.getByLabelText('Role'), 'Design lead');
   await user.click(screen.getByRole('button', { name: 'Save' }));
 
-  expect(onClose).toHaveBeenCalled();
+  expect(onClose).toHaveBeenCalledOnce();
   expect(useStore.getState().data.resources[0]).toMatchObject({
+    id: resource.id,
     role: 'Design lead',
-    workingHoursPerDay: 8,
+    workingHoursPerDay: 6,
   });
 });
 

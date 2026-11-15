@@ -53,7 +53,7 @@ function fixture(t, installCommand = true) {
 
 test('all gates execute their ordered commands once, from the repository, with inherited environment', (t) => {
   const fake = fixture(t);
-  for (const gate of ['app', 'backend', 'all']) {
+  for (const gate of ['app', 'backend', 'all', 'tooling', 'static']) {
     const result = fake.run([gate]);
     assert.equal(result.status, 0, result.stderr);
     const entries = fake.entries();
@@ -112,7 +112,7 @@ test('invalid modes and extra arguments fail before launching anything', (t) => 
   for (const args of [[], ['unknown'], ['constructor'], ['__proto__'], ['app', 'extra']]) {
     const result = fake.run(args);
     assert.equal(result.status, 2);
-    assert.match(result.stderr, /Expected app, backend, or all/);
+    assert.match(result.stderr, /Expected app, backend, all, tooling or static/);
     assert.deepEqual(fake.entries(), []);
   }
 });
@@ -161,7 +161,22 @@ test("mode selection returns independent argument arrays and includes the runner
   for (const mode of ['app', 'backend', 'all']) {
     assert.ok(gateCommands(mode).some((args) => args.includes('policy:gate-runner:test')));
   }
-  assert.throws(() => gateCommands('unknown'), /Expected app, backend, or all/);
+  assert.throws(() => gateCommands('unknown'), /Expected app, backend, all, tooling or static/);
+});
+
+test('the CI tooling and static jobs together run every app check except frontend tests and the build', () => {
+  const key = (args) => JSON.stringify(args);
+  const split = [...gateCommands('tooling'), ...gateCommands('static')].map(key);
+  const app = gateCommands('app').map(key);
+  assert.deepEqual(
+    app.filter((entry) => !split.includes(entry)),
+    [key(['--dir', 'apps/frontend', 'exec', 'vitest', 'run', '--coverage']), key(['run', 'build'])],
+  );
+  assert.ok(split.every((entry) => app.includes(entry)));
+  for (const mode of ['tooling', 'static'])
+    assert.ok(
+      !gateCommands(mode).some((args) => args.includes('build') || args.includes('vitest')),
+    );
 });
 
 test("gateCommands('all') excludes every retired custom structural check", () => {
@@ -196,6 +211,7 @@ test("gateCommands('all') includes every retained policy, package and security c
     'security:gitleaks-config',
     'policy:dco:test',
     'policy:workflow-report:test',
+    'policy:release-validation:test',
     'policy:node-runtime:test',
   ]) {
     assert.ok(names.includes(`run ${retained}`), retained);
@@ -250,20 +266,50 @@ test('only the root production build receives production settings while tests re
   }
 });
 
-test('backend CI builds actual application assets before tests without leaking production settings', async () => {
+test('CI builds the application once and backend tests use those assets without production settings', async () => {
   const { parse } = await import('yaml');
   const workflow = parse(
     readFileSync(new URL('../.github/workflows/gate.yml', import.meta.url), 'utf8'),
   );
-  const backend = workflow.jobs.backend;
-  const buildIndex = backend.steps.findIndex((step) => step.run === 'pnpm run build');
-  const testIndex = backend.steps.findIndex((step) => step.run === 'pnpm --dir apps/backend test');
-  assert.ok(buildIndex >= 0 && buildIndex < testIndex);
-  const build = backend.steps[buildIndex];
+  const builds = Object.entries(workflow.jobs).filter(([, job]) =>
+    job.steps.some((step) => step.run === 'pnpm run build'),
+  );
+  assert.deepEqual(
+    builds.map(([name]) => name).filter((name) => name !== 'packaged'),
+    ['build'],
+  );
+  const build = workflow.jobs.build.steps.find((step) => step.run === 'pnpm run build');
   assert.equal(build.env.NODE_ENV, 'production');
   assert.match(build.env.CAPACITYLENS_PUBLIC_URL, /^https:/);
   for (const key of ['APP_KEY', 'APP_URL', 'HOST', 'PORT', 'LOG_LEVEL'])
     assert.ok(build.env[key], key);
+  const upload = workflow.jobs.build.steps.find((step) =>
+    step.uses?.startsWith('actions/upload-artifact'),
+  );
+  assert.equal(upload.with.path, 'apps/backend/public/');
+
+  const backend = workflow.jobs.backend;
+  assert.ok(backend.needs.includes('build'));
+  const download = backend.steps.findIndex((step) =>
+    step.uses?.startsWith('actions/download-artifact'),
+  );
+  const testIndex = backend.steps.findIndex((step) => step.run === 'pnpm --dir apps/backend test');
+  assert.equal(backend.steps[download].with.name, upload.with.name);
+  assert.equal(backend.steps[download].with.path, upload.with.path);
+  assert.ok(download >= 0 && download < testIndex);
   assert.notEqual(backend.env?.NODE_ENV, 'production');
   assert.notEqual(backend.steps[testIndex].env?.NODE_ENV, 'production');
+});
+
+test('main pushes cannot cancel scheduled or manual validation, and tooling selection survives cancelled runs', async () => {
+  const { parse } = await import('yaml');
+  const read = (name) =>
+    parse(readFileSync(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8'));
+  for (const name of ['validation.yml', 'gate.yml', 'e2e.yml'])
+    assert.match(read(name).concurrency.group, /\$\{\{ github\.event_name \}\}/, name);
+  const select = read('gate.yml').jobs['tooling-scope'].steps.find((step) => step.id === 'select');
+  assert.doesNotMatch(JSON.stringify(select), /event\.before/);
+  assert.match(select.run, /validation\.yml\/runs\?branch=main&event=push&status=success/);
+  assert.match(select.run, /merge-base --is-ancestor/);
+  assert.equal(read('validation.yml').permissions.actions, 'read');
 });

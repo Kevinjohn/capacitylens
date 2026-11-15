@@ -2,7 +2,6 @@ import type { AuthUser } from './authContext';
 
 interface ParseAuthUserInput {
   value: unknown;
-  requireEmail?: boolean | undefined;
 }
 
 function isOptionalString(value: unknown) {
@@ -14,19 +13,14 @@ function isOptionalImage(value: unknown) {
 }
 
 /** Validates an untrusted user payload before exposing it to auth context. */
-export function parseAuthUser({
-  value,
-  requireEmail = false,
-}: ParseAuthUserInput): AuthUser | null {
+export function parseAuthUser({ value }: ParseAuthUserInput): AuthUser | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const user = value as Record<string, unknown>;
   const hasValidId = typeof user.id === 'string' && user.id.trim().length > 0;
   const hasValidName = isOptionalString(user.name);
-  const hasRequiredEmail =
-    !requireEmail || (typeof user.email === 'string' && user.email.trim().length > 0);
-  const hasValidEmail = isOptionalString(user.email);
+  const hasRequiredEmail = typeof user.email === 'string' && user.email.trim().length > 0;
   const hasValidImage = isOptionalImage(user.image);
-  if (![hasValidId, hasValidName, hasRequiredEmail, hasValidEmail, hasValidImage].every(Boolean)) {
+  if (![hasValidId, hasValidName, hasRequiredEmail, hasValidImage].every(Boolean)) {
     return null;
   }
   return user as unknown as AuthUser;
