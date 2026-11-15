@@ -24,7 +24,6 @@ import type { Draft, Patch } from '@/store/entityDrafts';
 export interface PlanningCommand {
   intent: PlanningIntent;
   inverse: PlanningIntent | null;
-  created?: { entity: AppDataKey; ids: string[] };
 }
 
 interface CommandContext {
@@ -115,7 +114,6 @@ export function buildAllocationCreate(
   return {
     intent: { operation: 'allocation.create', allocation },
     inverse: { operation: 'allocation.delete', id: args.id },
-    created: { entity: 'allocations', ids: [args.id] },
   };
 }
 
@@ -240,7 +238,6 @@ export function buildTimeOffCreate(
   return {
     intent: { operation: 'timeOff.create', timeOff },
     inverse: { operation: 'timeOff.delete', id: args.id },
-    created: { entity: 'timeOff', ids: [args.id] },
   };
 }
 
@@ -292,7 +289,6 @@ export function buildClosureCreate(
       },
     },
     inverse: { operation: 'closure.delete', id: args.id },
-    created: { entity: 'closures', ids: [args.id] },
   };
 }
 
@@ -357,7 +353,6 @@ export function buildResourceCreate(
   return {
     intent: { operation: 'resource.create', id: args.id, fields },
     inverse: { operation: 'resource.archive', id: args.id },
-    created: { entity: 'resources', ids: [args.id] },
   };
 }
 
@@ -507,7 +502,6 @@ export function buildCatalogueCreate(
       args.entity === 'phases' || args.entity === 'disciplines'
         ? { operation: 'catalogue.delete', entity: { entity: args.entity, id: args.id } }
         : { operation: 'catalogue.archive', entity: { entity: args.entity, id: args.id } },
-    created: { entity: args.entity, ids: [args.id] },
   };
 }
 

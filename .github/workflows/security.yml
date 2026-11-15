@@ -1,5 +1,9 @@
 name: security
 
+# Main pushes run the fast checks: a secret scan of the pushed commits, dependency review and the
+# source SBOM. The weekly schedule and manual dispatch add the full-history secret scan, the
+# container vulnerability scans and the ZAP baseline. A `v*` tag adds the release-relevant
+# container and ZAP scans.
 on:
   workflow_dispatch:
     inputs:
@@ -25,8 +29,9 @@ permissions:
   contents: read
 
 jobs:
+  # Gitleaks scans only the pushed commits on a push, and the full history on a schedule or dispatch.
   secrets:
-    name: Full-history secret scan
+    name: Secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -78,7 +83,9 @@ jobs:
 
   containers:
     name: Container vulnerability scan
-    if: github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true
+    if: >-
+      (github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')) &&
+      (github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -109,7 +116,9 @@ jobs:
   # The scan checks the only supported posture: password sign-in with scheduled backups.
   dast:
     name: OWASP ZAP baseline
-    if: github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true
+    if: >-
+      (github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')) &&
+      (github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

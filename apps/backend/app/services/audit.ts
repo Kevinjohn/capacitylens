@@ -9,7 +9,6 @@ export async function writeAudit(
     entity: string;
     entityId: string;
     fields: string[];
-    cascadeCounts?: Record<string, number>;
   }
 ) {
   const now = new Date().toISOString();
@@ -22,7 +21,6 @@ export async function writeAudit(
     entity_id: input.entityId,
     details: JSON.stringify({
       changedFields: input.fields,
-      ...(input.cascadeCounts ? { cascadeCounts: input.cascadeCounts } : {}),
     }),
     created_at: now,
     updated_at: now,

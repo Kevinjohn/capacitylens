@@ -22,20 +22,6 @@ import type { planningMutationValidator } from '#validators/planning_operations'
 export type PlanningMutationInput = Infer<typeof planningMutationValidator>;
 export type PlanningIntent = PlanningMutationInput['intent'];
 
-/** Metadata is added when an intent is executed, never stored in the forward/inverse intent. */
-export interface PlanningExecution<TIntent = PlanningIntent> {
-  mutationId: string;
-  baseRevision: number;
-  intent: TIntent;
-  confirmedRestorationCount?: number;
-}
-
-/** A history entry stores ordinary inputs; every Undo and Redo gets new execution metadata. */
-export interface PlanningHistoryEntry<TIntent = PlanningIntent> {
-  forward: TIntent;
-  inverse: TIntent;
-}
-
 type PlanningRowByEntity = {
   accounts: Account;
   disciplines: Discipline;

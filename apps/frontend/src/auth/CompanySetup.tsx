@@ -1,3 +1,4 @@
+import { SignOutButton } from './SignOutButton';
 import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -130,15 +131,9 @@ export function CompanySetup({
         >
           {busy ? m.company_setup_creating() : m.company_setup_create()}
         </Button>
-        <Button
-          type="button"
-          variant="link"
-          disabled={busy}
-          onClick={() => void onSignOut()}
-          className="w-full"
-        >
+        <SignOutButton variant="link" disabled={busy} onSignOut={onSignOut} className="w-full">
           {m.company_setup_sign_out()}
-        </Button>
+        </SignOutButton>
       </form>
     </main>
   );

@@ -32,12 +32,8 @@ interface ResolveCalendarCreationBlockReasonInput {
   closures: Closure[];
 }
 
-interface ResolveEffectiveWeekCreationBlockReasonInput {
-  resource: Resource;
-  date: ISODate;
-  timeOff: TimeOff[];
-  effectiveWeek: EffectiveWorkingWeek;
-  closures: Closure[];
+interface ResolveEffectiveWeekPlacementBlockReasonInput extends IsCreationStartBlockedForEffectiveWeekInput {
+  ignoreWorkingDays: boolean;
 }
 
 interface IsCreationStartBlockedForEffectiveWeekInput {
@@ -83,7 +79,7 @@ const NO_CLOSURES: Closure[] = [];
 
 /** The start-of-gesture gate, shared by every surface that asks "may a bar start on this
  * resource-day?" (the model's per-day `creationBlocked`, the grid's draw commit, and the
- * drag/keyboard move paths). Returns the reason so a caller that must tell the two apart can,
+ * drag reassignment path). Returns the reason so a caller that must tell the two apart can,
  * without re-deriving either rule. `timeOff` need not be pre-filtered by resource. */
 export function resolveCreationBlockReason({
   resource,
@@ -122,21 +118,22 @@ function resolveCalendarCreationBlockReason({
     : null;
 }
 
-/** Resolves the creation gate from an already-computed effective week; creation never honors an existing allocation's calendar override. */
-export function resolveEffectiveWeekCreationBlockReason({
+/** Checks a placement against the computed working week, personal time off and closures. */
+export function resolveEffectiveWeekPlacementBlockReason({
   resource,
   date,
   timeOff,
   effectiveWeek,
+  ignoreWorkingDays,
   closures,
-}: ResolveEffectiveWeekCreationBlockReasonInput): CreationBlockReason | null {
+}: ResolveEffectiveWeekPlacementBlockReasonInput): CreationBlockReason | null {
   const calendarAllowsStart = effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
   return resolveCalendarCreationBlockReason({
     resource,
     date,
     timeOff,
     calendarAllowsStart,
-    ignoreWorkingDays: false,
+    ignoreWorkingDays,
     closures,
   });
 }
@@ -151,11 +148,12 @@ export function isCreationStartBlockedForEffectiveWeek({
   closures,
 }: IsCreationStartBlockedForEffectiveWeekInput): boolean {
   return (
-    resolveEffectiveWeekCreationBlockReason({
+    resolveEffectiveWeekPlacementBlockReason({
       resource,
       date,
       timeOff,
       effectiveWeek,
+      ignoreWorkingDays: false,
       closures,
     }) !== null
   );

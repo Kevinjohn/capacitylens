@@ -91,7 +91,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
 
-    const draft = h.controller.begin({ timezone: 'Etc/GMT' });
+    const draft = h.controller.begin();
     setMasqueradeContextToken('new-active-context');
     await h.controller.execute(draft, intent, inverse);
 
@@ -111,7 +111,7 @@ describe('planning cache controller', () => {
     const h = harness({ execute, read, lookup: vi.fn<PlanningTransport['lookup']>() });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
-    const draft = h.controller.begin({ timezone: 'Etc/GMT' });
+    const draft = h.controller.begin();
     await h.readSnapshot({ revision: 4, canWrite: true, data: canonicalData() });
     expect(draft.baseRevision).toBe(3);
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({
@@ -130,9 +130,9 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
 
-    await expect(
-      h.controller.execute(h.controller.begin({ timezone: 'Etc/GMT' }), intent, inverse),
-    ).rejects.toMatchObject({ uncertain: true });
+    await expect(h.controller.execute(h.controller.begin(), intent, inverse)).rejects.toMatchObject(
+      { uncertain: true },
+    );
     expect(h.state().planning.status).toBe('uncertain');
     expect(h.state().planning.outcome?.kind).toBe('uncertain');
   });
@@ -147,7 +147,7 @@ describe('planning cache controller', () => {
     const h = harness({ execute, read: vi.fn<PlanningTransport['read']>(), lookup });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 8, canWrite: true, data: canonicalData() });
-    const draft = h.controller.begin({ timezone: 'Etc/GMT' });
+    const draft = h.controller.begin();
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({
       uncertain: true,
     });
@@ -176,7 +176,7 @@ describe('planning cache controller', () => {
       h.controller.setContext(context);
       await h.readSnapshot({ revision: 8, canWrite: true, data: canonicalData() });
       await expect(
-        h.controller.execute(h.controller.begin({}), intent, inverse),
+        h.controller.execute(h.controller.begin(), intent, inverse),
       ).rejects.toMatchObject({
         status: 408,
         uncertain: true,
@@ -184,10 +184,10 @@ describe('planning cache controller', () => {
       const original = h.state().planning.pending?.execution;
       expect(original).toMatchObject({ mutationId: 'mutation-1', baseRevision: 8 });
       expect(h.state().planning.outcome).toEqual({ kind: 'uncertain', execution: original });
-      expect(() => h.controller.begin({})).toThrow();
+      expect(() => h.controller.begin()).toThrow();
       await expect(h.controller.reconcile()).resolves.toBe(false);
       expect(h.state().planning.pending?.execution).toBe(original);
-      expect(() => h.controller.begin({})).toThrow();
+      expect(() => h.controller.begin()).toThrow();
       await h.readSnapshot({ revision: 9, canWrite: true, data: canonicalData() });
       await expect(h.controller.reconcile()).resolves.toBe(true);
       expect(h.state().planning.status).toBe('ready');
@@ -210,7 +210,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 0, canWrite: true, data: canonicalData() });
     for (let index = 0; index < 51; index += 1) {
-      await h.controller.execute(h.controller.begin({}), intent, inverse);
+      await h.controller.execute(h.controller.begin(), intent, inverse);
     }
     expect(h.state().planning.history.past).toHaveLength(50);
     for (let index = 0; index < 50; index += 1) {
@@ -233,7 +233,7 @@ describe('planning cache controller', () => {
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-    const draft = h.controller.begin({});
+    const draft = h.controller.begin();
     await h.controller.execute(draft, intent, inverse);
     expect(h.state().planning.history.past).toHaveLength(1);
     await h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData() });
@@ -281,12 +281,12 @@ describe('planning cache controller', () => {
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-    const first = h.controller.begin({});
+    const first = h.controller.begin();
     await expect(h.controller.execute(first, intent, inverse)).rejects.toMatchObject({
       code: 'AUTHORIZATION_DENIED',
     });
     expect(h.state().planning.context).toEqual(context);
-    const second = h.controller.begin({});
+    const second = h.controller.begin();
     await expect(h.controller.execute(second, intent, inverse)).rejects.toMatchObject({
       code: 'ACCOUNT_MEMBERSHIP_LOST',
     });
@@ -309,7 +309,7 @@ describe('planning cache controller', () => {
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-    const draft = h.controller.begin({ timezone: 'Etc/GMT' });
+    const draft = h.controller.begin();
     const write = h.controller.execute(draft, intent, inverse);
     await h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData() });
     expect(h.state().planning.history.past).toHaveLength(0);
@@ -333,7 +333,7 @@ describe('planning cache controller', () => {
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-    const gesture = h.controller.begin({ startDate: '2026-10-26', endDate: '2026-10-30' });
+    const gesture = h.controller.begin();
     await h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData() });
     const finalIntent = {
       operation: 'settings.update',
@@ -361,8 +361,8 @@ describe('planning cache controller', () => {
       data: canonicalData(),
       accessKey: 'owner:private',
     });
-    await h.controller.execute(h.controller.begin({}), intent, inverse);
-    const draft = h.controller.begin({ captured: true });
+    await h.controller.execute(h.controller.begin(), intent, inverse);
+    const draft = h.controller.begin();
     expect(h.state().planning.history.past).toHaveLength(1);
     await expect(
       h.readSnapshot({
@@ -390,7 +390,7 @@ describe('planning cache controller', () => {
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-    await h.controller.execute(h.controller.begin({}), intent, inverse);
+    await h.controller.execute(h.controller.begin(), intent, inverse);
     expect(await h.controller.undo()).toBe(true);
     expect(await h.controller.redo()).toBe(true);
     expect(executions.map(({ baseRevision }) => baseRevision)).toEqual([1, 2, 3]);
@@ -408,11 +408,11 @@ describe('planning cache controller', () => {
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-    await expect(
-      h.controller.execute(h.controller.begin({}), intent, inverse),
-    ).rejects.toMatchObject({
-      code: 'NO_CHANGE',
-    });
+    await expect(h.controller.execute(h.controller.begin(), intent, inverse)).rejects.toMatchObject(
+      {
+        code: 'NO_CHANGE',
+      },
+    );
     expect(h.state().planning.outcome).toMatchObject({ kind: 'refused', code: 'NO_CHANGE' });
     expect(h.state().planning.history.past).toHaveLength(0);
   });
@@ -433,7 +433,7 @@ describe('planning cache controller', () => {
     const h = harness({ execute, read, lookup });
     h.controller.setContext(context);
     await h.controller.refresh();
-    const draft = h.controller.begin({});
+    const draft = h.controller.begin();
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({
       uncertain: true,
     });
@@ -441,7 +441,7 @@ describe('planning cache controller', () => {
     expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 2 });
     expect(h.state().planning.status).toBe('error');
     expect(h.state().planning.pending).not.toBeNull();
-    expect(() => h.controller.begin({})).toThrow();
+    expect(() => h.controller.begin()).toThrow();
     expect(execute).toHaveBeenCalledTimes(1);
   });
 
@@ -463,7 +463,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(anonymous);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
     const write = h.controller
-      .execute(h.controller.begin({}), intent, inverse)
+      .execute(h.controller.begin(), intent, inverse)
       .catch(() => undefined);
     h.controller.setContext({ identity: anonymousIdentity, companyId: 'company-2' });
     h.controller.setContext(anonymous);
@@ -536,7 +536,7 @@ describe('planning cache controller', () => {
     const h = harness({ execute, read, lookup });
     h.controller.setContext(context);
     await h.controller.refresh();
-    const draft = h.controller.begin({});
+    const draft = h.controller.begin();
     await expect(h.controller.execute(draft, deleteIntent, restoreIntent)).rejects.toMatchObject({
       uncertain: true,
     });
@@ -556,14 +556,14 @@ describe('planning cache controller', () => {
     const h = harness({ execute, read, lookup: vi.fn<PlanningTransport['lookup']>() });
     h.controller.setContext(context);
     await h.controller.refresh();
-    const draft = h.controller.begin({});
+    const draft = h.controller.begin();
     await expect(h.controller.execute(draft, intent, inverse)).resolves.toMatchObject({
       revision: 2,
     });
     expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 2 });
     expect(h.state().planning.status).toBe('error');
     expect(h.state().planning.pending).not.toBeNull();
-    expect(() => h.controller.begin({})).toThrow();
+    expect(() => h.controller.begin()).toThrow();
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toThrow();
     expect(execute).toHaveBeenCalledTimes(1);
   });
@@ -584,7 +584,7 @@ describe('planning cache controller', () => {
     const h = harness({ execute, read, lookup });
     h.controller.setContext(context);
     await h.controller.refresh();
-    await h.controller.execute(h.controller.begin({}), intent, inverse);
+    await h.controller.execute(h.controller.begin(), intent, inverse);
     expect(lookup).toHaveBeenCalledTimes(1);
     expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 2 });
     expect(h.state().planning.history.past).toHaveLength(1);
@@ -646,7 +646,7 @@ describe('planning cache controller', () => {
     const h = harness({ execute, read, lookup });
     h.controller.setContext(context);
     await h.controller.refresh();
-    await h.controller.execute(h.controller.begin({}), create, deleteIntent);
+    await h.controller.execute(h.controller.begin(), create, deleteIntent);
 
     await expect(h.controller.undo()).rejects.toMatchObject({ uncertain: true });
     await h.controller.reconcile();
@@ -686,11 +686,9 @@ async function uncertainHarness() {
   const h = harness({ execute, read, lookup });
   h.controller.setContext(context);
   await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData(), accessKey: 'owner' });
-  await expect(h.controller.execute(h.controller.begin({}), intent, inverse)).rejects.toMatchObject(
-    {
-      uncertain: true,
-    },
-  );
+  await expect(h.controller.execute(h.controller.begin(), intent, inverse)).rejects.toMatchObject({
+    uncertain: true,
+  });
   return { ...h, read, lookup };
 }
 
@@ -791,7 +789,7 @@ describe('planning reconciliation races', () => {
     expect(h.state().data).toEqual(emptyAppData());
     expect(h.state().planning.canWrite).toBe(false);
     expect(h.state().planning.history.past).toHaveLength(0);
-    expect(() => h.controller.begin({})).toThrow(/read-only/);
+    expect(() => h.controller.begin()).toThrow(/read-only/);
   });
 
   it.each([
@@ -822,7 +820,7 @@ describe('planning reconciliation races', () => {
       h.controller.setContext(context);
       await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
       await expect(
-        h.controller.execute(h.controller.begin({}), action, inverse),
+        h.controller.execute(h.controller.begin(), action, inverse),
       ).rejects.toMatchObject({
         uncertain: true,
       });
@@ -866,7 +864,7 @@ describe('planning lookup history boundaries', () => {
     const h = harness({ execute, read, lookup });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-    await h.controller.execute(h.controller.begin({}), remove, restore);
+    await h.controller.execute(h.controller.begin(), remove, restore);
     await expect(h.controller.undo()).rejects.toMatchObject({ uncertain: true });
     await h.controller.reconcile();
     expect(h.state().planning.history.future.at(-1)?.forward).toEqual(remove);
@@ -927,7 +925,7 @@ describe.each(['receipt', 'lookup'] as const)('planning %s completion context', 
           data: canonicalData(),
           accessKey: 'owner',
         });
-        await h.controller.execute(h.controller.begin({}), intent, inverse);
+        await h.controller.execute(h.controller.begin(), intent, inverse);
         if (action === 'redo') await h.controller.undo();
         const baseRevision = h.state().planning.revision;
         if (baseRevision === null) throw new Error('Expected an initialized planning revision.');
@@ -944,7 +942,7 @@ describe.each(['receipt', 'lookup'] as const)('planning %s completion context', 
         }
         const completion =
           action === 'execute'
-            ? h.controller.execute(h.controller.begin({}), intent, inverse)
+            ? h.controller.execute(h.controller.begin(), intent, inverse)
             : h.controller[action]();
         await vi.waitFor(() =>
           expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision }),
@@ -983,7 +981,7 @@ describe('planning commitment-only completion', () => {
       const h = harness({ execute, read, lookup });
       h.controller.setContext(context);
       await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-      await h.controller.execute(h.controller.begin({}), intent, inverse);
+      await h.controller.execute(h.controller.begin(), intent, inverse);
       if (action === 'redo') await h.controller.undo();
       const baseRevision = h.state().planning.revision;
       if (baseRevision === null) throw new Error('Expected an initialized planning revision.');
@@ -997,13 +995,13 @@ describe('planning commitment-only completion', () => {
       read.mockRejectedValueOnce(new TypeError('read unavailable'));
       const completion =
         action === 'execute'
-          ? h.controller.execute(h.controller.begin({}), intent, inverse)
+          ? h.controller.execute(h.controller.begin(), intent, inverse)
           : h.controller[action]();
       await expect(completion).resolves.toBe(action === 'execute' ? null : true);
       expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision });
       expect(h.state().planning.pending?.commitment?.revision).toBe(revision);
       expect(h.state().planning.status).toBe('error');
-      expect(() => h.controller.begin({})).toThrow();
+      expect(() => h.controller.begin()).toThrow();
       read.mockResolvedValueOnce({ revision, canWrite: true, data: canonicalData() });
       await expect(h.controller.reconcile()).resolves.toBe(true);
       expect(h.state().planning.pending).toBeNull();
@@ -1024,14 +1022,14 @@ describe('planning commitment-only completion', () => {
     const h = harness({ execute, lookup, read: vi.fn<PlanningTransport['read']>() });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-    await expect(
-      h.controller.execute(h.controller.begin({}), intent, inverse),
-    ).rejects.toMatchObject({
-      uncertain: true,
-    });
+    await expect(h.controller.execute(h.controller.begin(), intent, inverse)).rejects.toMatchObject(
+      {
+        uncertain: true,
+      },
+    );
     expect(h.state().planning.outcome?.kind).toBe('uncertain');
     expect(h.state().planning.pending?.commitment).toBeUndefined();
-    expect(() => h.controller.begin({})).toThrow();
+    expect(() => h.controller.begin()).toThrow();
     expect(execute).toHaveBeenCalledOnce();
     expect(lookup).toHaveBeenCalledOnce();
   });
@@ -1049,8 +1047,8 @@ describe.each(['receipt', 'lookup'] as const)('planning activity history via %s'
       const h = harness({ execute, read, lookup });
       h.controller.setContext(context);
       await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
-      await h.controller.execute(h.controller.begin({}), intent, inverse);
-      await h.controller.execute(h.controller.begin({}), intent, inverse);
+      await h.controller.execute(h.controller.begin(), intent, inverse);
+      await h.controller.execute(h.controller.begin(), intent, inverse);
       await h.controller.undo();
       expect(h.state().planning.history.past).toHaveLength(1);
       expect(h.state().planning.history.future).toHaveLength(1);
@@ -1075,11 +1073,7 @@ describe.each(['receipt', 'lookup'] as const)('planning activity history via %s'
           revision: 5,
         }));
         await expect(
-          h.controller.execute(
-            h.controller.begin({ name: 'Office', kind: 'internal' }),
-            update,
-            reverse,
-          ),
+          h.controller.execute(h.controller.begin(), update, reverse),
         ).rejects.toMatchObject({ uncertain: true });
         await h.controller.reconcile();
       } else {
@@ -1089,11 +1083,7 @@ describe.each(['receipt', 'lookup'] as const)('planning activity history via %s'
             ? { projection: { mode: 'refetch' as const, history: 'clear' as const } }
             : {}),
         }));
-        await h.controller.execute(
-          h.controller.begin({ name: 'Office', kind: 'internal' }),
-          update,
-          reverse,
-        );
+        await h.controller.execute(h.controller.begin(), update, reverse);
       }
       expect(h.state().planning.history.past).toEqual(
         includesKind
@@ -1125,12 +1115,12 @@ describe('canonical planning write capability', () => {
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 0, canWrite: true, data: canonicalData() });
-    await h.controller.execute(h.controller.begin({}), intent, inverse);
+    await h.controller.execute(h.controller.begin(), intent, inverse);
     expect(h.state().planning.history.past).toHaveLength(1);
-    const draft = h.controller.begin({});
+    const draft = h.controller.begin();
     await h.readSnapshot({ revision: 1, canWrite: false, data: canonicalData() });
     expect(h.state().planning.history.past).toHaveLength(0);
-    expect(() => h.controller.begin({})).toThrow(/read-only/);
+    expect(() => h.controller.begin()).toThrow(/read-only/);
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toThrow();
     expect(execute).toHaveBeenCalledTimes(1);
   });

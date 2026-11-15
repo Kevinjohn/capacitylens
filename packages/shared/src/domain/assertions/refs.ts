@@ -216,7 +216,7 @@ function assertResourceRefs(context: ScopedRefsContext): void {
   need('projectId', 'projects', 'Placeholder project must belong to this company.');
 }
 
-// Resource kind is immutable on ordinary updates; malformed stored kinds require import repair.
+// Resource kind is immutable on ordinary updates; malformed stored kinds are rejected.
 function assertResourceKindImmutable(
   previous: Record<string, unknown> | undefined,
   record: Record<string, unknown>,
@@ -415,8 +415,8 @@ export function assertAllocationRefs(
   // External / 3rd parties have no capacity: their allocations carry no load (hoursPerDay 0). The
   // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only, enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
-  // resource (the scheduler hides it, so it would persist invisibly). Import coerces the same value
-  // to 0 instead of dropping the booking, which is still valid. Always checked: `hoursPerDay` is a
+  // resource (the scheduler hides it, so it would persist invisibly). Import validates the same rule
+  // without coercing the supplied value. Always checked: `hoursPerDay` is a
   // required parameter, so no caller can opt out of the rule.
   if (hoursPerDay !== 0 && isExternalResource(resource)) {
     throwDomainError(

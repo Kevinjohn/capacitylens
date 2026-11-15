@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { ACTIVITY_KINDS, RESOURCE_KINDS } from '#validators/entity_kinds';
 import { INTERNAL_CLIENT_COLOR } from '@capacitylens/shared/data/internalClient';
 import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
 import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
@@ -103,11 +104,11 @@ const strictField = vine.createRule<{
       return value === 0 || value === 1 ? undefined : fail('must be Sunday or Monday');
     }
     if (kind === 'choice') {
-      const accepted =
+      const accepted: readonly unknown[] =
         field === 'kind'
           ? table === 'activities'
-            ? ['project', 'internal', 'repeatable']
-            : ['person', 'placeholder', 'external']
+            ? ACTIVITY_KINDS
+            : RESOURCE_KINDS
           : choices[field];
       return accepted.includes(value) ? undefined : fail('is not supported');
     }

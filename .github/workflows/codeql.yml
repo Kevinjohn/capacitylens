@@ -2,8 +2,13 @@ name: CodeQL
 
 on:
   workflow_dispatch:
+  # Documentation-only pull requests contain no analysable code.
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'user-stories/**'
   push:
     branches: [main]
   schedule:
