@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
+import { updateSettings, PlanningOperationError } from '#services/planning/writer';
 import { readState } from '#tests/helpers/state_fixture';
 import {
   accountId,
@@ -128,6 +129,204 @@ test.group('authenticated typed planning transactions', (group) => {
       await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
       2
     );
+  });
+
+  test('settings service rejects a language change before writing in its transaction', async ({
+    assert,
+  }) => {
+    // HTTP settings strip language; a different stored locale exposes the service's frozen-field guard.
+    await db.from('accounts').where('id', accountId).update({ language: 'fr' });
+    const before = await readState(accountId, true);
+    await assert.rejects(
+      async () => {
+        await db.transaction(async (trx) => {
+          await updateSettings(
+            trx,
+            structuredClone(before),
+            accountId,
+            { language: 'en' },
+            {
+              role: 'owner',
+              canWrite: true,
+              canAnonymise: true,
+              canSeePrivateNames: true,
+              canSeeTimeOffNote: true,
+            }
+          );
+        });
+      },
+      PlanningOperationError,
+      'Language, week start and time zone are set when the company is created and cannot be changed.'
+    );
+    assert.deepEqual(await readState(accountId, true), before);
+  });
+
+  test('duplicate endpoint copies source fields into a new dated allocation once', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const before = await readState(accountId, true);
+    const source = before.allocations.find((row) => row.accountId === accountId)!;
+    const id = randomUUID();
+    const input = {
+      mutationId: randomUUID(),
+      baseRevision: 0,
+      intent: {
+        operation: 'allocation.duplicate',
+        sourceAllocationId: source.id,
+        occurrence: { id, startDate: '2026-11-09', endDate: '2026-11-13' },
+      },
+    };
+    const response = await session(
+      client.post(`/api/accounts/${accountId}/allocations/${source.id}/duplicate`),
+      cookie
+    )
+      .json(input)
+      .send();
+    response.assertStatus(200);
+    assert.equal(response.body().revision, 1);
+    const after = await readState(accountId, true);
+    const copy = after.allocations.find((row) => row.id === id)!;
+    assert.isDefined(copy);
+    for (const field of [
+      'resourceId',
+      'activityId',
+      'projectId',
+      'hoursPerDay',
+      'status',
+      'note',
+      'task',
+      'ignoreWorkingDays',
+    ] as const) {
+      assert.deepEqual(copy[field], source[field]);
+    }
+    assert.equal(copy.startDate, '2026-11-09');
+    assert.equal(copy.endDate, '2026-11-13');
+    assert.isNull(copy.seriesId);
+    assert.deepEqual(
+      after.allocations.find((row) => row.id === source.id),
+      source
+    );
+    const replay = await session(
+      client.post(`/api/accounts/${accountId}/allocations/${source.id}/duplicate`),
+      cookie
+    )
+      .json(input)
+      .send();
+    replay.assertStatus(409);
+    assert.equal(replay.body().code, 'MUTATION_ID_REUSED');
+    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1);
+    assert.lengthOf(
+      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      1
+    );
+  });
+
+  test('resource avatars include only active linked people with usable images in the company', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie, userId } = await signIn(client, 'viewer');
+    const person = await db
+      .from('resources')
+      .where({ account_id: accountId, kind: 'person' })
+      .whereNull('archived_at')
+      .whereNull('deleted_at')
+      .first();
+    const imageUrl = 'https://wayne.example/avatar.png';
+    await db.from('resources').where('id', person.id).update({ avatar_url: imageUrl });
+    await db.table('account_member_resources').insert({
+      id: randomUUID(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      account_id: accountId,
+      user_id: userId,
+      resource_id: person.id,
+      revision: randomUUID(),
+    });
+    const read = async () => {
+      const response = await session(
+        client.get(`/api/accounts/${accountId}/resource-avatars`),
+        cookie
+      ).send();
+      response.assertStatus(200);
+      return response.body();
+    };
+    const foreign = await db
+      .from('resources')
+      .where({ account_id: 'a-loft', kind: 'person' })
+      .first();
+    const { userId: foreignUserId } = await signIn(client);
+    const now = new Date().toISOString();
+    await db.table('memberships').insert({
+      scope_id: 'a-loft',
+      user_id: foreignUserId,
+      role: 'viewer',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    });
+    await db.from('resources').where('id', foreign.id).update({ avatar_url: imageUrl });
+    await db.table('account_member_resources').insert({
+      id: randomUUID(),
+      account_id: 'a-loft',
+      user_id: foreignUserId,
+      resource_id: foreign.id,
+      revision: randomUUID(),
+      created_at: now,
+      updated_at: now,
+    });
+    const unlinked = await db
+      .from('resources')
+      .where({ account_id: accountId, kind: 'person' })
+      .whereNot('id', person.id)
+      .first();
+    await db.from('resources').where('id', unlinked.id).update({ avatar_url: imageUrl });
+    assert.deepEqual(await read(), { avatars: [{ resourceId: person.id, imageUrl }] });
+    for (const changes of [
+      { archived_at: new Date().toISOString() },
+      { deleted_at: new Date().toISOString() },
+      { kind: 'placeholder' },
+      { avatar_url: null },
+      { avatar_url: 'javascript:alert(1)' },
+    ]) {
+      await db.from('resources').where('id', person.id).update(changes);
+      // Kind changes clear links in a database trigger; restore the link to isolate the read filter.
+      await db
+        .from('account_member_resources')
+        .where({ account_id: accountId, user_id: userId })
+        .delete();
+      await db.table('account_member_resources').insert({
+        account_id: accountId,
+        user_id: userId,
+        id: randomUUID(),
+        resource_id: person.id,
+        revision: randomUUID(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      assert.deepEqual(await read(), { avatars: [] });
+      await db
+        .from('resources')
+        .where('id', person.id)
+        .update({ archived_at: null, deleted_at: null, kind: 'person', avatar_url: imageUrl });
+    }
+    await db
+      .from('memberships')
+      .where({ scope_id: accountId, user_id: userId })
+      .update({ status: 'suspended' });
+    const { cookie: otherCookie } = await signIn(client);
+    const suspended = await session(
+      client.get(`/api/accounts/${accountId}/resource-avatars`),
+      otherCookie
+    ).send();
+    suspended.assertStatus(200);
+    assert.deepEqual(suspended.body(), { avatars: [] });
   });
 
   test('occupied and missing entity targets use the validation transport mapping without effects', async ({

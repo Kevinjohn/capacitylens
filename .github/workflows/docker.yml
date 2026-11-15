@@ -15,6 +15,25 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  # Container inputs, runtime dependencies and this workflow are smoke-tested before merge.
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker-compose.yml'
+      - 'nginx*.conf'
+      - 'nginx.client.conf.template'
+      - 'scripts/smoke-docker-compose.mjs'
+      - 'scripts/prepare-container-runtime.mjs'
+      - 'scripts/render-client-nginx.mjs'
+      - 'scripts/published-image-state.sh'
+      - 'scripts/require-release-validation.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'apps/backend/package.json'
+      - '.nvmrc'
+      - '.github/workflows/docker.yml'
   release:
     types: [published]
 
@@ -83,8 +102,55 @@ jobs:
         if: always()
         run: docker compose --profile caddy down --volumes --remove-orphans
 
+  # Images publish only after Validation and this workflow's smoke both succeeded on the push of the
+  # same tag, at the commit it names. A failed or missing run stops publication here. Images that
+  # are already published skip the wait, so `publish` can re-run them without building.
+  validated:
+    name: Require validation of the release tag
+    if: github.event_name == 'release' || inputs.tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Detect an already published image pair
+        id: images
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          FIRST_PUBLICATION: ${{ inputs.first_publication == true }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
+          state() { scripts/published-image-state.sh "ghcr.io/kevinjohn/capacitylens-$1:$version"; }
+          api=$(state api)
+          web=$(state web)
+          # A partial pair still waits; `publish` then refuses it with its own instructions.
+          if [ "$api" = present ] && [ "$web" = present ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.images.outputs.present != 'true'
+        with:
+          node-version-file: .nvmrc
+      - name: Wait for successful validation and smoke checks of the tag
+        if: steps.images.outputs.present != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: node scripts/require-release-validation.mjs
+
   publish:
     name: Publish release images
+    needs: validated
     if: github.event_name == 'release' || inputs.tag != ''
     runs-on: ubuntu-latest
     timeout-minutes: 45

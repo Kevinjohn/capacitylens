@@ -1,5 +1,7 @@
 name: Static analysis
 
+# This workflow owns formatting, lint and the type-check for pull requests. Its job name is the
+# required check, so it always reports: a documentation-only change succeeds after formatting.
 on:
   pull_request:
     branches: [main]
@@ -19,9 +21,20 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The scope selector diffs against the merge base with the target branch.
+          fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup
+      - name: Select the static checks for the change
+        id: scope
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: echo "scope=$(node scripts/check-changed.mjs --static-scope "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+      - name: Check formatting of a documentation-only change
+        if: steps.scope.outputs.scope == 'format'
+        run: pnpm run format:check
       - name: Run pre-push checks
+        if: steps.scope.outputs.scope != 'format'
         run: pnpm run check:push
         env:
           NODE_ENV: test

@@ -579,6 +579,8 @@ function registerServerModeTest22() {
         name: 'Unable to verify your session',
       }),
     ).toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
 }
 
@@ -958,6 +960,8 @@ function registerAccountPolicyTest04() {
         name: 'Unable to verify your session',
       }),
     ).toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
 }
 
