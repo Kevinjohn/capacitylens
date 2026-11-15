@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { GENERATED_ALLOCATION_LIMIT } from '@capacitylens/shared/lib/repeatingDates';
 import {
   boolean,
   calendarDate,
@@ -134,7 +135,10 @@ export const allocationIntent = vine
       vine
         .object({
           operation: vine.literal('allocation.createGroup'),
-          allocations: vine.array(allocationCreate).minLength(1),
+          allocations: vine
+            .array(allocationCreate)
+            .minLength(1)
+            .maxLength(GENERATED_ALLOCATION_LIMIT),
         })
         .use(uniqueArrayIds('allocations'))
     ),

@@ -51,11 +51,11 @@ describe('planning reconciliation transitions', () => {
     await h.controller.refresh();
     expect(h.state().planning.status).toBe('error');
     expect(h.state().planning.outcome?.kind).toBe('uncertain');
-    expect(() => h.controller.begin({})).toThrow();
+    expect(() => h.controller.begin()).toThrow();
 
     await expect(h.controller.refresh()).resolves.toBe(true);
     expect(h.state().planning.outcome?.kind).toBe('uncertain');
-    expect(() => h.controller.begin({})).toThrow();
+    expect(() => h.controller.begin()).toThrow();
     expect(h.execute).toHaveBeenCalledOnce();
 
     h.lookup.mockResolvedValueOnce({ status: 'committed', mutationId: 'mutation-1', revision: 2 });

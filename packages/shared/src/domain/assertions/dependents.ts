@@ -74,7 +74,7 @@ interface AssertResourceExistsOptions {
 }
 
 // Converting a resource to external must not hide existing loaded allocations or time off.
-// Reject the interactive edit until dependents are reassigned; imports use their separate repair contract.
+// Reject the interactive edit until dependents are reassigned; imports validate the full dataset.
 function assertResourceKindAllowsDependentsWithOptions({
   data,
   accountId,

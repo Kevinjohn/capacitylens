@@ -13,8 +13,6 @@ import { SchedulerToolbarChrome, SchedulerToolbarFilters } from './SchedulerTool
 import { buildFilterOptions } from './toolbarFilterOptions';
 import { useToolbarSearch } from './useToolbarSearch';
 
-// Scheduler Undo and Redo replay the typed allocation history. Other legacy writes keep their own
-// history internally until they move to typed planning operations.
 function useToolbarHistory() {
   const undo = useStore((state) => state.undoPlanning);
   const redo = useStore((state) => state.redoPlanning);

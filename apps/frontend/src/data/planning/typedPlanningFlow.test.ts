@@ -49,7 +49,7 @@ describe('typed planning flow', () => {
     });
     if (!command) throw new Error('Expected settings command.');
 
-    await controller.execute(controller.begin(original), command.intent, command.inverse);
+    await controller.execute(controller.begin(), command.intent, command.inverse);
     expect(state().data.accounts[0]).toMatchObject({
       dateStyle: 'month-day',
       timezone: 'Europe/London',
@@ -122,7 +122,7 @@ describe('typed planning flow', () => {
     );
 
     await controller.execute(
-      controller.begin(null),
+      controller.begin(),
       { operation: 'catalogue.delete', entity: { entity: 'phases', id: 'phase-1' } },
       { operation: 'planning.restoreGroup', restorationGroupId: '' },
     );
@@ -183,7 +183,7 @@ describe('typed planning flow', () => {
       },
     });
     if (!command) throw new Error('Expected resource command.');
-    await controller.execute(controller.begin(null), command.intent, command.inverse);
+    await controller.execute(controller.begin(), command.intent, command.inverse);
     await controller.undo();
     expect(state().data.resources[0]?.id).toBe(id);
     expect(state().data.resources[0]?.archivedAt).not.toBeNull();
@@ -223,7 +223,7 @@ describe('typed planning flow', () => {
     );
 
     await controller.execute(
-      controller.begin(null),
+      controller.begin(),
       {
         operation: 'catalogue.update',
         entity: {
@@ -251,7 +251,7 @@ describe('typed planning flow', () => {
 
     await expect(
       controller.execute(
-        controller.begin(client),
+        controller.begin(),
         {
           operation: 'catalogue.update',
           entity: { entity: 'clients', id: client.id, changes: { name: 'Wayne Studio' } },

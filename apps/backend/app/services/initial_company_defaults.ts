@@ -1,5 +1,6 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
+import { defaultAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { encodeRow } from '#services/state_repository';
@@ -28,7 +29,7 @@ export async function createInitialCompany(
       schedulingMode: 'days',
       weekStartsOn: input.weekStartsOn ?? 1,
       timezone: input.timezone ?? null,
-      workingDays: [1, 2, 3, 4, 5],
+      workingDays: defaultAccountWorkingDays(input.weekStartsOn),
       disciplinesEnabled: false,
       placeholdersEnabled: false,
       externalEnabled: false,

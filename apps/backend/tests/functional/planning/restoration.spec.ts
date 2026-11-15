@@ -403,7 +403,14 @@ test.group('session-bound allocation restoration', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const [kept, ...listed] = await createAllocations(client, cookie, 502);
+    const [kept] = await createAllocations(client, cookie, 1);
+    // Seed an existing large series so this exercises the delete and restore request limits.
+    const allocation = await db.from('allocations').where('id', kept!).firstOrFail();
+    const listed = Array.from({ length: 501 }, () => randomUUID());
+    for (let start = 0; start < listed.length; start += 500) {
+      const rows = listed.slice(start, start + 500).map((id) => ({ ...allocation, id }));
+      await db.table('allocations').multiInsert(rows);
+    }
     const before = await readState(accountId, true);
     const deleted = await deleteGroup(client, cookie, listed, 1);
     deleted.assertStatus(200);
