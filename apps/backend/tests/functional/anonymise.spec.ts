@@ -108,7 +108,7 @@ async function seedOtherCompanyRestoration(actorId: string) {
 test.group('company anonymisation', (group) => {
   group.setup(() => freshDatabase());
 
-  test('retired generic lifecycle and company deletion routes are absent', async ({ client }) => {
+  test('retired generic lifecycle routes are absent', async ({ client }) => {
     const { cookie } = await resetAuthenticatedData(client, true);
     for (const path of [
       '/api/resources/r-tyler/delete',
@@ -118,8 +118,6 @@ test.group('company anonymisation', (group) => {
       const response = await asDataOwner(client.post(path), cookie).json({ accountId }).send();
       response.assertStatus(404);
     }
-    const removed = await asDataOwner(client.delete(`/api/accounts/${accountId}`), cookie).send();
-    removed.assertStatus(404);
   });
 
   test('resource anonymisation scrubs only its person and notes with one audit and revision', async ({
