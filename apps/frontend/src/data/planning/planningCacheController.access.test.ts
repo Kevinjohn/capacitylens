@@ -71,15 +71,11 @@ type Fixture = Awaited<ReturnType<typeof setup>>;
 async function startRequest(fixture: Fixture, stage: RequestStage): Promise<unknown> {
   if (stage === 'read') return fixture.controller.refresh();
   if (stage === 'execute') {
-    return fixture.controller.execute(
-      fixture.controller.begin({ startDate: '2026-10-20' }),
-      update,
-      inverse,
-    );
+    return fixture.controller.execute(fixture.controller.begin(), update, inverse);
   }
   fixture.execute.mockRejectedValueOnce(new TypeError('Response lost'));
   await fixture.controller
-    .execute(fixture.controller.begin({ startDate: '2026-10-20' }), update, inverse)
+    .execute(fixture.controller.begin(), update, inverse)
     .catch((error: unknown) => error);
   return fixture.controller.reconcile();
 }
@@ -164,7 +160,7 @@ describe('planning request access boundaries', () => {
     const fixture = await setup();
     const pending = deferred<Success>();
     fixture.execute.mockImplementationOnce(() => pending.promise);
-    const draft = fixture.controller.begin({ startDate: '2026-10-20' });
+    const draft = fixture.controller.begin();
     const oldRequest = fixture.controller
       .execute(draft, update, inverse)
       .catch((error: unknown) => error);
@@ -218,11 +214,7 @@ describe('planning request access boundaries', () => {
         },
       },
     }));
-    const saving = fixture.controller.execute(
-      fixture.controller.begin({ startDate: '2026-10-20' }),
-      update,
-      null,
-    );
+    const saving = fixture.controller.execute(fixture.controller.begin(), update, null);
     await vi.waitFor(() =>
       expect(fixture.store.getState().planning.outcome?.kind).toBe('acknowledged'),
     );

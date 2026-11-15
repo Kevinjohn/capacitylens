@@ -69,7 +69,7 @@ export async function apiFetch(
   });
   // Follow immediate action feedback; actions with later asynchronous work also retain this header
   // when choosing their final notice.
-  noteAuditWarning(response, { defer: true });
+  noteAuditWarning(response);
   if (!response.ok) {
     const code = await readMasqueradeErrorCode(response);
     if (

@@ -55,23 +55,22 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
 }
 
 describe('restoration cleanup confirmation', () => {
-  it('cancels without changing data, draft or history', async () => {
+  it('cancels without changing data or history', async () => {
     const confirm = vi.fn(async () => false);
     const h = harness(confirm);
     await h.controller.refresh();
     const before = h.store.getState();
-    const draft = h.controller.begin({ codeName: 'Day' });
+    const draft = h.controller.begin();
     expect(await h.controller.execute(draft, intent, null)).toBeNull();
     expect(h.store.getState()).toEqual(before);
     expect(h.execute).toHaveBeenCalledTimes(1);
     expect(confirm).toHaveBeenCalledWith(3, expect.any(AbortSignal));
-    expect(draft.originalWritable).toEqual({ codeName: 'Day' });
   });
   it('confirms once using the original identity, intent and revision plus exact count', async () => {
     const confirm = vi.fn(async () => true);
     const h = harness(confirm);
     await h.controller.refresh();
-    await h.controller.execute(h.controller.begin({}), intent, null);
+    await h.controller.execute(h.controller.begin(), intent, null);
     expect(h.execute).toHaveBeenCalledTimes(2);
     const initial = h.execute.mock.calls[0]?.[1];
     expect(initial).toBeDefined();
@@ -82,7 +81,7 @@ describe('restoration cleanup confirmation', () => {
     const closed = harness();
     await closed.controller.refresh();
     await expect(
-      closed.controller.execute(closed.controller.begin({}), intent, null),
+      closed.controller.execute(closed.controller.begin(), intent, null),
     ).rejects.toMatchObject({
       code: 'RESTORATION_CONFIRMATION_REQUIRED',
     });
@@ -110,7 +109,7 @@ describe('restoration cleanup confirmation', () => {
       ),
     );
     await h.controller.refresh();
-    await expect(h.controller.execute(h.controller.begin({}), intent, null)).rejects.toMatchObject({
+    await expect(h.controller.execute(h.controller.begin(), intent, null)).rejects.toMatchObject({
       code: 'RESTORATION_CONFIRMATION_STALE',
     });
     expect(confirm).toHaveBeenCalledTimes(1);
@@ -131,7 +130,7 @@ describe('restoration cleanup confirmation', () => {
         ),
       );
     await h.controller.refresh();
-    await expect(h.controller.execute(h.controller.begin({}), intent, null)).rejects.toMatchObject({
+    await expect(h.controller.execute(h.controller.begin(), intent, null)).rejects.toMatchObject({
       code: 'RESTORATION_CONFIRMATION_REQUIRED',
     });
     expect(confirm).not.toHaveBeenCalled();
@@ -147,7 +146,7 @@ describe('restoration cleanup confirmation', () => {
     );
     const h = harness(confirm);
     await h.controller.refresh();
-    const pending = h.controller.execute(h.controller.begin({}), intent, null);
+    const pending = h.controller.execute(h.controller.begin(), intent, null);
     await vi.waitFor(() => expect(confirm).toHaveBeenCalled());
     h.store.setState((current) => ({ planning: { ...current.planning, revision: 7 } }));
     cancel(false);
@@ -168,7 +167,7 @@ describe('restoration cleanup confirmation', () => {
     );
     const h = harness(confirm);
     await h.controller.refresh();
-    const pending = h.controller.execute(h.controller.begin({}), intent, null);
+    const pending = h.controller.execute(h.controller.begin(), intent, null);
     await vi.waitFor(() => expect(confirm).toHaveBeenCalled());
     h.controller.setContext(null);
     accept(true);
