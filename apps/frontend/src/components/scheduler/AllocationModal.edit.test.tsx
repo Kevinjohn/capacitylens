@@ -4,7 +4,7 @@ import { screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
-import type { Activity } from '@capacitylens/shared/types/entities';
+import type { Activity, Weekday } from '@capacitylens/shared/types/entities';
 import { setExternalEnabled, setPlaceholdersEnabled } from '@/test/fixtures';
 import { chooseOption } from './__tests__/schedulerTestKit';
 import {
@@ -528,12 +528,17 @@ describe('AllocationModal edit', () => {
     expect(destination.id).not.toBe(source.id);
   });
 
-  it('rejects reassigning even an ignored allocation to a zero-overlap person (decision 6)', async () => {
-    await useStore.getState().updateAccount(ACC, { workingDays: [2] });
+  it.each([
+    { calendar: 'Monday only', companyDays: [1, 2] as Weekday[] },
+    { calendar: 'no effective weekdays', companyDays: [2] as Weekday[] },
+  ])('reassigns with Ignore working days to a person with $calendar', async ({ companyDays }) => {
+    await useStore.getState().updateAccount(ACC, { workingDays: companyDays });
     const source = await requireCreated(
       useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [2] }),
     );
-    await useStore.getState().addResource({ ...person('Clark Kent'), workingDays: [1] });
+    const destination = await requireCreated(
+      useStore.getState().addResource({ ...person('Clark Kent'), workingDays: [1] }),
+    );
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
         resourceId: source.id,
@@ -542,26 +547,22 @@ describe('AllocationModal edit', () => {
         endDate: '2026-06-02',
         hoursPerDay: 8,
         status: 'confirmed',
-        ignoreWorkingDays: true,
       }),
     );
     const user = userEvent.setup();
     renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await chooseOption(user, 'Assignee', 'Clark Kent');
+    await user.click(screen.getByRole('checkbox', { name: 'Ignore working days' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(
       useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
     ).toMatchObject({
-      resourceId: source.id,
+      resourceId: destination.id,
+      startDate: '2026-06-02',
       ignoreWorkingDays: true,
     });
-    expect(
-      screen.getByText(
-        "This person has no working days within the company's current working week.",
-      ),
-    ).toBeInTheDocument();
   });
 
   it('snaps the project to the placeholder bound project when reassigned, restricting options', async () => {

@@ -31,8 +31,13 @@ export function buildGesturePreviewDates({
   sourceDays,
   isReassignment,
 }: BuildGesturePreviewDatesInput): GesturePreviewResult {
-  // Resolve one preview range per frame so hit testing and painting use the same working-calendar snapshot. An empty week or no-op resize must not display a change that commit will refuse.
-  if (previewDays?.length === 0 && !allocation.ignoreWorkingDays) return { kind: 'blocked' };
+  if (
+    (isReassignment || mode !== 'move') &&
+    previewDays?.length === 0 &&
+    !allocation.ignoreWorkingDays
+  ) {
+    return { kind: 'blocked' };
+  }
   // A no-op gesture must keep stored dates so changed working calendars do not produce a preview that snaps back on release.
   if (deltaDays === 0 && (mode !== 'move' || !isReassignment)) return { kind: 'unchanged' };
   return {
