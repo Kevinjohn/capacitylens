@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import type { ApiClient } from '@japa/api-client';
+import type { ApiClient, ApiResponse } from '@japa/api-client';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import type { PlanningIntent } from '#validators/planning/contracts';
+import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import { readState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import {
@@ -26,10 +26,12 @@ interface SendPlanningOptions {
   intent: PlanningIntent;
 }
 
-function sendPlanning({ client, cookie, path, baseRevision, intent }: SendPlanningOptions) {
-  return session(client.post(path), cookie)
+async function sendPlanning({ client, cookie, path, baseRevision, intent }: SendPlanningOptions) {
+  const response = await session(client.post(path), cookie)
     .json({ mutationId: randomUUID(), baseRevision, intent })
     .send();
+  // Callers assert 200 before reading success fields; refusal bodies are compared as whole values.
+  return response as ApiResponse<PlanningMutationSuccess>;
 }
 
 async function readPlanningStorage() {
@@ -45,7 +47,9 @@ async function readPlanningStorage() {
 
 test.group('retained id recreation ownership', (suite) => {
   suite.setup(() => freshDatabase());
-  suite.each.setup(() => resetPlanningFixture());
+  suite.each.setup(async () => {
+    await resetPlanningFixture();
+  });
 
   for (const attempt of ['another editor', 'another session'] as const) {
     test(`${attempt} cannot replace a pending deletion and its original session can still restore`, async ({
