@@ -463,7 +463,7 @@ test.group('independent typed planning operations', (group) => {
       .json(input(0, { operation: 'allocation.create', allocation }))
       .send();
     write.assertStatus(401);
-    assert.deepEqual(write.body(), { error: 'Sign-in required.' });
+    assert.deepEqual(write.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
     assert.deepEqual(await readState(accountId, true), before);
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
     assert.lengthOf(

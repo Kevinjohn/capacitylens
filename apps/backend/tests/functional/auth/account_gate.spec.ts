@@ -49,11 +49,11 @@ test.group('account gate', (group) => {
     for (const path of [`/api/accounts/${accountId}/planning`, '/api/accounts', '/api/admission']) {
       const refused = await client.get(path).send();
       refused.assertStatus(401);
-      assert.deepEqual(refused.body(), { error: 'Sign-in required.' });
+      assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
     }
     const unmatched = await client.get('/api/no-such-route').send();
     unmatched.assertStatus(401);
-    assert.deepEqual(unmatched.body(), { error: 'Sign-in required.' });
+    assert.deepEqual(unmatched.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
   });
 
   test('a signed-in person without admission is refused product routes before the handler and reaches the limited ones', async ({
@@ -135,7 +135,7 @@ test.group('account gate', (group) => {
     for (const path of ['/api/accounts', '/api/admission']) {
       const refused = await client.get(path).header('cookie', cookieHeader).send();
       refused.assertStatus(401);
-      assert.deepEqual(refused.body(), { error: 'Sign-in required.' });
+      assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
     }
   });
 });

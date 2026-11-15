@@ -101,9 +101,10 @@ test('native company fixtures preserve baseline data and unrelated principals ac
     });
     if (cycle === 0) {
       expect(companies.status()).toBe(409);
-      expect(await companies.json()).toMatchObject({
+      expect(await companies.json()).toEqual({
         error:
           'This installation has more than one company. Contact the administrator to resolve it.',
+        code: 'MULTIPLE_COMPANIES',
       });
     } else {
       expect(companies.status()).toBe(200);

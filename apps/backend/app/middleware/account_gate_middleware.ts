@@ -34,7 +34,10 @@ export default class AccountGateMiddleware {
         await checks[access](ctx, async () => undefined);
       } catch (error) {
         if (error instanceof InvalidSessionError) {
-          return ctx.response.unauthorized({ error: 'Sign-in required.' });
+          return ctx.response.unauthorized({
+            error: 'Sign-in required.',
+            code: 'SIGN_IN_REQUIRED',
+          });
         }
         // Planning handlers answer a refusal in their own wording; the gate keeps that body.
         if (ctx.route?.name?.startsWith('api.planning.')) return sendRefusal(error, ctx);

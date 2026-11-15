@@ -31,7 +31,12 @@ test.group('installation company', () => {
       await installationCompanyId(db);
       assert.fail('Expected the second company to be refused');
     } catch (error) {
-      assert.include(error, { status: 409, code: 'MULTIPLE_COMPANIES' });
+      assert.include(error, {
+        status: 409,
+        code: 'MULTIPLE_COMPANIES',
+        message:
+          'This installation has more than one company. Accounts need a single-company database.',
+      });
     }
   });
 });
