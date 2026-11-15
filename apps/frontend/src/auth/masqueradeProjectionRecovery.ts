@@ -6,7 +6,7 @@ export type FinishProjectionResult = { kind: 'finished' } | { kind: 'failed'; me
 export type RealProjectionResult =
   { kind: 'restored' } | { kind: 'active' } | { kind: 'superseded' } | { kind: 'failed' };
 
-export function publishMasqueradeAccount(state: MasqueradeState, selectAccount = false): void {
+export function publishMasqueradeAccount(state: MasqueradeState): void {
   const account = useStore
     .getState()
     .data.accounts.find((candidate) => candidate.id === state.accountId);
@@ -14,9 +14,6 @@ export function publishMasqueradeAccount(state: MasqueradeState, selectAccount =
     list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
     complete: account !== undefined,
   });
-  if (selectAccount && useStore.getState().activeAccountId !== state.accountId) {
-    useStore.getState().setActiveAccount(state.accountId);
-  }
   useStore.getState().setActiveRole(state.effectiveRole, 'resolved');
 }
 

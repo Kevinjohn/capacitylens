@@ -239,6 +239,32 @@ test.group('authenticated planning operations', (group) => {
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
   });
 
+  test('an external resource refusal names the supplied reference field', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const data = await readState(accountId, true);
+    const external = data.resources.find((row) => row.kind === 'external')!;
+    for (const [field, value] of [
+      ['disciplineId', data.disciplines[0]!.id],
+      ['projectId', data.projects[0]!.id],
+    ] as const) {
+      const refused = await session(client.patch(route(`resources/${external.id}`)), cookie)
+        .json(
+          input(0, { operation: 'resource.update', id: external.id, changes: { [field]: value } })
+        )
+        .send();
+      refused.assertStatus(400);
+      assert.deepEqual(refused.body(), {
+        code: 'VALIDATION_ERROR',
+        error: `${field} is not used by external resources.`,
+      });
+    }
+  });
+
   test('refuses a reversed closure range without persisting or advancing revision', async ({
     client,
     assert,

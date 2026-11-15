@@ -125,7 +125,7 @@ export async function planningHarnessExecute(
   inverse: PlanningIntent | null = null,
 ) {
   const harness = requireHarness(key);
-  const draft = harness.controller.begin({});
+  const draft = harness.controller.begin();
   const receipt = await harness.controller.execute(draft, intent, inverse);
   return { receipt, state: view(harness.store.getState()) };
 }
@@ -137,7 +137,7 @@ export function planningHarnessStart(
 ) {
   const harness = requireHarness(key);
   if (harness.active) throw new Error('A planning test request is already running.');
-  const draft = harness.controller.begin({});
+  const draft = harness.controller.begin();
   const pending = harness.controller.execute(draft, intent, inverse);
   const execution = harness.store.getState().planning.pending?.execution;
   if (!execution) throw new Error('The planning request did not publish its pending state.');
@@ -174,7 +174,7 @@ export async function planningHarnessFinish(key: string) {
 
 export function planningHarnessCaptureDraft(key: string, token: string) {
   const harness = requireHarness(key);
-  const draft = harness.controller.begin({});
+  const draft = harness.controller.begin();
   harness.drafts.set(token, draft);
   return { baseRevision: draft.baseRevision };
 }

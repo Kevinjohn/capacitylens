@@ -275,7 +275,6 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
         withServer(
           {
             NODE_ENV: 'production',
-            CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: 'true',
             CAPACITYLENS_PUBLIC_URL: 'http://127.0.0.1',
           },
           {},

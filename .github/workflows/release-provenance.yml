@@ -50,9 +50,34 @@ jobs:
             echo "present=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # The archive publishes only after Validation and the Docker smoke both succeeded on the push of
+  # the same tag, at the commit it names. Already-published assets stop earlier, without waiting.
+  validated:
+    name: Require validation of the release tag
+    needs: existing-assets
+    if: needs.existing-assets.outputs.present != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Wait for successful validation and smoke checks of the tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: node scripts/require-release-validation.mjs
+
   provenance:
     name: Package, SBOM and provenance
-    needs: existing-assets
+    needs: [existing-assets, validated]
     if: needs.existing-assets.outputs.present != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20

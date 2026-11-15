@@ -48,6 +48,6 @@ describe('planning context transitions', () => {
     await expect(h.controller.undo()).resolves.toBe(false);
     expect(h.read).not.toHaveBeenCalled();
     expect(h.state().planning.status).toBe('idle');
-    expect(() => h.controller.begin({})).toThrow(/read-only/);
+    expect(() => h.controller.begin()).toThrow(/read-only/);
   });
 });
