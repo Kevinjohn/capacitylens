@@ -7,13 +7,12 @@ import { completeMembership } from '#services/membership/admission_membership';
 import { admissionQueryValidator } from '#validators/admission_query';
 import { errors as vineErrors } from '@vinejs/vine';
 import { managedGuard } from '#services/auth/managed_guard';
+import { USER_ID_PATTERN } from '#services/request_helpers';
 
 const admission = () => app.container.make(AccountAdmission);
 
 function userIdParam(value: unknown) {
-  return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value)
-    ? value
-    : null;
+  return typeof value === 'string' && USER_ID_PATTERN.test(value) ? value : null;
 }
 
 /**

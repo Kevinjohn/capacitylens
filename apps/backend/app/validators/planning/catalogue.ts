@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { ACTIVITY_KINDS } from '#validators/entity_kinds';
 import {
   boolean,
   entityId,
@@ -52,7 +53,7 @@ const catalogueCreate = vine.union([
       id: uuid(),
       fields: vine.object({
         name: nameText(),
-        kind: vine.enum(['project', 'internal', 'repeatable'] as const),
+        kind: vine.enum(ACTIVITY_KINDS),
         projectId: nullableId(),
         phaseId: nullableId(),
       }),
@@ -129,7 +130,7 @@ const catalogueChanges = vine.union([
       changes: vine
         .object({
           name: nameText().optional(),
-          kind: vine.enum(['project', 'internal', 'repeatable'] as const).optional(),
+          kind: vine.enum(ACTIVITY_KINDS).optional(),
           projectId: nullableId().optional(),
           phaseId: nullableId().optional(),
         })

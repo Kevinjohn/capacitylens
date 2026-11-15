@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { RESOURCE_KINDS } from '#validators/entity_kinds';
 import {
   externalCapacityDefaults,
   placeholderCapacityDefaults,
@@ -28,7 +29,7 @@ import {
 } from '#validators/planning/fields';
 
 const resourceFields = {
-  kind: vine.enum(['person', 'placeholder', 'external'] as const),
+  kind: vine.enum(RESOURCE_KINDS),
   name: nullableUserText(),
   role: userText(),
   avatarUrl: resourceAvatar(),
