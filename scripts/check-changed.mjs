@@ -56,10 +56,11 @@ const formatConfig = /^\.prettier(?:rc[^/]*|ignore)$/;
 const workspaceInput = /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/;
 // Paths that format:check covers but lint and the type-check do not.
 const documentationOnly = /^(?:docs-src\/|docs\/|user-stories\/)|\.md$/;
-// Backend inputs a spec import cannot map: permissions, middleware, schema and migrations,
-// configuration, test infrastructure and package files. Any change here runs the whole suite.
+// Backend inputs a spec import cannot map: permissions, tenant data access, middleware, schema and
+// migrations, configuration, test infrastructure and package files. Any change here runs the
+// whole suite.
 const backendSuiteInput =
-  /^apps\/backend\/(?:(?:database|config|start|providers|bin|commands|types|scripts)\/|app\/(?:middleware|exceptions|models)\/|app\/services\/(?:auth|account_kit|access_control|admission|membership)\/|tests\/(?!.+\.spec\.ts$)|[^/]+$)/;
+  /^apps\/backend\/(?:(?:database|config|start|providers|bin|commands|types|scripts)\/|app\/(?:middleware|exceptions|models)\/|app\/services\/(?:auth|account_kit|access_control|admission|membership)\/|app\/services\/(?:state_repository|with_transaction)\.ts$|tests\/(?!.+\.spec\.ts$)|[^/]+$)/;
 const backendPermissionFile = /^apps\/backend\/app\/.*polic(?:y|ies)[^/]*$/;
 const backendModule = /^apps\/backend\/app\/([^/]+)\/(.+)\.ts$/;
 const backendTests = 'apps/backend/tests/';
@@ -97,24 +98,28 @@ function scriptTestsImporting(path) {
     .map((name) => `scripts/${name}`);
 }
 
-/** List every backend spec file, relative to the repository root. */
-function backendSpecFiles() {
-  return readdirSync(new URL(backendTests, pathToFileURL(root)), { recursive: true })
-    .map((name) => `${backendTests}${name.split('\\').join('/')}`)
-    .filter((path) => backendSpec.test(path));
-}
-
-let specSources;
-/** List the backend spec files that import `apps/backend/app/<dir>/<name>.ts` through `#<dir>/<name>`. */
-function backendSpecsImporting(path) {
+/**
+ * List the backend spec files whose source imports `apps/backend/app/<dir>/<name>.ts` through
+ * `#<dir>/<name>`. Returns `null` when a shared test helper imports it, because every spec that
+ * uses that helper depends on it and no import list shows which. `sources` holds
+ * `[path, source]` pairs for the backend test files.
+ */
+export function backendSpecsImportingFrom(path, sources) {
   const [, directory, name] = backendModule.exec(path) ?? [];
   if (!directory) return [];
-  specSources ??= backendSpecFiles().map((spec) => [
-    spec,
-    readFileSync(new URL(spec, pathToFileURL(root)), 'utf8'),
-  ]);
   const specifier = `'#${directory}/${name}'`;
-  return specSources.filter(([, source]) => source.includes(specifier)).map(([spec]) => spec);
+  const importers = sources.filter(([, source]) => source.includes(specifier));
+  if (importers.some(([file]) => !backendSpec.test(file))) return null;
+  return importers.map(([file]) => file);
+}
+
+let testSources;
+function backendSpecsImporting(path) {
+  testSources ??= readdirSync(new URL(backendTests, pathToFileURL(root)), { recursive: true })
+    .map((entry) => `${backendTests}${entry.split('\\').join('/')}`)
+    .filter((file) => /\.ts$/.test(file))
+    .map((file) => [file, readFileSync(new URL(file, pathToFileURL(root)), 'utf8')]);
+  return backendSpecsImportingFrom(path, testSources);
 }
 
 const summarise = (reasons) =>
@@ -170,8 +175,8 @@ export function toolingScope(paths) {
  * runs them in their own workflows.
  *
  * A backend source change runs the specs that import it. Shared contracts, dependencies,
- * permissions, schema, configuration, test infrastructure and backend changes no spec imports
- * run the whole backend suite instead. Every step carries the reason it was selected.
+ * permissions, tenant data access, schema, configuration, test infrastructure, modules a shared
+ * test helper imports and backend changes no spec imports run the whole backend suite instead. Every step carries the reason it was selected.
  */
 export function planChecks(
   paths,
@@ -218,6 +223,10 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
       continue;
     }
     const importers = backendImporters(path);
+    if (importers === null) {
+      suiteReasons.push(`a shared backend test helper imports ${path}`);
+      continue;
+    }
     if (!importers.length) suiteReasons.push(`no backend spec imports ${path}`);
     for (const spec of importers) mappedSpecs.set(spec, [...(mappedSpecs.get(spec) ?? []), path]);
   }

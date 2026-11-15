@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  backendSpecsImportingFrom,
   changedPaths,
   planChecks,
   ranNoTests,
@@ -556,6 +557,8 @@ test('permissions, schema, configuration, test infrastructure and unmapped backe
     'apps/backend/app/services/planning/data_policy.ts',
     'apps/backend/app/middleware/company_scope_middleware.ts',
     'apps/backend/app/models/scoped_model.ts',
+    'apps/backend/app/services/state_repository.ts',
+    'apps/backend/app/services/with_transaction.ts',
     'apps/backend/database/migrations/0001_baseline.ts',
     'apps/backend/start/routes.ts',
     'apps/backend/config/admission.ts',
@@ -569,6 +572,16 @@ test('permissions, schema, configuration, test infrastructure and unmapped backe
     assert.ok(suite?.args, path);
     assert.match(suite.reason, /permission, schema, configuration or test infrastructure/, path);
   }
+  const viaHelper = step(
+    planChecks(['apps/backend/app/services/planning_revision.ts'], everything, noImporters, {
+      backendImporters: () => null,
+    }),
+    'test: backend suite',
+  );
+  assert.match(
+    viaHelper.reason,
+    /a shared backend test helper imports apps\/backend\/app\/services\/planning_revision\.ts/,
+  );
   const unmapped = step(
     planChecks(
       ['apps/backend/app/controllers/planning_controller.ts'],
@@ -636,4 +649,22 @@ test('main validation skips tooling checks only for application source, tests an
     assert.equal(selected.scope, 'run', path);
     assert.match(selected.reason, new RegExp(path.replaceAll('.', '\\.')));
   }
+});
+
+test('backend specs are mapped by import, and a module a shared test helper imports is unmapped', () => {
+  const sources = [
+    ['apps/backend/tests/unit/a.spec.ts', "import { run } from '#services/planning/execute';"],
+    ['apps/backend/tests/unit/b.spec.ts', "import { other } from '#services/other';"],
+    ['apps/backend/tests/helpers/fixture.ts', "import { read } from '#services/shared_read';"],
+  ];
+  assert.deepEqual(
+    backendSpecsImportingFrom('apps/backend/app/services/planning/execute.ts', sources),
+    ['apps/backend/tests/unit/a.spec.ts'],
+  );
+  assert.equal(
+    backendSpecsImportingFrom('apps/backend/app/services/shared_read.ts', sources),
+    null,
+  );
+  assert.deepEqual(backendSpecsImportingFrom('apps/backend/app/services/unused.ts', sources), []);
+  assert.deepEqual(backendSpecsImportingFrom('apps/backend/app/a.ts', sources), []);
 });
