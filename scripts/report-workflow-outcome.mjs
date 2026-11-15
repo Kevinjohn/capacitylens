@@ -29,10 +29,12 @@
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
-/** Label used to find and deduplicate the unattended security-workflow failure report. */
+/** Default label used to find and deduplicate the unattended security-workflow failure report. */
 export const ISSUE_LABEL = 'security-scan-failure';
-/** Title used when opening the unattended security-workflow failure report. */
+/** Default title used when opening the unattended security-workflow failure report. */
 export const ISSUE_TITLE = 'Security workflow is failing';
+// Each workflow needs its own label: a clean run closes every open report carrying it.
+const defaultReport = Object.freeze({ label: ISSUE_LABEL, title: ISSUE_TITLE });
 
 /** Selects open, comment, close or none from workflow results and branch state without changing inputs or performing I/O. */
 export function decide({ results, headSha, branchTip, existingIssue }) {
@@ -115,14 +117,14 @@ function readBranchTip({ refName, eventName }) {
   }
 }
 
-function readOpenWorkflowIssueNumbers(runGh = gh) {
+function readOpenWorkflowIssueNumbers(runGh = gh, label = ISSUE_LABEL) {
   const found = runGh([
     'issue',
     'list',
     '--state',
     'open',
     '--label',
-    ISSUE_LABEL,
+    label,
     '--limit',
     '100',
     '--json',
@@ -155,7 +157,13 @@ function reconcileOpenIssues(issueNumbers, canonicalNumber, runGh) {
 }
 
 /** Publishes one workflow decision and reconciles currently visible duplicate reports to one open canonical issue. */
-export function publishOutcome({ decision, context, existingIssueNumbers, runGh = gh }) {
+export function publishOutcome({
+  decision,
+  context,
+  existingIssueNumbers,
+  runGh = gh,
+  report = defaultReport,
+}) {
   if (decision.action === 'none') {
     console.log(`No report filed: ${decision.reason}.`);
     return;
@@ -179,7 +187,7 @@ export function publishOutcome({ decision, context, existingIssueNumbers, runGh 
   runGh([
     'label',
     'create',
-    ISSUE_LABEL,
+    report.label,
     '--color',
     'b60205',
     '--description',
@@ -199,9 +207,9 @@ export function publishOutcome({ decision, context, existingIssueNumbers, runGh 
     'issue',
     'create',
     '--title',
-    ISSUE_TITLE,
+    report.title,
     '--label',
-    ISSUE_LABEL,
+    report.label,
     '--body',
     body,
   ]);
@@ -211,7 +219,7 @@ export function publishOutcome({ decision, context, existingIssueNumbers, runGh 
 
   // GitHub has no atomic label-keyed create. A competing run can create after our first list; reread
   // after publication, keep the oldest visible issue open, and retain duplicates as closed history.
-  const visibleIssues = readOpenWorkflowIssueNumbers(runGh);
+  const visibleIssues = readOpenWorkflowIssueNumbers(runGh, report.label);
   const candidates = [...new Set([...visibleIssues, ...existingIssueNumbers, createdNumber])].sort(
     (a, b) => a - b,
   );
@@ -236,13 +244,17 @@ function main() {
     headSha: process.env.GITHUB_SHA ?? 'unknown',
     runUrl: process.env.RUN_URL ?? 'unknown',
   };
+  const report = {
+    label: process.env.REPORT_LABEL || ISSUE_LABEL,
+    title: process.env.REPORT_TITLE || ISSUE_TITLE,
+  };
   const results = parseResults(process.env.RESULTS);
   if (results.length === 0) {
     console.error('No job results were passed in; refusing to guess whether the run was healthy.');
     process.exit(1);
   }
 
-  const existingIssueNumbers = readOpenWorkflowIssueNumbers();
+  const existingIssueNumbers = readOpenWorkflowIssueNumbers(gh, report.label);
   const needsTip = results.some((entry) => entry.result === 'cancelled');
   const branchTip = needsTip ? readBranchTip(context) : null;
   const decision = decide({
@@ -251,7 +263,7 @@ function main() {
     branchTip,
     existingIssue: existingIssueNumbers[0] ?? null,
   });
-  publishOutcome({ decision, context, existingIssueNumbers });
+  publishOutcome({ decision, context, existingIssueNumbers, report });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
