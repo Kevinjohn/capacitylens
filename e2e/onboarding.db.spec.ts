@@ -103,17 +103,14 @@ test.describe('single-company production entry', () => {
   });
 
   test('ordinary additional company creation is rejected', async ({ request }) => {
-    const res = await request.post(`${API}/api/orgs`, {
+    const res = await request.post(`${API}/api/installation/company`, {
       headers: await masqueradeContextHeaders(request, undefined, API),
       data: {
-        id: `e2e-cap-check-${Date.now()}`,
-        name: 'Should Not Exist',
-        color: '#76a5e7',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        name: 'Queen Industries',
       },
     });
-    expect(res.status()).toBe(404);
+    expect(res.status()).toBe(409);
+    expect(await res.json()).toMatchObject({ code: 'COMPANY_SETUP_UNAVAILABLE' });
 
     const after = await serverState(request);
     expect(requireStateRows(after, 'accounts')).toHaveLength(1);
