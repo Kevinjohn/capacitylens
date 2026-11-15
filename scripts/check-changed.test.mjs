@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -11,6 +11,7 @@ import {
   ranNoTests,
   runStep,
   selectE2eSpecs,
+  staticScope,
   testCount,
 } from './check-changed.mjs';
 
@@ -428,26 +429,184 @@ test('changed end-to-end specs are selected on their own, alongside application 
   );
 });
 
-test('end-to-end support changes, deleted specs and no end-to-end change select no spec', () => {
-  for (const [paths, reason] of [
-    [['e2e/a.spec.ts', 'e2e/fixtures.ts'], /support file/],
-    [['playwright.config.ts'], /support file/],
-    [['scripts/playwrightRunMode.mjs'], /support file/],
-    [['e2e/gone.spec.ts'], /only deleted/],
-    [['apps/frontend/src/App.tsx'], /no end-to-end changes/],
+test('end-to-end support changes select the Chromium and auth suites; deleted specs and no end-to-end change select nothing', () => {
+  for (const [paths, run, reason] of [
+    [['e2e/a.spec.ts', 'e2e/fixtures.ts'], 'suite', /support file.+e2e\/fixtures\.ts/],
+    [['playwright.config.ts'], 'suite', /support file/],
+    [['scripts/playwrightRunMode.mjs'], 'suite', /support file/],
+    [['e2e/gone.spec.ts'], 'none', /only deleted/],
+    [['apps/frontend/src/App.tsx'], 'none', /no end-to-end changes/],
   ]) {
     const selection = selectE2eSpecs(paths, (path) => path !== 'e2e/gone.spec.ts');
+    assert.equal(selection.run, run, paths.join());
     assert.deepEqual(selection.specs, [], paths.join());
     assert.match(selection.reason, reason);
   }
+  assert.equal(selectE2eSpecs(['e2e/a.spec.ts'], everything).run, 'specs');
 });
 
-test('--e2e-specs cannot be combined with --static', () => {
-  const result = spawnSync(
-    process.execPath,
-    [fileURLToPath(new URL('./check-changed.mjs', import.meta.url)), '--static', '--e2e-specs'],
-    { encoding: 'utf8' },
+test('selection modes cannot be combined', () => {
+  for (const pair of [
+    ['--static', '--e2e-plan'],
+    ['--tests-only', '--static'],
+    ['--static-scope', '--tests-only'],
+  ]) {
+    const result = spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL('./check-changed.mjs', import.meta.url)), ...pair],
+      { encoding: 'utf8' },
+    );
+    assert.equal(result.status, 2, pair.join(' '));
+    assert.match(result.stderr, /Expected at most one of/);
+  }
+});
+
+test('the selection modes load no installed dependency, so CI can select before installing', () => {
+  const source = readFileSync(new URL('./check-changed.mjs', import.meta.url), 'utf8');
+  const staticImports = source.match(/^import .+ from '[^']+';$/gm);
+  assert.ok(
+    staticImports.every((line) => /from '(?:node:[^']+|\.\.\/apps\/[^']+\.ts)'/.test(line)),
   );
-  assert.equal(result.status, 2);
-  assert.match(result.stderr, /Expected --static or --e2e-specs/);
+});
+
+const testsOnly = { testsOnly: true };
+const noBackendImporters = { backendImporters: () => [] };
+
+test('--tests-only leaves format, lint, the type-check and the docs build to their own workflows', () => {
+  const paths = [
+    'apps/frontend/src/App.tsx',
+    'scripts/lanes.mjs',
+    'eslint.config.js',
+    'docs-src/index.md',
+  ];
+  const full = planChecks(paths, everything, noImporters);
+  const steps = planChecks(paths, everything, noImporters, testsOnly);
+  for (const label of ['format', 'lint: whole repository', 'typecheck', 'docs: build']) {
+    assert.ok(step(full, label)?.args, label);
+    assert.equal(typeof step(steps, label).skip, 'string', label);
+    assert.equal(step(steps, label).args, undefined, label);
+  }
+  assert.equal(step(steps, 'prepare: compile messages'), undefined);
+  assert.equal(step(steps, 'prepare: build backend client types'), undefined);
+  assert.ok(step(steps, 'test: frontend tests related').args);
+  assert.ok(step(steps, 'test: 1 script test').args);
+});
+
+test('a documentation-only change formats, runs the documentation policy spec and needs no build', () => {
+  const missingBuild = (path) => path !== 'apps/backend/public/assets';
+  const steps = planChecks(['README.md'], missingBuild, noImporters, testsOnly);
+  assert.deepEqual(
+    steps
+      .filter((candidate) => candidate.args && !candidate.prepare)
+      .map((candidate) => candidate.label),
+    ['test: 1 backend spec file(s)'],
+  );
+  assert.equal(step(steps, 'prepare: build application'), undefined);
+  assert.ok(step(steps, 'format').skip);
+  assert.deepEqual(
+    staticScope(['README.md', 'docs-src/a.md', 'docs/a.html', 'user-stories/b.md']),
+    {
+      scope: 'format',
+      reason: '4 documentation-only path(s)',
+    },
+  );
+  assert.equal(staticScope(['README.md', 'apps/frontend/src/App.tsx']).scope, 'full');
+  assert.equal(staticScope(['package.json']).scope, 'full');
+});
+
+test('a backend source change runs the specs that import it, with the reason and a build', () => {
+  const missingBuild = (path) => path !== 'apps/backend/public/assets';
+  const importers = (path) =>
+    path === 'apps/backend/app/services/planning/execute.ts'
+      ? ['apps/backend/tests/unit/planning/execute.spec.ts']
+      : [];
+  const steps = planChecks(
+    ['apps/backend/app/services/planning/execute.ts', 'apps/backend/README.md'],
+    missingBuild,
+    noImporters,
+    { backendImporters: importers },
+  );
+  const specs = step(steps, 'test: 1 backend spec');
+  assert.deepEqual(specs.args.slice(-2), ['--files', 'tests/unit/planning/execute.spec.ts']);
+  assert.match(
+    specs.reason,
+    /unit\/planning\/execute\.spec\.ts: imports apps\/backend\/app\/services\/planning\/execute\.ts/,
+  );
+  assert.equal(step(steps, 'test: backend suite'), undefined);
+  assert.ok(step(steps, 'prepare: build application'));
+  const quick = planChecks(
+    ['apps/backend/app/services/planning/execute.ts'],
+    everything,
+    noImporters,
+    {
+      backendImporters: importers,
+      staticOnly: true,
+    },
+  );
+  assert.ok(step(quick, 'test: backend specs importing changes').skip);
+});
+
+test('permissions, schema, configuration, test infrastructure and unmapped backend changes run the whole backend suite', () => {
+  const importedByEverything = () => ['apps/backend/tests/unit/a.spec.ts'];
+  for (const path of [
+    'apps/backend/app/services/auth/authorization.ts',
+    'apps/backend/app/services/account_kit/policy.ts',
+    'apps/backend/app/services/membership/member_directory.ts',
+    'apps/backend/app/services/planning/data_policy.ts',
+    'apps/backend/app/middleware/company_scope_middleware.ts',
+    'apps/backend/app/models/scoped_model.ts',
+    'apps/backend/database/migrations/0001_baseline.ts',
+    'apps/backend/start/routes.ts',
+    'apps/backend/config/admission.ts',
+    'apps/backend/tests/helpers/state_fixture.ts',
+    'apps/backend/package.json',
+  ]) {
+    const suite = step(
+      planChecks([path], everything, noImporters, { backendImporters: importedByEverything }),
+      'test: backend suite',
+    );
+    assert.ok(suite?.args, path);
+    assert.match(suite.reason, /permission, schema, configuration or test infrastructure/, path);
+  }
+  const unmapped = step(
+    planChecks(
+      ['apps/backend/app/controllers/planning_controller.ts'],
+      everything,
+      noImporters,
+      noBackendImporters,
+    ),
+    'test: backend suite',
+  );
+  assert.match(
+    unmapped.reason,
+    /no backend spec imports apps\/backend\/app\/controllers\/planning_controller\.ts/,
+  );
+  for (const [path, reason] of [
+    ['packages/shared/src/domain/errors.ts', /shared contract/],
+    ['pnpm-lock.yaml', /dependencies/],
+  ])
+    assert.match(
+      step(planChecks([path], everything, noImporters, noBackendImporters), 'test: backend suite')
+        .reason,
+      reason,
+      path,
+    );
+});
+
+test('every step that runs a command says why it was selected', () => {
+  const steps = planChecks(
+    [
+      'README.md',
+      'eslint.config.js',
+      'apps/frontend/src/App.tsx',
+      'apps/backend/app/services/planning/execute.ts',
+      'scripts/lanes.mjs',
+      'docs-src/index.md',
+    ],
+    everything,
+    noImporters,
+    noBackendImporters,
+  );
+  for (const candidate of steps.filter((entry) => entry.args && !entry.prepare))
+    assert.ok(candidate.reason, candidate.label);
 });
