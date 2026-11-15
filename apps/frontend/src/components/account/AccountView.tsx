@@ -1,3 +1,4 @@
+import { SignOutButton } from '@/auth/SignOutButton';
 import { useAuth } from '@/auth/authContext';
 import { m } from '@/i18n';
 import { DEFAULT_COLORS } from '@/lib/palette';
@@ -100,15 +101,10 @@ export function AccountView() {
                       >
                         {m.settings_security_delete_account()}
                       </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="danger-soft"
-                        onClick={() => void auth.signOut()}
-                      >
+                      <SignOutButton size="sm" variant="danger-soft" onSignOut={auth.signOut}>
                         <LogOut data-icon="inline-start" />
                         {m.nav_sign_out()}
-                      </Button>
+                      </SignOutButton>
                     </div>
                   </td>
                 </tr>
