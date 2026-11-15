@@ -191,19 +191,21 @@ test('CLI reports success and fails on invalid content, missing files and extra 
   assert.equal(extra.status, 1);
 });
 
-test('the application gate owns configuration validation and its regressions in CI', () => {
-  const commands = gateCommands('app');
-  for (const command of [
-    'policy:dependabot',
-    'policy:dependabot:test',
-    'dependency:major-report:test',
-  ]) {
-    assert.equal(commands.filter((args) => args.join(' ') === `run ${command}`).length, 1);
+test('the tooling gate owns configuration validation and its regressions in CI', () => {
+  for (const mode of ['app', 'tooling']) {
+    const commands = gateCommands(mode);
+    for (const command of [
+      'policy:dependabot',
+      'policy:dependabot:test',
+      'dependency:major-report:test',
+    ]) {
+      assert.equal(commands.filter((args) => args.join(' ') === `run ${command}`).length, 1);
+    }
   }
   const workflow = parseDocument(
     readFileSync(new URL('../.github/workflows/gate.yml', import.meta.url), 'utf8'),
   ).toJS();
-  assert.ok(workflow.jobs.application.steps.some(({ run }) => run === 'pnpm run gate'));
+  assert.ok(workflow.jobs.tooling.steps.some(({ run }) => run === 'pnpm run gate:tooling'));
   assert.ok(!workflow.jobs['workflow-lint'].steps.some(({ run }) => run?.includes('ruby -e')));
 });
 

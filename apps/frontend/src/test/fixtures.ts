@@ -129,7 +129,7 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
     updatedAt: 't',
     name: 'Wireframes',
     kind: 'project',
-    projectId: 'p1',
+    projectId: overrides.kind && overrides.kind !== 'project' ? null : 'p1',
     ...overrides,
   };
 }

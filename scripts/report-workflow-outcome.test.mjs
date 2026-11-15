@@ -249,3 +249,36 @@ test('security reporter includes every upstream job outcome', () => {
   for (const job of notify.needs)
     assert.ok(mapping.includes(`${job}=\${{ needs.${job}.result }}`), job);
 });
+
+test('a workflow-specific report uses its own label and title throughout', () => {
+  const github = githubIssues();
+  const report = { label: 'validation-failure', title: 'Weekly validation is failing' };
+  publishOutcome({
+    decision: { action: 'open', jobs: ['validation'], reason: 'the workflow failed' },
+    context: context(104),
+    existingIssueNumbers: [],
+    runGh: github.runGh,
+    report,
+  });
+  const labelled = github.calls.filter((args) => args.includes('--label') || args[0] === 'label');
+  assert.ok(labelled.length >= 3);
+  for (const args of labelled) {
+    assert.ok(args.includes('validation-failure'), args.join(' '));
+    assert.ok(!args.includes('security-scan-failure'), args.join(' '));
+  }
+  const create = github.calls.find((args) => args[0] === 'issue' && args[1] === 'create');
+  assert.equal(create[create.indexOf('--title') + 1], 'Weekly validation is failing');
+});
+
+test('the weekly validation reporter has its own label and covers the aggregate result', () => {
+  const workflow = YAML.parse(
+    readFileSync(new URL('../.github/workflows/validation.yml', import.meta.url), 'utf8'),
+  );
+  const notify = workflow.jobs.notify;
+  const step = notify.steps.find((candidate) => candidate.env?.RESULTS);
+  assert.equal(step.env.REPORT_LABEL, 'validation-failure');
+  assert.notEqual(step.env.REPORT_LABEL, 'security-scan-failure');
+  assert.ok(notify.needs.includes('gate'));
+  assert.match(notify.if, /schedule/);
+  assert.match(step.env.RESULTS, /=\$\{\{ needs\.gate\.result \}\}/);
+});
