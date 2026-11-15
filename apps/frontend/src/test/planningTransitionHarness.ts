@@ -97,7 +97,7 @@ export async function ready(options: Options = {}) {
 /** Ready at revision 2 with one acknowledged Undo entry. */
 export async function readyWithHistory(options: Options = {}) {
   const h = await ready(options);
-  await h.controller.execute(h.controller.begin({}), update, inverse);
+  await h.controller.execute(h.controller.begin(), update, inverse);
   expect(h.state().planning.history.past).toHaveLength(1);
   expect(h.state().planning.revision).toBe(2);
   return h;
@@ -106,9 +106,9 @@ export async function readyWithHistory(options: Options = {}) {
 export async function uncertain() {
   const h = await ready();
   h.execute.mockRejectedValueOnce(new TypeError('response lost'));
-  await expect(h.controller.execute(h.controller.begin({}), update, inverse)).rejects.toMatchObject(
-    { uncertain: true },
-  );
+  await expect(h.controller.execute(h.controller.begin(), update, inverse)).rejects.toMatchObject({
+    uncertain: true,
+  });
   expect(h.state().planning.status).toBe('uncertain');
   return h;
 }

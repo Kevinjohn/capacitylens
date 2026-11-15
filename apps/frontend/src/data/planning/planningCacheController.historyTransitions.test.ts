@@ -22,7 +22,7 @@ describe('planning history transitions', () => {
 
     const response = deferred<PlanningMutationSuccess>();
     h.execute.mockImplementationOnce(() => response.promise);
-    const write = h.controller.execute(h.controller.begin({}), update, inverse);
+    const write = h.controller.execute(h.controller.begin(), update, inverse);
     await expect(h.controller.undo()).resolves.toBe(false);
     await expect(h.controller.redo()).resolves.toBe(false);
     h.server.revision = 5;
@@ -50,7 +50,7 @@ describe('planning history transitions', () => {
       occurrences: [{ id: 'allocation-2', startDate: '2026-10-21', endDate: '2026-10-21' }],
     } as PlanningIntent;
     const remove: PlanningIntent = { operation: 'allocation.deleteGroup', ids: ['allocation-2'] };
-    await h.controller.execute(h.controller.begin({}), create, remove);
+    await h.controller.execute(h.controller.begin(), create, remove);
     expect(h.state().planning.history.past).toHaveLength(2);
     await expect(h.controller.undo()).resolves.toBe(true);
     expect(h.execute.mock.calls.at(-1)?.[1].intent).toEqual(remove);
@@ -67,7 +67,7 @@ describe('planning history transitions', () => {
         restoration: { consumedGroupId: null, replacementGroupId: 'group-1' },
       });
     });
-    await h.controller.execute(h.controller.begin({}), remove, restore);
+    await h.controller.execute(h.controller.begin(), remove, restore);
     expect(h.state().planning.history.past.at(-1)?.inverse).toEqual({
       operation: 'planning.restoreGroup',
       restorationGroupId: 'group-1',
@@ -89,7 +89,7 @@ describe('planning history transitions', () => {
       operation: 'catalogue.archive',
       entity: { entity: 'clients', id: 'client-2' },
     } as PlanningIntent;
-    await h.controller.execute(h.controller.begin({}), create, archive);
+    await h.controller.execute(h.controller.begin(), create, archive);
     await expect(h.controller.undo()).resolves.toBe(true);
     expect(h.state().planning.history.future).toEqual([
       {

@@ -24,7 +24,7 @@ describe('planning write transitions', () => {
     const h = await ready();
     const response = deferred<PlanningMutationSuccess>();
     h.execute.mockImplementationOnce(() => response.promise);
-    const write = h.controller.execute(h.controller.begin({}), update, inverse);
+    const write = h.controller.execute(h.controller.begin(), update, inverse);
     const planning = h.state().planning;
     expect(planning.status).toBe('pending');
     expect(planning.pending?.execution).toMatchObject({
@@ -67,9 +67,9 @@ describe('planning write transitions', () => {
     const h = await ready();
     h.execute.mockResolvedValueOnce(make());
     const reads = h.read.mock.calls.length;
-    await expect(
-      h.controller.execute(h.controller.begin({}), update, inverse),
-    ).rejects.toMatchObject({ uncertain: true });
+    await expect(h.controller.execute(h.controller.begin(), update, inverse)).rejects.toMatchObject(
+      { uncertain: true },
+    );
     expect(h.state().planning.status).toBe('uncertain');
     expect(h.state().planning.outcome?.kind).toBe('uncertain');
     expect(h.state().planning.pending?.execution.mutationId).toBe('mutation-1');
@@ -90,7 +90,7 @@ describe('planning write transitions', () => {
     const h = await readyWithHistory();
     const response = deferred<PlanningMutationSuccess>();
     h.execute.mockImplementationOnce(() => response.promise);
-    const write = h.controller.execute(h.controller.begin({}), update, inverse);
+    const write = h.controller.execute(h.controller.begin(), update, inverse);
     h.server.revision = 3;
     await h.controller.refresh();
     // A read during an unresolved write keeps history until the write is classified.
@@ -116,9 +116,9 @@ describe('planning write transitions', () => {
     const reads = h.read.mock.calls.length;
     const refusal = new PlanningControllerError('Invalid hours.', 'VALIDATION_ERROR', 400);
     h.execute.mockRejectedValueOnce(refusal);
-    await expect(
-      h.controller.execute(h.controller.begin({}), update, inverse),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', uncertain: false });
+    await expect(h.controller.execute(h.controller.begin(), update, inverse)).rejects.toMatchObject(
+      { code: 'VALIDATION_ERROR', uncertain: false },
+    );
     expect(h.state().planning).toMatchObject({
       status: 'refused',
       pending: null,
@@ -138,22 +138,22 @@ describe('planning write transitions', () => {
     const h = await ready();
     const reads = h.read.mock.calls.length;
     h.execute.mockRejectedValueOnce(new PlanningControllerError('Unavailable', undefined, 503));
-    await expect(
-      h.controller.execute(h.controller.begin({}), update, inverse),
-    ).rejects.toMatchObject({ status: 503, uncertain: true });
+    await expect(h.controller.execute(h.controller.begin(), update, inverse)).rejects.toMatchObject(
+      { status: 503, uncertain: true },
+    );
     expect(h.state().planning.status).toBe('uncertain');
     expect(h.state().planning.pending?.execution.mutationId).toBe('mutation-1');
     expect(h.read).toHaveBeenCalledTimes(reads);
-    expect(() => h.controller.begin({})).toThrow();
+    expect(() => h.controller.begin()).toThrow();
   });
 
   it('reports a 401 write as one authentication loss and clears the projection', async () => {
     const onAuthLoss = vi.fn();
     const h = await readyWithHistory({ onAuthLoss });
     h.execute.mockRejectedValueOnce(new PlanningControllerError('Signed out', undefined, 401));
-    await expect(
-      h.controller.execute(h.controller.begin({}), update, inverse),
-    ).rejects.toMatchObject({ status: 401, uncertain: false });
+    await expect(h.controller.execute(h.controller.begin(), update, inverse)).rejects.toMatchObject(
+      { status: 401, uncertain: false },
+    );
     expect(onAuthLoss).toHaveBeenCalledOnce();
     expect(h.state().planning).toMatchObject({ status: 'idle', context: null, pending: null });
     expect(h.state().planning.history.past).toEqual([]);
@@ -166,9 +166,9 @@ describe('planning write transitions', () => {
     h.execute.mockRejectedValueOnce(
       new PlanningControllerError('Clears 3', 'RESTORATION_CONFIRMATION_REQUIRED', 409, false, 3),
     );
-    await expect(
-      h.controller.execute(h.controller.begin({}), update, inverse),
-    ).rejects.toMatchObject({ code: 'RESTORATION_CONFIRMATION_REQUIRED' });
+    await expect(h.controller.execute(h.controller.begin(), update, inverse)).rejects.toMatchObject(
+      { code: 'RESTORATION_CONFIRMATION_REQUIRED' },
+    );
     expect(h.read).toHaveBeenCalledTimes(reads + 1);
     expect(h.state().planning).toMatchObject({
       status: 'ready',
@@ -185,7 +185,7 @@ describe('planning write transitions', () => {
       return receipt(execution.mutationId, execution.baseRevision + 1);
     });
     await expect(
-      h.controller.execute(h.controller.begin({}), update, inverse),
+      h.controller.execute(h.controller.begin(), update, inverse),
     ).resolves.toMatchObject({ revision: 3 });
     expect(h.state().planning).toMatchObject({
       status: 'ready',
