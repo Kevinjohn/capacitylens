@@ -458,11 +458,12 @@ test.group('company member administration', (group) => {
       const cookie = admin.cookie('adonis-session')!.value;
       const current = await signed(client.get('/api/auth/me'), cookie).send();
       current.assertStatus(200);
-      const second = await signed(client.post('/api/orgs'), cookie)
-        .json({ id: 'a-loft', name: 'Stark Industries' })
+      const second = await signed(client.post('/api/installation/company'), cookie)
+        .json({ name: 'Stark Industries' })
         .send();
-      second.assertStatus(404);
-      assert.isNull(await db.from('accounts').where('id', 'a-loft').first());
+      second.assertStatus(409);
+      second.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' });
+      assert.deepEqual(await db.from('accounts').select('id'), [{ id: 'a-studio' }]);
     } finally {
       Date.now = realNow;
     }

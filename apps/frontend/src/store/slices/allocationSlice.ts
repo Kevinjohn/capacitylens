@@ -236,16 +236,12 @@ export function createAllocationSlice(
         (planning.status === 'ready' || planning.status === 'refused')
       );
     };
-    const send = async (command: PlanningCommand, original: unknown = null): Promise<void> => {
+    const send = async (command: PlanningCommand): Promise<void> => {
       if (blockedByViewer()) return;
       if (commandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
       }
-      const receipt = await controller.execute(
-        controller.begin(original),
-        command.intent,
-        command.inverse,
-      );
+      const receipt = await controller.execute(controller.begin(), command.intent, command.inverse);
       if (!receipt) throw new PlanningSaveCancelledError();
     };
     const prepareNew = (inputs: readonly Draft<Allocation>[]) => {
@@ -333,7 +329,7 @@ export function createAllocationSlice(
           args: { id, changes: patch },
         });
         if (!command) return false;
-        await send(command, existing);
+        await send(command);
         return true;
       },
       deleteAllocation: async (id) => {

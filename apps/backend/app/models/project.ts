@@ -5,16 +5,16 @@ import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import { deletedAtColumn } from '#models/scalar_column';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
-import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, requireCompanyScope } from '#models/scoped_model';
 import Activity from '#models/activity';
 import {
   isBoolean,
   isoTimestampColumn,
   jsonColumn,
 } from '@kevinjohn/adonisjs-lucid-checked-columns';
+/** A company-scoped project; `isPrivate` protects its name in member projections. */
 export default class Project extends SoftDeletes(ProjectSchema) {
   static forCompany = forCompany;
-  static forWholeInstallation = forWholeInstallation;
   @beforeFind() static requireFindScope = requireCompanyScope;
   @beforeFetch() static requireFetchScope = requireCompanyScope;
   @hasMany(() => Activity, { foreignKey: 'projectId' }) declare activities: HasMany<

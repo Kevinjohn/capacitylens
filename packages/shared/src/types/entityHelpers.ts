@@ -6,7 +6,7 @@ import type {
   ScopedEntity,
   ScopedEntityKey,
 } from './entities.js';
-import { APP_DATA_KEYS, FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from './entityKeys.js';
+import { FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from './entityKeys.js';
 
 /** Does an allocation entered in this mode carry an hourly load? Blocks record placement and use
  * `blockHoursPerDay` instead of typed hours. Capacity projections, labels, reassignment, and
@@ -108,9 +108,4 @@ export function emptyAppData(): AppData {
     timeOff: [],
     closures: [],
   };
-}
-
-/** True when every portable AppData table is empty. */
-export function isEmpty(data: AppData): boolean {
-  return APP_DATA_KEYS.every((key) => data[key].length === 0);
 }

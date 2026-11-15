@@ -15,10 +15,11 @@
         "access-control-expose-headers": "x-capacitylens-audit-warning",
         "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
-        "content-length": "118"
+        "content-length": "125"
       },
       "body": {
-        "error": "This installation has more than one company. Contact the administrator to resolve it."
+        "error": "This installation has more than one company. Contact the administrator to resolve it.",
+        "code": "MULTIPLE_COMPANIES"
       }
     },
     {

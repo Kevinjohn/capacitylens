@@ -27,6 +27,7 @@ import { validateEntityRow } from '#validators/entities/index';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { isRetainedTable, retainedQuery } from './retained_rows.js';
 import type { PlanningMutationErrorCode } from '#validators/planning/contracts';
+import type { RestorationIdentity } from './restoration.js';
 
 /** A safe refusal whose caller must roll back the enclosing planning transaction. */
 export class PlanningOperationError extends Error {
@@ -40,6 +41,19 @@ export class PlanningOperationError extends Error {
 }
 
 type Row = Record<string, unknown> & { id: string };
+
+interface WriteRowOptions {
+  trx: TransactionClientContract;
+  data: AppData;
+  accountId: string;
+  table: ScopedEntityKey;
+  id: string;
+  fields: Record<string, unknown>;
+  capabilities: PlanningCapabilities;
+  mode: 'create' | 'update';
+  identity: RestorationIdentity;
+  permissiveRepeatStart?: boolean;
+}
 
 function lookupFor(data: AppData): ValidationDataLookup {
   const rows = (table: AppDataKey) => data[table] as unknown as Row[];
@@ -108,18 +122,21 @@ function requirePrivacyPermission(
  * Later compound entries validate against those changes. The caller owns rollback and atomic
  * revision, audit and commitment recording. Only later allocation-repeat occurrences may use
  * permissiveRepeatStart; creates, duplicates and the first repeat retain the working-day gate.
+ * Reusing a retained id requires the deleting actor's original native session; otherwise the
+ * existing id-conflict refusal leaves the pending deletion intact. Identity is server-verified.
  */
-export async function writeRow(
-  trx: TransactionClientContract,
-  data: AppData,
-  accountId: string,
-  table: ScopedEntityKey,
-  id: string,
-  fields: Record<string, unknown>,
-  capabilities: PlanningCapabilities,
-  mode: 'create' | 'update',
-  options: { permissiveRepeatStart?: boolean } = {}
-) {
+export async function writeRow({
+  trx,
+  data,
+  accountId,
+  table,
+  id,
+  fields,
+  capabilities,
+  mode,
+  identity,
+  permissiveRepeatStart,
+}: WriteRowOptions) {
   const existing = (data[table] as unknown as Row[]).find((row) => row.id === id);
   requirePrivacyPermission(table, fields, capabilities, mode);
   if (mode === 'create' && existing) {
@@ -162,7 +179,7 @@ export async function writeRow(
   });
   if (
     table === 'allocations' &&
-    !options.permissiveRepeatStart &&
+    !permissiveRepeatStart &&
     (!existing || existing.resourceId !== clean.resourceId) &&
     (!existing || clean.ignoreWorkingDays !== true)
   ) {
@@ -187,6 +204,20 @@ export async function writeRow(
         .first();
       if (prior) {
         if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id) {
+          throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+        }
+        const ownedGroup = await trx
+          .from('deleted_groups')
+          .where({
+            group_id: String(prior.deletion_group_id),
+            account_id: accountId,
+            actor_id: identity.actorId,
+            session_id: identity.sessionId,
+          })
+          .whereNull('consumed_at')
+          .select('group_id')
+          .first();
+        if (!ownedGroup) {
           throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
         }
         const purged = await retainedQuery(trx, accountId, table)

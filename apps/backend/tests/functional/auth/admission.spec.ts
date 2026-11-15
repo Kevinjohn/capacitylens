@@ -57,6 +57,23 @@ test.group('admission and membership completion', (group) => {
     await limiter.clear();
   });
 
+  test('signed-out status reports the sign-in code and whether operator setup is needed', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    captureMail(cleanup);
+    const body = { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED', passwordResetEmail: true };
+    const first = await client.get('/api/auth/me').send();
+    first.assertStatus(401);
+    assert.deepEqual(first.body(), { ...body, needsSetup: true });
+
+    await createIdentity(person);
+    const existing = await client.get('/api/auth/me').send();
+    existing.assertStatus(401);
+    assert.deepEqual(existing.body(), body);
+  });
+
   test('a pending person requests admission, an Owner approves, and completion grants the invited role once', async ({
     client: api,
     assert,
@@ -311,6 +328,7 @@ test.group('address confirmation', (group) => {
     assert.deepEqual(companies.body(), {
       error:
         'This installation has more than one company. Contact the administrator to resolve it.',
+      code: 'MULTIPLE_COMPANIES',
     });
   });
 });

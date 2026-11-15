@@ -74,7 +74,6 @@ export interface PlanningPendingMutation {
   execution: PlanningExecution;
   inverse: PlanningIntent | null;
   historyEntry: PlanningHistoryEntry | null;
-  originalWritable: unknown;
   kind: 'new' | 'undo' | 'redo';
   /** Commitment is durable while the mandatory canonical read is pending or fails. */
   commitment?: { revision: number; historyEligible: boolean; replacementHandle?: string };
@@ -117,8 +116,6 @@ export interface PlanningCacheStore {
 
 export interface PlanningDraft {
   readonly baseRevision: number;
-  /** The editable fields observed at gesture/form start, kept for the caller's rollback preview. */
-  readonly originalWritable: unknown;
   readonly context: PlanningClientContext;
   /** Request proof frozen with the action; context changes never replace an admitted write's proof. */
   readonly requestContext: PlanningClientContext;
@@ -428,7 +425,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }
   }
 
-  function begin(originalWritable: unknown): PlanningDraft {
+  function begin(): PlanningDraft {
     const state = store.getState();
     const context = state.planning.context;
     const baseRevision = state.planning.revision;
@@ -454,7 +451,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     });
     return Object.freeze({
       baseRevision,
-      originalWritable: cloneImmutable(originalWritable),
       context: immutableContext,
       requestContext,
       generation,
@@ -592,7 +588,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       }),
       inverse: inverse ? cloneImmutable(inverse) : null,
       historyEntry: entry ? cloneImmutable(entry) : null,
-      originalWritable: cloneImmutable(draft.originalWritable),
       kind,
     };
     const owner = { pending, history: store.getState().planning.history, draft };
@@ -856,7 +851,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       entry,
       draft: Object.freeze({
         baseRevision: state.planning.revision,
-        originalWritable: Object.freeze({}),
         context,
         requestContext,
         generation,

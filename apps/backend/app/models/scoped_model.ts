@@ -2,6 +2,7 @@ import { scope } from '@adonisjs/lucid/orm';
 
 const scopedQueries = new WeakSet<object>();
 
+/** Restricts a model read to a nonblank company and marks its explicit scope. */
 export const forCompany = scope((query, accountId: string) => {
   if (accountId.trim() === '') throw new Error('A company scope is required');
   scopedQueries.add(query);
@@ -9,11 +10,7 @@ export const forCompany = scope((query, accountId: string) => {
   void query.where('account_id', accountId);
 });
 
-/** Marks the whole-installation read used only when no tenant is selected. */
-export const forWholeInstallation = scope((query) => {
-  scopedQueries.add(query);
-});
-
+/** Refuses model reads that did not apply an explicit company scope. */
 export function requireCompanyScope(query: object) {
   if (!scopedQueries.has(query)) throw new Error('A company scope is required for model reads');
 }

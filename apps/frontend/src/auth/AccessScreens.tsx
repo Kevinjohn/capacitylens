@@ -1,3 +1,4 @@
+import { SignOutButton } from './SignOutButton';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { APP_NAME } from '@capacitylens/shared/brand';
@@ -42,9 +43,9 @@ export function AccessScreen(props: AccessScreenProps) {
               </p>
             )}
             <GateContent {...props} />
-            <Button type="button" variant="link" onClick={() => void props.onSignOut()}>
+            <SignOutButton variant="link" onSignOut={props.onSignOut}>
               {m.limited_sign_out()}
-            </Button>
+            </SignOutButton>
           </CardContent>
         </Card>
       </main>
