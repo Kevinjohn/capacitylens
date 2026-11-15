@@ -131,7 +131,7 @@ function buildResourcePatch(input: {
       ? ('permanent' as const)
       : (resource?.employmentType ?? 'permanent'),
     engagement: isPlaceholder ? ('studio' as const) : input.engagement,
-    workingHoursPerDay: FULL_DAY_HOURS,
+    workingHoursPerDay: resource?.kind === 'person' ? resource.workingHoursPerDay : FULL_DAY_HOURS,
     projectId: isPlaceholder ? input.projectId : undefined,
     color: resource?.color ?? DEFAULT_COLORS.resource,
   };
