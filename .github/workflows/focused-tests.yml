@@ -1,6 +1,7 @@
 name: Focused tests
 
-# Pull requests run the tests their changes select; full Validation still runs on main.
+# Pull requests run the tests their changes select. Static analysis owns format, lint and the
+# type-check; the docs workflow owns the docs build. Validation still runs on main.
 on:
   pull_request:
     branches: [main]
@@ -24,8 +25,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - name: Run checks and tests selected by the change
-        run: pnpm run check:changed "origin/$BASE_REF"
+      - name: Run tests selected by the change
+        run: pnpm run check:changed --tests-only "origin/$BASE_REF"
         env:
           BASE_REF: ${{ github.base_ref }}
           NODE_ENV: test
@@ -36,38 +37,56 @@ jobs:
           APP_KEY: capacitylens-build-key-0123456789abcdef
           APP_URL: http://127.0.0.1
 
-  e2e:
-    name: Changed end-to-end specs
+  # Selection needs only Node and git, so a change without browser work skips the install.
+  select-e2e:
+    name: Select end-to-end work
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 5
+    outputs:
+      plan: ${{ steps.select.outputs.plan }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/setup
-      - name: Select changed specs
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Select changed specs or suites
         id: select
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: |
-          specs="$(node scripts/check-changed.mjs --e2e-specs "origin/$BASE_REF" | tr '\n' ' ')"
-          echo "specs=${specs% }" >> "$GITHUB_OUTPUT"
+        run: echo "plan=$(node scripts/check-changed.mjs --e2e-plan "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: Changed end-to-end specs
+    needs: select-e2e
+    if: fromJSON(needs.select-e2e.outputs.plan).run != 'none'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
       # The default E2E command runs the Chromium, database and auth projects.
-      - if: steps.select.outputs.specs != ''
-        run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium
       # The native first-company journey serves the built SPA from the backend's public directory.
       - name: Build and sync the production SPA
-        if: steps.select.outputs.specs != ''
         run: pnpm --dir apps/frontend build && node scripts/sync-adonis-public.mjs
-      - name: Run changed specs
-        if: steps.select.outputs.specs != ''
+      - name: Run the selected specs or suites
         env:
-          SPECS: ${{ steps.select.outputs.specs }}
+          RUN: ${{ fromJSON(needs.select-e2e.outputs.plan).run }}
+          SPECS: ${{ join(fromJSON(needs.select-e2e.outputs.plan).specs, ' ') }}
+          REASON: ${{ fromJSON(needs.select-e2e.outputs.plan).reason }}
         run: |
-          echo "pnpm run e2e $SPECS"
-          # shellcheck disable=SC2086 # Each spec path is a separate argument.
-          pnpm run e2e $SPECS
+          echo "Selected: $REASON"
+          if [ "$RUN" = suite ]; then
+            pnpm run e2e
+          else
+            # shellcheck disable=SC2086 # Each spec path is a separate argument.
+            pnpm run e2e $SPECS
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:

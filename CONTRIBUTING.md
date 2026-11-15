@@ -225,11 +225,13 @@ pnpm run e2e
 ```
 
 While you work, `pnpm run check:changed [base]` runs only the checks for files changed since the
-merge-base with `base` (default `origin/main`), including uncommitted files. It builds
-the application first when backend tests need it and a fresh worktree has no build yet. Add
-`--static` to skip whole test suites and related-test lookups while still running the changed test
-files, when one full run on a combined tree covers several changes. It does not replace the gate
-above.
+merge-base with `base` (default `origin/main`), including uncommitted files, and prints why it
+selected each one. A backend source change runs the specs that import it; shared contracts,
+dependencies, permissions, schema, configuration, test infrastructure and backend files no spec
+imports run the whole backend suite. It builds the application first when backend tests need it
+and a fresh worktree has no build yet. Add `--static` to skip whole test suites and related-test
+lookups while still running the changed test files, when one full run on a combined tree covers
+several changes. It does not replace the gate above.
 
 A prose-only change needs formatting and a content and link review instead; rebuild the
 documentation when its sources change. Run the focused checks for changed behavior and preserve
@@ -294,11 +296,24 @@ pnpm run e2e:all
 ```
 
 These conditions are local-development guidance for choosing extra checks before opening a pull
-request. Pull requests run static analysis, CodeQL and `check:changed` against the target
-branch; when a pull request's end-to-end changes are spec files only, those specs also run
-through `pnpm run e2e`. Documentation changes also run the docs build. The full application/backend gate, native packages and Chromium/Firefox/WebKit
-E2E suites run on `main` pushes, schedules or manual dispatch. Check the workflow files
-for the current triggers and dispatch any required pre-merge evidence explicitly.
+request. CI runs:
+
+- **Pull requests:** static analysis owns formatting, lint and the type-check (formatting only for
+  a documentation-only change); `check:changed --tests-only` runs the selected tests; changed
+  end-to-end specs run on their own, and a fixture, helper or Playwright configuration change runs
+  the Chromium and auth suites. Documentation changes run the docs build, code changes run
+  CodeQL, and packaging, runtime-dependency or container changes run the native package and
+  container smoke checks.
+- **`main` pushes:** the production build, full frontend and backend tests, format, lint and
+  type-check in parallel jobs, tooling-policy checks when their inputs change, and a short Chromium
+  journey (sign-in, the planner and saving an allocation).
+- **Weekly and manual full validation:** every tooling check, frontend coverage, the native
+  packages, Chromium, Firefox and both WebKit shards, the full-history secret scan, container
+  scans, the ZAP baseline and Scorecard.
+- **`v*` tags:** full validation of the tagged commit, container smoke and release scans. Archives
+  and images publish only after the tag's Validation and Docker runs succeed.
+
+Dispatch [Validation](.github/workflows/validation.yml) for any required pre-merge evidence.
 
 User-visible changes should update `user-stories/REFERENCE.md`, the matching story and its E2E
 spec. New domain fields must flow through shared types, full fixtures, server table columns and

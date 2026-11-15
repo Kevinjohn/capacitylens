@@ -37,10 +37,9 @@ export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number];
 export const isLifecycleEntityKey = (entityKey: string): entityKey is LifecycleEntityKey =>
   (LIFECYCLE_ENTITY_KEYS as readonly string[]).includes(entityKey);
 
-/** Lifecycle state is derived only from a canonical, parseable tombstone. Import repair uses the
- * same nearest-valid-state rule; applying it at this read boundary prevents legacy/direct database
- * corruption from creating a hidden state with no legal transition. Purge remains independently
- * fail-closed below and never acts on an invalid deletion timestamp. */
+/** Lifecycle state is derived only from a canonical, parseable tombstone. Applying this rule at
+ * the read boundary prevents legacy/direct database corruption from creating a hidden state with
+ * no legal transition. Imports validate tombstones rather than repairing them. */
 export function isValidTombstone(value: ISOTimestamp | null | undefined): value is ISOTimestamp {
   return value != null && parseISOTimestamp(value) !== null;
 }

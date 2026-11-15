@@ -305,7 +305,7 @@ function registerPopoverAndEditorTests() {
     );
     fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'Enter' });
     await settlePlanning();
-    expect(onEdit).toHaveBeenCalled();
+    expect(onEdit).toHaveBeenCalledExactlyOnceWith(a.id);
   });
 }
 

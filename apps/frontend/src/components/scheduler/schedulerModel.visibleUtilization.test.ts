@@ -249,6 +249,11 @@ describe('buildSchedulerModel grouping and order', () => {
   it('omits an invalid closure from rendered utilisation', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const corrupt = dataset();
+    expect(corrupt.activities[0]).toMatchObject({
+      kind: 'internal',
+      projectId: null,
+      phaseId: null,
+    });
     corrupt.closures.push(
       makeClosure({
         id: 'bad',
@@ -259,7 +264,14 @@ describe('buildSchedulerModel grouping and order', () => {
     );
     const utilisationOf = (model: GroupModel[]) =>
       model.flatMap((group) => group.rows.map((row) => [row.resource.id, row.utilization]));
-    expect(utilisationOf(buildModel(corrupt))).toEqual(utilisationOf(buildModel(dataset())));
+    const baseline = buildModel(dataset());
+    expect(rowOf(baseline, 'r1').utilization).toBe(0.5);
+    expect(utilisationOf(buildModel(corrupt))).toEqual(utilisationOf(baseline));
+    const closed = dataset();
+    closed.closures.push(
+      makeClosure({ accountId: ACCOUNT, startDate: '2026-06-02', endDate: '2026-06-02' }),
+    );
+    expect(rowOf(buildModel(closed), 'r1').utilization).toBeCloseTo(32 / 72);
   });
 
   it('keys unassigned resources by the unassigned band and colours only coloured disciplines', () => {
