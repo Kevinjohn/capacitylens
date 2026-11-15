@@ -1,12 +1,14 @@
 name: e2e
 
+# Validation calls this workflow. Main pushes run the short Chromium journey (sign-in, the planner
+# and saving an allocation against the real server); full validation runs every browser.
 on:
-  workflow_dispatch:
   workflow_call:
-  push:
-    tags: ['v*']
-  schedule:
-    - cron: '47 6 3 * *'
+    inputs:
+      full:
+        description: Run the Chromium, Firefox and WebKit suites instead of the main journey.
+        type: boolean
+        required: true
 
 concurrency:
   group: e2e-${{ github.workflow }}-${{ github.ref }}
@@ -16,8 +18,33 @@ permissions:
   contents: read
 
 jobs:
+  journey:
+    name: Chromium journey E2E
+    if: ${{ !inputs.full }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Build and sync the production SPA
+        run: pnpm --dir apps/frontend build && node scripts/sync-adonis-public.mjs
+      - run: pnpm run e2e:journey
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: server-browser-e2e-journey-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
   browser-e2e:
     name: ${{ matrix.label }} E2E
+    if: ${{ inputs.full }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:

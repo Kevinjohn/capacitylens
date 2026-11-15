@@ -8,6 +8,8 @@
 //                                    the type-check, and the docs workflow owns the docs build
 //   node scripts/check-changed.mjs --static-scope [<base>]
 //                                    print `full`, or `format` when only documentation changed
+//   node scripts/check-changed.mjs --tooling-scope [<base>]
+//                                    print `run` when a tooling-policy input changed, else `skip`
 //   node scripts/check-changed.mjs --e2e-plan [<base>]
 //                                    print the browser work as JSON: no run, changed specs, or
 //                                    the Chromium and auth suites when shared browser inputs changed
@@ -61,6 +63,10 @@ const backendSuiteInput =
 const backendPermissionFile = /^apps\/backend\/app\/.*polic(?:y|ies)[^/]*$/;
 const backendModule = /^apps\/backend\/app\/([^/]+)\/(.+)\.ts$/;
 const backendTests = 'apps/backend/tests/';
+// Application source, tests and prose that no tooling-policy check reads. The Sonner CSP test reads
+// the frontend stylesheet, so it stays a tooling input.
+const applicationOnly =
+  /^(?:apps\/backend\/(?:app|tests|database)\/|apps\/frontend\/(?:src|messages)\/(?!index\.css$)|packages\/shared\/src\/|user-stories\/)|\.md$/;
 // The documentation policy spec reads these files and checks that every path a user story links
 // still exists, so a deleted file or a change to them can fail it without touching backend code.
 const documentationPolicySpec = 'apps/backend/tests/functional/policy/documentation_policy.spec.ts';
@@ -130,6 +136,28 @@ export function staticScope(paths) {
       reason: `${code.length} path(s) outside documentation, such as ${code[0]}`,
     };
   return { scope: 'format', reason: `${paths.length} documentation-only path(s)` };
+}
+
+/**
+ * Decide whether main validation runs the tooling-policy checks.
+ *
+ * They read scripts, workflows, package and lock files, packaging, documentation assets and a few
+ * application configuration files, so a change confined to application source, tests and prose
+ * skips them. Scheduled, release and manual validation run them all.
+ */
+export function toolingScope(paths) {
+  const inputs = paths.filter((path) => !applicationOnly.test(path));
+  if (inputs.length)
+    return {
+      scope: 'run',
+      reason: `${inputs.length} tooling input(s) changed, such as ${inputs[0]}`,
+    };
+  return {
+    scope: 'skip',
+    reason: paths.length
+      ? `${paths.length} path(s), all application source, tests or prose`
+      : 'no changes',
+  };
 }
 
 /**
@@ -583,7 +611,7 @@ export async function runStep(step, limits = stepLimits) {
   });
 }
 
-const modes = ['--static', '--tests-only', '--static-scope', '--e2e-plan'];
+const modes = ['--static', '--tests-only', '--static-scope', '--tooling-scope', '--e2e-plan'];
 
 /** Append a Markdown table of the planned checks to the GitHub Actions job summary, when present. */
 function writeSummary(heading, rows) {
@@ -613,6 +641,15 @@ async function main() {
       console.error(`check:changed --static-scope: ${scope}, ${reason} since ${base}`);
       writeSummary('Static analysis', [
         [scope === 'full' ? 'format, lint and type-check' : 'format', 'selected', reason],
+      ]);
+      console.log(scope);
+      return;
+    }
+    if (mode === '--tooling-scope') {
+      const { scope, reason } = toolingScope(paths);
+      console.error(`check:changed --tooling-scope: ${scope}, ${reason} since ${base}`);
+      writeSummary('Tooling checks', [
+        ['tooling policy', scope === 'run' ? 'selected' : 'skipped', reason],
       ]);
       console.log(scope);
       return;

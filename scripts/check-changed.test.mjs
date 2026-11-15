@@ -13,6 +13,7 @@ import {
   selectE2eSpecs,
   staticScope,
   testCount,
+  toolingScope,
 } from './check-changed.mjs';
 
 const everything = () => true;
@@ -609,4 +610,30 @@ test('every step that runs a command says why it was selected', () => {
   );
   for (const candidate of steps.filter((entry) => entry.args && !entry.prepare))
     assert.ok(candidate.reason, candidate.label);
+});
+
+test('main validation skips tooling checks only for application source, tests and prose', () => {
+  for (const paths of [
+    ['apps/backend/app/services/planning/execute.ts', 'apps/backend/tests/unit/a.spec.ts'],
+    ['apps/frontend/src/App.tsx', 'apps/frontend/messages/en.json', 'packages/shared/src/a.ts'],
+    ['README.md', 'user-stories/a.md', 'apps/backend/database/migrations/a.ts'],
+  ])
+    assert.equal(toolingScope(paths).scope, 'skip', paths.join());
+  for (const path of [
+    'scripts/lanes.mjs',
+    '.github/workflows/gate.yml',
+    'pnpm-lock.yaml',
+    'package.json',
+    'apps/frontend/src/index.css',
+    'apps/frontend/vite.config.ts',
+    'apps/backend/scripts/e2e-server.mjs',
+    'docs-src/screenshots/publication-review.json',
+    'packaging/README.txt',
+    '.gitleaks.toml',
+    'e2e/fixtures.ts',
+  ]) {
+    const selected = toolingScope(['apps/frontend/src/App.tsx', path]);
+    assert.equal(selected.scope, 'run', path);
+    assert.match(selected.reason, new RegExp(path.replaceAll('.', '\\.')));
+  }
 });

@@ -67,71 +67,78 @@ function registerUnauthenticatedVisitShowsLoginScreenTest() {
 }
 
 function registerSigningRevealsAppSigningOutTest() {
-  test('signing in reveals the app; signing out from Account via the sidebar returns to the login screen', async ({
-    page,
-    request,
-  }) => {
-    // A fresh per-run user guarantees the sign-up cookie; the isolated fixture then
-    // creates one company and makes that principal its owner.
-    const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`);
-    await bootstrapOrg(request, cookie, ORG_NAME);
+  // Tagged for the short browser journey that runs on every main push.
+  test(
+    'signing in reveals the app; signing out from Account via the sidebar returns to the login screen',
+    { tag: '@journey' },
+    async ({ page, request }) => {
+      // A fresh per-run user guarantees the sign-up cookie; the isolated fixture then
+      // creates one company and makes that principal its owner.
+      const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`);
+      await bootstrapOrg(request, cookie, ORG_NAME);
 
-    const unscopedStateReads: string[] = [];
-    page.on('request', (request) => {
-      const url = new URL(request.url());
-      if (url.pathname === '/api/state' && !url.searchParams.has('accountId'))
-        unscopedStateReads.push(url.href);
-    });
+      const unscopedStateReads: string[] = [];
+      page.on('request', (request) => {
+        const url = new URL(request.url());
+        if (url.pathname === '/api/state' && !url.searchParams.has('accountId'))
+          unscopedStateReads.push(url.href);
+      });
 
-    await page.goto('/');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    expect(unscopedStateReads).toEqual([]);
+      await page.goto('/');
+      await page.getByLabel('Email').fill(email);
+      await page.getByLabel('Password').fill(PASSWORD);
+      await page.getByRole('button', { name: 'Sign in' }).click();
+      expect(unscopedStateReads).toEqual([]);
 
-    // The server selects this login's only company and the active account hydrates its slice via
-    // GET /api/state?accountId= without showing a company picker.
-    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible();
-    await page.getByRole('button', { name: 'Got it' }).click();
-    await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
+      // The server selects this login's only company and the active account hydrates its slice via
+      // GET /api/state?accountId= without showing a company picker.
+      await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible();
+      await page.getByRole('button', { name: 'Got it' }).click();
+      await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
 
-    await page.getByRole('link', { name: 'Account', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
-    await expect(page.getByText(email, { exact: true })).toBeVisible();
-    await expect(page.getByRole('columnheader')).toHaveText(['Avatar', 'Name', 'Email', 'Actions']);
-    const actions = page.getByTestId('account-identity-row').locator('td').nth(3);
-    await expect(actions.getByRole('button')).toHaveText([
-      'Change password',
-      'Delete account',
-      'Sign out',
-    ]);
-    await actions.getByRole('button', { name: 'Delete account' }).click();
-    const deleteDialog = page.getByRole('dialog', { name: 'Delete account' });
-    await expect(deleteDialog.getByLabel('Current password')).toBeFocused();
-    await expect(deleteDialog.locator('[data-slot="dialog-footer"] button')).toHaveText([
-      'Cancel',
-      'Delete account',
-    ]);
-    await expect(deleteDialog.getByRole('button', { name: 'Delete account' })).toBeDisabled();
-    await deleteDialog.getByRole('button', { name: 'Cancel' }).click();
-    await expect(deleteDialog).toHaveCount(0);
-    await actions.getByRole('button', { name: 'Change password' }).click();
-    const passwordDialog = page.getByRole('dialog', { name: 'Change password' });
-    await expect(passwordDialog.locator('[data-product-layout="label-control"]')).toHaveCount(3);
-    await expect(passwordDialog.locator('[data-slot="dialog-footer"] button')).toHaveText([
-      'Cancel',
-      'Change password',
-    ]);
-    await expect(passwordDialog.getByLabel('Current password')).toBeFocused();
-    await passwordDialog.getByRole('button', { name: 'Cancel' }).click();
-    await expect(passwordDialog).toHaveCount(0);
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+      await page.getByRole('link', { name: 'Account', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
+      await expect(page.getByText(email, { exact: true })).toBeVisible();
+      await expect(page.getByRole('columnheader')).toHaveText([
+        'Avatar',
+        'Name',
+        'Email',
+        'Actions',
+      ]);
+      const actions = page.getByTestId('account-identity-row').locator('td').nth(3);
+      await expect(actions.getByRole('button')).toHaveText([
+        'Change password',
+        'Delete account',
+        'Sign out',
+      ]);
+      await actions.getByRole('button', { name: 'Delete account' }).click();
+      const deleteDialog = page.getByRole('dialog', { name: 'Delete account' });
+      await expect(deleteDialog.getByLabel('Current password')).toBeFocused();
+      await expect(deleteDialog.locator('[data-slot="dialog-footer"] button')).toHaveText([
+        'Cancel',
+        'Delete account',
+      ]);
+      await expect(deleteDialog.getByRole('button', { name: 'Delete account' })).toBeDisabled();
+      await deleteDialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(deleteDialog).toHaveCount(0);
+      await actions.getByRole('button', { name: 'Change password' }).click();
+      const passwordDialog = page.getByRole('dialog', { name: 'Change password' });
+      await expect(passwordDialog.locator('[data-product-layout="label-control"]')).toHaveCount(3);
+      await expect(passwordDialog.locator('[data-slot="dialog-footer"] button')).toHaveText([
+        'Cancel',
+        'Change password',
+      ]);
+      await expect(passwordDialog.getByLabel('Current password')).toBeFocused();
+      await passwordDialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(passwordDialog).toHaveCount(0);
+      await page.getByRole('button', { name: 'Sign out', exact: true }).click();
 
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-    await page.reload();
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  });
+      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+      await page.reload();
+      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    },
+  );
 }
 
 function registerDirectAccountRouteSurvivesSignOutAndSignInTest() {

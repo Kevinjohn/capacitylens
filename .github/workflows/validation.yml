@@ -1,9 +1,23 @@
 name: Validation
 
+# One entry point for every post-merge validation:
+# - a main push checks that the merged app works: build, full application tests and the
+#   Chromium journey;
+# - the weekly schedule, a `v*` tag and manual dispatch run full validation: every tooling check,
+#   frontend coverage, the native packages and every browser.
+# Release publication waits for this workflow's tag run (scripts/require-release-validation.mjs).
 on:
   push:
     branches: [main]
+    tags: ['v*']
+  schedule:
+    - cron: '17 6 * * 1'
   workflow_dispatch:
+    inputs:
+      full:
+        description: Run full validation instead of the main-push checks.
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -15,11 +29,15 @@ concurrency:
 jobs:
   validation:
     uses: ./.github/workflows/gate.yml
+    with:
+      full: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.full) }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   browsers:
     uses: ./.github/workflows/e2e.yml
+    with:
+      full: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.full) }}
 
   gate:
     name: Validation
@@ -35,3 +53,28 @@ jobs:
         run: |
           test "$VALIDATION_RESULT" = success
           test "$BROWSER_RESULT" = success
+
+  # Scheduled runs have no pull request or pusher watching them.
+  notify:
+    name: Report an unattended failure
+    needs: [gate]
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Report the outcome
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPORT_LABEL: validation-failure
+          REPORT_TITLE: Weekly validation is failing
+          RESULTS: |
+            validation=${{ needs.gate.result }}
+        run: node scripts/report-workflow-outcome.mjs
