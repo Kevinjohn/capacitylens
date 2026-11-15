@@ -73,13 +73,16 @@ function serializeRows(rows: InstanceType<typeof BaseModel>[]): Record<string, u
   return rows.map((model) => model.serialize());
 }
 
-/** Reads the trusted-local whole database, or one fail-closed tenant slice. */
+/**
+ * Reads one explicit company slice, refusing a blank company scope.
+ * Inactive lifecycle rows are included only when requested.
+ */
 export async function readStateWithClient(
   client: QueryClientContract,
-  accountId?: string,
-  includeInactive = accountId === undefined
+  accountId: string,
+  includeInactive = false
 ): Promise<AppData> {
-  if (accountId !== undefined && accountId.trim() === '') {
+  if (accountId.trim() === '') {
     throw new Error('A company scope is required');
   }
   const [
@@ -94,52 +97,24 @@ export async function readStateWithClient(
     timeOff,
     closures,
   ] = await Promise.all([
-    accountId === undefined
-      ? Account.query({ client })
-      : Account.query({ client }).where('id', accountId),
-    accountId === undefined
-      ? Client.query({ client })
-          .withTrashed()
-          .withScopes((scopes) => scopes.forWholeInstallation())
-      : Client.query({ client })
-          .withTrashed()
-          .withScopes((scopes) => scopes.forCompany(accountId)),
-    accountId === undefined
-      ? Discipline.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
-      : Discipline.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
-    accountId === undefined
-      ? Project.query({ client })
-          .withTrashed()
-          .withScopes((scopes) => scopes.forWholeInstallation())
-      : Project.query({ client })
-          .withTrashed()
-          .withScopes((scopes) => scopes.forCompany(accountId)),
-    accountId === undefined
-      ? Phase.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
-      : Phase.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
-    accountId === undefined
-      ? Resource.query({ client })
-          .withTrashed()
-          .withScopes((scopes) => scopes.forWholeInstallation())
-      : Resource.query({ client })
-          .withTrashed()
-          .withScopes((scopes) => scopes.forCompany(accountId)),
-    accountId === undefined
-      ? Activity.query({ client })
-          .withTrashed()
-          .withScopes((scopes) => scopes.forWholeInstallation())
-      : Activity.query({ client })
-          .withTrashed()
-          .withScopes((scopes) => scopes.forCompany(accountId)),
-    accountId === undefined
-      ? Allocation.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
-      : Allocation.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
-    accountId === undefined
-      ? TimeOff.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
-      : TimeOff.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
-    accountId === undefined
-      ? Closure.query({ client }).withScopes((scopes) => scopes.forWholeInstallation())
-      : Closure.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+    Account.query({ client }).where('id', accountId),
+    Client.query({ client })
+      .withTrashed()
+      .withScopes((scopes) => scopes.forCompany(accountId)),
+    Discipline.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+    Project.query({ client })
+      .withTrashed()
+      .withScopes((scopes) => scopes.forCompany(accountId)),
+    Phase.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+    Resource.query({ client })
+      .withTrashed()
+      .withScopes((scopes) => scopes.forCompany(accountId)),
+    Activity.query({ client })
+      .withTrashed()
+      .withScopes((scopes) => scopes.forCompany(accountId)),
+    Allocation.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+    TimeOff.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+    Closure.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
   ]);
   const data = {
     accounts: serializeRows(accounts),

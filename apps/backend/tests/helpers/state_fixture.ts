@@ -1,12 +1,34 @@
 import db from '@adonisjs/lucid/services/db';
 import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
 import { seed } from '@capacitylens/shared/data/seed';
+import type { AppData } from '@capacitylens/shared/types/entities';
 import access from '#config/access_control';
 import { encodeRow, readStateWithClient, tables } from '#services/state_repository';
 
-/** Reads through an ordinary connection; transactional callers pass their transaction instead. */
-export function readState(accountId?: string, includeInactive = accountId === undefined) {
-  return readStateWithClient(db.connection(), accountId, includeInactive);
+/** Reads one company fixture or combines explicit company reads of every stored company. */
+export async function readState(
+  accountId?: string,
+  includeInactive = accountId === undefined
+): Promise<AppData> {
+  const client = db.connection();
+  if (accountId !== undefined) return readStateWithClient(client, accountId, includeInactive);
+  const accounts = await client.from('accounts').select('id');
+  const slices: AppData[] = [];
+  for (const account of accounts) {
+    slices.push(await readStateWithClient(client, String(account.id), includeInactive));
+  }
+  return {
+    accounts: slices.flatMap((slice) => slice.accounts),
+    clients: slices.flatMap((slice) => slice.clients),
+    disciplines: slices.flatMap((slice) => slice.disciplines),
+    projects: slices.flatMap((slice) => slice.projects),
+    phases: slices.flatMap((slice) => slice.phases),
+    resources: slices.flatMap((slice) => slice.resources),
+    activities: slices.flatMap((slice) => slice.activities),
+    allocations: slices.flatMap((slice) => slice.allocations),
+    timeOff: slices.flatMap((slice) => slice.timeOff),
+    closures: slices.flatMap((slice) => slice.closures),
+  };
 }
 
 /** Empties every product table, then optionally inserts the fixture seed or its first company. */

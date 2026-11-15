@@ -3,12 +3,12 @@ import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
-import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, requireCompanyScope } from '#models/scoped_model';
 import { deletedAtColumn } from '#models/scalar_column';
 import { isoTimestampColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
+/** A company-scoped activity; its kind governs project and phase references. */
 export default class Activity extends SoftDeletes(ActivitySchema) {
   static forCompany = forCompany;
-  static forWholeInstallation = forWholeInstallation;
   @beforeFind() static requireFindScope = requireCompanyScope;
   @beforeFetch() static requireFetchScope = requireCompanyScope;
   @column(isoTimestampColumn('activities', 'archived_at')) declare archivedAt: ISOTimestamp | null;
