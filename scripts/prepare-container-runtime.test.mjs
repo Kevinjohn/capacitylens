@@ -77,7 +77,13 @@ test('Compose upgrades before API startup and preserves the private persistent d
     await readFile(new URL('../.github/workflows/docker.yml', import.meta.url), 'utf8'),
   );
   assert.deepEqual(workflow.on.push.branches, ['main']);
-  assert.equal(Object.hasOwn(workflow.on, 'pull_request'), false);
+  // Pull requests run the smoke only when they change container or runtime inputs (#1970), never
+  // on every push to every branch (#194), and never with write access.
+  assert.ok(workflow.on.pull_request.paths.includes('Dockerfile'));
+  assert.ok(workflow.on.pull_request.paths.includes('docker-compose.yml'));
+  assert.deepEqual(workflow.permissions, { contents: 'read' });
+  for (const job of ['validated', 'publish'])
+    assert.doesNotMatch(workflow.jobs[job].if, /pull_request/, job);
   assert.equal(Object.hasOwn(workflow.on, 'workflow_dispatch'), true);
 });
 
@@ -110,8 +116,14 @@ test('Compose runs the published release images by default and can still build t
     await readFile(new URL('../.github/workflows/docker.yml', import.meta.url), 'utf8'),
   );
   assert.deepEqual(workflow.on.release.types, ['published']);
-  const { publish, smoke } = workflow.jobs;
+  const { publish, smoke, validated } = workflow.jobs;
   assert.deepEqual(publish.permissions, { contents: 'read', packages: 'write' });
+  // Publication waits for successful validation and smoke runs of the same tag and commit.
+  assert.equal(publish.needs, 'validated');
+  assert.ok(
+    validated.steps.some((step) => step.run === 'node scripts/require-release-validation.mjs'),
+  );
+  assert.deepEqual(validated.permissions, { actions: 'read', contents: 'read' });
   assert.deepEqual(workflow.permissions, { contents: 'read' });
   assert.equal(smoke.permissions, undefined);
   const commands = publish.steps.map((step) => step.run ?? '');
