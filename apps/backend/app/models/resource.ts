@@ -3,7 +3,7 @@ import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISODate, ISOTimestamp, Weekday } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
-import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, requireCompanyScope } from '#models/scoped_model';
 import { deletedAtColumn } from '#models/scalar_column';
 import {
   isArrayOf,
@@ -15,9 +15,9 @@ import {
 } from '@kevinjohn/adonisjs-lucid-checked-columns';
 
 const isWeekday = isOneOf([0, 1, 2, 3, 4, 5, 6] as const);
+/** A company-scoped resource; working-day and half-day arrays contain validated weekdays. */
 export default class Resource extends SoftDeletes(ResourceSchema) {
   static forCompany = forCompany;
-  static forWholeInstallation = forWholeInstallation;
   @beforeFind() static requireFindScope = requireCompanyScope;
   @beforeFetch() static requireFetchScope = requireCompanyScope;
   @column(jsonColumn('resources', 'working_days', isArrayOf(isWeekday)))

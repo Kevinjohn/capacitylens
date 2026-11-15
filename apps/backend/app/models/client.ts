@@ -5,16 +5,16 @@ import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import { deletedAtColumn } from '#models/scalar_column';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
-import { forCompany, forWholeInstallation, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, requireCompanyScope } from '#models/scoped_model';
 import Project from '#models/project';
 import {
   isBoolean,
   isoTimestampColumn,
   jsonColumn,
 } from '@kevinjohn/adonisjs-lucid-checked-columns';
+/** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
 export default class Client extends SoftDeletes(ClientSchema) {
   static forCompany = forCompany;
-  static forWholeInstallation = forWholeInstallation;
   @beforeFind() static requireFindScope = requireCompanyScope;
   @beforeFetch() static requireFetchScope = requireCompanyScope;
   @hasMany(() => Project, { foreignKey: 'clientId' }) declare projects: HasMany<typeof Project>;
