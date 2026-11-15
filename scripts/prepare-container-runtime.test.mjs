@@ -123,7 +123,18 @@ test('Compose runs the published release images by default and can still build t
   assert.ok(
     validated.steps.some((step) => step.run === 'node scripts/require-release-validation.mjs'),
   );
-  assert.deepEqual(validated.permissions, { actions: 'read', contents: 'read' });
+  assert.deepEqual(validated.permissions, {
+    actions: 'read',
+    contents: 'read',
+    packages: 'read',
+  });
+  // Already-published images skip the validation wait, so publish can re-run them.
+  const detect = validated.steps.findIndex((step) => step.id === 'images');
+  const wait = validated.steps.findIndex(
+    (step) => step.run === 'node scripts/require-release-validation.mjs',
+  );
+  assert.ok(detect >= 0 && detect < wait);
+  assert.match(validated.steps[wait].if, /steps\.images\.outputs\.present != 'true'/);
   assert.deepEqual(workflow.permissions, { contents: 'read' });
   assert.equal(smoke.permissions, undefined);
   const commands = publish.steps.map((step) => step.run ?? '');

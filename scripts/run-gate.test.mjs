@@ -300,3 +300,16 @@ test('CI builds the application once and backend tests use those assets without 
   assert.notEqual(backend.env?.NODE_ENV, 'production');
   assert.notEqual(backend.steps[testIndex].env?.NODE_ENV, 'production');
 });
+
+test('main pushes cannot cancel scheduled or manual validation, and tooling selection survives cancelled runs', async () => {
+  const { parse } = await import('yaml');
+  const read = (name) =>
+    parse(readFileSync(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8'));
+  for (const name of ['validation.yml', 'gate.yml', 'e2e.yml'])
+    assert.match(read(name).concurrency.group, /\$\{\{ github\.event_name \}\}/, name);
+  const select = read('gate.yml').jobs['tooling-scope'].steps.find((step) => step.id === 'select');
+  assert.doesNotMatch(JSON.stringify(select), /event\.before/);
+  assert.match(select.run, /validation\.yml\/runs\?branch=main&event=push&status=success/);
+  assert.match(select.run, /merge-base --is-ancestor/);
+  assert.equal(read('validation.yml').permissions.actions, 'read');
+});

@@ -20,10 +20,13 @@ on:
         default: true
 
 permissions:
+  # The tooling selection reads the last successful Validation run on main.
+  actions: read
   contents: read
 
 concurrency:
-  group: validation-${{ github.ref }}
+  # The event keeps a main push from cancelling the weekly run on the same ref.
+  group: validation-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
