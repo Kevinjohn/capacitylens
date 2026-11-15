@@ -1,6 +1,11 @@
 import { test } from '@japa/runner';
 import { existsSync } from 'node:fs';
+import MainSeeder from '#database/seeders/main_seeder';
 import { operatorFixture } from './operator_command_support.js';
+
+test('the sample data seeder runs only in development and test', ({ assert }) => {
+  assert.sameMembers(MainSeeder.environment, ['development', 'test']);
+});
 
 test('db:seed preserves existing product changes and audit history', ({ assert }) => {
   const fixture = operatorFixture();
