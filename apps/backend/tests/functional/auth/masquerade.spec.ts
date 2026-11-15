@@ -906,6 +906,10 @@ test.group('native read-only masquerade', (group) => {
       .json({ targetUserId: targetId })
       .send();
     anonymousStart.assertStatus(401);
+    assert.deepEqual(anonymousStart.body(), {
+      error: 'Sign-in required.',
+      code: 'SIGN_IN_REQUIRED',
+    });
   });
 
   test('view-as controls answer package refusals with the shared error codes', async ({

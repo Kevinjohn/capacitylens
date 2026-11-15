@@ -62,6 +62,7 @@ export default class AuthController {
       const hasUsers = Boolean(await db.from('users').select('id').first());
       return ctx.response.unauthorized({
         error: 'Sign-in required.',
+        code: 'SIGN_IN_REQUIRED',
         passwordResetEmail: isMailConfigured(),
         ...(!hasUsers ? { needsSetup: true } : {}),
       });
