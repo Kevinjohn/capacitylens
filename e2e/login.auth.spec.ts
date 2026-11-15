@@ -87,13 +87,19 @@ function registerSigningRevealsAppSigningOutTest() {
       await page.goto('/');
       await page.getByLabel('Email').fill(email);
       await page.getByLabel('Password').fill(PASSWORD);
+      const planningResponse = page.waitForResponse(
+        (response) =>
+          /^\/api\/accounts\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
+          response.status() === 200,
+      );
       await page.getByRole('button', { name: 'Sign in' }).click();
-      expect(unscopedStateReads).toEqual([]);
+      await planningResponse;
 
-      // The server selects this login's only company and the active account hydrates its slice via
-      // GET /api/state?accountId= without showing a company picker.
+      // The server selects this login's only company and hydrates its planning slice without
+      // showing a company picker.
       await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
       await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible();
+      expect(unscopedStateReads).toEqual([]);
       await page.getByRole('button', { name: 'Got it' }).click();
       await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
 
