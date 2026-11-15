@@ -90,7 +90,7 @@ function parsePassResult(body: unknown): AuthStatusResult {
   if (!fields) {
     return invalidResponse();
   }
-  const user = parseAuthUser({ value: fields.user, requireEmail: true });
+  const user = parseAuthUser({ value: fields.user });
   if (!user) {
     console.warn('AuthProvider: /api/auth/me returned auth-on without a valid user');
     return { kind: 'error', message: m.auth_service_invalid_response() };
