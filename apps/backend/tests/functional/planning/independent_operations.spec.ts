@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
+import { GENERATED_ALLOCATION_LIMIT } from '@capacitylens/shared/lib/repeatingDates';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
@@ -68,6 +70,37 @@ test.group('independent typed planning operations', (group) => {
     assert.equal(created[1]!.seriesId, created[0]!.seriesId);
     assert.equal(created[1]!.startDate, later.startDate);
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1);
+  });
+
+  test('accepts allocation groups up to the shared ceiling and refuses one extra row', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const before = await readState(accountId, true);
+    const first = newAllocation(before);
+    const allocations = Array.from({ length: GENERATED_ALLOCATION_LIMIT + 1 }, (_, index) => ({
+      ...first,
+      id: randomUUID(),
+      startDate: addDaysISO(first.startDate, index),
+      endDate: addDaysISO(first.endDate, index),
+    }));
+    const postGroup = (rows: typeof allocations) =>
+      session(client.post(route('allocations/create-group')), cookie)
+        .json(input(0, { operation: 'allocation.createGroup', allocations: rows }))
+        .send();
+
+    const refused = await postGroup(allocations);
+    refused.assertStatus(400);
+    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    const afterRefusal = await readState(accountId, true);
+    assert.deepEqual(afterRefusal.allocations, before.allocations);
+
+    const accepted = await postGroup(allocations.slice(0, GENERATED_ALLOCATION_LIMIT));
+    accepted.assertStatus(200);
+    assert.equal(body(accepted).revision, 1);
   });
 
   test('refuses heterogeneous allocation groups before persisting any occurrence', async ({
@@ -463,7 +496,7 @@ test.group('independent typed planning operations', (group) => {
       .json(input(0, { operation: 'allocation.create', allocation }))
       .send();
     write.assertStatus(401);
-    assert.deepEqual(write.body(), { error: 'Sign-in required.' });
+    assert.deepEqual(write.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
     assert.deepEqual(await readState(accountId, true), before);
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
     assert.lengthOf(

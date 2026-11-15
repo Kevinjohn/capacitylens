@@ -579,6 +579,8 @@ function registerServerModeTest22() {
         name: 'Unable to verify your session',
       }),
     ).toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
 }
 
@@ -626,7 +628,7 @@ function registerServerModeTest25() {
     ['no user', null],
     ['no email', { id: 'u1' }],
     ['an empty email', { id: 'u1', email: '   ' }],
-  ])('fails closed when an auth-on 200 response has %s', async (_case, user) => {
+  ])('fails closed when an authenticated 200 response has %s', async (_case, user) => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
@@ -643,7 +645,7 @@ function registerServerModeTest25() {
       await screen.findByRole('heading', { name: 'Unable to verify your session' }),
     ).toBeInTheDocument();
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('auth-on without a valid user'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('without a valid user'));
   });
 }
 
@@ -958,6 +960,8 @@ function registerAccountPolicyTest04() {
         name: 'Unable to verify your session',
       }),
     ).toBeInTheDocument();
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
 }
 

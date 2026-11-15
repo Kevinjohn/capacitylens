@@ -121,11 +121,10 @@ function assertResourceFields(
     if (Object.hasOwn(requested, 'color') && candidate.color !== NEUTRAL_COLOR) {
       reject('color', 'must be the external resource colour');
     }
-    if (
-      (requested.disciplineId !== undefined && requested.disciplineId !== null) ||
-      (requested.projectId !== undefined && requested.projectId !== null)
-    ) {
-      reject('disciplineId', 'is not used by external resources');
+    for (const field of ['disciplineId', 'projectId'] as const) {
+      if (requested[field] != null) {
+        reject(field, 'is not used by external resources');
+      }
     }
   }
   for (const field of ['firstAvailableDate', 'lastAvailableDate'] as const) {

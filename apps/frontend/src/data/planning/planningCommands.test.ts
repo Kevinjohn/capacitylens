@@ -71,7 +71,6 @@ describe('planning command builders', () => {
         },
       },
       inverse: { operation: 'allocation.delete', id: stableId },
-      created: { entity: 'allocations', ids: [stableId] },
     });
   });
 
@@ -298,7 +297,6 @@ describe('planning command builders', () => {
       id: stableId,
       fields: { engagement: 'studio', workingDays: [1, 2, 3, 4, 5], halfDays: [] },
     });
-    expect(resource?.created).toEqual({ entity: 'resources', ids: [stableId] });
     expect(resource?.inverse).toEqual({ operation: 'resource.archive', id: stableId });
 
     const timeOff = buildTimeOffCreate({
@@ -326,7 +324,6 @@ describe('planning command builders', () => {
         },
       },
       inverse: { operation: 'timeOff.delete', id: stableId },
-      created: { entity: 'timeOff', ids: [stableId] },
     });
   });
 
@@ -419,7 +416,6 @@ describe('planning command builders', () => {
         },
       },
       inverse: { operation: 'catalogue.archive', entity: { entity: 'activities', id: stableId } },
-      created: { entity: 'activities', ids: [stableId] },
     });
 
     const closure = buildClosureCreate({

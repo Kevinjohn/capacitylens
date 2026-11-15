@@ -148,7 +148,6 @@ describe('planning command suspension', () => {
           },
           inverse: null,
           historyEntry: null,
-          originalWritable: state.data,
           kind: 'new',
         },
       },

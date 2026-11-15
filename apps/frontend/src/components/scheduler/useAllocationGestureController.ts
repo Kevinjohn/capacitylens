@@ -60,9 +60,7 @@ interface GestureRuntime {
 }
 
 function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID) {
-  // Move starts are covered by the non-working-day gate, including moves away from a none-week
-  // resource. A pure end resize needs this explicit refusal: otherwise the collapsed empty week
-  // falls back to calendar-day volume math and rewrites hours that the capacity model says load none.
+  // A resize cannot preserve working-day volume when the resource has no effective days.
   if (
     mode === 'move' ||
     hasEffectiveDaysFor({ resourceId, ignoreWorkingDays: bar.allocation.ignoreWorkingDays })
@@ -162,26 +160,6 @@ function resolveCommitDates({ options, mode, deltaDays, resourceId }: ResolveCom
     hoursPerDay: bar.allocation.hoursPerDay,
     isDays,
   });
-}
-
-interface CommitGateInput {
-  options: ControllerOptions;
-  mode: DragMode;
-  resourceId: ID;
-  dates: DateRange;
-}
-
-function refuseBlockedCommit({ options, mode, resourceId, dates }: CommitGateInput) {
-  const { bar } = options;
-  const startChanged = dates.startDate !== bar.allocation.startDate;
-  if (mode !== 'move' && !startChanged) return false;
-  const blocked = isDropStartBlocked({
-    resourceId,
-    date: dates.startDate,
-    ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
-  });
-  if (blocked) useStore.getState().setNotice(m.scheduler_toast_non_working_drop(), 'error');
-  return blocked;
 }
 
 interface ReconcileCommitInput {
@@ -289,8 +267,14 @@ function commitPointerGesture(
   if (refuseIneffectiveResize(options.bar, mode, effectiveResourceId)) return;
   const result = resolveCommitDates({ options, mode, deltaDays, resourceId: effectiveResourceId });
   if (
-    refuseBlockedCommit({ options, mode, resourceId: effectiveResourceId, dates: result.dates })
+    targetResourceId &&
+    isDropStartBlocked({
+      resourceId: targetResourceId,
+      date: result.dates.startDate,
+      ignoreWorkingDays: options.bar.allocation.ignoreWorkingDays,
+    })
   ) {
+    useStore.getState().setNotice(m.scheduler_toast_non_working_drop(), 'error');
     return;
   }
   void savePointerCommit({ options, effectiveResourceId, targetResourceId, result });
@@ -309,27 +293,13 @@ function resolveKeyboardGesture(options: ControllerOptions, mode: DragMode, delt
 }
 
 interface KeyboardGateInput {
-  options: ControllerOptions;
-  mode: DragMode;
   current: DateRange;
   next: DateRange;
 }
 
-function refuseBlockedKeyboardGesture({ options, mode, current, next }: KeyboardGateInput) {
-  const { bar } = options;
+function refuseBlockedKeyboardGesture({ current, next }: KeyboardGateInput) {
   if (next.endDate < next.startDate) return true;
   const state = useStore.getState();
-  const startBlocked =
-    (mode === 'move' || next.startDate !== current.startDate) &&
-    isDropStartBlocked({
-      resourceId: bar.allocation.resourceId,
-      date: next.startDate,
-      ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
-    });
-  if (startBlocked) {
-    state.setNotice(m.scheduler_toast_non_working_drop(), 'error');
-    return true;
-  }
   const visible = buildVisibleRange(state.ui);
   const leavesTimeline =
     rangesOverlap(current.startDate, current.endDate, visible.start, visible.end) &&
@@ -379,7 +349,7 @@ function nudgeAllocation(
   const { mode, deltaDays } = input;
   if (refuseIneffectiveResize(bar, mode, bar.allocation.resourceId)) return;
   const { current, next, gestureOptions } = resolveKeyboardGesture(options, mode, deltaDays);
-  if (refuseBlockedKeyboardGesture({ options, mode, current, next })) return;
+  if (refuseBlockedKeyboardGesture({ current, next })) return;
   const rescale =
     options.isDays && mode !== 'move'
       ? resolveVolumePreservingHours({

@@ -116,7 +116,7 @@ function registerBasicPointerTests() {
     document.dispatchEvent(new MouseEvent('pointerup', { clientX: 50, bubbles: true }));
     await settlePlanning();
 
-    expect(onEdit).toHaveBeenCalled();
+    expect(onEdit).toHaveBeenCalledExactlyOnceWith(a.id);
     const unchanged = getStoredAllocation(a.id);
     expect(unchanged.startDate).toBe('2026-06-01');
   });

@@ -9,44 +9,15 @@ import { SecuritySection } from './SecuritySection';
 
 const changePassword = vi.fn();
 const deleteAccount = vi.fn();
-const readIdentityProvider = vi.fn();
-const googleProvider = {
-  id: 'google',
-  label: 'Google',
-  kind: 'social',
-  experimental: false,
-  brand: 'google',
-};
-const providerStatus = (connected: boolean) => ({
-  provider: googleProvider,
-  connected,
-  verified: connected,
-});
 vi.mock('@/auth/authClient', () => ({
   authClient: {
     changePassword: (...args: unknown[]) => changePassword(...args),
     deleteAccount: (...args: unknown[]) => deleteAccount(...args),
   },
 }));
-vi.mock('@/account/accountClient', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/account/accountClient')>();
-  return {
-    ...original,
-    accountClient: {
-      ...original.accountClient,
-      readIdentityProvider: (...args: unknown[]) => readIdentityProvider(...args),
-    },
-  };
-});
-
 beforeEach(() => {
   changePassword.mockReset();
   deleteAccount.mockReset();
-  readIdentityProvider
-    .mockReset()
-    .mockImplementation(() =>
-      Promise.resolve(new Response(JSON.stringify(providerStatus(true)), { status: 200 })),
-    );
 });
 
 const passwordAuth: AuthContextValue = {

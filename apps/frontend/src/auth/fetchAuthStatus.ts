@@ -34,7 +34,7 @@ async function readActiveMasqueradeAuthStatus(
   acceptEffects: () => boolean,
 ): Promise<AuthStatusResult | null> {
   try {
-    const user = parseAuthUser({ value: masquerade.principal, requireEmail: true });
+    const user = parseAuthUser({ value: masquerade.principal });
     if (!user) {
       return invalidResponse();
     }

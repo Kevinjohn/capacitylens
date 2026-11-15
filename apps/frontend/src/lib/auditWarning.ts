@@ -12,16 +12,13 @@ export function announceAuditWarning(): void {
   }
 }
 
-/** Announces a response audit warning. defer waits one macrotask to follow immediate action feedback. Actions
- * awaiting further work must also retain this response fact in their final notice. Background sync announces
- * synchronously because it has no competing success notice.
+/** Announces a response audit warning after one macrotask to follow immediate action feedback. Actions
+ * awaiting further work must also retain this response fact in their final notice.
  */
-export function noteAuditWarning(
-  res: { headers?: { get?: (name: string) => string | null } },
-  options: { defer?: boolean } = {},
-): void {
+export function noteAuditWarning(res: {
+  headers?: { get?: (name: string) => string | null };
+}): void {
   if (res.headers === undefined || res.headers.get === undefined) return;
   if (res.headers.get(AUDIT_WARNING_HEADER) !== 'true') return;
-  if (options.defer) globalThis.setTimeout(() => announceAuditWarning(), 0);
-  else announceAuditWarning();
+  globalThis.setTimeout(() => announceAuditWarning(), 0);
 }
