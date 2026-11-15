@@ -7,7 +7,7 @@ import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from '@/lib/repea
 import { parseText } from '@/lib/validation';
 import type { useStore } from '@/store/useStore';
 import { resolveEndDate, validateAllocationDraft } from './allocationDraft';
-import { resolveEffectiveWeekCreationBlockReason } from './creationAvailability';
+import { resolveEffectiveWeekPlacementBlockReason } from './creationAvailability';
 import { listRenderableDateRanges } from './schedulerModelIndexing';
 
 import type { FieldError } from '@/hooks/useFieldError';
@@ -35,7 +35,7 @@ type ValidatedDraft = Parameters<CommandInput['addAllocation']>[0];
 interface RejectNewPlacementInput {
   command: CommandInput;
   draft: ValidatedDraft;
-  newPlacement: boolean;
+  operation: 'save' | 'duplicate';
 }
 
 function resolveAssignmentError(input: CommandInput): string | null {
@@ -137,19 +137,26 @@ function parseAllocationCommandDraft(input: CommandInput): ValidatedDraft | null
   };
 }
 
-function rejectsNewPlacement({ command, draft, newPlacement }: RejectNewPlacementInput): boolean {
-  if (!newPlacement || !command.selectedResource || command.selectedEffectiveWeek === undefined) {
+function rejectsNewPlacement({ command, draft, operation }: RejectNewPlacementInput): boolean {
+  const editing = operation === 'save' ? command.editing : null;
+  if (
+    editing?.resourceId === draft.resourceId ||
+    !command.selectedResource ||
+    command.selectedEffectiveWeek === undefined
+  ) {
     return false;
   }
-  if (command.selectedEffectiveWeek.kind !== 'days') {
+  const ignoreWorkingDays = Boolean(editing && draft.ignoreWorkingDays);
+  if (!ignoreWorkingDays && command.selectedEffectiveWeek.kind !== 'days') {
     command.fail('resource', m.form_allocation_err_no_effective_working_days());
     return true;
   }
-  const blocked = resolveEffectiveWeekCreationBlockReason({
+  const blocked = resolveEffectiveWeekPlacementBlockReason({
     resource: command.selectedResource,
     date: draft.startDate,
     timeOff: listRenderableDateRanges(command.data.timeOff),
     effectiveWeek: command.selectedEffectiveWeek,
+    ignoreWorkingDays,
     closures: listRenderableDateRanges(command.data.closures),
   });
   if (blocked === 'non-working') {
@@ -213,16 +220,7 @@ export function createAllocationCommands(input: CommandInput) {
       return;
     }
     const draft = validateDraft();
-    if (
-      !draft ||
-      rejectsNewPlacement({
-        command: input,
-        draft,
-        newPlacement: !input.editing || input.editing.resourceId !== draft.resourceId,
-      })
-    ) {
-      return;
-    }
+    if (!draft || rejectsNewPlacement({ command: input, draft, operation: 'save' })) return;
     try {
       if (await saveDraft(input, draft)) input.onClose();
     } catch (e) {
@@ -233,7 +231,7 @@ export function createAllocationCommands(input: CommandInput) {
   const duplicateAllocation = async () => {
     if (!input.editing) return;
     const draft = validateDraft();
-    if (!draft || rejectsNewPlacement({ command: input, draft, newPlacement: true })) return;
+    if (!draft || rejectsNewPlacement({ command: input, draft, operation: 'duplicate' })) return;
     try {
       const result = await input.duplicateAllocation(input.editing.id, draft);
       if (result.kind === 'created') input.onClose();
