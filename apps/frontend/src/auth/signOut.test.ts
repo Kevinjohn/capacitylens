@@ -1,43 +1,59 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { queryClient } from '@/api/queryClient';
+import { useStore } from '@/store/useStore';
+import { authClient } from './authClient';
 import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from './signOut';
 
 afterEach(() => {
-  vi.useRealTimers();
+  queryClient.clear();
+  useStore.getState().clearPlanning();
+  localStorage.removeItem(AUTH_INVALIDATION_STORAGE_KEY);
   vi.restoreAllMocks();
 });
 
 describe('signOutAndReload', () => {
-  it('clears account query data before ending the session', async () => {
+  it('clears private data and notifies sibling tabs before reloading after success', async () => {
     queryClient.setQueryData(['private-account'], 'sensitive data');
-
-    await signOutAndReload({
-      requestSignOut: async () => ({ ok: true, status: 200 }),
-      reload: () => {},
-    });
-
-    expect(queryClient.getQueryData(['private-account'])).toBeUndefined();
-  });
-
-  it('clears account commands and reloads after a failed server sign-out', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    useStore.setState({ activeAccountId: 'gotham' });
     const clearAccountCommands = vi.fn();
-    const requestSignOut = vi.fn().mockResolvedValue({ ok: false, status: 503 });
     const reload = vi.fn(() => {
+      expect(queryClient.getQueryData(['private-account'])).toBeUndefined();
+      expect(useStore.getState().activeAccountId).toBeNull();
+      expect(clearAccountCommands).toHaveBeenCalledOnce();
       expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toMatch(/^[0-9a-f-]{36}$/i);
     });
 
-    const completion = signOutAndReload({
+    vi.spyOn(authClient, 'signOut').mockResolvedValue({ data: null, error: null });
+    await signOutAndReload({
       clearAccountCommands,
-      requestSignOut,
       reload,
     });
 
-    expect(clearAccountCommands).toHaveBeenCalledOnce();
-    await completion;
-
-    expect(requestSignOut).toHaveBeenCalledOnce();
     expect(reload).toHaveBeenCalledOnce();
-    expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toMatch(/^[0-9a-f-]{36}$/i);
   });
+
+  it.each([
+    ['a rejected request', () => Promise.reject(new Error('Connection lost.')), 'Connection lost.'],
+    [
+      'a server refusal',
+      async () => ({ data: null, error: { status: 503, message: 'Session service is busy.' } }),
+      'Session service is busy.',
+    ],
+  ] as const)(
+    'reports %s and leaves the current session in place',
+    async (_, requestSignOut, message) => {
+      queryClient.setQueryData(['private-account'], 'sensitive data');
+      useStore.setState({ activeAccountId: 'gotham' });
+      const clearAccountCommands = vi.fn();
+      const reload = vi.fn();
+
+      vi.spyOn(authClient, 'signOut').mockImplementation(requestSignOut);
+      await expect(signOutAndReload({ clearAccountCommands, reload })).rejects.toThrow(message);
+      expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toBeNull();
+      expect(reload).not.toHaveBeenCalled();
+      expect(clearAccountCommands).not.toHaveBeenCalled();
+      expect(useStore.getState().activeAccountId).toBe('gotham');
+      expect(queryClient.getQueryData(['private-account'])).toBe('sensitive data');
+    },
+  );
 });
