@@ -1,4 +1,4 @@
-import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, beforeAll, describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { screen, act, fireEvent, waitFor, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
@@ -29,6 +29,12 @@ vi.mock('@/i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/i18n')>()),
   syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
 }));
+
+// Account switches load their controller lazily. Loading it once here lets each test's switches
+// finish inside that test instead of landing in a later one.
+beforeAll(async () => {
+  await import('@/auth/masqueradeController');
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -245,7 +251,7 @@ it('waits for initial hydration before consuming a joined-account handoff', asyn
       useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID),
     ).toBe(true),
   );
-  expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
+  expect(useStore.getState().activeAccountId).toBeNull();
   expect(screen.getByRole('status')).toHaveTextContent('Loading');
 
   act(() => useStore.getState().setHydrated(true));
