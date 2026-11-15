@@ -656,6 +656,31 @@ function registerWeekendPreviewTests() {
     expect(previewedWidth).toBeGreaterThan(6 * dayWidth - 12);
   });
 
+  it('saves a same-person drag onto a non-working start after their working week changes', async () => {
+    const allocation = await seedAllocation({ endDate: '2026-06-01' });
+    await useStore.getState().updateResource(allocation.resourceId, { workingDays: [6] });
+    render(
+      <div data-testid="lane" data-resource-id={allocation.resourceId}>
+        <AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} />
+      </div>,
+    );
+    screen.getByTestId('lane').getBoundingClientRect = () => rect(0, 50);
+
+    const bar = screen.getByTestId('allocation-bar');
+    const originalLeft = Number.parseFloat(bar.style.left);
+    fireEvent.pointerDown(bar, { clientX: 10, clientY: 25, button: 0 });
+    fireEvent.pointerMove(document, { clientX: 58, clientY: 25 });
+    expect(Number.parseFloat(bar.style.left) - originalLeft).toBe(48);
+    fireEvent.pointerUp(document, { clientX: 58, clientY: 25 });
+    await settlePlanning();
+
+    expect(getStoredAllocation(allocation.id)).toMatchObject({
+      resourceId: allocation.resourceId,
+      startDate: '2026-06-02',
+      endDate: '2026-06-02',
+    });
+  });
+
   it('aborts a drag on pointercancel without committing or leaking listeners', async () => {
     const a = await seedAllocation();
     render(

@@ -64,7 +64,7 @@ export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other';
  * - `project`: project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
  * - `internal`: project-less internal work (Admin, internal review/meeting).
  * - `repeatable`: all-projects: project-less activity used across many projects (Design, Workshop).
- * Coherence (enforced in assertScopedRefs, repaired on import): `project` has a `projectId`;
+ * Coherence (enforced in assertScopedRefs and validated on import): `project` has a `projectId`;
  * `internal`/`repeatable` have neither `projectId` nor `phaseId`.
  */
 export type ActivityKind = 'project' | 'internal' | 'repeatable';
@@ -76,8 +76,7 @@ export interface Entity {
   updatedAt: ISOTimestamp;
 }
 
-/** A tenant. Top-level: not scoped to any other account. Retired preferences keep their SQLite
- * columns (listed in server/src/schema/historicalSpecs.ts) but are no longer part of this shape. */
+/** A tenant. Top-level: not scoped to any other account. */
 export interface Account extends Entity {
   name: string;
   color: string;
@@ -313,5 +312,4 @@ export {
   externalCapacityDefaults,
   placeholderCapacityDefaults,
   emptyAppData,
-  isEmpty,
 } from './entityHelpers.js';

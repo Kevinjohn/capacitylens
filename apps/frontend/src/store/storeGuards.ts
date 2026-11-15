@@ -5,9 +5,7 @@ import {
 } from '@capacitylens/shared/domain/mutations';
 import { m } from '@/i18n';
 import { can } from '@capacitylens/shared/domain/access';
-import { isBuiltinClient } from '@capacitylens/shared/data/internalClient';
-import type { AppData, ID, ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
-import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
+import type { AppData, ID, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import type { StoreState } from './types';
 
 /** Create guards that enforce account scoping and entity invariants. */
@@ -50,16 +48,15 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     return true;
   };
 
-  return buildGuards({ get, requireAccount, blockedByViewer });
+  return buildGuards({ requireAccount, blockedByViewer });
 }
 
 interface BuildGuardsInput {
-  get: StoreApi<StoreState>['getState'];
   requireAccount: () => ID;
   blockedByViewer: () => boolean;
 }
 
-function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput) {
+function buildGuards({ requireAccount, blockedByViewer }: BuildGuardsInput) {
   const resolveOwnedRow = <K extends ScopedEntityKey>(
     data: AppData,
     key: K,
@@ -67,42 +64,10 @@ function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput)
   ): AppData[K][number] | null => findOwnedIn(data, requireAccount(), key, id);
   const assertAllocation = assertAllocationRefs;
 
-  // Every account must retain one Internal client. Reject renaming and lifecycle
-  // transitions even when an untyped caller bypasses hidden UI affordances.
-  const assertNotBuiltinClient = (
-    entity: ScopedEntityKey,
-    id: ID,
-    verb: 'renamed' | 'archived' | 'deleted',
-  ): void => {
-    if (entity !== 'clients') return;
-    const client = resolveOwnedRow(get().data, 'clients', id);
-    if (client && isBuiltinClient(client)) {
-      throw new Error(`The Internal client is built in and cannot be ${verb}.`);
-    }
-  };
-
-  // Require each company and resource working-day set to be non-empty and valid. Half days must belong to that set; imports repair invalid sets.
-  const assertWorkingDays = (days: Weekday[]): void => {
-    if (!isWeekdaySet(days) || days.length === 0) {
-      throw new Error(
-        'At least one working day is required, using unique whole-number weekdays from 0 to 6.',
-      );
-    }
-  };
-  const assertHalfDays = (halfDays: Weekday[], workingDays: Weekday[]): void => {
-    if (!isWeekdaySet(halfDays) || halfDays.some((day) => !workingDays.includes(day))) {
-      throw new Error(
-        'Half days must be unique whole-number weekdays contained in the working week.',
-      );
-    }
-  };
   return {
     requireAccount,
     blockedByViewer,
     resolveOwnedRow,
     assertAllocation,
-    assertNotBuiltinClient,
-    assertWorkingDays,
-    assertHalfDays,
   };
 }

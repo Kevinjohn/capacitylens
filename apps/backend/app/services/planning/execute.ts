@@ -134,49 +134,41 @@ export async function executePlanningIntent(
   if (!data.accounts.some((row) => row.id === accountId)) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
+  const writeOptions = { trx, data, accountId, capabilities, identity };
   try {
     switch (intent.operation) {
       case 'allocation.create':
-        await writeRow(
-          trx,
-          data,
-          accountId,
-          'allocations',
-          intent.allocation.id,
-          intent.allocation,
-          capabilities,
-          'create'
-        );
+        await writeRow({
+          ...writeOptions,
+          table: 'allocations',
+          id: intent.allocation.id,
+          fields: intent.allocation,
+          mode: 'create',
+        });
         return unchanged;
       case 'allocation.createGroup': {
         assertAllocationGroupHomogeneous(intent.allocations);
         const seriesId = crypto.randomUUID();
         for (const [index, allocation] of intent.allocations.entries()) {
-          await writeRow(
-            trx,
-            data,
-            accountId,
-            'allocations',
-            allocation.id,
-            { ...allocation, seriesId },
-            capabilities,
-            'create',
-            { permissiveRepeatStart: index > 0 }
-          );
+          await writeRow({
+            ...writeOptions,
+            table: 'allocations',
+            id: allocation.id,
+            fields: { ...allocation, seriesId },
+            mode: 'create',
+            permissiveRepeatStart: index > 0,
+          });
         }
         return unchanged;
       }
       case 'allocation.update':
-        await writeRow(
-          trx,
-          data,
-          accountId,
-          'allocations',
-          intent.id,
-          intent.changes,
-          capabilities,
-          'update'
-        );
+        await writeRow({
+          ...writeOptions,
+          table: 'allocations',
+          id: intent.id,
+          fields: intent.changes,
+          mode: 'update',
+        });
         return unchanged;
       case 'allocation.duplicate':
       case 'allocation.repeat': {
@@ -185,13 +177,11 @@ export async function executePlanningIntent(
           intent.operation === 'allocation.duplicate' ? [intent.occurrence] : intent.occurrences;
         const seriesId = intent.operation === 'allocation.repeat' ? crypto.randomUUID() : null;
         for (const [index, occurrence] of occurrences.entries()) {
-          await writeRow(
-            trx,
-            data,
-            accountId,
-            'allocations',
-            occurrence.id,
-            {
+          await writeRow({
+            ...writeOptions,
+            table: 'allocations',
+            id: occurrence.id,
+            fields: {
               resourceId: source.resourceId,
               activityId: source.activityId,
               projectId: source.projectId,
@@ -204,10 +194,9 @@ export async function executePlanningIntent(
               ignoreWorkingDays: source.ignoreWorkingDays,
               seriesId,
             },
-            capabilities,
-            'create',
-            { permissiveRepeatStart: intent.operation === 'allocation.repeat' && index > 0 }
-          );
+            mode: 'create',
+            permissiveRepeatStart: intent.operation === 'allocation.repeat' && index > 0,
+          });
         }
         return unchanged;
       }
@@ -215,16 +204,13 @@ export async function executePlanningIntent(
       case 'catalogue.update': {
         const entity = intent.entity;
         const fields = 'fields' in entity ? entity.fields : entity.changes;
-        await writeRow(
-          trx,
-          data,
-          accountId,
-          entity.entity,
-          entity.id,
+        await writeRow({
+          ...writeOptions,
+          table: entity.entity,
+          id: entity.id,
           fields,
-          capabilities,
-          intent.operation === 'catalogue.create' ? 'create' : 'update'
-        );
+          mode: intent.operation === 'catalogue.create' ? 'create' : 'update',
+        });
         if (entity.entity === 'activities' && intent.operation === 'catalogue.update') {
           const activity = existingRow(data, 'activities', entity.id);
           if (!allocationAttributionAllowed(activity.kind)) {
@@ -266,16 +252,13 @@ export async function executePlanningIntent(
       }
       case 'resource.create':
       case 'resource.update':
-        await writeRow(
-          trx,
-          data,
-          accountId,
-          'resources',
-          intent.id,
-          intent.operation === 'resource.create' ? intent.fields : intent.changes,
-          capabilities,
-          intent.operation === 'resource.create' ? 'create' : 'update'
-        );
+        await writeRow({
+          ...writeOptions,
+          table: 'resources',
+          id: intent.id,
+          fields: intent.operation === 'resource.create' ? intent.fields : intent.changes,
+          mode: intent.operation === 'resource.create' ? 'create' : 'update',
+        });
         return unchanged;
       case 'resource.archive':
       case 'resource.unarchive':
@@ -289,32 +272,32 @@ export async function executePlanningIntent(
         );
         return unchanged;
       case 'timeOff.create':
-        await writeRow(
-          trx,
-          data,
-          accountId,
-          'timeOff',
-          intent.timeOff.id,
-          intent.timeOff,
-          capabilities,
-          'create'
-        );
+        await writeRow({
+          ...writeOptions,
+          table: 'timeOff',
+          id: intent.timeOff.id,
+          fields: intent.timeOff,
+          mode: 'create',
+        });
         return unchanged;
       case 'timeOff.update':
-        await writeRow(
-          trx,
-          data,
-          accountId,
-          'timeOff',
-          intent.id,
-          intent.changes,
-          capabilities,
-          'update'
-        );
+        await writeRow({
+          ...writeOptions,
+          table: 'timeOff',
+          id: intent.id,
+          fields: intent.changes,
+          mode: 'update',
+        });
         return unchanged;
       case 'timeOff.repeat':
         for (const entry of intent.entries) {
-          await writeRow(trx, data, accountId, 'timeOff', entry.id, entry, capabilities, 'create');
+          await writeRow({
+            ...writeOptions,
+            table: 'timeOff',
+            id: entry.id,
+            fields: entry,
+            mode: 'create',
+          });
         }
         return unchanged;
       case 'timeOff.delete':
@@ -325,16 +308,13 @@ export async function executePlanningIntent(
       }
       case 'closure.create':
       case 'closure.update':
-        await writeRow(
-          trx,
-          data,
-          accountId,
-          'closures',
-          intent.id,
-          intent.operation === 'closure.create' ? intent.fields : intent.changes,
-          capabilities,
-          intent.operation === 'closure.create' ? 'create' : 'update'
-        );
+        await writeRow({
+          ...writeOptions,
+          table: 'closures',
+          id: intent.id,
+          fields: intent.operation === 'closure.create' ? intent.fields : intent.changes,
+          mode: intent.operation === 'closure.create' ? 'create' : 'update',
+        });
         return unchanged;
       case 'closure.delete': {
         const groupId = await deleteRows(trx, data, accountId, 'closures', [intent.id], identity);

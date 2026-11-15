@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from '@/auth/signOut';
+import { authClient } from '@/auth/authClient';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
 
@@ -24,6 +26,12 @@ vi.mock('@/components/settings/SecuritySection', () => ({
 import { AccountView } from './AccountView';
 
 const signOut = vi.fn();
+afterEach(() => {
+  vi.restoreAllMocks();
+  signOut.mockReset();
+  localStorage.removeItem(AUTH_INVALIDATION_STORAGE_KEY);
+});
+
 function auth(): AuthContextValue {
   return {
     user: { id: 'u1', name: 'Diana Prince', email: 'diana@example.test' },
@@ -89,10 +97,27 @@ describe('AccountView', () => {
   });
 
   it('signs out immediately', () => {
-    signOut.mockClear();
     renderAccount();
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(signOut).toHaveBeenCalledOnce();
+  });
+
+  it('shows a sign-out failure beside the action and allows another attempt', async () => {
+    const request = vi
+      .spyOn(authClient, 'signOut')
+      .mockRejectedValueOnce(new Error('Connection lost.'))
+      .mockResolvedValueOnce({ data: null, error: null });
+    signOut.mockImplementation(() => signOutAndReload({ reload: () => {} }));
+    renderAccount();
+    const button = screen.getByRole('button', { name: 'Sign out' });
+
+    fireEvent.click(button);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Connection lost.');
+    expect(button).toBeEnabled();
+
+    fireEvent.click(button);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(request).toHaveBeenCalledTimes(2);
   });
 
   it('shows email in its own cell when the displayed name falls back to email', () => {

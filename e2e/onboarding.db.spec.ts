@@ -26,7 +26,7 @@ async function visibleScheduleWeekday(page: Page): Promise<number> {
 // is a convenience; server enforcement also applies when a client bypasses the UI.
 
 test.describe('database-backed onboarding lock (P1.14)', () => {
-  test('direct PATCHes of changeable frozen fields are rejected and unsupported language is rejected', async ({
+  test('direct PATCHes of frozen fields are rejected and language-only updates fail schema validation', async ({
     request,
   }) => {
     const before = await serverState(request);
@@ -63,8 +63,8 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
       expect(res.status(), `${field} must remain frozen`).toBe(409);
     }
 
-    // English is currently the only supported language. A malformed choice is rejected
-    // before frozen-field handling and cannot change stored account settings.
+    // The settings-update schema excludes language, so language-only updates are rejected
+    // before frozen-field handling, even when the supplied language is English ('en').
     const language = await request.patch(`${API}/api/accounts/${account.id}/settings`, {
       headers: await masqueradeContextHeaders(request, undefined, API),
       data: {
@@ -103,17 +103,14 @@ test.describe('single-company production entry', () => {
   });
 
   test('ordinary additional company creation is rejected', async ({ request }) => {
-    const res = await request.post(`${API}/api/orgs`, {
+    const res = await request.post(`${API}/api/installation/company`, {
       headers: await masqueradeContextHeaders(request, undefined, API),
       data: {
-        id: `e2e-cap-check-${Date.now()}`,
-        name: 'Should Not Exist',
-        color: '#76a5e7',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        name: 'Queen Industries',
       },
     });
-    expect(res.status()).toBe(404);
+    expect(res.status()).toBe(409);
+    expect(await res.json()).toMatchObject({ code: 'COMPANY_SETUP_UNAVAILABLE' });
 
     const after = await serverState(request);
     expect(requireStateRows(after, 'accounts')).toHaveLength(1);

@@ -1,5 +1,10 @@
 import vine from '@vinejs/vine';
 import {
+  CAPACITY_OVERVIEW_ACCESS_VALUES,
+  DATE_STYLES,
+  SCHEDULING_MODES,
+} from '@capacitylens/shared/types/entities';
+import {
   boolean,
   meta,
   nameText,
@@ -32,10 +37,7 @@ const settingsChanges = {
     )
     .nullable()
     .optional(),
-  schedulingMode: vine
-    .enum(['hourly', 'days', 'blocks'] as const)
-    .nullable()
-    .optional(),
+  schedulingMode: vine.enum(SCHEDULING_MODES).nullable().optional(),
   workingDays: weekdays()
     .use(
       vine.createRule((value, _options, field) => {
@@ -50,14 +52,8 @@ const settingsChanges = {
   externalEnabled: boolean().nullable().optional(),
   inlineActivityCreateEnabled: boolean().nullable().optional(),
   showTaskFieldInSchedule: boolean().nullable().optional(),
-  capacityOverviewAccess: vine
-    .enum(['owner_admin', 'owner_admin_editor', 'everyone'] as const)
-    .nullable()
-    .optional(),
-  dateStyle: vine
-    .enum(['day-month', 'day-ordinal-month', 'month-day', 'month-day-ordinal'] as const)
-    .nullable()
-    .optional(),
+  capacityOverviewAccess: vine.enum(CAPACITY_OVERVIEW_ACCESS_VALUES).nullable().optional(),
+  dateStyle: vine.enum(DATE_STYLES).nullable().optional(),
 };
 
 export const settingsIntent = vine.object({
