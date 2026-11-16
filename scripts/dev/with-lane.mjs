@@ -1,0 +1,82 @@
+// Run a command inside a claimed port lane and CPU reservation:
+//
+//   node scripts/dev/with-lane.mjs playwright test
+//
+// Claim before starting the child because configuration files resolve ports before global setup can run.
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { assertSupportedNodeVersion } from '../../apps/backend/start/node_version.ts';
+import { mirrorChildExit } from './devProcesses.mjs';
+import { assertLaneFree, resolveLaunchClaim } from './laneClaims.mjs';
+import {
+  LANE_CLAIM_ENVIRONMENT_KEY,
+  LANE_ENVIRONMENT_KEY,
+  SHARE_ENVIRONMENT_KEY,
+  portsForLane,
+} from './ports.mjs';
+
+// Refuse an unsupported runtime before a lane is claimed, so nothing is left to release.
+try {
+  assertSupportedNodeVersion();
+} catch (error) {
+  console.error(`with-lane: ${error.message}`);
+  process.exit(1);
+}
+
+const worktree = fileURLToPath(new URL('../../', import.meta.url)).replace(/\/$/, '');
+const [command, ...args] = process.argv.slice(2);
+
+if (!command) {
+  console.error(
+    'with-lane: expected a command to run, for example `node scripts/dev/with-lane.mjs playwright test`.',
+  );
+  process.exit(2);
+}
+
+// An inherited lane belongs to an outer launcher, which also releases it; a hand-selected lane is
+// reserved and released here like an automatic one.
+const claim = resolveLaunchClaim({ worktree });
+const { inherited } = claim;
+
+let released = false;
+function release() {
+  if (released) return;
+  released = true;
+  try {
+    claim.release();
+  } catch (error) {
+    // Report release failure without replacing the child’s result; a later claim can inspect and reclaim the stale reservation.
+    console.error(`with-lane: releasing lane ${claim.lane} failed: ${error.message}`);
+  }
+}
+
+try {
+  if (!inherited) {
+    await assertLaneFree(claim.lane);
+  }
+} catch (error) {
+  // Release our reservation and surface occupied-port failures before starting a child.
+  release();
+  console.error(error.message);
+  process.exit(1);
+}
+
+const lanePorts = portsForLane(claim.lane);
+if (!inherited) {
+  console.error(
+    `with-lane: lane ${claim.lane} — web ${lanePorts.web}, api ${lanePorts.dbApi}, ${claim.share} test worker${claim.share === 1 ? '' : 's'}.`,
+  );
+}
+
+const child = spawn(command, args, {
+  stdio: 'inherit',
+  env: {
+    ...process.env,
+    [LANE_ENVIRONMENT_KEY]: String(claim.lane),
+    [LANE_CLAIM_ENVIRONMENT_KEY]: claim.token,
+    [SHARE_ENVIRONMENT_KEY]: String(claim.share),
+  },
+});
+
+process.on('exit', release);
+mirrorChildExit(child, { label: `with-lane: ${command}`, release });

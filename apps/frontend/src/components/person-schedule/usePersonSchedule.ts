@@ -18,8 +18,8 @@ import { useActiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
 import { buildPersonSchedule } from './personScheduleModel';
 import type { PersonScheduleResult } from './personScheduleTypes';
-import { reportInvalidScheduleDateRangeOnce } from '@/components/scheduler/schedulerModelIndexing';
-import { useCalendarToday } from '@/components/scheduler/useCalendarToday';
+import { reportInvalidScheduleDateRangeOnce } from '@/lib/renderableDateRanges';
+import { useCalendarToday } from '@/hooks/useCalendarToday';
 
 /** Account and resource identities requested for a person schedule. */
 export interface UsePersonScheduleInput {

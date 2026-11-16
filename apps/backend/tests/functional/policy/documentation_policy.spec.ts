@@ -227,6 +227,25 @@ test.group('M5 documentation and policy contracts', () => {
     assert.isTrue(ignored('apps/backend/tmp/operator.db'));
   });
 
+  test('asks contributors to commit documentation sources, not the built site', ({ assert }) => {
+    const markdown = (directory: string): string[] =>
+      readdirSync(resolve(ROOT, directory), { withFileTypes: true }).flatMap((entry) => {
+        const path = `${directory}/${entry.name}`;
+        if (entry.isDirectory()) return entry.name === '.vitepress' ? [] : markdown(path);
+        return entry.name.endsWith('.md') ? [path] : [];
+      });
+    const guidance = [
+      'AGENTS.md',
+      'CONTRIBUTING.md',
+      'README.md',
+      '.github/pull_request_template.md',
+      ...markdown('docs-src'),
+    ];
+    for (const path of guidance) {
+      assert.notMatch(read(path), /\bcommitted (?:site|`?docs\/)|rebuilt `?docs\//i, path);
+    }
+  });
+
   test('keeps the shared domain core executable from the backend Node runtime', ({ assert }) => {
     assert.doesNotThrow(() => assertDateRange('2026-01-01', '2026-01-05'));
     assert.throws(() => assertDateRange('2026-01-05', '2026-01-01'));
