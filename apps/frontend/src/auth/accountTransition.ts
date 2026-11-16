@@ -6,7 +6,7 @@ import { useStore } from '@/store/useStore';
 import { masqueradeApi } from './masqueradeApi';
 
 async function loadMasqueradeController() {
-  const { masqueradeController } = await import('./masqueradeController');
+  const { masqueradeController } = await import('./masqueradeControllerInstance');
   return masqueradeController;
 }
 

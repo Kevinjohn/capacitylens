@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const accountClient = vi.hoisted(() => ({ transferOwnership: vi.fn() }));
-vi.mock('./accountClient', () => ({ accountClient }));
+const memberRequests = vi.hoisted(() => ({ transferOwnership: vi.fn() }));
+vi.mock('./memberRequests', () => ({ memberRequests }));
 
 import { ownershipTransferAccess } from './ownershipTransferAccess';
 
 describe('ownership transfer access', () => {
-  beforeEach(() => accountClient.transferOwnership.mockReset());
+  beforeEach(() => memberRequests.transferOwnership.mockReset());
 
   it('accepts only the two-ID receipt returned after the immediate role swap', async () => {
-    accountClient.transferOwnership.mockResolvedValue(
+    memberRequests.transferOwnership.mockResolvedValue(
       Response.json({ fromUserId: 'bruce', toUserId: 'selina' }),
     );
 
@@ -27,7 +27,7 @@ describe('ownership transfer access', () => {
   });
 
   it('treats a malformed receipt as uncertain instead of claiming the transfer failed', async () => {
-    accountClient.transferOwnership.mockResolvedValue(Response.json({ state: 'awaiting_target' }));
+    memberRequests.transferOwnership.mockResolvedValue(Response.json({ state: 'awaiting_target' }));
 
     await expect(
       ownershipTransferAccess.transferOwnership({

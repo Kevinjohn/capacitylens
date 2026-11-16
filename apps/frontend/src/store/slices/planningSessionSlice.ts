@@ -3,16 +3,15 @@ import { readCurrentWeekAnchor } from './schedulerSlice';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator } from 'zustand';
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { emptyAppData, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import {
   createPlanningCacheController,
   createPlanningCacheState,
 } from '@/data/planning/planningCacheController';
-import type {
-  PlanningCacheState,
-  PlanningTransport,
-} from '@/data/planning/planningCacheController';
+import type { PlanningCacheState, PlanningTransport } from '@/data/planning/planningCacheTypes';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
+import { isPlanningReadyForChange } from '@/data/planning/planningReadiness';
 import type { StoreInternals } from '@/store/storeInternal';
 import type { StoreState } from '@/store/types';
 
@@ -95,6 +94,7 @@ export function createPlanningSessionSlice(
       transport,
       onAuthLoss: () => clearPrivatePlanning(true),
       confirmRestorationCleanup: requestRestorationCleanup,
+      readMasqueradeContextToken: getMasqueradeContextToken,
     });
     let contextEpoch = 0;
     let contextCompanyId: string | null = null;
@@ -131,10 +131,7 @@ export function createPlanningSessionSlice(
         companyId !== null &&
         commandLocks.size === 0 &&
         planning.context?.companyId === companyId &&
-        planning.canWrite &&
-        planning.revision !== null &&
-        planning.pending === null &&
-        (planning.status === 'ready' || planning.status === 'refused')
+        isPlanningReadyForChange(planning)
       );
     };
     const send = async (command: PlanningCommand): Promise<void> => {
