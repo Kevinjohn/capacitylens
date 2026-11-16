@@ -15,7 +15,6 @@ import type { PlanningCapabilities } from '#services/planning/data_policy';
 const owner: PlanningCapabilities = {
   role: 'owner',
   canWrite: true,
-  canAnonymise: true,
   canSeePrivateNames: true,
   canSeeTimeOffNote: true,
 };
@@ -27,10 +26,13 @@ async function executePlanningIntent(
   capabilities: PlanningCapabilities
 ) {
   const data = await readStateWithClient(trx, accountId, true);
-  return applyPlanningIntent(trx, accountId, intent, capabilities, data, {
-    actorId: 'u-bruce',
-    sessionId: 1,
-    mutationId: randomUUID(),
+  return applyPlanningIntent({
+    trx,
+    accountId,
+    intent,
+    capabilities,
+    data,
+    identity: { actorId: 'u-bruce', sessionId: 1, mutationId: randomUUID() },
   });
 }
 

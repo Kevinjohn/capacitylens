@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { m } from '@/i18n';
 import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount } from '@/test/fixtures';
 import { OwnerPermissions } from '@/test/ownerPermissions';

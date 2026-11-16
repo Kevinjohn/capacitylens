@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { matchPath } from 'react-router-dom';
 import { APP_NAME } from '@capacitylens/shared/brand';
 import { syncLocaleFromAccount } from '@/i18n';
-import { ACCOUNT_LINK, ADMIN_LINKS, DIAGNOSTICS_LINK, HELP_LINK, LINKS } from '@/lib/navLinks';
+import { APP_ROUTES } from '@/lib/navLinks';
 import { useStore } from '@/store/useStore';
 
 // The browser page around the shell: the active company's locale, the document title and the
@@ -37,7 +37,8 @@ interface DocumentTitleInput {
 export function useDocumentTitle(input: DocumentTitleInput) {
   const { activeLanguage, activeLanguagePending, pathname } = input;
   useEffect(() => {
-    const match = [...LINKS, ...ADMIN_LINKS, DIAGNOSTICS_LINK, HELP_LINK, ACCOUNT_LINK].find(
+    // Titles name every route, visible or not: a guarded route redirects on its own.
+    const match = APP_ROUTES.find(
       ({ to }) => matchPath({ path: to, end: true }, pathname) !== null,
     );
     document.title = match ? `${match.label()} · ${APP_NAME}` : APP_NAME;

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useStore } from '@/store/useStore';
 import { hasPlaceholdersEnabled, resolveTimeZone } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
+import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
 import { readCalendarToday } from '@/lib/calendarToday';
 import { m } from '@/i18n';
@@ -19,13 +20,14 @@ import type { Option } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
 import { buildTimeOffTypeOptions, resolveResourceDisplayName } from '@/lib/metadata';
 import { resolveErrorMessage } from '@/lib/errorMessage';
+import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
 import { canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import { useRole } from '@/auth/permissionContext';
 import { useTimeOffRepeat } from './useTimeOffRepeat';
 import { TimeOffRepeatFields } from './TimeOffRepeatFields';
-import { saveTimeOff } from './timeOffFormSubmission';
+import { prepareTimeOffSave } from './timeOffFormSubmission';
 
 interface TimeOffFormProps {
   timeOff?: TimeOff;
@@ -111,7 +113,8 @@ function useTimeOffResourceOptions({
         .filter((resource) => !isExternalResource(resource))
         .filter(
           (resource) =>
-            placeholdersEnabled || resource.kind !== 'placeholder' || resource.id === resourceId,
+            resource.id === resourceId ||
+            isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled: false }),
         ),
     [resources, placeholdersEnabled, resourceId],
   );
@@ -168,12 +171,20 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
 
   const fields = useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote });
   const acceptedSubmission = useRef(false);
-  const inFlight = useRef(false);
-  const [pending, setPending] = useState(false);
   const repeatState = useTimeOffRepeat(fields);
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
+  const timeOffRows = useStore((state) => state.data.timeOff);
+  const { pending, submit } = useEditSubmit({
+    editing: timeOff,
+    rows: timeOffRows,
+    staleMessage: m.form_timeoff_err_changed,
+    failedMessage: m.form_timeoff_err_save_failed,
+    cancelledMessage: resolveErrorMessage,
+    fail,
+    onSaved: onClose,
+  });
 
   const resourceOptions = useTimeOffResourceOptions({
     resources: resources,
@@ -189,43 +200,27 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
     disabled: pending,
   });
 
-  const submit = async () => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    try {
-      let settled = false;
-      const saving = saveTimeOff({
-        timeOff,
-        resources,
-        ...fields,
-        canEditNote,
-        fail,
-        add,
-        addMany,
-        update,
-        repeat: repeatState.repeat,
-        repeatUntil: repeatState.repeatUntil,
-        acceptedSubmission,
-        onClose,
-      }).finally(() => {
-        settled = true;
-      });
-      queueMicrotask(() => {
-        if (!settled) setPending(true);
-      });
-      await saving;
-    } finally {
-      inFlight.current = false;
-      setPending(false);
-    }
-  };
+  const prepareSave = () =>
+    prepareTimeOffSave({
+      timeOff,
+      resources,
+      ...fields,
+      canEditNote,
+      fail,
+      add,
+      addMany,
+      update,
+      repeat: repeatState.repeat,
+      repeatUntil: repeatState.repeatUntil,
+      acceptedSubmission,
+    });
 
   return (
     <Modal
       title={timeOff ? m.form_timeoff_edit_title() : m.form_timeoff_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
+        submit(prepareSave).catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
       }}
       onEdit={clear}
       footer={<FormActions onCancel={onClose} disabled={pending} />}

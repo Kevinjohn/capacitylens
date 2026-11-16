@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { m } from '@/i18n';
 import { hasOpenModal, isTextEntryShortcutOwner } from '@/lib/shortcutGuards';
-import { isShownByPlanningState } from '@/data/planning/planningCacheController';
+import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
 

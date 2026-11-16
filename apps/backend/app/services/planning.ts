@@ -109,14 +109,18 @@ export async function mutatePlanning({
     input.mutationId
   );
   const before = await readStateWithClient(trx, accountId, true);
-  const restoration = await executePlanningIntent(
+  const restoration = await executePlanningIntent({
     trx,
     accountId,
-    input.intent,
+    intent: input.intent,
     capabilities,
-    structuredClone(before),
-    { actorId: authority.actorId, sessionId: actor.sessionId, mutationId: input.mutationId }
-  );
+    data: structuredClone(before),
+    identity: {
+      actorId: authority.actorId,
+      sessionId: actor.sessionId,
+      mutationId: input.mutationId,
+    },
+  });
   const after = await readStateWithClient(trx, accountId, true);
   if (semanticState(before) === semanticState(after)) {
     throw new PlanningOperationError(

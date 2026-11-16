@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useStore } from '@/store/useStore';
-import type { LifecycleEntity } from '@/store/entityDrafts';
+import type { LifecycleEntity } from '@/lib/entityDrafts';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { runResourceAnonymisation } from '@/data/resourceAnonymisation';

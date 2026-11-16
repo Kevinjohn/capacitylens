@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
   defaultTimeOffRepeatUntilDate,
@@ -8,6 +8,7 @@ import {
 import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
 import { buildRepeatedTimeOffDrafts } from '@/lib/repeatingTimeOff';
 import type { TimeOffRepeatSelection } from '@/lib/repeatingTimeOff';
+import { useRepeatUntil } from '@/hooks/useRepeatUntil';
 import type { Draft } from '@/store/useStore';
 
 /** Repeat cadence choices available for a time-off draft. */
@@ -23,34 +24,8 @@ interface TimeOffRepeatDraftInput {
 
 /** Manages repeat cadence, end date, and preview state for a time-off draft. */
 export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
-  const [repeat, setRepeat] = useState<TimeOffRepeatChoice>('none');
-  const [repeatUntil, setRepeatUntil] = useState<ISODate | ''>('');
-  const repeatUntilIsSuggested = useRef(false);
-
-  useEffect(() => {
-    if (repeat !== 'none' && repeatUntilIsSuggested.current && isValidISODate(input.startDate)) {
-      setRepeatUntil(defaultTimeOffRepeatUntilDate(input.startDate));
-    }
-  }, [input.startDate, repeat]);
-
-  const changeRepeat = (value: string) => {
-    const next = value as TimeOffRepeatChoice;
-    if (repeat === 'none' && next !== 'none') {
-      repeatUntilIsSuggested.current = true;
-      if (isValidISODate(input.startDate)) {
-        setRepeatUntil(defaultTimeOffRepeatUntilDate(input.startDate));
-      }
-    } else if (next === 'none') {
-      repeatUntilIsSuggested.current = false;
-      setRepeatUntil('');
-    }
-    setRepeat(next);
-  };
-
-  const changeRepeatUntil = (value: string) => {
-    repeatUntilIsSuggested.current = false;
-    setRepeatUntil(value);
-  };
+  const { repeat, repeatUntil, changeRepeat, changeRepeatUntil } =
+    useRepeatUntil<TimeOffRepeatSelection>(input.startDate, defaultTimeOffRepeatUntilDate);
 
   const maximum = isValidISODate(input.startDate)
     ? maximumTimeOffRepeatUntilDate(input.startDate)

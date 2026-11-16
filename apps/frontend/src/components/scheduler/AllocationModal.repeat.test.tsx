@@ -115,6 +115,26 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     expect(repeatUntil).toHaveValue('2028-04-15');
   });
 
+  it('fills the suggested cutoff once a valid start follows repeat being switched on', async () => {
+    const resource = await addPerson();
+    const user = userEvent.setup();
+    renderAsOwner(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId: resource.id, startDate: '2027-12-03', endDate: '2027-12-05' }}
+        onClose={vi.fn()}
+      />,
+    );
+    const start = screen.getByLabelText('Start Date');
+    await user.clear(start);
+    await chooseOption(user, 'Repeat', 'Weekly');
+    const repeatUntil = screen.getByLabelText('Repeat until');
+    expect(repeatUntil).toHaveValue('');
+
+    await user.type(start, '2028-01-10');
+    expect(repeatUntil).toHaveValue('2028-03-31');
+  });
+
   it('clamps the suggested cutoff at the supported date boundary', async () => {
     const resource = await addPerson();
     const user = userEvent.setup();
