@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import { accountClient } from '@/account/accountClient';
+import { invitationSignupRequests } from '@/account/invitationSignupRequests';
 import { InviteAccept } from './InviteAccept';
 
 const preview = {
@@ -27,7 +27,7 @@ describe('InviteAccept outcomes', () => {
   it.each([429, 500])(
     'reports a %i preview as unavailable, not as an invalid invitation',
     async (status) => {
-      vi.spyOn(accountClient, 'previewInvitation').mockResolvedValue(
+      vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
         new Response(null, { status }),
       );
       renderPage();
@@ -38,7 +38,7 @@ describe('InviteAccept outcomes', () => {
   );
 
   it('reports a not-found preview as an invalid invitation', async () => {
-    vi.spyOn(accountClient, 'previewInvitation').mockResolvedValue(
+    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
       new Response(null, { status: 404 }),
     );
     renderPage();
@@ -49,9 +49,11 @@ describe('InviteAccept outcomes', () => {
 
   it('sends the person to sign in when the sign-up answer is lost', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(accountClient, 'previewInvitation').mockResolvedValue(Response.json(preview));
+    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+      Response.json(preview),
+    );
     const signup = vi
-      .spyOn(accountClient, 'signupWithInvitation')
+      .spyOn(invitationSignupRequests, 'signupWithInvitation')
       .mockRejectedValue(new TypeError('offline'));
     renderPage();
     fireEvent.change(await screen.findByTestId('invite-name'), { target: { value: 'Clark Kent' } });
@@ -69,9 +71,11 @@ describe('InviteAccept outcomes', () => {
       error: 'An account already uses this email. Sign in instead.',
       code: 'EMAIL_REGISTERED',
     } satisfies ProductHttpErrorBody;
-    vi.spyOn(accountClient, 'previewInvitation').mockResolvedValue(Response.json(preview));
+    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+      Response.json(preview),
+    );
     const signup = vi
-      .spyOn(accountClient, 'signupWithInvitation')
+      .spyOn(invitationSignupRequests, 'signupWithInvitation')
       .mockResolvedValue(Response.json(registered, { status: 409 }));
     renderPage();
     fireEvent.change(await screen.findByTestId('invite-name'), { target: { value: 'Clark Kent' } });
@@ -97,7 +101,7 @@ describe('InviteAccept outcomes', () => {
 it.each(['not json', JSON.stringify({ role: 'editor' })])(
   'reports an unreadable or malformed successful preview as unavailable',
   async (body) => {
-    vi.spyOn(accountClient, 'previewInvitation').mockResolvedValue(
+    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
       new Response(body, { status: 200 }),
     );
     renderPage();

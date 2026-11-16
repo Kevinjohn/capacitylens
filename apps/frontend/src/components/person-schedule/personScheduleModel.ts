@@ -17,8 +17,8 @@ import type {
   Resource,
   SchedulingMode,
 } from '@capacitylens/shared/types/entities';
-import { buildAllocationAttribution } from '@/components/scheduler/buildAllocationAttribution';
-import { hasRenderableDateRange } from '@/components/scheduler/schedulerModelIndexing';
+import { buildAllocationAttribution } from '@/lib/buildAllocationAttribution';
+import { hasRenderableDateRange } from '@/lib/renderableDateRanges';
 import type {
   PersonScheduleBuildResult,
   PersonScheduleEntry,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import type { PlanningSnapshot } from './planningCacheController';
+import type { PlanningSnapshot } from './planningCacheTypes';
 import {
   context,
   snapshot,

@@ -1,6 +1,7 @@
 import type { Closure, ID, ISODate, Resource, TimeOff } from '@capacitylens/shared/types/entities';
 import { compareDisplayNames } from '@/lib/displayOrder';
 import { resolveResourceDisplayName } from '@/lib/metadata';
+import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import { m } from '@/i18n';
 
 interface BuildTimeOffGroupsInput {
@@ -50,7 +51,13 @@ export function buildTimeOffGroups({
   for (const entry of timeOff) {
     if (entry.endDate < weekStart) continue;
     const resource = resourcesById.get(entry.resourceId);
-    if (resource?.kind === 'placeholder' && !placeholdersEnabled) continue;
+    // External parties cannot hold time off, so only the placeholder switch can hide an entry here.
+    if (
+      resource &&
+      !isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled: true })
+    ) {
+      continue;
+    }
 
     if (!resource) {
       unknown ??= { kind: 'unknown', name: m.list_timeoff_unknown_resource(), entries: [] };
