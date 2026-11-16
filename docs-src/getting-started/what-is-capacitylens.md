@@ -7,8 +7,8 @@ description: A shared, week-by-week view of who is busy, who has room and who is
 
 ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)
 
-CapacityLens is a shared schedule for a small agency. It answers one question: who is free
-next week?
+CapacityLens is a shared schedule for a small agency: self-hosted resource scheduling and
+capacity planning, by the week. It answers one question: who is free next week?
 
 ## Why it exists
 
@@ -48,6 +48,14 @@ CapacityLens is the view you check first.
 There is no importer from spreadsheets or other tools. You enter your people, clients and projects
 in the app; the JSON import only moves data between CapacityLens installations.
 [Moving from a spreadsheet](/admin/#moving-from-a-spreadsheet) suggests an order.
+
+## Alternatives
+
+Float, Productive, awork, Runn, Teamwork, Resource Guru and eResource Scheduler are good tools,
+and each covers several jobs, such as budgets, timesheets, project management and reporting.
+CapacityLens tries to do less: it shows who is busy and who is free, week by week, on a server you
+run, with no licence fee. If you need budgets, timesheets, hour-level booking or a hosted service, choose
+one of them. [How it compares](/getting-started/how-it-compares) sets Float and Resource Guru beside it.
 
 ## Who it's for
 
