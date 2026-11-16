@@ -125,15 +125,17 @@ test.describe('getting started', () => {
 });
 
 test.describe('server-backed role tour', () => {
-  test('returns from Settings to Schedule and shows all eight Owner stops', async ({ page }) => {
+  test('returns from Help to Schedule and shows all eight Owner stops', async ({ page }) => {
     await page.goto('/settings');
     await waitForAppLanding(page, page.locator('#main'));
     await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Switch company/i })).toHaveCount(0);
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
-    await expect(page).toHaveURL(/\/settings$/);
-    await page.getByRole('button', { name: 'Show checklist' }).click();
-    await page.getByTestId('getting-started-tour').click();
+    // The sample company has finished all five steps, so the strip is gone and the tour starts
+    // from Help.
+    await expect(page.getByTestId('getting-started')).toHaveCount(0);
+    await page.getByRole('link', { name: 'Help', exact: true }).click();
+    await expect(page).toHaveURL(/\/help$/);
+    await page.getByTestId('show-tour').click();
 
     const popover = page.locator('.driver-popover');
     await expect(popover).toBeVisible();
