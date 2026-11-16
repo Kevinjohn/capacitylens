@@ -73,7 +73,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
-        run: node scripts/require-release-validation.mjs
+        run: node scripts/release/require-release-validation.mjs
 
   provenance:
     name: Package, SBOM and provenance
@@ -159,7 +159,7 @@ jobs:
           # A failed smoke fails the run here, before any asset is listed, attested or uploaded.
           package_scratch="$(mktemp -d)"
           trap 'rm -rf "$package_scratch"' EXIT
-          if [ ! -f scripts/smoke-packaged-server.mjs ]; then
+          if [ ! -f scripts/release/smoke-packaged-server.mjs ] && [ ! -f scripts/smoke-packaged-server.mjs ]; then
             echo "::error::$RELEASE_TAG predates the packaged-server smoke test, so its archive cannot be rebuilt and uploaded."
             exit 1
           fi
