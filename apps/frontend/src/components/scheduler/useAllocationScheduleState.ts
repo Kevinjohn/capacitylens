@@ -17,8 +17,9 @@ import type {
   SchedulingMode,
 } from '@capacitylens/shared/types/entities';
 import { carriesHourlyLoad, FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { RepeatSelection } from '@/lib/repeatingAllocations';
+import { useRepeatUntil } from '@/hooks/useRepeatUntil';
 
 import type { AllocationModalSeed } from './buildAllocationModalSeed';
 import {
@@ -112,33 +113,6 @@ function resolveInitialDetails(seed: AllocationModalSeed) {
   };
 }
 
-function useRepeatSchedule(startDate: ISODate) {
-  const [repeat, setRepeat] = useState<RepeatSelection>('none');
-  const [repeatUntil, setRepeatUntil] = useState('');
-  const repeatUntilIsSuggested = useRef(false);
-  useEffect(() => {
-    if (repeat !== 'none' && repeatUntilIsSuggested.current && isValidISODate(startDate)) {
-      setRepeatUntil(defaultRepeatUntilDate(startDate));
-    }
-  }, [repeat, startDate]);
-  const changeRepeat = (value: string) => {
-    const next = value as RepeatSelection;
-    if (repeat === 'none' && next !== 'none' && isValidISODate(startDate)) {
-      repeatUntilIsSuggested.current = true;
-      setRepeatUntil(defaultRepeatUntilDate(startDate));
-    } else if (next === 'none') {
-      repeatUntilIsSuggested.current = false;
-      setRepeatUntil('');
-    }
-    setRepeat(next);
-  };
-  const changeRepeatUntil = (value: string) => {
-    repeatUntilIsSuggested.current = false;
-    setRepeatUntil(value);
-  };
-  return { repeat, repeatUntil, changeRepeat, changeRepeatUntil };
-}
-
 function useScheduleFields(seed: AllocationModalSeed, calendarTimeZone: string) {
   const initialDates = resolveInitialDates(seed, calendarTimeZone);
   const initialDetails = resolveInitialDetails(seed);
@@ -189,7 +163,10 @@ export function useAllocationScheduleState({
   const fields = useScheduleFields(seed, calendarTimeZone);
   const { noteEdited, ...scheduleFields } = fields;
   const { startDate, endDate, ignoreWorkingDays } = fields;
-  const { repeat, repeatUntil, changeRepeat, changeRepeatUntil } = useRepeatSchedule(startDate);
+  const { repeat, repeatUntil, changeRepeat, changeRepeatUntil } = useRepeatUntil<RepeatSelection>(
+    startDate,
+    defaultRepeatUntilDate,
+  );
   const { selectedEffectiveWeek, values: effectiveValues } = useEffectiveSchedule({
     selectedResource,
     accountWorkingDays,
