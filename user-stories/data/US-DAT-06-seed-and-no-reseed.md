@@ -6,7 +6,7 @@ As an evaluator, I want to explore a sample company on the real server so that I
 **Access:** Printed development Owner sign-in
 **Entry:** `pnpm run dev:demo` → sign in → sample company
 **Documentation:** [Try the demo](../../docs-src/getting-started/try-the-demo.md)
-**Source:** [dev-demo.mjs](../../scripts/dev-demo.mjs); [disposable_demo.ts](../../apps/backend/app/services/disposable_demo.ts)
+**Source:** [dev-demo.mjs](../../scripts/dev/dev-demo.mjs); [disposable_demo.ts](../../apps/backend/app/services/disposable_demo.ts)
 
 ## Acceptance criteria
 
@@ -38,4 +38,4 @@ flowchart TD
   api --> web["Start Vite and print sign-in when ready"]
 ```
 
-**Code references:** [dev-fullstack.mjs](../../scripts/dev-fullstack.mjs); [demo_prepare.ts](../../apps/backend/commands/demo_prepare.ts); [demo_seed.ts](../../apps/backend/commands/demo_seed.ts); [development_bootstrap.ts](../../apps/backend/app/services/development_bootstrap.ts); [initial_company_authority.ts](../../apps/backend/app/services/initial_company_authority.ts); [disposable_demo.spec.ts](../../apps/backend/tests/functional/auth/disposable_demo.spec.ts)
+**Code references:** [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs); [demo_prepare.ts](../../apps/backend/commands/demo_prepare.ts); [demo_seed.ts](../../apps/backend/commands/demo_seed.ts); [development_bootstrap.ts](../../apps/backend/app/services/development_bootstrap.ts); [initial_company_authority.ts](../../apps/backend/app/services/initial_company_authority.ts); [disposable_demo.spec.ts](../../apps/backend/tests/functional/auth/disposable_demo.spec.ts)
