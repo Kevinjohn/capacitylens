@@ -4,7 +4,7 @@ import type { LifecycleEntity } from '@/store/entityDrafts';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { m } from '@/i18n';
-import { anonymiseResource } from '@/data/companyDataRequests';
+import { companyDataRequests } from '@/data/companyDataRequests';
 import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
 import type { UncertainReplacementFailure } from '@/data/planning/suspendedReplacement';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
@@ -50,7 +50,7 @@ async function dispatchServerLifecycle(
     return false;
   }
   const outcome = await runSuspendedReplacement({
-    send: () => anonymiseResource(activeAccountId, id),
+    send: () => companyDataRequests.anonymiseResource(activeAccountId, id),
     recovery: 'refresh',
   });
   switch (outcome.kind) {

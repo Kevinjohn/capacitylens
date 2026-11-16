@@ -1,4 +1,4 @@
-import { clearStoredAccountCommands } from '@/account/accountClient';
+import { clearStoredAccountCommands } from '@/account/accountCommands';
 import { queryClient } from '@/api/queryClient';
 import { authClient } from './authClient';
 import { useStore } from '@/store/useStore';

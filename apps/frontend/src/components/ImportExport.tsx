@@ -14,7 +14,7 @@ import { useExportAction } from './import-export/useExportAction';
 import { usePendingImport } from './import-export/usePendingImport';
 import type { PendingImport } from './import-export/usePendingImport';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
-import { readTransferPreviewRevision } from '@/data/companyDataRequests';
+import { companyDataRequests } from '@/data/companyDataRequests';
 
 function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
   return (
@@ -157,7 +157,10 @@ export function ImportExport() {
       selectionRef.current === selection && useStore.getState().activeAccountId === activeAccountId;
     setPreviewBusy(true);
     try {
-      const revision = await readTransferPreviewRevision(activeAccountId, pendingImport.document);
+      const revision = await companyDataRequests.readTransferPreviewRevision(
+        activeAccountId,
+        pendingImport.document,
+      );
       if (!isCurrent()) return;
       setPreviewRevision(revision);
     } catch (error) {

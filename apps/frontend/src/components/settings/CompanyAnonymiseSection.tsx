@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { useCan } from '@/auth/permissionContext';
-import { anonymiseCompanyPeople } from '@/data/companyDataRequests';
+import { companyDataRequests } from '@/data/companyDataRequests';
 import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { reloadPage } from '@/lib/reloadPage';
@@ -51,7 +51,7 @@ export function CompanyAnonymiseSection() {
       useStore.getState().activeAccountId === accountId;
     setBusy(true);
     const outcome = await runSuspendedReplacement({
-      send: () => anonymiseCompanyPeople(accountId, confirmationId),
+      send: () => companyDataRequests.anonymiseCompanyPeople(accountId, confirmationId),
       recovery: 'reload',
     });
     if (outcome.kind === 'committed') {

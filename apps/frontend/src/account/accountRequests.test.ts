@@ -14,13 +14,20 @@ vi.mock('@/data/requestTimeout', () => ({
 }));
 
 import {
-  accountClient,
-  readUnknownAccountCommandOutcome,
-  hasUnknownAccountCommandOutcome,
   bindStoredAccountCommandsToIdentity,
   clearStoredAccountCommands,
   createBrowserAccountCommand,
-} from './accountClient';
+} from './accountCommands';
+import {
+  readUnknownAccountCommandOutcome,
+  hasUnknownAccountCommandOutcome,
+} from './commandOutcome';
+import { admissionRequests } from './admissionRequests';
+import { invitationRequests } from './invitationRequests';
+import { invitationSignupRequests } from './invitationSignupRequests';
+import { masqueradeRequests } from '@/auth/masqueradeRequests';
+import { memberRequests } from './memberRequests';
+import { sessionRequests } from './sessionRequests';
 import { announceAuditWarning, AUDIT_WARNING_EVENT } from '@/lib/auditWarning';
 
 const command = { commandId: 'command-1', idempotencyKey: 'key-1' };
@@ -29,7 +36,7 @@ function transferOwner(
   input: { name: string; color?: string },
   explicit?: typeof command,
 ): Promise<Response> {
-  return accountClient.transferOwnership({
+  return memberRequests.transferOwnership({
     companyId: 'a-studio',
     targetPrincipalId: input.name,
     confirmationId: input.color ?? 'proof-1',
@@ -83,8 +90,8 @@ describe('browser account client', () => {
     // performs applies uniformly to these reads too.
     const controller = new AbortController();
 
-    await accountClient.me(controller.signal);
-    await accountClient.listCompanies(controller.signal);
+    await sessionRequests.me(controller.signal);
+    await sessionRequests.listCompanies(controller.signal);
 
     expect(mocks.apiFetch).toHaveBeenNthCalledWith(1, '/api/auth/me', {
       credentials: 'include',
@@ -109,7 +116,7 @@ describe('browser account client', () => {
     });
 
     try {
-      await accountClient.me();
+      await sessionRequests.me();
       expect(warning).toHaveBeenCalledTimes(1);
     } finally {
       globalThis.removeEventListener(AUDIT_WARNING_EVENT, warning);
@@ -117,23 +124,23 @@ describe('browser account client', () => {
   });
   it('adds command headers, JSON encoding, safe path encoding, and bulk timeout policy', async () => {
     await transferOwner({ name: 'Studio' }, command);
-    await accountClient.changeMemberRole({
+    await memberRequests.changeMemberRole({
       companyId: 'company / one',
       principalId: 'person / one',
       role: 'editor',
       command: command,
     });
-    await accountClient.transferOwnership({
+    await memberRequests.transferOwnership({
       companyId: 'company / one',
       targetPrincipalId: 'person / one',
       confirmationId: 'proof-1',
       command,
     });
-    await accountClient.createInvitation(
+    await invitationRequests.createInvitation(
       { accountId: 'company / one', role: 'viewer', email: 'selina@wayne.test' },
       command,
     );
-    await accountClient.revokeInvitation('company / one', 'invite / one', command);
+    await invitationRequests.revokeInvitation('company / one', 'invite / one', command);
 
     const [createUrl, createInit] = mocks.apiFetch.mock.calls[0] as unknown as [
       string,
@@ -154,7 +161,7 @@ describe('browser account client', () => {
   });
   it('routes member-resource commands with operation headers and ambiguous conflict handling', async () => {
     mocks.apiFetch.mockResolvedValueOnce(new Response('unreadable conflict', { status: 409 }));
-    const link = await accountClient.setMemberResourceLink(
+    const link = await memberRequests.setMemberResourceLink(
       {
         companyId: 'company / one',
         principalId: 'person / one',
@@ -175,7 +182,7 @@ describe('browser account client', () => {
       expectedRevision: null,
     });
 
-    await accountClient.clearMemberResourceLink(
+    await memberRequests.clearMemberResourceLink(
       {
         companyId: 'company / one',
         principalId: 'person / one',
@@ -192,13 +199,13 @@ describe('browser account client', () => {
     expect(JSON.parse(String(unlinkInit.body))).toEqual({ expectedRevision: 'revision-1' });
   });
   it('owns member, invitation preview, and signup routes', async () => {
-    await accountClient.listMembers('company / one');
-    await accountClient.listInvitations('company / one');
-    await accountClient.startMasquerade('company / one', { targetUserId: 'person / one' });
-    await accountClient.masqueradeStatus();
-    await accountClient.endMasquerade({ token: 'token-1', reason: 'explicit' });
-    await accountClient.previewInvitation('token / one');
-    await accountClient.signupWithInvitation('token / one', {
+    await memberRequests.listMembers('company / one');
+    await invitationRequests.listInvitations('company / one');
+    await masqueradeRequests.startMasquerade('company / one', { targetUserId: 'person / one' });
+    await masqueradeRequests.masqueradeStatus();
+    await masqueradeRequests.endMasquerade({ token: 'token-1', reason: 'explicit' });
+    await invitationSignupRequests.previewInvitation('token / one');
+    await invitationSignupRequests.signupWithInvitation('token / one', {
       name: 'New user',
       password: 'example-password',
     });
@@ -237,7 +244,7 @@ describe('browser account client', () => {
     });
   });
   it('sends one command and bound proof to the typed ownership route', async () => {
-    await accountClient.transferOwnership({
+    await memberRequests.transferOwnership({
       companyId: 'company / one',
       targetPrincipalId: 'person / one',
       confirmationId: 'proof-1',
@@ -266,8 +273,8 @@ describe('browser account client', () => {
       confirmationId: 'proof-1',
     };
 
-    await accountClient.transferOwnership(input);
-    await accountClient.transferOwnership(input);
+    await memberRequests.transferOwnership(input);
+    await memberRequests.transferOwnership(input);
 
     const headers = mocks.apiFetch.mock.calls.map((call) => new Headers(call[1]?.headers));
     expect(headers[0]?.get('x-account-command-id')).toBe('00000000-0000-4000-8000-000000000201');
@@ -531,12 +538,12 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000022');
     mocks.apiFetch.mockResolvedValue(new Response(null, { status: 503 }));
 
-    await accountClient.createInvitation({
+    await invitationRequests.createInvitation({
       accountId: 'a-studio',
       role: 'viewer',
       email: 'bruce@example.test',
     });
-    await accountClient.createInvitation({
+    await invitationRequests.createInvitation({
       email: 'bruce@example.test',
       role: 'viewer',
       accountId: 'a-studio',
@@ -613,7 +620,7 @@ describe('browser account client', () => {
 describe('admission list query', () => {
   it('encodes an opaque cursor once and preserves credentials and cancellation', async () => {
     const controller = new AbortController();
-    await accountClient.listAdmissionRequests('pending', 'next+/=&?', controller.signal);
+    await admissionRequests.listAdmissionRequests('pending', 'next+/=&?', controller.signal);
     const call = mocks.apiFetch.mock.calls.at(-1);
     if (!call) throw new Error('Expected admission read');
     const url = new URL(call[0], window.location.origin);

@@ -1,36 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
-import { applyTransfer } from '@/data/companyDataRequests';
-import type { ApplyTransferInput } from '@/data/companyDataRequests';
+import { companyDataRequests, readImportSummary } from '@/data/companyDataRequests';
+import type { ApplyTransferInput, ImportSummary } from '@/data/companyDataRequests';
 import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
-import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { buildSkippedMessage } from './importExportMessages';
 
 type SetNotice = ReturnType<typeof useStore.getState>['setNotice'];
-
-const parseCount = (value: unknown): number | null =>
-  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
-
-// `imported` is null when a 200 response is off-spec; the slice was still replaced server-side.
-type ImportSummary = {
-  imported: number | null;
-  skipped: number;
-  unchanged: boolean;
-  changed: boolean;
-};
-
-const readImportSummary = async (response: Response): Promise<ImportSummary> => {
-  // An unreadable body is an off-spec success, reported below with the generic completion notice.
-  const body: unknown = await response.json().catch(() => null);
-  const imported = parseCount(isRecord(body) ? body.imported : undefined);
-  const skipped = parseCount(isRecord(body) ? body.skipped : undefined) ?? 0;
-  const unchanged = isRecord(body) && body.changed === false;
-  const changed = imported === null || (!unchanged && imported > 0);
-  return { imported, skipped, unchanged, changed };
-};
 
 type ImportReport = { setNotice: SetNotice; markReloadRequired: (message: string) => void };
 // `errorRaised` means the fresh read set its own error notice, which the success must not replace.
@@ -71,7 +49,7 @@ const runServerImport = async (input: ApplyTransferInput, report: ImportReport):
   const { setNotice, markReloadRequired } = report;
   const noticeBefore = useStore.getState().notice;
   const outcome = await runSuspendedReplacement({
-    send: () => applyTransfer(input),
+    send: () => companyDataRequests.applyTransfer(input),
     recovery: 'refresh',
     isChanged: async (response) => {
       const summary = await readImportSummary(response.clone());
