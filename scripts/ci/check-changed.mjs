@@ -570,7 +570,7 @@ function stopGroup(child, signal) {
 /** Run one planned step, stopping its whole process group if it outlives `limits.timeoutMs`. */
 export async function runStep(step, limits = stepLimits) {
   // Loaded here so the selection modes run before dependencies are installed.
-  const { nonColourEnvironment, spawnPnpm } = await import('../pnpmSpawn.mjs');
+  const { nonColourEnvironment, spawnPnpm } = await import('../shared/pnpmSpawn.mjs');
   return new Promise((resolve) => {
     const options = {
       cwd: root,

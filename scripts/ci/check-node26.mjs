@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { supportsNodeVersion } from '../../apps/backend/start/node_version.ts';
-import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from '../pnpmSpawn.mjs';
+import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from '../shared/pnpmSpawn.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const startedAt = performance.now();

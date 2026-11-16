@@ -7,13 +7,13 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 test('synchronous spawn results follow Node encoding-dependent types', async (context) => {
-  const root = fileURLToPath(new URL('../', import.meta.url));
+  const root = fileURLToPath(new URL('../../', import.meta.url));
   const directory = await mkdtemp(join(tmpdir(), 'capacitylens-spawn-types-'));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const fixture = join(directory, 'fixture.mts');
   await writeFile(
     fixture,
-    `import { spawnPnpmSync } from ${JSON.stringify(join(root, 'scripts/pnpmSpawn.mjs'))};
+    `import { spawnPnpmSync } from ${JSON.stringify(join(root, 'scripts/shared/pnpmSpawn.mjs'))};
 import type { SpawnSyncOptions } from "node:child_process";
 const binary: Buffer | null = spawnPnpmSync([]).stdout;
 const binaryExplicit: Buffer | null = spawnPnpmSync([], {encoding: "buffer"}).stdout;
