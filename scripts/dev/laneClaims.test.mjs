@@ -17,8 +17,8 @@ import {
   presetEnvironment,
   resolvePlaywrightRunMode,
   E2E_RUN_PRESETS,
-} from './playwrightRunMode.mjs';
-import { nonColourEnvironment } from './pnpmSpawn.mjs';
+} from '../playwrightRunMode.mjs';
+import { nonColourEnvironment } from '../pnpmSpawn.mjs';
 import {
   assertLaneFree,
   claimLane,
@@ -411,7 +411,7 @@ test('the lane launcher reports startup failure and the backend launcher rejects
 
   const server = spawnSync(
     process.execPath,
-    [new URL('../apps/backend/scripts/e2e-server.mjs', import.meta.url).pathname, 'invalid'],
+    [new URL('../../apps/backend/scripts/e2e-server.mjs', import.meta.url).pathname, 'invalid'],
     {
       env: { ...process.env, PATH: '', CAPACITYLENS_PORT_LANE: '0' },
       encoding: 'utf8',

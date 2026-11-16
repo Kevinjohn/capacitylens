@@ -7,7 +7,7 @@ import { isProcessTreeRunning } from './devProcesses.mjs';
 export async function createDisposableDemoStorage(
   lane,
   {
-    backendDirectory = fileURLToPath(new URL('../apps/backend/', import.meta.url)),
+    backendDirectory = fileURLToPath(new URL('../../apps/backend/', import.meta.url)),
     platform = process.platform,
   } = {},
 ) {

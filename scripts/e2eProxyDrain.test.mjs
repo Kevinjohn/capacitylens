@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { resolveLane, workerPorts } from './ports.mjs';
+import { resolveLane, workerPorts } from './dev/ports.mjs';
 import { assertE2eProxyDrained } from './e2eWorkerRuntime.mjs';
 import {
   createResetControlToken,

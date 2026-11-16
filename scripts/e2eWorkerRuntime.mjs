@@ -5,8 +5,8 @@ import { renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { workerPorts, resolveLane } from './ports.mjs';
-import { portInUse } from './devProcesses.mjs';
+import { workerPorts, resolveLane } from './dev/ports.mjs';
+import { portInUse } from './dev/devProcesses.mjs';
 import {
   cleanupResetControlEndpoints,
   createResetControlToken,

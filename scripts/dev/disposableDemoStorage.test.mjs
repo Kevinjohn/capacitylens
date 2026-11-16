@@ -100,11 +100,11 @@ test(
   async () => {
     const listener = net.createServer();
     await new Promise((done) => listener.listen(0, '127.0.0.1', done));
-    const before = await readdir(new URL('../apps/backend/tmp/', import.meta.url));
+    const before = await readdir(new URL('../../apps/backend/tmp/', import.meta.url));
     try {
       for (const createAdmin of ['false', 'true']) {
         for (const bootstrapPassword of ['', 'development-password-2026']) {
-          const child = spawn(process.execPath, ['scripts/dev-demo.mjs'], {
+          const child = spawn(process.execPath, ['scripts/dev/dev-demo.mjs'], {
             env: {
               ...process.env,
               NODE_ENV: 'production',
@@ -123,7 +123,7 @@ test(
           assert.match(error, /Disposable demo is forbidden in production/);
         }
       }
-      assert.deepEqual(await readdir(new URL('../apps/backend/tmp/', import.meta.url)), before);
+      assert.deepEqual(await readdir(new URL('../../apps/backend/tmp/', import.meta.url)), before);
     } finally {
       await new Promise((done) => listener.close(done));
     }

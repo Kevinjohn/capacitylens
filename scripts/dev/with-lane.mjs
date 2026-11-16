@@ -1,11 +1,11 @@
 // Run a command inside a claimed port lane and CPU reservation:
 //
-//   node scripts/with-lane.mjs playwright test
+//   node scripts/dev/with-lane.mjs playwright test
 //
 // Claim before starting the child because configuration files resolve ports before global setup can run.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { assertSupportedNodeVersion } from '../apps/backend/start/node_version.ts';
+import { assertSupportedNodeVersion } from '../../apps/backend/start/node_version.ts';
 import { mirrorChildExit } from './devProcesses.mjs';
 import { assertLaneFree, resolveLaunchClaim } from './laneClaims.mjs';
 import {
@@ -23,12 +23,12 @@ try {
   process.exit(1);
 }
 
-const worktree = fileURLToPath(new URL('../', import.meta.url)).replace(/\/$/, '');
+const worktree = fileURLToPath(new URL('../../', import.meta.url)).replace(/\/$/, '');
 const [command, ...args] = process.argv.slice(2);
 
 if (!command) {
   console.error(
-    'with-lane: expected a command to run, for example `node scripts/with-lane.mjs playwright test`.',
+    'with-lane: expected a command to run, for example `node scripts/dev/with-lane.mjs playwright test`.',
   );
   process.exit(2);
 }

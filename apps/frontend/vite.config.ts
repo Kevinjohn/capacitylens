@@ -10,8 +10,8 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parsePort } from '../../scripts/parsePort.mjs';
-import { ports, testShare } from '../../scripts/ports.mjs';
+import { parsePort } from '../../scripts/dev/parsePort.mjs';
+import { ports, testShare } from '../../scripts/dev/ports.mjs';
 import { STATIC_SPA_ROUTES } from '../../scripts/staticSpaRoutes.mjs';
 import { ENTRY_RAW_LIMIT_KB } from '../../scripts/bundleBudget.mjs';
 import { isAccountEmail } from '../../packages/shared/src/account/validation.ts';
@@ -253,7 +253,7 @@ export default defineConfig(({ mode, command }) => {
       proxy: {
         '/api': {
           // Keep this `CAPACITYLENS_DEV_API_PORT ?? lane dbApi` default identical to
-          // scripts/dev-fullstack.mjs's API_PORT so the launcher and this proxy stay in lockstep.
+          // scripts/dev/dev-fullstack.mjs's API_PORT so the launcher and this proxy stay in lockstep.
           target: `http://localhost:${devApiPort}`,
           changeOrigin: true,
           ...(drainProbe?.proxyOptions ?? {}),

@@ -6,7 +6,7 @@ import net from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { resolveLane, workerPorts } from './ports.mjs';
+import { resolveLane, workerPorts } from './dev/ports.mjs';
 import { startE2eWorkerServer, recoverE2eWorker } from './e2eWorkerRuntime.mjs';
 import {
   cleanupResetControlEndpoints,

@@ -3,8 +3,8 @@
 // used by CI, documentation, and a single checkout.
 //
 // This module is pure: it maps a lane to ports and reads already-resolved environment values.
-// Claiming a lane (and the CPU reservation that rides with it) lives in scripts/laneClaims.mjs,
-// and scripts/with-lane.mjs is the launcher that owns both for the lifetime of a command.
+// Claiming a lane (and the CPU reservation that rides with it) lives in scripts/dev/laneClaims.mjs,
+// and scripts/dev/with-lane.mjs is the launcher that owns both for the lifetime of a command.
 // Configurations only read the selected lane; the launcher owns its claim.
 import { availableParallelism } from 'node:os';
 
@@ -90,7 +90,7 @@ export function ports(environment = process.env) {
 }
 
 /**
- * A run's own CPU reservation: how many test workers it may start. scripts/laneClaims.mjs reserves
+ * A run's own CPU reservation: how many test workers it may start. scripts/dev/laneClaims.mjs reserves
  * this from a machine-wide pool and exports it. A suite run by hand, outside a lane, gets the same
  * ceiling a solo claim would receive, half the available cores (see reservationCeiling).
  * An invalid configured value throws `RangeError`.

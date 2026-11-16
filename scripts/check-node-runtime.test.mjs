@@ -29,7 +29,7 @@ test('the lane launcher refuses an unsupported runtime before starting its comma
     [
       '--import',
       reportUnsupportedNode,
-      fileURLToPath(new URL('./with-lane.mjs', import.meta.url)),
+      fileURLToPath(new URL('./dev/with-lane.mjs', import.meta.url)),
       process.execPath,
       '-e',
       "console.log('command ran')",

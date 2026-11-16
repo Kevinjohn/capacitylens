@@ -1,6 +1,6 @@
-// Claiming a port lane and a share of the machine's CPUs. scripts/ports.mjs maps a lane to ports
+// Claiming a port lane and a share of the machine's CPUs. scripts/dev/ports.mjs maps a lane to ports
 // and is pure; everything that touches the filesystem or another process lives here, and
-// scripts/with-lane.mjs is the only caller in normal use.
+// scripts/dev/with-lane.mjs is the only caller in normal use.
 //
 // Two invariants this file exists to hold:
 //   1. Two runs never hold the same lane. Scanning for a free lane and writing the claim happen

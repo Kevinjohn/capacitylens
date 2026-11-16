@@ -7,9 +7,9 @@ import { existsSync, rmSync } from 'node:fs';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
-import { resolveLane } from './ports.mjs';
+import { resolveLane } from './dev/ports.mjs';
 import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
-import { acquireExclusiveFile, portInUse, terminateProcessTree } from './devProcesses.mjs';
+import { acquireExclusiveFile, portInUse, terminateProcessTree } from './dev/devProcesses.mjs';
 import {
   createResetControlServer,
   createResetControlToken,

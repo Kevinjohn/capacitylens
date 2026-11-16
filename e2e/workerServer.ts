@@ -1,4 +1,4 @@
-import { resolveLane } from '../scripts/ports.mjs';
+import { resolveLane } from '../scripts/dev/ports.mjs';
 import { startE2eWorkerServer } from '../scripts/e2eWorkerRuntime.mjs';
 import { configureServerTarget, prepareServerTemplate, serverTarget } from './serverTestState';
 

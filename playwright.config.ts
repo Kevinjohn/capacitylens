@@ -3,7 +3,7 @@ import type { ReporterDescription } from '@playwright/test';
 import { parseReportPhaseName } from './scripts/playwrightServerScope';
 import { resolvePlaywrightRunMode } from './scripts/playwrightRunMode.mjs';
 import { configurationWorkerCount } from './scripts/playwrightWorkers.mjs';
-import { ports } from './scripts/ports.mjs';
+import { ports } from './scripts/dev/ports.mjs';
 
 const lanePorts = ports();
 const runMode = resolvePlaywrightRunMode(process.env);
