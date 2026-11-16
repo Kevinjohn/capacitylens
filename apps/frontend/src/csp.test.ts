@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import nginx from '../../../nginx.conf?raw';
-import clientNginxTemplate from '../../../nginx.client.conf.template?raw';
 import securityHeaders from '../../../nginx-security-headers.conf?raw';
-import { renderClientNginx } from '../../../scripts/render-client-nginx.mjs';
 
 function locationBlock(config: string, declaration: string): string {
   const start = config.indexOf(declaration);
@@ -63,39 +61,5 @@ describe('SPA content security policy', () => {
     expect(nginx).toContain('location ^~ /assets/ {');
     expect(nginx).toContain('expires 1y;');
     expect(nginx).toContain('Cache-Control "public, max-age=31536000, immutable"');
-  });
-
-  it('renders a remote client config without a local API or certificate dependency', () => {
-    const rendered = renderClientNginx(clientNginxTemplate, {
-      VITE_CAPACITYLENS_API: 'https://api.example.test',
-    });
-
-    expect(rendered).toContain('set $capacitylens_connect_src "\'self\' https://api.example.test"');
-    expect(rendered).toContain('location /api/');
-    expect(rendered).not.toContain('__CAPACITYLENS_CONNECT_SOURCES__');
-    expect(rendered).not.toContain('proxy_pass');
-    expect(rendered).not.toContain('proxy_ssl_');
-    expect(rendered).not.toContain('/run/capacitylens-internal-tls');
-  });
-
-  it('allows only the configured remote API origin in a client-only build', () => {
-    const rendered = renderClientNginx(clientNginxTemplate, {
-      VITE_CAPACITYLENS_API: '  https://API.EXAMPLE.test:443///  ',
-    });
-
-    expect(rendered).toContain('set $capacitylens_connect_src "\'self\' https://api.example.test"');
-    expect(() => renderClientNginx(clientNginxTemplate, {})).toThrow(
-      /requires a remote VITE_CAPACITYLENS_API origin/,
-    );
-    expect(() =>
-      renderClientNginx(clientNginxTemplate, {
-        VITE_CAPACITYLENS_API: 'https://api.example.test/path',
-      }),
-    ).toThrow(/without credentials, path, query or fragment/);
-    expect(() =>
-      renderClientNginx(clientNginxTemplate, {
-        VITE_CAPACITYLENS_API: 'file:///tmp/api',
-      }),
-    ).toThrow(/HTTP\(S\) origin/);
   });
 });

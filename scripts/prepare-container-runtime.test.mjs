@@ -54,10 +54,9 @@ test('Compose upgrades before API startup and preserves the private persistent d
   assert.equal(compose.services.api.environment.CAPACITYLENS_TRUST_PROXY_HEADERS, 'private');
   // With private trust, any host that reaches the web port can choose its client address, so the
   // published ports stay on loopback unless the operator binds them for a load balancer.
-  for (const service of ['web', 'web-client'])
-    assert.deepEqual(compose.services[service].ports, [
-      '${WEB_BIND_IP:-127.0.0.1}:${WEB_PORT:-8080}:8080',
-    ]);
+  assert.deepEqual(compose.services.web.ports, [
+    '${WEB_BIND_IP:-127.0.0.1}:${WEB_PORT:-8080}:8080',
+  ]);
   assert.equal(compose.services.api.ports, undefined);
   // Production refuses a plain-HTTP origin, so Compose requires the operator's address instead of a default.
   assert.match(
@@ -101,8 +100,6 @@ test('Compose runs the published release images by default and can still build t
   assert.deepEqual(compose.services.api.build, { context: '.', target: 'api' });
   assert.deepEqual(compose.services.upgrade.build, { context: '.', target: 'api' });
   assert.equal(compose.services.web.build.target, 'web');
-  // The remote-API client bakes its origin in at build time, so no published image can serve it.
-  assert.equal(compose.services['web-client'].image, undefined);
 
   const dockerfile = await readFile(new URL('../Dockerfile', import.meta.url), 'utf8');
   assert.equal(

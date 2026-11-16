@@ -27,11 +27,6 @@ ENV VITE_CAPACITYLENS_FEEDBACK_MAILTO=${VITE_CAPACITYLENS_FEEDBACK_MAILTO}
 RUN NODE_ENV=production HOST=127.0.0.1 PORT=0 LOG_LEVEL=error APP_KEY=capacitylens-build-key-0123456789abcdef \
     APP_URL=https://127.0.0.1 CAPACITYLENS_PUBLIC_URL=https://127.0.0.1 pnpm run build
 
-FROM web-build AS web-client-build
-# The client-only runtime has no same-origin proxy. Bake its validated remote API origin
-# into the CSP rather than weakening connect-src or templating mutable runtime configuration.
-RUN node scripts/render-client-nginx.mjs nginx.client.conf.template /tmp/nginx.client.conf
-
 # Deployment runs in this disposable build stage, preserving the pinned release-asset packages.
 FROM web-build AS server-deploy
 RUN pnpm --filter @capacitylens/backend deploy --prod --legacy --no-optional /runtime-deploy \
@@ -74,9 +69,6 @@ COPY --from=web-build /app/dist /usr/share/nginx/html
 ENTRYPOINT []
 CMD ["nginx", "-g", "daemon off;"]
 EXPOSE 8080
-
-FROM web-runtime AS web-client
-COPY --from=web-client-build /tmp/nginx.client.conf /etc/nginx/conf.d/default.conf
 
 # Keep the web image as the Dockerfile's final/default target. Direct API builds must select the
 # `api` target explicitly.

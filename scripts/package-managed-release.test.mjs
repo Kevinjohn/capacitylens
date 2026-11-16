@@ -508,7 +508,6 @@ for (const filename of [
 test('all shipped nginx configs suppress browser bearer routes', async () => {
   for (const path of [
     'nginx.conf',
-    'nginx.client.conf.template',
     'packaging/release/capacitylens.nginx.conf',
   ]) {
     const conf = await readFile(join(repositoryRoot, path), 'utf8');
