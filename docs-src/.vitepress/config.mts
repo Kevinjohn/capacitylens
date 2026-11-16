@@ -206,7 +206,7 @@ export default defineConfig({
     socialLinks: [{ icon: "github", link: "https://github.com/Kevinjohn/capacitylens" }],
 
     footer: {
-      message: "CapacityLens is open source under AGPL-3.0.",
+      message: "CapacityLens is open source under GPL-3.0.",
     },
   },
 });

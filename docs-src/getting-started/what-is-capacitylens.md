@@ -36,7 +36,7 @@ sidebar.
   for roles you haven't filled, and external parties who don't count against your team's capacity.
 - **Your own server.** Your data stays in one file on a server you control.
 
-It is free and open source (AGPL-3.0). There is no paid tier and no hosted version: you run it on
+It is free and open source (GPL-3.0). There is no paid tier and no hosted version: you run it on
 your own server, and the only cost is that server ([server size](/self-hosting/install#server-size)).
 
 ## What it leaves out
@@ -58,10 +58,10 @@ it to see their own week.
 
 ## Before you adopt
 
-- **Status.** CapacityLens is alpha software with a single maintainer. Beta will mean the upgrade
-  path and the settings are stable.
 - **Leaving.** Your data is one SQLite database file on your server, and **Export JSON** in
-  Settings downloads the company's scheduling records. The AGPL lets anyone continue the code.
+  Settings downloads the company's scheduling records. The GPL lets anyone continue the code.
+- **Status.** An alpha release maintained by one person. Until beta, settings and the upgrade
+  path may still change between releases; the release notes say when they do.
 - **Outside services.** Email delivery is the only one. Invitations, address confirmation and
   password resets are sent by email.
 - **Support.** Community help on a best-effort basis, with no guaranteed response time.

@@ -20,7 +20,7 @@ Historical October 2026 walkthrough with fictional data. It shows the former dem
 You book work by the day and read the plan by the week. CapacityLens does not track tasks,
 budgets or timesheets.
 
-It is free and open source (AGPL-3.0), with no paid tier and no hosted version. You run it on your
+It is free and open source (GPL-3.0), with no paid tier and no hosted version. You run it on your
 own server, and the only cost is that server ([server size](/self-hosting/install#server-size)).
 
 ## Which one are you?
@@ -79,4 +79,4 @@ another role's guide first.
 - [Roles and permissions](/getting-started/roles-and-permissions): what each role can see and do.
 - [Glossary](/reference/glossary): every term the guides use, in plain language.
 - [Security and privacy](/security/): how CapacityLens protects your data and what it stores.
-- [Open source and contributing](/open-source): CapacityLens is free software under AGPL-3.0.
+- [Open source and contributing](/open-source): CapacityLens is free software under GPL-3.0.

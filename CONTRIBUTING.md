@@ -367,7 +367,7 @@ git commit -s -m "Describe the change"
 Delegated or unrelated sign-offs are not accepted. Commits authored by Dependabot are exempt;
 other automated contributors must use an attributable author or committer sign-off.
 
-By contributing, you agree that your contribution is licensed under AGPL-3.0-only. The project
+By contributing, you agree that your contribution is licensed under GPL-3.0-or-later. The project
 does not currently require a copyright assignment or CLA.
 
 ## Releases

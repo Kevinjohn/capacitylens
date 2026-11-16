@@ -63,7 +63,7 @@ each action.
 
 ## What does it cost?
 
-Nothing. CapacityLens is free and open source (AGPL-3.0), with no paid tier and no hosted version.
+Nothing. CapacityLens is free and open source (GPL-3.0), with no paid tier and no hosted version.
 The only cost is the server it runs on ([server size](/self-hosting/install#server-size)).
 
 ## Is our client information private?

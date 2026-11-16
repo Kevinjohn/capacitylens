@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.75.0-alpha.1",
   "description": "Agency resource & capacity scheduler — a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
-  "license": "AGPL-3.0-only",
+  "license": "GPL-3.0-or-later",
   "author": "Kevinjohn Gallagher",
   "repository": {
     "type": "git",
