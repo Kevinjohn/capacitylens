@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { test } from '@japa/runner';
 import { portInUse, terminateProcessTree } from '../../../../../scripts/dev/devProcesses.mjs';
 import { ports, resolveLane, workerPorts } from '../../../../../scripts/dev/ports.mjs';
-import { E2E_SCRIPT_TEST_SLOTS } from '../../../../../scripts/e2eTestSlots.mjs';
+import { E2E_SCRIPT_TEST_SLOTS } from '../../../../../scripts/e2e/e2eTestSlots.mjs';
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 

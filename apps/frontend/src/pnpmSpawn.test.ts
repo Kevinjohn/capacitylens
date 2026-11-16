@@ -8,7 +8,7 @@ import {
   spawnPnpm,
   spawnPnpmSync,
   reportSpawnFailureAndResolveExitStatus,
-} from '../../../scripts/pnpmSpawn.mjs';
+} from '../../../scripts/shared/pnpmSpawn.mjs';
 
 const repositoryRoot = resolve(process.cwd(), '../..');
 
@@ -113,7 +113,7 @@ describe('package presets', () => {
         const result = spawnSync(
           process.execPath,
           [
-            resolve(repositoryRoot, 'scripts/run-preset.mjs'),
+            resolve(repositoryRoot, 'scripts/e2e/run-preset.mjs'),
             preset,
             '--grep',
             'foo(bar)',

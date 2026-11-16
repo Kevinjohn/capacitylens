@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { parsePort } from './parsePort.mjs';
-import { spawnPnpm } from '../pnpmSpawn.mjs';
+import { spawnPnpm } from '../shared/pnpmSpawn.mjs';
 import { ports, resolveLane } from './ports.mjs';
 import { createDisposableDemoStorage } from './disposableDemoStorage.mjs';
 import {
