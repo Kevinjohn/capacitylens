@@ -1,5 +1,6 @@
 import type { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
-import { daysInclusive, todayISO } from '@capacitylens/shared/lib/dateMath';
+import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { readCalendarToday } from '@/lib/calendarToday';
 import {
   effectiveWorkingWeek,
   lacksEffectiveWorkingDays,
@@ -76,7 +77,7 @@ function useEffectiveSchedule(input: {
 }
 
 function resolveRepeatRange(startDate: ISODate, calendarTimeZone: string) {
-  const repeatToday = todayISO(calendarTimeZone);
+  const repeatToday = readCalendarToday(calendarTimeZone);
   return {
     repeatToday,
     repeatUntilMinimum:
@@ -98,7 +99,7 @@ function resolveInitialDaysOfWork(seed: AllocationModalSeed): number {
 function resolveInitialDates(seed: AllocationModalSeed, calendarTimeZone: string) {
   return {
     startDate: seed.initialStart,
-    endDate: seed.editing?.endDate ?? seed.create?.endDate ?? todayISO(calendarTimeZone),
+    endDate: seed.editing?.endDate ?? seed.create?.endDate ?? readCalendarToday(calendarTimeZone),
   };
 }
 

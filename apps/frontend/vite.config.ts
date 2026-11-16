@@ -15,10 +15,8 @@ import { ports, testShare } from '../../scripts/ports.mjs';
 import { STATIC_SPA_ROUTES } from '../../scripts/staticSpaRoutes.mjs';
 import { ENTRY_RAW_LIMIT_KB } from '../../scripts/bundleBudget.mjs';
 import { isAccountEmail } from '../../packages/shared/src/account/validation.ts';
-import {
-  createResetControlServer,
-  createRetirableListener,
-} from '../../apps/backend/start/e2e_reset_control.ts';
+import { createResetControlServer } from '../../apps/backend/start/e2e_reset_control.ts';
+import { createRetirableListener } from '../../apps/backend/start/e2e_retirable_listener.ts';
 
 // Lane-derived ports keep concurrent worktrees on disjoint service endpoints.
 const lanePorts = ports();
