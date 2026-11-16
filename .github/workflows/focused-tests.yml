@@ -56,7 +56,7 @@ jobs:
         id: select
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: echo "plan=$(node scripts/check-changed.mjs --e2e-plan "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+        run: echo "plan=$(node scripts/ci/check-changed.mjs --e2e-plan "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
 
   e2e:
     name: Changed end-to-end specs

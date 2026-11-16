@@ -189,4 +189,4 @@ jobs:
             sbom=${{ needs.sbom.result }}
             containers=${{ needs.containers.result }}
             dast=${{ needs.dast.result }}
-        run: node scripts/report-workflow-outcome.mjs
+        run: node scripts/ci/report-workflow-outcome.mjs

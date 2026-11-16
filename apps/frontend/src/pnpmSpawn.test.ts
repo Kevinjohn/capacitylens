@@ -8,7 +8,7 @@ import {
   spawnPnpm,
   spawnPnpmSync,
   reportSpawnFailureAndResolveExitStatus,
-} from '../../../scripts/pnpmSpawn.mjs';
+} from '../../../scripts/shared/pnpmSpawn.mjs';
 
 const repositoryRoot = resolve(process.cwd(), '../..');
 
