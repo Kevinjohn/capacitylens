@@ -239,7 +239,7 @@ accepts only `main`, so merge the source and generated output before publishing.
 The supported and recommended server runtime is Node 24.19.0 or later within 24.x. The package
 engine declaration and backend startup guard also accept Node 26.9.0 or later within 26.x, but that
 path remains experimental and best-effort: [`.nvmrc`](.nvmrc) selects Node 24 for development and
-standard CI setup, while [`check:node26`](scripts/check-node26.mjs) covers selected compatibility
+standard CI setup, while [`check:node26`](scripts/ci/check-node26.mjs) covers selected compatibility
 paths rather than the complete gate. Keep the documented production host boundary in the
 [self-hosting installation guide](docs-src/self-hosting/install.md): Linux. CI also builds and
 smoke-tests native packages on macOS arm64; that job does not add a production-host support

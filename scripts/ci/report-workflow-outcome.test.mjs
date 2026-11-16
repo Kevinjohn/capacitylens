@@ -241,7 +241,7 @@ test('a repeat failure comments on the oldest open report and closes visible dup
 
 test('security reporter includes every upstream job outcome', () => {
   const workflow = YAML.parse(
-    readFileSync(new URL('../.github/workflows/security.yml', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../.github/workflows/security.yml', import.meta.url), 'utf8'),
   );
   const notify = workflow.jobs.notify;
   const mapping = notify.steps.find((step) => step.env?.RESULTS)?.env.RESULTS;
@@ -272,7 +272,7 @@ test('a workflow-specific report uses its own label and title throughout', () =>
 
 test('the weekly validation reporter has its own label and covers the aggregate result', () => {
   const workflow = YAML.parse(
-    readFileSync(new URL('../.github/workflows/validation.yml', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../.github/workflows/validation.yml', import.meta.url), 'utf8'),
   );
   const notify = workflow.jobs.notify;
   const step = notify.steps.find((candidate) => candidate.env?.RESULTS);

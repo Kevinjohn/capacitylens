@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { gateCommands } from './gateCommands.mjs';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const cli = fileURLToPath(new URL('./run-gate.mjs', import.meta.url));
 
 function fixture(t, installCommand = true) {
@@ -24,7 +24,7 @@ function fixture(t, installCommand = true) {
   const log = join(directory, 'commands.jsonl');
   if (installCommand) {
     const command = join(directory, 'pnpm');
-    const source = readFileSync(new URL('./__tests__/gate-command.mjs', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('./fixtures/gate-command.mjs', import.meta.url), 'utf8');
     writeFileSync(`${command}.mjs`, source);
     if (process.platform === 'win32')
       writeFileSync(`${command}.cmd`, `@"${process.execPath}" "${command}.mjs" %*\r\n`);
@@ -230,7 +230,7 @@ test("gateCommands('all') includes every retained policy, package and security c
 test('every scripts/ test file is named by a root package script', () => {
   const named = new Set(
     Object.values(
-      JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).scripts,
+      JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).scripts,
     )
       .join(' ')
       .split(/\s+/),
@@ -243,7 +243,7 @@ test('every scripts/ test file is named by a root package script', () => {
 });
 
 test('every gate runs the bundle check once, through the root build script', () => {
-  const build = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  const build = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
     .scripts.build;
   assert.match(build, /&& pnpm run bundle:check$/);
   for (const mode of ['app', 'backend', 'all']) {
@@ -293,7 +293,7 @@ test('only the root production build receives production settings while tests re
 test('CI builds the application once and backend tests use those assets without production settings', async () => {
   const { parse } = await import('yaml');
   const workflow = parse(
-    readFileSync(new URL('../.github/workflows/gate.yml', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../.github/workflows/gate.yml', import.meta.url), 'utf8'),
   );
   const builds = Object.entries(workflow.jobs).filter(([, job]) =>
     job.steps.some((step) => step.run === 'pnpm run build'),
@@ -328,7 +328,7 @@ test('CI builds the application once and backend tests use those assets without 
 test('main pushes cannot cancel scheduled or manual validation, and tooling selection survives cancelled runs', async () => {
   const { parse } = await import('yaml');
   const read = (name) =>
-    parse(readFileSync(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8'));
+    parse(readFileSync(new URL(`../../.github/workflows/${name}`, import.meta.url), 'utf8'));
   for (const name of ['validation.yml', 'gate.yml', 'e2e.yml'])
     assert.match(read(name).concurrency.group, /\$\{\{ github\.event_name \}\}/, name);
   const select = read('gate.yml').jobs['tooling-scope'].steps.find((step) => step.id === 'select');

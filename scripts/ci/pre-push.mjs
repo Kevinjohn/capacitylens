@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
-import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from './pnpmSpawn.mjs';
+import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from '../pnpmSpawn.mjs';
 
 /**
  * Decide whether a push only deletes remote refs, from the lines git passes the pre-push hook.

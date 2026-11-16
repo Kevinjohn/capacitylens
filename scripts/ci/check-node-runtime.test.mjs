@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   assertSupportedNodeVersion,
   supportsNodeVersion,
-} from '../apps/backend/start/node_version.ts';
+} from '../../apps/backend/start/node_version.ts';
 
 test('runtime boundaries reject unsupported versions before application startup', () => {
   for (const version of ['23.9.0', '24.18.9', '25.0.0', '26.8.9', '27.0.0', 'invalid']) {
@@ -29,7 +29,7 @@ test('the lane launcher refuses an unsupported runtime before starting its comma
     [
       '--import',
       reportUnsupportedNode,
-      fileURLToPath(new URL('./dev/with-lane.mjs', import.meta.url)),
+      fileURLToPath(new URL('../dev/with-lane.mjs', import.meta.url)),
       process.execPath,
       '-e',
       "console.log('command ran')",
@@ -54,7 +54,7 @@ test('the backend test entry refuses an unsupported runtime before booting the a
       'no-such-spec',
     ],
     {
-      cwd: fileURLToPath(new URL('../apps/backend/', import.meta.url)),
+      cwd: fileURLToPath(new URL('../../apps/backend/', import.meta.url)),
       encoding: 'utf8',
       timeout: 120_000,
     },

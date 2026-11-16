@@ -6,11 +6,11 @@
 //   pnpm run check:changed --tests-only
 //                                    only the tests; CI's static analysis job owns format, lint and
 //                                    the type-check, and the docs workflow owns the docs build
-//   node scripts/check-changed.mjs --static-scope [<base>]
+//   node scripts/ci/check-changed.mjs --static-scope [<base>]
 //                                    print `full`, or `format` when only documentation changed
-//   node scripts/check-changed.mjs --tooling-scope [<base>]
+//   node scripts/ci/check-changed.mjs --tooling-scope [<base>]
 //                                    print `run` when a tooling-policy input changed, else `skip`
-//   node scripts/check-changed.mjs --e2e-plan [<base>]
+//   node scripts/ci/check-changed.mjs --e2e-plan [<base>]
 //                                    print the browser work as JSON: no run, changed specs, or
 //                                    the Chromium and auth suites when shared browser inputs changed
 //
@@ -21,10 +21,11 @@
 // the submission gate; this is the fast loop while implementing or reviewing a change.
 import { execFileSync, spawn } from 'node:child_process';
 import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
+import { posix } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { assertSupportedNodeVersion } from '../apps/backend/start/node_version.ts';
+import { assertSupportedNodeVersion } from '../../apps/backend/start/node_version.ts';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const defaultBase = 'origin/main';
 // Japa keeps its process alive after a planner error, so a step that never exits must still fail.
 // The backend test runner turns SIGTERM into a graceful shutdown that can hang too, hence SIGKILL.
@@ -84,18 +85,18 @@ const testCounts = [/^\s*Tests\s+(\d+) passed/m, /^(?:# |ℹ )tests (\d+)$/m];
 
 const relativeTo = (prefix) => (path) => path.slice(prefix.length);
 
-/** List the script test files that import `scripts/<name>.mjs`, whatever they are called. */
+/** List the script test files that import `scripts/<path>.mjs`, whatever they are called. */
 function scriptTestsImporting(path) {
   const scripts = new URL('scripts/', pathToFileURL(root));
-  // Prettier keeps every import specifier single-quoted, so the closing quote is part of the match.
-  const specifier = `./${path.slice('scripts/'.length)}'`;
-  return readdirSync(scripts)
-    .filter(
-      (name) =>
-        name.endsWith('.test.mjs') &&
-        readFileSync(new URL(name, scripts), 'utf8').includes(specifier),
-    )
-    .map((name) => `scripts/${name}`);
+  return readdirSync(scripts, { recursive: true })
+    .map((entry) => `scripts/${entry.split('\\').join('/')}`)
+    .filter((test) => {
+      if (!test.endsWith('.test.mjs')) return false;
+      const target = posix.relative(posix.dirname(test), path);
+      // Prettier keeps every import specifier single-quoted, so the closing quote is part of the match.
+      const specifier = `${target.startsWith('../') ? '' : './'}${target}'`;
+      return readFileSync(new URL(test, pathToFileURL(root)), 'utf8').includes(specifier);
+    });
 }
 
 /**
@@ -278,7 +279,7 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
   const scriptTests = [
     ...new Set(
       paths
-        .filter((path) => /^scripts\/[^/]+\.mjs$/.test(path))
+        .filter((path) => /^scripts\/.+\.mjs$/.test(path))
         .flatMap((path) =>
           path.endsWith('.test.mjs')
             ? [path]
@@ -569,7 +570,7 @@ function stopGroup(child, signal) {
 /** Run one planned step, stopping its whole process group if it outlives `limits.timeoutMs`. */
 export async function runStep(step, limits = stepLimits) {
   // Loaded here so the selection modes run before dependencies are installed.
-  const { nonColourEnvironment, spawnPnpm } = await import('./pnpmSpawn.mjs');
+  const { nonColourEnvironment, spawnPnpm } = await import('../pnpmSpawn.mjs');
   return new Promise((resolve) => {
     const options = {
       cwd: root,

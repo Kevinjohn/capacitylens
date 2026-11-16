@@ -157,32 +157,38 @@ test('deleted paths select checks but are never passed to file tools', () => {
 
 test('a changed script runs its own test file when one exists', () => {
   const steps = planChecks(
-    ['scripts/lanes.mjs', 'scripts/bundleBudget.mjs'],
-    (path) => path !== 'scripts/bundleBudget.test.mjs',
+    ['scripts/dev/lanes.mjs', 'scripts/build/bundleBudget.mjs'],
+    (path) => path !== 'scripts/build/bundleBudget.test.mjs',
     noImporters,
   );
-  assert.deepEqual(step(steps, 'test: 1 script test').args, ['--test', 'scripts/lanes.test.mjs']);
+  assert.deepEqual(step(steps, 'test: 1 script test').args, [
+    '--test',
+    'scripts/dev/lanes.test.mjs',
+  ]);
   assert.equal(step(steps, 'test: 1 script test').command, 'node');
 });
 
 test('a changed script also runs the differently named test files that import it', () => {
-  const steps = planChecks(['scripts/gateCommands.mjs'], everything, (path) =>
-    path === 'scripts/gateCommands.mjs'
-      ? ['scripts/run-gate.test.mjs', 'scripts/check-dependabot.test.mjs']
+  const steps = planChecks(['scripts/ci/gateCommands.mjs'], everything, (path) =>
+    path === 'scripts/ci/gateCommands.mjs'
+      ? ['scripts/ci/run-gate.test.mjs', 'scripts/check-dependabot.test.mjs']
       : [],
   );
   assert.deepEqual(step(steps, 'test: 3 script test').args, [
     '--test',
-    'scripts/gateCommands.test.mjs',
-    'scripts/run-gate.test.mjs',
+    'scripts/ci/gateCommands.test.mjs',
+    'scripts/ci/run-gate.test.mjs',
     'scripts/check-dependabot.test.mjs',
   ]);
   assert.deepEqual(
     step(
-      planChecks(['scripts/gateCommands.mjs'], (path) => !path.endsWith('gateCommands.test.mjs')),
+      planChecks(
+        ['scripts/ci/gateCommands.mjs'],
+        (path) => !path.endsWith('gateCommands.test.mjs'),
+      ),
       'test:',
     ).args,
-    ['--test', 'scripts/check-dependabot.test.mjs', 'scripts/run-gate.test.mjs'],
+    ['--test', 'scripts/check-dependabot.test.mjs', 'scripts/ci/run-gate.test.mjs'],
   );
 });
 
@@ -208,7 +214,7 @@ test('a dependency or workspace change runs the type-check and both full suites'
 
 test('backend lint allows warnings like its own lint script; the others refuse them', () => {
   const steps = planChecks(
-    ['apps/backend/app/a.ts', 'apps/frontend/src/App.tsx', 'scripts/lanes.mjs'],
+    ['apps/backend/app/a.ts', 'apps/frontend/src/App.tsx', 'scripts/dev/lanes.mjs'],
     everything,
   );
   assert.equal(step(steps, 'lint: backend').args.includes('--max-warnings'), false);
@@ -385,7 +391,7 @@ test('a focused test step that executes nothing fails, while related tests may f
   );
   assert.equal(ranNoTests(specs, ' PASSED \nTests  4 passed (4)\n'), false);
   const scripts = step(
-    planChecks(['scripts/lanes.mjs'], everything, noImporters),
+    planChecks(['scripts/dev/lanes.mjs'], everything, noImporters),
     'test: 1 script test',
   );
   assert.equal(ranNoTests(scripts, '# tests 0\n# pass 0\n'), true);
@@ -467,7 +473,7 @@ test('the selection modes load no installed dependency, so CI can select before 
   const source = readFileSync(new URL('./check-changed.mjs', import.meta.url), 'utf8');
   const staticImports = source.match(/^import .+ from '[^']+';$/gm);
   assert.ok(
-    staticImports.every((line) => /from '(?:node:[^']+|\.\.\/apps\/[^']+\.ts)'/.test(line)),
+    staticImports.every((line) => /from '(?:node:[^']+|\.\.\/\.\.\/apps\/[^']+\.ts)'/.test(line)),
   );
 });
 
@@ -477,7 +483,7 @@ const noBackendImporters = { backendImporters: () => [] };
 test('--tests-only leaves format, lint, the type-check and the docs build to their own workflows', () => {
   const paths = [
     'apps/frontend/src/App.tsx',
-    'scripts/lanes.mjs',
+    'scripts/dev/lanes.mjs',
     'eslint.config.js',
     'docs-src/index.md',
   ];
@@ -614,7 +620,7 @@ test('every step that runs a command says why it was selected', () => {
       'eslint.config.js',
       'apps/frontend/src/App.tsx',
       'apps/backend/app/services/planning/execute.ts',
-      'scripts/lanes.mjs',
+      'scripts/dev/lanes.mjs',
       'docs-src/index.md',
     ],
     everything,
@@ -633,7 +639,7 @@ test('main validation skips tooling checks only for application source, tests an
   ])
     assert.equal(toolingScope(paths).scope, 'skip', paths.join());
   for (const path of [
-    'scripts/lanes.mjs',
+    'scripts/dev/lanes.mjs',
     '.github/workflows/gate.yml',
     'pnpm-lock.yaml',
     'package.json',

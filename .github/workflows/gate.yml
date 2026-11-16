@@ -120,7 +120,7 @@ jobs:
               --jq '.workflow_runs[0].head_sha // empty' || true)"
           fi
           if [ -n "$base" ] && git merge-base --is-ancestor "$base" HEAD; then
-            echo "scope=$(node scripts/check-changed.mjs --tooling-scope "$base")" >> "$GITHUB_OUTPUT"
+            echo "scope=$(node scripts/ci/check-changed.mjs --tooling-scope "$base")" >> "$GITHUB_OUTPUT"
           else
             echo "Full validation, or no earlier successful main validation: every tooling check runs." >> "$GITHUB_STEP_SUMMARY"
             echo "scope=run" >> "$GITHUB_OUTPUT"

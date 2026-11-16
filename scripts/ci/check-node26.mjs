@@ -3,10 +3,10 @@ import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { supportsNodeVersion } from '../apps/backend/start/node_version.ts';
-import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from './pnpmSpawn.mjs';
+import { supportsNodeVersion } from '../../apps/backend/start/node_version.ts';
+import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from '../pnpmSpawn.mjs';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
+const root = fileURLToPath(new URL('../..', import.meta.url));
 const startedAt = performance.now();
 
 function run(label, command, args, environment = process.env) {

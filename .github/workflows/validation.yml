@@ -80,4 +80,4 @@ jobs:
           REPORT_TITLE: Weekly validation is failing
           RESULTS: |
             validation=${{ needs.gate.result }}
-        run: node scripts/report-workflow-outcome.mjs
+        run: node scripts/ci/report-workflow-outcome.mjs
