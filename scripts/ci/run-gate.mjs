@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { gateCommands } from './gateCommands.mjs';
-import { spawnPnpmSync, reportSpawnFailureAndResolveExitStatus } from '../pnpmSpawn.mjs';
+import { spawnPnpmSync, reportSpawnFailureAndResolveExitStatus } from '../shared/pnpmSpawn.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 

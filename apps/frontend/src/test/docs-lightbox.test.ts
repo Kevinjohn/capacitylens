@@ -7,9 +7,9 @@ import { join, resolve } from 'node:path';
 // browser-only tsconfig.app.json. It is listed in both, like its siblings.
 import { cwd } from 'node:process';
 
-// Inspect the committed standalone artifact because its script stripping can break
-// a JavaScript-driven lightbox that appears to work in development. CI separately
-// rebuilds documentation to ensure this inspected artifact matches its sources.
+// Inspect the built standalone site because its script stripping can break a
+// JavaScript-driven lightbox that appears to work in development. The site is not
+// committed: run `pnpm run docs:build`, then `pnpm run docs:test`.
 
 const ROOT = resolve(cwd(), '../..');
 const SITE = join(ROOT, 'docs');

@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from '../pnpmSpawn.mjs';
+import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from '../shared/pnpmSpawn.mjs';
 
 const forwardedArgs = process.argv.slice(2);
 if (forwardedArgs[0] === '--') forwardedArgs.shift();
