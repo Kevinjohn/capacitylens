@@ -1,152 +1,107 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
-import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
+import { applyTransfer } from '@/data/companyDataRequests';
+import type { ApplyTransferInput } from '@/data/companyDataRequests';
+import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { readApiError } from '@/lib/readApiError';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { buildSkippedMessage } from './importExportMessages';
 
 type SetNotice = ReturnType<typeof useStore.getState>['setNotice'];
-type ImportTransaction = { committed: boolean; requiresReload: boolean };
-type ImportContext = {
-  accountId: string;
-  planningContext: ReturnType<typeof useStore.getState>['planning']['context'];
-  transaction: ImportTransaction;
-  setRequiresReload: (required: boolean) => void;
-  setNotice: SetNotice;
-};
-
-const ownsContext = (context: ImportContext): boolean => {
-  const state = useStore.getState();
-  return (
-    state.activeAccountId === context.accountId &&
-    state.planning.context === context.planningContext
-  );
-};
 
 const parseCount = (value: unknown): number | null =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
-const markReloadRequired = (context: ImportContext, message: string): void => {
-  context.transaction.requiresReload = true;
-  context.setRequiresReload(true);
-  context.setNotice(message, 'error');
+
+// `imported` is null when a 200 response is off-spec; the slice was still replaced server-side.
+type ImportSummary = {
+  imported: number | null;
+  skipped: number;
+  unchanged: boolean;
+  changed: boolean;
 };
 
-const refreshRespectingNotices = async (context: ImportContext) => {
-  const noticeBefore = useStore.getState().notice;
-  const outcome =
-    ownsContext(context) && (await useStore.getState().refreshPlanning({ fresh: true }));
-  const noticeAfter = useStore.getState().notice;
-  return {
-    outcome: outcome && ownsContext(context),
-    errorRaised: noticeAfter !== noticeBefore && noticeAfter?.tone === 'error',
-  };
-};
-
-const reconcileUnknownOutcome = async (context: ImportContext): Promise<void> => {
-  context.transaction.committed = true;
-  if (!ownsContext(context)) return;
-  const outcome = await useStore
-    .getState()
-    .refreshPlanning({ fresh: true })
-    .catch(() => false);
-  if (!ownsContext(context)) return;
-  if (!outcome) {
-    markReloadRequired(context, m.data_import_unknown_reload_required());
-    return;
-  }
-  context.setNotice(m.data_import_unknown_reloaded(), 'warning');
-};
-
-const reportCommittedImport = async (
-  context: ImportContext,
-  successMessage: string,
-): Promise<void> => {
-  if (!ownsContext(context)) return;
-  const { outcome, errorRaised } = await refreshRespectingNotices(context);
-  if (!ownsContext(context)) return;
-  if (!outcome) {
-    markReloadRequired(context, m.data_import_refresh_failed());
-    return;
-  }
-  if (!errorRaised) context.setNotice(successMessage);
-};
-
-const completeImport = async (response: Response, context: ImportContext): Promise<void> => {
-  context.transaction.committed = true;
+const readImportSummary = async (response: Response): Promise<ImportSummary> => {
+  // An unreadable body is an off-spec success, reported below with the generic completion notice.
   const body: unknown = await response.json().catch(() => null);
-  if (!ownsContext(context)) return;
   const imported = parseCount(isRecord(body) ? body.imported : undefined);
   const skipped = parseCount(isRecord(body) ? body.skipped : undefined) ?? 0;
-  if (imported === null) {
-    console.warn('import: 200 response with an off-spec body; the slice was replaced server-side');
-    await reportCommittedImport(context, m.data_import_done());
-    return;
-  }
-  if (isRecord(body) && body.changed === false) {
-    context.transaction.committed = false;
-    context.setNotice(m.data_import_done());
-    return;
-  }
-  if (imported === 0) {
-    context.transaction.committed = false;
-    const why = buildSkippedMessage(skipped, 'why');
-    context.setNotice(m.data_no_records({ why }), 'error');
-    return;
-  }
-  const skippedNote = buildSkippedMessage(skipped, 'note');
-  const successMessage =
-    imported === 1
-      ? m.data_imported_server_one({ count: imported, skipped: skippedNote })
-      : m.data_imported_server_other({ count: imported, skipped: skippedNote });
-  await reportCommittedImport(context, successMessage);
+  const unchanged = isRecord(body) && body.changed === false;
+  const changed = imported === null || (!unchanged && imported > 0);
+  return { imported, skipped, unchanged, changed };
 };
 
-const runServerImport = async (
-  document: BetaExportDocument,
-  baseRevision: number,
-  confirmationId: string,
-  context: ImportContext,
-): Promise<void> => {
-  const { accountId, transaction, setNotice } = context;
-  if (!useStore.getState().planningReadyForReplacement()) {
-    setNotice(m.data_import_blocked_unsynced(), 'error');
+type ImportReport = { setNotice: SetNotice; markReloadRequired: (message: string) => void };
+// `errorRaised` means the fresh read set its own error notice, which the success must not replace.
+type ImportRecovery = { reloadRequired: boolean; errorRaised: boolean };
+
+const reportCommittedImport = (
+  summary: ImportSummary,
+  { reloadRequired, errorRaised }: ImportRecovery,
+  { setNotice, markReloadRequired }: ImportReport,
+): void => {
+  const { imported, skipped } = summary;
+  if (imported === null) {
+    console.warn('import: 200 response with an off-spec body; the slice was replaced server-side');
+  } else if (summary.unchanged) {
+    setNotice(m.data_import_done());
+    return;
+  } else if (imported === 0) {
+    const why = buildSkippedMessage(skipped, 'why');
+    setNotice(m.data_no_records({ why }), 'error');
     return;
   }
-  const resumeWrites = useStore.getState().suspendPlanningCommands();
-  if (!resumeWrites) {
-    setNotice(m.data_import_blocked_unsynced(), 'error');
+  if (reloadRequired) {
+    markReloadRequired(m.data_import_refresh_failed());
     return;
   }
-  context.planningContext = useStore.getState().planning.context;
-  try {
-    if (!ownsContext(context)) return;
-    const response = await apiFetch(
-      '/api/transfer/apply',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ accountId, document, baseRevision, confirmationId }),
-      },
-      API_BULK_TIMEOUT_MS,
-    );
-    if (!ownsContext(context)) return;
-    if (response.ok) await completeImport(response, context);
-    else if (response.status === 408 || response.status >= 500) {
-      await reconcileUnknownOutcome(context);
-    } else {
-      const message =
-        (await readApiError(response)) ?? m.data_import_failed({ status: response.status });
-      if (ownsContext(context)) setNotice(message, 'error');
+  if (errorRaised) return;
+  const skippedNote = buildSkippedMessage(skipped, 'note');
+  setNotice(
+    imported === null
+      ? m.data_import_done()
+      : imported === 1
+        ? m.data_imported_server_one({ count: imported, skipped: skippedNote })
+        : m.data_imported_server_other({ count: imported, skipped: skippedNote }),
+  );
+};
+
+const runServerImport = async (input: ApplyTransferInput, report: ImportReport): Promise<void> => {
+  const { setNotice, markReloadRequired } = report;
+  const noticeBefore = useStore.getState().notice;
+  const outcome = await runSuspendedReplacement({
+    send: () => applyTransfer(input),
+    recovery: 'refresh',
+    isChanged: async (response) => {
+      const summary = await readImportSummary(response.clone());
+      return summary.changed;
+    },
+  });
+  switch (outcome.kind) {
+    case 'blocked':
+      setNotice(m.data_import_blocked_unsynced(), 'error');
+      return;
+    case 'departed':
+      return;
+    case 'refused':
+      setNotice(outcome.message ?? m.data_import_failed({ status: outcome.status }), 'error');
+      return;
+    case 'uncertain':
+      if (outcome.reloadRequired) markReloadRequired(m.data_import_unknown_reload_required());
+      else setNotice(m.data_import_unknown_reloaded(), 'warning');
+      return;
+    case 'committed': {
+      const noticeAfter = useStore.getState().notice;
+      const errorRaised = noticeAfter !== noticeBefore && noticeAfter?.tone === 'error';
+      const summary = await readImportSummary(outcome.response);
+      reportCommittedImport(
+        summary,
+        { reloadRequired: outcome.reloadRequired, errorRaised },
+        report,
+      );
+      return;
     }
-  } catch {
-    // A missing import response does not prove rejection; reconcile server state before permitting another replacement.
-    if (ownsContext(context)) await reconcileUnknownOutcome(context);
-  } finally {
-    if (!transaction.requiresReload) resumeWrites();
   }
 };
 
@@ -179,16 +134,21 @@ export function useServerImport() {
     }
     setBusy(true);
     setRequiresReload(false);
-    const transaction: ImportTransaction = { committed: false, requiresReload: false };
+    // A reload-required import keeps the busy dialog and the in-flight guard until the page reloads.
+    const settled = { reloadRequired: false };
     try {
-      await runServerImport(document, baseRevision, confirmationId, {
-        accountId,
-        planningContext: useStore.getState().planning.context,
-        transaction,
-        setRequiresReload,
-        setNotice,
-      });
-      if (!transaction.requiresReload) setBusy(false);
+      await runServerImport(
+        { accountId, document, baseRevision, confirmationId },
+        {
+          setNotice,
+          markReloadRequired: (message) => {
+            settled.reloadRequired = true;
+            setRequiresReload(true);
+            setNotice(message, 'error');
+          },
+        },
+      );
+      if (!settled.reloadRequired) setBusy(false);
     } catch (error) {
       // Report a failed import-start boundary and release busy state so recovery controls remain usable.
       if (useStore.getState().activeAccountId === accountId) {
@@ -196,7 +156,7 @@ export function useServerImport() {
       }
       setBusy(false);
     } finally {
-      if (!transaction.requiresReload) importInFlightRef.current = false;
+      if (!settled.reloadRequired) importInFlightRef.current = false;
     }
   };
 

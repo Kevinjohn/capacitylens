@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { useCan } from '@/auth/permissionContext';
-import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
+import { anonymiseCompanyPeople } from '@/data/companyDataRequests';
+import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { readApiError } from '@/lib/readApiError';
 import { reloadPage } from '@/lib/reloadPage';
 import { useStore } from '@/store/useStore';
 import { Modal } from '@/components/common/ui';
@@ -50,61 +50,40 @@ export function CompanyAnonymiseSection() {
       generation.current === submittedGeneration &&
       useStore.getState().activeAccountId === accountId;
     setBusy(true);
-    let resumeWrites: (() => void) | null = null;
-    let committed = false;
-    let mustReload = false;
-    let dispatched = false;
-    try {
-      if (!useStore.getState().planningReadyForReplacement()) {
-        if (stillCurrent()) setNotice(m.data_import_blocked_unsynced(), 'error');
-        return;
-      }
-      resumeWrites = useStore.getState().suspendPlanningCommands();
-      if (!resumeWrites) {
-        if (stillCurrent()) setNotice(m.data_import_blocked_unsynced(), 'error');
-        return;
-      }
-      if (!stillCurrent()) return;
-      dispatched = true;
-      const response = await apiFetch(
-        `/api/accounts/${encodeURIComponent(accountId)}/anonymise`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ confirmationId }),
-        },
-        API_BULK_TIMEOUT_MS,
-      );
-      if (response.status === 204) {
-        committed = true;
-        mustReload = true;
-        setRequiresReload(true);
-        reloadPage();
-        return;
-      }
-      if (response.status === 408 || response.status >= 500) {
-        throw new Error(`HTTP ${response.status} left the operation outcome uncertain.`);
-      }
+    const outcome = await runSuspendedReplacement({
+      send: () => anonymiseCompanyPeople(accountId, confirmationId),
+      recovery: 'reload',
+    });
+    if (outcome.kind === 'committed') {
+      setRequiresReload(true);
+      reloadPage();
+      return;
+    }
+    if (outcome.kind === 'uncertain') {
+      // A lost or failed response after dispatch may follow a commit; only a fresh load is safe.
+      const { failure } = outcome;
       const message =
-        (await readApiError(response)) ??
-        m.settings_archived_err_action({ status: response.status });
-      if (stillCurrent()) setNotice(message, 'error');
-    } catch (cause) {
-      // A lost response after dispatch may follow a commit. Keep the old slice blocked until a fresh load.
-      mustReload = dispatched;
+        failure.kind === 'status'
+          ? `HTTP ${failure.status} left the operation outcome uncertain.`
+          : resolveErrorMessage(failure.cause);
       if (stillCurrent()) {
-        if (dispatched) setRequiresReload(true);
-        setNotice(resolveErrorMessage(cause), 'error');
-      } else if (dispatched) reloadPage();
-    } finally {
-      if (!mustReload && !committed) {
-        resumeWrites?.();
-        inFlight.current = false;
-        setBusy(false);
-        if (stillCurrent()) setConfirming(false);
+        setRequiresReload(true);
+        setNotice(message, 'error');
+      } else reloadPage();
+      return;
+    }
+    if (stillCurrent()) {
+      if (outcome.kind === 'blocked') setNotice(m.data_import_blocked_unsynced(), 'error');
+      if (outcome.kind === 'refused') {
+        setNotice(
+          outcome.message ?? m.settings_archived_err_action({ status: outcome.status }),
+          'error',
+        );
       }
     }
+    inFlight.current = false;
+    setBusy(false);
+    if (stillCurrent()) setConfirming(false);
   };
 
   return (

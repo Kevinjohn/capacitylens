@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { accountClient } from '@/account/accountClient';
 import { useCan } from '@/auth/permissionContext';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { readApiError } from '@/lib/readApiError';
+import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
+import type { SuspendedReplacementOutcome } from '@/data/planning/suspendedReplacement';
 import { useScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
 import { Button } from '@/components/ui/button';
@@ -22,78 +23,66 @@ function useCompanyIsEmpty(): boolean {
   );
 }
 
+type SetNotice = ReturnType<typeof useStore.getState>['setNotice'];
+
+function reportExampleData(outcome: SuspendedReplacementOutcome, setNotice: SetNotice): void {
+  switch (outcome.kind) {
+    case 'blocked':
+      setNotice(m.settings_example_data_blocked(), 'error');
+      return;
+    case 'departed':
+      return;
+    case 'refused':
+      setNotice(
+        outcome.message ?? m.settings_example_data_failed({ status: outcome.status }),
+        'error',
+      );
+      return;
+    case 'uncertain': {
+      const { failure } = outcome;
+      const message =
+        failure.kind === 'status'
+          ? (failure.message ?? m.settings_example_data_failed({ status: failure.status }))
+          : resolveErrorMessage(failure.cause);
+      setNotice(
+        outcome.reloadRequired
+          ? `${message} ${m.settings_example_data_unknown_reload_required()}`
+          : message,
+        'error',
+      );
+      return;
+    }
+    case 'committed': {
+      if (outcome.reloadRequired) {
+        setNotice(m.settings_example_data_reload(), 'warning');
+        return;
+      }
+      const degradedAudit = outcome.response.headers.get(AUDIT_WARNING_HEADER) === 'true';
+      setNotice(
+        degradedAudit
+          ? `${m.settings_example_data_added()} ${m.app_audit_log_warning()}`
+          : m.settings_example_data_added(),
+        degradedAudit ? 'warning' : 'info',
+      );
+      return;
+    }
+  }
+}
+
 function ExampleDataSection() {
   const accountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
   const [busy, setBusy] = useState(false);
   const addExampleData = async () => {
     if (accountId === null || busy) return;
-    if (!useStore.getState().planningReadyForReplacement()) {
-      setNotice('Finish loading or resolving company changes before adding example data.', 'error');
-      return;
-    }
-    const release = useStore.getState().suspendPlanningCommands();
-    if (!release) {
-      setNotice('Finish loading or resolving company changes before adding example data.', 'error');
-      return;
-    }
-    const planningContext = useStore.getState().planning.context;
-    const ownsContext = () => {
-      const state = useStore.getState();
-      return state.activeAccountId === accountId && state.planning.context === planningContext;
-    };
-    let keepBlocked = false;
     setBusy(true);
     try {
-      const response = await accountClient.addExampleData(accountId);
-      if (!ownsContext()) return;
-      if (!response.ok) {
-        const unknown = response.status === 408 || response.status >= 500;
-        if (unknown) {
-          const accepted = await useStore.getState().refreshPlanning({ fresh: true });
-          if (!ownsContext()) return;
-          keepBlocked = !accepted;
-        }
-        const message =
-          (await readApiError(response)) ??
-          m.settings_example_data_failed({ status: response.status });
-        if (ownsContext()) {
-          setNotice(
-            keepBlocked
-              ? `${message} ${m.settings_example_data_unknown_reload_required()}`
-              : message,
-            'error',
-          );
-        }
-        return;
-      }
-      const accepted = await useStore.getState().refreshPlanning({ fresh: true });
-      if (!ownsContext()) return;
-      keepBlocked = !accepted;
-      if (accepted) {
-        const degradedAudit = response.headers.get(AUDIT_WARNING_HEADER) === 'true';
-        setNotice(
-          degradedAudit
-            ? `${m.settings_example_data_added()} ${m.app_audit_log_warning()}`
-            : m.settings_example_data_added(),
-          degradedAudit ? 'warning' : 'info',
-        );
-      } else setNotice(m.settings_example_data_reload(), 'warning');
-    } catch (cause) {
-      if (!ownsContext()) return;
-      const accepted = await useStore
-        .getState()
-        .refreshPlanning({ fresh: true })
-        .catch(() => false);
-      if (!ownsContext()) return;
-      keepBlocked = !accepted;
-      const message = resolveErrorMessage(cause);
-      setNotice(
-        keepBlocked ? `${message} ${m.settings_example_data_unknown_reload_required()}` : message,
-        'error',
-      );
+      const outcome = await runSuspendedReplacement({
+        send: () => accountClient.addExampleData(accountId),
+        recovery: 'refresh',
+      });
+      reportExampleData(outcome, setNotice);
     } finally {
-      if (!keepBlocked) release();
       setBusy(false);
     }
   };
