@@ -186,7 +186,7 @@ product writer advances the revision, and export, import and anonymisation read 
 One `createPlanningCacheController` in
 `apps/frontend/src/data/planning/planningCacheController.ts` owns the confirmed planning cache,
 page-local Undo/Redo history (50 entries) and the single pending or uncertain write. The store
-wires it in `apps/frontend/src/store/slices/allocationSlice.ts`; nothing else writes planning rows
+wires it in `apps/frontend/src/store/slices/planningSessionSlice.ts`; nothing else writes planning rows
 in the browser, and nothing is persisted.
 
 - `apps/frontend/src/data/planning/planningCommands.ts` builds intent and inverse pairs from a
