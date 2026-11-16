@@ -747,35 +747,43 @@ function registerBuildSchedulerModelTest23() {
     };
     d.timeOff.push(corruptTimeOff);
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(hasRenderableDateRange(corrupt)).toBe(false);
-    expect(error).not.toHaveBeenCalled();
-    const buildCorrupt = () =>
-      buildSchedulerModel({
-        data: d,
-        geom,
-        days,
-        visibleWindow: { start, end },
-        overSoonWindow: { start, end },
-        filters: buildEmptyFilters(),
-        preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
-      });
+    try {
+      expect(hasRenderableDateRange(corrupt)).toBe(false);
+      expect(error).not.toHaveBeenCalled();
+      const buildCorrupt = () =>
+        buildSchedulerModel({
+          data: d,
+          geom,
+          days,
+          visibleWindow: { start, end },
+          overSoonWindow: { start, end },
+          filters: buildEmptyFilters(),
+          preferences: {
+            disciplinesEnabled: true,
+            placeholdersEnabled: true,
+            externalEnabled: true,
+          },
+        });
 
-    const first = buildCorrupt();
-    buildCorrupt();
+      const first = buildCorrupt();
+      buildCorrupt();
 
-    expect(
-      first
-        .flatMap((group) => group.rows)
-        .flatMap((row) => row.bars.map((bar) => bar.allocation.id)),
-    ).not.toContain(corrupt.id);
-    expect(
-      first.flatMap((group) => group.rows).flatMap((row) => row.timeOff.map((block) => block.id)),
-    ).not.toContain(corruptTimeOff.id);
-    expect(error).toHaveBeenCalledTimes(2);
-    expect(error).toHaveBeenCalledWith(`Scheduler omitted ${corrupt.id}: invalid date range.`);
-    expect(error).toHaveBeenCalledWith(
-      `Scheduler omitted ${corruptTimeOff.id}: invalid date range.`,
-    );
+      expect(
+        first
+          .flatMap((group) => group.rows)
+          .flatMap((row) => row.bars.map((bar) => bar.allocation.id)),
+      ).not.toContain(corrupt.id);
+      expect(
+        first.flatMap((group) => group.rows).flatMap((row) => row.timeOff.map((block) => block.id)),
+      ).not.toContain(corruptTimeOff.id);
+      expect(error).toHaveBeenCalledTimes(2);
+      expect(error).toHaveBeenCalledWith(`Scheduler omitted ${corrupt.id}: invalid date range.`);
+      expect(error).toHaveBeenCalledWith(
+        `Scheduler omitted ${corruptTimeOff.id}: invalid date range.`,
+      );
+    } finally {
+      error.mockRestore();
+    }
   });
 
   it('leaves day states untouched by a closure it omits for an invalid range', () => {

@@ -124,24 +124,28 @@ function registerExclusiveActionThrowScenarios(): void {
     const actionFailure = new Error('the action failed');
     const handlerFailure = new Error('the error surface failed');
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const { result } = renderHook(() => useExclusiveAction());
+    try {
+      const { result } = renderHook(() => useExclusiveAction());
 
-    act(() =>
-      result.current.run(
-        () => Promise.reject(actionFailure),
-        () => {
-          throw handlerFailure;
-        },
-      ),
-    );
-    await act(async () => Promise.resolve());
+      act(() =>
+        result.current.run(
+          () => Promise.reject(actionFailure),
+          () => {
+            throw handlerFailure;
+          },
+        ),
+      );
+      await act(async () => Promise.resolve());
 
-    expect(consoleError).toHaveBeenCalledWith(
-      'Exclusive action error handler failed',
-      handlerFailure,
-    );
-    expect(result.current.busy).toBe(false);
-    expect(result.current.locked()).toBe(false);
+      expect(consoleError).toHaveBeenCalledWith(
+        'Exclusive action error handler failed',
+        handlerFailure,
+      );
+      expect(result.current.busy).toBe(false);
+      expect(result.current.locked()).toBe(false);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('keeps run and locked stable across renders so they are safe effect/callback dependencies', () => {

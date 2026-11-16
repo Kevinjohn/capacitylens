@@ -46,7 +46,11 @@ describe('readAuthResponse limited gates', () => {
     { admission: { admitted: true, requirements: {} }, membershipRequired: undefined },
     { admission: { admitted: true, requirements: {} }, emailVerified: 'yes' },
   ])('treats a missing or malformed gate as an invalid response (%o)', async (body) => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(await readAuthResponse(signedIn(body))).toMatchObject({ kind: 'error' });
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await readAuthResponse(signedIn(body))).toMatchObject({ kind: 'error' });
+    } finally {
+      consoleWarn.mockRestore();
+    }
   });
 });
