@@ -13,6 +13,7 @@ As an invited person, I want to request company access and check the decision so
 - A person who can request access sees **Ask for access**; after requesting, the screen says the request was sent and offers **Check again**.
 - When approval is granted, **Check again** refreshes access and the approved person can select **Join company** if they do not yet have a membership.
 - Owner and Admin see waiting requests with each person's email and invited role when available. They can **Approve** a request or **Decline** a pending request; declined or revoked requests stay listed, and **Approve** remains available.
+- The **Waiting for approval** card shows its explanation only while at least one request is listed. With none, it shows its heading and "Nobody is waiting for approval."
 - A declined or revoked person sees the access message without request or refresh controls. A person without an invitation or with a disallowed email domain sees the corresponding instruction.
 
 ## User flow
@@ -25,7 +26,9 @@ flowchart TD
     Decision -->|"No"| Wait["Continue waiting for approval"]
     Decision -->|"Yes, membership exists"| Access["Open company"]
     Decision -->|"Yes, no membership yet"| Join["Select Join company"]
-    Manager["Owner or Admin opens Waiting for approval"] --> Decide["Approve or Decline a pending request"]
+    Manager["Owner or Admin opens Waiting for approval"] --> Listed{"Any request listed?"}
+    Listed -->|"No"| Empty["Read: Nobody is waiting for approval."]
+    Listed -->|"Yes"| Decide["Read the explanation; Approve or Decline a pending request"]
     Decide --> Refresh["Request list refreshes; person checks access again"]
 ```
 
@@ -43,7 +46,8 @@ flowchart TD
     Gate -->|"Admitted, no membership"| Join["MembershipStep Join company → authClient.completeMembership"]
     Join --> Complete["AdmissionController.complete → completeMembership"]
     Complete --> Company["AuthProvider refreshes access and opens company"]
-    Manager["AdmissionRequestsPanel Approve or Decline"] --> Client["teamAccessClient.decideAdmission → accountClient.decideAdmission"]
+    Manager["AdmissionRequestsPanel: settings_admission_intro only when requests.length > 0, else settings_admission_empty"] --> Buttons["Approve or Decline"]
+    Buttons --> Client["teamAccessClient.decideAdmission → accountClient.decideAdmission"]
     Client --> Decision["AdmissionController.approve or reject → AccountAdmission decision"]
     Decision --> Reload["Panel reloads request list; person refreshes access when ready"]
     Manager -. "No Revoke control or caller" .-> NoRevoke["api.admission.revoke exists, but this UI does not call it"]

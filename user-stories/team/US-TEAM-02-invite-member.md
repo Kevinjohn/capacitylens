@@ -15,6 +15,7 @@ As an Owner or Admin, I want to email a teammate an invitation with a role so th
 | Role  | Select      | Required; defaults to Editor; Admin, Editor or Viewer are available, not Owner. |
 | Email | Email input | Required; invitee's address.                                                    |
 
+- The **Invite someone** section is its heading, the **Invite someone** button and any outstanding invitations; it has no intro paragraph. The explanation of email delivery and approval is the description of the invitation dialog.
 - **Create invite** emails the invitation; the app does not display the invitation link. Missing mail configuration prevents creation. If delivery fails after the invitation was saved, the page explains that it was saved but not emailed and it can be resent.
 
 ## User flow
@@ -22,7 +23,7 @@ As an Owner or Admin, I want to email a teammate an invitation with a role so th
 ```mermaid
 flowchart TD
     Open["Owner or Admin opens Team & access"] --> Invite["Select Invite someone"]
-    Invite --> Details["Choose role and enter email"]
+    Invite --> Details["Read the dialog description, choose role and enter email"]
     Details -->|"Cancel"| Back["Return to Team & access"]
     Details --> Submit["Select Create invite"]
     Submit --> Mail{"Can the invitation email be sent?"}
@@ -36,7 +37,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Panel["InviteMemberPanel submit"] --> Hook["useMemberInvites submitInvite validates email"]
+    Panel["InviteMemberPanel opens Modal with settings_invite_intro description, then submit"] --> Hook["useMemberInvites submitInvite validates email"]
     Hook --> Client["teamAccessClient.createInvitation → accountClient.createInvitation"]
     Client --> Route["api.invites.create → InvitationsController.create"]
     Route --> MailConfig{"CAPACITYLENS_MAIL_HOST configured?"}

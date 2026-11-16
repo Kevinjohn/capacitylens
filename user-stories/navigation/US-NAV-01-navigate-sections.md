@@ -14,14 +14,14 @@ As an Owner, Admin, Editor, or Viewer, I want to open the sections available to 
 
 ## Acceptance criteria
 
-- Selecting a permitted destination renders its page and preserves valid deep links; unknown routes show the not-found page. A direct link to Overview or Diagnostics without access, or to Disciplines while disciplines are off, returns to the Schedule.
+- Selecting a permitted destination renders its page and preserves valid deep links; unknown routes show the not-found page. A direct link to Overview or Diagnostics without access, or to Disciplines while disciplines are off, returns to the Schedule. The sidebar lists the working destinations, **Team & access** and **Settings**, then **Help** and **Account**; Diagnostics is reached from Help or the command palette, not the sidebar.
 
 ## User flow
 
 ```mermaid
 flowchart TD
   human1["Start at any valid application URL"]
-  human2["Choose a permitted sidebar destination"]
+  human2["Choose a permitted sidebar destination, or Diagnostics from Help"]
   human3["Destination page opens"]
   human4["Direct link or reload"]
   human5["requested page opens"]

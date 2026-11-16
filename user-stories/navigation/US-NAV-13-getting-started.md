@@ -15,7 +15,7 @@ As an Owner, Admin, or Editor, I want visible first-schedule milestones so that 
 ## Acceptance criteria
 
 - Five milestones reflect current company data. Each unfinished milestone links to its relevant screen; completed milestones are shown as done.
-- **Hide checklist** and **Show checklist** collapse and expand the card. Owners and Admins see **Dismiss**, which hides the card for everyone in the company; with fewer than five milestones complete it first asks **Do you really want to hide this forever?** (**Yes** / **No**). Editors can use the card but have no **Dismiss**.
+- **Hide checklist** and **Show checklist** collapse and expand the card. Owners and Admins see **Dismiss**, which hides the card for everyone in the company; it always first asks **Do you really want to hide this forever?** (**Yes** / **No**). Once all five milestones are complete the card is not shown on any page; it returns if a completed milestone is undone. Editors can use the card but have no **Dismiss**.
 - Show me around starts the role-aware schedule tour when available. The Help page provides a separate, persistent route to start that tour.
 
 ## User flow
@@ -25,8 +25,8 @@ flowchart TD
   open["Open Getting Started"] --> review["Review five milestones and unfinished links"]
   review --> toggle["Hide or show the card"]
   review --> dismiss["Owner/Admin chooses Dismiss"]
-  dismiss -->|milestones incomplete| confirm["Confirm dismissal"]
-  dismiss -->|all complete| done["Card is dismissed"]
+  dismiss --> confirm["Confirm dismissal"]
+  review -->|all five complete| gone["Card is no longer shown"]
   review --> tour["Show me around starts role-based tour"]
 ```
 
@@ -38,7 +38,8 @@ flowchart TD
   steps --> panel["GettingStarted renders progress and links"]
   panel --> toggle["setOpen hides or shows checklist"]
   panel --> dismiss["useCompanyDismissal saves dismissal"]
-  dismiss -->|incomplete| confirm["AlertDialog requests confirmation"]
+  dismiss --> confirm["AlertDialog requests confirmation"]
+  steps -->|done is 5| hidden["GettingStarted renders nothing"]
   panel --> tour["useTourAction starts role tour"]
 ```
 

@@ -18,8 +18,9 @@ company settings needs the Editor role or above.
 
 ![Team & access showing the Viewer role and its limits](../screenshots/flows/viewer_access_current.jpg)
 
-Open **Team & access** near the bottom of the menu to see your company and role. If you need a
-different role or cannot access the company, ask an Owner or Admin.
+Open **Team & access** near the bottom of the menu to see your role under **Your access**; the left
+menu doesn't show your role. Your company's name is under **Company details** in **Settings**. If
+you need a different role or cannot access the company, ask an Owner or Admin.
 
 Signing in alone doesn't admit you to a company: you need an invitation and an Owner's or Admin's approval.
 [Join your team](/using/join-your-team) covers both.

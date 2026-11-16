@@ -64,7 +64,7 @@ agree separately. See [Transfer ownership](/owner/responsibilities#transfer-owne
 ![Viewer tour highlighting the Schedule grid with progress 1 of 2](../screenshots/flows/tour_viewer.png)
 
 Anyone can start the tour for their role from **Help** in the left menu, even after Getting started
-is dismissed. Owners, Admins and Editors can also select **Show me around** on the Getting started
+has gone, whether all five steps are done or an Owner or Admin dismissed it. Owners, Admins and Editors can also select **Show me around** on the Getting started
 card; Viewers don't see that card. The tour opens Schedule first and continues through the guidance
 for lower roles:
 

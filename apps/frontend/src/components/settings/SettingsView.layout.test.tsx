@@ -89,6 +89,9 @@ describe('SettingsView — grouped information architecture', () => {
     );
     const company = screen.getByRole('region', { name: 'Company setup' });
     expect(within(company).getByRole('radio', { name: 'Everyone' })).toBeDisabled();
+    // The Viewer guide sends people here for their company's name, which no menu shows.
+    const support = screen.getByRole('region', { name: 'Data and support' });
+    expect(within(support).getByRole('row', { name: 'Company name Test Co' })).toBeVisible();
     const display = screen.getByRole('region', { name: 'My display' });
     const minimise = within(display).getByRole('switch', { name: 'Minimise weekends' });
     const before = useStore.getState().minimiseWeekends;

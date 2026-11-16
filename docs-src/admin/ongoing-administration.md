@@ -70,6 +70,6 @@ For one person's absence, [record time off](/using/time-off#record-time-off).
 
 Ask the Owner to transfer ownership, anonymise the company or import scheduling data. Ask the installer
 about backups, upgrades and company-login setup. When something goes wrong, copy a report
-from [Diagnostics](/admin/diagnostics).
+from [Diagnostics](/admin/diagnostics), linked from **Help**.
 
 Next: [Admin FAQ](/admin/faq) — common access problems.

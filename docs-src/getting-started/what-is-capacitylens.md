@@ -19,8 +19,7 @@ unsold. Someone finds out about a new project the week before their holiday.
 CapacityLens puts the whole team on one screen that everyone can read, so you can see trouble
 coming and move work around before it lands.
 
-The **How CapacityLens works** introduction can be reopened from the same-named item in the
-sidebar.
+The **How CapacityLens works** introduction can be reopened from **Help**.
 
 ## What you get
 

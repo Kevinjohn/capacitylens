@@ -7,10 +7,10 @@ next: false
 
 # Help
 
-Start a short tour for your role, or open these guides. Every role can use it, even after Getting
-started is dismissed.
+Start a short tour for your role, reopen the introduction, or open these guides. Every role can
+use it, even after Getting started has gone. Owners and Admins also see a link to Diagnostics.
 
-![Help page with Show tour and Browse the user guides, above Account in the left menu](../screenshots/flows/help_viewer.png)
+![Help page with Show tour and Browse the user guides](../screenshots/flows/help_viewer.png)
 
 Open **Help** near the bottom of the left menu, above **Account**, or from the command palette.
 
@@ -23,6 +23,10 @@ role's tour.
 
 **Show tour** is disabled while your access is being checked or cannot be confirmed. If the tour
 fails to start, an error appears so you can try again.
+
+## Reopen the introduction
+
+Select **How CapacityLens works** to open the product introduction again.
 
 ## Open the guides
 

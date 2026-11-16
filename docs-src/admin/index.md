@@ -52,7 +52,7 @@ the Owner or installation guides.
 
 </div>
 
-The **Getting started** checklist on Schedule ticks off steps 2 to 4 as you go, in any order.
+The **Getting started** checklist on Schedule ticks off steps 2 to 4 as you go, in any order, and leaves when all five steps are done or an Owner or Admin dismisses it.
 If the Owner kept the example data, those steps may already be done. The example records are
 ordinary editable records: archive them from Resources, Clients and Projects when you no longer
 need them. Archived rows remain stored and can be restored from their archived section.
