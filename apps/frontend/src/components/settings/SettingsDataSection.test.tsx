@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Role } from '@capacitylens/shared/domain/access';
-import { accountClient } from '@/account/accountClient';
+import { companyDataRequests } from '@/data/companyDataRequests';
 import { PermissionContext } from '@/auth/permissionContext';
 import { apiFetch } from '@/data/requestTimeout';
 import { reloadPage } from '@/lib/reloadPage';
@@ -114,7 +114,7 @@ describe('Settings example data', () => {
 
   it('adds the data, reloads the company and confirms', async () => {
     const add = vi
-      .spyOn(accountClient, 'addExampleData')
+      .spyOn(companyDataRequests, 'addExampleData')
       .mockResolvedValue(jsonResponse({ added: 15 }, 201));
     renderSection();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Add example data' }));
@@ -126,7 +126,7 @@ describe('Settings example data', () => {
   });
 
   it("surfaces the server's refusal and does not reload", async () => {
-    vi.spyOn(accountClient, 'addExampleData').mockResolvedValue(
+    vi.spyOn(companyDataRequests, 'addExampleData').mockResolvedValue(
       jsonResponse({ error: 'Example data can only be added to an empty company.' }, 409),
     );
     renderSection();
@@ -142,7 +142,7 @@ describe('Settings example data', () => {
   });
 
   it('does not dispatch example data while a different replacement is unresolved', async () => {
-    const add = vi.spyOn(accountClient, 'addExampleData');
+    const add = vi.spyOn(companyDataRequests, 'addExampleData');
     useStore.setState({ suspendPlanningCommands: () => null });
     renderSection();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Add example data' }));
@@ -151,7 +151,7 @@ describe('Settings example data', () => {
   });
 
   it('keeps the replacement lock after an unknown example-data outcome and failed fresh read', async () => {
-    vi.spyOn(accountClient, 'addExampleData').mockResolvedValue(
+    vi.spyOn(companyDataRequests, 'addExampleData').mockResolvedValue(
       jsonResponse({ error: 'Unavailable' }, 503),
     );
     useStore.setState({ refreshPlanning: async () => false });

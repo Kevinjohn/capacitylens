@@ -7,9 +7,9 @@ import { m, syncLocaleFromAccount } from '@/i18n';
 import { useAccountSummaries } from '@/auth/useAccountSummaries';
 import { AUDIT_WARNING_EVENT } from '@/lib/auditWarning';
 import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from '@/lib/joinedAccountHandoff';
-import { ACCOUNT_LINK, ADMIN_LINKS, DIAGNOSTICS_LINK, HELP_LINK, LINKS } from '@/lib/navLinks';
+import { APP_ROUTES } from '@/lib/navLinks';
 import { hasOpenModal, isTextEntryShortcutOwner } from '@/lib/shortcutGuards';
-import { isShownByPlanningState } from '@/data/planning/planningCacheController';
+import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
 import { transitionAccount } from '@/auth/accountTransition';
@@ -131,7 +131,8 @@ interface DocumentTitleInput {
 function useDocumentTitle(input: DocumentTitleInput) {
   const { activeLanguage, activeLanguagePending, pathname } = input;
   useEffect(() => {
-    const match = [...LINKS, ...ADMIN_LINKS, DIAGNOSTICS_LINK, HELP_LINK, ACCOUNT_LINK].find(
+    // Titles name every route, visible or not: a guarded route redirects on its own.
+    const match = APP_ROUTES.find(
       ({ to }) => matchPath({ path: to, end: true }, pathname) !== null,
     );
     document.title = match ? `${match.label()} · ${APP_NAME}` : APP_NAME;

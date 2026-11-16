@@ -1,7 +1,9 @@
 // Account administration decodes untrusted responses here so Team and access controllers consume semantic outcomes.
 import type { InvitationRole, MembershipStatus } from '@capacitylens/shared/account/types';
 import type { Role } from '@capacitylens/shared/domain/access';
-import { accountClient } from './accountClient';
+import { admissionRequests } from './admissionRequests';
+import { invitationRequests } from './invitationRequests';
+import { memberRequests } from './memberRequests';
 import { readCommandResult, readResult } from './accessResult';
 import {
   parseAdmissionPage,
@@ -35,7 +37,7 @@ export const teamAccessClient = {
     companyId: string,
     signal?: AbortSignal,
   ): Promise<TeamAccessResult<TeamDirectory>> {
-    return readResult(await accountClient.listMembers(companyId, signal), parseMembers);
+    return readResult(await memberRequests.listMembers(companyId, signal), parseMembers);
   },
 
   async setMemberSignInTracking({
@@ -43,7 +45,7 @@ export const teamAccessClient = {
     enabled,
   }: SetMemberSignInTrackingOptions): Promise<TeamAccessResult<boolean>> {
     return readResult(
-      await accountClient.setMemberSignInTracking({ companyId, enabled }),
+      await memberRequests.setMemberSignInTracking({ companyId, enabled }),
       (body) => (isRecord(body) && typeof body.enabled === 'boolean' ? body.enabled : null),
     );
   },
@@ -52,7 +54,10 @@ export const teamAccessClient = {
     companyId: string,
     signal?: AbortSignal,
   ): Promise<TeamAccessResult<TeamInvitation[]>> {
-    return readResult(await accountClient.listInvitations(companyId, signal), parseInvitations);
+    return readResult(
+      await invitationRequests.listInvitations(companyId, signal),
+      parseInvitations,
+    );
   },
 
   async changeMemberRole(
@@ -61,7 +66,7 @@ export const teamAccessClient = {
     role: Role,
   ): Promise<TeamAccessResult<true>> {
     return readCommandResult(
-      await accountClient.changeMemberRole({ companyId, principalId, role }),
+      await memberRequests.changeMemberRole({ companyId, principalId, role }),
       noContent,
     );
   },
@@ -72,7 +77,7 @@ export const teamAccessClient = {
     status: MembershipStatus,
   ): Promise<TeamAccessResult<true>> {
     return readCommandResult(
-      await accountClient.changeMemberStatus({ companyId, principalId, status }),
+      await memberRequests.changeMemberStatus({ companyId, principalId, status }),
       noContent,
     );
   },
@@ -83,7 +88,7 @@ export const teamAccessClient = {
     resourceId: string;
     expectedRevision: string | null;
   }) {
-    return readCommandResult(await accountClient.setMemberResourceLink(input), (body) =>
+    return readCommandResult(await memberRequests.setMemberResourceLink(input), (body) =>
       isRecord(body) && typeof body.resourceId === 'string' && typeof body.revision === 'string'
         ? { resourceId: body.resourceId, revision: body.revision }
         : null,
@@ -92,7 +97,7 @@ export const teamAccessClient = {
 
   async clearMemberResourceLink(companyId: string, principalId: string, expectedRevision: string) {
     return readCommandResult(
-      await accountClient.clearMemberResourceLink({ companyId, principalId, expectedRevision }),
+      await memberRequests.clearMemberResourceLink({ companyId, principalId, expectedRevision }),
       noContent,
       204,
     );
@@ -104,7 +109,7 @@ export const teamAccessClient = {
     role: InvitationRole;
     email: string;
   }): Promise<TeamAccessResult<{ emailed: boolean }>> {
-    const response = await accountClient.createInvitation(input);
+    const response = await invitationRequests.createInvitation(input);
     return readCommandResult(response, parseDelivery, response.status === 202 ? 202 : 201);
   },
 
@@ -112,7 +117,10 @@ export const teamAccessClient = {
     companyId: string,
     invitationId: string,
   ): Promise<TeamAccessResult<{ emailed: boolean }>> {
-    return readResult(await accountClient.resendInvitation(companyId, invitationId), parseDelivery);
+    return readResult(
+      await invitationRequests.resendInvitation(companyId, invitationId),
+      parseDelivery,
+    );
   },
 
   /** Every pending, declined and revoked record, read page by page; pending people come first. */
@@ -122,7 +130,7 @@ export const teamAccessClient = {
       let cursor: string | null = null;
       do {
         const page: TeamAccessResult<AdmissionPage> = await readResult(
-          await accountClient.listAdmissionRequests(status, cursor, signal),
+          await admissionRequests.listAdmissionRequests(status, cursor, signal),
           parseAdmissionPage(status),
         );
         // Cancellation can arrive during decoding; another cursor or status must not start.
@@ -139,12 +147,12 @@ export const teamAccessClient = {
     userId: string,
     decision: 'approve' | 'reject',
   ): Promise<TeamAccessResult<true>> {
-    return readResult(await accountClient.decideAdmission(userId, decision), noContent);
+    return readResult(await admissionRequests.decideAdmission(userId, decision), noContent);
   },
 
   async revokeInvitation(companyId: string, invitationId: string): Promise<TeamAccessResult<true>> {
     return readCommandResult(
-      await accountClient.revokeInvitation(companyId, invitationId),
+      await invitationRequests.revokeInvitation(companyId, invitationId),
       noContent,
     );
   },

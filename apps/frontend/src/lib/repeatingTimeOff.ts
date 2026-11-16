@@ -7,7 +7,7 @@ import {
 } from '@capacitylens/shared/lib/repeatingDates';
 import type { RepeatPattern } from '@capacitylens/shared/lib/repeatingDates';
 import type { ISODate, TimeOff } from '@capacitylens/shared/types/entities';
-import type { Draft } from '@/store/useStore';
+import type { Draft } from '@/lib/entityDrafts';
 
 /** A create-only cadence; persisted time-off entries remain independent dated records. */
 export type TimeOffRepeatSelection =

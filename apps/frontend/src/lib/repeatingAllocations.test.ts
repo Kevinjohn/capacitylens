@@ -10,7 +10,7 @@ import type {
 import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
-import type { Draft } from '@/store/useStore';
+import type { Draft } from '@/lib/entityDrafts';
 import {
   buildRepeatedAllocationDrafts,
   buildRepeatingAllocationAdvisory as repeatingAllocationAdvisoryWithWeek,

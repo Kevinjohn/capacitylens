@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { screen, act, waitFor } from '@testing-library/react';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { useStore } from '@/store/useStore';
 import { setUpAppShellTests, renderAppShell } from './AppShell.testSupport';
 

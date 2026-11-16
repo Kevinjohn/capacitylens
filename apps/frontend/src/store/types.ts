@@ -1,7 +1,7 @@
-import type { Patch } from './entityDrafts';
+import type { Patch } from '@/lib/entityDrafts';
 import type { Filters } from './filters';
 import type { StoreEntityActions } from './StoreEntityActions';
-export * from './entityDrafts';
+export * from '@/lib/entityDrafts';
 export * from './filters';
 export * from './StoreEntityActions';
 import type { WeeksZoom } from '@/lib/schedulerConfig';
@@ -10,7 +10,7 @@ import type { ThemePreference } from '@/lib/theme';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
 import type { Account, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
-import type { PlanningControllerMetadata } from '@/data/planning/planningCacheController';
+import type { PlanningControllerMetadata } from '@/data/planning/planningCacheTypes';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 
 /** Runtime state for the current masquerade session. */

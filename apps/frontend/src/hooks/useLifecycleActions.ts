@@ -1,23 +1,18 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useStore } from '@/store/useStore';
-import type { LifecycleEntity } from '@/store/entityDrafts';
+import type { LifecycleEntity } from '@/lib/entityDrafts';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
-import { apiFetch } from '@/data/requestTimeout';
-import { API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
+import { companyDataRequests } from '@/data/companyDataRequests';
+import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
+import type { UncertainReplacementFailure } from '@/data/planning/suspendedReplacement';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 
 // Archive and restore use typed planning commands. Anonymisation has a named server route;
 // uncertain results require authoritative recovery before another irreversible attempt.
 
 type LifecycleVerb = 'archive' | 'unarchive' | 'anonymise';
-
-// A timeout or intermediary failure cannot prove whether the dispatched write committed.
-function isLifecycleOutcomeUnknown(response: Response): boolean {
-  return response.status === 408 || response.status >= 500;
-}
 
 /**
  * The dispatch surface returned by {@link useLifecycleActions}. Each method runs one lifecycle
@@ -31,27 +26,6 @@ export interface LifecycleActions {
   anonymise: (id: string) => Promise<void>;
 }
 
-// A lifecycle response is followed by the same canonical read as typed planning writes.
-type LifecycleReloadOutcome =
-  { kind: 'reloaded' } | { kind: 'skipped' } | { kind: 'failed' } | { kind: 'stale-account' };
-
-async function reloadFromServer(context: ServerLifecycleContext): Promise<LifecycleReloadOutcome> {
-  // A lifecycle POST can finish after a company switch. The planning controller rejects
-  // reads from a departed context before publication.
-  if (!ownsLifecycleContext(context)) return { kind: 'stale-account' };
-  const accepted = await useStore.getState().refreshPlanning({ fresh: true });
-  if (!ownsLifecycleContext(context)) return { kind: 'stale-account' };
-  return accepted ? { kind: 'reloaded' } : { kind: 'failed' };
-}
-
-function buildCommittedButStaleMessage(outcome: 'skipped' | 'failed', cause?: unknown): string {
-  const guidance =
-    outcome === 'skipped'
-      ? m.settings_archived_committed_refresh_skipped()
-      : m.settings_archived_committed_refresh_failed();
-  return cause === undefined ? guidance : `${guidance} ${resolveErrorMessage(cause)}`;
-}
-
 // A confirmed anonymisation without its mandatory refresh must stay gated across route/component
 // remounts: the same stale store slice is shared across those surfaces. Module lifetime matches the
 // required recovery boundary, a full page reload boots, hydrates, and creates a fresh gate map.
@@ -59,123 +33,61 @@ const reloadRequiredByAccount = new Map<string, string>();
 
 type SetNotice = ReturnType<typeof useStore.getState>['setNotice'];
 
-interface ServerLifecycleContext {
-  activeAccountId: string;
-  planningContext: ReturnType<typeof useStore.getState>['planning']['context'];
-  setNotice: SetNotice;
-}
-
-function ownsLifecycleContext(context: ServerLifecycleContext): boolean {
-  const state = useStore.getState();
-  return (
-    state.activeAccountId === context.activeAccountId &&
-    state.planning.context === context.planningContext
-  );
-}
-
-type ReconcileLifecycleFailureOptions = {
-  context: ServerLifecycleContext;
-  mutationConfirmed: boolean;
-  cause: unknown;
-};
-async function reconcileLifecycleFailure({
-  context,
-  mutationConfirmed,
-  cause,
-}: ReconcileLifecycleFailureOptions): Promise<boolean> {
-  const { activeAccountId, setNotice } = context;
-  if (!ownsLifecycleContext(context)) return false;
-  if (mutationConfirmed) {
-    const message = buildCommittedButStaleMessage('failed', cause);
-    reloadRequiredByAccount.set(activeAccountId, message);
-    setNotice(message, 'error');
-    return false;
-  }
-  try {
-    const outcome = await reloadFromServer(context);
-    if (outcome.kind === 'stale-account') return false;
-    if (outcome.kind !== 'reloaded') {
-      throw new Error(`Authoritative reload did not complete (${outcome.kind}).`, { cause });
-    }
-    setNotice(
-      `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${resolveErrorMessage(cause)}`,
-      'warning',
-    );
-    return true;
-  } catch (reloadError) {
-    // If authoritative recovery fails after an uncertain mutation, retain the reload-required block so another destructive attempt cannot race unknown server state.
-    if (!ownsLifecycleContext(context)) return false;
-    const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${resolveErrorMessage(reloadError)} Original request: ${resolveErrorMessage(cause)}`;
-    reloadRequiredByAccount.set(activeAccountId, message);
-    setNotice(message, 'error');
-    return false;
-  }
+function describeUncertainFailure(failure: UncertainReplacementFailure): string {
+  return failure.kind === 'status'
+    ? `HTTP ${failure.status} did not confirm whether the lifecycle mutation committed.`
+    : resolveErrorMessage(failure.cause);
 }
 
 async function dispatchServerLifecycle(
-  context: ServerLifecycleContext,
+  activeAccountId: string,
   id: string,
+  setNotice: SetNotice,
 ): Promise<boolean> {
-  const { activeAccountId, setNotice } = context;
   const reloadRequiredMessage = reloadRequiredByAccount.get(activeAccountId);
   if (reloadRequiredMessage) {
     setNotice(reloadRequiredMessage, 'error');
     return false;
   }
-  if (!useStore.getState().planningReadyForReplacement()) {
-    setNotice('Finish loading or resolving company changes before anonymising a person.', 'error');
-    return false;
-  }
-  const release = useStore.getState().suspendPlanningCommands();
-  if (!release) {
-    setNotice('Finish loading or resolving company changes before anonymising a person.', 'error');
-    return false;
-  }
-  context.planningContext = useStore.getState().planning.context;
-  let mutationConfirmed = false;
-  let keepBlocked = false;
-  try {
-    const response = await apiFetch(
-      `/api/accounts/${encodeURIComponent(activeAccountId)}/resources/${encodeURIComponent(id)}/anonymise`,
-      {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      },
-      API_BULK_TIMEOUT_MS,
-    );
-    if (!ownsLifecycleContext(context)) return false;
-    if (isLifecycleOutcomeUnknown(response)) {
-      throw new Error(
-        `HTTP ${response.status} did not confirm whether the lifecycle mutation committed.`,
+  const outcome = await runSuspendedReplacement({
+    send: () => companyDataRequests.anonymiseResource(activeAccountId, id),
+    recovery: 'refresh',
+  });
+  switch (outcome.kind) {
+    case 'blocked':
+      setNotice(m.settings_anonymise_resource_blocked(), 'error');
+      return false;
+    case 'departed':
+      return false;
+    case 'refused':
+      setNotice(
+        outcome.message ?? m.settings_archived_err_action({ status: outcome.status }),
+        'error',
       );
-    }
-    if (!response.ok && response.status !== 204) {
-      const message =
-        (await readApiError(response)) ??
-        m.settings_archived_err_action({ status: response.status });
-      if (ownsLifecycleContext(context)) setNotice(message, 'error');
       return false;
+    case 'committed':
+      if (outcome.reloadRequired) {
+        const message = m.settings_archived_committed_refresh_failed();
+        reloadRequiredByAccount.set(activeAccountId, message);
+        setNotice(message, 'error');
+        return false;
+      }
+      return true;
+    case 'uncertain': {
+      const cause = describeUncertainFailure(outcome.failure);
+      if (outcome.reloadRequired) {
+        // Keep the gate so another destructive attempt cannot race the unknown server state.
+        const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. Authoritative reload did not complete (failed). Original request: ${cause}`;
+        reloadRequiredByAccount.set(activeAccountId, message);
+        setNotice(message, 'error');
+        return false;
+      }
+      setNotice(
+        `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${cause}`,
+        'warning',
+      );
+      return true;
     }
-    mutationConfirmed = true;
-    const outcome = await reloadFromServer(context);
-    if (outcome.kind === 'stale-account') return false;
-    if (outcome.kind !== 'reloaded') {
-      const message = buildCommittedButStaleMessage(outcome.kind);
-      reloadRequiredByAccount.set(activeAccountId, message);
-      keepBlocked = true;
-      setNotice(message, 'error');
-      return false;
-    }
-    return true;
-  } catch (cause) {
-    // Reconcile the lifecycle result using whether mutation was confirmed so a refresh failure cannot be mistaken for a refused write.
-    const reconciled = await reconcileLifecycleFailure({ context, mutationConfirmed, cause });
-    keepBlocked = !reconciled && ownsLifecycleContext(context);
-    return reconciled;
-  } finally {
-    if (!keepBlocked) release();
   }
 }
 
@@ -194,10 +106,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
       if (verb !== 'anonymise' || entity !== 'resources') {
         throw new Error('Unsupported anonymisation target.');
       }
-      const reloaded = await dispatchServerLifecycle(
-        { activeAccountId, planningContext: useStore.getState().planning.context, setNotice },
-        id,
-      );
+      const reloaded = await dispatchServerLifecycle(activeAccountId, id, setNotice);
       if (reloaded) {
         notifyInactiveDataChanged(activeAccountId);
         onReloaded?.();

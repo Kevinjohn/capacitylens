@@ -10,7 +10,7 @@ import { buildRepeatingAllocationAdvisory } from '@/lib/repeatingAllocations';
 
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
 import type { buildRepeatProjection } from './buildRepeatProjection';
-import { listRenderableDateRanges } from './schedulerModelIndexing';
+import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
 
 type AdvisoryInput = Pick<
   AllocationModalSnapshot,

@@ -15,7 +15,7 @@ import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { ID, ISODate } from '@capacitylens/shared/types/entities';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { isCreationStartBlocked } from './creationAvailability';
-import { listRenderableDateRanges } from './schedulerModelIndexing';
+import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
 import { SchedulerGridRows } from './SchedulerGridRows';
 import type { ModalState } from './schedulerGridModal';
 import { useSchedulerGridPreferences, useSchedulerGridModel } from './useSchedulerGridModel';

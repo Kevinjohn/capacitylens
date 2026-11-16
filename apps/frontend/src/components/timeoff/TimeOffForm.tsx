@@ -20,6 +20,7 @@ import type { Option } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
 import { buildTimeOffTypeOptions, resolveResourceDisplayName } from '@/lib/metadata';
 import { resolveErrorMessage } from '@/lib/errorMessage';
+import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
 import { canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
@@ -112,7 +113,8 @@ function useTimeOffResourceOptions({
         .filter((resource) => !isExternalResource(resource))
         .filter(
           (resource) =>
-            placeholdersEnabled || resource.kind !== 'placeholder' || resource.id === resourceId,
+            resource.id === resourceId ||
+            isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled: false }),
         ),
     [resources, placeholdersEnabled, resourceId],
   );
