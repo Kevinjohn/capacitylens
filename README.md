@@ -89,6 +89,14 @@ open Jira.
 There is no importer from spreadsheets or other tools: you enter your people, clients and projects
 in the app, and the JSON import only moves data between CapacityLens installations.
 
+## Alternatives
+
+Float, Productive, awork, Runn, Teamwork, Resource Guru and eResource Scheduler are good tools,
+and each covers several jobs, such as budgets, timesheets, project management and reporting.
+CapacityLens tries to do less: it shows who is busy and who is free, week by week, on a server you
+run, with no licence fee. If you need budgets, timesheets, hour-level booking or a hosted service, choose
+one of them.
+
 ## Install it
 
 CapacityLens is currently supplied as a native Node.js release archive. Follow the
