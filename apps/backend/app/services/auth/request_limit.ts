@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import type { HttpContext } from '@adonisjs/core/http';
 import app from '@adonisjs/core/services/app';
 import env from '#start/env';
 
@@ -13,7 +12,7 @@ export function configuredApiLimit(): number {
   return Number.isSafeInteger(value) && value > 0 && value <= maxLimit ? value : 0;
 }
 
-/** The client address follows the HTTP server's proxy trust in `config/app.ts`. */
-export function requestClientKey(ctx: HttpContext): string {
-  return createHash('sha256').update(ctx.request.ip()).digest('hex');
+/** Hashes the client address, which follows the HTTP server's proxy trust in `config/app.ts`. */
+export function requestClientKey(clientAddress: string): string {
+  return createHash('sha256').update(clientAddress).digest('hex');
 }
