@@ -148,7 +148,6 @@ test.group('authenticated typed planning transactions', (group) => {
             {
               role: 'owner',
               canWrite: true,
-              canAnonymise: true,
               canSeePrivateNames: true,
               canSeeTimeOffNote: true,
             }

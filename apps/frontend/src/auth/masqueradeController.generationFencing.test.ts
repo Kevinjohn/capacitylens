@@ -1,0 +1,78 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetStoreWithAccount } from '@/test/fixtures';
+import { useStore } from '@/store/useStore';
+import { state, inactiveStatus, deferred, harness } from './masqueradeController.testSupport';
+
+beforeEach(async () => {
+  await resetStoreWithAccount();
+  useStore.getState().setMasquerade({ kind: 'inactive' });
+  useStore.getState().setNotice(null);
+});
+
+describe('MasqueradeController transitions', () => {
+  it('does not let a stale start rejection overwrite server-end restoration', async () => {
+    const initialProjection = deferred<boolean>();
+    const reproject = vi
+      .fn()
+      .mockImplementationOnce(() => initialProjection.promise)
+      .mockResolvedValueOnce(true);
+    const { controller, resume } = harness({ reproject });
+
+    const starting = controller.start(state.accountId, state.targetUserId);
+    await vi.waitFor(() =>
+      expect(useStore.getState().masquerade).toMatchObject({ kind: 'starting', state }),
+    );
+    await controller.adoptStatus(inactiveStatus);
+    await vi.waitFor(() => expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' }));
+    useStore.getState().setNotice('newer transition', 'info');
+
+    initialProjection.reject(new Error('stale projection failure'));
+    await expect(starting).resolves.toBe(false);
+    expect(useStore.getState().notice).toMatchObject({ message: 'newer transition', tone: 'info' });
+    expect(resume).toHaveBeenCalledOnce();
+  });
+});
+
+describe('MasqueradeController generation fencing', () => {
+  it('does not let a projection retry publish after an explicit end', async () => {
+    const retryProjection = deferred<boolean>();
+    const reproject = vi
+      .fn()
+      .mockResolvedValueOnce(false)
+      .mockImplementationOnce(() => retryProjection.promise)
+      .mockResolvedValueOnce(true);
+    const { controller } = harness({ reproject });
+    await controller.start(state.accountId, state.targetUserId);
+
+    const retrying = controller.retryProjection();
+    await vi.waitFor(() => expect(reproject).toHaveBeenCalledTimes(2));
+    await expect(controller.end()).resolves.toBe(true);
+    retryProjection.resolve(true);
+
+    await expect(retrying).resolves.toBe(false);
+    expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' });
+  });
+
+  it('does not let server-end restoration release suspension owned by a newer end', async () => {
+    const restoration = deferred<boolean>();
+    const reproject = vi
+      .fn()
+      .mockResolvedValueOnce(true)
+      .mockImplementationOnce(() => restoration.promise)
+      .mockResolvedValueOnce(true);
+    const { controller, resume } = harness({ reproject });
+    await controller.adoptStatus({ active: true, ...state });
+    await controller.adoptStatus(inactiveStatus);
+    await vi.waitFor(() => expect(reproject).toHaveBeenCalledTimes(2));
+
+    await expect(controller.end()).resolves.toBe(true);
+    expect(resume).toHaveBeenCalledOnce();
+    useStore.getState().setNotice('newer transition', 'info');
+    restoration.resolve(true);
+    await Promise.resolve();
+
+    expect(resume).toHaveBeenCalledOnce();
+    expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' });
+    expect(useStore.getState().notice).toMatchObject({ message: 'newer transition', tone: 'info' });
+  });
+});

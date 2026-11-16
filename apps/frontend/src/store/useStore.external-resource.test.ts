@@ -2,7 +2,7 @@ import { requireCreated } from '@/test/requireCreated';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from './useStore';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const s = () => useStore.getState();

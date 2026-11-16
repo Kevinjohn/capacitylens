@@ -1,11 +1,11 @@
 import { act, render, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { accountClient } from './accountClient';
+import { memberRequests } from './memberRequests';
 import { invalidateResourceAvatars, useResourceAvatars } from './useResourceAvatars';
 import { AuthContext } from '@/auth/authContext';
 import { useStore } from '@/store/useStore';
 
-vi.mock('./accountClient', () => ({ accountClient: { listResourceAvatars: vi.fn() } }));
+vi.mock('./memberRequests', () => ({ memberRequests: { listResourceAvatars: vi.fn() } }));
 
 function response(avatars: unknown[]): Response {
   return new Response(JSON.stringify({ avatars }), {
@@ -16,14 +16,14 @@ function response(avatars: unknown[]): Response {
 
 describe('useResourceAvatars', () => {
   beforeEach(() => {
-    vi.mocked(accountClient.listResourceAvatars)
+    vi.mocked(memberRequests.listResourceAvatars)
       .mockReset()
       .mockImplementation(async () => response([]));
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   });
 
   it('clears immediately, refreshes on invalidation, and validates normalized URLs', async () => {
-    vi.mocked(accountClient.listResourceAvatars)
+    vi.mocked(memberRequests.listResourceAvatars)
       .mockResolvedValueOnce(
         response([{ resourceId: 'r1', imageUrl: ' https://images.example/a.png ' }]),
       )
@@ -39,7 +39,7 @@ describe('useResourceAvatars', () => {
 
   it('discards stale in-flight responses across an A to B to A transition', async () => {
     let resolveFirst!: (value: Response) => void;
-    vi.mocked(accountClient.listResourceAvatars)
+    vi.mocked(memberRequests.listResourceAvatars)
       .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
       .mockResolvedValueOnce(response([]))
       .mockResolvedValueOnce(
@@ -58,7 +58,7 @@ describe('useResourceAvatars', () => {
   });
 
   it('clears on offline and refreshes when connectivity resumes', async () => {
-    vi.mocked(accountClient.listResourceAvatars)
+    vi.mocked(memberRequests.listResourceAvatars)
       .mockResolvedValueOnce(
         response([{ resourceId: 'r1', imageUrl: 'https://images.example/a.png' }]),
       )
@@ -78,7 +78,7 @@ describe('useResourceAvatars', () => {
   });
 
   it('refreshes after session and ordinary account-data refresh signals', async () => {
-    vi.mocked(accountClient.listResourceAvatars).mockImplementation(async () => response([]));
+    vi.mocked(memberRequests.listResourceAvatars).mockImplementation(async () => response([]));
     const authValue = (image: string) => ({
       user: { id: 'u1', image },
       refreshAuth: async () => {},
@@ -97,19 +97,19 @@ describe('useResourceAvatars', () => {
       );
     }
     const view = render(<WrappedProbe image="https://images.example/one.png" />);
-    await waitFor(() => expect(accountClient.listResourceAvatars).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(memberRequests.listResourceAvatars).toHaveBeenCalledTimes(1));
     view.rerender(<WrappedProbe image="https://images.example/two.png" />);
-    await waitFor(() => expect(accountClient.listResourceAvatars).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(memberRequests.listResourceAvatars).toHaveBeenCalledTimes(2));
     act(() =>
       useStore.setState((state) => ({
         data: { ...state.data, resources: [...state.data.resources] },
       })),
     );
-    await waitFor(() => expect(accountClient.listResourceAvatars).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(memberRequests.listResourceAvatars).toHaveBeenCalledTimes(3));
   });
 
   it('keeps avatars without refetching when a save changes only other tables', async () => {
-    vi.mocked(accountClient.listResourceAvatars).mockResolvedValueOnce(
+    vi.mocked(memberRequests.listResourceAvatars).mockResolvedValueOnce(
       response([{ resourceId: 'r1', imageUrl: 'https://images.example/a.png' }]),
     );
     const { result } = renderHook(() => useResourceAvatars('a1'));
@@ -121,6 +121,6 @@ describe('useResourceAvatars', () => {
     );
     await act(async () => {});
     expect(result.current.get('r1')).toBe('https://images.example/a.png');
-    expect(accountClient.listResourceAvatars).toHaveBeenCalledTimes(1);
+    expect(memberRequests.listResourceAvatars).toHaveBeenCalledTimes(1);
   });
 });

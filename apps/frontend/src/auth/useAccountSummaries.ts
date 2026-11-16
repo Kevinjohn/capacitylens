@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useStore } from '@/store/useStore';
 import type { AccountSummary } from '@/store/useStore';
 import { isAccountRole } from '@capacitylens/shared/account/types';
-import { accountClient } from '@/account/accountClient';
+import { sessionRequests } from '@/account/sessionRequests';
+import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
 import { m } from '@/i18n';
 import { useAuth } from './authContext';
@@ -92,6 +93,22 @@ function reportAccountSummaryFailure(error: unknown): null {
   return null;
 }
 
+/**
+ * Reads whether this person owns the installation's only company, which is how a setup conflict
+ * caused by another tab's success looks.
+ *
+ * @throws An `Error` whose message is safe to show when the directory cannot be read.
+ */
+export async function readSoleCompanyOwnership(): Promise<boolean> {
+  const response = await sessionRequests.listCompanies();
+  if (!response.ok) {
+    throw new Error('Could not verify company access. Refresh the page to try again.');
+  }
+  const companies: unknown = await response.json();
+  const company: unknown = Array.isArray(companies) && companies.length === 1 ? companies[0] : null;
+  return isRecord(company) && company.role === 'owner' && typeof company.id === 'string';
+}
+
 /** Reads the validated company directory. Null means the read failed; only a genuine empty array means no companies. Mixed responses retain valid rows and log rejected entries. */
 export async function fetchAccountSummaries(requestOptions?: {
   signal?: AbortSignal;
@@ -101,7 +118,7 @@ export async function fetchAccountSummaries(requestOptions?: {
 }): Promise<AccountSummary[] | null> {
   const acceptEffects = requestOptions?.acceptEffects ?? (() => true);
   try {
-    const res = await accountClient.listCompanies(requestOptions?.signal);
+    const res = await sessionRequests.listCompanies(requestOptions?.signal);
     if (!res.ok) {
       if (res.status === 409 && acceptEffects()) {
         useStore.getState().setAccountSummaries({ list: [], complete: false, ambiguous: true });

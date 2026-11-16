@@ -23,7 +23,7 @@ import {
 import { PermissionContext } from '@/auth/permissionContext';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });

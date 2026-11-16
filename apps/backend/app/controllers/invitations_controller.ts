@@ -180,7 +180,14 @@ export default class InvitationsController {
       throw error;
     }
     try {
-      return ctx.response.created({ user: await signInWithPassword(ctx, email, body.password) });
+      return ctx.response.created({
+        user: await signInWithPassword(ctx, {
+          email,
+          password: body.password,
+          clientAddress: ctx.request.ip(),
+          userAgent: ctx.request.header('user-agent'),
+        }),
+      });
     } catch (error) {
       ctx.logger.warn(
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
