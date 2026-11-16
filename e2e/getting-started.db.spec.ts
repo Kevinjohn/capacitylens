@@ -42,24 +42,6 @@ async function finishClientAndProjectMilestones(page: Page): Promise<void> {
   await expect(page.getByTestId('getting-started-progress')).toHaveCount(0);
 }
 
-function registerDismissalTest() {
-  test('No keeps guidance and Yes dismisses it', async ({ page }) => {
-    await openFirstCompanySetup(page);
-    await finishFirstCompanySetup(page, 'Queen Consolidated');
-    await page.getByTestId('getting-started-dismiss').click();
-    await expect(page.getByText('Do you really want to hide this forever?')).toBeVisible();
-    await page.getByRole('button', { name: 'No' }).click();
-    await expect(page.getByTestId('getting-started-progress')).toBeVisible();
-    await page.getByTestId('getting-started-dismiss').click();
-    await page.getByRole('button', { name: 'Yes' }).click();
-    await expect(page.getByTestId('getting-started-progress')).toHaveCount(0);
-    await page.getByRole('link', { name: 'Help', exact: true }).click();
-    await page.getByTestId('show-tour').click();
-    await expect(page.locator('.driver-popover')).toContainText('1 of 8');
-    await finishTour(page.locator('.driver-popover'), 8, 'Viewer: Search, filters and weeks');
-  });
-}
-
 test.describe('getting started', () => {
   test('shows five independent milestones and progress across pages', async ({ page }) => {
     await openFirstCompanySetup(page);
@@ -114,7 +96,21 @@ test.describe('getting started', () => {
     await finishClientAndProjectMilestones(page);
   });
 
-  registerDismissalTest();
+  test('No keeps guidance and Yes dismisses it', async ({ page }) => {
+    await openFirstCompanySetup(page);
+    await finishFirstCompanySetup(page, 'Queen Consolidated');
+    await page.getByTestId('getting-started-dismiss').click();
+    await expect(page.getByText('Do you really want to hide this forever?')).toBeVisible();
+    await page.getByRole('button', { name: 'No' }).click();
+    await expect(page.getByTestId('getting-started-progress')).toBeVisible();
+    await page.getByTestId('getting-started-dismiss').click();
+    await page.getByRole('button', { name: 'Yes' }).click();
+    await expect(page.getByTestId('getting-started-progress')).toHaveCount(0);
+    await page.getByRole('link', { name: 'Help', exact: true }).click();
+    await page.getByTestId('show-tour').click();
+    await expect(page.locator('.driver-popover')).toContainText('1 of 8');
+    await finishTour(page.locator('.driver-popover'), 8, 'Viewer: Search, filters and weeks');
+  });
 
   test('"Show me around" runs the authenticated Owner tour', async ({ page }) => {
     await openFirstCompanySetup(page);

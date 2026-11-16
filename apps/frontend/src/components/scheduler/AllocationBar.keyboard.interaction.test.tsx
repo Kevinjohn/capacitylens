@@ -35,241 +35,7 @@ function render(ui: ReactNode) {
 beforeEach(async () => resetStoreWithAccount());
 afterEach(() => vi.restoreAllMocks());
 
-function registerViewerAndAnnotationPopoverTests() {
-  it('gets visible popover separators from the message catalogue', async () => {
-    const projectClientMessage = vi.spyOn(m, 'scheduler_bar_pop_project_client');
-    const statusMessage = vi.spyOn(m, 'scheduler_bar_pop_status');
-    const allocation = await seedAllocation({ status: 'tentative' });
-    render(
-      <AllocationBar
-        bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
-        geom={GEOM}
-        indexAtClientX={indexAtClientX}
-        onEdit={vi.fn()}
-      />,
-    );
-
-    fireEvent.mouseEnter(screen.getByTestId('allocation-bar'));
-
-    expect(projectClientMessage).toHaveBeenCalledWith({
-      project: 'Project Watchtower',
-      client: 'Ferris',
-    });
-    expect(statusMessage).toHaveBeenCalledWith({ status: 'Tentative' });
-    expect(screen.getByTestId('allocation-popover')).toHaveTextContent(
-      'Project Watchtower · Ferris',
-    );
-    expect(screen.getByTestId('allocation-popover')).toHaveTextContent('8h/day · Tentative');
-  });
-
-  it('keeps Viewer details in the tab order without enabling allocation edits', async () => {
-    const user = userEvent.setup();
-    const allocation = await seedAllocation({ note: 'Call the client before kickoff' });
-    const onEdit = vi.fn();
-    useStore.getState().setBarLabelPref({ key: 'showClient', value: false });
-    useStore.getState().setBarLabelPref({ key: 'showProject', value: false });
-    render(
-      <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
-        <AllocationBar
-          bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
-          geom={GEOM}
-          indexAtClientX={indexAtClientX}
-          onEdit={onEdit}
-        />
-      </PermissionContext.Provider>,
-    );
-    const bar = screen.getByTestId('allocation-bar');
-
-    expect(bar).toHaveAttribute('role', 'img');
-    expect(bar).toHaveAttribute('tabindex', '0');
-    expect(bar).not.toHaveTextContent('Project Watchtower');
-    expect(bar).not.toHaveTextContent('Ferris');
-    expect(screen.queryByTestId('resize-start')).toBeNull();
-    expect(screen.queryByTestId('resize-end')).toBeNull();
-
-    await user.tab();
-    expect(document.activeElement).toBe(bar);
-    const popover = screen.getByTestId('allocation-popover');
-    expect(popover).toHaveTextContent('Project Watchtower');
-    expect(popover).toHaveTextContent('Call the client before kickoff');
-    expect(popover.querySelector('.text-2xs.text-faint')).toBeNull();
-    expect(bar).toHaveAccessibleDescription('Read-only allocation details');
-    expect(popover).not.toHaveTextContent(/drag|resize|reassign/i);
-    expect(bar).toHaveAccessibleName(
-      /Wires, Project Watchtower · Ferris, 8h per day, 1 Jun to 3 Jun, note: Call the client before kickoff\./,
-    );
-    expect(bar).not.toHaveAccessibleName(/Confirmed/);
-    const details = [...popover.querySelectorAll('div.text-muted-foreground')].find((element) =>
-      element.textContent.includes('h/day'),
-    );
-    expect(details).toBeDefined();
-    expect(details).toHaveTextContent('1 – 3 Jun · 8h/day');
-    expect(details).not.toHaveTextContent('Confirmed');
-
-    await user.keyboard('{Escape}');
-    expect(screen.queryByTestId('allocation-popover')).toBeNull();
-    expect(document.activeElement).toBe(bar);
-
-    await user.keyboard('{Enter}{Space}{ArrowRight}');
-    expect(onEdit).not.toHaveBeenCalled();
-    expect(
-      useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id),
-    ).toEqual(allocation);
-  });
-
-  it('omits the confirmed annotation cleanly when hours are hidden', async () => {
-    const allocation = await seedAllocation();
-    render(
-      <AllocationBar
-        bar={{ ...barFor(allocation), external: true }}
-        geom={GEOM}
-        indexAtClientX={indexAtClientX}
-        onEdit={vi.fn()}
-      />,
-    );
-    const bar = screen.getByTestId('allocation-bar');
-
-    fireEvent.mouseEnter(bar);
-    const popover = screen.getByTestId('allocation-popover');
-    const details = popover.querySelector('div.text-muted-foreground');
-    expect(details).toHaveTextContent('1 – 3 Jun');
-    expect(details).not.toHaveTextContent(/Confirmed| ·/);
-    expect(bar).toHaveAccessibleName(/Wires, 1 Jun to 3 Jun\./);
-    expect(bar).not.toHaveAccessibleName(/Confirmed|, ,/);
-  });
-
-  it.each([
-    ['tentative', 'Tentative'],
-    ['completed', 'Completed'],
-  ] as const)('keeps the %s annotation in popover and accessible name', async (status, label) => {
-    const allocation = await seedAllocation({ status });
-    render(
-      <AllocationBar
-        bar={barFor(allocation)}
-        geom={GEOM}
-        indexAtClientX={indexAtClientX}
-        onEdit={vi.fn()}
-      />,
-    );
-    const bar = screen.getByTestId('allocation-bar');
-
-    fireEvent.mouseEnter(bar);
-    expect(
-      screen.getByTestId('allocation-popover').querySelector('div.text-muted-foreground'),
-    ).toHaveTextContent(`1 – 3 Jun · 8h/day · ${label}`);
-    expect(bar).toHaveAccessibleName(new RegExp(`8h per day, ${label}, 1 Jun to 3 Jun\\.`));
-  });
-}
-
-function registerFocusPopoverTests() {
-  it('closes an open popover on Escape while KEEPING focus on the bar', async () => {
-    const allocation = await seedAllocation();
-    render(
-      <AllocationBar
-        bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
-        geom={GEOM}
-        indexAtClientX={indexAtClientX}
-        onEdit={vi.fn()}
-      />,
-    );
-    const bar = screen.getByTestId('allocation-bar');
-
-    act(() => bar.focus());
-    expect(document.activeElement).toBe(bar);
-    expect(screen.getByTestId('allocation-popover')).toBeInTheDocument();
-
-    fireEvent.keyDown(bar, { key: 'Escape' });
-    await settlePlanning();
-    expect(screen.queryByTestId('allocation-popover')).toBeNull();
-    expect(document.activeElement).toBe(bar);
-  });
-
-  it('reopens on a fresh focus EDGE (blur then refocus) after an Escape-close', async () => {
-    const allocation = await seedAllocation();
-    render(
-      <AllocationBar
-        bar={barFor(allocation)}
-        geom={GEOM}
-        indexAtClientX={indexAtClientX}
-        onEdit={vi.fn()}
-      />,
-    );
-    const bar = screen.getByTestId('allocation-bar');
-
-    act(() => bar.focus());
-    fireEvent.keyDown(bar, { key: 'Escape' });
-    await settlePlanning();
-    expect(screen.queryByTestId('allocation-popover')).toBeNull();
-
-    act(() => bar.blur());
-    act(() => bar.focus());
-    expect(screen.getByTestId('allocation-popover')).toBeInTheDocument();
-  });
-}
-
-function registerEscapeRoutingTests() {
-  it('does NOT swallow Escape mid-drag — the gesture hook still cancels the drag', async () => {
-    const allocation = await seedAllocation();
-    render(
-      <AllocationBar
-        bar={barFor(allocation)}
-        geom={GEOM}
-        indexAtClientX={indexAtClientX}
-        onEdit={vi.fn()}
-      />,
-    );
-    const bar = screen.getByTestId('allocation-bar');
-
-    fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
-    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 120, bubbles: true }));
-    expect(useStore.getState().draggingAllocationId).toBe(allocation.id);
-
-    fireEvent.keyDown(bar, { key: 'Escape' });
-    await settlePlanning();
-    expect(getStoredAllocation(allocation.id).startDate).toBe('2026-06-01');
-    expect(useStore.getState().draggingAllocationId).toBeNull();
-
-    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 300, bubbles: true }));
-    await settlePlanning();
-    expect(getStoredAllocation(allocation.id).startDate).toBe('2026-06-01');
-  });
-
-  it('lets Escape PROPAGATE to ancestor handlers when the popover is closed', async () => {
-    const allocation = await seedAllocation();
-    const ancestorEsc = vi.fn();
-    render(
-      <div data-testid="ancestor" onKeyDown={(event) => event.key === 'Escape' && ancestorEsc()}>
-        <AllocationBar
-          bar={barFor(allocation)}
-          geom={GEOM}
-          indexAtClientX={indexAtClientX}
-          onEdit={vi.fn()}
-        />
-      </div>,
-    );
-    const bar = screen.getByTestId('allocation-bar');
-
-    expect(screen.queryByTestId('allocation-popover')).toBeNull();
-    fireEvent.keyDown(bar, { key: 'Escape' });
-    await settlePlanning();
-    expect(ancestorEsc).toHaveBeenCalledTimes(1);
-
-    act(() => bar.focus());
-    expect(screen.getByTestId('allocation-popover')).toBeInTheDocument();
-    fireEvent.keyDown(bar, { key: 'Escape' });
-    await settlePlanning();
-    expect(screen.queryByTestId('allocation-popover')).toBeNull();
-    expect(ancestorEsc).toHaveBeenCalledTimes(1);
-  });
-}
-
-function registerEscapePopoverTests() {
-  registerViewerAndAnnotationPopoverTests();
-  registerFocusPopoverTests();
-  registerEscapeRoutingTests();
-}
-
-function registerPopoverAndEditorTests() {
+describe('AllocationBar keyboard focus and popover interactions', () => {
   it('shows a detail popover on hover and hides it on leave', async () => {
     const a = await seedAllocation();
     render(
@@ -295,7 +61,227 @@ function registerPopoverAndEditorTests() {
     expect(screen.queryByTestId('allocation-popover')).toBeNull();
   });
 
-  describe('Escape closes the focus popover (keyboard accessibility)', registerEscapePopoverTests);
+  describe('Escape closes the focus popover (keyboard accessibility)', () => {
+    it('gets visible popover separators from the message catalogue', async () => {
+      const projectClientMessage = vi.spyOn(m, 'scheduler_bar_pop_project_client');
+      const statusMessage = vi.spyOn(m, 'scheduler_bar_pop_status');
+      const allocation = await seedAllocation({ status: 'tentative' });
+      render(
+        <AllocationBar
+          bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />,
+      );
+
+      fireEvent.mouseEnter(screen.getByTestId('allocation-bar'));
+
+      expect(projectClientMessage).toHaveBeenCalledWith({
+        project: 'Project Watchtower',
+        client: 'Ferris',
+      });
+      expect(statusMessage).toHaveBeenCalledWith({ status: 'Tentative' });
+      expect(screen.getByTestId('allocation-popover')).toHaveTextContent(
+        'Project Watchtower · Ferris',
+      );
+      expect(screen.getByTestId('allocation-popover')).toHaveTextContent('8h/day · Tentative');
+    });
+
+    it('keeps Viewer details in the tab order without enabling allocation edits', async () => {
+      const user = userEvent.setup();
+      const allocation = await seedAllocation({ note: 'Call the client before kickoff' });
+      const onEdit = vi.fn();
+      useStore.getState().setBarLabelPref({ key: 'showClient', value: false });
+      useStore.getState().setBarLabelPref({ key: 'showProject', value: false });
+      render(
+        <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+          <AllocationBar
+            bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
+            geom={GEOM}
+            indexAtClientX={indexAtClientX}
+            onEdit={onEdit}
+          />
+        </PermissionContext.Provider>,
+      );
+      const bar = screen.getByTestId('allocation-bar');
+
+      expect(bar).toHaveAttribute('role', 'img');
+      expect(bar).toHaveAttribute('tabindex', '0');
+      expect(bar).not.toHaveTextContent('Project Watchtower');
+      expect(bar).not.toHaveTextContent('Ferris');
+      expect(screen.queryByTestId('resize-start')).toBeNull();
+      expect(screen.queryByTestId('resize-end')).toBeNull();
+
+      await user.tab();
+      expect(document.activeElement).toBe(bar);
+      const popover = screen.getByTestId('allocation-popover');
+      expect(popover).toHaveTextContent('Project Watchtower');
+      expect(popover).toHaveTextContent('Call the client before kickoff');
+      expect(popover.querySelector('.text-2xs.text-faint')).toBeNull();
+      expect(bar).toHaveAccessibleDescription('Read-only allocation details');
+      expect(popover).not.toHaveTextContent(/drag|resize|reassign/i);
+      expect(bar).toHaveAccessibleName(
+        /Wires, Project Watchtower · Ferris, 8h per day, 1 Jun to 3 Jun, note: Call the client before kickoff\./,
+      );
+      expect(bar).not.toHaveAccessibleName(/Confirmed/);
+      const details = [...popover.querySelectorAll('div.text-muted-foreground')].find((element) =>
+        element.textContent.includes('h/day'),
+      );
+      expect(details).toBeDefined();
+      expect(details).toHaveTextContent('1 – 3 Jun · 8h/day');
+      expect(details).not.toHaveTextContent('Confirmed');
+
+      await user.keyboard('{Escape}');
+      expect(screen.queryByTestId('allocation-popover')).toBeNull();
+      expect(document.activeElement).toBe(bar);
+
+      await user.keyboard('{Enter}{Space}{ArrowRight}');
+      expect(onEdit).not.toHaveBeenCalled();
+      expect(
+        useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id),
+      ).toEqual(allocation);
+    });
+
+    it('omits the confirmed annotation cleanly when hours are hidden', async () => {
+      const allocation = await seedAllocation();
+      render(
+        <AllocationBar
+          bar={{ ...barFor(allocation), external: true }}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />,
+      );
+      const bar = screen.getByTestId('allocation-bar');
+
+      fireEvent.mouseEnter(bar);
+      const popover = screen.getByTestId('allocation-popover');
+      const details = popover.querySelector('div.text-muted-foreground');
+      expect(details).toHaveTextContent('1 – 3 Jun');
+      expect(details).not.toHaveTextContent(/Confirmed| ·/);
+      expect(bar).toHaveAccessibleName(/Wires, 1 Jun to 3 Jun\./);
+      expect(bar).not.toHaveAccessibleName(/Confirmed|, ,/);
+    });
+
+    it.each([
+      ['tentative', 'Tentative'],
+      ['completed', 'Completed'],
+    ] as const)('keeps the %s annotation in popover and accessible name', async (status, label) => {
+      const allocation = await seedAllocation({ status });
+      render(
+        <AllocationBar
+          bar={barFor(allocation)}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />,
+      );
+      const bar = screen.getByTestId('allocation-bar');
+
+      fireEvent.mouseEnter(bar);
+      expect(
+        screen.getByTestId('allocation-popover').querySelector('div.text-muted-foreground'),
+      ).toHaveTextContent(`1 – 3 Jun · 8h/day · ${label}`);
+      expect(bar).toHaveAccessibleName(new RegExp(`8h per day, ${label}, 1 Jun to 3 Jun\\.`));
+    });
+    it('closes an open popover on Escape while KEEPING focus on the bar', async () => {
+      const allocation = await seedAllocation();
+      render(
+        <AllocationBar
+          bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />,
+      );
+      const bar = screen.getByTestId('allocation-bar');
+
+      act(() => bar.focus());
+      expect(document.activeElement).toBe(bar);
+      expect(screen.getByTestId('allocation-popover')).toBeInTheDocument();
+
+      fireEvent.keyDown(bar, { key: 'Escape' });
+      await settlePlanning();
+      expect(screen.queryByTestId('allocation-popover')).toBeNull();
+      expect(document.activeElement).toBe(bar);
+    });
+
+    it('reopens on a fresh focus EDGE (blur then refocus) after an Escape-close', async () => {
+      const allocation = await seedAllocation();
+      render(
+        <AllocationBar
+          bar={barFor(allocation)}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />,
+      );
+      const bar = screen.getByTestId('allocation-bar');
+
+      act(() => bar.focus());
+      fireEvent.keyDown(bar, { key: 'Escape' });
+      await settlePlanning();
+      expect(screen.queryByTestId('allocation-popover')).toBeNull();
+
+      act(() => bar.blur());
+      act(() => bar.focus());
+      expect(screen.getByTestId('allocation-popover')).toBeInTheDocument();
+    });
+    it('does NOT swallow Escape mid-drag — the gesture hook still cancels the drag', async () => {
+      const allocation = await seedAllocation();
+      render(
+        <AllocationBar
+          bar={barFor(allocation)}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />,
+      );
+      const bar = screen.getByTestId('allocation-bar');
+
+      fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
+      document.dispatchEvent(new MouseEvent('pointermove', { clientX: 120, bubbles: true }));
+      expect(useStore.getState().draggingAllocationId).toBe(allocation.id);
+
+      fireEvent.keyDown(bar, { key: 'Escape' });
+      await settlePlanning();
+      expect(getStoredAllocation(allocation.id).startDate).toBe('2026-06-01');
+      expect(useStore.getState().draggingAllocationId).toBeNull();
+
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 300, bubbles: true }));
+      await settlePlanning();
+      expect(getStoredAllocation(allocation.id).startDate).toBe('2026-06-01');
+    });
+
+    it('lets Escape PROPAGATE to ancestor handlers when the popover is closed', async () => {
+      const allocation = await seedAllocation();
+      const ancestorEsc = vi.fn();
+      render(
+        <div data-testid="ancestor" onKeyDown={(event) => event.key === 'Escape' && ancestorEsc()}>
+          <AllocationBar
+            bar={barFor(allocation)}
+            geom={GEOM}
+            indexAtClientX={indexAtClientX}
+            onEdit={vi.fn()}
+          />
+        </div>,
+      );
+      const bar = screen.getByTestId('allocation-bar');
+
+      expect(screen.queryByTestId('allocation-popover')).toBeNull();
+      fireEvent.keyDown(bar, { key: 'Escape' });
+      await settlePlanning();
+      expect(ancestorEsc).toHaveBeenCalledTimes(1);
+
+      act(() => bar.focus());
+      expect(screen.getByTestId('allocation-popover')).toBeInTheDocument();
+      fireEvent.keyDown(bar, { key: 'Escape' });
+      await settlePlanning();
+      expect(screen.queryByTestId('allocation-popover')).toBeNull();
+      expect(ancestorEsc).toHaveBeenCalledTimes(1);
+    });
+  });
 
   it('opens the editor on Enter (keyboard operable)', async () => {
     const a = await seedAllocation();
@@ -307,9 +293,6 @@ function registerPopoverAndEditorTests() {
     await settlePlanning();
     expect(onEdit).toHaveBeenCalledExactlyOnceWith(a.id);
   });
-}
-
-function registerKeyboardMovementTests() {
   it('moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)', async () => {
     const a = await seedAllocation();
     const { rerender } = render(
@@ -418,9 +401,6 @@ function registerKeyboardMovementTests() {
     });
     expect(useStore.getState().notice?.message).toMatch(/outside the visible timeline/i);
   });
-}
-
-function registerKeyboardFocusTests() {
   it('keeps a keyboard-moved bar focused and scrolls it to the nearest visible position', async () => {
     useStore.getState().setOriginDate('2026-06-01');
     useStore.getState().setZoom(1);
@@ -452,9 +432,6 @@ function registerKeyboardFocusTests() {
       raf.mockRestore();
     }
   });
-}
-
-function registerKeyboardFocusRaceTests() {
   it('cancels replaced focus work and runs only the latest keyboard operation', async () => {
     const callbacks: FrameRequestCallback[] = [];
     const requestFrame = vi
@@ -553,9 +530,6 @@ function registerKeyboardFocusRaceTests() {
     expect(focus).not.toHaveBeenCalled();
     requestFrame.mockRestore();
   });
-}
-
-function registerKeyboardPinnedTest() {
   it('does not write, add undo history or announce when a keyboard resize is pinned', async () => {
     const allocation = await seedAllocation({ startDate: '2026-06-06', endDate: '2026-06-07' });
     render(
@@ -583,12 +557,4 @@ function registerKeyboardPinnedTest() {
     expect(after.planning.history.past).toBe(before.planning.history.past);
     expect(after.srAnnouncement).toBeNull();
   });
-}
-
-describe('AllocationBar keyboard focus and popover interactions', () => {
-  registerPopoverAndEditorTests();
-  registerKeyboardMovementTests();
-  registerKeyboardFocusTests();
-  registerKeyboardFocusRaceTests();
-  registerKeyboardPinnedTest();
 });

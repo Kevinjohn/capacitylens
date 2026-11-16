@@ -188,7 +188,7 @@ describe('active-account permission publication', () => {
   });
 });
 
-function registerAccountOwnershipTests(): void {
+describe('ownership guard on update/delete', () => {
   it('rejects a stale account update id and leaves data, undo and redo unchanged', async () => {
     await s().updateAccount(A, { name: 'Changed once' });
     await s().undoPlanning();
@@ -203,9 +203,6 @@ function registerAccountOwnershipTests(): void {
     expect(s().planning.history.past).toBe(pastBefore);
     expect(s().planning.history.future).toBe(futureBefore);
   });
-}
-
-function registerEntityOwnershipTests(): void {
   it('treats a stale / non-existent id as a silent no-op (does not throw)', async () => {
     // A drag committed after an undo, or a double Delete keypress, can target an id
     // that no longer exists. That must not throw (it fires from window listeners
@@ -215,11 +212,6 @@ function registerEntityOwnershipTests(): void {
     await expect(s().updateClient('gone', { name: 'x' })).resolves.toBeUndefined();
     await expect(s().updateTimeOff('gone', { type: 'sick' })).resolves.toBeUndefined();
   });
-}
-
-describe('ownership guard on update/delete', () => {
-  registerAccountOwnershipTests();
-  registerEntityOwnershipTests();
 });
 
 describe('foreign-key refs must stay in the active account', () => {

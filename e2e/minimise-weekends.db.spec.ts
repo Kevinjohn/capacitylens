@@ -23,11 +23,11 @@ async function openWithFreeScrollSnapOff(page: import('@playwright/test').Page) 
   await setZoom(page, 1);
 }
 
-// Covers US-SET-05. "Minimise weekends" (device-global, default on) shrinks the
-// Sat/Sun columns to a sliver and labels both "S"; off restores full-width Sat/Sun columns.
-// All label assertions are scoped to the date header (role=columnheader "Dates") so a stray
-// "S" elsewhere (e.g. an avatar initial) can't match. 1w zoom = the widest, clearest columns.
-function registerDefaultWeekendColumnsNarrowLabelledTest() {
+test.describe('Minimise weekends', () => {
+  // Covers US-SET-05. "Minimise weekends" (device-global, default on) shrinks the
+  // Sat/Sun columns to a sliver and labels both "S"; off restores full-width Sat/Sun columns.
+  // All label assertions are scoped to the date header (role=columnheader "Dates") so a stray
+  // "S" elsewhere (e.g. an avatar initial) can't match. 1w zoom = the widest, clearest columns.
   test('ON by default: weekend columns are narrow and labelled "S"', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 1);
@@ -42,12 +42,9 @@ function registerDefaultWeekendColumnsNarrowLabelledTest() {
     const weekday = await box(header.getByText('Wed', { exact: true }).first().locator('..'));
     expect(weekend.width).toBeLessThan(weekday.width);
   });
-}
-
-// WCAG 2.5.8 (Target Size, AA): the preference switch must be at least 24 by 24 pixels.
-// SettingsView.test.tsx can only assert the h-6 class (jsdom runs no layout), so this measures the
-// real rendered geometry the build ships, a class rename that drops below 24px is caught here.
-function registerPreferenceSwitchRendersLeast24pxTest() {
+  // WCAG 2.5.8 (Target Size, AA): the preference switch must be at least 24 by 24 pixels.
+  // SettingsView.test.tsx can only assert the h-6 class (jsdom runs no layout), so this measures the
+  // real rendered geometry the build ships, a class rename that drops below 24px is caught here.
   test('the preference switch renders at least 24px tall (WCAG 2.5.8 target size)', async ({
     page,
   }) => {
@@ -57,9 +54,6 @@ function registerPreferenceSwitchRendersLeast24pxTest() {
     expect(b.height).toBeGreaterThanOrEqual(24);
     expect(b.width).toBeGreaterThanOrEqual(24);
   });
-}
-
-function registerTogglingOffSettingsRestoresFullTest() {
   test('toggling it off in Settings restores full-width Sat/Sun columns', async ({ page }) => {
     await openApp(page, '/settings');
     const toggle = page.getByRole('switch', { name: 'Minimise weekends' });
@@ -80,9 +74,6 @@ function registerTogglingOffSettingsRestoresFullTest() {
     const weekday = await box(header.getByText('Wed', { exact: true }).first().locator('..'));
     expect(Math.abs(weekend.width - weekday.width)).toBeLessThan(2);
   });
-}
-
-function registerChoiceSurvivesReloadDeviceGlobalTest() {
   test('the choice survives a reload (device-global pref)', async ({ page }) => {
     await openApp(page, '/settings');
     await page.getByRole('switch', { name: 'Minimise weekends' }).click();
@@ -94,9 +85,6 @@ function registerChoiceSurvivesReloadDeviceGlobalTest() {
       'false',
     );
   });
-}
-
-function registerZoomFitsSelectedWeeksExposingTest() {
   test('every zoom fits its selected weeks without exposing a trailing day', async ({ page }) => {
     // Keep even the 8-week zoom above the per-day-column threshold so the probe can count the
     // same date cells shown in the wide-screen reproduction screenshots.
@@ -108,9 +96,6 @@ function registerZoomFitsSelectedWeeksExposingTest() {
       expect(visibleDays, `${weeks}-week zoom`).toBe(weeks * 7);
     }
   });
-}
-
-function registerZoomFlipsPreserveLeftEdgeTest() {
   test('zoom flips preserve the left-edge date (no drift onto the weekend)', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 1);
@@ -125,9 +110,6 @@ function registerZoomFlipsPreserveLeftEdgeTest() {
     // And it must be a weekday (the focused Monday), never drifted back onto the narrow "S" weekend.
     expect(before).not.toMatch(/S$/);
   });
-}
-
-function registerBarDraggedAcrossNarrowedWeekendTest() {
   test('a bar dragged across the narrowed weekend commits a later date (no crash)', async ({
     page,
   }) => {
@@ -161,10 +143,7 @@ function registerBarDraggedAcrossNarrowedWeekendTest() {
     const startAfter = await dialog.getByLabel(/^Start Date/).inputValue();
     expect(startAfter > startBefore).toBe(true);
   });
-}
-
-// Resize and weekend minimisation must preserve the exact left-edge date. Disable idle snapping so it cannot mask navigation snapping.
-function registerPureResizePreservesMidWeekTest() {
+  // Resize and weekend minimisation must preserve the exact left-edge date. Disable idle snapping so it cannot mask navigation snapping.
   test('a pure resize preserves the mid-week left-edge date (no navigation snap)', async ({
     page,
   }) => {
@@ -182,14 +161,11 @@ function registerPureResizePreservesMidWeekTest() {
     await waitForWeekSnap(page);
     expect((await probe(page)).leftDate).toBe(leftDate);
   });
-}
-
-// The same snap=false (preserve-exact-date) branch, but with "Minimise weekends" off, proving the
-// navigation snap is gated on a zoom/pan, not on the minimise geometry. We flip minimise off first
-// (a Settings round-trip remounts the grid and recentres it to the focus Monday, that's mount
-// behaviour, separate from the snap branch under test), then nudge to a mid-week weekday and do a
-// pure in-component resize: a refit that is neither a zoom nor a pan must preserve the exact date.
-function registerMinimiseOFFPureResizeStillTests() {
+  // The same snap=false (preserve-exact-date) branch, but with "Minimise weekends" off, proving the
+  // navigation snap is gated on a zoom/pan, not on the minimise geometry. We flip minimise off first
+  // (a Settings round-trip remounts the grid and recentres it to the focus Monday, that's mount
+  // behaviour, separate from the snap branch under test), then nudge to a mid-week weekday and do a
+  // pure in-component resize: a refit that is neither a zoom nor a pan must preserve the exact date.
   test('with minimise OFF, a pure resize still preserves the mid-week left-edge date (no snap)', async ({
     page,
   }) => {
@@ -212,16 +188,4 @@ function registerMinimiseOFFPureResizeStillTests() {
     await waitForWeekSnap(page);
     expect((await probe(page)).leftDate).toBe(leftDate);
   });
-}
-
-test.describe('Minimise weekends', () => {
-  registerDefaultWeekendColumnsNarrowLabelledTest();
-  registerPreferenceSwitchRendersLeast24pxTest();
-  registerTogglingOffSettingsRestoresFullTest();
-  registerChoiceSurvivesReloadDeviceGlobalTest();
-  registerZoomFitsSelectedWeeksExposingTest();
-  registerZoomFlipsPreserveLeftEdgeTest();
-  registerBarDraggedAcrossNarrowedWeekendTest();
-  registerPureResizePreservesMidWeekTest();
-  registerMinimiseOFFPureResizeStillTests();
 });

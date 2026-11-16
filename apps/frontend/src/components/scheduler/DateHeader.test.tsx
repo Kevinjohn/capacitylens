@@ -53,13 +53,24 @@ describe('DateHeader', () => {
     renderHeader(48, 4);
     expect(screen.getByText('Jun 2026')).toHaveAttribute('data-month-placement', 'sticky-start');
   });
-  registerDateStyleReactivityTests();
-  registerZoomThresholdTests();
-  registerDetailedRenderingTests();
-  registerMinimisedWeekendTests();
-});
+  describe('company date format', () => {
+    // The store is module-global, so hand the rest of the file back its default reading.
+    afterEach(() => resetStoreWithAccount());
 
-function registerZoomThresholdTests() {
+    // Date format changes must invalidate week-label memoisation even when the visible days are unchanged.
+    it('re-reads its labels when the format changes', async () => {
+      await resetStoreWithAccount();
+      renderHeader(17);
+      expect(screen.getByText('1 Jun')).toBeInTheDocument();
+
+      await act(async () => {
+        await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { dateStyle: 'month-day' });
+      });
+
+      expect(screen.getByText('Jun 1')).toBeInTheDocument();
+      expect(screen.queryByText('1 Jun')).not.toBeInTheDocument();
+    });
+  });
   it('switches horizontal placement modes at the weekday-label threshold', () => {
     const below = renderHeader(35);
     expect(screen.getByText('Jun 2026')).toHaveAttribute('data-month-placement', 'sticky-start');
@@ -102,9 +113,6 @@ function registerZoomThresholdTests() {
     expect(screen.getByText('Tue')).toBeInTheDocument();
     expect(screen.getByText('Sat')).toBeInTheDocument();
   });
-}
-
-function registerDetailedRenderingTests() {
   it('groups a cross-month window into correctly sized month spans', () => {
     const days = ['2026-05-31', '2026-06-01', '2026-06-02'];
     const { container } = render(
@@ -170,9 +178,6 @@ function registerDetailedRenderingTests() {
       expect(screen.queryByText('Sat')).not.toBeInTheDocument();
     });
   });
-}
-
-function registerMinimisedWeekendTests() {
   describe('with minimise weekends ON (narrowed weekend columns)', () => {
     const WEEKEND_DAYS = ['2026-06-05', '2026-06-06', '2026-06-07', '2026-06-08'];
     const renderMinimised = (dayWidth: number) =>
@@ -219,25 +224,4 @@ function registerMinimisedWeekendTests() {
       ]);
     });
   });
-}
-
-function registerDateStyleReactivityTests() {
-  describe('company date format', () => {
-    // The store is module-global, so hand the rest of the file back its default reading.
-    afterEach(() => resetStoreWithAccount());
-
-    // Date format changes must invalidate week-label memoisation even when the visible days are unchanged.
-    it('re-reads its labels when the format changes', async () => {
-      await resetStoreWithAccount();
-      renderHeader(17);
-      expect(screen.getByText('1 Jun')).toBeInTheDocument();
-
-      await act(async () => {
-        await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { dateStyle: 'month-day' });
-      });
-
-      expect(screen.getByText('Jun 1')).toBeInTheDocument();
-      expect(screen.queryByText('1 Jun')).not.toBeInTheDocument();
-    });
-  });
-}
+});

@@ -25,12 +25,8 @@ const colorFieldBlue = '#2d75da';
 const colorFieldRed = '#e02727';
 
 describe('ColorField', () => {
-  registerColorFieldBasicTests(colorFieldBlue, colorFieldRed);
-  registerColorFieldInteractionTests(colorFieldBlue, colorFieldRed);
-  registerColorFieldModalTests(colorFieldBlue, colorFieldRed);
-});
-
-function registerColorFieldBasicTests(BLUE: string, RED: string) {
+  const BLUE: string = colorFieldBlue;
+  const RED: string = colorFieldRed;
   it('renders a trigger labelled with the current value and no swatches until opened', () => {
     render(<ColorField label="Brand colour" value={BLUE} onChange={vi.fn()} />);
     expect(
@@ -39,7 +35,6 @@ function registerColorFieldBasicTests(BLUE: string, RED: string) {
 
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
-
   it('opts into the shared responsive label-control row', () => {
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} layout="label-control" />);
     expect(
@@ -48,7 +43,6 @@ function registerColorFieldBasicTests(BLUE: string, RED: string) {
         .closest('[data-slot="field"]'),
     ).toHaveAttribute('data-product-layout', 'label-control');
   });
-
   it('opens the full grid of preset swatches when the trigger is clicked', async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
@@ -61,7 +55,6 @@ function registerColorFieldBasicTests(BLUE: string, RED: string) {
     expect(screen.getByRole('radiogroup', { name: 'Colour swatches' })).toBeInTheDocument();
     expect(screen.getAllByRole('radio')).toHaveLength(52);
   });
-
   it('toggles the swatch grid closed when its expanded trigger is clicked again', async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
@@ -74,7 +67,6 @@ function registerColorFieldBasicTests(BLUE: string, RED: string) {
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
-
   it('calls onChange with the chosen hex and closes the popup', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
@@ -85,7 +77,6 @@ function registerColorFieldBasicTests(BLUE: string, RED: string) {
 
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
-
   it('closes an open grid when disabled and stays closed when re-enabled', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
@@ -111,9 +102,6 @@ function registerColorFieldBasicTests(BLUE: string, RED: string) {
     await user.click(screen.getByRole('radio', { name: resolveColorName(RED) }));
     expect(onChange).toHaveBeenCalledWith(RED);
   });
-}
-
-function registerColorFieldInteractionTests(BLUE: string, RED: string) {
   it('exposes the swatches as one single-select radio group', async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
@@ -127,7 +115,6 @@ function registerColorFieldInteractionTests(BLUE: string, RED: string) {
       'false',
     );
   });
-
   it('uses one tab stop and arrow keys to move through the swatch grid', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
@@ -142,7 +129,6 @@ function registerColorFieldInteractionTests(BLUE: string, RED: string) {
     expect(document.activeElement).toBe(next);
     expect(onChange).toHaveBeenCalledWith(SWATCHES[(SWATCHES.indexOf(BLUE) + 1) % SWATCHES.length]);
   });
-
   it('closes the popup on an outside click', async () => {
     const user = userEvent.setup();
     render(
@@ -156,7 +142,6 @@ function registerColorFieldInteractionTests(BLUE: string, RED: string) {
     await user.click(screen.getByRole('button', { name: 'Outside' }));
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
-
   it('closes the popup on Escape without closing the surrounding Modal', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -174,9 +159,6 @@ function registerColorFieldInteractionTests(BLUE: string, RED: string) {
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
-}
-
-function registerColorFieldModalTests(BLUE: string, RED: string) {
   it('dismisses only the popup, not the surrounding Modal, on a backdrop click', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -192,7 +174,6 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
-
   it('does NOT swallow a press on another control inside the same dialog (first click lands)', async () => {
     const user = userEvent.setup();
     const onSiblingDown = vi.fn();
@@ -211,4 +192,4 @@ function registerColorFieldModalTests(BLUE: string, RED: string) {
     expect(onSiblingDown).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
-}
+});

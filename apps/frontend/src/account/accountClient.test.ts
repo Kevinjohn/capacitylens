@@ -69,29 +69,6 @@ describe('browser account client', () => {
     vi.unstubAllGlobals();
   });
 
-  registerCommandCreationTests();
-  registerReadRouteTests();
-  registerAuditWarningTests();
-  registerMutationRouteTests();
-  registerMemberResourceCommandTests();
-  registerMembershipRouteTests();
-  registerOwnershipTransferTests();
-  registerStoredCommandTests();
-  registerStorageFallbackTests();
-  registerCeremonyCleanupTests();
-  registerIdentityCleanupTests();
-  registerCleanupStorageTests();
-  registerIdentityRecoveryTests();
-  registerUnreadableCommandResponseTests();
-  registerExplicitCommandCeremonyTests();
-  registerSurvivingCeremonyTests();
-  registerSemanticPayloadTests();
-  registerSemanticPayloadOrderTests();
-  registerResponseClassificationTests();
-  registerTerminalClassificationTests();
-});
-
-function registerCommandCreationTests(): void {
   it('creates independent command and idempotency secrets', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000000')
@@ -101,9 +78,6 @@ function registerCommandCreationTests(): void {
       idempotencyKey: '00000000-0000-4000-8000-000000000001',
     });
   });
-}
-
-function registerReadRouteTests(): void {
   it('owns unauthenticated status and company-list reads via apiFetch', async () => {
     // Routed through apiFetch (not raw fetch) so the audit-degradation header check that apiFetch
     // performs applies uniformly to these reads too.
@@ -121,9 +95,6 @@ function registerReadRouteTests(): void {
       signal: controller.signal,
     });
   });
-}
-
-function registerAuditWarningTests(): void {
   it('surfaces an audit-degradation warning when apiFetch reports one for /api/auth/me', async () => {
     // Account reads use apiFetch so audit-degradation headers reach the shared warning surface. The mock preserves that header check.
     const warning = vi.fn();
@@ -144,9 +115,6 @@ function registerAuditWarningTests(): void {
       globalThis.removeEventListener(AUDIT_WARNING_EVENT, warning);
     }
   });
-}
-
-function registerMutationRouteTests(): void {
   it('adds command headers, JSON encoding, safe path encoding, and bulk timeout policy', async () => {
     await transferOwner({ name: 'Studio' }, command);
     await accountClient.changeMemberRole({
@@ -184,51 +152,6 @@ function registerMutationRouteTests(): void {
       ]),
     );
   });
-}
-
-function registerOwnershipTransferTests(): void {
-  it('sends one command and bound proof to the typed ownership route', async () => {
-    await accountClient.transferOwnership({
-      companyId: 'company / one',
-      targetPrincipalId: 'person / one',
-      confirmationId: 'proof-1',
-      command,
-    });
-
-    const [url, init] = mocks.apiFetch.mock.calls[0] ?? [];
-    expect(url).toBe('/api/accounts/company%20%2F%20one/ownership-transfer');
-    expectCommand(init as RequestInit, 'POST');
-    expect(JSON.parse(String(init?.body))).toEqual({
-      toUserId: 'person / one',
-      confirmationId: 'proof-1',
-    });
-  });
-
-  it('reuses the same command and target after an uncertain response', async () => {
-    vi.spyOn(globalThis.crypto, 'randomUUID')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000201')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000202');
-    mocks.apiFetch
-      .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(Response.json({ fromUserId: 'bruce', toUserId: 'selina' }));
-    const input = {
-      companyId: 'wayne-enterprises',
-      targetPrincipalId: 'selina',
-      confirmationId: 'proof-1',
-    };
-
-    await accountClient.transferOwnership(input);
-    await accountClient.transferOwnership(input);
-
-    const headers = mocks.apiFetch.mock.calls.map((call) => new Headers(call[1]?.headers));
-    expect(headers[0]?.get('x-account-command-id')).toBe('00000000-0000-4000-8000-000000000201');
-    expect(headers[0]?.get('idempotency-key')).toBe('00000000-0000-4000-8000-000000000202');
-    expect(headers[1]?.get('x-account-command-id')).toBe(headers[0]?.get('x-account-command-id'));
-    expect(headers[1]?.get('idempotency-key')).toBe(headers[0]?.get('idempotency-key'));
-  });
-}
-
-function registerMemberResourceCommandTests(): void {
   it('routes member-resource commands with operation headers and ambiguous conflict handling', async () => {
     mocks.apiFetch.mockResolvedValueOnce(new Response('unreadable conflict', { status: 409 }));
     const link = await accountClient.setMemberResourceLink(
@@ -268,9 +191,6 @@ function registerMemberResourceCommandTests(): void {
     expectCommand(unlinkInit, 'DELETE');
     expect(JSON.parse(String(unlinkInit.body))).toEqual({ expectedRevision: 'revision-1' });
   });
-}
-
-function registerMembershipRouteTests(): void {
   it('owns member, invitation preview, and signup routes', async () => {
     await accountClient.listMembers('company / one');
     await accountClient.listInvitations('company / one');
@@ -316,9 +236,45 @@ function registerMembershipRouteTests(): void {
       body: JSON.stringify({ name: 'New user', password: 'example-password' }),
     });
   });
-}
+  it('sends one command and bound proof to the typed ownership route', async () => {
+    await accountClient.transferOwnership({
+      companyId: 'company / one',
+      targetPrincipalId: 'person / one',
+      confirmationId: 'proof-1',
+      command,
+    });
 
-function registerStoredCommandTests(): void {
+    const [url, init] = mocks.apiFetch.mock.calls[0] ?? [];
+    expect(url).toBe('/api/accounts/company%20%2F%20one/ownership-transfer');
+    expectCommand(init as RequestInit, 'POST');
+    expect(JSON.parse(String(init?.body))).toEqual({
+      toUserId: 'person / one',
+      confirmationId: 'proof-1',
+    });
+  });
+
+  it('reuses the same command and target after an uncertain response', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000201')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000202');
+    mocks.apiFetch
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ fromUserId: 'bruce', toUserId: 'selina' }));
+    const input = {
+      companyId: 'wayne-enterprises',
+      targetPrincipalId: 'selina',
+      confirmationId: 'proof-1',
+    };
+
+    await accountClient.transferOwnership(input);
+    await accountClient.transferOwnership(input);
+
+    const headers = mocks.apiFetch.mock.calls.map((call) => new Headers(call[1]?.headers));
+    expect(headers[0]?.get('x-account-command-id')).toBe('00000000-0000-4000-8000-000000000201');
+    expect(headers[0]?.get('idempotency-key')).toBe('00000000-0000-4000-8000-000000000202');
+    expect(headers[1]?.get('x-account-command-id')).toBe(headers[0]?.get('x-account-command-id'));
+    expect(headers[1]?.get('idempotency-key')).toBe(headers[0]?.get('idempotency-key'));
+  });
   it('reuses a stored command across unknown outcomes and rotates it after terminal completion', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000001')
@@ -343,9 +299,6 @@ function registerStoredCommandTests(): void {
       '00000000-0000-4000-8000-000000000003',
     ]);
   });
-}
-
-function registerStorageFallbackTests(): void {
   it('reuses a stored command after HTTP 408 until a terminal completion is known', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000071')
@@ -370,9 +323,6 @@ function registerStorageFallbackTests(): void {
       '00000000-0000-4000-8000-000000000073',
     ]);
   });
-}
-
-function registerCeremonyCleanupTests(): void {
   it('reuses an in-memory command when session storage is blocked', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('Access denied', 'SecurityError');
@@ -406,9 +356,6 @@ function registerCeremonyCleanupTests(): void {
       '00000000-0000-4000-8000-000000000053',
     ]);
   });
-}
-
-function registerIdentityCleanupTests(): void {
   it('keeps a command after an in-progress conflict but clears it after an idempotency conflict', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000003')
@@ -433,9 +380,6 @@ function registerIdentityCleanupTests(): void {
       '00000000-0000-4000-8000-000000000005',
     ]);
   });
-}
-
-function registerCleanupStorageTests(): void {
   it('clears retained command ceremonies without removing unrelated per-tab data', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000061')
@@ -463,9 +407,6 @@ function registerCleanupStorageTests(): void {
       Array.from({ length: sessionStorage.length }, (_unused, index) => sessionStorage.key(index)),
     ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-command\./));
   });
-}
-
-function registerIdentityRecoveryTests(): void {
   it('retains same-user recovery but clears a ceremony before a different identity can use it', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000081')
@@ -494,9 +435,49 @@ function registerIdentityRecoveryTests(): void {
     ]);
     expect(sessionStorage.getItem('capacitylens.account-command.identity')).toBe('user-two');
   });
-}
+  it('keeps the same command identity after an unreadable 409 response', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000041')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000042')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000043')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000044');
+    mocks.apiFetch
+      .mockResolvedValueOnce(new Response('truncated', { status: 409 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-function registerSurvivingCeremonyTests(): void {
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' });
+
+    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+      new Headers(init?.headers).get('x-account-command-id'),
+    );
+    expect(commandIds).toEqual([
+      '00000000-0000-4000-8000-000000000041',
+      '00000000-0000-4000-8000-000000000041',
+    ]);
+  });
+  it('does not let an explicit command discard an implicit unknown-outcome ceremony', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000031')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000032');
+    mocks.apiFetch
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await transferOwner({ name: 'Studio' });
+    await transferOwner({ name: 'Studio' }, command);
+    await transferOwner({ name: 'Studio' });
+
+    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+      new Headers(init?.headers).get('x-account-command-id'),
+    );
+    expect(commandIds).toEqual([
+      '00000000-0000-4000-8000-000000000031',
+      command.commandId,
+      '00000000-0000-4000-8000-000000000031',
+    ]);
+  });
   it('isolates a surviving stored ceremony when identity-change cleanup cannot enumerate storage', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000091')
@@ -523,58 +504,6 @@ function registerSurvivingCeremonyTests(): void {
       '00000000-0000-4000-8000-000000000093',
     ]);
   });
-}
-
-function registerUnreadableCommandResponseTests(): void {
-  it('keeps the same command identity after an unreadable 409 response', async () => {
-    vi.spyOn(globalThis.crypto, 'randomUUID')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000041')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000042')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000043')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000044');
-    mocks.apiFetch
-      .mockResolvedValueOnce(new Response('truncated', { status: 409 }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
-
-    await transferOwner({ name: 'Studio' });
-    await transferOwner({ name: 'Studio' });
-
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
-    );
-    expect(commandIds).toEqual([
-      '00000000-0000-4000-8000-000000000041',
-      '00000000-0000-4000-8000-000000000041',
-    ]);
-  });
-}
-
-function registerExplicitCommandCeremonyTests(): void {
-  it('does not let an explicit command discard an implicit unknown-outcome ceremony', async () => {
-    vi.spyOn(globalThis.crypto, 'randomUUID')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000031')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000032');
-    mocks.apiFetch
-      .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
-
-    await transferOwner({ name: 'Studio' });
-    await transferOwner({ name: 'Studio' }, command);
-    await transferOwner({ name: 'Studio' });
-
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
-    );
-    expect(commandIds).toEqual([
-      '00000000-0000-4000-8000-000000000031',
-      command.commandId,
-      '00000000-0000-4000-8000-000000000031',
-    ]);
-  });
-}
-
-function registerSemanticPayloadTests(): void {
   it('keeps unknown-outcome ceremonies separate for different ownership targets', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000011')
@@ -596,9 +525,6 @@ function registerSemanticPayloadTests(): void {
       '00000000-0000-4000-8000-000000000011',
     ]);
   });
-}
-
-function registerSemanticPayloadOrderTests(): void {
   it('treats invitation field order as irrelevant when binding a semantic payload', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000021')
@@ -624,9 +550,6 @@ function registerSemanticPayloadOrderTests(): void {
       '00000000-0000-4000-8000-000000000021',
     ]);
   });
-}
-
-function registerResponseClassificationTests(): void {
   it('classifies server and in-progress responses as unknown without consuming the body', async () => {
     const inProgress = Response.json(
       { code: 'COMMAND_IN_PROGRESS', error: 'Still running.' },
@@ -658,9 +581,6 @@ function registerResponseClassificationTests(): void {
       ),
     ).resolves.toBe(false);
   });
-}
-
-function registerTerminalClassificationTests(): void {
   it.each(['INVITATION_USED', 'CONFLICT', 'AUTHORITY_CHANGED', 'IDEMPOTENCY_CONFLICT'])(
     'classifies the known terminal 409 code %s as final',
     async (code) => {
@@ -688,7 +608,7 @@ function registerTerminalClassificationTests(): void {
       ),
     ).resolves.toBe(true);
   });
-}
+});
 
 describe('admission list query', () => {
   it('encodes an opaque cursor once and preserves credentials and cancellation', async () => {

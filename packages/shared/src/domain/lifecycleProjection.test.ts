@@ -254,16 +254,13 @@ const ACTIVE_ONLY_DATA: AppData = {
 };
 const makeActiveOnlyData = (): AppData => structuredClone(ACTIVE_ONLY_DATA);
 
-const registerActiveOnlyTest1 = (): void => {
+describe('activeOnly — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)', () => {
   it('DROPS archived AND soft-deleted resources/clients/projects; KEEPS the active ones', () => {
     const out = activeOnly(makeActiveOnlyData());
     expect(out.resources.map((r) => r.id)).toEqual(['r-active']);
     expect(out.clients.map((c) => c.id)).toEqual(['c-active']);
     expect(out.projects.map((p) => p.id)).toEqual(['p-active']);
   });
-};
-
-const registerActiveOnlyTestResourceAncestry = (): void => {
   it('hides bound placeholders whose project ancestry is inactive and retains unresolved or cross-account bindings', () => {
     const input = makeActiveOnlyData();
     input.projects = [
@@ -307,9 +304,6 @@ const registerActiveOnlyTestResourceAncestry = (): void => {
     ]);
     expect(input.resources.map(({ id }) => id)).toContain('r-bound-hidden-client');
   });
-};
-
-const registerActiveOnlyTest2 = (): void => {
   it('closure-prunes descendants of hidden parents/resources while preserving top-level metadata', () => {
     const input = makeActiveOnlyData();
     const out = activeOnly(input);
@@ -323,9 +317,6 @@ const registerActiveOnlyTest2 = (): void => {
       'active',
     );
   });
-};
-
-const registerActiveOnlyTest3 = (): void => {
   it('retains active rows with unresolved parents instead of inventing hidden lifecycle state', () => {
     const input = {
       ...emptyAppData(),
@@ -355,9 +346,6 @@ const registerActiveOnlyTest3 = (): void => {
     expect(out.projects.map(({ id }) => id)).toEqual(['p-dangling', 'p-missing-field']);
     expect(out.projects.every((project) => lifecycleStatus(project) === 'active')).toBe(true);
   });
-};
-
-const registerActiveOnlyTest4 = (): void => {
   it('treats null optional activity parents as absent and retains their allocations', () => {
     const input = {
       ...emptyAppData(),
@@ -394,9 +382,6 @@ const registerActiveOnlyTest4 = (): void => {
     expect(out.activities.map(({ id }) => id)).toEqual(['activity-with-null-parents']);
     expect(out.allocations.map(({ id }) => id)).toEqual(['allocation-1']);
   });
-};
-
-const registerActiveOnlyTest5 = (): void => {
   it('hides a repeatable allocation attributed to an inactive project', () => {
     const input: AppData = {
       ...emptyAppData(),
@@ -433,9 +418,6 @@ const registerActiveOnlyTest5 = (): void => {
 
     expect(activeOnly(input).allocations).toEqual([]);
   });
-};
-
-const registerActiveOnlyTest6 = (): void => {
   it('identifies the exact inactive ancestor inherited through every projection edge', () => {
     const input = makeActiveOnlyData();
     const lookup: LifecycleAncestryLookup = (table, id) =>
@@ -460,9 +442,6 @@ const registerActiveOnlyTest6 = (): void => {
     }
     expect(inspect('allocations', 'al1')).toEqual({ kind: 'visible' });
   });
-};
-
-const registerActiveOnlyTest7 = (): void => {
   it('does NOT mutate the input (deep-equal the original) and returns a NEW object', () => {
     const input = makeActiveOnlyData();
     const snapshot = structuredClone(input);
@@ -473,9 +452,6 @@ const registerActiveOnlyTest7 = (): void => {
     expect(input.projects).toHaveLength(4);
     expect(out).not.toBe(input);
   });
-};
-
-const registerActiveOnlyTest8 = (): void => {
   it('an all-active dataset is preserved (every row kept, every table present)', () => {
     const input = makeActiveOnlyData();
     input.resources = input.resources.filter((r) => r.id === 'r-active');
@@ -487,28 +463,12 @@ const registerActiveOnlyTest8 = (): void => {
     expect(out.projects).toHaveLength(1);
     expect(Object.keys(out).sort()).toEqual(Object.keys(emptyAppData()).sort());
   });
-};
-
-const registerActiveOnlyTest9 = (): void => {
   it('an empty dataset projects to an empty dataset (no throw)', () => {
     const out = activeOnly(emptyAppData());
     expect(out.resources).toEqual([]);
     expect(out.clients).toEqual([]);
     expect(out.projects).toEqual([]);
   });
-};
-
-describe('activeOnly — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)', () => {
-  registerActiveOnlyTest1();
-  registerActiveOnlyTestResourceAncestry();
-  registerActiveOnlyTest2();
-  registerActiveOnlyTest3();
-  registerActiveOnlyTest4();
-  registerActiveOnlyTest5();
-  registerActiveOnlyTest6();
-  registerActiveOnlyTest7();
-  registerActiveOnlyTest8();
-  registerActiveOnlyTest9();
 });
 
 const ARCHIVE_IMPACT_ACCOUNT = 'acct-1';

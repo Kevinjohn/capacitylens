@@ -22,17 +22,6 @@ function getRequiredElement<T extends HTMLElement>(root: ParentNode, selector: s
 }
 
 describe('Modal', () => {
-  registerModalPresentationTests();
-  registerModalDismissalTests();
-  registerModalDirtyStateTests();
-  registerModalControlDirtyTests();
-  registerModalControlNoOpTests();
-  registerModalControlRenderingTests();
-  registerModalControlMixedValueTests();
-  registerModalFooterTests();
-});
-
-function registerModalPresentationTests() {
   it('renders with the given title as dialog label', () => {
     render(
       <Modal title="My Modal" onClose={vi.fn()}>
@@ -66,9 +55,6 @@ function registerModalPresentationTests() {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
   });
-}
-
-function registerModalDismissalTests() {
   it('closes when the backdrop is clicked', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -110,9 +96,6 @@ function registerModalDismissalTests() {
     await user.click(screen.getByText('Inner'));
     expect(onClose).not.toHaveBeenCalled();
   });
-}
-
-function registerModalDirtyStateTests() {
   it('refuses an accidental backdrop/Escape dismissal once a field is edited', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -157,9 +140,6 @@ function registerModalDirtyStateTests() {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });
-}
-
-function registerModalControlDirtyTests() {
   it('keeps one editor globally dirty while a clean overlapping Modal mounts and unmounts', () => {
     type ModalsOptions = { showCleanOverlay: boolean };
     const modals = ({ showCleanOverlay }: ModalsOptions) => (
@@ -192,9 +172,6 @@ function registerModalControlDirtyTests() {
     unmount();
     expect(useStore.getState().dirtyForm).toBe(false);
   });
-}
-
-function registerModalControlNoOpTests() {
   it('treats clicking an aria-pressed toggle (e.g. WeekdayPicker) as a dirty edit', () => {
     const onClose = vi.fn();
     render(
@@ -231,9 +208,6 @@ function registerModalControlNoOpTests() {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
   });
-}
-
-function registerModalControlRenderingTests() {
   it('renders the default gapped intent through the shared radio-group primitive', () => {
     render(
       <SegmentedControl
@@ -277,9 +251,6 @@ function registerModalControlRenderingTests() {
     expect(screen.getAllByRole('radio')).toHaveLength(3);
     expect(screen.getByRole('radio', { name: 'First' })).toHaveAttribute('data-state', 'on');
   });
-}
-
-function registerModalControlMixedValueTests() {
   it('round-trips numeric and string values that have the same display text', () => {
     const onChange = vi.fn();
     render(
@@ -313,9 +284,6 @@ function registerModalControlMixedValueTests() {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
   });
-}
-
-function registerModalFooterTests() {
   it('renders optional footer', () => {
     render(
       <Modal title="Footer Modal" onClose={vi.fn()} footer={<span>Footer content</span>}>
@@ -358,7 +326,7 @@ function registerModalFooterTests() {
     expect(document.activeElement).toBe(trigger);
     trigger.remove();
   });
-}
+});
 
 describe('ConfirmDialog', () => {
   it('renders title and message', () => {

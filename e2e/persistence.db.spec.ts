@@ -2,18 +2,14 @@ import { test, expect } from './dbFixtures';
 import { openApp, selectShadOption } from './browserTestSupport';
 import { serverState, requireStateRows } from './serverTestState';
 
-// The worker Vite proxy sends typed writes to its isolated SQLite-backed server.
-// A record surviving a planning-read reload proves the full UI-to-database round trip.
-
-function registerHydratesSeededDatasetServerLoadTest() {
+test.describe('database-backed persistence', () => {
+  // The worker Vite proxy sends typed writes to its isolated SQLite-backed server.
+  // A record surviving a planning-read reload proves the full UI-to-database round trip.
   test('hydrates the seeded dataset from the server on load', async ({ page }) => {
     await openApp(page);
     // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
     await expect(page.getByText('Bruce Wayne')).toBeVisible();
   });
-}
-
-function registerCreateReloadNewClientRoundTest() {
   test('create + reload: a new client round-trips through the DB', async ({ page, request }) => {
     await openApp(page);
     await page.getByRole('link', { name: 'Clients' }).click();
@@ -39,9 +35,6 @@ function registerCreateReloadNewClientRoundTest() {
     await page.getByRole('link', { name: 'Clients' }).click();
     await expect(page.getByText('Persisted DB Co')).toBeVisible();
   });
-}
-
-function registerRepeatCreationPersistsAllAllocationTest() {
   test('repeat creation persists one typed allocation group request', async ({ page, request }) => {
     const before = requireStateRows(await serverState(request), 'allocations');
     let groupRequests = 0;
@@ -86,9 +79,6 @@ function registerRepeatCreationPersistsAllAllocationTest() {
     expect(firstRepeated.seriesId).toEqual(expect.any(String));
     expect(new Set(repeated.map(({ seriesId }) => seriesId)).size).toBe(1);
   });
-}
-
-function registerEditReloadRenameRoundTripsTest() {
   test('edit + reload: a rename round-trips through the DB', async ({ page, request }) => {
     await openApp(page);
     await page.getByRole('link', { name: 'Clients' }).click();
@@ -125,9 +115,6 @@ function registerEditReloadRenameRoundTripsTest() {
     await expect(page.getByTestId('client-row').filter({ hasText: 'Renamed Co' })).toBeVisible();
     await expect(page.getByTestId('client-row').filter({ hasText: 'Rename Me Co' })).toHaveCount(0);
   });
-}
-
-function registerEditFreshHydrationEngagementHalfTest() {
   test('edit + fresh hydration: engagement and half days survive the server round-trip', async ({
     page,
     request,
@@ -174,11 +161,8 @@ function registerEditFreshHydrationEngagementHalfTest() {
     await expect(page.getByRole('radio', { name: 'Supplementary' })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Tuesday Half day' })).toBeChecked();
   });
-}
-
-// The per-row destructive action archives a client through the server-authoritative /api/clients/:id/archive route.
-// The route sets archivedAt and preserves the record; reload then confirms it is absent from active views.
-function registerArchiveReloadArchivedClientRetainedTests() {
+  // The per-row destructive action archives a client through the server-authoritative /api/clients/:id/archive route.
+  // The route sets archivedAt and preserves the record; reload then confirms it is absent from active views.
   test('archive + reload: an archived client is retained in the DB but hidden from the active view', async ({
     page,
     request,
@@ -225,13 +209,4 @@ function registerArchiveReloadArchivedClientRetainedTests() {
     await page.getByRole('link', { name: 'Clients' }).click();
     await expect(page.getByTestId('client-row').filter({ hasText: 'Doomed Co' })).toHaveCount(0);
   });
-}
-
-test.describe('database-backed persistence', () => {
-  registerHydratesSeededDatasetServerLoadTest();
-  registerCreateReloadNewClientRoundTest();
-  registerRepeatCreationPersistsAllAllocationTest();
-  registerEditReloadRenameRoundTripsTest();
-  registerEditFreshHydrationEngagementHalfTest();
-  registerArchiveReloadArchivedClientRetainedTests();
 });

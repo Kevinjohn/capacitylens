@@ -62,7 +62,7 @@ async function openStackedDialog(
   await dialog.getByRole('button', { name: 'Cancel' }).click();
 }
 
-function registerUsesResourceForms2575Test() {
+test.describe('compact input modal layouts', () => {
   test("uses the Resource form's 25/75 rows across the six management flows", async ({ page }) => {
     await openApp(page, '/settings');
     await page.getByRole('switch', { name: 'Show external resources' }).click();
@@ -74,9 +74,6 @@ function registerUsesResourceForms2575Test() {
     await openDialog(page, 'Activities', 'Add activity', 'Add activity', 3);
     await openDialog(page, 'Time off', 'Add time off', 'Add time off', 4);
   });
-}
-
-function registerStacksContainsScopedForm360pxTest() {
   test('stacks and contains every scoped form at 360px', async ({ page }) => {
     await openApp(page, '/settings');
     await page.getByRole('switch', { name: 'Show external resources' }).click();
@@ -89,9 +86,6 @@ function registerStacksContainsScopedForm360pxTest() {
     await openStackedDialog(page, 'Activities', 'Add activity', 'Add activity', 3);
     await openStackedDialog(page, 'Time off', 'Add time off', 'Add time off', 4);
   });
-}
-
-function registerWrapsLongLabelStacksNarrowTests() {
   test('wraps a long label, stacks on a narrow screen, and preserves required-error association', async ({
     page,
   }) => {
@@ -136,10 +130,4 @@ function registerWrapsLongLabelStacksNarrowTests() {
     await expect(alert).toContainText(/name is required/i);
     await expect(dialog).toBeVisible();
   });
-}
-
-test.describe('compact input modal layouts', () => {
-  registerUsesResourceForms2575Test();
-  registerStacksContainsScopedForm360pxTest();
-  registerWrapsLongLabelStacksNarrowTests();
 });

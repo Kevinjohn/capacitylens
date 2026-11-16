@@ -19,7 +19,7 @@ async function enableExternal(page: import('@playwright/test').Page): Promise<vo
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
 }
 
-function registerHiddenDefaultSeededExternalAbsentTest() {
+test.describe('External / 3rd parties (per-account pref, default off)', () => {
   test('hidden by default: the seeded external is absent from the schedule and the Resources tab', async ({
     page,
   }) => {
@@ -34,9 +34,6 @@ function registerHiddenDefaultSeededExternalAbsentTest() {
     await expect(page.getByRole('button', { name: 'Add external party' })).toHaveCount(0);
     await expect(page.getByTestId('external-row')).toHaveCount(0);
   });
-}
-
-function registerTurningRevealsExternalSectionHelpTest() {
   test('turning it on reveals the External section with help in Resources and the band on the schedule', async ({
     page,
   }) => {
@@ -87,9 +84,6 @@ function registerTurningRevealsExternalSectionHelpTest() {
         .getByTestId('utilization'),
     ).toHaveCount(0);
   });
-}
-
-function registerChoiceSurvivesNavigationAndReloadTest() {
   test('the choice survives navigation and a server-backed reload', async ({ page }) => {
     await openApp(page, '/settings');
     await page.getByRole('switch', { name: 'Show external resources' }).click();
@@ -101,9 +95,6 @@ function registerChoiceSurvivesNavigationAndReloadTest() {
       'true',
     );
   });
-}
-
-function registerAddsExternalPartyResourcesTabTest() {
   test('adds an external party in the Resources tab External section', async ({ page }) => {
     await openApp(page);
     await enableExternal(page);
@@ -118,9 +109,6 @@ function registerAddsExternalPartyResourcesTabTest() {
       0,
     );
   });
-}
-
-function registerAssignsActivityRowModalHasTest() {
   test('assigns an activity from the row "+": the modal has no Hours field and saves a span-only bar', async ({
     page,
   }) => {
@@ -156,9 +144,6 @@ function registerAssignsActivityRowModalHasTest() {
     await expect(newBar).toBeVisible();
     await expect(newBar).not.toContainText(/\b\d+(?:\.\d+)?h\b/);
   });
-}
-
-function registerExternalPartiesExcludedTimeOffTest() {
   test('external parties are excluded from the Time off resource picker', async ({ page }) => {
     // Enable the preference so the seeded external would otherwise be eligible. Time off still
     // excludes it because external parties have no capacity.
@@ -171,9 +156,6 @@ function registerExternalPartiesExcludedTimeOffTest() {
     await expect(page.getByRole('option', { name: 'Kord Industries' })).toHaveCount(0);
     await expect(page.getByRole('option', { name: 'Bruce Wayne' })).toBeVisible();
   });
-}
-
-function registerTimeOffDrawModeOpTest() {
   test('time-off draw mode is a no-op on an external lane (no orphan time-off)', async ({
     page,
   }) => {
@@ -200,11 +182,8 @@ function registerTimeOffDrawModeOpTest() {
     await expect(page.getByRole('dialog', { name: 'Add time off' })).toHaveCount(0);
     await expect(lane.getByTestId('timeoff-block')).toHaveCount(0);
   });
-}
-
-// the per-row destructive action archives (hidden from the active list, fully retained, not
-// a hard delete). Booking-only Undo leaves the archive in place.
-function registerArchivingExternalPartyUndoableTests() {
+  // the per-row destructive action archives (hidden from the active list, fully retained, not
+  // a hard delete). Booking-only Undo leaves the archive in place.
   test('archiving an external party is not undone by booking Undo', async ({ page }) => {
     await openApp(page);
     await enableExternal(page);
@@ -228,15 +207,4 @@ function registerArchivingExternalPartyUndoableTests() {
       page.getByTestId('external-row').filter({ hasText: 'Kord Industries' }),
     ).toHaveCount(0);
   });
-}
-
-test.describe('External / 3rd parties (per-account pref, default off)', () => {
-  registerHiddenDefaultSeededExternalAbsentTest();
-  registerTurningRevealsExternalSectionHelpTest();
-  registerChoiceSurvivesNavigationAndReloadTest();
-  registerAddsExternalPartyResourcesTabTest();
-  registerAssignsActivityRowModalHasTest();
-  registerExternalPartiesExcludedTimeOffTest();
-  registerTimeOffDrawModeOpTest();
-  registerArchivingExternalPartyUndoableTests();
 });

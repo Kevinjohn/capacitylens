@@ -120,276 +120,6 @@ async function expectCompactMonthLabelsDoNotOverlap(page: Page) {
   }
 }
 
-function registerShowsSeededResourcesGroupingCapacityTest() {
-  test('shows seeded resources, grouping and capacity cues', async ({ page }) => {
-    await openApp(page);
-    await expect(page.getByText('Bruce Wayne')).toBeVisible();
-    await expect(page.getByTestId('discipline-group').filter({ hasText: 'Design' })).toBeVisible();
-    // Seed over-allocates Bruce on 3-4 June; weekends/time off are unavailable.
-    const overMarker = page.getByTestId('over-marker').first();
-    await expect(overMarker).toBeVisible();
-    // The over-capacity day reads as a clear, saturated red background (the dedicated
-    // `danger-cell` token), not a faint blush. Resolve the computed fill to true sRGB bytes
-    // by painting it onto a canvas and reading the pixel back, robust whether the engine
-    // serialises the `color-mix(in oklab,…)` result as `rgb(…)`, `oklab(…)`, or `color(…)`.
-    const rgba = await overMarker.evaluate((el) => {
-      const bg = getComputedStyle(el).backgroundColor;
-      const c = document.createElement('canvas');
-      c.width = c.height = 1;
-      const ctx = c.getContext('2d')!;
-      // Opaque base so a (regressed) translucent fill blends toward white, not black,
-      // a near-invisible alpha tint then reads as a near-white pixel and fails the gate.
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, 1, 1);
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, 1, 1);
-      const data = ctx.getImageData(0, 0, 1, 1).data;
-      const channel = (index: number) => {
-        const value = data[index];
-        if (value === undefined) throw new Error(`Rendered pixel must include channel ${index}`);
-        return value;
-      };
-      return { r: channel(0), g: channel(1), b: channel(2), a: channel(3) };
-    });
-    expect(rgba.a).toBe(255);
-    // Real saturation: R must lead the other channels by a wide margin. Light `danger-cell`
-    // is ~rgb(251,158,161) → R − max(G,B) ≈ 90; a blush like rgb(255,230,230) (≈25) fails.
-    expect(rgba.r - Math.max(rgba.g, rgba.b)).toBeGreaterThan(60);
-    await expect(page.getByTestId('unavailable-day').first()).toBeVisible();
-    await expect(page.getByTestId('utilization').first()).toBeVisible();
-  });
-}
-
-function registerDrawsNewAllocationEmptyPartTest() {
-  test('draws a new allocation on an empty part of a lane', async ({ page }) => {
-    await openApp(page);
-    await setZoom(page, 4);
-
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
-    const before = await page.getByTestId('allocation-bar').count();
-
-    await resetSchedulerScroll(page);
-    // Drawing on a lane needs the same resolved role as editing a bar (#1928).
-    await expectEditableBar(page.getByTestId('allocation-bar').first());
-    const lane = page.getByTestId('resource-lane').first();
-    const b = await box(lane);
-    const y = b.y + b.height / 2;
-    // The far-left of the lane (timeline origin) is empty for the first resource.
-    await page.mouse.move(b.x + 6, y);
-    await page.mouse.down();
-    await page.mouse.move(b.x + 6 + 48 * 2, y, { steps: 8 });
-    await page.mouse.up();
-
-    await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible();
-    await selectShadOption(page.getByLabel('Project', { exact: true }), 'p-acme');
-    await selectShadOption(
-      page.getByRole('combobox', { name: 'Activity', exact: true }),
-      't-wires',
-    );
-    await page.getByRole('button', { name: 'Save' }).click();
-
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1);
-  });
-}
-
-function registerDragsBarMoveLaterTest() {
-  test('drags a bar to move it later', async ({ page }, testInfo) => {
-    await openApp(page);
-    await setZoom(page, 4);
-
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
-    const lane = bar.locator('xpath=ancestor::*[@data-testid="resource-lane"]');
-    await expectEditableBar(bar);
-    const b0 = await box(bar);
-    const cx = b0.x + b0.width / 2;
-    const cy = b0.y + b0.height / 2;
-    const dragX = cx + 240;
-
-    await page.mouse.move(cx, cy);
-    await page.mouse.down();
-    await page.mouse.move(dragX, cy, { steps: 8 });
-    await page.mouse.up();
-
-    await expect.poll(async () => (await box(bar)).x).toBeGreaterThan(b0.x + 20);
-
-    const laneBounds = await box(lane);
-    await page.screenshot({
-      path: testInfo.outputPath('day_add_hint_after_drag.png'),
-      clip: { x: cx - 100, y: laneBounds.y, width: 440, height: laneBounds.height },
-    });
-    await expect(lane.getByTestId('day-add-hint')).toHaveCount(0);
-
-    const hoverX = cx;
-    await page.mouse.move(hoverX, cy);
-    const hint = await box(lane.getByTestId('day-add-hint'));
-    expect(hoverX).toBeGreaterThanOrEqual(hint.x);
-    expect(hoverX).toBeLessThanOrEqual(hint.x + hint.width);
-  });
-}
-
-function registerResizesBarEndHandleTest() {
-  test('resizes a bar via its end handle', async ({ page }) => {
-    await openApp(page);
-    await setZoom(page, 4);
-
-    // "Wireframes" (4 days) keeps its right edge on-screen, unlike the 9-day "Brand System".
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' });
-    const b0 = await box(bar);
-    const handle = bar.getByTestId('resize-end');
-    const h = await box(handle);
-
-    await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(h.x + h.width / 2 + 60, h.y + h.height / 2, {
-      steps: 8,
-    });
-    await page.mouse.up();
-
-    await expect.poll(async () => (await box(bar)).width).toBeGreaterThan(b0.width + 20);
-  });
-}
-
-function registerZoomingMoreWeeksShrinksDayTest() {
-  test('zooming to more weeks shrinks the day columns (same bar gets narrower)', async ({
-    page,
-  }, testInfo) => {
-    await openApp(page);
-    await expect(page.getByTestId('scheduler-grid')).toBeVisible();
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
-
-    await setZoom(page, 1);
-    await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText('1 week');
-    const wide = await box(bar);
-    await page.screenshot({
-      path: testInfo.outputPath('capacitylens_1week.png'),
-    });
-
-    await setZoom(page, 8);
-    await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText('8 weeks');
-    const narrow = await box(bar);
-    await page.screenshot({
-      path: testInfo.outputPath('capacitylens_8week.png'),
-    });
-
-    expect(narrow.width).toBeLessThan(wide.width);
-  });
-}
-
-function registerClickingTodayReCentresTimelineTest() {
-  test('clicking Today re-centres the timeline after scrolling away', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 800 });
-    // Turn the free-scroll week snap off first. With it armed, the 120ms idle timer
-    // (WEEK_SNAP_IDLE_MS) re-floors the left edge to a Monday between our park and the probe on
-    // slow runners, so a mid-week precondition can never be made stable. With it off the park
-    // sticks, and the Monday landing after Today is attributable to Today's re-anchor alone.
-    await disableWeekSnap(page);
-    await openApp(page);
-    await setZoom(page, 1);
-    const grid = page.getByTestId('scheduler-grid');
-    await expect(grid).toBeVisible();
-
-    // Scroll far to the right, then keep nudging by half a weekday column until the left edge sits
-    // mid-week (a fixed pixel offset can coincidentally align to a Monday, minimised weekend
-    // columns make the week pitch non-uniform, so no single offset is safe on every start date).
-    // The mid-week precondition is what proves Today actively re-anchors to the week start, rather
-    // than the view having merely stayed put on a Monday.
-    const { weekdayWidth } = await probe(page);
-    await grid.evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 5000;
-    });
-    for (let attempt = 0; attempt < 10 && /Mon$/.test((await probe(page)).leftDate); attempt += 1) {
-      await grid.evaluate(
-        (el, dx) => {
-          (el as HTMLElement).scrollLeft += dx;
-        },
-        Math.max(1, Math.round(weekdayWidth / 2)),
-      );
-    }
-    // Let the idle timer elapse; the snap is off, so the mid-week park must stick.
-    await waitForWeekSnap(page);
-    const scrolled = await grid.evaluate((el) => (el as HTMLElement).scrollLeft);
-    expect(scrolled).toBeGreaterThan(800);
-    expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
-
-    await page.getByRole('button', { name: 'Today', exact: true }).click();
-
-    await expect
-      .poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft))
-      .toBeLessThan(scrolled - 400);
-    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
-  });
-}
-
-// Today and repeated Next actions move the visible window into another month, allowing this test
-// to verify that the header follows the window.
-function registerPaningForwardMovesTimelineNextTest() {
-  test('paning forward moves the timeline into the next month', async ({ page }) => {
-    await openApp(page);
-    await expect(page.getByTestId('scheduler-grid')).toBeVisible();
-
-    await goToSeedWeek(page);
-    await expect.poll(() => schedulerLeftMonthLabel(page)).toBe('Jun 2026');
-
-    // Five weeks on from 1 June is Mon 6 July, the first left edge that is fully in July.
-    for (let week = 0; week < 5; week += 1)
-      await page.getByRole('button', { name: 'Next' }).click();
-    await expect.poll(() => schedulerLeftMonthLabel(page)).toBe('Jul 2026');
-    expect(await settledSchedulerLeftDate(page)).toContain('Mon');
-  });
-}
-
-function registerVerticallyCentresMonthLabelsAcrossTest() {
-  test('vertically centres month labels across zoom levels and root font sizes', async ({
-    page,
-  }) => {
-    await openApp(page);
-    await goToSeedWeek(page);
-
-    await setZoom(page, 1);
-    const defaultTierHeight = await expectMonthLabelsVerticallyCentred(page);
-    for (const weeks of [2, 4, 6, 8] as const) {
-      await setZoom(page, weeks);
-      const tierHeight = await expectMonthLabelsVerticallyCentred(page);
-      expect(tierHeight).toBe(defaultTierHeight);
-    }
-    await expect(page.getByText('Jun 2026')).toBeVisible();
-    await expect(page.getByText('Jul 2026')).toBeVisible();
-
-    await page.evaluate(() => {
-      document.documentElement.style.fontSize = '20px';
-    });
-    expect(await expectMonthLabelsVerticallyCentred(page)).toBeGreaterThan(defaultTierHeight);
-  });
-}
-
-function registerAlignsWideMonthLabelsFirstTest() {
-  test('aligns wide month labels to their first visible day and keeps compact labels separate', async ({
-    page,
-  }) => {
-    await openApp(page);
-    await goToSeedWeek(page);
-    // Mon 29 Jun gives both June and July a meaningful visible segment at 1- and 2-week zoom.
-    for (let week = 0; week < 4; week += 1)
-      await page.getByRole('button', { name: 'Next' }).click();
-
-    for (const weeks of [1, 2] as const) {
-      await setZoom(page, weeks);
-      await expectWideMonthLabelsAlignedToVisibleStarts(page);
-    }
-
-    for (const weeks of [4, 6, 8] as const) {
-      await setZoom(page, weeks);
-      await expectCompactMonthLabelsDoNotOverlap(page);
-    }
-
-    await page.evaluate(() => {
-      document.documentElement.style.fontSize = '20px';
-    });
-    await setZoom(page, 2);
-    await expectWideMonthLabelsAlignedToVisibleStarts(page);
-  });
-}
-
 async function expectPopoverToTrackAnchor(page: Page, anchor: Locator, popover: Locator) {
   const anchorBox = await box(anchor);
   const popoverBox = await box(popover);
@@ -432,7 +162,250 @@ async function scrollSchedulerForwardOneWeek(page: Page, grid: Locator) {
     .toBeLessThanOrEqual(2);
 }
 
-function registerShowsDetailPopoverHoverUSTests() {
+test.describe('Scheduler', () => {
+  test('shows seeded resources, grouping and capacity cues', async ({ page }) => {
+    await openApp(page);
+    await expect(page.getByText('Bruce Wayne')).toBeVisible();
+    await expect(page.getByTestId('discipline-group').filter({ hasText: 'Design' })).toBeVisible();
+    // Seed over-allocates Bruce on 3-4 June; weekends/time off are unavailable.
+    const overMarker = page.getByTestId('over-marker').first();
+    await expect(overMarker).toBeVisible();
+    // The over-capacity day reads as a clear, saturated red background (the dedicated
+    // `danger-cell` token), not a faint blush. Resolve the computed fill to true sRGB bytes
+    // by painting it onto a canvas and reading the pixel back, robust whether the engine
+    // serialises the `color-mix(in oklab,…)` result as `rgb(…)`, `oklab(…)`, or `color(…)`.
+    const rgba = await overMarker.evaluate((el) => {
+      const bg = getComputedStyle(el).backgroundColor;
+      const c = document.createElement('canvas');
+      c.width = c.height = 1;
+      const ctx = c.getContext('2d')!;
+      // Opaque base so a (regressed) translucent fill blends toward white, not black,
+      // a near-invisible alpha tint then reads as a near-white pixel and fails the gate.
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, 1, 1);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, 1, 1);
+      const data = ctx.getImageData(0, 0, 1, 1).data;
+      const channel = (index: number) => {
+        const value = data[index];
+        if (value === undefined) throw new Error(`Rendered pixel must include channel ${index}`);
+        return value;
+      };
+      return { r: channel(0), g: channel(1), b: channel(2), a: channel(3) };
+    });
+    expect(rgba.a).toBe(255);
+    // Real saturation: R must lead the other channels by a wide margin. Light `danger-cell`
+    // is ~rgb(251,158,161) → R − max(G,B) ≈ 90; a blush like rgb(255,230,230) (≈25) fails.
+    expect(rgba.r - Math.max(rgba.g, rgba.b)).toBeGreaterThan(60);
+    await expect(page.getByTestId('unavailable-day').first()).toBeVisible();
+    await expect(page.getByTestId('utilization').first()).toBeVisible();
+  });
+  test('draws a new allocation on an empty part of a lane', async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
+    const before = await page.getByTestId('allocation-bar').count();
+
+    await resetSchedulerScroll(page);
+    // Drawing on a lane needs the same resolved role as editing a bar (#1928).
+    await expectEditableBar(page.getByTestId('allocation-bar').first());
+    const lane = page.getByTestId('resource-lane').first();
+    const b = await box(lane);
+    const y = b.y + b.height / 2;
+    // The far-left of the lane (timeline origin) is empty for the first resource.
+    await page.mouse.move(b.x + 6, y);
+    await page.mouse.down();
+    await page.mouse.move(b.x + 6 + 48 * 2, y, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible();
+    await selectShadOption(page.getByLabel('Project', { exact: true }), 'p-acme');
+    await selectShadOption(
+      page.getByRole('combobox', { name: 'Activity', exact: true }),
+      't-wires',
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1);
+  });
+  test('drags a bar to move it later', async ({ page }, testInfo) => {
+    await openApp(page);
+    await setZoom(page, 4);
+
+    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
+    const lane = bar.locator('xpath=ancestor::*[@data-testid="resource-lane"]');
+    await expectEditableBar(bar);
+    const b0 = await box(bar);
+    const cx = b0.x + b0.width / 2;
+    const cy = b0.y + b0.height / 2;
+    const dragX = cx + 240;
+
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(dragX, cy, { steps: 8 });
+    await page.mouse.up();
+
+    await expect.poll(async () => (await box(bar)).x).toBeGreaterThan(b0.x + 20);
+
+    const laneBounds = await box(lane);
+    await page.screenshot({
+      path: testInfo.outputPath('day_add_hint_after_drag.png'),
+      clip: { x: cx - 100, y: laneBounds.y, width: 440, height: laneBounds.height },
+    });
+    await expect(lane.getByTestId('day-add-hint')).toHaveCount(0);
+
+    const hoverX = cx;
+    await page.mouse.move(hoverX, cy);
+    const hint = await box(lane.getByTestId('day-add-hint'));
+    expect(hoverX).toBeGreaterThanOrEqual(hint.x);
+    expect(hoverX).toBeLessThanOrEqual(hint.x + hint.width);
+  });
+  test('resizes a bar via its end handle', async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+
+    // "Wireframes" (4 days) keeps its right edge on-screen, unlike the 9-day "Brand System".
+    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' });
+    const b0 = await box(bar);
+    const handle = bar.getByTestId('resize-end');
+    const h = await box(handle);
+
+    await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(h.x + h.width / 2 + 60, h.y + h.height / 2, {
+      steps: 8,
+    });
+    await page.mouse.up();
+
+    await expect.poll(async () => (await box(bar)).width).toBeGreaterThan(b0.width + 20);
+  });
+  test('zooming to more weeks shrinks the day columns (same bar gets narrower)', async ({
+    page,
+  }, testInfo) => {
+    await openApp(page);
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible();
+    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
+
+    await setZoom(page, 1);
+    await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText('1 week');
+    const wide = await box(bar);
+    await page.screenshot({
+      path: testInfo.outputPath('capacitylens_1week.png'),
+    });
+
+    await setZoom(page, 8);
+    await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText('8 weeks');
+    const narrow = await box(bar);
+    await page.screenshot({
+      path: testInfo.outputPath('capacitylens_8week.png'),
+    });
+
+    expect(narrow.width).toBeLessThan(wide.width);
+  });
+  test('clicking Today re-centres the timeline after scrolling away', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 800 });
+    // Turn the free-scroll week snap off first. With it armed, the 120ms idle timer
+    // (WEEK_SNAP_IDLE_MS) re-floors the left edge to a Monday between our park and the probe on
+    // slow runners, so a mid-week precondition can never be made stable. With it off the park
+    // sticks, and the Monday landing after Today is attributable to Today's re-anchor alone.
+    await disableWeekSnap(page);
+    await openApp(page);
+    await setZoom(page, 1);
+    const grid = page.getByTestId('scheduler-grid');
+    await expect(grid).toBeVisible();
+
+    // Scroll far to the right, then keep nudging by half a weekday column until the left edge sits
+    // mid-week (a fixed pixel offset can coincidentally align to a Monday, minimised weekend
+    // columns make the week pitch non-uniform, so no single offset is safe on every start date).
+    // The mid-week precondition is what proves Today actively re-anchors to the week start, rather
+    // than the view having merely stayed put on a Monday.
+    const { weekdayWidth } = await probe(page);
+    await grid.evaluate((el) => {
+      (el as HTMLElement).scrollLeft = 5000;
+    });
+    for (let attempt = 0; attempt < 10 && /Mon$/.test((await probe(page)).leftDate); attempt += 1) {
+      await grid.evaluate(
+        (el, dx) => {
+          (el as HTMLElement).scrollLeft += dx;
+        },
+        Math.max(1, Math.round(weekdayWidth / 2)),
+      );
+    }
+    // Let the idle timer elapse; the snap is off, so the mid-week park must stick.
+    await waitForWeekSnap(page);
+    const scrolled = await grid.evaluate((el) => (el as HTMLElement).scrollLeft);
+    expect(scrolled).toBeGreaterThan(800);
+    expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
+
+    await page.getByRole('button', { name: 'Today', exact: true }).click();
+
+    await expect
+      .poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft))
+      .toBeLessThan(scrolled - 400);
+    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
+  });
+  // Today and repeated Next actions move the visible window into another month, allowing this test
+  // to verify that the header follows the window.
+  test('paning forward moves the timeline into the next month', async ({ page }) => {
+    await openApp(page);
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible();
+
+    await goToSeedWeek(page);
+    await expect.poll(() => schedulerLeftMonthLabel(page)).toBe('Jun 2026');
+
+    // Five weeks on from 1 June is Mon 6 July, the first left edge that is fully in July.
+    for (let week = 0; week < 5; week += 1)
+      await page.getByRole('button', { name: 'Next' }).click();
+    await expect.poll(() => schedulerLeftMonthLabel(page)).toBe('Jul 2026');
+    expect(await settledSchedulerLeftDate(page)).toContain('Mon');
+  });
+  test('vertically centres month labels across zoom levels and root font sizes', async ({
+    page,
+  }) => {
+    await openApp(page);
+    await goToSeedWeek(page);
+
+    await setZoom(page, 1);
+    const defaultTierHeight = await expectMonthLabelsVerticallyCentred(page);
+    for (const weeks of [2, 4, 6, 8] as const) {
+      await setZoom(page, weeks);
+      const tierHeight = await expectMonthLabelsVerticallyCentred(page);
+      expect(tierHeight).toBe(defaultTierHeight);
+    }
+    await expect(page.getByText('Jun 2026')).toBeVisible();
+    await expect(page.getByText('Jul 2026')).toBeVisible();
+
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '20px';
+    });
+    expect(await expectMonthLabelsVerticallyCentred(page)).toBeGreaterThan(defaultTierHeight);
+  });
+  test('aligns wide month labels to their first visible day and keeps compact labels separate', async ({
+    page,
+  }) => {
+    await openApp(page);
+    await goToSeedWeek(page);
+    // Mon 29 Jun gives both June and July a meaningful visible segment at 1- and 2-week zoom.
+    for (let week = 0; week < 4; week += 1)
+      await page.getByRole('button', { name: 'Next' }).click();
+
+    for (const weeks of [1, 2] as const) {
+      await setZoom(page, weeks);
+      await expectWideMonthLabelsAlignedToVisibleStarts(page);
+    }
+
+    for (const weeks of [4, 6, 8] as const) {
+      await setZoom(page, weeks);
+      await expectCompactMonthLabelsDoNotOverlap(page);
+    }
+
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '20px';
+    });
+    await setZoom(page, 2);
+    await expectWideMonthLabelsAlignedToVisibleStarts(page);
+  });
   test('shows a detail popover on hover (US-SCH-15)', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -503,17 +476,11 @@ function registerShowsDetailPopoverHoverUSTests() {
     await expect(popover).toBeVisible();
     await expectPopoverToTrackAnchor(page, bar.getByTestId('allocation-popover-anchor'), popover);
   });
-}
-
-function registerShowsOverallPerDisciplineUtilisationTest() {
   test('shows overall and per-discipline utilisation summaries (US-SCH-14)', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('overall-utilization')).toContainText('%');
     await expect(page.getByTestId('discipline-group').first()).toContainText(/avg utilisation/);
   });
-}
-
-function registerWeekRangeToggleRecomputesUtilisationTest() {
   test('the week-range toggle recomputes utilisation over the visible window (US-SCH-14)', async ({
     page,
   }) => {
@@ -587,9 +554,6 @@ function registerWeekRangeToggleRecomputesUtilisationTest() {
     expect(wk1.bruce).toBeGreaterThan(0);
     expect(wk1.bruce).toBeGreaterThanOrEqual(wk8.bruce);
   });
-}
-
-function registerStacksOverlappingAllocationsOntoTallerTest() {
   test('stacks overlapping allocations onto a taller row (US-SCH-08)', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -607,16 +571,10 @@ function registerStacksOverlappingAllocationsOntoTallerTest() {
       .boundingBox();
     expect(bruceRow!.height).toBeGreaterThan(clarkRow!.height);
   });
-}
-
-function registerMarksTodayVerticalLineRangeTest() {
   test('marks today with a vertical line when in range (US-SCH-12)', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('today-line').first()).toBeVisible();
   });
-}
-
-function registerAllocationStatusNoteVisuallyDistinctTest() {
   test('allocation status and note are visually distinct on the bar (US-SCH-19)', async ({
     page,
   }) => {
@@ -646,13 +604,10 @@ function registerAllocationStatusNoteVisuallyDistinctTest() {
     await expect(done).toContainText('✓');
     await expect(done).toContainText('•');
   });
-}
-
-// With free-scroll snapping disabled, a midweek nudge stays put until navigation runs. This lets
-// the test verify that zoom and Prev/Next re-anchor the grid's left edge to the account's week start
-// (Monday by default) instead of passing because the idle snap moved it.
-// Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
-function registerNavigationReAnchorsLeftEdgeTest() {
+  // With free-scroll snapping disabled, a midweek nudge stays put until navigation runs. This lets
+  // the test verify that zoom and Prev/Next re-anchor the grid's left edge to the account's week start
+  // (Monday by default) instead of passing because the idle snap moved it.
+  // Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
   test('navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)', async ({
     page,
   }) => {
@@ -696,11 +651,8 @@ function registerNavigationReAnchorsLeftEdgeTest() {
     const afterPrev = dayNum((await probe(page)).leftDate);
     expect(afterPrev).toBeLessThan(afterNext);
   });
-}
-
-// A partially visible bar must centre its label in the visible portion.
-// Disable idle snapping so it cannot move the viewport between setup and measurement.
-function registerKeepsBarsLabelScreenScrollingTests() {
+  // A partially visible bar must centre its label in the visible portion.
+  // Disable idle snapping so it cannot move the viewport between setup and measurement.
   test("keeps a bar's label on screen after scrolling past the bar's start (#786)", async ({
     page,
   }) => {
@@ -743,24 +695,4 @@ function registerKeepsBarsLabelScreenScrollingTests() {
     const visibleCentre = (timelineLeft + after.x + after.width) / 2;
     expect(Math.abs(labelBox.x + labelBox.width / 2 - visibleCentre)).toBeLessThanOrEqual(1);
   });
-}
-
-test.describe('Scheduler', () => {
-  registerShowsSeededResourcesGroupingCapacityTest();
-  registerDrawsNewAllocationEmptyPartTest();
-  registerDragsBarMoveLaterTest();
-  registerResizesBarEndHandleTest();
-  registerZoomingMoreWeeksShrinksDayTest();
-  registerClickingTodayReCentresTimelineTest();
-  registerPaningForwardMovesTimelineNextTest();
-  registerVerticallyCentresMonthLabelsAcrossTest();
-  registerAlignsWideMonthLabelsFirstTest();
-  registerShowsDetailPopoverHoverUSTests();
-  registerShowsOverallPerDisciplineUtilisationTest();
-  registerWeekRangeToggleRecomputesUtilisationTest();
-  registerStacksOverlappingAllocationsOntoTallerTest();
-  registerMarksTodayVerticalLineRangeTest();
-  registerAllocationStatusNoteVisuallyDistinctTest();
-  registerNavigationReAnchorsLeftEdgeTest();
-  registerKeepsBarsLabelScreenScrollingTests();
 });

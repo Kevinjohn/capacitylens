@@ -26,226 +26,6 @@ interface AllocationTestInput {
   endDate: string;
   hoursPerDay: number;
 }
-
-function registerMovedSchedulerTests201021() {
-  it('positions overlapping bars on the SAME resource at DIFFERENT lane tops (laneById is a real Map, not empty)', () => {
-    const d = dataset();
-
-    d.allocations.push({
-      ...NULLABLE_FIELDS.allocations,
-      id: 'a-overlap',
-      accountId: 'acct-test',
-      createdAt: 't',
-      updatedAt: 't',
-      resourceId: 'r1',
-      activityId: 't1',
-      startDate: '2026-06-01',
-      endDate: '2026-06-02',
-      hoursPerDay: 8,
-      status: 'confirmed',
-    });
-    const model = buildSchedulerModel({
-      data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-      },
-    });
-    const r1bars = requireValue(
-      model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
-      'r1 scheduler row',
-    ).bars;
-    const tops = new Set(
-      r1bars
-        .filter((b) => b.allocation.id === 'a1' || b.allocation.id === 'a-overlap')
-        .map((b) => b.top),
-    );
-    expect(tops.size).toBe(2);
-  });
-}
-
-function registerMovedSchedulerTests201022() {
-  it('overSoon truly SKIPS external resources — even one with real over-capacity hours', () => {
-    const d = withExternal();
-    // Book the external above normal person capacity so missing capacity exclusion changes the result.
-    d.allocations.push({
-      ...NULLABLE_FIELDS.allocations,
-      id: 'aext2',
-      accountId: 'acct-test',
-      createdAt: 't',
-      updatedAt: 't',
-      resourceId: 'ext1',
-      activityId: 't1',
-      startDate: '2026-06-01',
-      endDate: '2026-06-01',
-      hoursPerDay: 20,
-      status: 'confirmed',
-    });
-    const model = buildSchedulerModel({
-      data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-      },
-    });
-    const externalGroup = requireValue(model.at(-1), 'external group');
-    expect(requireValue(externalGroup.rows[0], 'external group row').overSoon).toBe(false);
-  });
-}
-
-function registerMovedSchedulerTests201023() {
-  it('overSoon follows strict allocated > available on an opted-in weekend', () => {
-    const d = dataset();
-    // ignoreWorkingDays changes booked load, not availability, so opted-in work on a non-working day must report a capacity conflict.
-    d.allocations.push({
-      ...NULLABLE_FIELDS.allocations,
-      id: 'a-sat',
-      accountId: 'acct-test',
-      createdAt: 't',
-      updatedAt: 't',
-      resourceId: 'r1',
-      activityId: 't1',
-      startDate: '2026-06-06',
-      endDate: '2026-06-06',
-      hoursPerDay: 8,
-      status: 'confirmed',
-      ignoreWorkingDays: true,
-    });
-    const model = buildSchedulerModel({
-      data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-      },
-    });
-    const r1 = requireValue(
-      model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
-      'r1 scheduler row',
-    );
-    expect(r1.overSoon).toBe(true);
-  });
-}
-
-function registerMovedSchedulerTests201024() {
-  it('computes one resource-day once when timeline, utilisation and overSoon windows overlap', () => {
-    const d = dataset();
-    let hoursReads = 0;
-    Object.defineProperty(requireValue(d.allocations[0], 'first allocation'), 'hoursPerDay', {
-      configurable: true,
-      enumerable: true,
-      get: () => {
-        hoursReads += 1;
-        return 8;
-      },
-    });
-    const oneDay = ['2026-06-01'];
-    const oneDayGeom = buildColumnGeometry(oneDay, 48, {
-      minimiseWeekends: false,
-      weekendWidth: 22,
-    });
-
-    buildSchedulerModel({
-      data: d,
-      geom: oneDayGeom,
-      days: oneDay,
-      visibleWindow: {
-        start: requireValue(oneDay[0], 'timeline day'),
-        end: requireValue(oneDay[0], 'timeline day'),
-      },
-      overSoonWindow: {
-        start: requireValue(oneDay[0], 'timeline day'),
-        end: requireValue(oneDay[0], 'timeline day'),
-      },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-      },
-    });
-
-    expect(hoursReads).toBe(1);
-  });
-}
-
-function registerMovedSchedulerTests201025() {
-  it('utilization/overSoon are IDENTICAL to calling the capacity functions directly, for every resource in a multi-resource model', () => {
-    const d = withThirdResource();
-    const visStart = '2026-06-02';
-    const visEnd = '2026-06-05';
-    const overStart = '2026-06-01';
-    const overEnd = '2026-06-03';
-    const model = buildSchedulerModel({
-      data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: visStart, end: visEnd },
-      overSoonWindow: { start: overStart, end: overEnd },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: true,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-      },
-    });
-    const rows = model.flatMap((g) => g.rows);
-    for (const resource of d.resources) {
-      const allocs = d.allocations.filter((a) => a.resourceId === resource.id);
-      const expectedUtil = utilizationOf({
-        resource,
-        allocations: allocs,
-        timeOff: [],
-        windowStart: visStart,
-        windowEnd: visEnd,
-      });
-      const expectedOver = capacityForWindowOf({
-        resource,
-        allocations: allocs,
-        timeOff: [],
-        windowStart: overStart,
-        windowEnd: overEnd,
-      }).some((c) => c.allocated > c.available);
-      const row = requireValue(
-        rows.find((r) => r.resource.id === resource.id),
-        `${resource.id} scheduler row`,
-      );
-      expect(row.utilization).toBeCloseTo(expectedUtil);
-      expect(row.overSoon).toBe(expectedOver);
-    }
-  });
-}
-
-function registerMovedSchedulerTests201026() {
-  it('dayStates and utilization are EXACTLY those of capacity.ts scanning the unbucketed lists', () => {
-    const d = buildBucketComparisonData();
-    const visStart = '2026-06-02';
-    const visEnd = '2026-06-06';
-    const model = buildBucketComparisonModel(d, visStart, visEnd);
-    const rows = model.flatMap((g) => g.rows);
-    for (const resourceId of ['r1', 'r2']) {
-      assertBucketComparisonResource({ resourceId, d, rows, visStart, visEnd });
-    }
-    assertBucketComparisonSummary(rows);
-  });
-}
 function buildBucketComparisonData() {
   const d = dataset();
   d.allocations = [
@@ -523,16 +303,207 @@ function withThirdResource(): AppData {
   return data;
 }
 
-function registerMutationTestingGapFillLateTests() {
-  registerMovedSchedulerTests201021();
-  registerMovedSchedulerTests201022();
-  registerMovedSchedulerTests201023();
-  registerMovedSchedulerTests201024();
-  registerMovedSchedulerTests201025();
-  registerMovedSchedulerTests201026();
-}
+describe('buildSchedulerModel — mutation-testing gap-fill', () => {
+  it('positions overlapping bars on the SAME resource at DIFFERENT lane tops (laneById is a real Map, not empty)', () => {
+    const d = dataset();
 
-describe(
-  'buildSchedulerModel — mutation-testing gap-fill',
-  registerMutationTestingGapFillLateTests,
-);
+    d.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
+      id: 'a-overlap',
+      accountId: 'acct-test',
+      createdAt: 't',
+      updatedAt: 't',
+      resourceId: 'r1',
+      activityId: 't1',
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    });
+    const model = buildSchedulerModel({
+      data: d,
+      geom: geom,
+      days: days,
+      visibleWindow: { start: start, end: end },
+      overSoonWindow: { start: start, end: end },
+      filters: buildEmptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    });
+    const r1bars = requireValue(
+      model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
+      'r1 scheduler row',
+    ).bars;
+    const tops = new Set(
+      r1bars
+        .filter((b) => b.allocation.id === 'a1' || b.allocation.id === 'a-overlap')
+        .map((b) => b.top),
+    );
+    expect(tops.size).toBe(2);
+  });
+  it('overSoon truly SKIPS external resources — even one with real over-capacity hours', () => {
+    const d = withExternal();
+    // Book the external above normal person capacity so missing capacity exclusion changes the result.
+    d.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
+      id: 'aext2',
+      accountId: 'acct-test',
+      createdAt: 't',
+      updatedAt: 't',
+      resourceId: 'ext1',
+      activityId: 't1',
+      startDate: '2026-06-01',
+      endDate: '2026-06-01',
+      hoursPerDay: 20,
+      status: 'confirmed',
+    });
+    const model = buildSchedulerModel({
+      data: d,
+      geom: geom,
+      days: days,
+      visibleWindow: { start: start, end: end },
+      overSoonWindow: { start: start, end: end },
+      filters: buildEmptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    });
+    const externalGroup = requireValue(model.at(-1), 'external group');
+    expect(requireValue(externalGroup.rows[0], 'external group row').overSoon).toBe(false);
+  });
+  it('overSoon follows strict allocated > available on an opted-in weekend', () => {
+    const d = dataset();
+    // ignoreWorkingDays changes booked load, not availability, so opted-in work on a non-working day must report a capacity conflict.
+    d.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
+      id: 'a-sat',
+      accountId: 'acct-test',
+      createdAt: 't',
+      updatedAt: 't',
+      resourceId: 'r1',
+      activityId: 't1',
+      startDate: '2026-06-06',
+      endDate: '2026-06-06',
+      hoursPerDay: 8,
+      status: 'confirmed',
+      ignoreWorkingDays: true,
+    });
+    const model = buildSchedulerModel({
+      data: d,
+      geom: geom,
+      days: days,
+      visibleWindow: { start: start, end: end },
+      overSoonWindow: { start: start, end: end },
+      filters: buildEmptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    });
+    const r1 = requireValue(
+      model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
+      'r1 scheduler row',
+    );
+    expect(r1.overSoon).toBe(true);
+  });
+  it('computes one resource-day once when timeline, utilisation and overSoon windows overlap', () => {
+    const d = dataset();
+    let hoursReads = 0;
+    Object.defineProperty(requireValue(d.allocations[0], 'first allocation'), 'hoursPerDay', {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        hoursReads += 1;
+        return 8;
+      },
+    });
+    const oneDay = ['2026-06-01'];
+    const oneDayGeom = buildColumnGeometry(oneDay, 48, {
+      minimiseWeekends: false,
+      weekendWidth: 22,
+    });
+
+    buildSchedulerModel({
+      data: d,
+      geom: oneDayGeom,
+      days: oneDay,
+      visibleWindow: {
+        start: requireValue(oneDay[0], 'timeline day'),
+        end: requireValue(oneDay[0], 'timeline day'),
+      },
+      overSoonWindow: {
+        start: requireValue(oneDay[0], 'timeline day'),
+        end: requireValue(oneDay[0], 'timeline day'),
+      },
+      filters: buildEmptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    });
+
+    expect(hoursReads).toBe(1);
+  });
+  it('utilization/overSoon are IDENTICAL to calling the capacity functions directly, for every resource in a multi-resource model', () => {
+    const d = withThirdResource();
+    const visStart = '2026-06-02';
+    const visEnd = '2026-06-05';
+    const overStart = '2026-06-01';
+    const overEnd = '2026-06-03';
+    const model = buildSchedulerModel({
+      data: d,
+      geom: geom,
+      days: days,
+      visibleWindow: { start: visStart, end: visEnd },
+      overSoonWindow: { start: overStart, end: overEnd },
+      filters: buildEmptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    });
+    const rows = model.flatMap((g) => g.rows);
+    for (const resource of d.resources) {
+      const allocs = d.allocations.filter((a) => a.resourceId === resource.id);
+      const expectedUtil = utilizationOf({
+        resource,
+        allocations: allocs,
+        timeOff: [],
+        windowStart: visStart,
+        windowEnd: visEnd,
+      });
+      const expectedOver = capacityForWindowOf({
+        resource,
+        allocations: allocs,
+        timeOff: [],
+        windowStart: overStart,
+        windowEnd: overEnd,
+      }).some((c) => c.allocated > c.available);
+      const row = requireValue(
+        rows.find((r) => r.resource.id === resource.id),
+        `${resource.id} scheduler row`,
+      );
+      expect(row.utilization).toBeCloseTo(expectedUtil);
+      expect(row.overSoon).toBe(expectedOver);
+    }
+  });
+  it('dayStates and utilization are EXACTLY those of capacity.ts scanning the unbucketed lists', () => {
+    const d = buildBucketComparisonData();
+    const visStart = '2026-06-02';
+    const visEnd = '2026-06-06';
+    const model = buildBucketComparisonModel(d, visStart, visEnd);
+    const rows = model.flatMap((g) => g.rows);
+    for (const resourceId of ['r1', 'r2']) {
+      assertBucketComparisonResource({ resourceId, d, rows, visStart, visEnd });
+    }
+    assertBucketComparisonSummary(rows);
+  });
+});

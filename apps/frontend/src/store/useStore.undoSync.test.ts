@@ -16,7 +16,7 @@ const meta = { accountId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
 
 beforeEach(() => resetStoreWithAccount());
 
-function registerUndoSyncPart1(): void {
+describe('typed undo restores cascade bindings', () => {
   it('re-stamps an undo whose content is identical but stored revision changed', async () => {
     await resetStoreWithData(
       makeAppData({
@@ -59,9 +59,6 @@ function registerUndoSyncPart1(): void {
     );
     expect(typeof archivedClient.archivedAt).toBe('string');
   });
-}
-
-function registerUndoSyncPart2(): void {
   it('restores an activity phaseId after a phase delete', async () => {
     await resetStoreWithData(
       makeAppData({
@@ -192,9 +189,4 @@ function registerUndoSyncPart2(): void {
     await useStore.getState().undoPlanning();
     expect(useStore.getState().data.resources[0]?.disciplineId).toBe('d1');
   });
-}
-
-describe('typed undo restores cascade bindings', () => {
-  registerUndoSyncPart1();
-  registerUndoSyncPart2();
 });

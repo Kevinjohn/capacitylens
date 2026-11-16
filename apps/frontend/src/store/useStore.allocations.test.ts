@@ -39,7 +39,7 @@ async function allocationSetup() {
   return { resource, activity, draft };
 }
 
-function registerAtomicAllocationPart1(): void {
+describe('atomic allocation creation', () => {
   it('shares the single/bulk path, mints unique rows, preserves valid hours and records one typed history step', async () => {
     const { draft } = await allocationSetup();
     const historyBefore = typedHistory().past.length;
@@ -64,9 +64,6 @@ function registerAtomicAllocationPart1(): void {
     expect(state().data.allocations.at(-1)).toEqual(single);
     expect(typedHistory().past).toHaveLength(historyBefore + 2);
   });
-}
-
-function registerAtomicAllocationPart2(): void {
   it('rejects an empty batch', async () => {
     await expect(state().addAllocations([])).rejects.toThrow(/at least one allocation/i);
     expect(state().data.allocations).toHaveLength(0);
@@ -91,9 +88,6 @@ function registerAtomicAllocationPart2(): void {
     expect(state().data.allocations).toHaveLength(0);
     expect(typedHistory().past).toHaveLength(historyBefore);
   });
-}
-
-function registerAtomicAllocationPart3(): void {
   it('rejects foreign references and a placeholder/project mismatch atomically', async () => {
     const first = await allocationSetup();
     const otherResource = makeResource({ id: 'other-resource', accountId: 'other-company' });
@@ -157,9 +151,6 @@ function registerAtomicAllocationPart3(): void {
     expect(state().data.allocations).toHaveLength(0);
     expect(typedHistory().past).toHaveLength(historyBeforePlaceholderRejection);
   });
-}
-
-function registerAtomicAllocationPart4(): void {
   it('creates one typed Undo/Redo unit for the complete batch', async () => {
     const { draft } = await allocationSetup();
     queueAllocationGroupResponse();
@@ -222,16 +213,9 @@ function registerAtomicAllocationPart4(): void {
     expect(typedHistory().past).toHaveLength(historyBefore);
     expect(state().notice).toMatchObject({ tone: 'error' });
   });
-}
-
-describe('atomic allocation creation', () => {
-  registerAtomicAllocationPart1();
-  registerAtomicAllocationPart2();
-  registerAtomicAllocationPart3();
-  registerAtomicAllocationPart4();
 });
 
-function registerAvailabilityCreationTests(): void {
+describe('resource availability boundaries', () => {
   it('rejects a batch atomically at its first out-of-bound scheduled day', async () => {
     const { resource, draft } = await allocationSetup();
     await state().updateResource(resource.id, {
@@ -284,9 +268,6 @@ function registerAvailabilityCreationTests(): void {
       ),
     ).rejects.toThrow(/after.*available/i);
   });
-}
-
-function registerAvailabilityMutationTests(): void {
   it('retains conflicts after boundary changes and allows metadata-only edits', async () => {
     const { resource, draft } = await allocationSetup();
     const allocation = requireCreated(await state().addAllocation(draft()));
@@ -345,11 +326,6 @@ function registerAvailabilityMutationTests(): void {
       state().updateAllocation(allocation.id, { resourceId: bounded.id }),
     ).rejects.toThrow(/before.*available/i);
   });
-}
-
-describe('resource availability boundaries', () => {
-  registerAvailabilityCreationTests();
-  registerAvailabilityMutationTests();
 });
 
 describe('repeat-series allocation mutations', () => {

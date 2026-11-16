@@ -87,11 +87,6 @@ describe('computeWindow', () => {
 
     expect(w.last - w.first + 1).toBeLessThan(40);
   });
-  registerWindowBoundaryTests();
-  registerFitAndOverflowGuardTests();
-});
-
-function registerWindowBoundaryTests() {
   it('finds a deep window without scanning all preceding rows', () => {
     const heights = Array.from({ length: 65_536 }, () => 50);
     const layout = buildLayout(heights);
@@ -162,9 +157,6 @@ function registerWindowBoundaryTests() {
       last: -1,
     });
   });
-}
-
-function registerFitAndOverflowGuardTests() {
   // A list that fits within the viewport plus overscan renders in full regardless of scrollTop. Use an exaggerated offset to distinguish this shortcut from ordinary windowing.
   it('the fits-in-view fast path renders everything regardless of scrollTop (not a coincidence of scrollTop=0)', () => {
     const heights = Array.from({ length: 7 }, () => 20);
@@ -202,4 +194,4 @@ function registerFitAndOverflowGuardTests() {
     expect(w).toEqual({ first: 2, last: 2 });
     expect(layout.tops[w.first]).toBe(20);
   });
-}
+});

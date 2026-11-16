@@ -50,14 +50,6 @@ describe('MembersSection — admin affordances', () => {
     { userId: 'theeditor', role: 'editor' },
   ];
 
-  registerAdminInviteTests(members);
-  registerAdminMemberControlTests(members);
-  registerAdminConfirmationTests(members);
-  registerAdminRoleChangeTests(members);
-  registerAdminProjectionTests(members);
-});
-
-function registerAdminInviteTests(members: RawMember[]): void {
   it('does NOT offer the owner option in the invite role picker', async () => {
     vi.stubGlobal('fetch', mockApi(members));
     renderSection();
@@ -102,9 +94,6 @@ function registerAdminInviteTests(members: RawMember[]): void {
     expect(email).toHaveAttribute('aria-invalid', 'true');
     expect(error).toHaveTextContent(m.identity_err_email());
   });
-}
-
-function registerAdminMemberControlTests(members: RawMember[]): void {
   it("shows no role control or member actions on an OWNER row (admin can't touch an owner)", async () => {
     vi.stubGlobal('fetch', mockApi(members));
     renderSection();
@@ -143,9 +132,6 @@ function registerAdminMemberControlTests(members: RawMember[]): void {
       'theowner',
     );
   });
-}
-
-function registerAdminConfirmationTests(members: RawMember[]): void {
   it('names the member and waits for confirmation before suspending', async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi(members);
@@ -171,9 +157,6 @@ function registerAdminConfirmationTests(members: RawMember[]): void {
       ),
     );
   });
-}
-
-function registerAdminRoleChangeTests(members: RawMember[]): void {
   it('explains and confirms a role change before sending it', async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi(members);
@@ -211,9 +194,6 @@ function registerAdminRoleChangeTests(members: RawMember[]): void {
     );
     expect(useStore.getState().membershipRevision).toBe(revisionBefore);
   });
-}
-
-function registerAdminProjectionTests(members: RawMember[]): void {
   it('announces and marks the section busy while a member action is in flight', async () => {
     const user = userEvent.setup();
     let releasePatch!: () => void;
@@ -239,7 +219,7 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     );
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
-}
+});
 
 describe('MembersSection — owner affordances', () => {
   it('gives every member-row control a unique member-scoped accessible name', async () => {

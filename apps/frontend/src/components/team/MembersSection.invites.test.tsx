@@ -67,16 +67,6 @@ function closeInviteDialog(): void {
 }
 
 describe('MembersSection — invite mint', () => {
-  registerInviteCopyControlTests();
-  registerInviteDeadlineTests();
-  registerInviteReloadTests();
-  registerInviteMutationTransitionTests();
-  registerInviteValidationTests();
-  registerInviteCreationFailureTests();
-  registerInviteRevokeFailureTests();
-});
-
-function registerInviteCopyControlTests(): void {
   it('places Invite someone before the member table', async () => {
     vi.stubGlobal('fetch', mockApi([{ userId: 'me', role: 'owner', isSelf: true }]));
     renderSection();
@@ -100,9 +90,6 @@ function registerInviteCopyControlTests(): void {
       /Read-only schedule access/,
     );
   });
-}
-
-function registerInviteDeadlineTests(): void {
   it('renders outstanding invite expiry on the viewer local calendar date', async () => {
     const expiresAt = '2026-12-01T00:00:00.000Z';
     const localDate = vi
@@ -166,9 +153,6 @@ function registerInviteDeadlineTests(): void {
     expect(screen.getByText(/expired/i)).toBeInTheDocument();
     expect(screen.queryByTestId('invite-revoke')).not.toBeInTheDocument();
   });
-}
-
-function registerInviteReloadTests(): void {
   it('keeps the last authoritative invite list when a same-account invite reload fails', async () => {
     const existingInvite = {
       id: 1,
@@ -197,9 +181,6 @@ function registerInviteReloadTests(): void {
     expect(await screen.findByRole('alert')).toHaveTextContent('Invite reload failed.');
     expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
   });
-}
-
-function registerInviteMutationTransitionTests(): void {
   it('ignores a late unknown mutation outcome after the user has switched accounts', async () => {
     const nextAccountId = 'acc_second';
     let resolveCreate: ((response: Response) => void) | undefined;
@@ -249,9 +230,6 @@ function registerInviteMutationTransitionTests(): void {
     expect(screen.queryByText(/first account outcome is unknown/i)).not.toBeInTheDocument();
     expect(useStore.getState().notice?.message ?? '').not.toMatch(/unknown outcome/i);
   });
-}
-
-function registerInviteValidationTests(): void {
   it.each([
     [201, true, /Invitation emailed to diana@example\.test/],
     [
@@ -295,9 +273,6 @@ function registerInviteValidationTests(): void {
     expect(field.getAttribute('aria-describedby')?.split(' ')).toContain(alert.id);
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
   });
-}
-
-function registerInviteCreationFailureTests(): void {
   it('shows a terminal invite rejection after closing a pending request', async () => {
     let resolveCreate: ((response: Response) => void) | undefined;
     const fetchMock = mockApi(ownerAndEditor, {
@@ -398,9 +373,6 @@ function registerInviteCreationFailureTests(): void {
 
     await expectNotice(/unknown outcome.*invite transport lost.*reloaded/i);
   });
-}
-
-function registerInviteRevokeFailureTests(): void {
   it.each([
     {
       status: 503,
@@ -475,4 +447,4 @@ function registerInviteRevokeFailureTests(): void {
     await expectNotice(/unknown outcome.*revoke transport lost.*reloaded/i);
     expect(inviteReads).toBe(2);
   });
-}
+});

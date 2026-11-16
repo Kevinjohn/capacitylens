@@ -9,17 +9,14 @@ import {
   showPlaceholders,
 } from './browserTestSupport';
 
-// Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
-// clicking a bar. Seed bars live in June 2026, so each test explicitly opens that visible week.
-function registerBeforeEachHooks() {
+test.describe('Allocation editor', () => {
+  // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
+  // clicking a bar. Seed bars live in June 2026, so each test explicitly opens that visible week.
   test.beforeEach(async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
     await goToSeedWeek(page);
   });
-}
-
-function registerCreatesAllocationRowButtonAssigneeTest() {
   // Tagged for the short browser journey that runs on every main push.
   test(
     'creates an allocation from the row + button (assignee preselected)',
@@ -41,9 +38,6 @@ function registerCreatesAllocationRowButtonAssigneeTest() {
       await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1);
     },
   );
-}
-
-function registerSeparatesAllocationScopesSortsChoicesTest() {
   test('separates allocation scopes, sorts choices and uses compact status and note controls', async ({
     page,
   }) => {
@@ -90,9 +84,6 @@ function registerSeparatesAllocationScopesSortsChoicesTest() {
     await expect(status.getByRole('radio', { name: 'Tentative' })).toBeChecked();
     await expect(dialog.getByLabel('Note')).toHaveJSProperty('tagName', 'INPUT');
   });
-}
-
-function registerCreatesUndoesWeeklyRepeatBatchTest() {
   test('creates and undoes a weekly repeat batch', async ({ page }) => {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
     await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
@@ -132,9 +123,6 @@ function registerCreatesUndoesWeeklyRepeatBatchTest() {
     await page.keyboard.press('ControlOrMeta+z');
     await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
   });
-}
-
-function registerCreatesThreeWeeksDirectDateTest() {
   test('creates every-three-weeks from direct date input', async ({ page }) => {
     await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
     const dialog = page.getByRole('dialog', { name: 'New allocation' });
@@ -154,9 +142,6 @@ function registerCreatesThreeWeeksDirectDateTest() {
     await dialog.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByTestId('allocation-bar')).toHaveCount(11);
   });
-}
-
-function registerEditsMonthlyOccurrenceDeletesSeriesTest() {
   test('edits one monthly occurrence, deletes its series tail and restores the tail with one Undo', async ({
     page,
   }) => {
@@ -252,9 +237,6 @@ function registerEditsMonthlyOccurrenceDeletesSeriesTest() {
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
-}
-
-function registerEditsAllocationReflectsChangeBarTest() {
   test('edits an allocation and reflects the change on the bar', async ({ page }) => {
     await expectEditableBar(page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }));
     await page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).click();
@@ -265,9 +247,6 @@ function registerEditsAllocationReflectsChangeBarTest() {
       page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }),
     ).toContainText('4h');
   });
-}
-
-function registerDuplicatesAllocationEditDialogTest() {
   test('duplicates an allocation from the edit dialog', async ({ page }) => {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
     const before = await page.getByTestId('allocation-bar').count();
@@ -278,9 +257,6 @@ function registerDuplicatesAllocationEditDialogTest() {
     await dialog.getByRole('button', { name: 'Duplicate' }).click();
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1);
   });
-}
-
-function registerDeletesAllocationEditDialogRestoresTest() {
   test('deletes an allocation from the edit dialog and ⌘Z restores it', async ({ page }) => {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
     const before = await page.getByTestId('allocation-bar').count();
@@ -333,9 +309,6 @@ function registerDeletesAllocationEditDialogRestoresTest() {
       originalResourceId!,
     );
   });
-}
-
-function registerAddsNewActivityInlineUsesTest() {
   test('adds a new activity inline and uses it for the allocation', async ({ page }) => {
     await page.getByRole('link', { name: 'Settings', exact: true }).click();
     const inlineActivityCreation = page.getByRole('switch', { name: 'Inline activity creation' });
@@ -357,9 +330,6 @@ function registerAddsNewActivityInlineUsesTest() {
       page.getByTestId('allocation-bar').filter({ hasText: 'Inline Activity' }),
     ).toBeVisible();
   });
-}
-
-function registerReassignsAllocationAnotherResourceDialogTest() {
   test('reassigns an allocation to another resource via the dialog', async ({ page }) => {
     await expectEditableBar(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }));
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click();
@@ -375,9 +345,6 @@ function registerReassignsAllocationAnotherResourceDialogTest() {
         .filter({ hasText: 'Brand System' }),
     ).toBeVisible();
   });
-}
-
-function registerSnapsProjectPlaceholderBoundProjectTest() {
   test('snaps the project to a placeholder bound project when chosen', async ({ page }) => {
     // Placeholders are hidden by default (per-account pref), turn them on in Settings first so
     // the seeded placeholder's lane (and its "+" button) appears in the schedule.
@@ -402,9 +369,6 @@ function registerSnapsProjectPlaceholderBoundProjectTest() {
     ).toHaveAttribute('data-disabled');
     await expect(page.getByRole('option', { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
-}
-
-function registerRejectsEmptyDatesAcceptsListedTests() {
   test('rejects empty dates and accepts a listed hours option', async ({ page }) => {
     await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
     const dialog = page.getByRole('dialog', { name: 'New allocation' });
@@ -425,20 +389,4 @@ function registerRejectsEmptyDatesAcceptsListedTests() {
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(dialog).toHaveCount(0);
   });
-}
-
-test.describe('Allocation editor', () => {
-  registerBeforeEachHooks();
-  registerCreatesAllocationRowButtonAssigneeTest();
-  registerSeparatesAllocationScopesSortsChoicesTest();
-  registerCreatesUndoesWeeklyRepeatBatchTest();
-  registerCreatesThreeWeeksDirectDateTest();
-  registerEditsMonthlyOccurrenceDeletesSeriesTest();
-  registerEditsAllocationReflectsChangeBarTest();
-  registerDuplicatesAllocationEditDialogTest();
-  registerDeletesAllocationEditDialogRestoresTest();
-  registerAddsNewActivityInlineUsesTest();
-  registerReassignsAllocationAnotherResourceDialogTest();
-  registerSnapsProjectPlaceholderBoundProjectTest();
-  registerRejectsEmptyDatesAcceptsListedTests();
 });

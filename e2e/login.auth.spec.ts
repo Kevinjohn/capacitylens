@@ -33,7 +33,7 @@ async function seedUser(email = EMAIL) {
   }
 }
 
-function registerUnauthenticatedVisitShowsLoginScreenTest() {
+test.describe('login screen (password sign-in)', () => {
   test('unauthenticated visit shows the login screen, not the app — and the API 401s', async ({
     page,
     request,
@@ -64,9 +64,6 @@ function registerUnauthenticatedVisitShowsLoginScreenTest() {
       ),
     ).toEqual([]);
   });
-}
-
-function registerSigningRevealsAppSigningOutTest() {
   // Tagged for the short browser journey that runs on every main push.
   test(
     'signing in reveals the app; signing out from Account via the sidebar returns to the login screen',
@@ -145,9 +142,6 @@ function registerSigningRevealsAppSigningOutTest() {
       await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
     },
   );
-}
-
-function registerDirectAccountRouteSurvivesSignOutAndSignInTest() {
   test('direct /account/ loads for an authenticated user and keeps its route through sign-out and sign-in', async ({
     page,
     request,
@@ -185,9 +179,6 @@ function registerDirectAccountRouteSurvivesSignOutAndSignInTest() {
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
     expect(new URL(page.url()).pathname).toBe('/account/');
   });
-}
-
-function registerCreateOwnerAdminAdminBootstrapTest() {
   test('the membership-free administrator signs in through the real form', async ({
     page,
     request,
@@ -209,9 +200,6 @@ function registerCreateOwnerAdminAdminBootstrapTest() {
     await expect(page.getByRole('button', { name: controlOrgName, exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0);
   });
-}
-
-function registerLoginWithoutMembershipTests() {
   test('a login with NO memberships sees no company data (tenant isolation — no cross-tenant leak)', async ({
     page,
     request,
@@ -235,12 +223,4 @@ function registerLoginWithoutMembershipTests() {
     await expect(page.getByRole('button', { name: controlOrgName, exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0);
   });
-}
-
-test.describe('login screen (password sign-in)', () => {
-  registerUnauthenticatedVisitShowsLoginScreenTest();
-  registerSigningRevealsAppSigningOutTest();
-  registerDirectAccountRouteSurvivesSignOutAndSignInTest();
-  registerCreateOwnerAdminAdminBootstrapTest();
-  registerLoginWithoutMembershipTests();
 });

@@ -30,7 +30,7 @@ async function openScheduleWithInlineActivityCreation(page: Page) {
   await setZoom(page, 2);
 }
 
-function registerSpannedWeekendOverIgnoredWorkingTests() {
+test.describe('Weekend over-marker', () => {
   test('a spanned weekend is not over; ignored working days and time off are', async ({ page }) => {
     await openScheduleWithInlineActivityCreation(page);
 
@@ -111,8 +111,4 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
       expect(newTimeOffLefts).toEqual([timeOffBlockLeft]);
     }).toPass();
   });
-}
-
-test.describe('Weekend over-marker', () => {
-  registerSpannedWeekendOverIgnoredWorkingTests();
 });

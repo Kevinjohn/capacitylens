@@ -21,7 +21,7 @@ import {
 
 beforeEach(async () => resetStoreWithAccount());
 
-function registerTargetCalendarTest() {
+describe('AllocationBar target-calendar and weekend preview interactions', () => {
   it('a cross-row reassign computes dates against the TARGET resource’s working week, not the source’s', async () => {
     const st = useStore.getState();
     const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
@@ -171,9 +171,6 @@ function registerTargetCalendarTest() {
       document.dispatchEvent(new MouseEvent('pointercancel', { bubbles: true }));
     });
   });
-}
-
-function registerSourceCalendarTest() {
   const midWeek = [2, 3, 4] as const;
   const monToFri = [1, 2, 3, 4, 5] as const;
 
@@ -599,9 +596,6 @@ function registerSourceCalendarTest() {
     const after = getStoredAllocation(a.id);
     expect([after.startDate, after.endDate]).toEqual(['2026-06-04', '2026-06-07']);
   });
-}
-
-function registerWeekendPreviewTests() {
   it('previews the SAME weekend-snapped geometry the commit applies (no jump on release)', async () => {
     const st = useStore.getState();
     const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
@@ -704,10 +698,4 @@ function registerWeekendPreviewTests() {
     await settlePlanning();
     expect(getStoredAllocation(a.id).startDate).toBe('2026-06-01');
   });
-}
-
-describe('AllocationBar target-calendar and weekend preview interactions', () => {
-  registerTargetCalendarTest();
-  registerSourceCalendarTest();
-  registerWeekendPreviewTests();
 });

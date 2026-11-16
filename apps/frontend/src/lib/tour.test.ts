@@ -59,7 +59,20 @@ function createDriverStub(drive: () => void, destroy: () => void): Driver {
 
 let driveSpy: ReturnType<typeof vi.fn<() => void>>;
 
-function registerConfigurationTests() {
+describe('startTour', () => {
+  beforeEach(() => {
+    document.body.className = '';
+    window.history.replaceState({}, '', '/');
+    navigate.mockReset();
+    driveSpy = vi.fn<() => void>();
+    driverMock.mockReset().mockReturnValue(createDriverStub(driveSpy, vi.fn()));
+  });
+
+  afterEach(() => {
+    document.body.className = '';
+    vi.restoreAllMocks();
+  });
+
   it('builds the eight role stops in order with locale-resolved copy', async () => {
     await launchTour();
 
@@ -107,9 +120,6 @@ function registerConfigurationTests() {
     const config = getDriverConfig();
     expect(config.disableActiveInteraction).toBe(true);
   });
-}
-
-function registerNavigationTests() {
   it("hands teardown ownership to driver.js's own destroy through onDestroyStarted", async () => {
     const promise = launchTour();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -135,9 +145,6 @@ function registerNavigationTests() {
 
     expect(driveSpy).toHaveBeenCalledOnce();
   });
-}
-
-function registerLifecycleTests() {
   it('resolves once driven, when the body never carried the driver-active class', async () => {
     const disconnectSpy = vi.spyOn(MutationObserver.prototype, 'disconnect');
 
@@ -217,23 +224,4 @@ function registerLifecycleTests() {
       '[data-testid="scheduler-toolbar"]',
     ]);
   });
-}
-
-describe('startTour', () => {
-  beforeEach(() => {
-    document.body.className = '';
-    window.history.replaceState({}, '', '/');
-    navigate.mockReset();
-    driveSpy = vi.fn<() => void>();
-    driverMock.mockReset().mockReturnValue(createDriverStub(driveSpy, vi.fn()));
-  });
-
-  afterEach(() => {
-    document.body.className = '';
-    vi.restoreAllMocks();
-  });
-
-  registerConfigurationTests();
-  registerNavigationTests();
-  registerLifecycleTests();
 });

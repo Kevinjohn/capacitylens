@@ -1,8 +1,8 @@
 import { test, expect } from './dbFixtures';
 import { openApp, showScheduleFilters } from './browserTestSupport';
 
-// Covers US-CLI-01..03.
-function registerAddsClientMakesAvailableScheduleTest() {
+test.describe('Clients', () => {
+  // Covers US-CLI-01..03.
   test('adds a client and makes it available as a schedule filter', async ({ page }) => {
     await openApp(page, '/clients');
     await page.getByRole('button', { name: 'Add client' }).click();
@@ -18,9 +18,6 @@ function registerAddsClientMakesAvailableScheduleTest() {
     await expect(page.getByRole('option', { name: 'Kord Industries' })).toBeVisible();
     await page.keyboard.press('Escape');
   });
-}
-
-function registerOwnerCanAddPrivateClientTest() {
   test('an owner can add a private client with a code name', async ({ page }) => {
     await openApp(page, '/clients');
     await page.getByRole('button', { name: 'Add client' }).click();
@@ -46,9 +43,6 @@ function registerOwnerCanAddPrivateClientTest() {
       'Nightwing',
     );
   });
-}
-
-function registerRejectsEmojiJunkCharactersNameTest() {
   test('rejects emoji / junk characters in a name and blocks the save', async ({ page }) => {
     await openApp(page, '/clients');
     await page.getByRole('button', { name: 'Add client' }).click();
@@ -60,9 +54,6 @@ function registerRejectsEmojiJunkCharactersNameTest() {
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByTestId('client-row').filter({ hasText: 'Café Crème' })).toBeVisible();
   });
-}
-
-function registerEditsClientRenameReflectsProjectTest() {
   test('edits a client and the rename reflects in project labels', async ({ page }) => {
     await openApp(page, '/clients');
     await page
@@ -83,12 +74,9 @@ function registerEditsClientRenameReflectsProjectTest() {
       page.getByRole('option', { name: /Ferris Worldwide \/ Project Watchtower/ }),
     ).toBeVisible();
   });
-}
-
-// The row action archives the client. It leaves the active list but remains in storage, and its
-// projects keep their own active status because archiving does not cascade. Booking-only Undo
-// leaves the archive in place.
-function registerArchivingClientHidesListRestorableTests() {
+  // The row action archives the client. It leaves the active list but remains in storage, and its
+  // projects keep their own active status because archiving does not cascade. Booking-only Undo
+  // leaves the archive in place.
   test('archiving a client hides it from the list, and undo leaves it archived', async ({
     page,
   }) => {
@@ -111,12 +99,4 @@ function registerArchivingClientHidesListRestorableTests() {
       page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' }),
     ).toHaveCount(0);
   });
-}
-
-test.describe('Clients', () => {
-  registerAddsClientMakesAvailableScheduleTest();
-  registerOwnerCanAddPrivateClientTest();
-  registerRejectsEmojiJunkCharactersNameTest();
-  registerEditsClientRenameReflectsProjectTest();
-  registerArchivingClientHidesListRestorableTests();
 });

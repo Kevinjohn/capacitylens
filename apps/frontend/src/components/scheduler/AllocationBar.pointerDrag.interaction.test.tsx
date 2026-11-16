@@ -24,247 +24,6 @@ import {
 
 beforeEach(async () => resetStoreWithAccount());
 
-function registerBasicPointerTests() {
-  it('commits a move drag to the store (shifts both dates by a day)', async () => {
-    const a = await seedAllocation();
-    render(
-      <AllocationBar
-        bar={barFor(a)}
-        geom={GEOM}
-        indexAtClientX={indexAtClientX}
-        onEdit={vi.fn()}
-      />,
-    );
-    const bar = screen.getByTestId('allocation-bar');
-
-    fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
-
-    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
-    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
-    await settlePlanning();
-
-    const moved = getStoredAllocation(a.id);
-    expect(moved.startDate).toBe('2026-06-02');
-    expect(moved.endDate).toBe('2026-06-04');
-  });
-
-  it('leaves a stale-revision drag to the refetched schedule without a toast', async () => {
-    const a = await seedAllocation();
-    const original = useStore.getState().updateAllocation;
-    useStore.setState({
-      updateAllocation: () =>
-        Promise.reject(new PlanningControllerError('The schedule changed.', 'STALE_REVISION', 409)),
-    });
-    try {
-      render(
-        <AllocationBar
-          bar={barFor(a)}
-          geom={GEOM}
-          indexAtClientX={indexAtClientX}
-          onEdit={vi.fn()}
-        />,
-      );
-      fireEvent.pointerDown(screen.getByTestId('allocation-bar'), { clientX: 50, button: 0 });
-      document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
-      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
-      await settlePlanning();
-      expect(useStore.getState().notice).toBeNull();
-    } finally {
-      useStore.setState({ updateAllocation: original });
-    }
-  });
-
-  it('does not report a successful move when permission drops to Viewer mid-drag', async () => {
-    const a = await seedAllocation();
-    const barUi = (role: 'editor' | 'viewer') => (
-      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
-        <AllocationBar
-          bar={barFor(a)}
-          geom={GEOM}
-          indexAtClientX={indexAtClientX}
-          onEdit={vi.fn()}
-        />
-      </PermissionContext.Provider>
-    );
-    const { rerender } = render(barUi('editor'));
-    const bar = screen.getByTestId('allocation-bar');
-
-    fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
-    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
-    act(() => useStore.getState().setActiveRole('viewer'));
-    rerender(barUi('viewer'));
-    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
-    await settlePlanning();
-
-    expect(useStore.getState().data.allocations.find((row) => row.id === a.id)).toMatchObject({
-      startDate: '2026-06-01',
-      endDate: '2026-06-03',
-    });
-    expect(useStore.getState().notice).toMatchObject({ tone: 'error' });
-    expect(useStore.getState().notice?.message).not.toMatch(/moved|reassigned|undo/i);
-  });
-
-  it('a click (no movement) opens the editor instead of moving', async () => {
-    const a = await seedAllocation();
-    const onEdit = vi.fn();
-    render(
-      <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />,
-    );
-    const bar = screen.getByTestId('allocation-bar');
-
-    fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
-    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 50, bubbles: true }));
-    await settlePlanning();
-
-    expect(onEdit).toHaveBeenCalledExactlyOnceWith(a.id);
-    const unchanged = getStoredAllocation(a.id);
-    expect(unchanged.startDate).toBe('2026-06-01');
-  });
-}
-
-function registerRejectedReassignmentTest() {
-  it('leaves assignee, dates and hours unchanged when a diagonal reassign is rejected', async () => {
-    const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p1 = await requireCreated(st.addProject({ name: 'P1', clientId: c.id, color: '#2' }));
-    const p2 = await requireCreated(st.addProject({ name: 'P2', clientId: c.id, color: '#3' }));
-    const t1 = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p1.id }),
-    );
-    const person = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
-    );
-    // A placeholder bound to p2 cannot take a p1 activity, dropping onto it must be rejected.
-    const slot = await requireCreated(
-      st.addResource({
-        kind: 'placeholder',
-        role: 'Slot',
-        employmentType: 'permanent',
-        engagement: 'studio' as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
-        color: '#4',
-        projectId: p2.id,
-      }),
-    );
-    const a = requireCreated(
-      await st.addAllocation({
-        resourceId: person.id,
-        activityId: t1.id,
-        startDate: '2026-06-01',
-        endDate: '2026-06-03',
-        hoursPerDay: 8,
-        status: 'confirmed',
-      }),
-    );
-
-    render(
-      <>
-        <div data-resource-id={person.id} data-testid="lane-src" />
-        <div data-resource-id={slot.id} data-testid="lane-dst" />
-        <AllocationBar
-          bar={barFor(a)}
-          geom={GEOM}
-          indexAtClientX={indexAtClientX}
-          onEdit={vi.fn()}
-        />
-      </>,
-    );
-    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50);
-    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
-
-    const bar = screen.getByTestId('allocation-bar');
-    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
-    // Cross both a row and a date boundary: rejecting the target must reject the complete gesture,
-    // not silently retain its horizontal source-row move.
-    document.dispatchEvent(
-      new MouseEvent('pointermove', { clientX: 98, clientY: 125, bubbles: true }),
-    );
-    document.dispatchEvent(
-      new MouseEvent('pointerup', { clientX: 98, clientY: 125, bubbles: true }),
-    );
-    await settlePlanning();
-
-    const alloc = getStoredAllocation(a.id);
-    expect(alloc).toMatchObject({
-      resourceId: person.id,
-      startDate: '2026-06-01',
-      endDate: '2026-06-03',
-      hoursPerDay: 8,
-    });
-    expect(useStore.getState().notice?.message).toMatch(/placeholder/i);
-  });
-}
-
-function registerValidReassignmentTest() {
-  it('reassigns to another row (and highlights it mid-drag) when dropped on a valid lane', async () => {
-    const st = useStore.getState();
-    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-    const t = await requireCreated(
-      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
-    );
-    const r1 = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
-    );
-    const r2 = await requireCreated(
-      st.addResource({
-        kind: 'person',
-        name: 'Sam',
-        role: 'Dev',
-        employmentType: 'permanent',
-        engagement: 'studio' as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
-        color: '#4',
-      }),
-    );
-    const a = requireCreated(
-      await st.addAllocation({
-        resourceId: r1.id,
-        activityId: t.id,
-        startDate: '2026-06-01',
-        endDate: '2026-06-03',
-        hoursPerDay: 8,
-        status: 'confirmed',
-      }),
-    );
-
-    render(
-      <>
-        <div data-resource-id={r1.id} data-testid="lane-src" />
-        <div data-resource-id={r2.id} data-testid="lane-dst" />
-        <AllocationBar
-          bar={barFor(a)}
-          geom={GEOM}
-          indexAtClientX={indexAtClientX}
-          onEdit={vi.fn()}
-        />
-      </>,
-    );
-    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50);
-    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
-
-    const bar = screen.getByTestId('allocation-bar');
-    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
-    document.dispatchEvent(
-      new MouseEvent('pointermove', { clientX: 55, clientY: 125, bubbles: true }),
-    );
-
-    expect(screen.getByTestId('lane-dst').hasAttribute('data-droptarget')).toBe(true);
-    expect(screen.getByTestId('lane-src').hasAttribute('data-droptarget')).toBe(false);
-    document.dispatchEvent(
-      new MouseEvent('pointerup', { clientX: 55, clientY: 125, bubbles: true }),
-    );
-    await settlePlanning();
-
-    expect(getStoredAllocation(a.id).resourceId).toBe(r2.id);
-    expect(screen.getByTestId('lane-dst').hasAttribute('data-droptarget')).toBe(false);
-  });
-}
-
 const workingDayRejectionCases = [
   {
     boundary: 'personal',
@@ -375,14 +134,243 @@ async function verifyWorkingDayRejection({
   });
 }
 
-function registerWorkingDayRejectionTests() {
+describe('AllocationBar pointer drag and reassignment interactions', () => {
+  it('commits a move drag to the store (shifts both dates by a day)', async () => {
+    const a = await seedAllocation();
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
+    const bar = screen.getByTestId('allocation-bar');
+
+    fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
+
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
+    await settlePlanning();
+
+    const moved = getStoredAllocation(a.id);
+    expect(moved.startDate).toBe('2026-06-02');
+    expect(moved.endDate).toBe('2026-06-04');
+  });
+
+  it('leaves a stale-revision drag to the refetched schedule without a toast', async () => {
+    const a = await seedAllocation();
+    const original = useStore.getState().updateAllocation;
+    useStore.setState({
+      updateAllocation: () =>
+        Promise.reject(new PlanningControllerError('The schedule changed.', 'STALE_REVISION', 409)),
+    });
+    try {
+      render(
+        <AllocationBar
+          bar={barFor(a)}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />,
+      );
+      fireEvent.pointerDown(screen.getByTestId('allocation-bar'), { clientX: 50, button: 0 });
+      document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
+      await settlePlanning();
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      useStore.setState({ updateAllocation: original });
+    }
+  });
+
+  it('does not report a successful move when permission drops to Viewer mid-drag', async () => {
+    const a = await seedAllocation();
+    const barUi = (role: 'editor' | 'viewer') => (
+      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+        <AllocationBar
+          bar={barFor(a)}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </PermissionContext.Provider>
+    );
+    const { rerender } = render(barUi('editor'));
+    const bar = screen.getByTestId('allocation-bar');
+
+    fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
+    act(() => useStore.getState().setActiveRole('viewer'));
+    rerender(barUi('viewer'));
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
+    await settlePlanning();
+
+    expect(useStore.getState().data.allocations.find((row) => row.id === a.id)).toMatchObject({
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+    });
+    expect(useStore.getState().notice).toMatchObject({ tone: 'error' });
+    expect(useStore.getState().notice?.message).not.toMatch(/moved|reassigned|undo/i);
+  });
+
+  it('a click (no movement) opens the editor instead of moving', async () => {
+    const a = await seedAllocation();
+    const onEdit = vi.fn();
+    render(
+      <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />,
+    );
+    const bar = screen.getByTestId('allocation-bar');
+
+    fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 50, bubbles: true }));
+    await settlePlanning();
+
+    expect(onEdit).toHaveBeenCalledExactlyOnceWith(a.id);
+    const unchanged = getStoredAllocation(a.id);
+    expect(unchanged.startDate).toBe('2026-06-01');
+  });
+  it('leaves assignee, dates and hours unchanged when a diagonal reassign is rejected', async () => {
+    const st = useStore.getState();
+    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
+    const p1 = await requireCreated(st.addProject({ name: 'P1', clientId: c.id, color: '#2' }));
+    const p2 = await requireCreated(st.addProject({ name: 'P2', clientId: c.id, color: '#3' }));
+    const t1 = await requireCreated(
+      st.addActivity({ name: 'Wires', kind: 'project', projectId: p1.id }),
+    );
+    const person = await requireCreated(
+      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+    );
+    // A placeholder bound to p2 cannot take a p1 activity, dropping onto it must be rejected.
+    const slot = await requireCreated(
+      st.addResource({
+        kind: 'placeholder',
+        role: 'Slot',
+        employmentType: 'permanent',
+        engagement: 'studio' as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: '#4',
+        projectId: p2.id,
+      }),
+    );
+    const a = requireCreated(
+      await st.addAllocation({
+        resourceId: person.id,
+        activityId: t1.id,
+        startDate: '2026-06-01',
+        endDate: '2026-06-03',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    );
+
+    render(
+      <>
+        <div data-resource-id={person.id} data-testid="lane-src" />
+        <div data-resource-id={slot.id} data-testid="lane-dst" />
+        <AllocationBar
+          bar={barFor(a)}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </>,
+    );
+    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50);
+    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
+
+    const bar = screen.getByTestId('allocation-bar');
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
+    // Cross both a row and a date boundary: rejecting the target must reject the complete gesture,
+    // not silently retain its horizontal source-row move.
+    document.dispatchEvent(
+      new MouseEvent('pointermove', { clientX: 98, clientY: 125, bubbles: true }),
+    );
+    document.dispatchEvent(
+      new MouseEvent('pointerup', { clientX: 98, clientY: 125, bubbles: true }),
+    );
+    await settlePlanning();
+
+    const alloc = getStoredAllocation(a.id);
+    expect(alloc).toMatchObject({
+      resourceId: person.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 8,
+    });
+    expect(useStore.getState().notice?.message).toMatch(/placeholder/i);
+  });
+  it('reassigns to another row (and highlights it mid-drag) when dropped on a valid lane', async () => {
+    const st = useStore.getState();
+    const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
+    const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
+    const t = await requireCreated(
+      st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
+    );
+    const r1 = await requireCreated(
+      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+    );
+    const r2 = await requireCreated(
+      st.addResource({
+        kind: 'person',
+        name: 'Sam',
+        role: 'Dev',
+        employmentType: 'permanent',
+        engagement: 'studio' as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: '#4',
+      }),
+    );
+    const a = requireCreated(
+      await st.addAllocation({
+        resourceId: r1.id,
+        activityId: t.id,
+        startDate: '2026-06-01',
+        endDate: '2026-06-03',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    );
+
+    render(
+      <>
+        <div data-resource-id={r1.id} data-testid="lane-src" />
+        <div data-resource-id={r2.id} data-testid="lane-dst" />
+        <AllocationBar
+          bar={barFor(a)}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </>,
+    );
+    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50);
+    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
+
+    const bar = screen.getByTestId('allocation-bar');
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
+    document.dispatchEvent(
+      new MouseEvent('pointermove', { clientX: 55, clientY: 125, bubbles: true }),
+    );
+
+    expect(screen.getByTestId('lane-dst').hasAttribute('data-droptarget')).toBe(true);
+    expect(screen.getByTestId('lane-src').hasAttribute('data-droptarget')).toBe(false);
+    document.dispatchEvent(
+      new MouseEvent('pointerup', { clientX: 55, clientY: 125, bubbles: true }),
+    );
+    await settlePlanning();
+
+    expect(getStoredAllocation(a.id).resourceId).toBe(r2.id);
+    expect(screen.getByTestId('lane-dst').hasAttribute('data-droptarget')).toBe(false);
+  });
   it.each(workingDayRejectionCases)(
     'rejects a purely vertical drop onto a $boundary non-working start date',
     verifyWorkingDayRejection,
   );
-}
-
-function registerIgnoredWorkingDayTest() {
   it('allows that literal vertical drop when the allocation ignores working days', async () => {
     const st = useStore.getState();
     await st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
@@ -467,9 +455,6 @@ function registerIgnoredWorkingDayTest() {
       ignoreWorkingDays: true,
     });
   });
-}
-
-function registerDragPreviewTests() {
   it('updates a vertical drag without a trailing transform transition', async () => {
     const allocation = await seedAllocation();
     render(
@@ -561,9 +546,6 @@ function registerDragPreviewTests() {
       useStore.getState().data.allocations.find((row) => row.id === allocation.id)?.resourceId,
     ).toBe(destination.id);
   });
-}
-
-function registerExternalReassignmentTest() {
   it('keeps an External block at zero hours when it is reassigned to a person', async () => {
     const st = useStore.getState();
     await st.updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: 'blocks' });
@@ -634,9 +616,6 @@ function registerExternalReassignmentTest() {
       hoursPerDay: 0,
     });
   });
-}
-
-function registerGeometryRefreshTests() {
   it.each(['scroll', 'resize'] as const)(
     'uses post-%s lane rectangles when pointerup precedes the queued animation frame',
     async (geometryEvent) => {
@@ -722,15 +701,4 @@ function registerGeometryRefreshTests() {
       }
     },
   );
-}
-
-describe('AllocationBar pointer drag and reassignment interactions', () => {
-  registerBasicPointerTests();
-  registerRejectedReassignmentTest();
-  registerValidReassignmentTest();
-  registerWorkingDayRejectionTests();
-  registerIgnoredWorkingDayTest();
-  registerDragPreviewTests();
-  registerExternalReassignmentTest();
-  registerGeometryRefreshTests();
 });

@@ -8,9 +8,9 @@ import {
   showScheduleFilters,
 } from './browserTestSupport';
 
-// Covers US-TBR-01..07 and the toolbar-owned week-snap cases from US-TBR-08; scheduler.spec.ts
-// covers the remaining US-TBR-08 navigation paths.
-function registerZoomsTimelineTracksActiveLevelTest() {
+test.describe('Toolbar', () => {
+  // Covers US-TBR-01..07 and the toolbar-owned week-snap cases from US-TBR-08; scheduler.spec.ts
+  // covers the remaining US-TBR-08 navigation paths.
   test('zooms the timeline and tracks the active level', async ({ page }) => {
     await openApp(page);
     const weeks = page.getByRole('combobox', { name: 'Weeks visible' });
@@ -24,9 +24,6 @@ function registerZoomsTimelineTracksActiveLevelTest() {
     await setZoom(page, 1);
     await expect(weeks).toHaveText('1 week');
   });
-}
-
-function registerShowsZoomLevelDropdownOpensTest() {
   test('shows every zoom level when the dropdown opens', async ({ page }) => {
     await openApp(page);
     const weeks = page.getByRole('combobox', { name: 'Weeks visible' });
@@ -42,9 +39,6 @@ function registerShowsZoomLevelDropdownOpensTest() {
       popupBox.y + popupBox.height,
     );
   });
-}
-
-function registerPansWindowWeekPrevNextTest() {
   test('pans the window a week with Prev and Next', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -60,9 +54,6 @@ function registerPansWindowWeekPrevNextTest() {
     const b2 = await box(bar);
     expect(b2.x).toBeGreaterThan(b1.x);
   });
-}
-
-function registerReCentresTodayScrollingAwayTest() {
   test('re-centres on Today after scrolling away', async ({ page }) => {
     await openApp(page);
     const grid = page.getByTestId('scheduler-grid');
@@ -74,21 +65,15 @@ function registerReCentresTodayScrollingAwayTest() {
       .poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft))
       .toBeLessThan(4000);
   });
-}
-
-// The toolbar has no jump-to-date picker in this layout.
-// Its coverage lives at the two levels that still exercise it: the component
-// (src/components/scheduler/JumpToDateInput.test.tsx) and the week-start snap it triggers
-// (goToDate in src/store/useStore.test.ts). This test asserts only that it is gone from the bar.
-function registerDoesExposeJumpDatePickerTest() {
+  // The toolbar has no jump-to-date picker in this layout.
+  // Its coverage lives at the two levels that still exercise it: the component
+  // (src/components/scheduler/JumpToDateInput.test.tsx) and the week-start snap it triggers
+  // (goToDate in src/store/useStore.test.ts). This test asserts only that it is gone from the bar.
   test('does not expose the jump-to-date picker', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('scheduler-toolbar')).toBeVisible();
     await expect(page.getByLabel('Jump to date')).toHaveCount(0);
   });
-}
-
-function registerShowsResponsiveFilterRowSearchTest() {
   test('shows a responsive filter row with search left and the remaining controls grouped right', async ({
     page,
   }) => {
@@ -145,9 +130,6 @@ function registerShowsResponsiveFilterRowSearchTest() {
     await hide.click();
     await expect(page.getByLabel('Search people')).toHaveCount(0);
   });
-}
-
-function registerSwitchesDrawModeBetweenWorkTest() {
   test('switches draw mode between Work and Time off', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -184,10 +166,7 @@ function registerSwitchesDrawModeBetweenWorkTest() {
       }),
     ).toBe(true);
   });
-}
-
-// Button coverage and keyboard coverage must both exercise undo/redo; shortcuts must ignore editable fields.
-function registerUndoesRedoesToolbarButtonsDisabledTest() {
+  // Button coverage and keyboard coverage must both exercise undo/redo; shortcuts must ignore editable fields.
   test('undoes and redoes with the toolbar buttons, disabled when the stack is empty', async ({
     page,
   }) => {
@@ -220,9 +199,6 @@ function registerUndoesRedoesToolbarButtonsDisabledTest() {
     await redoBtn.click();
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
   });
-}
-
-function registerUndoesRedoesKeyboardIgnoresShortcutTests() {
   test('undoes/redoes with the keyboard and ignores the shortcut while typing', async ({
     page,
   }) => {
@@ -260,16 +236,4 @@ function registerUndoesRedoesKeyboardIgnoresShortcutTests() {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
     await expect(undoBtn).toBeEnabled();
   });
-}
-
-test.describe('Toolbar', () => {
-  registerZoomsTimelineTracksActiveLevelTest();
-  registerShowsZoomLevelDropdownOpensTest();
-  registerPansWindowWeekPrevNextTest();
-  registerReCentresTodayScrollingAwayTest();
-  registerDoesExposeJumpDatePickerTest();
-  registerShowsResponsiveFilterRowSearchTest();
-  registerSwitchesDrawModeBetweenWorkTest();
-  registerUndoesRedoesToolbarButtonsDisabledTest();
-  registerUndoesRedoesKeyboardIgnoresShortcutTests();
 });

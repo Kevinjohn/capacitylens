@@ -42,13 +42,6 @@ afterEach(() => {
 });
 
 describe('MembersSection — mutation failure reconciliation', () => {
-  registerAccountSwitchMutationTests();
-  registerLateReconciliationTests();
-  registerRoleFailureTests();
-  registerStatusFailureTests();
-});
-
-function registerAccountSwitchMutationTests(): void {
   it('reports an authoritative reload failure after an unknown non-self mutation', async () => {
     let mutationSent = false;
     vi.stubGlobal(
@@ -91,9 +84,6 @@ function registerAccountSwitchMutationTests(): void {
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
     expect(useStore.getState().notice).toBeNull();
   });
-}
-
-function registerLateReconciliationTests(): void {
   it('does not publish an unknown reconcile whose member reread switches accounts', async () => {
     const nextAccountId = 'acc_second';
     let mutationSent = false;
@@ -117,9 +107,6 @@ function registerLateReconciliationTests(): void {
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
     expect(useStore.getState().notice).toBeNull();
   });
-}
-
-function registerRoleFailureTests(): void {
   it.each([
     { status: 503, body: { error: 'Uncertain.' }, expected: /unknown outcome/i, reconciles: true },
     {
@@ -152,9 +139,6 @@ function registerRoleFailureTests(): void {
       expect(memberReads).toBe(reconciles ? 2 : 1);
     },
   );
-}
-
-function registerStatusFailureTests(): void {
   it('reconciles a 503 status change without claiming success', async () => {
     vi.stubGlobal(
       'fetch',
@@ -193,4 +177,4 @@ function registerStatusFailureTests(): void {
 
     await expectNotice(/unknown outcome.*status connection lost.*reloaded/i);
   });
-}
+});

@@ -3,11 +3,6 @@ import { render } from '@testing-library/react';
 import { Avatar } from './ui';
 
 describe('Avatar', () => {
-  registerAvatarInitialTests();
-  registerAvatarImageTests();
-});
-
-function registerAvatarInitialTests() {
   it('shows two-initial monogram from a full name', () => {
     const { container } = render(<Avatar name="Alice Smith" color="#111" />);
     expect(container.firstChild).toHaveTextContent('AS');
@@ -49,9 +44,6 @@ function registerAvatarInitialTests() {
     expect(container.querySelector('img')).toBeNull();
     expect(container.firstChild).toHaveTextContent('AS');
   });
-}
-
-function registerAvatarImageTests() {
   it('keeps the initials fallback while an imageUrl is still loading', () => {
     // jsdom never resolves the Radix image load, so the primitive stays on its fallback, the
     // signed-in user sees initials (never an empty circle) until the photo resolves.
@@ -88,4 +80,4 @@ function registerAvatarImageTests() {
       vi.unstubAllGlobals();
     }
   });
-}
+});

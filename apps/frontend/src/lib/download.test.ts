@@ -6,7 +6,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function registerDownloadScenarios(): void {
+describe('downloadTextFile', () => {
   it('reports only that a request was dispatched and defers object-URL cleanup', async () => {
     const createObjectURL = vi.fn().mockReturnValue('blob:abc');
     const revokeObjectURL = vi.fn();
@@ -58,9 +58,6 @@ function registerDownloadScenarios(): void {
     expect(document.querySelector('a[download="out.json"]')).toBeNull();
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:abc');
   });
-}
-
-function registerDownloadEventPropagationScenario(): void {
   it('does not mistake stopped propagation for cancellation when the default remains allowed', async () => {
     vi.stubGlobal('URL', {
       ...URL,
@@ -82,9 +79,6 @@ function registerDownloadEventPropagationScenario(): void {
     }
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-}
-
-function registerDownloadPropagationScenarios(): void {
   it('defaults the MIME type to application/json when none is given', async () => {
     const blobSpy = vi.spyOn(globalThis, 'Blob');
     vi.stubGlobal('URL', {
@@ -123,9 +117,6 @@ function registerDownloadPropagationScenarios(): void {
     expect(clickSpy).toHaveBeenCalledOnce();
     await new Promise((r) => setTimeout(r, 0));
   });
-}
-
-function registerDownloadFailureScenarios(): void {
   it('throws a caller-facing error and cleans up when the click fails', () => {
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', {
@@ -182,9 +173,6 @@ function registerDownloadFailureScenarios(): void {
       expect((e as Error).cause).toBe(original);
     }
   });
-}
-
-function registerDownloadCleanupFailureScenarios(): void {
   it('preserves the canonical start failure when catch-path cleanup also fails', () => {
     const original = new Error('click blocked');
     const cleanupFailure = new Error('revoke failed');
@@ -243,12 +231,4 @@ function registerDownloadCleanupFailureScenarios(): void {
       expect.any(Error),
     );
   });
-}
-
-describe('downloadTextFile', () => {
-  registerDownloadScenarios();
-  registerDownloadEventPropagationScenario();
-  registerDownloadPropagationScenarios();
-  registerDownloadFailureScenarios();
-  registerDownloadCleanupFailureScenarios();
 });
