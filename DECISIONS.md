@@ -258,8 +258,12 @@ This is the short, present-tense record of decisions that constrain future work.
   Owner. The current session, absence of companies/memberships and sole-principal identity are
   checked under the transaction lock, and defaults, Internal client, membership, revision and audit
   commit together. The server refuses open signup until the first company exists, even when open
-  signup is enabled in configuration. The stopped-server operator initializer remains a recovery
-  option and also requires an admitted identity. No environment variable grants company ownership.
+  signup is enabled in configuration, and rechecks this under the transaction lock used by identity
+  creation. The controlled first identity can still sign in and finish setup. Once the first company
+  exists, the configured signup policy applies. The stopped-server operator initializer remains a
+  recovery option, never the normal install path, and also requires an admitted identity. Neither
+  path creates credentials or changes identity admission. No environment variable grants company
+  ownership.
   A development-only demo command may, on an empty disposable database, create the sample company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
 - The development bootstrap identity is the one account written straight into `users`, already
   confirmed and with a known password. The kit creates an account only unconfirmed, with a mailed
