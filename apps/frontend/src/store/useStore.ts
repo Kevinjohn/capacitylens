@@ -33,8 +33,8 @@ export {
 
 /**
  * The app store: one active company projection, UI state and server-backed planning history.
- * CRUD actions throw on a tenancy or integrity violation and silently ignore a stale id; ids and
- * timestamps are assigned here, never by callers.
+ * CRUD actions throw on a tenancy or integrity violation and silently ignore a stale id; ids are
+ * assigned here, never by callers, and timestamps are assigned by the server.
  */
 export const useStore = create<StoreState>()((set, get, store) => {
   const internals = createStoreInternals(get);

@@ -189,7 +189,7 @@ describe('active-account permission publication', () => {
 });
 
 function registerAccountOwnershipTests(): void {
-  it('treats stale account update ids as true no-ops that preserve undo and redo', async () => {
+  it('rejects a stale account update id and leaves data, undo and redo unchanged', async () => {
     await s().updateAccount(A, { name: 'Changed once' });
     await s().undoPlanning();
     const dataBefore = s().data;
