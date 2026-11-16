@@ -9,7 +9,7 @@ import {
   resetStoreWithAccount,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import {
   queueTimeOffDeleteGroupResponse,

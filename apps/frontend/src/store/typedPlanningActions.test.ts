@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useStore } from './useStore';
 import { makeClient, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 beforeEach(async () => {
@@ -22,6 +22,22 @@ describe('typed planning domain rejections', () => {
     await expect(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),
     ).rejects.toThrow(/not loaded/i);
+  });
+
+  it('passes the shared company guard when the company is known only from the summaries', async () => {
+    const { activeAccountId, data } = useStore.getState();
+    if (!activeAccountId) throw new Error('Expected an active account.');
+    useStore.setState({
+      data: { ...data, accounts: [] },
+      accountSummaries: [{ id: activeAccountId, name: 'Daily Planet', role: 'owner' }],
+    });
+    const sent = getStubPlanningTransport().calls.length;
+    // The guard admits a company whose slice is still loading; no command can be built until the
+    // company row is published, so the write is refused as no company selected and nothing is sent.
+    await expect(
+      useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),
+    ).rejects.toThrow('No active company is selected.');
+    expect(getStubPlanningTransport().calls).toHaveLength(sent);
   });
 
   it('refuses a foreign row while treating an absent id as stale', async () => {

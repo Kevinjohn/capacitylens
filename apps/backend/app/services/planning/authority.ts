@@ -1,29 +1,20 @@
-import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
-import type { Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
 import { getActiveMembership, requireStoredRole } from '#services/auth/authorization';
 import { effectiveReadPrincipal } from '#services/auth/masquerade';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { PlanningOperationError } from '#services/planning/errors';
 
-export interface PlanningAuthority {
+/** The verified actor behind one planning operation and what that member may do and see. */
+export interface PlanningAuthority extends PlanningCapabilities {
   actorId: string;
   effectiveActorId: string;
-  role: Role;
-  canWrite: boolean;
-  canSeePrivateNames: boolean;
-  canSeeTimeOffNote: boolean;
 }
 
 /** Resolves the caller's planning authority and write capabilities inside the transaction. */
-export async function resolvePlanningAuthority(
-  ctx: HttpContext,
-  trx: TransactionClientContract,
-  accountId: string
-) {
-  const principal = await effectiveReadPrincipal(ctx, trx, accountId);
+export async function resolvePlanningAuthority(trx: TransactionClientContract, accountId: string) {
+  const principal = await effectiveReadPrincipal(trx, accountId);
   const membership = await getActiveMembership(principal.effectiveId, accountId, trx);
   if (!membership || (principal.accountId !== null && principal.accountId !== accountId)) {
     throw new PlanningOperationError(
@@ -46,9 +37,6 @@ export async function resolvePlanningAuthority(
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   };
-  const capabilities: PlanningCapabilities = {
-    ...authority,
-    canAnonymise: !masquerading && access.can(role, 'resources:anonymise'),
-  };
+  const capabilities: PlanningCapabilities = authority;
   return { authority, capabilities };
 }

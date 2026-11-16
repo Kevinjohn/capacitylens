@@ -11,7 +11,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { SchedulerToolbar } from './SchedulerToolbar';
 import { buildEmptyFilters, useStore } from '@/store/useStore';
 import {

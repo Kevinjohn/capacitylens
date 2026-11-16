@@ -1,10 +1,6 @@
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
-import {
-  isCapacityTracked,
-  isExternalResource,
-  isPlaceholderResource,
-} from '@capacitylens/shared/types/entities';
+import { isCapacityTracked, isPlaceholderResource } from '@capacitylens/shared/types/entities';
 import type {
   Allocation,
   AppData,
@@ -14,11 +10,12 @@ import type {
   Weekday,
 } from '@capacitylens/shared/types/entities';
 import {
-  createDisplayNameComparator,
-  createEngagementFavouriteDisplayNameComparator,
-  createFavouriteDisplayNameComparator,
-} from '@/lib/displayOrder';
-import { resolveResourceDisplayName } from '@/lib/metadata';
+  buildEngagementGroups,
+  buildResourceBand,
+  createResourceComparator,
+  isResourceKindEnabled,
+} from '@/lib/resourceGrouping';
+import type { ResourceBandGroup } from '@/lib/resourceGrouping';
 import { buildDisciplineGroups, hasSupplementaryResources } from '@/store/selectors';
 import { buildDayCapacity } from '@/lib/capacity';
 import type { CapacityOverviewPeriod } from './capacityOverviewDates';
@@ -45,13 +42,6 @@ const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
 export const HOURS_PER_DISPLAY_DAY = 8;
 const QUARTER_DAY_HOURS = HOURS_PER_DISPLAY_DAY / 4;
 const ROUNDING_EPSILON_HOURS = 1e-9;
-
-interface GroupSeed {
-  key: string;
-  title: string;
-  color?: string;
-  resources: Resource[];
-}
 
 interface CalculatePeriodInput {
   resource: Resource;
@@ -151,70 +141,29 @@ function calculatePeriod({
   };
 }
 
-type FallbackGroupsOptions = { resources: Resource[]; groupByEngagement: boolean };
-function fallbackGroups({ resources, groupByEngagement }: FallbackGroupsOptions): GroupSeed[] {
-  if (!resources.length) return [];
-  if (!groupByEngagement) return [{ key: 'unassigned', title: 'Unassigned', resources }];
-  return (
-    [
-      {
-        key: 'engagement-studio',
-        title: 'Studio',
-        resources: resources.filter((resource) => resource.engagement === 'studio'),
-      },
-      {
-        key: 'engagement-supplementary',
-        title: 'Supplementary',
-        resources: resources.filter((resource) => resource.engagement === 'supplementary'),
-      },
-    ] satisfies GroupSeed[]
-  ).filter((group) => group.resources.length > 0);
-}
-
-type CreateResourceComparatorOptions = { groupByEngagement: boolean };
-function createResourceComparator({ groupByEngagement }: CreateResourceComparatorOptions) {
-  const byDisplayName = createDisplayNameComparator<Resource>(resolveResourceDisplayName);
-  const byFavouriteDisplayName = createFavouriteDisplayNameComparator<Resource>(
-    resolveResourceDisplayName,
-  );
-  const byEngagementFavouriteDisplayName = createEngagementFavouriteDisplayNameComparator<Resource>(
-    resolveResourceDisplayName,
-  );
-  return (left: Resource, right: Resource): number => {
-    const placeholderOrder =
-      Number(left.kind === 'placeholder') - Number(right.kind === 'placeholder');
-    if (placeholderOrder !== 0) return placeholderOrder;
-    if (left.kind === 'placeholder') return byDisplayName(left, right);
-    return groupByEngagement
-      ? byEngagementFavouriteDisplayName(left, right)
-      : byFavouriteDisplayName(left, right);
-  };
-}
-
 function buildGroupSeeds({
   data,
   eligible,
   disciplinesEnabled,
   groupByEngagement,
-}: BuildGroupSeedsInput): GroupSeed[] {
+}: BuildGroupSeedsInput): ResourceBandGroup[] {
   const eligibleResources = data.resources.filter((resource) => eligible.has(resource.id));
   const placeholders = eligibleResources.filter(isPlaceholderResource);
   const people = eligibleResources.filter((resource) => !isPlaceholderResource(resource));
+  const placeholderGroups = placeholders.length
+    ? [{ ...buildResourceBand('placeholders'), resources: placeholders }]
+    : [];
   if (!disciplinesEnabled) {
-    let peopleGroups: GroupSeed[] = [];
-    if (groupByEngagement) {
-      peopleGroups = fallbackGroups({ resources: people, groupByEngagement: true });
-    } else if (people.length) {
-      peopleGroups = [{ key: 'overall', title: 'Overall', resources: people }];
-    }
     return [
-      ...peopleGroups,
-      ...(placeholders.length
-        ? [{ key: 'placeholders', title: 'Unassigned demand', resources: placeholders }]
-        : []),
+      ...buildEngagementGroups({
+        resources: people,
+        groupByEngagement,
+        ungrouped: buildResourceBand('overall'),
+      }),
+      ...placeholderGroups,
     ];
   }
-  const groups: GroupSeed[] = [];
+  const groups: ResourceBandGroup[] = [];
   for (const group of buildDisciplineGroups(data)) {
     if (group.external) continue;
     const resources = group.resources.filter(
@@ -230,24 +179,23 @@ function buildGroupSeeds({
       });
     } else {
       groups.push(
-        ...fallbackGroups({ resources: resources, groupByEngagement: groupByEngagement }),
+        ...buildEngagementGroups({
+          resources,
+          groupByEngagement,
+          ungrouped: buildResourceBand('unassigned'),
+        }),
       );
     }
   }
-  return [
-    ...groups,
-    ...(placeholders.length
-      ? [{ key: 'placeholders', title: 'Unassigned demand', resources: placeholders }]
-      : []),
-  ];
+  return [...groups, ...placeholderGroups];
 }
 
 type IsEligibleResourceOptions = { resource: Resource; placeholdersEnabled: boolean };
 function isEligibleResource({ resource, placeholdersEnabled }: IsEligibleResourceOptions): boolean {
-  if (!isCapacityTracked(resource) || isExternalResource(resource)) return false;
+  if (!isCapacityTracked(resource)) return false;
   if (resource.archivedAt != null || resource.deletedAt != null) return false;
-  if (isPlaceholderResource(resource)) return placeholdersEnabled;
-  return true;
+  // External parties have no capacity, so the overview never shows them whatever the company chose.
+  return isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled: false });
 }
 
 function buildIndexes({
@@ -287,14 +235,14 @@ function buildRows({
   accountWorkingDays,
   groupByEngagement,
 }: {
-  seeds: GroupSeed[];
+  seeds: ResourceBandGroup[];
   periods: CapacityOverviewPeriod[];
   indexes: OverviewIndexes;
   closures: Closure[];
   accountWorkingDays: Weekday[];
   groupByEngagement: boolean;
 }): CapacityOverviewGroup[] {
-  const compareResources = createResourceComparator({ groupByEngagement: groupByEngagement });
+  const compareResources = createResourceComparator(groupByEngagement);
   return seeds.map((seed) => {
     const rows = seed.resources
       .slice()

@@ -1,7 +1,3 @@
-import { resetSchedulerView } from '@/store/storeConstants';
-import { readCurrentWeekAnchor } from './schedulerSlice';
-import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
-import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator, StoreApi } from 'zustand';
 import type { PlanningIntent } from '@/api/planningContracts';
 import {
@@ -10,18 +6,10 @@ import {
 } from '@capacitylens/shared/domain/mutations';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
 import { newId } from '@capacitylens/shared/lib/id';
-import { emptyAppData, MAX_HOURS_PER_DAY, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import type { Allocation, AppData, ID } from '@capacitylens/shared/types/entities';
-import {
-  createPlanningCacheController,
-  createPlanningCacheState,
-} from '@/data/planning/planningCacheController';
-import type {
-  PlanningCacheState,
-  PlanningTransport,
-} from '@/data/planning/planningCacheController';
 import {
   buildAllocationCreate,
   buildAllocationDuplicate,
@@ -33,20 +21,12 @@ import type { Draft, StoreState } from '@/store/types';
 
 type AllocationSlice = Pick<
   StoreState,
-  | 'planning'
-  | 'sendPlanningCommand'
   | 'addAllocation'
   | 'addAllocations'
   | 'duplicateAllocation'
   | 'updateAllocation'
   | 'deleteAllocation'
   | 'deleteAllocationSeriesFrom'
-  | 'refreshPlanning'
-  | 'clearPlanning'
-  | 'suspendPlanningCommands'
-  | 'planningReadyForReplacement'
-  | 'undoPlanning'
-  | 'redoPlanning'
 >;
 
 /** Store capabilities used by allocation actions. */
@@ -54,10 +34,6 @@ export type AllocationSliceInternals = Pick<
   StoreInternals,
   'requireAccount' | 'blockedByViewer' | 'assertAllocation' | 'resolveOwnedRow' | 'applyPatch'
 >;
-
-// Planning identity is page-local: sign-in and sign-out reload the page, and authority changes
-// within it arrive through the transport's access key.
-const PAGE_IDENTITY = Symbol('page planning identity');
 
 // A delete's Undo uses the server's restoration handle, which the controller fills from the receipt.
 const RESTORE_FROM_RECEIPT: PlanningIntent = {
@@ -69,51 +45,6 @@ function assertSuppliedHours(hours: number): void {
   if (!Number.isFinite(hours) || hours < 0 || hours > MAX_HOURS_PER_DAY) {
     throw new Error(`Hours per day must be a finite number between 0 and ${MAX_HOURS_PER_DAY}.`);
   }
-}
-
-/** Publish only the active company's canonical snapshot; a new or cleared context publishes no rows. */
-function publishPlanning(
-  state: StoreState,
-  next: Partial<PlanningCacheState>,
-): Partial<StoreState> {
-  const planning = next.planning ?? state.planning;
-  if (!next.data) return { planning };
-  if (planning.context === null) {
-    return {
-      data: emptyAppData(),
-      planning,
-      activeAccountId: null,
-      accountSummaries: [],
-      accountSummariesComplete: false,
-      accountSummariesRequestId: state.accountSummariesRequestId + 1,
-    };
-  }
-  // A new context publishes nothing yet: its first canonical read replaces its scoped rows.
-  if (state.planning.context?.companyId !== planning.context.companyId) {
-    return { planning, data: emptyAppData() };
-  }
-  const companyId = planning.context.companyId;
-  const data = emptyAppData();
-  data.accounts = next.data.accounts.filter((account) => account.id === companyId);
-  for (const key of SCOPED_KEYS) {
-    const rows = next.data[key].filter((row) => row.accountId === companyId);
-    Object.assign(data, { [key]: rows });
-  }
-  const account = data.accounts.find((row) => row.id === companyId);
-  return {
-    planning,
-    data,
-    ...(account && !state.data.accounts.some((row) => row.id === companyId)
-      ? { ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(data, companyId)) }
-      : {}),
-    ...(account
-      ? {
-          accountSummaries: state.accountSummaries.map((summary) =>
-            summary.id === companyId ? { ...summary, name: account.name } : summary,
-          ),
-        }
-      : {}),
-  };
 }
 
 function validateNewAllocations(
@@ -180,70 +111,11 @@ function createdRows(get: StoreApi<StoreState>['getState'], ids: readonly ID[]):
 /** Create allocation actions backed by the planning cache controller. */
 export function createAllocationSlice(
   internals: AllocationSliceInternals,
-  transport: PlanningTransport,
 ): StateCreator<StoreState, [], [], AllocationSlice> {
-  return (set, get) => {
+  return (_set, get) => {
     const { requireAccount, blockedByViewer, assertAllocation, resolveOwnedRow, applyPatch } =
       internals;
-    const controller = createPlanningCacheController({
-      getState: () => ({ data: get().data, planning: get().planning }),
-      setState: (update) =>
-        set((state) =>
-          publishPlanning(state, update({ data: state.data, planning: state.planning })),
-        ),
-      transport,
-      onAuthLoss: () => clearPrivatePlanning(true),
-      confirmRestorationCleanup: requestRestorationCleanup,
-    });
-    let contextEpoch = 0;
-    let contextCompanyId: string | null = null;
-    const commandLocks = new Set<symbol>();
-    let activeRead: { companyId: string; promise: Promise<boolean> } | null = null;
-    const syncContext = (companyId: string | null) => {
-      const current = get().planning.context;
-      if (contextCompanyId === companyId && current?.companyId === (companyId ?? undefined)) return;
-      contextCompanyId = companyId;
-      contextEpoch += 1;
-      commandLocks.clear();
-      activeRead = null;
-      controller.setContext(companyId === null ? null : { identity: PAGE_IDENTITY, companyId });
-    };
-    const clearPrivatePlanning = (authLost = false) => {
-      syncContext(null);
-      set((state) => ({
-        data: emptyAppData(),
-        activeAccountId: null,
-        accountSummaries: [],
-        accountSummariesComplete: false,
-        accountSummariesRequestId: state.accountSummariesRequestId + 1,
-        ...(authLost ? { planningAuthLossVersion: state.planningAuthLossVersion + 1 } : {}),
-      }));
-    };
-    const commandsSuspended = () => {
-      syncContext(get().activeAccountId);
-      return commandLocks.size > 0;
-    };
-    const replacementReady = () => {
-      const companyId = get().activeAccountId;
-      const planning = get().planning;
-      return (
-        companyId !== null &&
-        commandLocks.size === 0 &&
-        planning.context?.companyId === companyId &&
-        planning.canWrite &&
-        planning.revision !== null &&
-        planning.pending === null &&
-        (planning.status === 'ready' || planning.status === 'refused')
-      );
-    };
-    const send = async (command: PlanningCommand): Promise<void> => {
-      if (blockedByViewer()) return;
-      if (commandsSuspended()) {
-        throw new Error('Planning commands are suspended while company data changes.');
-      }
-      const receipt = await controller.execute(controller.begin(), command.intent, command.inverse);
-      if (!receipt) throw new PlanningSaveCancelledError();
-    };
+    const send = (command: PlanningCommand) => get().sendPlanningCommand(command);
     const prepareNew = (inputs: readonly Draft<Allocation>[]) => {
       if (inputs.length === 0) throw new Error('At least one allocation is required.');
       const accountId = requireAccount();
@@ -256,8 +128,6 @@ export function createAllocationSlice(
     };
 
     return {
-      planning: createPlanningCacheState().planning,
-      sendPlanningCommand: send,
       addAllocation: async (input) => {
         const prepared = prepareNew([input]);
         if (!prepared) return { kind: 'blocked' };
@@ -359,57 +229,6 @@ export function createAllocationSlice(
           inverse: RESTORE_FROM_RECEIPT,
         });
       },
-      refreshPlanning: (options) => {
-        const companyId = get().activeAccountId;
-        if (companyId === null) {
-          syncContext(null);
-          return Promise.resolve(false);
-        }
-        syncContext(companyId);
-        if (!options?.fresh && activeRead?.companyId === companyId) return activeRead.promise;
-        // A canonical read alone never settles an uncertain write; only its commitment lookup can,
-        // so every refresh trigger (focus, interval, legacy save) reconciles first.
-        const settle =
-          get().planning.outcome?.kind === 'uncertain'
-            ? controller.reconcile()
-            : Promise.resolve(false);
-        const promise = settle
-          .then((settled) => settled || controller.refresh())
-          .then(
-            (accepted) =>
-              accepted && get().activeAccountId === companyId && contextCompanyId === companyId,
-          );
-        activeRead = { companyId, promise };
-        void promise.finally(() => {
-          if (activeRead?.promise === promise) activeRead = null;
-        });
-        return promise;
-      },
-      clearPlanning: () => clearPrivatePlanning(),
-      suspendPlanningCommands: () => {
-        const companyId = get().activeAccountId;
-        syncContext(companyId);
-        const planning = get().planning;
-        if (
-          companyId === null ||
-          planning.context?.companyId !== companyId ||
-          planning.pending !== null ||
-          commandLocks.size > 0
-        ) {
-          return null;
-        }
-        const epoch = contextEpoch;
-        const token = Symbol('planning suspension');
-        commandLocks.add(token);
-        return () => {
-          if (epoch === contextEpoch) commandLocks.delete(token);
-        };
-      },
-      planningReadyForReplacement: () => replacementReady(),
-      undoPlanning: () =>
-        blockedByViewer() || commandsSuspended() ? Promise.resolve(false) : controller.undo(),
-      redoPlanning: () =>
-        blockedByViewer() || commandsSuspended() ? Promise.resolve(false) : controller.redo(),
     };
   };
 }

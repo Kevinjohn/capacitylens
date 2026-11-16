@@ -115,19 +115,30 @@ async function transitionLifecycle(
   Object.assign(current, next);
 }
 
+/** One planning intent and the verified context it is applied in. */
+export interface ExecutePlanningIntentOptions {
+  trx: TransactionClientContract;
+  accountId: string;
+  intent: PlanningIntent;
+  capabilities: PlanningCapabilities;
+  /** The mutable, complete company snapshot; the caller keeps its own before-image. */
+  data: AppData;
+  identity: RestorationIdentity;
+}
+
 /**
  * Applies one intent to the caller's transaction and mutable, complete company snapshot.
  * The caller retains a separate before-image and owns rollback, revision, audit and commitment.
  * Typed allocation deletes return a new restoration group; restore returns the group it consumed.
  */
-export async function executePlanningIntent(
-  trx: TransactionClientContract,
-  accountId: string,
-  intent: PlanningIntent,
-  capabilities: PlanningCapabilities,
-  data: AppData,
-  identity: RestorationIdentity
-): Promise<PlanningMutationSuccess['restoration']> {
+export async function executePlanningIntent({
+  trx,
+  accountId,
+  intent,
+  capabilities,
+  data,
+  identity,
+}: ExecutePlanningIntentOptions): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null };
   if (!capabilities.canWrite) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');

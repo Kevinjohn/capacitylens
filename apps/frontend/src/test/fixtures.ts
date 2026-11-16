@@ -13,7 +13,7 @@ import type {
   Weekday,
 } from '@capacitylens/shared/types/entities';
 import type { Draft } from '@/store/useStore';
-import type { LifecycleEntity } from '@/store/entityDrafts';
+import type { LifecycleEntity } from '@/lib/entityDrafts';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import {

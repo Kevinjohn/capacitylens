@@ -1,11 +1,6 @@
-import db from '@adonisjs/lucid/services/db';
 import type { AppData } from '@capacitylens/shared/types/entities';
-import { seed, seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
-import { assertSchemaIntegrity } from '#services/schema_integrity';
-import { withTransaction } from '#services/with_transaction';
 import Account from '#models/account';
-import { establishInitialCompanyAuthority } from '#services/initial_company_authority';
 import Activity from '#models/activity';
 import Allocation from '#models/allocation';
 import Client from '#models/client';
@@ -19,8 +14,7 @@ import type { BaseModel } from '@adonisjs/lucid/orm';
 import type { QueryClientContract } from '@adonisjs/lucid/types/database';
 import type { ModelColumnOptions } from '@adonisjs/lucid/types/model';
 import { isJsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
-import { hasNoCompany } from '#services/installation_company';
-import { tables, type ProductTable } from '#services/product_tables';
+import type { ProductTable } from '#services/product_tables';
 
 const snake = (key: string) => key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
@@ -116,62 +110,4 @@ export async function readStateWithClient(
     closures: serializeRows(closures),
   } as unknown as AppData;
   return includeInactive ? data : activeOnly(data);
-}
-
-/** Add fixture rows without replacing operator data or audit history. */
-export async function insertSeed() {
-  await withTransaction(async (trx) => {
-    const data = seed();
-    for (const [key, table] of Object.entries(tables)) {
-      const rows = data[key as keyof typeof tables];
-      if (rows.length > 0) {
-        await trx
-          .table(table)
-          .insert(rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>)))
-          .onConflict('id')
-          .ignore();
-      }
-    }
-  });
-}
-
-export async function checkDatabase() {
-  await db.rawQuery('select 1');
-  await assertSchemaIntegrity();
-}
-
-/** Insert the single disposable company graph and its authority in one transaction. */
-export async function insertDisposableDemoSeed(ownerId: string) {
-  await withTransaction(async (trx) => {
-    if (!(await hasNoCompany(trx))) {
-      throw new Error('Refusing demo seed: companies already exist');
-    }
-    if (await trx.from('memberships').first()) {
-      throw new Error('Refusing demo seed: memberships already exist');
-    }
-    const data = seedForCurrentWeek();
-    const company = data.accounts.find((account) => account.id === 'a-studio');
-    if (!company) throw new Error('Disposable company fixture is missing');
-    for (const [key, table] of Object.entries(tables)) {
-      const rows =
-        key === 'accounts'
-          ? [company]
-          : data[key as keyof typeof tables].filter(
-              (row) => 'accountId' in row && row.accountId === company.id
-            );
-      if (rows.length > 0) {
-        await trx
-          .table(table)
-          .multiInsert(
-            rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>))
-          );
-      }
-    }
-    await establishInitialCompanyAuthority(trx, {
-      accountId: company.id,
-      ownerId,
-      actorId: ownerId,
-      now: new Date().toISOString(),
-    });
-  });
 }
