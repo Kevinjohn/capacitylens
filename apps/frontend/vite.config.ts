@@ -277,7 +277,16 @@ export default defineConfig(({ mode, command }) => {
       setupFiles: ['./src/test/setup.ts'],
       css: true,
       include: ['src/**/*.{test,spec}.{ts,tsx}', '../../packages/shared/**/*.{test,spec}.ts'],
-      exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
+      // The docs lightbox test reads the built site in docs/, which is not committed; it runs
+      // after `pnpm run docs:build` through `pnpm run docs:test`.
+      exclude: [
+        'e2e/**',
+        'node_modules/**',
+        'dist/**',
+        ...(process.env.CAPACITYLENS_DOCS_SITE_TESTS === '1'
+          ? []
+          : ['src/test/docs-lightbox.test.ts']),
+      ],
       coverage: {
         provider: 'v8',
         reporter: ['text-summary', 'html', 'lcov'],

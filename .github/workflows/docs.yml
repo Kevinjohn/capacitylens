@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - 'docs-src/**'
-      - 'docs/**'
       - 'scripts/docs/docs-standalone.mjs'
       - 'scripts/docs/check-docs-navigation.mjs'
       - 'scripts/docs/docs-lightbox.js'
@@ -20,7 +19,6 @@ on:
     branches: [main]
     paths:
       - 'docs-src/**'
-      - 'docs/**'
       - 'scripts/docs/docs-standalone.mjs'
       - 'scripts/docs/check-docs-navigation.mjs'
       - 'scripts/docs/docs-lightbox.js'
@@ -43,7 +41,7 @@ permissions:
 
 jobs:
   build:
-    # Validate the committed standalone site with dead-link and relative-URL checks; deployment uses the committed output.
+    # Build the standalone site with dead-link and relative-URL checks; the Pages workflow builds its own copy.
     name: Build documentation site
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -53,16 +51,5 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm run docs:build
-      - name: Check the committed site matches its sources
-        # Require a committed rebuild so changed sources cannot ship with stale generated HTML.
-        run: |
-          # Porcelain status includes newly emitted untracked assets, which git diff would miss.
-          if [ -n "$(git status --porcelain -- docs)" ]; then
-            # Which files, and then the actual hunks: a file count alone says
-            # nothing about whether the cause is real staleness or a build
-            # input that differs between this runner and the author's machine.
-            git status --short -- docs
-            git diff -- docs | head -100
-            echo "::error::docs/ is out of date. Run 'pnpm run docs:build' and commit the result."
-            exit 1
-          fi
+      - name: Check the built site's image lightbox
+        run: pnpm run docs:test
