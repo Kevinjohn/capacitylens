@@ -31,7 +31,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Invite["InviteAccept reads token from /invite/:token"] --> Preview["accountClient.previewInvitation"]
+    Invite["InviteAccept reads token from /invite/:token"] --> Preview["readInvitationPreview"]
     Preview --> PreviewRoute["api.invites.preview → InvitationsController.preview"]
     PreviewRoute --> KitInspect["Account Kit invitations.inspect returns offered email and role"]
     KitInspect --> Form["InviteAccept renders Name and Password fields"]
@@ -42,4 +42,4 @@ flowchart TD
     PreviewRoute -. "Invalid or expired token" .-> Error["InviteAccept shows invitation error"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [accountClient.ts](../../apps/frontend/src/account/accountClient.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [invitationSignupClient.ts](../../apps/frontend/src/account/invitationSignupClient.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx)

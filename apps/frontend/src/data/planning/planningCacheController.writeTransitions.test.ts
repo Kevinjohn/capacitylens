@@ -2,12 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { makeClient } from '@/test/fixtures';
-import {
-  isPlanningHistoryReady,
-  isShownByPlanningState,
-  PlanningControllerError,
-  readPlanningProblem,
-} from './planningCacheController';
+import { isPlanningHistoryReady } from './planningReadiness';
+import { isShownByPlanningState, readPlanningProblem } from './planningNotices';
+import { PlanningControllerError } from './planningErrors';
 import {
   update,
   inverse,

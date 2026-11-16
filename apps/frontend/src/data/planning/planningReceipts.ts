@@ -2,7 +2,7 @@ import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
-import type { PlanningSnapshot } from './planningCacheController';
+import type { PlanningSnapshot } from './planningCacheTypes';
 
 // Shape and scope checks for server reads and receipts, and applying a receipt's patch projection.
 

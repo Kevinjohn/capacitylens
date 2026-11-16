@@ -89,7 +89,15 @@ and `b` inside a comparator.
 Parameters are at most three, subject first. A fourth parameter, or a boolean flag in any
 position, turns the list into one options object with a named type ending in `Options` or
 `Input`. Dependencies (the transaction, the clock, the fetch) are parameters, never imports of a
-singleton. Optional means absent, not `null`.
+singleton; a clock parameter may default to the current time so production callers need not pass
+it. A backend service that serves a request takes the verified actor and the transaction from its
+controller, and only controllers and middleware read the request; a service that wraps a package
+bound to the request (Masquerade, Account Kit sign-in) receives the context only to hand it to
+that package. Boot-time and operator services run outside any request and are exempt: Ace commands
+and `app/services/operations/`, the readiness and schema checks, fixture, demo and development bootstrap seeding, storage
+maintenance and the transaction helper may import the database service and read the clock, and a
+function they share with request code may default its connection to that service. Optional means
+absent, not `null`.
 
 Results with several outcomes are a discriminated union on `kind`, named `<Thing>Result` or
 `<Thing>Outcome`; `LifecycleAncestryResult` in `packages/shared/src/domain/lifecycle/ancestry.ts`

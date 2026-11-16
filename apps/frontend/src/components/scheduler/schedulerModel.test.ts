@@ -4,7 +4,7 @@ import { buildSchedulerModel } from './schedulerModel';
 import { buildEmptyFilters } from '@/store/useStore';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, Weekday } from '@capacitylens/shared/types/entities';
-import { hasRenderableDateRange } from './schedulerModelIndexing';
+import { hasRenderableDateRange } from '@/lib/renderableDateRanges';
 import { makeAllocation, makeResource, requireValue } from '@/test/fixtures';
 import {
   allBars,

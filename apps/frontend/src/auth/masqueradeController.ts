@@ -3,12 +3,8 @@ import type {
   MasqueradeState,
   MasqueradeStatus,
 } from '@capacitylens/shared/domain/masquerade';
-import { setMasqueradeEndedHandler } from '@/data/requestTimeout';
-import { useStore } from '@/store/useStore';
-import { createPlanningTransport } from '@/data/planning/planningTransport';
-import { masqueradeApi } from './masqueradeApi';
-import { setMasqueradeContextToken } from './masqueradeContext';
-import { reprojectAccess } from './reprojectAccess';
+import type { masqueradeApi } from './masqueradeApi';
+import type { StoreState } from '@/store/types';
 import {
   publishMasqueradeAccount,
   restoreMasqueradeProjection,
@@ -53,6 +49,10 @@ export interface MasqueradeControllerDependencies {
   switchAccount: (accountId: string | null) => Promise<RefreshOutcome>;
   readBootstrapAccount: (accountId: string) => Promise<string | null>;
   api: typeof masqueradeApi;
+  /** The store state this controller reads and writes; the controller reaches no other state. */
+  readState: () => StoreState;
+  /** The one writer of the masquerade context proof the data layer sends with each request. */
+  setContextToken: (token: string | null) => void;
 }
 
 /** Sole owner of the persistence suspension used by identity masquerade transitions. */
@@ -66,13 +66,17 @@ export class MasqueradeController {
     this.dependencies = dependencies;
   }
 
+  private get store(): StoreState {
+    return this.dependencies.readState();
+  }
+
   /** Revoke every in-flight projection before an outgoing identity can publish again. */
   invalidate(): void {
     ++this.generation;
     this.startPendingGeneration = null;
     this.releaseSuspension({ dropParkedEdits: true });
-    setMasqueradeContextToken(null);
-    useStore.getState().setMasquerade({ kind: 'inactive' });
+    this.dependencies.setContextToken(null);
+    this.store.setMasquerade({ kind: 'inactive' });
   }
 
   private acquireSuspension(): boolean {
@@ -88,12 +92,12 @@ export class MasqueradeController {
   }
 
   private fail(message: string): false {
-    useStore.getState().setNotice(message, 'error');
+    this.store.setNotice(message, 'error');
     return false;
   }
 
   private ownsRuntime(generation: number, kind: 'starting' | 'active' | 'ending'): boolean {
-    const runtime = useStore.getState().masquerade;
+    const runtime = this.store.masquerade;
     return (
       runtime.kind === kind && runtime.generation === generation && this.generation === generation
     );
@@ -102,20 +106,18 @@ export class MasqueradeController {
   /** Capture the owning projection so a late status read cannot replace a newer transition. */
   captureStatusReconciliation(): () => boolean {
     const generation = this.generation;
-    const accountId = useStore.getState().activeAccountId;
-    const runtime = useStore.getState().masquerade;
+    const accountId = this.store.activeAccountId;
+    const runtime = this.store.masquerade;
     return () =>
       this.generation === generation &&
-      useStore.getState().activeAccountId === accountId &&
-      useStore.getState().masquerade === runtime;
+      this.store.activeAccountId === accountId &&
+      this.store.masquerade === runtime;
   }
 
   private async reconcileStatusAfterContextError(): Promise<void> {
     const isCurrent = this.captureStatusReconciliation();
     try {
-      const status = await this.dependencies.api.status(
-        useStore.getState().activeAccountId ?? undefined,
-      );
+      const status = await this.dependencies.api.status(this.store.activeAccountId ?? undefined);
       if (isCurrent()) await this.adoptStatus(status);
     } catch (error) {
       console.warn('Masquerade context status could not be reconciled', error);
@@ -131,8 +133,8 @@ export class MasqueradeController {
     if (this.startPendingGeneration !== generation) return false;
     this.startPendingGeneration = null;
     if (this.generation !== generation) return false;
-    if (useStore.getState().masquerade.kind !== 'inactive') return false;
-    if (flush.kind !== 'clean' || !useStore.getState().planningReadyForReplacement()) {
+    if (this.store.masquerade.kind !== 'inactive') return false;
+    if (flush.kind !== 'clean' || !this.store.planningReadyForReplacement()) {
       return this.fail(
         'Finish loading or resolving company changes before starting a member view.',
       );
@@ -142,16 +144,18 @@ export class MasqueradeController {
         'Finish loading or resolving company changes before starting a member view.',
       );
     }
-    useStore
-      .getState()
-      .setMasquerade({ kind: 'starting', pending: { accountId, targetUserId }, generation });
+    this.store.setMasquerade({
+      kind: 'starting',
+      pending: { accountId, targetUserId },
+      generation,
+    });
     return true;
   }
 
   private failOwnedStart(generation: number, error: unknown): false {
     if (!this.ownsRuntime(generation, 'starting')) return false;
     this.releaseSuspension({ dropParkedEdits: false });
-    useStore.getState().setMasquerade({ kind: 'inactive' });
+    this.store.setMasquerade({ kind: 'inactive' });
     return this.fail(error instanceof Error ? error.message : 'Masquerade could not be started.');
   }
 
@@ -176,8 +180,8 @@ export class MasqueradeController {
         'The member view started, but its data could not be loaded. Retry or end the masquerade.',
       );
     }
-    publishMasqueradeAccount(state);
-    useStore.getState().setMasquerade({ kind: 'active', state, generation });
+    publishMasqueradeAccount(this.store, state);
+    this.store.setMasquerade({ kind: 'active', state, generation });
     return true;
   }
 
@@ -186,10 +190,10 @@ export class MasqueradeController {
     // duration Infinity, so a double-click would leave a permanent error banner over a working
     // member view. This is ordinary feedback about a duplicate click, not a failure.
     if (this.startPendingGeneration !== null) {
-      useStore.getState().setNotice('A member view is already starting.', 'info');
+      this.store.setNotice('A member view is already starting.', 'info');
       return false;
     }
-    if (useStore.getState().masquerade.kind !== 'inactive') {
+    if (this.store.masquerade.kind !== 'inactive') {
       return this.fail('End the current masquerade before starting another.');
     }
     const generation = ++this.generation;
@@ -216,20 +220,23 @@ export class MasqueradeController {
       return this.failOwnedStart(generation, error);
     }
     if (!this.ownsRuntime(generation, 'starting')) return false;
-    setMasqueradeContextToken(state.token);
-    useStore
-      .getState()
-      .setMasquerade({ kind: 'starting', pending: { accountId, targetUserId }, state, generation });
+    this.dependencies.setContextToken(state.token);
+    this.store.setMasquerade({
+      kind: 'starting',
+      pending: { accountId, targetUserId },
+      state,
+      generation,
+    });
     return this.finishStartProjection(generation, accountId, state);
   }
 
   async retryProjection(): Promise<boolean> {
-    const runtime = useStore.getState().masquerade;
+    const runtime = this.store.masquerade;
     if (runtime.kind === 'inactive') return false;
     const state = runtime.state;
     if (!state) return false;
     const generation = runtime.generation;
-    if (useStore.getState().activeAccountId === null) {
+    if (this.store.activeAccountId === null) {
       return this.loadColdProjection(state, generation);
     }
     if (!this.acquireSuspension()) {
@@ -249,8 +256,8 @@ export class MasqueradeController {
       console.error('Masquerade projection retry failed', error);
       return this.fail('The member view could not be loaded.');
     }
-    publishMasqueradeAccount(state);
-    useStore.getState().setMasquerade({ kind: 'active', state, generation });
+    publishMasqueradeAccount(this.store, state);
+    this.store.setMasquerade({ kind: 'active', state, generation });
     return true;
   }
 
@@ -258,12 +265,11 @@ export class MasqueradeController {
     reason: ClientMasqueradeEndReason = 'explicit',
     navigate?: (to: string) => void,
   ): Promise<boolean> {
-    const runtime = useStore.getState().masquerade;
+    const runtime = this.store.masquerade;
     // A selected company can still lack a trustworthy projection after its first canonical read fails.
     // Once End is confirmed, show account recovery rather than expose that unread projection.
     const cold =
-      useStore.getState().activeAccountId === null ||
-      (runtime.kind === 'starting' && !this.resumeWrites);
+      this.store.activeAccountId === null || (runtime.kind === 'starting' && !this.resumeWrites);
     const ended = await this.endProjection({
       reason: reason,
       finish: async (state) => {
@@ -293,7 +299,7 @@ export class MasqueradeController {
   }
 
   async transitionAccount(accountId: string | null): Promise<boolean> {
-    const runtime = useStore.getState().masquerade;
+    const runtime = this.store.masquerade;
     if (runtime.kind === 'inactive') {
       // A start still flushing belongs to the old company and must not run after the switch.
       if (this.startPendingGeneration !== null) {
@@ -326,7 +332,7 @@ export class MasqueradeController {
     failureMessage,
     options,
   }: EndProjectionInput): Promise<EndProjectionResult> {
-    const runtime = useStore.getState().masquerade;
+    const runtime = this.store.masquerade;
     const state = runtime.kind === 'inactive' ? null : runtime.state;
     if (!state) {
       if (options.onNoState === 'succeed') return { kind: 'noop' };
@@ -334,15 +340,13 @@ export class MasqueradeController {
       return { kind: 'failed' };
     }
     const cold =
-      runtime.kind !== 'inactive' &&
-      useStore.getState().activeAccountId === null &&
-      !this.resumeWrites;
+      runtime.kind !== 'inactive' && this.store.activeAccountId === null && !this.resumeWrites;
     if (!cold && !this.acquireSuspension()) {
       this.fail('Finish loading or resolving company changes before ending the member view.');
       return { kind: 'failed' };
     }
     const generation = ++this.generation;
-    useStore.getState().setMasquerade({ kind: 'ending', state, generation });
+    this.store.setMasquerade({ kind: 'ending', state, generation });
     try {
       await this.dependencies.api.end(state.token, reason);
       if (!this.ownsRuntime(generation, 'ending')) return { kind: 'superseded' };
@@ -354,7 +358,7 @@ export class MasqueradeController {
       if (projection.kind === 'superseded') return { kind: 'superseded' };
       if (projection.kind === 'failed') return { kind: 'failed' };
       this.releaseSuspension({ dropParkedEdits: true });
-      useStore.getState().setMasquerade({ kind: 'inactive' });
+      this.store.setMasquerade({ kind: 'inactive' });
       return { kind: 'inactive' };
     } catch (error) {
       // Return a typed failed outcome only to the owning end generation so stale completions cannot change current recovery state.
@@ -369,7 +373,7 @@ export class MasqueradeController {
         }
         if (!this.ownsRuntime(generation, 'ending')) return { kind: 'superseded' };
         this.releaseSuspension({ dropParkedEdits: true });
-        useStore.getState().setMasquerade({ kind: 'inactive' });
+        this.store.setMasquerade({ kind: 'inactive' });
         return { kind: 'inactive' };
       } catch (reconciliationError) {
         console.warn('Masquerade end status could not be reconciled', reconciliationError);
@@ -380,16 +384,12 @@ export class MasqueradeController {
 
   /** Adopt status before PermissionProvider publishes an effective role, preventing a writable frame. */
   async adoptStatus(status: MasqueradeStatus): Promise<void> {
-    setMasqueradeContextToken(status.contextToken);
+    this.dependencies.setContextToken(status.contextToken);
     if (!status.active) {
-      const current = useStore.getState().masquerade;
-      if (
-        current.kind === 'starting' &&
-        current.state &&
-        useStore.getState().activeAccountId === null
-      ) {
+      const current = this.store.masquerade;
+      if (current.kind === 'starting' && current.state && this.store.activeAccountId === null) {
         ++this.generation;
-        useStore.getState().setMasquerade({ kind: 'inactive' });
+        this.store.setMasquerade({ kind: 'inactive' });
         return;
       }
       if (current.kind === 'active' || current.kind === 'starting') {
@@ -403,7 +403,7 @@ export class MasqueradeController {
   private async adoptActiveStatus(
     status: Extract<MasqueradeStatus, { active: true }>,
   ): Promise<void> {
-    const current = useStore.getState().masquerade;
+    const current = this.store.masquerade;
     // The controller already owns these transitions. A membership invalidation triggered by its
     // own reproject must not publish `active` before that authoritative reload has completed.
     if (current.kind === 'starting') {
@@ -423,8 +423,8 @@ export class MasqueradeController {
       return;
     }
     const generation = ++this.generation;
-    if (useStore.getState().activeAccountId === null) {
-      useStore.getState().setMasquerade({
+    if (this.store.activeAccountId === null) {
+      this.store.setMasquerade({
         kind: 'starting',
         pending: { accountId: status.accountId, targetUserId: status.targetUserId },
         state: status,
@@ -433,7 +433,7 @@ export class MasqueradeController {
       await this.loadColdProjection(status, generation);
       return;
     }
-    useStore.getState().setMasquerade({
+    this.store.setMasquerade({
       kind: 'starting',
       pending: { accountId: status.accountId, targetUserId: status.targetUserId },
       state: status,
@@ -453,11 +453,11 @@ export class MasqueradeController {
       if (name === null) {
         return this.fail('The member view could not be loaded. Retry or end the masquerade.');
       }
-      useStore.getState().setAccountSummaries({
+      this.store.setAccountSummaries({
         list: [{ id: state.accountId, name, role: state.effectiveRole }],
         complete: true,
       });
-      useStore.getState().setActiveAccount(state.accountId);
+      this.store.setActiveAccount(state.accountId);
       if (!(await this.dependencies.reproject(state.accountId, false))) {
         if (this.ownsRuntime(generation, 'starting')) {
           return this.fail('The member view could not be loaded. Retry or end the masquerade.');
@@ -468,15 +468,14 @@ export class MasqueradeController {
       if (!this.acquireSuspension()) {
         return this.fail('The member view could not be loaded. Retry or end the masquerade.');
       }
-      publishMasqueradeAccount(state);
+      publishMasqueradeAccount(this.store, state);
       const loadedName =
-        useStore.getState().data.accounts.find((account) => account.id === state.accountId)?.name ??
-        name;
-      useStore.getState().setAccountSummaries({
+        this.store.data.accounts.find((account) => account.id === state.accountId)?.name ?? name;
+      this.store.setAccountSummaries({
         list: [{ id: state.accountId, name: loadedName, role: state.effectiveRole }],
         complete: true,
       });
-      useStore.getState().setMasquerade({ kind: 'active', state, generation });
+      this.store.setMasquerade({ kind: 'active', state, generation });
       return true;
     } catch (error) {
       if (!this.ownsRuntime(generation, 'starting')) return false;
@@ -487,7 +486,7 @@ export class MasqueradeController {
 
   /** A projected read reported that server-side revalidation ended this session's masquerade. */
   restoreServerEndedProjection(): void {
-    const runtime = useStore.getState().masquerade;
+    const runtime = this.store.masquerade;
     if (runtime.kind === 'inactive') {
       void this.reconcileStatusAfterContextError();
       return;
@@ -497,7 +496,7 @@ export class MasqueradeController {
     if (!state) return;
     if (!this.acquireSuspension()) return;
     const generation = ++this.generation;
-    useStore.getState().setMasquerade({ kind: 'ending', state, generation });
+    this.store.setMasquerade({ kind: 'ending', state, generation });
     void this.restoreAfterServerEnd(state, generation);
   }
 
@@ -509,11 +508,11 @@ export class MasqueradeController {
   ) {
     return restoreMasqueradeProjection({
       state,
-      readStatus: () =>
-        this.dependencies.api.status(useStore.getState().activeAccountId ?? undefined),
+      adoptContextToken: this.dependencies.setContextToken,
+      readStatus: () => this.dependencies.api.status(this.store.activeAccountId ?? undefined),
       isCurrent: () => this.ownsRuntime(generation, 'ending'),
       publishActive: (status) =>
-        useStore.getState().setMasquerade({
+        this.store.setMasquerade({
           kind: 'starting',
           pending: { accountId: status.accountId, targetUserId: status.targetUserId },
           state: status,
@@ -549,31 +548,6 @@ export class MasqueradeController {
     }
     if (!this.ownsRuntime(generation, 'ending')) return;
     this.releaseSuspension({ dropParkedEdits: true });
-    useStore.getState().setMasquerade({ kind: 'inactive' });
+    this.store.setMasquerade({ kind: 'inactive' });
   }
 }
-
-/** Coordinates account switching into and out of masquerade mode. */
-export const masqueradeController = new MasqueradeController({
-  flush: async () => ({
-    kind: useStore.getState().planningReadyForReplacement() ? 'clean' : 'blocked',
-  }),
-  suspend: () => useStore.getState().suspendPlanningCommands(),
-  reproject: reprojectAccess,
-  switchAccount: async (accountId) => {
-    useStore.getState().setActiveAccount(accountId);
-    return accountId === null || (await useStore.getState().refreshPlanning())
-      ? { kind: 'reloaded' }
-      : { kind: 'failed' };
-  },
-  readBootstrapAccount: async (accountId) => {
-    const snapshot = await createPlanningTransport().read(
-      { identity: Symbol('masquerade bootstrap'), companyId: accountId },
-      new AbortController().signal,
-    );
-    return snapshot.data.accounts.find((account) => account.id === accountId)?.name ?? null;
-  },
-  api: masqueradeApi,
-});
-
-setMasqueradeEndedHandler(() => masqueradeController.restoreServerEndedProjection());

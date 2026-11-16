@@ -1,10 +1,10 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useStore } from '@/store/useStore';
-import { useFieldError } from '@/hooks/useFieldError';
+import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { resolveErrorMessage } from '@/lib/errorMessage';
+import { useFieldError } from '@/hooks/useFieldError';
 import { parseText } from '@/lib/validation';
-import { isStaleEdit } from '@/lib/isStaleEdit';
 import { m } from '@/i18n';
 import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
@@ -62,20 +62,26 @@ export function ExternalForm({
   const update = useStore((state) => state.updateResource);
   const [name, setName] = useState(resource?.name ?? '');
   const [role, setRole] = useState(resource?.role ?? '');
-  const [pending, setPending] = useState(false);
-  const inFlight = useRef(false);
   const { error, errorField, errorId, fail } = useFieldError();
+  const resources = useStore((state) => state.data.resources);
+  const { pending, submit } = useEditSubmit({
+    editing: resource,
+    rows: resources,
+    staleMessage: m.form_external_err_changed,
+    cancelledMessage: resolveErrorMessage,
+    fail,
+    onSaved: onClose,
+  });
 
-  const submit = async () => {
-    if (inFlight.current) return;
+  const prepareSave = () => {
     const cleanName = parseText(name, fail, {
       field: 'name',
       required: true,
       requiredMessage: m.form_external_err_company_required(),
     });
-    if (cleanName === null) return;
+    if (cleanName === null) return null;
     const cleanRole = parseText(role, fail, { field: 'role', required: false });
-    if (cleanRole === null) return;
+    if (cleanRole === null) return null;
     const patch = {
       kind: 'external' as const,
       name: cleanName,
@@ -84,27 +90,7 @@ export function ExternalForm({
       ...externalCapacityDefaults(),
       color: NEUTRAL_COLOR,
     };
-    inFlight.current = true;
-    setPending(true);
-    try {
-      if (resource) {
-        if (isStaleEdit(useStore.getState().data.resources, resource.id, resource.updatedAt)) {
-          fail(null, m.form_external_err_changed());
-          return;
-        }
-        await update(resource.id, patch);
-      } else {
-        const result = await add(patch);
-        if (result.kind === 'blocked') return;
-      }
-      onClose();
-    } catch (e) {
-      // Surface store rejection inside the external-resource form so invalid writes cannot fail silently.
-      fail(null, resolveErrorMessage(e));
-    } finally {
-      inFlight.current = false;
-      setPending(false);
-    }
+    return resource ? () => update(resource.id, patch) : () => add(patch);
   };
 
   return (
@@ -112,7 +98,7 @@ export function ExternalForm({
       title={resource ? m.form_external_edit_title() : m.form_external_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        void submit();
+        void submit(prepareSave);
       }}
       footer={<FormActions onCancel={onClose} disabled={pending} />}
     >

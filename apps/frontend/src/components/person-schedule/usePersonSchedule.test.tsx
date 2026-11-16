@@ -19,7 +19,7 @@ import { usePersonSchedule } from './usePersonSchedule';
 
 const calendarToday = vi.hoisted(() => ({ today: '2026-09-10', timeZone: '' }));
 
-vi.mock('@/components/scheduler/useCalendarToday', () => ({
+vi.mock('@/hooks/useCalendarToday', () => ({
   useCalendarToday: (timeZone: string) => {
     calendarToday.timeZone = timeZone;
     return calendarToday.today;

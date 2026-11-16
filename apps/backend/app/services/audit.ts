@@ -1,5 +1,6 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 
+/** Records one audit entry in the caller's transaction; `now` defaults to the current time. */
 export async function writeAudit(
   trx: TransactionClientContract,
   input: {
@@ -9,9 +10,9 @@ export async function writeAudit(
     entity: string;
     entityId: string;
     fields: string[];
-  }
+  },
+  now = new Date().toISOString()
 ) {
-  const now = new Date().toISOString();
   await trx.table('audit_entries').insert({
     id: crypto.randomUUID(),
     account_id: input.accountId,

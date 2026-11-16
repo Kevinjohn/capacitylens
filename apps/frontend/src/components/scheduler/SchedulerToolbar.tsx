@@ -1,9 +1,7 @@
 import { useMemo } from 'react';
 import { useCanEdit } from '@/auth/permissionContext';
-import {
-  isPlanningHistoryReady,
-  isShownByPlanningState,
-} from '@/data/planning/planningCacheController';
+import { isPlanningHistoryReady } from '@/data/planning/planningReadiness';
+import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { hasActiveFilters, useStore } from '@/store/useStore';
 import { hasDisciplinesEnabled } from '@/store/selectors';
