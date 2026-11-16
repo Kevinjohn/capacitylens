@@ -1,13 +1,6 @@
 import { activeOnly, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import type { HttpContext } from '@adonisjs/core/http';
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { getActiveMembership, requireStoredRole } from '#services/auth/authorization';
-import access from '#config/access_control';
-import { effectiveReadPrincipal } from '#services/auth/masquerade';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
-import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
-import type { Role } from '@capacitylens/shared/account/types';
-import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
+import type { AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import { withActor } from '#services/auth/current_actor';
@@ -17,6 +10,13 @@ import {
   assertPlanningBaseRevision,
 } from '#services/planning_revision';
 import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
+import { resolvePlanningAuthority, type PlanningAuthority } from '#services/planning/authority';
+import {
+  invalidatesRestoration,
+  projectionChanges,
+  requiresRefetch,
+  semanticState,
+} from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
 import {
   committedMutationRevision,
@@ -32,17 +32,9 @@ import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
   PlanningMutationLookup,
-  ProjectedPlanningRow,
 } from '#validators/planning/contracts';
 
-export interface PlanningAuthority {
-  actorId: string;
-  effectiveActorId: string;
-  role: Role;
-  canWrite: boolean;
-  canSeePrivateNames: boolean;
-  canSeeTimeOffNote: boolean;
-}
+export type { PlanningAuthority };
 
 export interface PlanningSnapshot {
   accountId: string;
@@ -51,45 +43,10 @@ export interface PlanningSnapshot {
   data: AppData;
 }
 
-async function currentAuthority(
-  ctx: HttpContext,
-  trx: TransactionClientContract,
-  accountId: string
-) {
-  const principal = await effectiveReadPrincipal(ctx, trx, accountId);
-  const membership = await getActiveMembership(principal.effectiveId, accountId, trx);
-  if (!membership || (principal.accountId !== null && principal.accountId !== accountId)) {
-    throw new PlanningOperationError(
-      403,
-      'ACCOUNT_MEMBERSHIP_LOST',
-      'Company membership is unavailable.'
-    );
-  }
-  // Abilities belong to the effective member, whose membership this is.
-  const role = requireStoredRole(membership);
-  if (!access.can(role, 'planning:read')) {
-    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
-  }
-  const masquerading = principal.isMasquerading;
-  const authority: PlanningAuthority = {
-    actorId: principal.actorId,
-    effectiveActorId: principal.effectiveId,
-    role,
-    canWrite: !masquerading && access.can(role, 'planning:write'),
-    canSeePrivateNames: canSeePrivateNames(role),
-    canSeeTimeOffNote: canSeeTimeOffNote(role),
-  };
-  const capabilities: PlanningCapabilities = {
-    ...authority,
-    canAnonymise: !masquerading && access.can(role, 'resources:anonymise'),
-  };
-  return { authority, capabilities };
-}
-
 /** Resolves current product authority, revision and rows from the same database snapshot. */
 export function readPlanning(ctx: HttpContext, accountId: string): Promise<PlanningSnapshot> {
   return withActor(ctx, async (_actor, trx) => {
-    const { authority } = await currentAuthority(ctx, trx, accountId);
+    const { authority } = await resolvePlanningAuthority(ctx, trx, accountId);
     const revision = await getPlanningRevision(trx, accountId);
     const data = await readStateWithClient(trx, accountId, true);
     return {
@@ -104,76 +61,13 @@ export function readPlanning(ctx: HttpContext, accountId: string): Promise<Plann
 /** Read only recoverable identities under current transactional write authority. */
 export function readArchiveRecovery(ctx: HttpContext, accountId: string) {
   return withActor(ctx, async (_actor, trx) => {
-    const { authority } = await currentAuthority(ctx, trx, accountId);
+    const { authority } = await resolvePlanningAuthority(ctx, trx, accountId);
     if (!authority.canWrite) {
       throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
     }
     const data = await readStateWithClient(trx, accountId, true);
     return archiveRecovery(data, accountId, authority.role);
   });
-}
-
-function semanticState(data: AppData) {
-  return JSON.stringify(
-    APP_DATA_KEYS.map((entity) =>
-      data[entity]
-        .map((row) =>
-          Object.fromEntries(
-            Object.entries(row)
-              .filter(([field]) => field !== 'updatedAt')
-              .sort(([a], [b]) => a.localeCompare(b))
-          )
-        )
-        .sort((a, b) => String(a.id).localeCompare(String(b.id)))
-    )
-  );
-}
-
-function projectionChanges(before: AppData, after: AppData) {
-  const upserts: ProjectedPlanningRow[] = [];
-  const removed: Array<{ entity: (typeof APP_DATA_KEYS)[number]; id: string }> = [];
-  for (const entity of APP_DATA_KEYS) {
-    const previous = new Map(before[entity].map((row) => [row.id, row]));
-    const currentIds = new Set(after[entity].map((row) => row.id));
-    for (const row of after[entity]) {
-      if (JSON.stringify(previous.get(row.id)) !== JSON.stringify(row)) {
-        upserts.push({ entity, row } as ProjectedPlanningRow);
-      }
-    }
-    for (const row of before[entity]) {
-      if (!currentIds.has(row.id)) removed.push({ entity, id: row.id });
-    }
-  }
-  return { upserts, removed };
-}
-
-function requiresRefetch(intent: PlanningMutationInput['intent']) {
-  if (intent.operation === 'catalogue.update' && 'changes' in intent.entity) {
-    return (
-      Object.hasOwn(intent.entity.changes, 'isPrivate') ||
-      Object.hasOwn(intent.entity.changes, 'codeName') ||
-      (intent.entity.entity === 'activities' && Object.hasOwn(intent.entity.changes, 'kind'))
-    );
-  }
-  return false;
-}
-
-function invalidatesRestoration(
-  intent: PlanningMutationInput['intent'],
-  before: AppData,
-  after: AppData
-) {
-  if (intent.operation !== 'catalogue.update') return false;
-  const { entity, id, changes } = intent.entity;
-  if (entity !== 'clients' && entity !== 'projects' && entity !== 'activities') return false;
-  const fields = entity === 'activities' ? ['kind'] : ['isPrivate', 'codeName'];
-  const oldRow = before[entity].find((row) => row.id === id);
-  const newRow = after[entity].find((row) => row.id === id);
-  return fields.some(
-    (field) =>
-      Object.hasOwn(changes, field) &&
-      oldRow?.[field as keyof typeof oldRow] !== newRow?.[field as keyof typeof newRow]
-  );
 }
 
 /** Commits one deliberate operation, its revision, audit entry and identity as one atomic unit. */
@@ -183,7 +77,7 @@ export function mutatePlanning(
   input: PlanningMutationInput
 ): Promise<PlanningMutationSuccess> {
   return withActor(ctx, async (actor, trx) => {
-    const { authority, capabilities } = await currentAuthority(ctx, trx, accountId);
+    const { authority, capabilities } = await resolvePlanningAuthority(ctx, trx, accountId);
     if (!authority.canWrite) {
       throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
     }
@@ -276,7 +170,7 @@ export function lookupPlanningMutation(
   mutationId: string
 ): Promise<PlanningMutationLookup> {
   return withActor(ctx, async (actor, trx) => {
-    const { authority } = await currentAuthority(ctx, trx, accountId);
+    const { authority } = await resolvePlanningAuthority(ctx, trx, accountId);
     const revision = await committedMutationRevision(trx, accountId, authority.actorId, mutationId);
     if (revision === undefined) return { status: 'unknown', mutationId };
     const restorationGroupId = await unconsumedGroupId(trx, accountId, {
