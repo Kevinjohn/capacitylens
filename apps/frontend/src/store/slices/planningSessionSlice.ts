@@ -9,11 +9,9 @@ import {
   createPlanningCacheController,
   createPlanningCacheState,
 } from '@/data/planning/planningCacheController';
-import type {
-  PlanningCacheState,
-  PlanningTransport,
-} from '@/data/planning/planningCacheController';
+import type { PlanningCacheState, PlanningTransport } from '@/data/planning/planningCacheTypes';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
+import { isPlanningReadyForChange } from '@/data/planning/planningReadiness';
 import type { StoreInternals } from '@/store/storeInternal';
 import type { StoreState } from '@/store/types';
 
@@ -133,10 +131,7 @@ export function createPlanningSessionSlice(
         companyId !== null &&
         commandLocks.size === 0 &&
         planning.context?.companyId === companyId &&
-        planning.canWrite &&
-        planning.revision !== null &&
-        planning.pending === null &&
-        (planning.status === 'ready' || planning.status === 'refused')
+        isPlanningReadyForChange(planning)
       );
     };
     const send = async (command: PlanningCommand): Promise<void> => {

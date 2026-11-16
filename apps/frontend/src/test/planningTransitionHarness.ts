@@ -12,7 +12,7 @@ import type {
   PlanningControllerOptions,
   PlanningSnapshot,
   PlanningTransport,
-} from '@/data/planning/planningCacheController';
+} from '@/data/planning/planningCacheTypes';
 
 // Shared setup for the planning cache controller transition tests.
 

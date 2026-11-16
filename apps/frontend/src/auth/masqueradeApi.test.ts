@@ -6,8 +6,8 @@ const mocks = vi.hoisted(() => ({
   end: vi.fn<() => Promise<Response>>(),
 }));
 
-vi.mock('@/account/accountClient', () => ({
-  accountClient: {
+vi.mock('./masqueradeRequests', () => ({
+  masqueradeRequests: {
     masqueradeStatus: mocks.status,
     startMasquerade: mocks.start,
     endMasquerade: mocks.end,

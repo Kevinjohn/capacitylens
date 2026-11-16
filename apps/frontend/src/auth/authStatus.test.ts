@@ -4,12 +4,12 @@ import { masqueradeApi } from './masqueradeApi';
 it.each([true, false, undefined, 'true'])(
   'parses the signed-out reset-email flag %s',
   async (passwordResetEmail) => {
-    const { accountClient } = await import('@/account/accountClient');
+    const { sessionRequests } = await import('@/account/sessionRequests');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const status = vi
       .spyOn(masqueradeApi, 'status')
       .mockResolvedValue({ active: false, contextToken: 'idle-context' });
-    const request = vi.spyOn(accountClient, 'me').mockResolvedValue(
+    const request = vi.spyOn(sessionRequests, 'me').mockResolvedValue(
       new Response(JSON.stringify({ passwordResetEmail }), {
         status: 401,
       }),
@@ -28,10 +28,10 @@ it.each([true, false, undefined, 'true'])(
 
 describe('fetchAuthStatus when masquerade status is unreachable', () => {
   it('does not treat a successful /me response as proof that the projection is inactive', async () => {
-    const { accountClient } = await import('@/account/accountClient');
+    const { sessionRequests } = await import('@/account/sessionRequests');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const status = vi.spyOn(masqueradeApi, 'status').mockRejectedValue(new TypeError('offline'));
-    const request = vi.spyOn(accountClient, 'me').mockResolvedValue(
+    const request = vi.spyOn(sessionRequests, 'me').mockResolvedValue(
       new Response(
         JSON.stringify({
           user: { id: 'real-user', email: 'real@example.test', name: 'Real User' },
@@ -48,11 +48,11 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
   });
 
   it('uses a live 401 to offer sign-in while masquerade status is unreachable', async () => {
-    const { accountClient } = await import('@/account/accountClient');
+    const { sessionRequests } = await import('@/account/sessionRequests');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const status = vi.spyOn(masqueradeApi, 'status').mockRejectedValue(new TypeError('offline'));
     const request = vi
-      .spyOn(accountClient, 'me')
+      .spyOn(sessionRequests, 'me')
       .mockResolvedValue(new Response(JSON.stringify({}), { status: 401 }));
     try {
       expect(await fetchAuthStatus(() => false)).toMatchObject({ kind: 'login' });
@@ -63,12 +63,12 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
   });
 
   it('does not query /me after a non-transport status failure', async () => {
-    const { accountClient } = await import('@/account/accountClient');
+    const { sessionRequests } = await import('@/account/sessionRequests');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const status = vi
       .spyOn(masqueradeApi, 'status')
       .mockRejectedValue(new Error('status rejected'));
-    const request = vi.spyOn(accountClient, 'me');
+    const request = vi.spyOn(sessionRequests, 'me');
     try {
       expect(await fetchAuthStatus(() => false)).toMatchObject({ kind: 'error' });
       expect(request).not.toHaveBeenCalled();
@@ -81,7 +81,7 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
 
 describe('fetchAuthStatus masquerade reconciliation', () => {
   it('adopts the idle request proof before querying the authenticated setup boundary', async () => {
-    const { accountClient } = await import('@/account/accountClient');
+    const { sessionRequests } = await import('@/account/sessionRequests');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { getMasqueradeContextToken, setMasqueradeContextToken } =
       await import('./masqueradeContext');
@@ -89,7 +89,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       active: false,
       contextToken: 'idle-context',
     });
-    const request = vi.spyOn(accountClient, 'me').mockImplementation(async () => {
+    const request = vi.spyOn(sessionRequests, 'me').mockImplementation(async () => {
       expect(getMasqueradeContextToken()).toBe('idle-context');
       return new Response(JSON.stringify({}), { status: 401 });
     });
@@ -105,7 +105,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
   });
 
   it('routes an inactive auth status through recovery for a locally active projection', async () => {
-    const { accountClient } = await import('@/account/accountClient');
+    const { sessionRequests } = await import('@/account/sessionRequests');
     const { useStore } = await import('@/store/useStore');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { masqueradeController } = await import('./masqueradeControllerInstance');
@@ -116,7 +116,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       contextToken: 'new-idle-context',
     });
     const request = vi
-      .spyOn(accountClient, 'me')
+      .spyOn(sessionRequests, 'me')
       .mockResolvedValue(new Response(JSON.stringify({}), { status: 401 }));
     const restore = vi
       .spyOn(masqueradeController, 'restoreServerEndedProjection')

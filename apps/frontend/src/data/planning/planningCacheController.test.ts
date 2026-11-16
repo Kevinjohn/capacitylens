@@ -4,11 +4,7 @@ import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { Account, AppData } from '@capacitylens/shared/types/entities';
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
-import type {
-  PlanningCacheState,
-  PlanningSnapshot,
-  PlanningTransport,
-} from './planningCacheController';
+import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { getMasqueradeContextToken, setMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { makeAccount } from '@/test/fixtures';
 
