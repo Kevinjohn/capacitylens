@@ -164,7 +164,6 @@ export async function runDevelopmentStack({ demo = false } = {}) {
     const webEnvironment = { CAPACITYLENS_DEV_API_PORT: String(API_PORT) };
     if (demo)
       Object.assign(webEnvironment, {
-        VITE_CAPACITYLENS_API: '',
         CAPACITYLENS_VITE_SERVICE: 'web',
         CAPACITYLENS_VITE_PORT: String(WEB_PORT),
         CAPACITYLENS_E2E_WORKER: '0',

@@ -14,7 +14,6 @@ import { useExportAction } from './import-export/useExportAction';
 import { usePendingImport } from './import-export/usePendingImport';
 import type { PendingImport } from './import-export/usePendingImport';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
-import { API_BASE } from '@/data/apiConfig';
 import { apiFetch } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 
@@ -159,7 +158,7 @@ export function ImportExport() {
       selectionRef.current === selection && useStore.getState().activeAccountId === activeAccountId;
     setPreviewBusy(true);
     try {
-      const response = await apiFetch(`${API_BASE}/api/transfer/preview`, {
+      const response = await apiFetch('/api/transfer/preview', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

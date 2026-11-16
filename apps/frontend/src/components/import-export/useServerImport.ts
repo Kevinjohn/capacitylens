@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
-import { API_BASE } from '@/data/apiConfig';
 import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { readApiError } from '@/lib/readApiError';
@@ -125,7 +124,7 @@ const runServerImport = async (
   try {
     if (!ownsContext(context)) return;
     const response = await apiFetch(
-      `${API_BASE}/api/transfer/apply`,
+      '/api/transfer/apply',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

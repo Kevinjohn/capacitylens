@@ -35,10 +35,6 @@ vi.mock('@/auth/accountTransition', () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
-
 beforeEach(async () => {
   accountTransitionMocks.startMasquerade.mockClear();
   await resetStoreWithAccount();
@@ -342,7 +338,7 @@ function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
     await user.click(within(dialog).getByRole('button', { name: /Suspend/ }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
         expect.objectContaining({
           method: 'PATCH',
           body: JSON.stringify({ status: 'suspended' }),
@@ -381,7 +377,7 @@ function registerLifecycleVisibilityTests(): void {
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
         expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'active' }) }),
       ),
     );

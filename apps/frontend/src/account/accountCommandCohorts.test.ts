@@ -4,7 +4,6 @@ const mocks = vi.hoisted(() => ({
   apiFetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(),
 }));
 
-vi.mock('@/data/apiConfig', () => ({ API_BASE: 'https://app.example' }));
 vi.mock('@/data/requestTimeout', () => ({
   apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,

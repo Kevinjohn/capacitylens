@@ -32,7 +32,7 @@ const authWebServer = {
   url: `http://127.0.0.1:${lanePorts.authWeb}/health/ready`,
   reuseExistingServer: false,
   timeout: 120_000,
-  env: { CAPACITYLENS_DEV_API_PORT: String(lanePorts.authApi), VITE_CAPACITYLENS_API: '' },
+  env: { CAPACITYLENS_DEV_API_PORT: String(lanePorts.authApi) },
 };
 
 /** Each `*.db.spec.ts` project owns one real SQLite-backed worker server. */

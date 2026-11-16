@@ -9,9 +9,6 @@ import { useStore } from '@/store/useStore';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 import { useArchiveRecovery } from './useArchiveRecovery';
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
 vi.mock('@/api/queryClient', async (original) => ({
   ...(await original<typeof import('@/api/queryClient')>()),
   client: { request },

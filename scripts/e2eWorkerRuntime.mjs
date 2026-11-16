@@ -437,7 +437,6 @@ export async function startE2eWorkerServer(target, lane = resolveLane(), slot = 
           CAPACITYLENS_VITE_PORT: String(ports.web),
           CAPACITYLENS_VITE_CACHE_DIR: viteCachePath,
           CAPACITYLENS_DEV_API_PORT: String(ports.api),
-          VITE_CAPACITYLENS_API: '',
           VITE_CAPACITYLENS_BUILD_SHA: '',
           VITE_CAPACITYLENS_FEEDBACK_MAILTO: '',
         },

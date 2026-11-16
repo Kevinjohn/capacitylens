@@ -18,10 +18,6 @@ vi.mock('@/auth/accountTransition', () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
-
 beforeEach(async () => {
   accountTransitionMocks.startMasquerade.mockClear();
   await resetStoreWithAccount();

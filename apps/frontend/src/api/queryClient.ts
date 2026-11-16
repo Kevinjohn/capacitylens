@@ -3,7 +3,6 @@ import { createTuyauReactQueryClient } from '@tuyau/react-query';
 import { QueryClient } from '@tanstack/react-query';
 import type { RequestArgs } from '@tuyau/core/types';
 import { registry } from '@capacitylens/backend/registry';
-import { API_BASE } from '@/data/apiConfig';
 import { apiFetch } from '@/data/requestTimeout';
 
 /** Identifies the principal and read projection that owns a cached API result. */
@@ -17,8 +16,7 @@ export interface ApiQueryScope {
 export const queryClient = new QueryClient();
 
 /** Absolute base URL for Tuyau so slash-free routes stay rooted at the site origin. */
-const API_CLIENT_BASE =
-  API_BASE || (typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
+const API_CLIENT_BASE = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
 
 /** The typed product API transport. Keep session, timeout, and masquerade handling at the existing fetch boundary. */
 export const client = createTuyau({
@@ -45,7 +43,7 @@ export function apiRouteUrl<Name extends keyof ProductRoutes>(
   name: Name,
   args: RequestArgs<ProductRoutes[Name]>,
 ): string {
-  return `${API_BASE}${client.getRoute(name, args).url}`;
+  return client.getRoute(name, args).url;
 }
 
 type QueryReadRoute = 'api.state' | 'api.admission.index';
@@ -59,7 +57,7 @@ export function apiReadRouteUrl(
   name: QueryReadRoute,
   args: { query?: ProductRoutes[QueryReadRoute]['types']['query'] },
 ): string {
-  return `${API_BASE}${client.urlFor.get(name, undefined, args.query === undefined ? {} : { qs: args.query }).url}`;
+  return client.urlFor.get(name, undefined, args.query === undefined ? {} : { qs: args.query }).url;
 }
 
 /** Prefix a Tuyau route key with the identity scope that is allowed to observe its result. */

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { useCan } from '@/auth/permissionContext';
-import { API_BASE } from '@/data/apiConfig';
 import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { readApiError } from '@/lib/readApiError';
@@ -68,7 +67,7 @@ export function CompanyAnonymiseSection() {
       if (!stillCurrent()) return;
       dispatched = true;
       const response = await apiFetch(
-        `${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/anonymise`,
+        `/api/accounts/${encodeURIComponent(accountId)}/anonymise`,
         {
           method: 'POST',
           credentials: 'include',

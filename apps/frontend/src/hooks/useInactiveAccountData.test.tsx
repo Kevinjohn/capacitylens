@@ -9,10 +9,6 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { makeAccount, makeClient } from '@/test/fixtures';
 import { useInactiveAccountData } from './useInactiveAccountData';
 
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
-
 function payload(accountId: string, name: string) {
   return {
     ...emptyAppData(),

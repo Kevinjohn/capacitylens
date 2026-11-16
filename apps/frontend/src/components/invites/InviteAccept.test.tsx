@@ -5,10 +5,6 @@ import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { accountClient } from '@/account/accountClient';
 import { InviteAccept } from './InviteAccept';
 
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
-
 const preview = {
   email: 'clark.kent@wayne.test',
   accountName: 'Wayne Enterprises',
