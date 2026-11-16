@@ -45,6 +45,7 @@
     "policy:dco:test": "node --test scripts/check-dco.test.mjs",
     "policy:workflow-report:test": "node --test scripts/report-workflow-outcome.test.mjs",
     "policy:release-validation:test": "node --test scripts/require-release-validation.test.mjs",
+    "policy:script-processes:test": "node --test scripts/devProcesses.test.mjs scripts/pnpmSpawn.test.mjs scripts/run-preset.test.mjs",
     "ui:check": "node scripts/check-ui-primitives.mjs",
     "ui:registry": "node scripts/ui-registry.mjs",
     "check:push": "pnpm run format:check && pnpm run typecheck && pnpm run lint",

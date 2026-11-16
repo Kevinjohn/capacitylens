@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -212,10 +220,26 @@ test("gateCommands('all') includes every retained policy, package and security c
     'policy:dco:test',
     'policy:workflow-report:test',
     'policy:release-validation:test',
+    'policy:script-processes:test',
     'policy:node-runtime:test',
   ]) {
     assert.ok(names.includes(`run ${retained}`), retained);
   }
+});
+
+test('every scripts/ test file is named by a root package script', () => {
+  const named = new Set(
+    Object.values(
+      JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).scripts,
+    )
+      .join(' ')
+      .split(/\s+/),
+  );
+  const testFiles = readdirSync(join(root, 'scripts'), { recursive: true })
+    .map((path) => `scripts/${String(path).replaceAll('\\', '/')}`)
+    .filter((path) => /\.test\.[cm]?[jt]s$/.test(path));
+  assert.ok(testFiles.length > 0);
+  for (const file of testFiles) assert.ok(named.has(file), `${file} is run by no script`);
 });
 
 test('every gate runs the bundle check once, through the root build script', () => {

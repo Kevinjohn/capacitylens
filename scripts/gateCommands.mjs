@@ -22,6 +22,7 @@ const toolingChecks = [
   ...structuralChecks,
   ['run', 'policy:workflow-report:test'],
   ['run', 'policy:release-validation:test'],
+  ['run', 'policy:script-processes:test'],
 ];
 const staticChecks = [
   ['run', 'ui:check'],
