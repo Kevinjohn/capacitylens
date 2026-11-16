@@ -15,7 +15,8 @@ import { affectedRows } from '#services/affected_rows';
 import { retainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
 import { tables } from '#services/product_tables';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { existingRow, PlanningOperationError } from './writer.js';
+import { existingRow } from './writer.js';
+import { PlanningOperationError } from './errors.js';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */
 export interface RestorationIdentity {
@@ -265,6 +266,83 @@ export async function restoreGroup(
       .update({ [column]: parentId, updated_at: createServerRevision(child.updatedAt) });
     Object.assign(child, candidate);
   }
+}
+
+/** Whether the caller's own session holds the unconsumed group that retained a row. */
+export async function ownsUnconsumedGroup(
+  trx: TransactionClientContract,
+  accountId: string,
+  groupId: string,
+  identity: Pick<RestorationIdentity, 'actorId' | 'sessionId'>
+) {
+  const group = await trx
+    .from('deleted_groups')
+    .where({
+      group_id: groupId,
+      account_id: accountId,
+      actor_id: identity.actorId,
+      session_id: identity.sessionId,
+    })
+    .whereNull('consumed_at')
+    .select('group_id')
+    .first();
+  return Boolean(group);
+}
+
+/** Ends every restoration group the company holds; their saved rows are deleted with them. */
+export async function discardRestorationGroups(trx: TransactionClientContract, accountId: string) {
+  await trx.from('deleted_groups').where('account_id', accountId).delete();
+}
+
+/** Whether this company already committed a mutation with this identity. */
+export async function isMutationCommitted(
+  trx: TransactionClientContract,
+  accountId: string,
+  mutationId: string
+) {
+  const marker = await trx
+    .from('planning_mutations')
+    .where({ account_id: accountId, mutation_id: mutationId })
+    .select('mutation_id')
+    .first();
+  return Boolean(marker);
+}
+
+/** Records a committed mutation, and the restoration group it created, under its identity. */
+export async function recordCommittedMutation(
+  trx: TransactionClientContract,
+  marker: {
+    accountId: string;
+    mutationId: string;
+    actorId: string;
+    revision: number;
+    restorationGroupId: string | null;
+    originSessionId: number | null;
+  }
+) {
+  await trx.table('planning_mutations').insert({
+    account_id: marker.accountId,
+    mutation_id: marker.mutationId,
+    actor_id: marker.actorId,
+    revision: marker.revision,
+    restoration_group_id: marker.restorationGroupId,
+    origin_session_id: marker.originSessionId,
+  });
+}
+
+/** The revision an actor's committed mutation produced, or undefined when none is recorded. */
+export async function committedMutationRevision(
+  trx: TransactionClientContract,
+  accountId: string,
+  actorId: string,
+  mutationId: string
+) {
+  const marker = await trx
+    .from('planning_mutations')
+    .where({ account_id: accountId, actor_id: actorId, mutation_id: mutationId })
+    .select('revision')
+    .first();
+  return marker ? Number(marker.revision) : undefined;
 }
 
 /** Lookup exposes only the caller's own unconsumed handle for the original mutation. */

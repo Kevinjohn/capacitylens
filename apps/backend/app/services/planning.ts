@@ -19,9 +19,13 @@ import {
 import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
 import { writeAudit } from '#services/audit';
 import {
-  unconsumedGroupId,
+  committedMutationRevision,
   countRestorableItems,
+  discardRestorationGroups,
+  isMutationCommitted,
+  recordCommittedMutation,
   RestorationConfirmationError,
+  unconsumedGroupId,
 } from '#services/planning/restoration';
 import { mutationLookupValidator } from '#validators/planning/lookup';
 import type {
@@ -183,12 +187,7 @@ export function mutatePlanning(
     if (!authority.canWrite) {
       throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
     }
-    const previous = await trx
-      .from('planning_mutations')
-      .where({ account_id: accountId, mutation_id: input.mutationId })
-      .select('mutation_id')
-      .first();
-    if (previous) {
+    if (await isMutationCommitted(trx, accountId, input.mutationId)) {
       throw new PlanningOperationError(
         409,
         'MUTATION_ID_REUSED',
@@ -230,16 +229,16 @@ export function mutatePlanning(
       if (count > 0 && input.confirmedRestorationCount === undefined) {
         throw new RestorationConfirmationError(count, false);
       }
-      await trx.from('deleted_groups').where('account_id', accountId).delete();
+      await discardRestorationGroups(trx, accountId);
     }
     const revision = await advancePlanningRevision(trx, accountId);
-    await trx.table('planning_mutations').insert({
-      account_id: accountId,
-      mutation_id: input.mutationId,
-      actor_id: authority.actorId,
+    await recordCommittedMutation(trx, {
+      accountId,
+      mutationId: input.mutationId,
+      actorId: authority.actorId,
       revision,
-      restoration_group_id: restoration.replacementGroupId,
-      origin_session_id: restoration.replacementGroupId ? actor.sessionId : null,
+      restorationGroupId: restoration.replacementGroupId,
+      originSessionId: restoration.replacementGroupId ? actor.sessionId : null,
     });
     const changed = projectionChanges(
       transformState(activeOnly(before), accountId, authority.role),
@@ -278,12 +277,8 @@ export function lookupPlanningMutation(
 ): Promise<PlanningMutationLookup> {
   return withActor(ctx, async (actor, trx) => {
     const { authority } = await currentAuthority(ctx, trx, accountId);
-    const marker = await trx
-      .from('planning_mutations')
-      .where({ account_id: accountId, actor_id: authority.actorId, mutation_id: mutationId })
-      .select('revision')
-      .first();
-    if (!marker) return { status: 'unknown', mutationId };
+    const revision = await committedMutationRevision(trx, accountId, authority.actorId, mutationId);
+    if (revision === undefined) return { status: 'unknown', mutationId };
     const restorationGroupId = await unconsumedGroupId(trx, accountId, {
       actorId: authority.actorId,
       sessionId: actor.sessionId,
@@ -292,7 +287,7 @@ export function lookupPlanningMutation(
     return {
       status: 'committed',
       mutationId,
-      revision: Number(marker.revision),
+      revision,
       ...(restorationGroupId ? { restorationGroupId } : {}),
     };
   });

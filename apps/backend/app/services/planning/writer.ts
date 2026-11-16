@@ -19,24 +19,14 @@ import { encodeRow } from '#services/state_repository';
 import { assertFrozenAccountFields, prepareEntityWrite } from '#services/planning/entity_policy';
 import { tables } from '#services/product_tables';
 import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
-import { EntityWriteError } from '#services/planning/errors';
+import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { validateEntityRow } from '#validators/entities/index';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { isRetainedTable, retainedQuery } from './retained_rows.js';
-import type { PlanningMutationErrorCode } from '#validators/planning/contracts';
-import type { RestorationIdentity } from './restoration.js';
+import { ownsUnconsumedGroup, type RestorationIdentity } from './restoration.js';
 
-/** A safe refusal whose caller must roll back the enclosing planning transaction. */
-export class PlanningOperationError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: PlanningMutationErrorCode | null,
-    message: string
-  ) {
-    super(message);
-  }
-}
+export { PlanningOperationError };
 
 type Row = Record<string, unknown> & { id: string };
 
@@ -204,18 +194,9 @@ export async function writeRow({
         if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id) {
           throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
         }
-        const ownedGroup = await trx
-          .from('deleted_groups')
-          .where({
-            group_id: String(prior.deletion_group_id),
-            account_id: accountId,
-            actor_id: identity.actorId,
-            session_id: identity.sessionId,
-          })
-          .whereNull('consumed_at')
-          .select('group_id')
-          .first();
-        if (!ownedGroup) {
+        if (
+          !(await ownsUnconsumedGroup(trx, accountId, String(prior.deletion_group_id), identity))
+        ) {
           throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
         }
         const purged = await retainedQuery(trx, accountId, table)
