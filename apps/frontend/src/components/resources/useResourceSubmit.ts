@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { isStaleEdit } from '@/lib/isStaleEdit';
+import { useEffect, useRef } from 'react';
+import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { DEFAULT_COLORS } from '@/lib/palette';
 import { parseText, validateWorkingDays } from '@/lib/validation';
 import type { StoreState } from '@/store/types';
@@ -36,17 +35,12 @@ type SubmitInputBase = {
   kind: ResourceKind;
   isPlaceholder: boolean;
   draft: ResourceSubmitDraft;
-  readResources: () => Resource[];
+  resources: readonly Resource[];
   fail: Fail;
   onClose: () => void;
   add: AddResource;
   update: UpdateResource;
   readActiveAccountId: () => string | null;
-};
-type SubmitInput = SubmitInputBase & {
-  mountedRef: { current: boolean };
-  submittingRef: { current: boolean };
-  setSubmitting: (submitting: boolean) => void;
 };
 
 type ValidatedFields = { name: string; role: string };
@@ -147,17 +141,6 @@ function buildResourcePatch(input: {
       };
 }
 
-function validateResourceFreshness(
-  resource: Resource | undefined,
-  resources: Resource[],
-  fail: Fail,
-): boolean {
-  if (!resource) return true;
-  if (!isStaleEdit(resources, resource.id, resource.updatedAt)) return true;
-  fail(null, m.form_resource_err_changed());
-  return false;
-}
-
 async function saveResource(input: {
   resource: Resource | undefined;
   patch: ResourcePatch;
@@ -187,67 +170,55 @@ async function saveResource(input: {
   });
 }
 
-function finishResourceSubmit(input: SubmitInput) {
-  input.submittingRef.current = false;
-  if (input.mountedRef.current) input.setSubmitting(false);
-}
-
-function createSubmit(input: SubmitInput) {
-  return async () => {
-    if (input.submittingRef.current) return;
-    const resource = input.resource;
-    const fields = parseFormFields({
-      ...input.draft,
-      isPlaceholder: input.isPlaceholder,
-      fail: input.fail,
-    });
-    if (!fields) return;
-    const patch = buildResourcePatch({
-      ...input.draft,
-      resource,
-      kind: input.kind,
-      isPlaceholder: input.isPlaceholder,
-      fields,
-    });
-    const submittedAccountId = input.readActiveAccountId();
-    try {
-      if (!validateResourceFreshness(resource, input.readResources(), input.fail)) return;
-      input.submittingRef.current = true;
-      input.setSubmitting(true);
-      const saved = await saveResource({ resource, patch, add: input.add, update: input.update });
-      if (saved?.kind === 'blocked') {
-        return;
-      }
-      if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) {
-        input.onClose();
-      }
-    } catch (e) {
-      if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) {
-        input.fail(null, resolveErrorMessage(e));
-      }
-    } finally {
-      finishResourceSubmit(input);
-    }
-  };
+function prepareResourceSave(input: SubmitInputBase) {
+  const resource = input.resource;
+  const fields = parseFormFields({
+    ...input.draft,
+    isPlaceholder: input.isPlaceholder,
+    fail: input.fail,
+  });
+  if (!fields) return null;
+  const patch = buildResourcePatch({
+    ...input.draft,
+    resource,
+    kind: input.kind,
+    isPlaceholder: input.isPlaceholder,
+    fields,
+  });
+  return () => saveResource({ resource, patch, add: input.add, update: input.update });
 }
 
 /** Save a resource and keep its draft available until persistence acknowledges the write. */
 export function useResourceSubmit(input: SubmitInputBase) {
-  const [submitting, setSubmitting] = useState(false);
   const mountedRef = useRef(true);
-  const submittingRef = useRef(false);
+  const submittedAccountId = useRef<string | null>(null);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
   }, []);
-  const submit = () =>
-    createSubmit({
-      ...input,
-      mountedRef,
-      submittingRef,
-      setSubmitting,
-    })();
-  return { submit, submitting };
+  // A save that settles after the form closed or the company changed must not close or mark the
+  // form now showing.
+  const isCurrent = () =>
+    mountedRef.current && input.readActiveAccountId() === submittedAccountId.current;
+  const { pending, submit } = useEditSubmit({
+    editing: input.resource,
+    rows: input.resources,
+    staleMessage: m.form_resource_err_changed,
+    fail: (field, message) => {
+      if (isCurrent()) input.fail(field, message);
+    },
+    onSaved: () => {
+      if (isCurrent()) input.onClose();
+    },
+  });
+  return {
+    submit: () =>
+      submit(() => {
+        submittedAccountId.current = input.readActiveAccountId();
+        return prepareResourceSave(input);
+      }),
+    submitting: pending,
+  };
 }
