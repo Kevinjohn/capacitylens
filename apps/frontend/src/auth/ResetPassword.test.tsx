@@ -6,10 +6,6 @@ import { m } from '@/i18n';
 import { resolveResetPasswordFailureMessage } from './resetPasswordFailure';
 import { ResetPassword } from './ResetPassword';
 
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
-
 function renderForm(path = '/reset-password/single-use-token', route = '/reset-password/:token') {
   render(
     <MemoryRouter initialEntries={[path]}>

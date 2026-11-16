@@ -27,10 +27,6 @@ vi.mock('@/auth/accountTransition', () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
-
 beforeEach(async () => {
   accountTransitionMocks.startMasquerade.mockClear();
   await resetStoreWithAccount();
@@ -170,7 +166,7 @@ function registerAdminConfirmationTests(members: RawMember[]): void {
     await user.click(within(dialog).getByRole('button', { name: 'Suspend' }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor/status`,
+        `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor/status`,
         expect.objectContaining({ method: 'PATCH' }),
       ),
     );
@@ -207,7 +203,7 @@ function registerAdminRoleChangeTests(members: RawMember[]): void {
 
     await user.click(within(dialog).getByTestId('member-role-save'));
     expect(fetchMock).toHaveBeenCalledWith(
-      `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor`,
+      `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor`,
       expect.objectContaining({
         method: 'PATCH',
         body: JSON.stringify({ role: 'viewer' }),

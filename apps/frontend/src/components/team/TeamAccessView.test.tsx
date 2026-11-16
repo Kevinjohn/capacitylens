@@ -10,10 +10,6 @@ import type { AdmissionRequest } from '@/account/teamAccessClient';
 import { TeamAccessView } from './TeamAccessView';
 import { useStore } from '@/store/useStore';
 
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
-
 vi.mock('./MembersSection', () => ({
   MembersSection: () => <div data-testid="member-management">Member controls</div>,
 }));

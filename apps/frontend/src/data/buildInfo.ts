@@ -1,5 +1,5 @@
 // Build provenance for tester bug reports, read from the build-time
-// env like apiConfig. The deploy script sets VITE_CAPACITYLENS_BUILD_SHA; a build without it (dev
+// env. The deploy script sets VITE_CAPACITYLENS_BUILD_SHA; a build without it (dev
 // server or plain local build) renders no stamp at all. The suffix identifies the server deployment
 // in feedback and diagnostics.
 

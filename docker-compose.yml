@@ -78,8 +78,6 @@ services:
       context: .
       target: web
       args:
-        # Set a remote API origin when the app cannot use nginx's same-origin /api proxy.
-        VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-}
         VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
         VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
     restart: unless-stopped

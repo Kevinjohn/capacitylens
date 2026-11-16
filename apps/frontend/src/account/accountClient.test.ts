@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
 
-vi.mock('@/data/apiConfig', () => ({ API_BASE: 'https://app.example' }));
 vi.mock('@/data/requestTimeout', () => ({
   apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,
@@ -113,11 +112,11 @@ function registerReadRouteTests(): void {
     await accountClient.me(controller.signal);
     await accountClient.listCompanies(controller.signal);
 
-    expect(mocks.apiFetch).toHaveBeenNthCalledWith(1, 'https://app.example/api/auth/me', {
+    expect(mocks.apiFetch).toHaveBeenNthCalledWith(1, '/api/auth/me', {
       credentials: 'include',
       signal: controller.signal,
     });
-    expect(mocks.apiFetch).toHaveBeenNthCalledWith(2, 'https://app.example/api/accounts', {
+    expect(mocks.apiFetch).toHaveBeenNthCalledWith(2, '/api/accounts', {
       credentials: 'include',
       signal: controller.signal,
     });
@@ -172,7 +171,7 @@ function registerMutationRouteTests(): void {
       string,
       RequestInit,
     ];
-    expect(createUrl).toBe('https://app.example/api/accounts/a-studio/ownership-transfer');
+    expect(createUrl).toBe('/api/accounts/a-studio/ownership-transfer');
     expectCommand(createInit, 'POST');
     expect(new Headers(createInit.headers).get('content-type')).toBe('application/json');
     expect(createInit.body).toBe(JSON.stringify({ toUserId: 'Studio', confirmationId: 'proof-1' }));
@@ -180,8 +179,8 @@ function registerMutationRouteTests(): void {
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
       expect.arrayContaining([
-        'https://app.example/api/accounts/company%20%2F%20one/members/person%20%2F%20one',
-        'https://app.example/api/accounts/company%20%2F%20one/invites/invite%20%2F%20one',
+        '/api/accounts/company%20%2F%20one/members/person%20%2F%20one',
+        '/api/accounts/company%20%2F%20one/invites/invite%20%2F%20one',
       ]),
     );
   });
@@ -197,7 +196,7 @@ function registerOwnershipTransferTests(): void {
     });
 
     const [url, init] = mocks.apiFetch.mock.calls[0] ?? [];
-    expect(url).toBe('https://app.example/api/accounts/company%20%2F%20one/ownership-transfer');
+    expect(url).toBe('/api/accounts/company%20%2F%20one/ownership-transfer');
     expectCommand(init as RequestInit, 'POST');
     expect(JSON.parse(String(init?.body))).toEqual({
       toUserId: 'person / one',
@@ -245,7 +244,7 @@ function registerMemberResourceCommandTests(): void {
     expect(hasUnknownAccountCommandOutcome(link)).toBe(true);
     const [linkUrl, linkInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(linkUrl).toBe(
-      'https://app.example/api/accounts/company%20%2F%20one/members/person%20%2F%20one/resource-link',
+      '/api/accounts/company%20%2F%20one/members/person%20%2F%20one/resource-link',
     );
     expectCommand(linkInit, 'PUT');
     expect(JSON.parse(String(linkInit.body))).toEqual({
@@ -288,18 +287,18 @@ function registerMembershipRouteTests(): void {
       .map((call) => String(call[0]))
       .filter((url) => url.endsWith('/members') || url.endsWith('/invites'));
     expect(directoryUrls).toEqual([
-      'https://app.example/api/accounts/company%20%2F%20one/members',
-      'https://app.example/api/accounts/company%20%2F%20one/invites',
+      '/api/accounts/company%20%2F%20one/members',
+      '/api/accounts/company%20%2F%20one/invites',
     ]);
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
-      'https://app.example/api/accounts/company%20%2F%20one/members',
-      'https://app.example/api/accounts/company%20%2F%20one/invites',
-      'https://app.example/api/accounts/company%20%2F%20one/masquerade',
-      'https://app.example/api/masquerade',
-      'https://app.example/api/masquerade',
-      'https://app.example/api/invites/token%20%2F%20one/preview',
-      'https://app.example/api/invites/token%20%2F%20one/signup',
+      '/api/accounts/company%20%2F%20one/members',
+      '/api/accounts/company%20%2F%20one/invites',
+      '/api/accounts/company%20%2F%20one/masquerade',
+      '/api/masquerade',
+      '/api/masquerade',
+      '/api/invites/token%20%2F%20one/preview',
+      '/api/invites/token%20%2F%20one/signup',
     ]);
     expect(requestInitAt(mocks.apiFetch.mock.calls, 2)).toMatchObject({
       method: 'POST',
@@ -697,7 +696,7 @@ describe('admission list query', () => {
     await accountClient.listAdmissionRequests('pending', 'next+/=&?', controller.signal);
     const call = mocks.apiFetch.mock.calls.at(-1);
     if (!call) throw new Error('Expected admission read');
-    const url = new URL(call[0]);
+    const url = new URL(call[0], window.location.origin);
     expect(url.pathname).toBe('/api/admission/requests');
     expect(url.searchParams.get('status')).toBe('pending');
     expect(url.searchParams.get('cursor')).toBe('next+/=&?');

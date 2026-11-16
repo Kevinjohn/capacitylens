@@ -10,9 +10,6 @@ import {
 import { useLifecycleActions } from './useLifecycleActions';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
 const originalRefreshPlanning = useStore.getState().refreshPlanning;
 
 beforeEach(async () => {
@@ -64,7 +61,7 @@ describe('named lifecycle actions', () => {
     const call = fetch.mock.calls[0];
     if (!call) throw new Error('Anonymisation request was not sent.');
     const [url, options] = call;
-    expect(url).toBe(`http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/resources/r-1/anonymise`);
+    expect(url).toBe(`/api/accounts/${DEFAULT_ACCOUNT_ID}/resources/r-1/anonymise`);
     expect(options).toMatchObject({ method: 'POST', body: '{}' });
   });
 

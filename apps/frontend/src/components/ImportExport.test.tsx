@@ -20,9 +20,6 @@ const originalPlanning = {
   planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
   suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
 };
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: '',
-}));
 
 const accountId = 'a-studio';
 

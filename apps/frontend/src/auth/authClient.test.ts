@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/data/apiConfig', () => ({ API_BASE: 'https://api.example.test' }));
-
 import { authClient } from './authClient';
 
 afterEach(() => {
@@ -29,7 +27,7 @@ describe('product auth client', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     if (!sent) throw new Error('Expected captured request');
     const request = sent;
-    expect(request.url).toBe('https://api.example.test/api/auth/sign-in');
+    expect(request.url).toBe(`${window.location.origin}/api/auth/sign-in`);
     expect(request.method).toBe('POST');
     expect(request.credentials).toBe('include');
     expect(timeout).toHaveBeenCalledWith(15_000);
@@ -203,10 +201,10 @@ describe('product auth client', () => {
     await authClient.signOut();
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      'https://api.example.test/api/auth/request-reset',
-      'https://api.example.test/api/auth/reset-password',
-      'https://api.example.test/api/auth/change-password',
-      'https://api.example.test/api/auth/sign-out',
+      '/api/auth/request-reset',
+      '/api/auth/reset-password',
+      '/api/auth/change-password',
+      '/api/auth/sign-out',
     ]);
     expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
       { email: 'bruce@example.test' },

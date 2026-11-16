@@ -13,7 +13,7 @@ vi.mock('./masqueradeApi', () => ({
   masqueradeApi: { status: authBootstrapMocks.masqueradeStatus },
 }));
 
-// The API base captures build settings at module load, so each test creates a fresh module graph for its configured deployment. Auth context must come from that same graph.
+// Each test creates a fresh module graph, so auth context must come from that same graph.
 
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
@@ -103,7 +103,6 @@ function deferred<T>() {
 
 function registerServerModeTest01() {
   it('signals tenant-data access only after a successful auth check', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const auth = deferred<Response>();
     vi.stubGlobal(
       'fetch',
@@ -140,7 +139,6 @@ function registerServerModeTest01() {
 
 function registerServerModeTest02() {
   it('hides tenant data immediately when a sibling tab signs out, then rechecks the session', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
@@ -180,7 +178,6 @@ function registerServerModeTest02() {
 
 function registerServerModeTest03() {
   it('does not signal tenant-data access for a signed-out boot', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => me(401, {})),
@@ -230,7 +227,6 @@ function registerServerModeTest05() {
 
 function registerServerModeTest06() {
   it('rejects a body without a user from a credentialed /api/auth/me check', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
@@ -251,13 +247,12 @@ function registerServerModeTest06() {
     expect(call).toBeDefined();
     if (!call) throw new Error('Expected the auth status request');
     const [request, init] = call;
-    expect(request).toBe('http://api.test/api/auth/me');
+    expect(request).toBe('/api/auth/me');
     expect(init?.credentials).toBe('include');
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('bootstraps an active masquerade from its validated real principal without calling auth/me', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
       accountId: 'a-studio',
@@ -288,7 +283,6 @@ function registerServerModeTest06() {
   });
 
   it('bootstraps a cold active member view only after its scoped canonical company read', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
       accountId: 'a-studio',
@@ -360,7 +354,6 @@ function registerServerModeTest07() {}
 
 function registerServerModeTest09() {
   it('a 401 replaces the app with the login screen (password form)', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => me(401, {})),
@@ -389,7 +382,6 @@ function registerServerModeTest12() {}
 function registerServerModeTest13() {
   it('uses the password sign-in wall for an explicit password-mode 401', async () => {
     // A 401 always offers a way in, never a terminal 'invalid configuration' screen.
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => me(401, {})),
@@ -417,7 +409,6 @@ function registerServerModeTest14() {
   it('shows the password sign-in wall with a degraded notice for a non-JSON 401', async () => {
     // A proxy returning a plain-HTML 401 (or an empty body) must land on a usable sign-in form, not a
     // dead-end error screen with no way to authenticate.
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('<html>401</html>', { status: 401 })),
@@ -439,7 +430,6 @@ function registerServerModeTest14() {
 function registerServerModeTest16() {
   it('keeps the retryable auth error boundary for non-401 failures', async () => {
     // The lenient 401 handling is scoped to 401 only. A genuinely unexpected status stays fail-closed.
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => me(500, { error: 'boom' })),
@@ -461,7 +451,6 @@ function registerServerModeTest16() {
 
 function registerServerModeTest17() {
   it("surfaces the authentication service's temporary-unavailability message", async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => me(503, { error: 'Sign-in is temporarily unavailable.' })),
@@ -480,7 +469,6 @@ function registerServerModeTest18() {
   it('password invite routes render before sign-in so the token can onboard a new identity', async () => {
     window.history.pushState({}, '', '/invite/invite-token');
     try {
-      vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
       vi.stubGlobal(
         'fetch',
         vi.fn(async () => me(401, {})),
@@ -503,7 +491,6 @@ function registerServerModeTest19() {
   it('invite routes render before sign-in so the acceptance form keeps the token', async () => {
     window.history.pushState({}, '', '/invite/invite-token');
     try {
-      vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
       vi.stubGlobal(
         'fetch',
         vi.fn(async () => me(401, {})),
@@ -524,7 +511,6 @@ function registerServerModeTest19() {
 
 function registerServerModeTest20() {
   it('a 401 with needsSetup:true explains the setup link above the sign-in form', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => me(401, { needsSetup: true })),
@@ -545,7 +531,6 @@ function registerServerModeTest21() {
   it('fail-closed: junk/non-boolean needsSetup on the 401 body shows the ORDINARY sign-in form', async () => {
     // A proxy page or an off-spec server must never conjure a create-account form on a populated
     // instance: only a literal `true` counts.
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => me(401, { needsSetup: 'yes' })),
@@ -563,7 +548,6 @@ function registerServerModeTest21() {
 
 function registerServerModeTest22() {
   it('an unreachable auth server renders a retryable auth error boundary', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))),
@@ -586,7 +570,6 @@ function registerServerModeTest22() {
 
 function registerServerModeTest24() {
   it('keeps an auth timeout behind the error boundary even when browser storage has identity data', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     localStorage.setItem('capacitylens/offlineRead', 'on');
     localStorage.setItem(
       'capacitylens/authSnapshot',
@@ -629,7 +612,6 @@ function registerServerModeTest25() {
     ['no email', { id: 'u1' }],
     ['an empty email', { id: 'u1', email: '   ' }],
   ])('fails closed when an authenticated 200 response has %s', async (_case, user) => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
@@ -651,7 +633,6 @@ function registerServerModeTest25() {
 
 function registerServerModeTest26() {
   it('treats malformed JSON from a reachable auth service as invalid, not offline', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('<html>', { status: 200 })),
@@ -675,7 +656,6 @@ function registerServerModeTest26() {
 
 function registerServerModeTest27() {
   it('refreshes a visible selected company every minute and stops after unmount', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi.fn(async () =>
       me(200, {
         user: { id: 'u1', email: 'a@b.test' },
@@ -728,7 +708,6 @@ function registerServerModeTest27() {
   });
 
   it('re-checks on planning 401 and swaps to the login screen when the session is gone', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
@@ -773,7 +752,6 @@ function registerServerModeTest28() {
   ])(
     'holds a signed-in identity on its limited screen until every gate passes (%o)',
     async (gates, screenId) => {
-      vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
       const onTenantAccessReady = vi.fn();
       vi.stubGlobal(
         'fetch',
@@ -794,7 +772,6 @@ function registerServerModeTest28() {
 
 function registerServerModeTest29() {
   it('warns on the login screen when a mid-session 401 strands unsaved writes', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
@@ -833,7 +810,6 @@ function registerServerModeTest29() {
 function registerServerModeTest30() {
   it('planning 401 re-check that CANNOT resolve /me keeps the live authenticated snapshot (warns, no flip to auth-off)', async () => {
     // An unresolved auth re-check must preserve the current session snapshot so an outage cannot remove sign-out controls or change membership affordances.
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const fetchSpy = vi
       .fn()
@@ -870,7 +846,6 @@ function registerServerModeTest30() {
 function registerServerModeTest31() {
   it('a STALE refreshAuth resolving after a newer 401 does not overwrite the login status', async () => {
     // A newer confirmed sign-out must win over an earlier authenticated response, or stale credentials would reopen the protected app.
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const slow = deferred<Response>();
     const fetchSpy = vi
       .fn()
@@ -944,7 +919,6 @@ describe('AuthProvider — server mode', () => {
 
 function registerAccountPolicyTest04() {
   it('fails closed on a boot-time auth fetch failure', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))),
@@ -967,7 +941,6 @@ function registerAccountPolicyTest04() {
 
 function registerAccountPolicyTest05() {
   it('fails closed on a 200 response with an off-spec body', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
@@ -988,7 +961,6 @@ function registerAccountPolicyTest05() {
 
 function registerAccountPolicyTest06() {
   it('refreshAuth rechecks the session while preserving the verified identity', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
@@ -1018,7 +990,6 @@ function registerAccountPolicyTest06() {
 function registerAccountPolicyTest07() {
   it('a FAILED refresh keeps the previous (stale) snapshot with a warn breadcrumb — no crash, no reset', async () => {
     // An unresolved refresh must preserve the last verified session snapshot.
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const fetchSpy = vi
       .fn()

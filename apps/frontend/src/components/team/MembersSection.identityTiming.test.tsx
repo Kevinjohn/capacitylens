@@ -9,9 +9,6 @@ import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount, jsonResponse, requireValue } from '@/test/fixtures';
 import { MembersSection } from './MembersSection';
 import { mockApi, rawMember } from './MembersSection.testSupport';
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-}));
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {

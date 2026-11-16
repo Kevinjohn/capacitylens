@@ -22,6 +22,18 @@ describe('same-origin API requests', () => {
       window.history.replaceState(null, '', '/');
     }
   });
+  it('sends every request to the page origin even when an old API origin variable is set', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'https://api.example.test');
+    vi.resetModules();
+    try {
+      const fresh = await import('./queryClient');
+      expect(fresh.apiRouteUrl('api.auth.me', {})).toBe('/api/auth/me');
+      expect(fresh.apiReadRouteUrl('api.admission.index', {})).toMatch(/^\/api\//);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
+  });
   it("preserves a generated request's caller abort signal at the timeout boundary", async () => {
     const caller = new AbortController();
     let forwardedSignal: AbortSignal | null | undefined;

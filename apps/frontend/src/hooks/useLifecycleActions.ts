@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { API_BASE } from '@/data/apiConfig';
 import { useStore } from '@/store/useStore';
 import type { LifecycleEntity } from '@/store/entityDrafts';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
@@ -137,7 +136,7 @@ async function dispatchServerLifecycle(
   let keepBlocked = false;
   try {
     const response = await apiFetch(
-      `${API_BASE}/api/accounts/${encodeURIComponent(activeAccountId)}/resources/${encodeURIComponent(id)}/anonymise`,
+      `/api/accounts/${encodeURIComponent(activeAccountId)}/resources/${encodeURIComponent(id)}/anonymise`,
       {
         method: 'POST',
         credentials: 'include',

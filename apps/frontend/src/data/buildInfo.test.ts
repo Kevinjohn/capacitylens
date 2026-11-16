@@ -54,7 +54,6 @@ describe('feedbackMailto', () => {
   it('pins the subject to the build stamp when there is one', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO', 'owner@example.com');
     vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d');
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'https://api.example.com');
     const { readFeedbackMailto } = await freshBuildInfo();
     expect(readFeedbackMailto()).toBe(
       `mailto:owner@example.com?subject=${encodeURIComponent('CapacityLens feedback — build a1b2c3d · server')}`,

@@ -14,11 +14,6 @@ import {
 } from './MembersSection.testSupport';
 import type { User } from './MembersSection.testSupport';
 
-vi.mock('@/data/apiConfig', () => ({
-  API_BASE: 'http://api.test',
-  isServerConfigured: () => true,
-}));
-
 type MembersRead = Awaited<ReturnType<typeof teamAccessClient.listMembers>>;
 type LinkWrite = Awaited<ReturnType<typeof teamAccessClient.setMemberResourceLink>>;
 type UnlinkWrite = Awaited<ReturnType<typeof teamAccessClient.clearMemberResourceLink>>;
