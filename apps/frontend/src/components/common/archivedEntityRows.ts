@@ -8,7 +8,7 @@ import type {
   Resource,
 } from '@capacitylens/shared/types/entities';
 import type { AppDataKey } from '@capacitylens/shared/types/entities';
-import type { LifecycleEntity } from '@/store/entityDrafts';
+import type { LifecycleEntity } from '@/lib/entityDrafts';
 import { m } from '@/i18n';
 
 // Row models for the archived-entity section: which rows are listed, their hiding ancestor, the

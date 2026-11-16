@@ -1,83 +1,18 @@
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import type {
-  AppData,
-  AppDataKey,
-  Resource,
-  ScopedEntityKey,
-  Weekday,
-} from '@capacitylens/shared/types/entities';
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
-import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
-import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
-import {
-  effectiveWorkingWeek,
-  effectiveWeekIncludes,
-} from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import type { AppData, AppDataKey, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { cleanText } from '@capacitylens/shared/lib/strings';
 import { encodeRow } from '#services/state_repository';
-import { assertFrozenAccountFields, prepareEntityWrite } from '#services/planning/entity_policy';
+import { assertFrozenAccountFields } from '#services/planning/entity_policy';
 import { tables } from '#services/product_tables';
-import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
-import { EntityWriteError } from '#services/planning/errors';
+import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { validateEntityRow } from '#validators/entities/index';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
-import { isRetainedTable, retainedQuery } from './retained_rows.js';
-import type { PlanningMutationErrorCode } from '#validators/planning/contracts';
-import type { RestorationIdentity } from './restoration.js';
 
-/** A safe refusal whose caller must roll back the enclosing planning transaction. */
-export class PlanningOperationError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: PlanningMutationErrorCode | null,
-    message: string
-  ) {
-    super(message);
-  }
-}
+export { PlanningOperationError };
 
-type Row = Record<string, unknown> & { id: string };
-
-interface WriteRowOptions {
-  trx: TransactionClientContract;
-  data: AppData;
-  accountId: string;
-  table: ScopedEntityKey;
-  id: string;
-  fields: Record<string, unknown>;
-  capabilities: PlanningCapabilities;
-  mode: 'create' | 'update';
-  identity: RestorationIdentity;
-  permissiveRepeatStart?: boolean;
-}
-
-function lookupFor(data: AppData): ValidationDataLookup {
-  const rows = (table: AppDataKey) => data[table] as unknown as Row[];
-  return {
-    row: (table, id) => rows(table).find((row) => row.id === id),
-    allocationsForResource: (accountId, resourceId) =>
-      data.allocations.filter(
-        (row) => row.accountId === accountId && row.resourceId === resourceId
-      ),
-    allocationsForActivity: (accountId, activityId) =>
-      data.allocations.filter(
-        (row) => row.accountId === accountId && row.activityId === activityId
-      ),
-    resourceHasLoadedAllocation: (accountId, resourceId) =>
-      data.allocations.some(
-        (row) =>
-          row.accountId === accountId && row.resourceId === resourceId && row.hoursPerDay !== 0
-      ),
-    resourceHasTimeOff: (accountId, resourceId) =>
-      data.timeOff.some((row) => row.accountId === accountId && row.resourceId === resourceId),
-    accountWorkingDays: (accountId): Weekday[] => {
-      const account = data.accounts.find((row) => row.id === accountId);
-      return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1);
-    },
-  };
-}
+export type Row = Record<string, unknown> & { id: string };
 
 /** Resolves a stored row from the complete company snapshot, refusing missing targets. */
 export function existingRow(data: AppData, table: AppDataKey, id: string): Row {
@@ -86,159 +21,36 @@ export function existingRow(data: AppData, table: AppDataKey, id: string): Row {
   return row;
 }
 
-function requirePrivacyPermission(
-  table: AppDataKey,
-  fields: Record<string, unknown>,
-  capabilities: PlanningCapabilities,
-  mode: 'create' | 'update'
-) {
-  if (
-    (table === 'clients' || table === 'projects') &&
-    !capabilities.canSeePrivateNames &&
-    ((mode === 'create' &&
-      (fields.isPrivate === true || (fields.codeName !== null && fields.codeName !== undefined))) ||
-      (mode === 'update' &&
-        (Object.hasOwn(fields, 'isPrivate') || Object.hasOwn(fields, 'codeName'))))
-  ) {
-    throw new PlanningOperationError(
-      403,
-      'AUTHORIZATION_DENIED',
-      'Only an owner can change private names.'
-    );
-  }
-  if (table === 'timeOff' && !capabilities.canSeeTimeOffNote && Object.hasOwn(fields, 'note')) {
-    throw new PlanningOperationError(
-      403,
-      'AUTHORIZATION_DENIED',
-      'The time-off note is restricted.'
-    );
-  }
-}
-
 /**
- * Validates and writes one row in the caller's transaction, then mutates its unprojected company state.
- * Later compound entries validate against those changes. The caller owns rollback and atomic
- * revision, audit and commitment recording. Only later allocation-repeat occurrences may use
- * permissiveRepeatStart; creates, duplicates and the first repeat retain the working-day gate.
- * Reusing a retained id requires the deleting actor's original native session; otherwise the
- * existing id-conflict refusal leaves the pending deletion intact. Identity is server-verified.
+ * Persists one prepared row in the caller's transaction and applies it to the unprojected company
+ * snapshot, so later compound entries validate against it. `writeEntity` prepares the row.
  */
 export async function writeRow({
   trx,
   data,
   accountId,
   table,
-  id,
-  fields,
-  capabilities,
-  mode,
-  identity,
-  permissiveRepeatStart,
-}: WriteRowOptions) {
-  const existing = (data[table] as unknown as Row[]).find((row) => row.id === id);
-  requirePrivacyPermission(table, fields, capabilities, mode);
-  if (mode === 'create' && existing) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
-  }
-  if (
-    mode === 'create' &&
-    !isRetainedTable(table) &&
-    (await trx.from(tables[table]).select('id').where('id', id).first())
-  ) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
-  }
-  if (mode === 'update' && !existing) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.');
-  }
-  const candidate: Record<string, unknown> = {
-    ...(existing ?? {}),
-    ...fields,
-    id,
-    accountId,
-  };
-  if (!existing && isLifecycleEntityKey(table)) {
-    candidate.archivedAt = null;
-    candidate.deletedAt = null;
-  }
-  if (!existing && table === 'clients') candidate.builtin = null;
-  if (!existing && table === 'allocations') candidate.seriesId ??= null;
-  if (!existing && table === 'resources') {
-    candidate.avatarUrl ??= null;
-    candidate.halfDays ??= [];
-    candidate.engagement ??= 'studio';
-  }
-  const lookup = lookupFor(data);
-  const clean = await prepareEntityWrite(table, candidate, existing, data, capabilities, {
-    lookup,
-    hasOtherBuiltinClient: (companyId, clientId) =>
-      data.clients.some(
-        (row) => row.accountId === companyId && row.id !== clientId && row.builtin === true
-      ),
-  });
-  if (
-    table === 'allocations' &&
-    !permissiveRepeatStart &&
-    (!existing || existing.resourceId !== clean.resourceId) &&
-    (!existing || clean.ignoreWorkingDays !== true)
-  ) {
-    const resource = lookup.row('resources', String(clean.resourceId)) as Resource | undefined;
-    if (resource && typeof clean.startDate === 'string') {
-      const effectiveWeek = effectiveWorkingWeek(resource, lookup.accountWorkingDays(accountId));
-      if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(clean.startDate))) {
-        throw new PlanningOperationError(
-          400,
-          'VALIDATION_ERROR',
-          'The allocation must start on a working day.'
-        );
-      }
-    }
-  }
-  if (mode === 'create') {
-    if (isRetainedTable(table)) {
-      const prior = await trx
-        .from(tables[table])
-        .select('account_id', 'deleted_at', 'deletion_group_id')
-        .where('id', id)
-        .first();
-      if (prior) {
-        if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id) {
-          throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
-        }
-        const ownedGroup = await trx
-          .from('deleted_groups')
-          .where({
-            group_id: String(prior.deletion_group_id),
-            account_id: accountId,
-            actor_id: identity.actorId,
-            session_id: identity.sessionId,
-          })
-          .whereNull('consumed_at')
-          .select('group_id')
-          .first();
-        if (!ownedGroup) {
-          throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
-        }
-        const purged = await retainedQuery(trx, accountId, table)
-          .onlyTrashed()
-          .where('id', id)
-          .where('deletion_group_id', String(prior.deletion_group_id))
-          .forceDelete();
-        if (purged !== 1) {
-          throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
-        }
-      }
-    }
-    await trx.table(tables[table]).insert(encodeRow(tables[table], clean));
-    (data[table] as unknown as Row[]).push(clean as Row);
-  } else {
+  row,
+  existing,
+}: {
+  trx: TransactionClientContract;
+  data: AppData;
+  accountId: string;
+  table: ScopedEntityKey;
+  row: Record<string, unknown>;
+  existing: Row | undefined;
+}) {
+  if (existing) {
     await trx
       .from(tables[table])
-      .where({ id, account_id: accountId })
-      .update(encodeRow(tables[table], clean));
-    if (!existing) throw new Error('The update mode check above guarantees an existing row.');
-    Object.assign(existing, clean);
+      .where({ id: row.id, account_id: accountId })
+      .update(encodeRow(tables[table], row));
+    Object.assign(existing, row);
+  } else {
+    await trx.table(tables[table]).insert(encodeRow(tables[table], row));
+    (data[table] as unknown as Row[]).push(row as Row);
   }
-  return clean;
+  return row;
 }
 
 /**
