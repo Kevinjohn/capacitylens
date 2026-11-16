@@ -435,7 +435,7 @@ test('end-to-end support changes select the Chromium and auth suites; deleted sp
   for (const [paths, run, reason] of [
     [['e2e/a.spec.ts', 'e2e/fixtures.ts'], 'suite', /support file.+e2e\/fixtures\.ts/],
     [['playwright.config.ts'], 'suite', /support file/],
-    [['scripts/playwrightRunMode.mjs'], 'suite', /support file/],
+    [['scripts/e2e/playwrightRunMode.mjs'], 'suite', /support file/],
     [['e2e/gone.spec.ts'], 'none', /only deleted/],
     [['apps/frontend/src/App.tsx'], 'none', /no end-to-end changes/],
   ]) {

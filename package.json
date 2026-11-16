@@ -41,11 +41,11 @@
     "security:screenshot-publication": "node scripts/docs/check-screenshot-publication.mjs",
     "security:screenshot-publication:test": "node --test scripts/docs/check-screenshot-publication.test.mjs",
     "policy:ports": "node scripts/dev/check-ports.mjs",
-    "policy:ports:test": "node --test scripts/dev/check-ports.test.mjs scripts/dev/ports.test.mjs scripts/dev/laneClaims.test.mjs scripts/dev/lanes.test.mjs scripts/playwrightRunMode.test.mjs",
+    "policy:ports:test": "node --test scripts/dev/check-ports.test.mjs scripts/dev/ports.test.mjs scripts/dev/laneClaims.test.mjs scripts/dev/lanes.test.mjs scripts/e2e/playwrightRunMode.test.mjs",
     "policy:dco:test": "node --test scripts/check-dco.test.mjs",
     "policy:workflow-report:test": "node --test scripts/report-workflow-outcome.test.mjs",
     "policy:release-validation:test": "node --test scripts/require-release-validation.test.mjs",
-    "policy:script-processes:test": "node --test scripts/dev/devProcesses.test.mjs scripts/pnpmSpawn.test.mjs scripts/run-preset.test.mjs",
+    "policy:script-processes:test": "node --test scripts/dev/devProcesses.test.mjs scripts/pnpmSpawn.test.mjs scripts/e2e/run-preset.test.mjs",
     "ui:check": "node scripts/check-ui-primitives.mjs",
     "ui:registry": "node scripts/ui-registry.mjs",
     "check:push": "pnpm run format:check && pnpm run typecheck && pnpm run lint",
@@ -64,10 +64,10 @@
     "dev:auth": "CAPACITYLENS_VITE_SERVICE=authWeb pnpm --dir apps/frontend dev",
     "e2e": "node scripts/dev/with-lane.mjs playwright test",
     "e2e:journey": "node scripts/dev/with-lane.mjs playwright test --grep @journey",
-    "e2e:webkit": "node scripts/dev/with-lane.mjs node scripts/run-preset.mjs webkit",
-    "e2e:firefox": "node scripts/dev/with-lane.mjs node scripts/run-preset.mjs firefox",
-    "e2e:browsers": "node scripts/dev/with-lane.mjs node scripts/e2e-browsers.mjs",
-    "e2e:all": "node scripts/dev/with-lane.mjs node scripts/e2e-all.mjs",
+    "e2e:webkit": "node scripts/dev/with-lane.mjs node scripts/e2e/run-preset.mjs webkit",
+    "e2e:firefox": "node scripts/dev/with-lane.mjs node scripts/e2e/run-preset.mjs firefox",
+    "e2e:browsers": "node scripts/dev/with-lane.mjs node scripts/e2e/e2e-browsers.mjs",
+    "e2e:all": "node scripts/dev/with-lane.mjs node scripts/e2e/e2e-all.mjs",
     "gate:deps": "pnpm audit --prod --no-optional --audit-level high",
     "gate": "node scripts/dev/with-lane.mjs node scripts/run-gate.mjs app",
     "gate:all": "node scripts/dev/with-lane.mjs node scripts/run-gate.mjs all",
@@ -86,7 +86,7 @@
     "dependency:major-report:test": "node --test scripts/report-major-dependencies.test.mjs",
     "policy:packaged-smoke:test": "node --test scripts/packagedServer.test.mjs scripts/smoke-packaged-server.test.mjs scripts/smoke-packaged-dialogs.test.mjs scripts/loopbackHttpProxy.test.mjs",
     "policy:node-runtime:test": "node --test scripts/check-node-runtime.test.mjs scripts/check-node26.test.mjs",
-    "policy:e2e-workers:test": "node --test --test-concurrency=1 scripts/e2eWorkerRuntime.test.mjs scripts/dev/disposableDemoStorage.test.mjs scripts/e2eProxyDrain.test.mjs scripts/playwrightWorkers.test.mjs scripts/e2eReset.test.mjs scripts/playwright-server-reuse.test.mjs scripts/serverStateTransport.test.mjs && node scripts/build/paraglidePluginParity.mjs"
+    "policy:e2e-workers:test": "node --test --test-concurrency=1 scripts/e2e/e2eWorkerRuntime.test.mjs scripts/dev/disposableDemoStorage.test.mjs scripts/e2e/e2eProxyDrain.test.mjs scripts/e2e/playwrightWorkers.test.mjs scripts/e2e/e2eReset.test.mjs scripts/e2e/playwright-server-reuse.test.mjs scripts/e2e/serverStateTransport.test.mjs && node scripts/build/paraglidePluginParity.mjs"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}": "eslint --max-warnings 0 --no-warn-ignored"

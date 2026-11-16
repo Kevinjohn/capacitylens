@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from 'node:http';
 import { expect, request as playwrightRequest } from '@playwright/test';
-import { requireStateRows, serverState } from '../e2e/serverTestState.ts';
+import { requireStateRows, serverState } from '../../e2e/serverTestState.ts';
 
 const canonicalState = { clients: [{ id: 'c-example', name: 'Example Client' }] };
 

@@ -8,12 +8,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { resolveLane, workerPorts } from './dev/ports.mjs';
+import { resolveLane, workerPorts } from '../dev/ports.mjs';
 import { assertE2eProxyDrained } from './e2eWorkerRuntime.mjs';
 import {
   createResetControlToken,
   requestResetControl,
-} from '../apps/backend/start/e2e_reset_control.ts';
+} from '../../apps/backend/start/e2e_reset_control.ts';
 
 const frontend = join(process.cwd(), 'apps/frontend');
 const lane = resolveLane();

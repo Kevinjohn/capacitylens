@@ -5,15 +5,15 @@ import { renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { workerPorts, resolveLane } from './dev/ports.mjs';
-import { portInUse } from './dev/devProcesses.mjs';
+import { workerPorts, resolveLane } from '../dev/ports.mjs';
+import { portInUse } from '../dev/devProcesses.mjs';
 import {
   cleanupResetControlEndpoints,
   createResetControlToken,
   requestResetControl,
-} from '../apps/backend/start/e2e_reset_control.ts';
+} from '../../apps/backend/start/e2e_reset_control.ts';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const backend = join(root, 'apps/backend');
 const leaseRoot = join(tmpdir(), 'capacitylens-e2e-workers');
 const readinessTimeoutMs = 120_000;
@@ -164,7 +164,7 @@ async function acquireLease(lane, slot) {
 }
 
 function makeChild(label) {
-  const child = spawn(process.execPath, [join(root, 'scripts/e2eProcessGuardian.mjs')], {
+  const child = spawn(process.execPath, [join(root, 'scripts/e2e/e2eProcessGuardian.mjs')], {
     detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
   });

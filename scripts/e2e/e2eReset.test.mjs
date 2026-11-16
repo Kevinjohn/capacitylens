@@ -7,9 +7,9 @@ import { existsSync, rmSync } from 'node:fs';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
-import { resolveLane } from './dev/ports.mjs';
+import { resolveLane } from '../dev/ports.mjs';
 import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
-import { acquireExclusiveFile, portInUse, terminateProcessTree } from './dev/devProcesses.mjs';
+import { acquireExclusiveFile, portInUse, terminateProcessTree } from '../dev/devProcesses.mjs';
 import {
   createResetControlServer,
   createResetControlToken,
@@ -17,13 +17,13 @@ import {
   createRetirableListener,
   requestResetControl,
   resetControlEndpoint,
-} from '../apps/backend/start/e2e_reset_control.ts';
+} from '../../apps/backend/start/e2e_reset_control.ts';
 import {
   configureServerTarget,
   prepareServerTemplate,
   resetServer,
   serverTarget,
-} from '../e2e/serverTestState.ts';
+} from '../../e2e/serverTestState.ts';
 import { assertE2eRequestsDrained } from './e2eWorkerRuntime.mjs';
 
 function waitForChildMessage(child, type, timeoutMs = 10_000) {
@@ -557,7 +557,8 @@ for (const frameCase of ['oversized', 'truncated', 'multiple']) {
     { timeout: 10_000 },
     async () => {
       const token = createResetControlToken();
-      const helperUrl = new URL('../apps/backend/start/e2e_reset_control.ts', import.meta.url).href;
+      const helperUrl = new URL('../../apps/backend/start/e2e_reset_control.ts', import.meta.url)
+        .href;
       const program = `
       import assert from 'node:assert/strict';
       import net from 'node:net';

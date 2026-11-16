@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, writeFile, rm, readFile, symlink } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile, rm, readFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
@@ -42,16 +42,17 @@ test('supported presets preserve literal forwarded arguments and mode environmen
 test('preset tests run from a checkout path containing spaces and a hash', async (context) => {
   const directory = await mkdtemp(join(tmpdir(), 'capacitylens preset #'));
   context.after(() => rm(directory, { recursive: true, force: true }));
+  await mkdir(join(directory, 'e2e'));
   for (const file of [
-    'run-preset.test.mjs',
-    'run-preset.mjs',
+    'e2e/run-preset.test.mjs',
+    'e2e/run-preset.mjs',
     'pnpmSpawn.mjs',
-    'playwrightRunMode.mjs',
+    'e2e/playwrightRunMode.mjs',
   ]) {
-    await writeFile(join(directory, file), await readFile(new URL(file, import.meta.url)));
+    await writeFile(join(directory, file), await readFile(new URL(`../${file}`, import.meta.url)));
   }
   await symlink(
-    fileURLToPath(new URL('../node_modules', import.meta.url)),
+    fileURLToPath(new URL('../../node_modules', import.meta.url)),
     join(directory, 'node_modules'),
     'dir',
   );
@@ -62,7 +63,7 @@ test('preset tests run from a checkout path containing spaces and a hash', async
     [
       '--test',
       '--test-name-pattern=refuses inherited|supported presets',
-      join(directory, 'run-preset.test.mjs'),
+      join(directory, 'e2e/run-preset.test.mjs'),
     ],
     { encoding: 'utf8', env: environment },
   );

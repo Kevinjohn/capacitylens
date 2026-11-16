@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const configSource = await readFile(new URL('../playwright.config.ts', import.meta.url), 'utf8');
+const configSource = await readFile(new URL('../../playwright.config.ts', import.meta.url), 'utf8');
 const viteConfigSource = await readFile(
-  new URL('../apps/frontend/vite.config.ts', import.meta.url),
+  new URL('../../apps/frontend/vite.config.ts', import.meta.url),
   'utf8',
 );
 const workerRuntimeSource = await readFile(

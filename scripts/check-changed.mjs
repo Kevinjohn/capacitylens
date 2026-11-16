@@ -76,7 +76,7 @@ const documentationPolicyInput =
 // A filter that matches nothing reports success; these markers turn it into a failure.
 // Specs run on their own; any other end-to-end input can affect every spec.
 const e2eSpec = /^e2e\/.+\.spec\.ts$/;
-const e2eInput = /^(?:e2e\/|playwright\.config\.ts$|scripts\/playwright)/;
+const e2eInput = /^(?:e2e\/|playwright\.config\.ts$|scripts\/e2e\/playwright)/;
 const japaNoTests = /NO TESTS EXECUTED/;
 const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
 // Vitest and Japa summarise as "Tests  12 passed (12)"; node --test reports "tests 12".

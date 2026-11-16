@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { spawnPnpm } from './pnpmSpawn.mjs';
+import { spawnPnpm } from '../pnpmSpawn.mjs';
 
 const graceMs = 2_000;
 let started = false;

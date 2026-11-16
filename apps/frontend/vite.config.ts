@@ -265,7 +265,7 @@ export default defineConfig(({ mode, command }) => {
         },
       },
     },
-    // `vite preview` and scripts/serve-dist.mjs both default to 4173, so this needs a lane too.
+    // `vite preview` and scripts/e2e/serve-dist.mjs both default to 4173, so this needs a lane too.
     preview: {
       host: '127.0.0.1',
       port: lanePorts.preview,

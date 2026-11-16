@@ -5,7 +5,7 @@ import {
   nonColourEnvironment,
   spawnPnpmSync,
   reportSpawnFailureAndResolveExitStatus,
-} from './pnpmSpawn.mjs';
+} from '../pnpmSpawn.mjs';
 import { E2E_RUN_PRESETS, presetEnvironment } from './playwrightRunMode.mjs';
 
 const forwardedArgs = process.argv.slice(2);

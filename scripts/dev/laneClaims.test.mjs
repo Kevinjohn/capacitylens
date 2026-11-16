@@ -17,7 +17,7 @@ import {
   presetEnvironment,
   resolvePlaywrightRunMode,
   E2E_RUN_PRESETS,
-} from '../playwrightRunMode.mjs';
+} from '../e2e/playwrightRunMode.mjs';
 import { nonColourEnvironment } from '../pnpmSpawn.mjs';
 import {
   assertLaneFree,

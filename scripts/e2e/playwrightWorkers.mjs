@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { freemem } from 'node:os';
-import { testShare, WORKER_SLOTS_PER_LANE } from './dev/ports.mjs';
+import { testShare, WORKER_SLOTS_PER_LANE } from '../dev/ports.mjs';
 import { resolvePlaywrightRunMode } from './playwrightRunMode.mjs';
 
 // Baseline full-stack RSS in KiB: API tree, warmed Vite tree and largest representative browser worker/tree (WebKit).
