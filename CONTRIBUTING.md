@@ -105,7 +105,7 @@ unless your change is prose-only.
 
 | Change                                | Focused check while you work                                                 | Also needed                                                                                            |
 | ------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Documentation (`docs-src/`, Markdown) | `pnpm run format`                                                            | `pnpm run docs:build`, committing the rebuilt `docs/` with its sources; no gate                        |
+| Documentation (`docs-src/`, Markdown) | `pnpm run format`                                                            | `pnpm run docs:build` (its `docs/` output is not committed); no gate                                   |
 | Frontend (`apps/frontend/`)           | `pnpm run check:changed` (format, lint, type-check, related tests)           | The gate; the [cross-browser suites](#before-opening-a-pull-request) for interaction or layout changes |
 | Backend (`apps/backend/`)             | `pnpm run check:changed` (runs the specs that import the changed files)      | The gate; focused authority and failure-path tests for authentication and account changes              |
 | Shared (`packages/shared/`)           | `pnpm run check:changed` (runs the whole backend suite for shared contracts) | The gate                                                                                               |
@@ -220,7 +220,6 @@ In brief:
 - Preserve the three distinct workload signals and their time windows.
 - Add tests that fail without the change.
 - Never commit secrets, production data, generated application output or personal deployment notes.
-  The generated `docs/` site is the exception; rebuild it from `docs-src/` and commit it with its source.
 
 Authentication changes need explicit threat-oriented tests. Account Kit owns password-only sign-in;
 there is no identity-provider or social sign-in. Tests should cover the affected authority and
@@ -228,18 +227,19 @@ failure paths, including missing or invalid configuration.
 
 ## Documentation and GitHub Pages
 
-Edit Markdown in `docs-src/`; `docs/` is generated site output and is committed with its source.
-Run `pnpm run docs:build` after changing documentation and include the generated output in the
-same change. GitHub Pages publishes only when an authorized maintainer runs
-`gh workflow run pages.yml --ref main`; publishing a release does not update the site. The workflow
-accepts only `main`, so merge the source and generated output before publishing.
+Edit Markdown in `docs-src/`; `docs/` is generated site output and is not committed. Run
+`pnpm run docs:build` after changing documentation to check links and navigation; `docs/` then
+holds a copy that opens from disk with no server. GitHub Pages publishes only when an authorized
+maintainer runs `gh workflow run pages.yml --ref main`, which builds the site from `main` in that
+run; publishing a release does not update the site. The workflow accepts only `main`, so merge the
+source before publishing.
 
 ## Runtime and dependency upgrades
 
 The supported and recommended server runtime is Node 24.19.0 or later within 24.x. The package
 engine declaration and backend startup guard also accept Node 26.9.0 or later within 26.x, but that
 path remains experimental and best-effort: [`.nvmrc`](.nvmrc) selects Node 24 for development and
-standard CI setup, while [`check:node26`](scripts/check-node26.mjs) covers selected compatibility
+standard CI setup, while [`check:node26`](scripts/ci/check-node26.mjs) covers selected compatibility
 paths rather than the complete gate. Keep the documented production host boundary in the
 [self-hosting installation guide](docs-src/self-hosting/install.md): Linux. CI also builds and
 smoke-tests native packages on macOS arm64; that job does not add a production-host support
