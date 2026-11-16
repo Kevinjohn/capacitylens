@@ -99,6 +99,21 @@ one of them.
 
 ## Install it
 
+On a Linux host with systemd, Node 24 installed system-wide, Caddy (or another HTTPS proxy on the
+same machine) and your domain's DNS pointing at the host with ports 80 and 443 open, download a
+release archive and its checksum, then run:
+
+```bash
+sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
+sudo install -d -m 0755 /opt/capacitylens
+sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
+sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com
+```
+
+The install command asks no questions and ends by printing a one-time setup link for the Owner.
+To confirm the service is up, `curl -s https://capacity.example.com/health/ready` answers HTTP 200
+with `"isHealthy":true`; HTTP 503 means the database checks failed.
+
 CapacityLens is currently supplied as a native Node.js release archive. Follow the
 [installation guide](https://kevinjohn.github.io/capacitylens/self-hosting/install.html), then
 configure HTTPS at a proxy on the same machine. Whoever manages your hosting handles ongoing

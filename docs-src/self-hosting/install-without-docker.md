@@ -140,7 +140,9 @@ certificate details. Do not expose the loopback application port publicly.
 
 ### 5. Open
 
-Check `https://capacity.example.com/health/ready`. The install command has already printed the
+Check `https://capacity.example.com/health/ready`: it answers HTTP 200 with `"isHealthy":true`
+when the service is ready, and HTTP 503 when the database checks fail
+([Monitoring](/self-hosting/monitoring)). The install command has already printed the
 one-time setup link after `Open this setup link at https://capacity.example.com:`; by hand, print
 it for the Owner's email address:
 
