@@ -4,6 +4,7 @@ import { todayISO } from '@capacitylens/shared/lib/dateMath';
 import type { Closure } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
 import { useEditSubmit } from '@/hooks/useEditSubmit';
+import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
 import { parseText } from '@/lib/validation';
 import { resolveTimeZone } from '@/store/selectors';
@@ -90,6 +91,7 @@ export function ClosureForm({
     rows: closures,
     staleMessage: m.form_closure_err_changed,
     failedMessage: m.form_closure_err_save_failed,
+    cancelledMessage: resolveErrorMessage,
     fail,
     onSaved: onClose,
   });

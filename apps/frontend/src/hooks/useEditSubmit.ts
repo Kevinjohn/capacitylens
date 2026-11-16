@@ -18,6 +18,11 @@ export interface EditSubmitInput<T extends Entity> {
   staleMessage: () => string;
   /** Shown instead of the generic message when the save rejects with a value that is not an `Error`. */
   failedMessage?: () => string;
+  /**
+   * The form error for a save the user declined in the restoration cleanup dialog. Without it the
+   * draft stays open with no error.
+   */
+  cancelledMessage?: (error: PlanningSaveCancelledError) => string;
   fail: (field: string | null, message: string) => void;
   onSaved: () => void;
 }
@@ -57,8 +62,11 @@ export function useEditSubmit<T extends Entity>(input: EditSubmitInput<T>): Edit
       if (result && result.kind === 'blocked') return;
       input.onSaved();
     } catch (error) {
-      // The user declined the save in the restoration cleanup dialog: the draft stays open, unsaved and without an error.
-      if (error instanceof PlanningSaveCancelledError) return;
+      // The user declined the save in the restoration cleanup dialog: the draft stays open and unsaved.
+      if (error instanceof PlanningSaveCancelledError) {
+        if (input.cancelledMessage) input.fail(null, input.cancelledMessage(error));
+        return;
+      }
       // Any other rejection is shown on the form so the unsaved draft can be corrected and retried.
       input.fail(
         null,

@@ -136,7 +136,7 @@ describe('ExternalForm', () => {
     expect(useStore.getState().data.resources).toEqual([]);
   });
 
-  it('keeps the edited draft open without error when Restore cleanup is cancelled', async () => {
+  it('keeps the edited draft open and reports the save cancelled when Restore cleanup is cancelled', async () => {
     const user = userEvent.setup();
     const resource = await requireCreated(
       useStore.getState().addResource({
@@ -187,7 +187,7 @@ describe('ExternalForm', () => {
 
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Company')).toHaveValue('Kord Studio');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('The planning save was cancelled.');
     expect(useStore.getState().data).toEqual(before);
   });
 });

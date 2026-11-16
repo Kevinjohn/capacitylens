@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useEditSubmit } from '@/hooks/useEditSubmit';
+import { resolveErrorMessage } from '@/lib/errorMessage';
 import { DEFAULT_COLORS } from '@/lib/palette';
 import { parseText, validateWorkingDays } from '@/lib/validation';
 import type { StoreState } from '@/store/types';
@@ -206,6 +207,7 @@ export function useResourceSubmit(input: SubmitInputBase) {
     editing: input.resource,
     rows: input.resources,
     staleMessage: m.form_resource_err_changed,
+    cancelledMessage: resolveErrorMessage,
     fail: (field, message) => {
       if (isCurrent()) input.fail(field, message);
     },
