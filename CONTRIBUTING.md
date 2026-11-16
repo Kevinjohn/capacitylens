@@ -4,25 +4,235 @@ Thank you for helping. Small, focused pull requests with tests are easiest to re
 For feature proposals, first check the deliberate scope in [DECISIONS.md](DECISIONS.md): budgets,
 timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 
+- **Making your first change?** Follow [Your first change](#your-first-change).
+- **Back for another pull request?** Go to [Checks by change type](#checks-by-change-type).
+
 ## Your first change
 
 1. Check [DECISIONS.md](DECISIONS.md) and the open issues; for anything beyond a small fix, open an
-   issue and agree the approach before writing code. The
+   issue and agree the approach before writing code.
+2. Fork the repository, clone it and create a branch from `main`.
+3. Follow [Set up](#set-up), then run `pnpm run dev:demo` to see the app with sample data.
+4. Find what to edit with the README's [Where do I edit?](README.md#where-do-i-edit) map; the
    [architecture reference](docs-src/reference/architecture.md) shows where each capability lives
    and which tests pin it.
-2. Fork the repository and create a branch from `main`.
-3. Follow [Set up](#set-up) below to install and run the app.
-4. Make one focused change. Keep unrelated formatting and refactors out.
-5. Typo and documentation changes: run `pnpm run format`. If you edited `docs-src/`, also run
-   `pnpm run docs:build` and commit the generated `docs/` output. No other checks are needed.
+5. Make one focused change. Keep unrelated formatting and refactors out.
 6. Code changes: add a test that fails without the change. To show it, commit, revert or alter the
-   changed code, run the focused test, confirm it fails, then restore the change. Then run the
-   checks in [Before opening a pull request](#before-opening-a-pull-request).
-7. Write the pull-request title as the release-note line, for a person using the product, and give
-   the pull request one category label (see [Pull requests](#pull-requests)).
+   changed code, run the focused test, confirm it fails, then restore the change. Typo and
+   documentation changes need no test.
+7. Run the checks for your change type in [Checks by change type](#checks-by-change-type).
 8. Commit with a sign-off: `git commit -s -m "Describe the change"` (see [Pull requests](#pull-requests)).
-9. Push your branch and open a pull request; the template lists what to include.
+9. Write the pull-request title as the release-note line, for a person using the product, and give
+   the pull request one category label. Push your branch and open the pull request; the template
+   lists what to include.
 10. Leave the pull request open and respond to review. Merging is the maintainer's decision.
+
+## Set up
+
+```bash
+nvm use
+corepack enable
+pnpm install
+cp apps/backend/.env.example apps/backend/.env
+cd apps/backend
+node ace.js generate:key --show
+```
+
+Copy the generated value into `APP_KEY` in `apps/backend/.env`, then return to the repository root:
+
+```bash
+cd ../..
+```
+
+The example key is a placeholder; do not use it as a local secret or commit your `.env` file.
+Initialize the local SQLite database and run its migrations before starting the full-stack
+development servers:
+
+```bash
+mkdir -p apps/backend/tmp
+pnpm --dir apps/backend exec node ace.js app:upgrade
+pnpm run dev
+```
+
+For local sign-in without email, set `CAPACITYLENS_CREATE_ADMIN_ADMIN=true` and choose a local
+`CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` of 15–128 characters in `apps/backend/.env`. This
+development convenience is refused in production.
+
+The development bootstrap uses the reserved local identity `admin@admin.admin`. If startup reports
+that this identity exists but is not admitted, do not reset its password or adopt an account by email
+alone. First set `CAPACITYLENS_CREATE_ADMIN_ADMIN=false` temporarily and start the local server.
+Sign in as the reserved identity and inspect `GET /api/admission`. Confirm the identity came from an
+interrupted bootstrap in this local database. Stop the development server before running only the
+command for an unmet requirement from `apps/backend/`:
+
+```bash
+node ace.js account-kit:admission:grant-invitation admin@admin.admin --role admin
+node ace.js account-kit:admission:approve admin@admin.admin
+```
+
+These commands preserve the existing identity and password. If you cannot verify the identity's
+origin, stop and use a fresh local database instead of changing its admission. Restart with
+`CAPACITYLENS_CREATE_ADMIN_ADMIN=true` after the required admission steps succeed.
+
+## Daily development
+
+```bash
+pnpm run dev        # full stack on your local database
+pnpm run dev:demo   # full stack on disposable sample data
+pnpm run check:changed
+```
+
+`pnpm run dev:demo` starts the full stack on disposable SQLite storage and prints its development
+sign-in. Refresh keeps changes; restarting resets the sample company. Normal `pnpm run dev` keeps
+the empty-install setup journey. The workspace contains the web app, pure shared domain package
+and server.
+
+While you work, `pnpm run check:changed [base]` runs only the checks for files changed since the
+merge-base with `base` (default `origin/main`), including uncommitted files, and prints why it
+selected each one. A backend source change runs the specs that import it; shared contracts,
+dependencies, permissions, schema, configuration, test infrastructure and backend files no spec
+imports run the whole backend suite. It builds the application first when backend tests need it
+and a fresh worktree has no build yet. Add `--static` to skip whole test suites and related-test
+lookups while still running the changed test files, when one full run on a combined tree covers
+several changes. It does not replace the submission gate in
+[Before opening a pull request](#before-opening-a-pull-request).
+
+## Checks by change type
+
+`pnpm run check:changed [base]` picks the checks for the files you changed. Before opening a pull
+request, also run the submission gate in [Before opening a pull request](#before-opening-a-pull-request)
+unless your change is prose-only.
+
+| Change                                | Focused check while you work                                                 | Also needed                                                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Documentation (`docs-src/`, Markdown) | `pnpm run format`                                                            | `pnpm run docs:build`, committing the rebuilt `docs/` with its sources; no gate                        |
+| Frontend (`apps/frontend/`)           | `pnpm run check:changed` (format, lint, type-check, related tests)           | The gate; the [cross-browser suites](#before-opening-a-pull-request) for interaction or layout changes |
+| Backend (`apps/backend/`)             | `pnpm run check:changed` (runs the specs that import the changed files)      | The gate; focused authority and failure-path tests for authentication and account changes              |
+| Shared (`packages/shared/`)           | `pnpm run check:changed` (runs the whole backend suite for shared contracts) | The gate                                                                                               |
+| Dependencies or runtime               | `pnpm run check:changed`                                                     | See [Runtime and dependency upgrades](#runtime-and-dependency-upgrades)                                |
+
+## Before opening a pull request
+
+Use the Node version in `.nvmrc`:
+
+```bash
+pnpm run gate:all
+pnpm run e2e
+```
+
+A prose-only change needs formatting and a content and link review instead; rebuild the
+documentation when its sources change. Run the focused checks for changed behavior and preserve
+the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).
+
+Authentication and account changes require focused backend tests for the affected authority and
+failure paths. Use controlled responses for external-service behavior; any live-service check needs
+an authorized test account and must be reported separately.
+
+Run the applicable cross-browser suite for interaction or layout changes:
+
+```bash
+pnpm run e2e:webkit
+pnpm run e2e:firefox
+pnpm run e2e:browsers
+pnpm run e2e:all
+```
+
+These conditions are local-development guidance for choosing extra checks before opening a pull
+request. CI runs:
+
+- **Pull requests:** static analysis owns formatting, lint and the type-check (formatting only for
+  a documentation-only change); `check:changed --tests-only` runs the selected tests; changed
+  end-to-end specs run on their own, and a fixture, helper or Playwright configuration change runs
+  the Chromium and auth suites. Documentation changes run the docs build, code changes run
+  CodeQL, and packaging, runtime-dependency or container changes run the native package and
+  container smoke checks.
+- **`main` pushes:** the production build, full frontend and backend tests, format, lint and
+  type-check in parallel jobs, tooling-policy checks when their inputs change, and a short Chromium
+  journey (sign-in, the planner and saving an allocation).
+- **Weekly and manual full validation:** every tooling check, frontend coverage, the native
+  packages, Chromium, Firefox and both WebKit shards, the full-history secret scan, container
+  scans, the ZAP baseline and Scorecard.
+- **`v*` tags:** full validation of the tagged commit, container smoke and release scans. Archives
+  and images publish only after the tag's Validation and Docker runs succeed.
+
+Dispatch [Validation](.github/workflows/validation.yml) for any required pre-merge evidence.
+
+User-visible changes should update `user-stories/REFERENCE.md`, the matching story and its E2E
+spec. New domain fields must flow through shared types, full fixtures, server table columns and
+sanitisation so the compile-time exhaustiveness checks can protect them.
+
+## Pull requests
+
+- Create pull requests on GitHub and leave them open for review; merging follows
+  [GOVERNANCE.md](GOVERNANCE.md).
+- Explain what changed and why.
+- Link an issue when one exists.
+- Keep unrelated formatting and refactors out of the patch.
+- Note operational, migration, privacy or accessibility impact.
+- The pull-request title is the release-note line: write it for a person using the product. Add one
+  category label: `enhancement`, `bug`, `documentation`, `dependencies`, `maintenance` or
+  `tech-debt`. A breaking API change uses `breaking` and says what to change in the first line of
+  the description.
+
+Document implementation, design and investigation plans in GitHub issues. Do not add standalone
+planning or ideation Markdown files to the repository.
+
+Every contributor-authored commit must include a
+[Developer Certificate of Origin](https://developercertificate.org/) sign-off whose email matches
+the commit author or committer (after `.mailmap` normalization). GitHub-generated merge commits are
+exempt; every commit on the feature branch still requires a sign-off:
+
+```bash
+git commit -s -m "Describe the change"
+```
+
+Delegated or unrelated sign-offs are not accepted. Commits authored by Dependabot are exempt;
+other automated contributors must use an attributable author or committer sign-off.
+
+By contributing, you agree that your contribution is licensed under GPL-3.0-or-later. The project
+does not currently require a copyright assignment or CLA.
+
+## Formatting
+
+Prettier owns whitespace, quoting and line breaks. The root `.prettierrc.json` sets single quotes
+and a 100-column width, matching the AdonisJS preset; the vendored shadcn primitives in
+`apps/frontend/src/components/ui/` retain the upstream 80-column width and double quotes so
+registry diffs show substantive changes instead of reflow noise, and stylesheets keep double quotes.
+`apps/backend/.prettierrc.cjs` spreads the AdonisJS
+preset and keeps semicolons, which the repository uses everywhere. Run `pnpm run format` before
+committing: `pnpm run gate` fails on unformatted files.
+
+Use clear names, small result shapes and explicit module boundaries. Style is not reviewable: if
+Prettier produced it, it is correct. Reach for `// prettier-ignore` only when a hand-aligned block
+genuinely reads better, and say why in the patch.
+
+## Engineering standard
+
+The [code standards](docs-src/reference/code-standards.md) page sets how code is formatted, named,
+documented and reviewed, including the comment and TSDoc rules.
+
+When changing a data path, preserve the product and security invariants in [DECISIONS.md](DECISIONS.md).
+In brief:
+
+- Surface errors; never silently swallow them.
+- Keep account reads scoped and let the server enforce membership on every write.
+- Put environment-independent domain rules in `packages/shared/`; do not duplicate them in UI/server code.
+- Preserve the three distinct workload signals and their time windows.
+- Add tests that fail without the change.
+- Never commit secrets, production data, generated application output or personal deployment notes.
+  The generated `docs/` site is the exception; rebuild it from `docs-src/` and commit it with its source.
+
+Authentication changes need explicit threat-oriented tests. Account Kit owns password-only sign-in;
+there is no identity-provider or social sign-in. Tests should cover the affected authority and
+failure paths, including missing or invalid configuration.
+
+## Documentation and GitHub Pages
+
+Edit Markdown in `docs-src/`; `docs/` is generated site output and is committed with its source.
+Run `pnpm run docs:build` after changing documentation and include the generated output in the
+same change. GitHub Pages publishes only when an authorized maintainer runs
+`gh workflow run pages.yml --ref main`; publishing a release does not update the site. The workflow
+accepts only `main`, so merge the source and generated output before publishing.
 
 ## Runtime and dependency upgrades
 
@@ -82,173 +292,6 @@ and [upgrades](docs-src/self-hosting/upgrades.md). State the required sequence a
 operators can actually use. Do not copy historical compatibility investigations into the install
 steps or treat experimental checks as a new support commitment.
 
-## Set up
-
-```bash
-nvm use
-corepack enable
-pnpm install
-cp apps/backend/.env.example apps/backend/.env
-cd apps/backend
-node ace.js generate:key --show
-```
-
-Copy the generated value into `APP_KEY` in `apps/backend/.env`, then return to the repository root:
-
-```bash
-cd ../..
-```
-
-The example key is a placeholder; do not use it as a local secret or commit your `.env` file.
-Initialize the local SQLite database and run its migrations before starting the full-stack
-development servers:
-
-```bash
-mkdir -p apps/backend/tmp
-pnpm --dir apps/backend exec node ace.js app:upgrade
-pnpm run dev
-```
-
-For local sign-in without email, set `CAPACITYLENS_CREATE_ADMIN_ADMIN=true` and choose a local
-`CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` of 15–128 characters in `apps/backend/.env`. This
-development convenience is refused in production.
-
-The development bootstrap uses the reserved local identity `admin@admin.admin`. If startup reports
-that this identity exists but is not admitted, do not reset its password or adopt an account by email
-alone. First set `CAPACITYLENS_CREATE_ADMIN_ADMIN=false` temporarily and start the local server.
-Sign in as the reserved identity and inspect `GET /api/admission`. Confirm the identity came from an
-interrupted bootstrap in this local database. Stop the development server before running only the
-command for an unmet requirement from `apps/backend/`:
-
-```bash
-node ace.js account-kit:admission:grant-invitation admin@admin.admin --role admin
-node ace.js account-kit:admission:approve admin@admin.admin
-```
-
-These commands preserve the existing identity and password. If you cannot verify the identity's
-origin, stop and use a fresh local database instead of changing its admission. Restart with
-`CAPACITYLENS_CREATE_ADMIN_ADMIN=true` after the required admission steps succeed.
-
-`pnpm run dev:demo` starts the full stack on disposable SQLite storage and prints its development
-sign-in. Refresh keeps changes; restarting resets the sample company. Normal `pnpm run dev` keeps
-the empty-install setup journey. The workspace contains the web app, pure shared domain package
-and server.
-
-## AdonisJS review record
-
-The [26 October 2026 review bundle](https://gist.github.com/Kevinjohn/9c7367be1c8231f260ed1e3c3136535c)
-records the framework-alignment, package-adoption and reusable-boundary assessments completed under
-[#1604](https://github.com/Kevinjohn/capacitylens/issues/1604). It includes the findings register,
-coverage and evidence records, reconciled recommendations and independent completeness assessment.
-
-The reviewed source is `6c92d3710ed1d30bc925bd97e5d701ea551db452`, not the current branch.
-The later integration checkpoint `f52bee5fe75604b33c1191294a80259825461aba` adds 28 commits and
-changes 102 paths; the report's final status update qualifies that delta, which did not receive
-the same complete review. Check the affected current source before acting on a finding.
-
-The frozen-source verdict was changes required: archived-parent placeholder projection, late
-inline-activity completion, mutation-test discovery and current security-documentation claims.
-The report separates confirmed defects from conditional package trials and extraction proposals.
-It does not establish security certification, production acceptance or package-adoption approval.
-Implementation scope and current acceptance evidence remain in the owning GitHub issues.
-
-## Lucid soft-delete integration
-
-The backend pins `@kevinjohn/adonisjs-lucid-soft-delete` version `0.1.7` by the asset URL of its
-[tagged GitHub release](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.7).
-Every `@kevinjohn/*` package is consumed the same way, from its own repository's release; the
-lockfile records each archive's integrity. To change a pin, update the backend manifest URL and the
-lockfile together; pnpm records the new archive's integrity.
-
-Client, Project, Activity and Resource keep the package's Luxon `deletedAt` attribute. Their
-serializers validate the UTC ISO timestamp sent to the shared domain and wire contract. Keep the
-schema generator's deletion-column rule aligned with that type; ordinary product timestamps
-retain their existing string contract.
-
-Complete-state reads explicitly include trashed Client, Project, Activity and Resource rows. A root
-`withTrashed()` does not change related queries; select the mode separately on every preload.
-The shared `activeOnly` projection owns descendant hiding, using the complete parent state.
-The package hides a model's own tombstone and does not implement application ancestry rules.
-
-Archive transitions, planning revisions, audit rows and session-bound restoration groups already
-exist in Adonis. The package integration does not introduce a public soft-delete or purge action,
-a retention policy or deletion undo tokens for lifecycle models. Planning deletes for bookings,
-time off, closures, phases and disciplines use package lifecycle operations. Their rows stay in
-their own tables; the recovery ledger contains only expected row IDs and surviving-child links.
-These five types keep internal deletion fields out of serialization and omit deleted rows even
-from inactive-inclusive state reads. A group foreign key and mandatory company-matching
-guards bind each retained row to its current deletion. Session and privacy cleanup cannot affect
-a replacement or a later deletion. Package lifecycle operations and database bookkeeping share the caller's
-transaction; after-hooks run before commit, so dispatch external effects only after that
-transaction resolves.
-
-[Issue #1640](https://github.com/Kevinjohn/capacitylens/issues/1640) records integration commands,
-results; [issue #1653](https://github.com/Kevinjohn/capacitylens/issues/1653) records planning
-recovery and cleanup acceptance.
-
-## Beta transfer contract
-
-The beta-native document has `format: "capacitylens-beta"`, `schemaVersion: 2` and
-`completeness: "full" | "redacted"`. Its version is independent of database and legacy export
-versions. `data` contains exactly one account and all scoped tables, preserving IDs, timestamps
-and supported company settings. It excludes identity, sessions, memberships, roles, admission
-records and device preferences. Only a full-completeness document can be prepared for import.
-
-Shared preparation strictly validates fields and references, including account scope and current
-member-to-person links. It rejects invalid data instead of repairing or remapping it. Export callers
-must redact confidential values before document construction; the completeness marker does not
-redact data. A redacted export cannot be restored as a full replacement.
-
-The public entry point is `@capacitylens/shared/data/betaTransfer`: `buildBetaExport`,
-`serializeBetaExport`, `parseBetaExport` and `prepareBetaImport`. Preparation receives explicit
-server-owned `{ accountId, memberResourceLinks }` context and returns `{ data, imported }`, where
-`imported` includes the account row. Export callers must supply an authorized, confidentially
-projected dataset; the completeness marker grants no authority.
-
-Settings uses this contract for import/export, including the disposable demo. Preview and apply go
-through `POST /api/transfer/preview` and `POST /api/transfer/apply`. Apply requires the live Owner and a single-use password
-proof bound to the exact document, company and previewed revision. Inside the transaction it checks
-the current revision and member links again, refuses scheduling IDs held by another company, then
-replaces the company slice and supported settings atomically. It retains the destination company ID,
-member links and durable planning mutation identities. A changed replacement clears pending
-restoration groups, writes one audit row and advances the revision; an unchanged replacement does
-none of these. Keep restoration cleanup in the same transaction as replacement, and do not route
-prepared beta data through the legacy remapping writer.
-
-## Before opening a pull request
-
-Use the Node version in `.nvmrc`:
-
-```bash
-pnpm run gate:all
-pnpm run e2e
-```
-
-While you work, `pnpm run check:changed [base]` runs only the checks for files changed since the
-merge-base with `base` (default `origin/main`), including uncommitted files, and prints why it
-selected each one. A backend source change runs the specs that import it; shared contracts,
-dependencies, permissions, schema, configuration, test infrastructure and backend files no spec
-imports run the whole backend suite. It builds the application first when backend tests need it
-and a fresh worktree has no build yet. Add `--static` to skip whole test suites and related-test
-lookups while still running the changed test files, when one full run on a combined tree covers
-several changes. It does not replace the gate above.
-
-A prose-only change needs formatting and a content and link review instead; rebuild the
-documentation when its sources change. Run the focused checks for changed behavior and preserve
-the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).
-
-Authentication and account changes require focused backend tests for the affected authority and
-failure paths. Use controlled responses for external-service behavior; any live-service check needs
-an authorized test account and must be reported separately.
-
-## Documentation and GitHub Pages
-
-Edit Markdown in `docs-src/`; `docs/` is generated site output and is committed with its source.
-Run `pnpm run docs:build` after changing documentation and include the generated output in the
-same change. GitHub Pages publishes only when an authorized maintainer runs
-`gh workflow run pages.yml --ref main`; publishing a release does not update the site. The workflow
-accepts only `main`, so merge the source and generated output before publishing.
-
 ## Native production dialog acceptance
 
 After building and packaging with `pnpm run build` and `pnpm run package:managed-release`, copy
@@ -272,103 +315,14 @@ Set `CAPACITYLENS_BROWSER_ARTIFACT_DIR` to a scratch directory to retain the two
 after screenshots. Browser contexts, TLS connections, server processes and disposable state are
 closed or removed on success and failure. This command does not build, publish or deploy a release.
 
-## Formatting
+## Reference records
 
-Prettier owns whitespace, quoting and line breaks. The root `.prettierrc.json` sets single quotes
-and a 100-column width, matching the AdonisJS preset; the vendored shadcn primitives in
-`apps/frontend/src/components/ui/` retain the upstream 80-column width and double quotes so
-registry diffs show substantive changes instead of reflow noise, and stylesheets keep double quotes.
-`apps/backend/.prettierrc.cjs` spreads the AdonisJS
-preset and keeps semicolons, which the repository uses everywhere. Run `pnpm run format` before
-committing: `pnpm run gate` fails on unformatted files.
-
-Use clear names, small result shapes and explicit module boundaries. Style is not reviewable: if
-Prettier produced it, it is correct. Reach for `// prettier-ignore` only when a hand-aligned block
-genuinely reads better, and say why in the patch.
-
-Run the applicable cross-browser suite for interaction or layout changes:
-
-```bash
-pnpm run e2e:webkit
-pnpm run e2e:firefox
-pnpm run e2e:browsers
-pnpm run e2e:all
-```
-
-These conditions are local-development guidance for choosing extra checks before opening a pull
-request. CI runs:
-
-- **Pull requests:** static analysis owns formatting, lint and the type-check (formatting only for
-  a documentation-only change); `check:changed --tests-only` runs the selected tests; changed
-  end-to-end specs run on their own, and a fixture, helper or Playwright configuration change runs
-  the Chromium and auth suites. Documentation changes run the docs build, code changes run
-  CodeQL, and packaging, runtime-dependency or container changes run the native package and
-  container smoke checks.
-- **`main` pushes:** the production build, full frontend and backend tests, format, lint and
-  type-check in parallel jobs, tooling-policy checks when their inputs change, and a short Chromium
-  journey (sign-in, the planner and saving an allocation).
-- **Weekly and manual full validation:** every tooling check, frontend coverage, the native
-  packages, Chromium, Firefox and both WebKit shards, the full-history secret scan, container
-  scans, the ZAP baseline and Scorecard.
-- **`v*` tags:** full validation of the tagged commit, container smoke and release scans. Archives
-  and images publish only after the tag's Validation and Docker runs succeed.
-
-Dispatch [Validation](.github/workflows/validation.yml) for any required pre-merge evidence.
-
-User-visible changes should update `user-stories/REFERENCE.md`, the matching story and its E2E
-spec. New domain fields must flow through shared types, full fixtures, server table columns and
-sanitisation so the compile-time exhaustiveness checks can protect them.
-
-## Engineering standard
-
-The [code standards](docs-src/reference/code-standards.md) page sets how code is formatted, named,
-documented and reviewed, including the comment and TSDoc rules.
-
-When changing a data path, preserve the product and security invariants in [DECISIONS.md](DECISIONS.md).
-In brief:
-
-- Surface errors; never silently swallow them.
-- Keep account reads scoped and let the server enforce membership on every write.
-- Put environment-independent domain rules in `packages/shared/`; do not duplicate them in UI/server code.
-- Preserve the three distinct workload signals and their time windows.
-- Add tests that fail without the change.
-- Never commit secrets, production data, generated application output or personal deployment notes.
-  The generated `docs/` site is the exception; rebuild it from `docs-src/` and commit it with its source.
-
-Authentication changes need explicit threat-oriented tests. Account Kit owns password-only sign-in;
-there is no identity-provider or social sign-in. Tests should cover the affected authority and
-failure paths, including missing or invalid configuration.
-
-## Pull requests
-
-- Create pull requests on GitHub and leave them open for review; merging follows
-  [GOVERNANCE.md](GOVERNANCE.md).
-- Explain what changed and why.
-- Link an issue when one exists.
-- Keep unrelated formatting and refactors out of the patch.
-- Note operational, migration, privacy or accessibility impact.
-- The pull-request title is the release-note line: write it for a person using the product. Add one
-  category label: `enhancement`, `bug`, `documentation`, `dependencies`, `maintenance` or
-  `tech-debt`. A breaking API change uses `breaking` and says what to change in the first line of
-  the description.
-
-Document implementation, design and investigation plans in GitHub issues. Do not add standalone
-planning or ideation Markdown files to the repository.
-
-Every contributor-authored commit must include a
-[Developer Certificate of Origin](https://developercertificate.org/) sign-off whose email matches
-the commit author or committer (after `.mailmap` normalization). GitHub-generated merge commits are
-exempt; every commit on the feature branch still requires a sign-off:
-
-```bash
-git commit -s -m "Describe the change"
-```
-
-Delegated or unrelated sign-offs are not accepted. Commits authored by Dependabot are exempt;
-other automated contributors must use an attributable author or committer sign-off.
-
-By contributing, you agree that your contribution is licensed under GPL-3.0-or-later. The project
-does not currently require a copyright assignment or CLA.
+- The [AdonisJS review record](docs-src/security/reviews.md#adonisjs-review-record)
+  (26 October 2026) lists the framework-alignment review and its limits.
+- [Lucid soft-delete integration](docs-src/reference/architecture.md#lucid-soft-delete-integration)
+  covers the pinned package, trashed reads and planning deletes.
+- The [beta transfer contract](docs-src/reference/architecture.md#beta-transfer-implementation)
+  defines the import/export document and its server-side apply.
 
 ## Releases
 

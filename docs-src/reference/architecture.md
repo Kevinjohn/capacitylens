@@ -299,3 +299,69 @@ Backend test paths are relative to `apps/backend/`.
 - **Browser coordinator.** The frontend files listed under
   [Browser ownership](#browser-ownership), plus `e2e/planning-controller.auth.spec.ts` and
   `e2e/scheduler-persistence.auth.spec.ts`, which drive real typed routes against SQLite.
+
+## Lucid soft-delete integration
+
+The backend pins `@kevinjohn/adonisjs-lucid-soft-delete` version `0.1.7` by the asset URL of its
+[tagged GitHub release](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.7).
+Every `@kevinjohn/*` package is consumed the same way, from its own repository's release; the
+lockfile records each archive's integrity. To change a pin, update the backend manifest URL and the
+lockfile together; pnpm records the new archive's integrity.
+
+Client, Project, Activity and Resource keep the package's Luxon `deletedAt` attribute. Their
+serializers validate the UTC ISO timestamp sent to the shared domain and wire contract. Keep the
+schema generator's deletion-column rule aligned with that type; ordinary product timestamps
+retain their existing string contract.
+
+Complete-state reads explicitly include trashed Client, Project, Activity and Resource rows. A root
+`withTrashed()` does not change related queries; select the mode separately on every preload.
+The shared `activeOnly` projection owns descendant hiding, using the complete parent state.
+The package hides a model's own tombstone and does not implement application ancestry rules.
+
+Archive transitions, planning revisions, audit rows and session-bound restoration groups already
+exist in Adonis. The package integration does not introduce a public soft-delete or purge action,
+a retention policy or deletion undo tokens for lifecycle models. Planning deletes for bookings,
+time off, closures, phases and disciplines use package lifecycle operations. Their rows stay in
+their own tables; the recovery ledger contains only expected row IDs and surviving-child links.
+These five types keep internal deletion fields out of serialization and omit deleted rows even
+from inactive-inclusive state reads. A group foreign key and mandatory company-matching
+guards bind each retained row to its current deletion. Session and privacy cleanup cannot affect
+a replacement or a later deletion. Package lifecycle operations and database bookkeeping share the caller's
+transaction; after-hooks run before commit, so dispatch external effects only after that
+transaction resolves.
+
+[Issue #1640](https://github.com/Kevinjohn/capacitylens/issues/1640) records integration commands,
+results; [issue #1653](https://github.com/Kevinjohn/capacitylens/issues/1653) records planning
+recovery and cleanup acceptance.
+
+## Beta transfer contract (implementation) {#beta-transfer-implementation}
+
+The reader-facing rules are in [Settings](/using/settings#beta-transfer-contract); this section is the
+implementation contract.
+
+The beta-native document has `format: "capacitylens-beta"`, `schemaVersion: 2` and
+`completeness: "full" | "redacted"`. Its version is independent of database and legacy export
+versions. `data` contains exactly one account and all scoped tables, preserving IDs, timestamps
+and supported company settings. It excludes identity, sessions, memberships, roles, admission
+records and device preferences. Only a full-completeness document can be prepared for import.
+
+Shared preparation strictly validates fields and references, including account scope and current
+member-to-person links. It rejects invalid data instead of repairing or remapping it. Export callers
+must redact confidential values before document construction; the completeness marker does not
+redact data. A redacted export cannot be restored as a full replacement.
+
+The public entry point is `@capacitylens/shared/data/betaTransfer`: `buildBetaExport`,
+`serializeBetaExport`, `parseBetaExport` and `prepareBetaImport`. Preparation receives explicit
+server-owned `{ accountId, memberResourceLinks }` context and returns `{ data, imported }`, where
+`imported` includes the account row. Export callers must supply an authorized, confidentially
+projected dataset; the completeness marker grants no authority.
+
+Settings uses this contract for import/export, including the disposable demo. Preview and apply go
+through `POST /api/transfer/preview` and `POST /api/transfer/apply`. Apply requires the live Owner and a single-use password
+proof bound to the exact document, company and previewed revision. Inside the transaction it checks
+the current revision and member links again, refuses scheduling IDs held by another company, then
+replaces the company slice and supported settings atomically. It retains the destination company ID,
+member links and durable planning mutation identities. A changed replacement clears pending
+restoration groups, writes one audit row and advances the revision; an unchanged replacement does
+none of these. Keep restoration cleanup in the same transaction as replacement, and do not route
+prepared beta data through the legacy remapping writer.
