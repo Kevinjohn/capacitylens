@@ -1,31 +1,27 @@
-import type { AppData } from '@capacitylens/shared/types/entities';
+import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import type { Role } from '@capacitylens/shared/account/types';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
-import { redactPrivateName } from '@capacitylens/shared/domain/privateNames';
+import { projectForReader } from '#services/planning/restricted_fields';
 
 export function transformState(data: AppData, accountId: string | undefined, role: Role): AppData {
-  const scoped = <T extends { accountId: string }>(rows: T[]) =>
-    accountId ? rows.filter((row) => row.accountId === accountId) : rows;
-  const clients = scoped(data.clients).map((row) =>
-    canSeePrivateNames(role) ? row : redactPrivateName(row)
-  );
-  const projects = scoped(data.projects).map((row) =>
-    canSeePrivateNames(role) ? row : redactPrivateName(row)
-  );
-  const allocations = scoped(data.allocations);
-  const timeOff = scoped(data.timeOff).map((row) =>
-    !canSeeTimeOffNote(role) ? { ...row, note: null } : row
-  );
+  const capabilities = {
+    canSeePrivateNames: canSeePrivateNames(role),
+    canSeeTimeOffNote: canSeeTimeOffNote(role),
+  };
+  const scoped = <K extends ScopedEntityKey>(table: K) =>
+    (accountId ? data[table].filter((row) => row.accountId === accountId) : data[table]).map(
+      (row) => projectForReader(table, capabilities, row)
+    ) as AppData[K];
   return {
     accounts: accountId ? data.accounts.filter((row) => row.id === accountId) : data.accounts,
-    clients,
-    disciplines: scoped(data.disciplines),
-    projects,
-    phases: scoped(data.phases),
-    resources: scoped(data.resources),
-    activities: scoped(data.activities),
-    allocations: allocations as AppData['allocations'],
-    timeOff: timeOff as AppData['timeOff'],
-    closures: scoped(data.closures),
+    clients: scoped('clients'),
+    disciplines: scoped('disciplines'),
+    projects: scoped('projects'),
+    phases: scoped('phases'),
+    resources: scoped('resources'),
+    activities: scoped('activities'),
+    allocations: scoped('allocations'),
+    timeOff: scoped('timeOff'),
+    closures: scoped('closures'),
   };
 }

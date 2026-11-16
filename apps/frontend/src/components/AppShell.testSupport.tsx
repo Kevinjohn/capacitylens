@@ -33,7 +33,7 @@ export function setUpAppShellTests(syncLocaleFromAccount: Mock) {
   // Account switches load their controller lazily. Loading it once here lets each test's switches
   // finish inside that test instead of landing in a later one.
   beforeAll(async () => {
-    await import('@/auth/masqueradeController');
+    await import('@/auth/masqueradeControllerInstance');
   });
 
   afterEach(() => {

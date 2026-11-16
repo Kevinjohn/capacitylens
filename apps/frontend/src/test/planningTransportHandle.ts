@@ -1,4 +1,4 @@
-import type { PlanningTransport } from '@/data/planning/planningCacheController';
+import type { PlanningTransport } from '@/data/planning/planningCacheTypes';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { StubPlanningTransport } from './planning/stubPlanningTransport';
 

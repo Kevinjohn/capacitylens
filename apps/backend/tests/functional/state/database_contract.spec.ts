@@ -2,7 +2,7 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { seed } from '@capacitylens/shared/data/seed';
-import { checkDatabase } from '#services/state_repository';
+import { checkDatabase } from '#services/database_health';
 import { readState, replaceWithSeed } from '#tests/helpers/state_fixture';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import Account from '#models/account';

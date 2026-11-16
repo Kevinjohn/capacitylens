@@ -3,6 +3,7 @@ import { setActiveDateStyle } from '@/lib/dateDisplay';
 import { resolveDateStyle } from './selectors';
 import { createAccountSlice } from './slices/accountSlice';
 import { createAllocationSlice } from './slices/allocationSlice';
+import { createPlanningSessionSlice } from './slices/planningSessionSlice';
 import { createRuntimeSlice } from './slices/runtimeSlice';
 import { createSchedulerSlice } from './slices/schedulerSlice';
 import { createStoreInternals } from './storeInternal';
@@ -42,8 +43,13 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ...createAccountSlice()(set, get, store),
     ...createRuntimeSlice(set, get, store),
     ...createSchedulerSlice(buildEmptyFilters)(set, get, store),
-    ...createAllocationSlice(internals, createStorePlanningTransport())(set, get, store),
-    ...createTypedPlanningActions(get, internals.blockedByViewer),
+    ...createPlanningSessionSlice(internals.blockedByViewer, createStorePlanningTransport())(
+      set,
+      get,
+      store,
+    ),
+    ...createAllocationSlice(internals)(set, get, store),
+    ...createTypedPlanningActions(get, internals),
   };
 });
 

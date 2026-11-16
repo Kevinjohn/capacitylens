@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
-import type { PlanningSnapshot } from '@/data/planning/planningCacheController';
+import type { PlanningSnapshot } from '@/data/planning/planningCacheTypes';
 import { useAppShellController } from '@/components/useAppShellController';
 import { useStore } from '@/store/useStore';
 import { makeResource, resetStoreWithAccount, requireValue } from '@/test/fixtures';

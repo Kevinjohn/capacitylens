@@ -13,7 +13,7 @@ import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { isInvitableRole } from '#services/account_kit/policy';
-import { installationCompanyId } from '#services/installation_company';
+import { installationCompany, installationCompanyId } from '#services/installation_company';
 import { invalidAdmission, missingAdmission } from '#services/admission/errors';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import db from '@adonisjs/lucid/services/db';
@@ -129,13 +129,10 @@ export default class InvitationsController {
     proofHeaders(ctx);
     const invitation = await accountKit.invitations.inspect({ token: ctx.params.token });
     if (!invitation) return ctx.response.notFound(invalidLink);
-    const accountId = await installationCompanyId(db);
-    const account = accountId
-      ? await db.from('accounts').where('id', accountId).select('name').first()
-      : null;
+    const { accountId, accountName } = await installationCompany(db);
     return ctx.response.ok({
       accountId,
-      accountName: account?.name ?? null,
+      accountName,
       // Before the company exists the role is only bootstrap metadata; setup grants Owner.
       role: accountId ? invitation.role : null,
       email: invitation.email,
@@ -183,7 +180,14 @@ export default class InvitationsController {
       throw error;
     }
     try {
-      return ctx.response.created({ user: await signInWithPassword(ctx, email, body.password) });
+      return ctx.response.created({
+        user: await signInWithPassword(ctx, {
+          email,
+          password: body.password,
+          clientAddress: ctx.request.ip(),
+          userAgent: ctx.request.header('user-agent'),
+        }),
+      });
     } catch (error) {
       ctx.logger.warn(
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
