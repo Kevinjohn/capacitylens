@@ -2,6 +2,19 @@
 
 **Who's free next week?**
 
+- **What:** self-hosted resource scheduling and capacity planning for small agencies, by the week.
+- **For:** agency owners, studio and operations leads and project managers who decide whether the
+  team can take work on; everyone else on the team sees their own week.
+- **Licence and cost:** free and open source under GPL-3.0-or-later, with no paid tier and no
+  hosted version; the only cost is your own server.
+- **Requirements:** one Linux host with Node 24, an SQLite database file and HTTPS from a proxy on
+  the same machine.
+- **Status:** alpha, maintained by one person; see the
+  [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest).
+- **Links:** [demo](#try-it-in-two-minutes) (`pnpm run dev:demo`) ·
+  [install guide](https://kevinjohn.github.io/capacitylens/self-hosting/install.html) ·
+  [documentation](https://kevinjohn.github.io/capacitylens/)
+
 <a href="docs-src/screenshots/demo.mp4">
   <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is reassigned to a colleague, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
 </a>
