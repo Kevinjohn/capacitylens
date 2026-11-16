@@ -37,6 +37,9 @@ const typeInput = /(?:^|\/)(?:tsconfig[^/]*\.json|package\.json)$/;
 const backendSpec = /^apps\/backend\/tests\/.+\.spec\.ts$/;
 const frontendTest =
   /^(?:apps\/frontend\/src\/.+\.(?:test|spec)\.tsx?|packages\/shared\/.+\.(?:test|spec)\.ts)$/;
+// Reads the built documentation site, so the default frontend suite excludes it and only the docs
+// steps (build, then `docs:test`) can run it.
+const docsSiteTest = 'apps/frontend/src/test/docs-lightbox.test.ts';
 // Backend static file tests read the built application, which a fresh worktree lacks.
 const appBuildOutput = 'apps/backend/public/assets';
 // CI builds the application before backend tests with these fixed, non-secret values
@@ -250,14 +253,15 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
         if (exists(spec)) specReasons.set(spec, specReasons.get(spec) ?? `imports ${sources[0]}`);
   }
   const backendSpecs = [...specReasons.keys()];
-  const frontendTests = present.filter((path) => frontendTest.test(path));
+  const frontendTests = present.filter((path) => frontendTest.test(path) && path !== docsSiteTest);
   const frontendLint = presentCode.filter((path) => path.startsWith('apps/frontend/'));
   const rootLint = presentCode.filter((path) =>
     /^(?:scripts|e2e|packages\/shared\/src)\//.test(path),
   );
   const backendLint = presentCode.filter((path) => path.startsWith('apps/backend/'));
-  const related = presentCode.filter((path) =>
-    /^(?:apps\/frontend\/src|packages\/shared\/src)\//.test(path),
+  const related = presentCode.filter(
+    (path) =>
+      /^(?:apps\/frontend\/src|packages\/shared\/src)\//.test(path) && path !== docsSiteTest,
   );
   // Configuration outside src affects every frontend test, which `vitest related` cannot see.
   const frontendSuite =
@@ -480,19 +484,19 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
       skip: '--static; the full check runs them',
     });
 
-  if (paths.some((path) => path.startsWith('docs-src/')))
+  if (paths.some((path) => path.startsWith('docs-src/') || path === docsSiteTest))
     steps.push(
       {
         label: 'docs: build the documentation site',
         args: ['run', 'docs:build'],
         owner: 'docs',
-        reason: 'documentation sources changed',
+        reason: 'documentation sources or the built-site test changed',
       },
       {
         label: 'docs: check the built site',
         args: ['run', 'docs:test'],
         owner: 'docs',
-        reason: 'documentation sources changed',
+        reason: 'documentation sources or the built-site test changed',
       },
     );
   if (paths.some((path) => path.startsWith('e2e/')))

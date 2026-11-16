@@ -359,6 +359,18 @@ test('documentation sources build and check the site and end-to-end specs are re
   ]);
 });
 
+test('the built-site lightbox test runs through the docs steps, never as a frontend test file', () => {
+  const lightbox = 'apps/frontend/src/test/docs-lightbox.test.ts';
+  for (const options of [{}, staticOnly]) {
+    const steps = planChecks([lightbox], everything, noImporters, options);
+    assert.ok(!labels(steps).some((label) => label.startsWith('test: ')), labels(steps).join());
+    assert.deepEqual(labels(steps).slice(-2), [
+      'docs: build the documentation site',
+      'docs: check the built site',
+    ]);
+  }
+});
+
 test('deleted files and documentation policy inputs run the documentation policy spec', () => {
   const policy = 'apps/backend/tests/functional/policy/documentation_policy.spec.ts';
   for (const [paths, exists] of [
