@@ -1,4 +1,5 @@
 import { test } from '@japa/runner';
+import vine from '@vinejs/vine';
 import {
   assertPlanningBaseRevision,
   StalePlanningRevisionError,
@@ -15,11 +16,22 @@ import { timeOffMutationValidator } from '#validators/planning/time_off';
 import { closureMutationValidator } from '#validators/planning/closure';
 import { settingsMutationValidator } from '#validators/planning/settings';
 import { mutationLookupValidator } from '#validators/planning/lookup';
-import {
-  planningMutationFailureValidator,
-  type PlanningMutationInput,
-  type PlanningMutationSuccess,
+import type {
+  PlanningMutationInput,
+  PlanningMutationSuccess,
 } from '#validators/planning/contracts';
+import { revision } from '#validators/planning/fields';
+
+/** Checks the flat planning failure body the server sends (`PlanningMutationFailure`). */
+const planningMutationFailureValidator = vine.compile(
+  vine.object({
+    error: vine.string(),
+    code: vine.string().optional(),
+    decision: vine.any().optional(),
+    committed: vine.boolean({ strict: true }).optional(),
+    restorableItemCount: revision().optional(),
+  })
+);
 
 const uuid = '782b6098-3560-4d96-a2b6-5c8b271c57b3';
 const otherUuid = '86ca2a77-a2e8-4a13-bfa5-7c01f13fd4f5';

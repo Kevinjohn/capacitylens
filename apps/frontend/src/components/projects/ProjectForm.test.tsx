@@ -1,5 +1,5 @@
 import { archiveForTest } from '@/test/fixtures';
-import { RestorationCleanupDialog } from '@/data/planning/RestorationCleanupDialog';
+import { RestorationCleanupDialog } from '@/components/common/RestorationCleanupDialog';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';

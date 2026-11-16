@@ -1,5 +1,4 @@
 import type { HttpErrorBody, ProductErrorCode } from '@capacitylens/shared/api/httpErrors';
-import vine from '@vinejs/vine';
 import type { Infer } from '@vinejs/vine/types';
 import type {
   Account,
@@ -14,7 +13,6 @@ import type {
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
-import { revision } from '#validators/planning/fields';
 import type { planningMutationValidator } from '#validators/planning_operations';
 
 // Planning wire contracts: inferred input types, receipts, refusal codes and the failure body.
@@ -81,13 +79,3 @@ export type PlanningMutationErrorCode = (typeof planningMutationErrorCodes)[numb
 
 /** Flat command failure body; conflicts use HTTP 409. */
 export type PlanningMutationFailure = HttpErrorBody;
-
-export const planningMutationFailureValidator = vine.compile(
-  vine.object({
-    error: vine.string(),
-    code: vine.string().optional(),
-    decision: vine.any().optional(),
-    committed: vine.boolean({ strict: true }).optional(),
-    restorableItemCount: revision().optional(),
-  })
-);

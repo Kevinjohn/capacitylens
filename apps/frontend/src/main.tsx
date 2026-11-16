@@ -1,4 +1,4 @@
-import { RestorationCleanupDialog } from './data/planning/RestorationCleanupDialog';
+import { RestorationCleanupDialog } from './components/common/RestorationCleanupDialog';
 import { StrictMode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
