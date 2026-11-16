@@ -364,7 +364,7 @@ framework defaults; any other departure needs a decision recorded here first.
 
 ## Open source
 
-- The repository is AGPL-3.0-only. CapacityLens names and logos are not granted by the licence; see
+- The repository is GPL-3.0-or-later. CapacityLens names and logos are not granted by the licence; see
   `TRADEMARKS.md`.
 
 ## Continuous integration

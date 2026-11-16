@@ -6,7 +6,7 @@
   <img alt="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is reassigned to a colleague, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." src="docs-src/screenshots/demo.gif">
 </a>
 
-Historical October 2026 walkthrough with fictional data. It shows the former demo’s company picker and switcher, which are absent from the current interface. The current server demo requires sign-in and opens one sample company; dates and bookings vary.
+A 50-second walkthrough of the demo, recorded with fictional data.
 
 Every small agency answers that question badly. It lives in someone's head, a colour-coded
 spreadsheet, or a group chat at 5pm on a Friday. So work gets promised to people who are already
@@ -17,7 +17,7 @@ CapacityLens puts the answer on one shared screen: people down the side, days ac
 work and time off in between. Red means someone is booked for more than they can do that day. See
 who is busy, who has room and who is about to be buried, and move work before it becomes a problem.
 
-It is free and open source (AGPL-3.0), with no paid tier and no hosted version. You run it on your
+It is free and open source (GPL-3.0), with no paid tier and no hosted version. You run it on your
 own server, and the only cost is that server
 ([server size](https://kevinjohn.github.io/capacitylens/self-hosting/install.html#server-size)).
 
@@ -65,7 +65,7 @@ sample company's schedule opens automatically.
   beside the work.
 - **How full everyone is:** utilisation per person and across the weeks on screen.
 - **Server-owned scheduling:** a connection is required; failed requests show an error and retry controls.
-- **Your own server:** your data in one SQLite file you control, under AGPL-3.0.
+- **Your own server:** your data in one SQLite file you control, under GPL-3.0.
 
 ## What it deliberately isn't
 
@@ -108,9 +108,12 @@ documentation merge nor a published release updates the live site. See the
 
 ## Project status
 
-CapacityLens is alpha software with a single maintainer. Beta will mean the upgrade path and the
-settings are stable. The database schema starts from one forward-only baseline migration;
-`app:upgrade` backs up an existing database before running pending migrations.
+Your schedule stays yours: it is one SQLite file on your server, **Export JSON** downloads the
+scheduling records at any time, and the licence lets anyone carry the code on. `app:upgrade` backs
+up the database before it runs pending migrations, which are forward-only from one baseline.
+
+CapacityLens is an alpha release maintained by one person. Until beta, settings and the upgrade
+path may still change between releases; the release notes say when they do.
 [Before you adopt](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html#before-you-adopt)
 covers status, getting your data out and support. See
 [how it is tested](docs-src/reference/how-it-is-tested.md) and the
@@ -130,7 +133,7 @@ the [architecture reference](docs-src/reference/architecture.md) and the
 
 ## Licence
 
-CapacityLens is [AGPL-3.0-only](LICENSE). Product names and logos are handled separately in
+CapacityLens is [GPL-3.0-or-later](LICENSE). Product names and logos are handled separately in
 [TRADEMARKS.md](TRADEMARKS.md).
 
 [![Validation including E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/validation.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/validation.yml?query=branch%3Amain)
@@ -140,7 +143,7 @@ CapacityLens is [AGPL-3.0-only](LICENSE). Product names and logos are handled se
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/14555/baseline)](https://www.bestpractices.dev/projects/14555)
 [![Docker build](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml)
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](.nvmrc)
-[![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![license: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 
 Validation includes application/backend checks, native packages and Chromium, Firefox and WebKit
 E2E tests. Coverage measures frontend source files; backend coverage is not included.

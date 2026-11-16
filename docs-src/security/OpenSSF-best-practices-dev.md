@@ -32,7 +32,7 @@ The remaining assessment retains its original review date.
 | What does the project do? | CapacityLens is a self-hosted, week-by-week agency capacity scheduler. It shows availability, allocations, time off and over-capacity warnings so agencies can make informed staffing decisions. |
 | What is the project URL? | [github.com/Kevinjohn/capacitylens](https://github.com/Kevinjohn/capacitylens) |
 | What is the source repository URL? | [github.com/Kevinjohn/capacitylens](https://github.com/Kevinjohn/capacitylens) |
-| Which licence covers the project? | `AGPL-3.0-only`; see [`LICENSE`](https://github.com/Kevinjohn/capacitylens/blob/main/LICENSE). |
+| Which licence covers the project? | `GPL-3.0-or-later`; see [`LICENSE`](https://github.com/Kevinjohn/capacitylens/blob/main/LICENSE). |
 | Which implementation languages are used? | TypeScript, JavaScript, CSS and HTML. BadgeApp may group TypeScript under JavaScript. |
 | What is the Common Platform Enumeration name? | None. CapacityLens has no assigned CPE. |
 | Are there other relevant comments? | The security set includes a threat model, control inventories, an OWASP ASVS 5.0.0 ledger and a dated verification record. CI includes CodeQL, dependency review, secret scanning, SBOM generation, container scanning and OWASP ZAP. |
@@ -54,8 +54,8 @@ The remaining assessment retains its original review date.
 | `OSPS-DO-02.01` — Is defect reporting documented? | Met | [`CONTRIBUTING.md`](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md) directs ordinary reports to GitHub issues; [`SECURITY.md`](https://github.com/Kevinjohn/capacitylens/blob/main/SECURITY.md) covers vulnerabilities. |
 | `OSPS-GV-02.01` — Is there a public mechanism to discuss changes and usage problems? | Met | [Issues](https://github.com/Kevinjohn/capacitylens/issues) and [pull requests](https://github.com/Kevinjohn/capacitylens/pulls) are public, searchable and linkable. |
 | `OSPS-GV-03.01` — Is the contribution process documented? | Met | `CONTRIBUTING.md` covers setup, checks, standards, pull requests and sign-off. |
-| `OSPS-LE-02.01` — Does the source licence meet the OSI or FSF definition? | Met | `AGPL-3.0-only` is an OSI-approved free-software licence. |
-| `OSPS-LE-02.02` — Do released software assets use an OSI- or FSF-compliant licence? | Met | Released software uses `AGPL-3.0-only`; product names and logos have a separate trademark policy. |
+| `OSPS-LE-02.01` — Does the source licence meet the OSI or FSF definition? | Met | `GPL-3.0-or-later` is an OSI-approved free-software licence. |
+| `OSPS-LE-02.02` — Do released software assets use an OSI- or FSF-compliant licence? | Met | Released software uses `GPL-3.0-or-later`; product names and logos have a separate trademark policy. |
 | `OSPS-LE-03.01` — Is the source licence stored in a standard repository location? | Met | The complete licence is in the root `LICENSE` file. |
 | `OSPS-LE-03.02` — Is the licence included with released source or alongside release assets? | Met | GitHub source releases contain the root `LICENSE` file. |
 | `OSPS-QA-01.01` — Is the authoritative repository publicly readable at a stable URL? | Met | The [GitHub repository](https://github.com/Kevinjohn/capacitylens) is public and authoritative. |

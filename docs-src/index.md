@@ -15,12 +15,12 @@ they can do that day.
 
 <video controls muted playsinline preload="metadata" src="./screenshots/demo.mp4" aria-label="A 50-second walkthrough of the CapacityLens demo: an over-capacity day shows in red, a tentative booking is reassigned to a colleague, new work is booked by dragging across two days, the schedule zooms out to four weeks, a client, a project and a person are added, the new person is booked onto the new project, and the Overview shows free days per person for the weeks ahead." style="width: 100%; border-radius: 8px;"></video>
 
-Historical October 2026 walkthrough with fictional data. It shows the former demo’s company picker and switcher, which are absent from the current interface. The current server demo requires sign-in and opens one sample company; dates and bookings vary.
+A 50-second walkthrough of the demo, recorded with fictional data.
 
 You book work by the day and read the plan by the week. CapacityLens does not track tasks,
 budgets or timesheets.
 
-It is free and open source (AGPL-3.0), with no paid tier and no hosted version. You run it on your
+It is free and open source (GPL-3.0), with no paid tier and no hosted version. You run it on your
 own server, and the only cost is that server ([server size](/self-hosting/install#server-size)).
 
 ## Which one are you?
@@ -79,4 +79,4 @@ another role's guide first.
 - [Roles and permissions](/getting-started/roles-and-permissions): what each role can see and do.
 - [Glossary](/reference/glossary): every term the guides use, in plain language.
 - [Security and privacy](/security/): how CapacityLens protects your data and what it stores.
-- [Open source and contributing](/open-source): CapacityLens is free software under AGPL-3.0.
+- [Open source and contributing](/open-source): CapacityLens is free software under GPL-3.0.
