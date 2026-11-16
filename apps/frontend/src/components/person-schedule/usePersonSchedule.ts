@@ -5,6 +5,7 @@ import type { Account, AppData, ID, ISODate, Resource } from '@capacitylens/shar
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { m } from '@/i18n';
 import { resolveResourceDisplayName } from '@/lib/metadata';
+import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import {
   hasExternalResourcesEnabled,
   hasVisibleTaskFieldInSchedule,
@@ -29,9 +30,10 @@ export interface UsePersonScheduleInput {
 const UNAVAILABLE: PersonScheduleResult = { kind: 'unavailable' };
 
 function isResourceFeatureVisible(resource: Resource, data: AppData, accountId: ID): boolean {
-  if (resource.kind === 'placeholder') return hasPlaceholdersEnabled(data, accountId);
-  if (resource.kind === 'external') return hasExternalResourcesEnabled(data, accountId);
-  return true;
+  return isResourceKindEnabled(resource, {
+    placeholdersEnabled: hasPlaceholdersEnabled(data, accountId),
+    externalEnabled: hasExternalResourcesEnabled(data, accountId),
+  });
 }
 
 /** Chooses the display identity for a person or placeholder resource. */

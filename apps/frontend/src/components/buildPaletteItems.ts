@@ -5,6 +5,7 @@ import type { Activity } from '@capacitylens/shared/types/entities';
 import type { useNavigate } from 'react-router-dom';
 import { fuzzyFilter } from '@/lib/fuzzy';
 import { resolveResourceDisplayName } from '@/lib/metadata';
+import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import { ACCOUNT_LINK, ADMIN_LINKS, DIAGNOSTICS_LINK, HELP_LINK, LINKS } from '@/lib/navLinks';
 import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors';
 import type { useActiveScopedData } from '@/store/useScopedData';
@@ -112,8 +113,7 @@ function buildPageItems({
 function buildResourceItems(input: BuildPaletteItemsInput): PaletteItem[] {
   const { data, placeholdersEnabled, externalEnabled, navigate, jumpToResource, onClose } = input;
   return data.resources
-    .filter((resource) => placeholdersEnabled || resource.kind !== 'placeholder')
-    .filter((resource) => externalEnabled || !isExternalResource(resource))
+    .filter((resource) => isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled }))
     .map((resource) => ({
       id: `res-${resource.id}`,
       label: `${resolveResourceDisplayName(resource)}${isExternalResource(resource) ? m.palette_resource_external_suffix() : ''}`,

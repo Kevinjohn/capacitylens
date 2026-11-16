@@ -61,6 +61,14 @@ function ResourceIdentity({
   const scheduleTitle =
     personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
   const imageUrl = resolveResourceAvatarUrl(resource, resourceAvatars);
+  // A placeholder in a discipline band takes the discipline colour; one without a discipline keeps
+  // its own colour instead of the neutral Unassigned band colour. The capacity overview differs on
+  // purpose: it gathers every placeholder into the uncoloured Unassigned demand band, so there a
+  // placeholder always shows its own colour.
+  const avatarColor =
+    resource.kind === 'placeholder' && !resource.disciplineId
+      ? resource.color
+      : (group.color ?? resource.color);
   return (
     <div
       className="flex min-w-0 flex-1 items-center gap-2"
@@ -70,11 +78,7 @@ function ResourceIdentity({
         resourceId={resource.id}
         scheduleTitle={scheduleTitle}
         avatarName={resource.name ?? resource.role}
-        color={
-          resource.kind === 'placeholder' && !resource.disciplineId
-            ? resource.color
-            : (group.color ?? resource.color)
-        }
+        color={avatarColor}
         placeholder={resource.kind === 'placeholder'}
         {...(imageUrl ? { imageUrl } : {})}
         onViewSchedule={onViewSchedule}
