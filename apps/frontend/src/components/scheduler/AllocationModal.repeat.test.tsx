@@ -4,7 +4,8 @@ import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
-import { addDaysISO, todayISO } from '@capacitylens/shared/lib/dateMath';
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
+import { readCalendarToday } from '@/lib/calendarToday';
 import { chooseOption } from './__tests__/schedulerTestKit';
 import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningFixtures';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
@@ -411,7 +412,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     await user.click(save);
     expect(screen.getByRole('alert')).toHaveTextContent('Choose when the repeat should end.');
 
-    await user.type(repeatUntil, addDaysISO(todayISO('UTC'), -1));
+    await user.type(repeatUntil, addDaysISO(readCalendarToday('UTC'), -1));
     await user.click(save);
     expect(screen.getByRole('alert')).toHaveTextContent('Repeat until cannot be before today.');
 

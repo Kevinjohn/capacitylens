@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
-import { addDaysISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath';
+import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import { readCalendarToday } from '@/lib/calendarToday';
 import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
@@ -38,12 +39,15 @@ export function readCurrentWeekAnchor(
   accountId: ID | null,
 ): { originDate: ISODate; focusDate: ISODate } {
   return buildWeekAnchor(
-    startOfWeekISO(todayISO(resolveTimeZone(data, accountId)), resolveWeekStart(data, accountId)),
+    startOfWeekISO(
+      readCalendarToday(resolveTimeZone(data, accountId)),
+      resolveWeekStart(data, accountId),
+    ),
   );
 }
 
 function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
-  const weekStart = startOfWeekISO(todayISO());
+  const weekStart = startOfWeekISO(readCalendarToday());
   return {
     zoom: DEFAULT_ZOOM,
     originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
@@ -196,7 +200,7 @@ export function createSchedulerSlice(
         recenterOn(
           state,
           startOfWeekISO(
-            todayISO(resolveTimeZone(state.data, state.activeAccountId)),
+            readCalendarToday(resolveTimeZone(state.data, state.activeAccountId)),
             resolveWeekStart(state.data, state.activeAccountId),
           ),
         ),

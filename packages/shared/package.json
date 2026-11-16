@@ -103,6 +103,11 @@
       "types": "./src/domain/tenancy.ts",
       "default": "./dist/domain/tenancy.js"
     },
+    "./lib/calendarToday": {
+      "development": "./src/lib/calendarToday.ts",
+      "types": "./src/lib/calendarToday.ts",
+      "default": "./dist/lib/calendarToday.js"
+    },
     "./lib/color": {
       "development": "./src/lib/color.ts",
       "types": "./src/lib/color.ts",
@@ -157,6 +162,11 @@
       "development": "./src/lib/strings.ts",
       "types": "./src/lib/strings.ts",
       "default": "./dist/lib/strings.js"
+    },
+    "./lib/workingWeek": {
+      "development": "./src/lib/workingWeek.ts",
+      "types": "./src/lib/workingWeek.ts",
+      "default": "./dist/lib/workingWeek.js"
     },
     "./types/entities": {
       "development": "./src/types/entities.ts",
