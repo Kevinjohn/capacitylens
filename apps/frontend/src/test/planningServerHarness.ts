@@ -11,7 +11,7 @@ import type {
   PlanningCacheState,
   PlanningClientContext,
   PlanningTransport,
-} from '@/data/planning/planningCacheController';
+} from '@/data/planning/planningCacheTypes';
 import { createPlanningTransport } from '@/data/planning/planningTransport';
 
 interface Harness {

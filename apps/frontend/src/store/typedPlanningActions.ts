@@ -47,6 +47,14 @@ export function createTypedPlanningActions(
 ) {
   const accountId = requireAccount;
   const blocked = blockedByViewer;
+  // The guard admits a company still loading from the summaries; no command can be built for it
+  // until its row is published, which the person sees as no company being selected yet.
+  const unprepared = (companyId: string, message: string) =>
+    new Error(
+      get().data.accounts.some((row) => row.id === companyId)
+        ? message
+        : 'No active company is selected.',
+    );
   const owned = <
     K extends
       | 'clients'
@@ -99,7 +107,7 @@ export function createTypedPlanningActions(
       accountId: companyId,
       args: { entity: key, id, fields } as Parameters<typeof buildCatalogueCreate>[0]['args'],
     });
-    if (!command) throw new Error('The planning change could not be prepared.');
+    if (!command) throw unprepared(companyId, 'The planning change could not be prepared.');
     await send(command);
     return { kind: 'created', value: created(key, id) as T };
   };
@@ -140,7 +148,7 @@ export function createTypedPlanningActions(
       accountId: companyId,
       args: { id, fields: input },
     });
-    if (!command) throw new Error('The time-off entry could not be prepared.');
+    if (!command) throw unprepared(companyId, 'The time-off entry could not be prepared.');
     await send(command);
     return { kind: 'created', value: created('timeOff', id) };
   };
@@ -180,7 +188,7 @@ export function createTypedPlanningActions(
         accountId: companyId,
         args: { id, fields },
       });
-      if (!command) throw new Error('The resource could not be prepared.');
+      if (!command) throw unprepared(companyId, 'The resource could not be prepared.');
       await send(command);
       return { kind: 'created', value: created('resources', id) };
     },
@@ -216,7 +224,7 @@ export function createTypedPlanningActions(
           args: { id: newId(), fields },
         });
         if (!command || command.intent.operation !== 'timeOff.create') {
-          throw new Error('The time-off entry could not be prepared.');
+          throw unprepared(companyId, 'The time-off entry could not be prepared.');
         }
         return command.intent.timeOff;
       });
@@ -262,7 +270,7 @@ export function createTypedPlanningActions(
         accountId: companyId,
         args: { id, fields: input },
       });
-      if (!command) throw new Error('The closure could not be prepared.');
+      if (!command) throw unprepared(companyId, 'The closure could not be prepared.');
       await send(command);
       return { kind: 'created', value: created('closures', id) };
     },

@@ -8,17 +8,17 @@ import {
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { ISODate, Resource, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
 import { readActiveDateLocale, m } from '@/i18n';
-import { resolveErrorMessage } from '@/lib/errorMessage';
-import { isStaleEdit } from '@/lib/isStaleEdit';
+import type { EntitySave } from '@/hooks/useEditSubmit';
 import { buildRepeatedTimeOffDrafts } from '@/lib/repeatingTimeOff';
 import { parseText } from '@/lib/validation';
-import { useStore } from '@/store/useStore';
+import type { useStore } from '@/store/useStore';
 import type { Draft } from '@/store/useStore';
+import type { CreateResult } from '@/store/StoreEntityActions';
 import type { TimeOffRepeatChoice } from './useTimeOffRepeat';
 
 type Fail = (field: string | null, message: string) => void;
 
-/** Fields and mutation callbacks needed to validate and save time off. */
+/** Fields and mutation callbacks needed to validate and prepare a time-off save. */
 export interface SaveTimeOffOptions {
   timeOff: TimeOff | undefined;
   resources: readonly Resource[];
@@ -35,7 +35,6 @@ export interface SaveTimeOffOptions {
   repeat: TimeOffRepeatChoice;
   repeatUntil: ISODate | '';
   acceptedSubmission: { current: boolean };
-  onClose: () => void;
 }
 
 function parseTimeOffDraft(options: SaveTimeOffOptions) {
@@ -73,18 +72,15 @@ async function persistNewTimeOff(options: {
   addMany: SaveTimeOffOptions['addMany'];
   acceptedSubmission: SaveTimeOffOptions['acceptedSubmission'];
   repeat: TimeOffRepeatChoice;
-}): Promise<boolean> {
-  if (options.acceptedSubmission.current) return false;
+}): Promise<CreateResult<unknown>> {
+  if (options.acceptedSubmission.current) return { kind: 'blocked' };
   options.acceptedSubmission.current = true;
   try {
     const result = await (options.repeat === 'none'
       ? options.add(options.baseDraft)
       : options.addMany(options.repeatedDrafts));
-    if (result.kind === 'blocked') {
-      options.acceptedSubmission.current = false;
-      return false;
-    }
-    return true;
+    if (result.kind === 'blocked') options.acceptedSubmission.current = false;
+    return result;
   } catch (error) {
     // Release the accepted-submission marker before propagating failure so later attempts are not suppressed.
     options.acceptedSubmission.current = false;
@@ -138,33 +134,18 @@ function resolveRepeatFailure(startDate: ISODate, error: unknown, fail: Fail): n
   throw error;
 }
 
-/** Validates a time-off form and persists its single entry or repeated batch. */
-export async function saveTimeOff(options: SaveTimeOffOptions): Promise<void> {
+/** Validates a time-off form and returns the save for its single entry or repeated batch, or `null` after reporting a field error. */
+export function prepareTimeOffSave(options: SaveTimeOffOptions): EntitySave | null {
   const draft = parseTimeOffDraft(options);
-  if (!draft) return;
+  if (!draft) return null;
   const { basePatch, cleanNote } = draft;
-  const patch = options.canEditNote ? { ...basePatch, note: cleanNote } : basePatch;
-  try {
-    if (options.timeOff) {
-      if (
-        isStaleEdit(useStore.getState().data.timeOff, options.timeOff.id, options.timeOff.updatedAt)
-      ) {
-        options.fail(null, m.form_timeoff_err_changed());
-        return;
-      }
-      await options.update(options.timeOff.id, patch);
-    } else {
-      const baseDraft = { ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) };
-      const repeatedDrafts = buildTimeOffDraftsForSave(baseDraft, options);
-      if (!repeatedDrafts) return;
-      if (!(await persistNewTimeOff({ ...options, baseDraft, repeatedDrafts }))) return;
-    }
-    options.onClose();
-  } catch (error) {
-    // Surface failed time-off persistence without closing a form whose data was not saved.
-    options.fail(
-      null,
-      error instanceof Error ? resolveErrorMessage(error) : m.form_timeoff_err_save_failed(),
-    );
+  const { timeOff } = options;
+  if (timeOff) {
+    const patch = options.canEditNote ? { ...basePatch, note: cleanNote } : basePatch;
+    return () => options.update(timeOff.id, patch);
   }
+  const baseDraft = { ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) };
+  const repeatedDrafts = buildTimeOffDraftsForSave(baseDraft, options);
+  if (!repeatedDrafts) return null;
+  return () => persistNewTimeOff({ ...options, baseDraft, repeatedDrafts });
 }

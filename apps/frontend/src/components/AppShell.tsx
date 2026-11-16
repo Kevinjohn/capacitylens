@@ -16,7 +16,7 @@ import { useAppShellController } from './useAppShellController';
 import { useVisibleRoutes } from './useVisibleRoutes';
 import { AppSidebar } from './AppSidebar';
 import { SidebarProvider, SidebarTrigger, useSidebar } from './ui/sidebar';
-import { readPlanningProblem } from '@/data/planning/planningCacheController';
+import { readPlanningProblem } from '@/data/planning/planningNotices';
 import { useAuth } from '@/auth/authContext';
 import { ProductOrientation } from './ProductOrientation';
 import { MasqueradeBanner } from './MasqueradeBanner';
