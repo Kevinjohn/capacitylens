@@ -127,7 +127,7 @@ describe('ExternalForm', () => {
     await user.type(screen.getByLabelText('Company'), 'Unscoped partner');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/No active account/);
+    expect(screen.getByRole('alert')).toHaveTextContent(/No active company is selected/);
     expect(onClose).not.toHaveBeenCalled();
     expect(useStore.getState().data.resources).toEqual([]);
   });

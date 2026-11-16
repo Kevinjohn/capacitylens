@@ -9,7 +9,7 @@ import { AUDIT_WARNING_EVENT } from '@/lib/auditWarning';
 import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from '@/lib/joinedAccountHandoff';
 import { ACCOUNT_LINK, ADMIN_LINKS, DIAGNOSTICS_LINK, HELP_LINK, LINKS } from '@/lib/navLinks';
 import { hasOpenModal, isTextEntryShortcutOwner } from '@/lib/shortcutGuards';
-import { isShownByPlanningState } from '@/data/planning/planningCacheController';
+import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
 import { transitionAccount } from '@/auth/accountTransition';
