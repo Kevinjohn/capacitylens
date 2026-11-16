@@ -7,9 +7,13 @@ import {
   prepareBetaImport,
   type BetaExportDocument,
 } from '@capacitylens/shared/data/betaTransfer';
-import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
+import {
+  APP_DATA_KEYS,
+  SCOPED_WRITE_ORDER,
+  type AppData,
+} from '@capacitylens/shared/types/entities';
 import { encodeRow, readStateWithClient } from '#services/state_repository';
-import { TABLE_NAMES } from '#services/planning/entity_policy';
+import { tables } from '#services/product_tables';
 import { EntityWriteError } from '#services/planning/errors';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
@@ -27,17 +31,6 @@ export function parseRequestDocument(value: unknown): BetaExportDocument | null 
   }
 }
 
-const INSERT_ORDER = [
-  'clients',
-  'disciplines',
-  'projects',
-  'phases',
-  'resources',
-  'activities',
-  'allocations',
-  'timeOff',
-  'closures',
-] as const;
 const INSERT_CHUNK_SIZE = 32;
 const ID_LOOKUP_CHUNK_SIZE = 200;
 
@@ -62,11 +55,11 @@ async function assertNoForeignIdCollision(
   accountId: string,
   data: AppData
 ) {
-  for (const key of INSERT_ORDER) {
+  for (const key of SCOPED_WRITE_ORDER) {
     const ids = data[key].map((row) => row.id);
     for (let offset = 0; offset < ids.length; offset += ID_LOOKUP_CHUNK_SIZE) {
       const foreign = await trx
-        .from(TABLE_NAMES[key])
+        .from(tables[key])
         .whereIn('id', ids.slice(offset, offset + ID_LOOKUP_CHUNK_SIZE))
         .whereNot('account_id', accountId)
         .select('id')
@@ -138,8 +131,8 @@ export async function applyBetaAccountTransfer(
   }
 
   await trx.from('deleted_groups').where('account_id', accountId).delete();
-  for (const key of [...INSERT_ORDER].reverse()) {
-    await trx.from(TABLE_NAMES[key]).where('account_id', accountId).delete();
+  for (const key of [...SCOPED_WRITE_ORDER].reverse()) {
+    await trx.from(tables[key]).where('account_id', accountId).delete();
   }
   const account = prepared.data.accounts.at(0);
   if (!account) throw new Error('A prepared beta import always carries exactly one account.');
@@ -147,15 +140,15 @@ export async function applyBetaAccountTransfer(
     .from('accounts')
     .where('id', accountId)
     .update(encodeRow('accounts', account as unknown as Record<string, unknown>));
-  for (const key of INSERT_ORDER) {
+  for (const key of SCOPED_WRITE_ORDER) {
     const rows = prepared.data[key];
     for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE) {
       await trx
-        .table(TABLE_NAMES[key])
+        .table(tables[key])
         .multiInsert(
           rows
             .slice(offset, offset + INSERT_CHUNK_SIZE)
-            .map((row) => encodeRow(TABLE_NAMES[key], row as unknown as Record<string, unknown>))
+            .map((row) => encodeRow(tables[key], row as unknown as Record<string, unknown>))
         );
     }
   }

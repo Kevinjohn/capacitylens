@@ -1,4 +1,6 @@
 import db from '@adonisjs/lucid/services/db';
+import { SCOPED_WRITE_ORDER } from '@capacitylens/shared/types/entities';
+import { tables } from '#services/product_tables';
 
 const baselineMigration = 'database/migrations/202610120001_create_capacitylens_baseline';
 
@@ -15,17 +17,7 @@ const relationships = [
   ['time_off', 'resource_id', 'resources'],
 ] as const;
 
-const scopedTables = [
-  'clients',
-  'disciplines',
-  'projects',
-  'phases',
-  'resources',
-  'activities',
-  'allocations',
-  'time_off',
-  'closures',
-] as const;
+const scopedTables = SCOPED_WRITE_ORDER.map((key) => tables[key]);
 
 const tenantIndexedTables = [...scopedTables, 'account_member_resources', 'audit_entries'] as const;
 
@@ -64,9 +56,9 @@ async function assertAccountKitStorage() {
   const rows = (await db.from('sqlite_master').where('type', 'table').select('name')) as Array<{
     name: string;
   }>;
-  const tables = new Set(rows.map((row) => row.name));
-  const stale = preCutoverTables.filter((table) => tables.has(table));
-  const missing = accountKitTables.filter((table) => !tables.has(table));
+  const existingTables = new Set(rows.map((row) => row.name));
+  const stale = preCutoverTables.filter((table) => existingTables.has(table));
+  const missing = accountKitTables.filter((table) => !existingTables.has(table));
   if (stale.length || missing.length) {
     throw new Error(
       `Database schema drift: this database predates Account Kit sign-in (${[...stale, ...missing.map((table) => `missing ${table}`)].join(', ')}). Back it up, then start from a fresh database as the upgrade guide describes.`

@@ -504,4 +504,34 @@ test.group('independent typed planning operations', (group) => {
       0
     );
   });
+
+  test('updates a row whose id contains a colon, as imported and Internal client ids can', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(accountId, true);
+    const template = data.clients.find((row) => row.accountId === accountId && !row.builtin)!;
+    const id = `client:${randomUUID()}`;
+    const templateRow = await db.from('clients').where({ id: template.id }).first();
+    await db.table('clients').insert({
+      ...templateRow,
+      id,
+      name: 'Daily Planet',
+    });
+    const { cookie } = await signIn(client);
+    const response = await session(client.patch(route(`clients/${id}`)), cookie)
+      .json(
+        input(0, {
+          operation: 'catalogue.update',
+          entity: { entity: 'clients', id, changes: { name: 'Daily Planet Press' } },
+        })
+      )
+      .send();
+    response.assertStatus(200);
+    assert.equal(body(response).status, 'committed');
+    const stored = await db.from('clients').where({ id }).first();
+    assert.equal(stored?.name, 'Daily Planet Press');
+  });
 });

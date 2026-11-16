@@ -13,7 +13,7 @@ import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
 import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { encodeRow } from '#services/state_repository';
-import { TABLE_NAMES } from '#services/planning/entity_policy';
+import { tables } from '#services/product_tables';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js';
@@ -108,9 +108,9 @@ async function transitionLifecycle(
     };
   }
   await trx
-    .from(TABLE_NAMES[table])
+    .from(tables[table])
     .where({ id, account_id: accountId })
-    .update(encodeRow(TABLE_NAMES[table], next));
+    .update(encodeRow(tables[table], next));
   Object.assign(current, next);
 }
 

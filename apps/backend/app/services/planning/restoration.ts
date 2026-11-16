@@ -13,7 +13,7 @@ import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
 import { affectedRows } from '#services/affected_rows';
 import { retainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
-import { TABLE_NAMES } from '#services/planning/entity_policy';
+import { tables } from '#services/product_tables';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { existingRow, PlanningOperationError } from './writer.js';
 
@@ -98,7 +98,7 @@ export async function deleteRows(
   for (const link of links) {
     const column = link.entity === 'activities' ? 'phase_id' : 'discipline_id';
     const detached = await trx
-      .from(TABLE_NAMES[link.entity])
+      .from(tables[link.entity])
       .where({ id: link.rowId, account_id: accountId, [column]: link.parentId })
       .update({ [column]: null });
     if (affectedRows(detached) !== 1) conflict();
@@ -108,7 +108,7 @@ export async function deleteRows(
     const deleted = await retainedQuery(trx, accountId, table).whereIn('id', selected).softDelete();
     if (deleted !== selected.length) conflict();
     const attached = await trx
-      .from(TABLE_NAMES[table])
+      .from(tables[table])
       .where('account_id', accountId)
       .whereIn('id', selected)
       .whereNotNull('deleted_at')
@@ -231,7 +231,7 @@ export async function restoreGroup(
   for (const { entity, id, row } of rows) {
     if (row.accountId !== accountId || row.id !== id) conflict();
     const cleared = await trx
-      .from(TABLE_NAMES[entity])
+      .from(tables[entity])
       .where({ id, account_id: accountId, deletion_group_id: groupId })
       .whereNotNull('deleted_at')
       .update({ deletion_group_id: null });
@@ -259,7 +259,7 @@ export async function restoreGroup(
       assertScopedRefs(current, accountId, entity, candidate, child);
     });
     await trx
-      .from(TABLE_NAMES[entity])
+      .from(tables[entity])
       .where({ id: rowId, account_id: accountId })
       .whereNull(column)
       .update({ [column]: parentId, updated_at: createServerRevision(child.updatedAt) });

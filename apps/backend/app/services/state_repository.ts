@@ -20,20 +20,7 @@ import type { QueryClientContract } from '@adonisjs/lucid/types/database';
 import type { ModelColumnOptions } from '@adonisjs/lucid/types/model';
 import { isJsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 import { hasNoCompany } from '#services/installation_company';
-
-export const tables = {
-  accounts: 'accounts',
-  clients: 'clients',
-  disciplines: 'disciplines',
-  projects: 'projects',
-  phases: 'phases',
-  resources: 'resources',
-  activities: 'activities',
-  allocations: 'allocations',
-  timeOff: 'time_off',
-  closures: 'closures',
-} as const;
-export type ProductTable = (typeof tables)[keyof typeof tables];
+import { tables, type ProductTable } from '#services/product_tables';
 
 const snake = (key: string) => key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 

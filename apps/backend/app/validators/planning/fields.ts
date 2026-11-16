@@ -15,7 +15,9 @@ import {
 
 export const uuid = () => vine.string().uuid();
 // Existing rows retain their stable identifiers during the transport transition.
-export const entityId = () => vine.string().regex(/^[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}$/);
+/** The one entity id rule; the Internal client's generated id (`internal:<company id>`) needs the colon. */
+export const ENTITY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}$/;
+export const entityId = () => vine.string().regex(ENTITY_ID_PATTERN);
 export const number = () => vine.number({ strict: true });
 export const boolean = () => vine.boolean({ strict: true });
 export const userText = (multiline = false, required = false) =>

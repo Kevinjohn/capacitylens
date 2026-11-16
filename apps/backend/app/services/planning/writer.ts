@@ -16,11 +16,9 @@ import {
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { cleanText } from '@capacitylens/shared/lib/strings';
 import { encodeRow } from '#services/state_repository';
-import {
-  assertFrozenAccountFields,
-  prepareEntityWrite,
-  TABLE_NAMES,
-} from '#services/planning/entity_policy';
+import { assertFrozenAccountFields, prepareEntityWrite } from '#services/planning/entity_policy';
+import { tables } from '#services/product_tables';
+import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
 import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { validateEntityRow } from '#validators/entities/index';
@@ -145,7 +143,7 @@ export async function writeRow({
   if (
     mode === 'create' &&
     !isRetainedTable(table) &&
-    (await trx.from(TABLE_NAMES[table]).select('id').where('id', id).first())
+    (await trx.from(tables[table]).select('id').where('id', id).first())
   ) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
@@ -158,7 +156,7 @@ export async function writeRow({
     id,
     accountId,
   };
-  if (!existing && ['clients', 'projects', 'resources', 'activities'].includes(table)) {
+  if (!existing && isLifecycleEntityKey(table)) {
     candidate.archivedAt = null;
     candidate.deletedAt = null;
   }
@@ -198,7 +196,7 @@ export async function writeRow({
   if (mode === 'create') {
     if (isRetainedTable(table)) {
       const prior = await trx
-        .from(TABLE_NAMES[table])
+        .from(tables[table])
         .select('account_id', 'deleted_at', 'deletion_group_id')
         .where('id', id)
         .first();
@@ -230,13 +228,13 @@ export async function writeRow({
         }
       }
     }
-    await trx.table(TABLE_NAMES[table]).insert(encodeRow(TABLE_NAMES[table], clean));
+    await trx.table(tables[table]).insert(encodeRow(tables[table], clean));
     (data[table] as unknown as Row[]).push(clean as Row);
   } else {
     await trx
-      .from(TABLE_NAMES[table])
+      .from(tables[table])
       .where({ id, account_id: accountId })
-      .update(encodeRow(TABLE_NAMES[table], clean));
+      .update(encodeRow(tables[table], clean));
     if (!existing) throw new Error('The update mode check above guarantees an existing row.');
     Object.assign(existing, clean);
   }

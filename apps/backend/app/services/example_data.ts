@@ -2,7 +2,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { buildExampleCompany, countExampleRows } from '@capacitylens/shared/data/exampleCompany';
 import { todayISO } from '@capacitylens/shared/lib/dateMath';
 import { encodeRow, readStateWithClient } from '#services/state_repository';
-import { TABLE_NAMES } from '#services/planning/entity_policy';
+import { tables } from '#services/product_tables';
 import { writeAudit } from '#services/audit';
 import { EntityWriteError } from '#services/planning/errors';
 import { advancePlanningRevision } from '#services/planning_revision';
@@ -52,9 +52,9 @@ export async function addExampleData(
     const rows = sample[key];
     if (rows.length > 0) {
       await trx
-        .table(TABLE_NAMES[key])
+        .table(tables[key])
         .multiInsert(
-          rows.map((row) => encodeRow(TABLE_NAMES[key], row as unknown as Record<string, unknown>))
+          rows.map((row) => encodeRow(tables[key], row as unknown as Record<string, unknown>))
         );
     }
   }

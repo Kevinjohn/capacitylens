@@ -1,7 +1,6 @@
 import {
   externalCapacityDefaults,
   type AppData,
-  type AppDataKey,
   type ScopedEntityKey,
 } from '@capacitylens/shared/types/entities';
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
@@ -16,31 +15,16 @@ import { hasUsablePrivateCodeName } from '@capacitylens/shared/domain/privateNam
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
+import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
 import { validateEntityRow, requiredFields } from '#validators/entities/index';
+import { ENTITY_ID_PATTERN } from '#validators/planning/fields';
 import { assertEntityDomain } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
 import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 
-export const TABLE_NAMES = {
-  accounts: 'accounts',
-  disciplines: 'disciplines',
-  resources: 'resources',
-  clients: 'clients',
-  projects: 'projects',
-  phases: 'phases',
-  activities: 'activities',
-  allocations: 'allocations',
-  timeOff: 'time_off',
-  closures: 'closures',
-} as const satisfies Record<AppDataKey, import('#services/state_repository').ProductTable>;
-
-export const isLifecycle = (table: AppDataKey) =>
-  ['clients', 'projects', 'resources', 'activities'].includes(table);
-
 const IMMUTABLE_ACCOUNT_FIELDS = ['language', 'weekStartsOn', 'timezone'] as const;
-const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/;
 
 function reject(field: string, reason: string): never {
   throw new EntityWriteError(`${field} ${reason}.`);
@@ -169,7 +153,7 @@ function assertManagedFields(
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined
 ) {
-  if (isLifecycle(table)) {
+  if (isLifecycleEntityKey(table)) {
     for (const field of ['archivedAt', 'deletedAt'] as const) {
       if (Object.hasOwn(requested, field) && requested[field] !== (existing?.[field] ?? null)) {
         throw new EntityWriteError(`${field} is managed by its lifecycle action.`);
@@ -255,9 +239,9 @@ export async function prepareEntityWrite(
   context: PlanningCapabilities,
   options: EntityWriteOptions
 ): Promise<Record<string, unknown>> {
-  if (typeof row.id !== 'string' || !ID_PATTERN.test(row.id)) {
+  if (typeof row.id !== 'string' || !ENTITY_ID_PATTERN.test(row.id)) {
     throw new EntityWriteError(
-      'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde or hyphen.'
+      'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde, colon or hyphen.'
     );
   }
   if (typeof row.accountId !== 'string' || row.accountId.length === 0) {
