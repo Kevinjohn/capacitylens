@@ -26,8 +26,7 @@ import {
 import {
   bucketByCoveredDate,
   groupByResourceId,
-  hasRenderableDateRange,
-  reportInvalidScheduleDateRangeOnce,
+  includeRenderableDateRange,
   NO_ALLOCATIONS,
   NO_TIME_OFF,
   NO_CLOSURES,
@@ -88,14 +87,6 @@ export type {
   GroupModel,
   SchedulerModelOptions,
 } from './schedulerModelTypes';
-
-function includeRenderableDateRange<T extends { id: string; startDate: ISODate; endDate: ISODate }>(
-  row: T,
-): boolean {
-  const renderable = hasRenderableDateRange(row);
-  if (!renderable) reportInvalidScheduleDateRangeOnce(row);
-  return renderable;
-}
 
 // The scheduler's pure projection owns view-model shapes; presentation consumes those shapes without introducing a reverse dependency. Computation errors must propagate rather than be swallowed.
 
