@@ -1,10 +1,5 @@
-import {
-  addDaysISO,
-  daysInclusive,
-  endDateForWorkingDays,
-  isWeekendAware,
-  weekdayOf,
-} from '@capacitylens/shared/lib/dateMath';
+import { addDaysISO, daysInclusive, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { endDateForWorkingDays, isWeekendAware } from '@capacitylens/shared/lib/workingWeek';
 import { spanDays } from '@capacitylens/shared/lib/schedulingDays';
 import type { ISODate, Weekday } from '@capacitylens/shared/types/entities';
 

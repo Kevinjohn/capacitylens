@@ -1,14 +1,7 @@
 import { useId, useMemo, useState, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/store/useStore';
-import {
-  hasDisciplinesEnabled,
-  hasExternalResourcesEnabled,
-  hasPlaceholdersEnabled,
-  resolveCapacityOverviewAccess,
-} from '@/store/selectors';
-import { usePermissionStatus, useRole } from '@/auth/permissionContext';
-import { resolveCapacityOverviewAccessDecision } from '@/auth/capacityOverviewAccess';
+import { hasExternalResourcesEnabled, hasPlaceholdersEnabled } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { m } from '@/i18n';
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from './ui/command';
@@ -16,7 +9,7 @@ import { cn } from '@/lib/cn';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { buildPaletteItems } from './buildPaletteItems';
 import type { PaletteItem } from './buildPaletteItems';
-import { useDiagnosticsAccessDecision } from './diagnostics/useDiagnosticsAccessDecision';
+import { useVisibleRoutes } from './useVisibleRoutes';
 import { FieldError } from '@/components/ui/field';
 import { MAX_LOCAL_QUERY_CODE_UNITS, rejectOverlongQueryPaste } from '@/lib/localQueryInput';
 
@@ -60,35 +53,19 @@ function usePaletteItems(query: string, onClose: () => void) {
   const jumpToResource = useStore((state) => state.jumpToResource);
   const setFilters = useStore((state) => state.setFilters);
   const data = useActiveScopedData();
-  const disciplinesEnabled = useStore((state) =>
-    hasDisciplinesEnabled(state.data, state.activeAccountId),
-  );
   const placeholdersEnabled = useStore((state) =>
     hasPlaceholdersEnabled(state.data, state.activeAccountId),
   );
   const externalEnabled = useStore((state) =>
     hasExternalResourcesEnabled(state.data, state.activeAccountId),
   );
-  const role = useRole();
-  const permissionStatus = usePermissionStatus();
-  const overviewAccess = useStore((state) =>
-    resolveCapacityOverviewAccess(state.data, state.activeAccountId),
-  );
-  const showCapacityOverview =
-    resolveCapacityOverviewAccessDecision({
-      role,
-      status: permissionStatus,
-      access: overviewAccess,
-    }) === 'allowed';
-  const showDiagnostics = useDiagnosticsAccessDecision() === 'allowed';
+  const routes = useVisibleRoutes();
   return useMemo(
     () =>
       buildPaletteItems({
         query,
         data,
-        disciplinesEnabled,
-        showCapacityOverview,
-        showDiagnostics,
+        routes,
         placeholdersEnabled,
         externalEnabled,
         navigate,
@@ -101,9 +78,7 @@ function usePaletteItems(query: string, onClose: () => void) {
     [
       query,
       data,
-      disciplinesEnabled,
-      showCapacityOverview,
-      showDiagnostics,
+      routes,
       placeholdersEnabled,
       externalEnabled,
       navigate,
@@ -166,7 +141,6 @@ function PaletteResults({
 
 /** Renders the command palette and manages its active result and search state. */
 export function CommandPalette({ onClose }: { onClose: () => void }) {
-  // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
   // Per-account view pref (default off): when off, placeholders are not offered as jump targets.
   // Per-account view pref (default off): when off, external / 3rd parties are not offered as
   // jump targets, their schedule row is hidden, so jumping to it would scroll to nothing.

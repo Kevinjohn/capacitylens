@@ -2,7 +2,7 @@ import { createServer, get as httpGet, request as httpRequest } from 'node:http'
 import type { RequestListener, Server } from 'node:http';
 import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createRehearsalRequestHandler } from '../../../scripts/serve-dist.mjs';
+import { createRehearsalRequestHandler } from '../../../scripts/e2e/serve-dist.mjs';
 
 const servers: Server[] = [];
 afterEach(async () => {

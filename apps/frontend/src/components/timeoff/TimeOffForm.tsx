@@ -6,7 +6,7 @@ import { hasPlaceholdersEnabled, resolveTimeZone } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
-import { todayISO } from '@capacitylens/shared/lib/dateMath';
+import { readCalendarToday } from '@/lib/calendarToday';
 import { m } from '@/i18n';
 import {
   DateField,
@@ -70,7 +70,7 @@ function useTimeOffDraft({
   calendarTimeZone,
   canEditNote,
 }: TimeOffDraftOptions) {
-  const today = todayISO(calendarTimeZone);
+  const today = readCalendarToday(calendarTimeZone);
   const [resourceId, setResourceId] = useState(
     resolveDraftValue(timeOff?.resourceId, defaults?.resourceId, ''),
   );
