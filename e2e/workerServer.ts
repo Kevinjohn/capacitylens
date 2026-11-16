@@ -1,5 +1,5 @@
-import { resolveLane } from '../scripts/ports.mjs';
-import { startE2eWorkerServer } from '../scripts/e2eWorkerRuntime.mjs';
+import { resolveLane } from '../scripts/dev/ports.mjs';
+import { startE2eWorkerServer } from '../scripts/e2e/e2eWorkerRuntime.mjs';
 import { configureServerTarget, prepareServerTemplate, serverTarget } from './serverTestState';
 
 /** The process handles and target owned by one Playwright worker slot. */

@@ -34,12 +34,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  page["InviteAccept loads invitation preview"] --> preview["accountClient.previewInvitation calls invitations preview"]
+  page["InviteAccept loads invitation preview"] --> preview["readInvitationPreview calls invitations preview"]
   preview --> kitInspect["InvitationsController.preview calls Account Kit invitations.inspect"]
   page --> signup["InviteAccept submit sends Name and Password"]
-  signup --> accept["accountClient.signupWithInvitation calls InvitationsController.signUp"]
+  signup --> accept["signUpWithInvitation calls InvitationsController.signUp"]
   accept --> kitAccept["Account Kit invitations.accept creates the invited identity"]
   kitAccept --> reload["Browser reload rechecks AuthProvider session and access gate"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [accountClient.ts](../../apps/frontend/src/account/accountClient.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [auth_controller.ts](../../apps/backend/app/controllers/auth_controller.ts)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [invitationSignupClient.ts](../../apps/frontend/src/account/invitationSignupClient.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [auth_controller.ts](../../apps/backend/app/controllers/auth_controller.ts)

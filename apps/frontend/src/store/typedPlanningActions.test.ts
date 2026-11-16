@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useStore } from './useStore';
 import { makeClient, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 beforeEach(async () => {
