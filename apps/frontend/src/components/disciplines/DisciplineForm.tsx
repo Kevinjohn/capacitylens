@@ -1,11 +1,11 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useActiveScopedData } from '@/store/useScopedData';
-import { useFieldError } from '@/hooks/useFieldError';
+import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { resolveErrorMessage } from '@/lib/errorMessage';
+import { useFieldError } from '@/hooks/useFieldError';
 import { validatePresetColor, parseName } from '@/lib/validation';
-import { isStaleEdit } from '@/lib/isStaleEdit';
 import { m } from '@/i18n';
 import { ColorField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
@@ -28,40 +28,24 @@ export function DisciplineForm({
   const nextSortOrder = disciplines.reduce((max, item) => Math.max(max, item.sortOrder + 1), 0);
   const [name, setName] = useState(discipline?.name ?? '');
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline);
-  const [pending, setPending] = useState(false);
-  const inFlight = useRef(false);
   const sortOrder = discipline?.sortOrder ?? nextSortOrder;
   const { error, errorField, errorId, fail } = useFieldError();
+  const allDisciplines = useStore((state) => state.data.disciplines);
+  const { pending, submit } = useEditSubmit({
+    editing: discipline,
+    rows: allDisciplines,
+    staleMessage: m.form_discipline_err_changed,
+    cancelledMessage: resolveErrorMessage,
+    fail,
+    onSaved: onClose,
+  });
 
-  const submit = async () => {
-    if (inFlight.current) return;
+  const prepareSave = () => {
     const trimmed = parseName(name, fail);
-    if (!trimmed) return;
-    if (!validatePresetColor(color, fail)) return;
-    inFlight.current = true;
-    setPending(true);
-    // Surface a store-side rejection as a form error rather than an uncaught React error, see the
-    // store CRUD contract.
-    try {
-      if (discipline) {
-        if (
-          isStaleEdit(useStore.getState().data.disciplines, discipline.id, discipline.updatedAt)
-        ) {
-          fail(null, m.form_discipline_err_changed());
-          return;
-        }
-        await update(discipline.id, { name: trimmed, color, sortOrder });
-      } else {
-        const result = await add({ name: trimmed, color, sortOrder });
-        if (result.kind === 'blocked') return;
-      }
-      onClose();
-    } catch (e) {
-      fail(null, resolveErrorMessage(e));
-    } finally {
-      inFlight.current = false;
-      setPending(false);
-    }
+    if (!trimmed) return null;
+    if (!validatePresetColor(color, fail)) return null;
+    const patch = { name: trimmed, color, sortOrder };
+    return discipline ? () => update(discipline.id, patch) : () => add(patch);
   };
 
   return (
@@ -69,7 +53,7 @@ export function DisciplineForm({
       title={discipline ? m.form_discipline_edit_title() : m.form_discipline_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        void submit();
+        void submit(prepareSave);
       }}
       footer={<FormActions onCancel={onClose} disabled={pending} />}
     >

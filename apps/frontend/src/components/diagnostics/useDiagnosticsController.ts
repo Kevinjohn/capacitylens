@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatDiagnostics, readBrowserDiagnostics, readDiagnostics } from '@/data/buildInfo';
-import { accountClient } from '@/account/accountClient';
+import { readServerDiagnostics } from '@/data/serverDiagnostics';
 
 type ServerObservation = { response: unknown; observedAt: string | undefined };
 
@@ -13,12 +13,8 @@ export function useDiagnosticsController() {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   useEffect(() => {
     const controller = new AbortController();
-    void accountClient
-      .diagnostics(controller.signal)
-      .then(async (response) => {
-        const body = (await response.json().catch(() => null)) as unknown;
-        setObservation({ response: body, observedAt: new Date().toISOString() });
-      })
+    void readServerDiagnostics(controller.signal)
+      .then(setObservation)
       .catch(() => {
         // An unavailable diagnostics read is itself represented in the fixed projection. The
         // caught error is intentionally not rendered or copied, because it may contain internals.

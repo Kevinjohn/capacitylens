@@ -96,7 +96,7 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_CORS_ORIGIN: optional,
   CAPACITYLENS_CREATE_ADMIN_ADMIN: optionalBoolean,
   CAPACITYLENS_DB: optional,
-  // Set by scripts/dev-fullstack.mjs to its lane's Vite origins; ignored outside development.
+  // Set by scripts/dev/dev-fullstack.mjs to its lane's Vite origins; ignored outside development.
   CAPACITYLENS_DEV_WEB_ORIGINS: optional,
   CAPACITYLENS_LOG: Env.schema.enum.optional(['0', '1'] as const),
   CAPACITYLENS_MAIL_FROM: Env.schema.string.optional({ format: 'email' }),

@@ -3,27 +3,24 @@ import {
   lacksEffectiveWorkingDays,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
-import type { ID, ISODate, Weekday } from '@capacitylens/shared/types/entities';
-import { listAccountWorkingDays } from '@/store/selectors';
-import { useStore } from '@/store/useStore';
+import type { ID, ISODate, Resource, Weekday } from '@capacitylens/shared/types/entities';
 import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from './creationAvailability';
 
-function readResource(resourceId: ID) {
-  const state = useStore.getState();
-  return {
-    resource: state.data.resources.find((candidate) => candidate.id === resourceId),
-    accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
-  };
+/** The calendars a gesture reads: the resources and the company's working week at that moment. */
+export interface GestureCalendar {
+  resources: Resource[];
+  accountWorkingDays: Weekday[];
 }
 
 /** The working weekdays that actually govern `resourceId`: their own pattern narrowed by the
  * company's. `undefined` when the resource is gone (deleted mid-drag). */
-export function readWorkingDays(resourceId: ID) {
-  const { resource, accountWorkingDays } = readResource(resourceId);
-  return resource ? resolveEffectiveWorkingDays(resource, accountWorkingDays) : undefined;
+export function resolveGestureWorkingDays(calendar: GestureCalendar, resourceId: ID) {
+  const resource = calendar.resources.find((candidate) => candidate.id === resourceId);
+  return resource ? resolveEffectiveWorkingDays(resource, calendar.accountWorkingDays) : undefined;
 }
 
 interface EffectiveDaysQuery {
+  calendar: GestureCalendar;
   resourceId: ID;
   /** The allocation's opt-out: it may occupy any day regardless of the resource's week. */
   ignoreWorkingDays: boolean | null | undefined;
@@ -31,16 +28,21 @@ interface EffectiveDaysQuery {
 
 /** Does this allocation have any day it could occupy on `resourceId`? False only for a collapsed
  * working week, which a weekend-aware gesture cannot place anything into. */
-export function hasEffectiveDaysFor({ resourceId, ignoreWorkingDays }: EffectiveDaysQuery) {
-  const { resource, accountWorkingDays } = readResource(resourceId);
+export function hasEffectiveDaysFor({
+  calendar,
+  resourceId,
+  ignoreWorkingDays,
+}: EffectiveDaysQuery) {
+  const resource = calendar.resources.find((candidate) => candidate.id === resourceId);
   if (!resource) return true;
   return !lacksEffectiveWorkingDays(
-    effectiveWorkingWeek(resource, accountWorkingDays),
+    effectiveWorkingWeek(resource, calendar.accountWorkingDays),
     ignoreWorkingDays ?? undefined,
   );
 }
 
 interface DropStartQuery {
+  calendar: GestureCalendar;
   resourceId: ID;
   date: ISODate;
   ignoreWorkingDays: boolean | null | undefined;
@@ -63,13 +65,18 @@ interface PreviewDropQuery {
 /** Would a drop starting on `date` be refused because `resourceId` does not work that day? The one
  * answer the live drag preview and the commit both ask, so the bar cannot draw a placement the
  * release is about to reject. An absent resource is not blocked, its own gate rejects it. */
-export function isDropStartBlocked({ resourceId, date, ignoreWorkingDays }: DropStartQuery) {
-  const { resource, accountWorkingDays } = readResource(resourceId);
+export function isDropStartBlocked({
+  calendar,
+  resourceId,
+  date,
+  ignoreWorkingDays,
+}: DropStartQuery) {
+  const resource = calendar.resources.find((candidate) => candidate.id === resourceId);
   if (!resource) return false;
   return isAllocationMoveStartBlocked({
     resource,
     date,
-    accountWorkingDays,
+    accountWorkingDays: calendar.accountWorkingDays,
     ignoreWorkingDays: ignoreWorkingDays ?? undefined,
   });
 }
@@ -102,10 +109,16 @@ export function isPreviewDropBlocked({
   });
 }
 
-/** Memoises each lane's working week for one gesture so preview math uses a stable snapshot. Clear the map at start and teardown; commits and keyboard actions re-read live calendars. */
-export function resolveMemoisedWorkingDays(memo: Map<ID, Weekday[] | undefined>, resourceId: ID) {
+/** Memoises each lane's working week for one gesture so preview math uses a stable snapshot. The
+ * calendar is read only on a miss, so a preview frame for a known lane reads nothing. Clear the map
+ * at start and teardown; commits and keyboard actions pass a freshly read calendar instead. */
+export function resolveMemoisedWorkingDays(
+  memo: Map<ID, Weekday[] | undefined>,
+  resourceId: ID,
+  readCalendar: () => GestureCalendar,
+) {
   if (memo.has(resourceId)) return memo.get(resourceId);
-  const workingDays = readWorkingDays(resourceId);
+  const workingDays = resolveGestureWorkingDays(readCalendar(), resourceId);
   memo.set(resourceId, workingDays);
   return workingDays;
 }
