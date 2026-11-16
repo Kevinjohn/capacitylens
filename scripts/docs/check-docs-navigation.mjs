@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const siteDir = resolve(dirname(fileURLToPath(import.meta.url)), '../docs');
+const siteDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../docs');
 
 const walk = (dir) =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

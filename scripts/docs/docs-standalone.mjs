@@ -18,9 +18,9 @@
 import { readdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { join, relative, dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BASE } from '../docs-src/.vitepress/base.mjs';
+import { BASE } from '../../docs-src/.vitepress/base.mjs';
 
-const repoDir = join(dirname(fileURLToPath(import.meta.url)), '..');
+const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const siteDir = join(repoDir, 'docs');
 
 if (!existsSync(join(siteDir, 'index.html'))) {

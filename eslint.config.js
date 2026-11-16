@@ -116,8 +116,8 @@ export default defineConfig([
     // prose and the VitePress config.
     'docs',
     'docs-src',
-    'scripts/docs-lightbox.js',
-    'scripts/docs-standalone.mjs',
+    'scripts/docs/docs-lightbox.js',
+    'scripts/docs/docs-standalone.mjs',
   ]),
 
   // Authored JavaScript shares a baseline, but runtime globals belong to its execution environment.

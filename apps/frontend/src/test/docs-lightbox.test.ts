@@ -216,7 +216,7 @@ describe('docs image build hygiene', () => {
   });
 });
 
-const runtime = readFileSync(join(ROOT, 'scripts/docs-lightbox.js'), 'utf8');
+const runtime = readFileSync(join(ROOT, 'scripts/docs/docs-lightbox.js'), 'utf8');
 const publishedRuntimeMatch = readFileSync(join(SITE, 'index.html'), 'utf8').match(
   /<script\b[^>]*data-cl-keep[^>]*>([\s\S]*?)<\/script>/,
 );
