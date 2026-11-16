@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
-import { resolveLane, workerPorts } from '../scripts/ports.mjs';
+import { resolveLane, workerPorts } from '../scripts/dev/ports.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, realpathSync, rmSync } from 'node:fs';
 import { basename, resolve } from 'node:path';

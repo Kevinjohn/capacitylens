@@ -9,15 +9,13 @@ vi.mock('@/data/requestTimeout', () => ({
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: vi.fn((signal?: AbortSignal) => signal),
   setMasqueradeEndedHandler: vi.fn(),
+  setMasqueradeContextReader: vi.fn(),
 }));
 
-import { masqueradeController } from '@/auth/masqueradeController';
+import { masqueradeController } from '@/auth/masqueradeControllerInstance';
 import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
-import {
-  accountClient,
-  bindStoredAccountCommandsToIdentity,
-  clearStoredAccountCommands,
-} from './accountClient';
+import { bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from './accountCommands';
+import { invitationRequests } from './invitationRequests';
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -56,7 +54,7 @@ async function flushPromiseContinuations(): Promise<void> {
 const ok = () => new Response(null, { status: 201 });
 const unknown = () => new Response(null, { status: 503 });
 const createInvitation = () =>
-  accountClient.createInvitation({
+  invitationRequests.createInvitation({
     accountId: 'a-studio',
     role: 'viewer',
     email: 'selina@wayne.test',
@@ -82,7 +80,7 @@ describe('implicit account command cohorts', () => {
       const digest = vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(() => held.promise);
       const body = { accountId: 'a-studio', role: 'viewer' as const, email: 'selina@wayne.test' };
       mocks.apiFetch.mockResolvedValueOnce(ok());
-      const pending = accountClient.createInvitation(body);
+      const pending = invitationRequests.createInvitation(body);
       try {
         await vi.waitFor(() => expect(digest).toHaveBeenCalledOnce());
         body.email = 'barbara@wayne.test';
@@ -169,14 +167,14 @@ describe('implicit account command cohorts', () => {
       .mockImplementationOnce(() => uncertain.promise)
       .mockImplementationOnce(() => definitive.promise);
 
-    const uncertainCall = accountClient.createInvitation({
+    const uncertainCall = invitationRequests.createInvitation({
       accountId: 'a-studio',
       role: 'viewer',
       email: 'selina@wayne.test',
     });
     await waitForRequests(1);
     const uncertainHeaders = commandHeadersAt(0);
-    const definitiveCall = accountClient.createInvitation({
+    const definitiveCall = invitationRequests.createInvitation({
       accountId: 'a-studio',
       role: 'editor',
       email: 'selina@wayne.test',
@@ -190,13 +188,13 @@ describe('implicit account command cohorts', () => {
     await Promise.all([uncertainCall, definitiveCall]);
 
     mocks.apiFetch.mockResolvedValueOnce(unknown()).mockResolvedValueOnce(ok());
-    await accountClient.createInvitation({
+    await invitationRequests.createInvitation({
       accountId: 'a-studio',
       role: 'viewer',
       email: 'selina@wayne.test',
     });
     expect(commandHeadersAt(2)).toEqual(uncertainHeaders);
-    await accountClient.createInvitation({
+    await invitationRequests.createInvitation({
       accountId: 'a-studio',
       role: 'editor',
       email: 'selina@wayne.test',

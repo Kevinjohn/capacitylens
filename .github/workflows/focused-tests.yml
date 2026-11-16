@@ -56,7 +56,7 @@ jobs:
         id: select
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: echo "plan=$(node scripts/check-changed.mjs --e2e-plan "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+        run: echo "plan=$(node scripts/ci/check-changed.mjs --e2e-plan "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
 
   e2e:
     name: Changed end-to-end specs
@@ -73,7 +73,7 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       # The native first-company journey serves the built SPA from the backend's public directory.
       - name: Build and sync the production SPA
-        run: pnpm --dir apps/frontend build && node scripts/sync-adonis-public.mjs
+        run: pnpm --dir apps/frontend build && node scripts/build/sync-adonis-public.mjs
       - name: Run the selected specs or suites
         env:
           RUN: ${{ fromJSON(needs.select-e2e.outputs.plan).run }}

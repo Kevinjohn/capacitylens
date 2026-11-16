@@ -17,7 +17,7 @@ export default class ExportsController {
     const { request, response } = ctx;
     const { accountId, includeInactive } = await exportQueryValidator.validate(request.qs());
     return withActor(ctx, async (_actor, trx) => {
-      const principal = await effectiveReadPrincipal(ctx, trx, accountId);
+      const principal = await effectiveReadPrincipal(trx, accountId);
       if (principal.accountId && accountId && principal.accountId !== accountId) {
         throw new IdentityAuthorityError('Forbidden.');
       }

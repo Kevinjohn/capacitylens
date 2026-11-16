@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { readAccountCommand } from '#services/account_commands';
+import { parseAccountCommand } from '#services/account_commands';
 import { transferOwnership } from '#services/membership/ownership_transfer';
+import { withActor } from '#services/auth/current_actor';
 import { hasOnlyFields, USER_ID_PATTERN } from '#services/request_helpers';
 
 function validBody(value: unknown): value is { toUserId: string; confirmationId?: string } {
@@ -21,13 +22,15 @@ export default class OwnershipController {
         code: 'VALIDATION_ERROR',
       });
     }
-    const command = readAccountCommand(ctx);
-    const receipt = await transferOwnership(
-      ctx,
-      ctx.params.accountId,
-      ctx.request.body().toUserId,
-      ctx.request.body().confirmationId ?? '',
-      command
+    const command = parseAccountCommand(
+      ctx.request.header('x-account-command-id'),
+      ctx.request.header('idempotency-key')
+    );
+    const accountId = ctx.params.accountId;
+    const { toUserId } = ctx.request.body();
+    const confirmationId = ctx.request.body().confirmationId ?? '';
+    const receipt = await withActor(ctx, (actor, trx) =>
+      transferOwnership({ trx, actor, accountId, toUserId, confirmationId, command })
     );
     return ctx.response.ok(receipt);
   }

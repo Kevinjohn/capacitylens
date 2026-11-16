@@ -1,4 +1,4 @@
-import { allocationWorksOnDay } from '@capacitylens/shared/lib/dateMath';
+import { allocationWorksOnDay } from '@capacitylens/shared/lib/workingWeek';
 import { blockHoursPerDay } from '@capacitylens/shared/lib/schedulingDays';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';

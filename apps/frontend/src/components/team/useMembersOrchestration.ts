@@ -9,6 +9,7 @@ import { useFieldError } from '@/hooks/useFieldError';
 import { useStore } from '@/store/useStore';
 import type { StoreState } from '@/store/types';
 import { useTeamDirectory } from './useTeamDirectory';
+import { useTeamActionLock } from './useTeamActionLock';
 import { useMemberInvites } from './useMemberInvites';
 import { useMemberResourceLinkRequests } from './useMemberResourceLinkRequest';
 import { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
@@ -116,6 +117,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     activeAccountId: input.activeAccountId,
     fail: input.fail,
   });
+  const actionLock = useTeamActionLock();
   const authorizedDirectory = selectAuthorizedDirectory(directoryState.directory);
   const members = authorizedDirectory?.members ?? null;
   const invites = authorizedDirectory?.invites ?? NO_INVITES;
@@ -133,11 +135,11 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     body: (accountId: string) => Promise<void>,
   ): Promise<void> => {
     const accountId = requestAccountId();
-    if (!directoryState.beginAction(key)) return;
+    if (!actionLock.beginAction(key)) return;
     try {
       await body(accountId);
     } finally {
-      directoryState.endAction();
+      actionLock.endAction();
     }
   };
   const renderedAt = useDeadlineClock({
@@ -146,6 +148,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   });
   return {
     ...directoryState,
+    busyAction: actionLock.busyAction,
     members,
     resourceCandidates,
     renderedAt,

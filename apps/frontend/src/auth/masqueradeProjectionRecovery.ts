@@ -1,24 +1,22 @@
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
-import { useStore } from '@/store/useStore';
-import { setMasqueradeContextToken } from './masqueradeContext';
+import type { StoreState } from '@/store/types';
 
 export type FinishProjectionResult = { kind: 'finished' } | { kind: 'failed'; message: string };
 export type RealProjectionResult =
   { kind: 'restored' } | { kind: 'active' } | { kind: 'superseded' } | { kind: 'failed' };
 
-export function publishMasqueradeAccount(state: MasqueradeState): void {
-  const account = useStore
-    .getState()
-    .data.accounts.find((candidate) => candidate.id === state.accountId);
-  useStore.getState().setAccountSummaries({
+export function publishMasqueradeAccount(store: StoreState, state: MasqueradeState): void {
+  const account = store.data.accounts.find((candidate) => candidate.id === state.accountId);
+  store.setAccountSummaries({
     list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
     complete: account !== undefined,
   });
-  useStore.getState().setActiveRole(state.effectiveRole, 'resolved');
+  store.setActiveRole(state.effectiveRole, 'resolved');
 }
 
 interface RestoreMasqueradeProjectionInput {
   state: MasqueradeState;
+  adoptContextToken: (token: string | null) => void;
   readStatus: () => Promise<MasqueradeStatus>;
   isCurrent: () => boolean;
   publishActive: (status: Extract<MasqueradeStatus, { active: true }>) => void;
@@ -29,6 +27,7 @@ interface RestoreMasqueradeProjectionInput {
 /** Confirms server state before restoring real data or retaining the projected identity. */
 export async function restoreMasqueradeProjection({
   state,
+  adoptContextToken,
   readStatus,
   isCurrent,
   publishActive,
@@ -37,7 +36,7 @@ export async function restoreMasqueradeProjection({
 }: RestoreMasqueradeProjectionInput): Promise<RealProjectionResult> {
   const status = await readStatus();
   if (!isCurrent()) return { kind: 'superseded' };
-  setMasqueradeContextToken(status.contextToken);
+  adoptContextToken(status.contextToken);
   if (status.active) {
     publishActive(status);
     return { kind: 'active' };

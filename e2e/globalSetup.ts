@@ -1,4 +1,4 @@
-import { spawnPnpmSync } from '../scripts/pnpmSpawn.mjs';
+import { spawnPnpmSync } from '../scripts/shared/pnpmSpawn.mjs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));

@@ -17,6 +17,7 @@ import { tables } from '#services/product_tables';
 import { EntityWriteError } from '#services/planning/errors';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
+import { discardRestorationGroups } from '#services/planning/restoration';
 
 /**
  * Validates a document taken from a parsed request body, or returns null when it is not a valid
@@ -130,7 +131,7 @@ export async function applyBetaAccountTransfer(
     return { imported: prepared.imported, changed: false, revision };
   }
 
-  await trx.from('deleted_groups').where('account_id', accountId).delete();
+  await discardRestorationGroups(trx, accountId);
   for (const key of [...SCOPED_WRITE_ORDER].reverse()) {
     await trx.from(tables[key]).where('account_id', accountId).delete();
   }

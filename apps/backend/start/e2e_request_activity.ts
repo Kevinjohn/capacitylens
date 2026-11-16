@@ -1,5 +1,6 @@
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { createResetControlServer, createRetirableListener } from '#start/e2e_reset_control';
+import { createResetControlServer } from '#start/e2e_reset_control';
+import { createRetirableListener } from '#start/e2e_retirable_listener';
 
 type RequestHandler = (request: IncomingMessage, response: ServerResponse) => void | Promise<void>;
 

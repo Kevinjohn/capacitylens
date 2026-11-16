@@ -1,6 +1,12 @@
 import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { setMasqueradeContextReader } from '@/data/requestTimeout';
+
+// The app registers this reader when the masquerade controller is wired; tests that never load that
+// module still send the current context proof, as the running app does.
+setMasqueradeContextReader(getMasqueradeContextToken);
 
 // Store tests own their transport and reset source without changing the production demo.
 vi.mock('@/data/planning/storePlanningTransport', async () => {

@@ -3,32 +3,38 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { m } from '@/i18n';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { rangesOverlap } from '@capacitylens/shared/lib/dateMath';
-import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
+import { carriesHourlyLoad, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import type { Allocation, ID, Weekday } from '@capacitylens/shared/types/entities';
 import { useDragResize } from '@/hooks/useDragResize';
 import type { DragResizePreviewInput, Pointer } from '@/hooks/useDragResize';
-import { isShownByPlanningState } from '@/data/planning/planningCacheController';
+import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { applyGesture } from '@/lib/gestureMath';
 import type { DateRange, DragMode } from '@/lib/gestureMath';
 import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
-import { buildVisibleRange, listAccountWorkingDays } from '@/store/selectors';
+import {
+  buildVisibleRange,
+  listAccountWorkingDays,
+  resolveSchedulingMode,
+} from '@/store/selectors';
 import { useStore } from '@/store/useStore';
 import {
   reconcileReassignedHours,
   resolveGesture,
   resolveVolumePreservingHours,
 } from './allocationDrag';
-import { readCapacityAnnouncement, readCapacityGestureAdvisory } from './gestureAnnouncements';
+import { buildCapacityAnnouncement, buildCapacityGestureAdvisory } from './gestureAnnouncements';
+import type { GestureCapacitySource } from './gestureAnnouncements';
 import { buildGesturePreviewDates } from './gestureGeometry';
 import {
   hasEffectiveDaysFor,
   isDropStartBlocked,
   isPreviewDropBlocked,
-  readWorkingDays,
+  resolveGestureWorkingDays,
   resolveMemoisedWorkingDays,
 } from './gestureWorkingWeeks';
-import { readLaneSnapshots, resolveLaneAt } from './gestureLanes';
+import type { GestureCalendar } from './gestureWorkingWeeks';
+import { buildActiveGestureData, readLaneSnapshots, resolveLaneAt } from './gestureLanes';
 import type { LaneSnapshot } from './gestureLanes';
 import type { BarLayout } from './schedulerModel';
 import { useAllocationFocus } from './useAllocationFocus';
@@ -60,11 +66,43 @@ export interface GestureRuntime {
   stopGeometryWatch: () => void;
 }
 
+// The gesture helpers are pure; each read below takes the live store at the moment of the call so
+// a commit or keyboard action never acts on a calendar captured earlier in the gesture.
+function readGestureCalendar(): GestureCalendar {
+  const state = useStore.getState();
+  return {
+    resources: state.data.resources,
+    accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
+  };
+}
+
+function readGestureCapacitySource(): GestureCapacitySource {
+  const { data, activeAccountId } = useStore.getState();
+  return {
+    data: buildActiveGestureData(data, activeAccountId),
+    accountWorkingDays: listAccountWorkingDays(data, activeAccountId),
+  };
+}
+
+function readCapacityAnnouncement(resourceId: ID): string {
+  const { data, activeAccountId, ui } = useStore.getState();
+  return buildCapacityAnnouncement({
+    source: readGestureCapacitySource(),
+    resourceId,
+    visibleRange: buildVisibleRange(ui),
+    blocksMode: !carriesHourlyLoad(resolveSchedulingMode(data, activeAccountId)),
+  });
+}
+
 function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID) {
   // A resize cannot preserve working-day volume when the resource has no effective days.
   if (
     mode === 'move' ||
-    hasEffectiveDaysFor({ resourceId, ignoreWorkingDays: bar.allocation.ignoreWorkingDays })
+    hasEffectiveDaysFor({
+      calendar: readGestureCalendar(),
+      resourceId,
+      ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
+    })
   ) {
     return false;
   }
@@ -86,6 +124,7 @@ function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDates
   const previewDays = resolveMemoisedWorkingDays(
     runtime.previewDaysRef.current,
     destination?.id ?? resourceId,
+    readGestureCalendar,
   );
   return {
     result: buildGesturePreviewDates({
@@ -94,7 +133,11 @@ function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDates
       deltaDays: input.deltaDays,
       previewDays,
       sourceDays: destination
-        ? resolveMemoisedWorkingDays(runtime.previewDaysRef.current, resourceId)
+        ? resolveMemoisedWorkingDays(
+            runtime.previewDaysRef.current,
+            resourceId,
+            readGestureCalendar,
+          )
         : undefined,
       isReassignment: destination !== null,
     }),
@@ -146,9 +189,11 @@ interface ResolveCommitInput {
 function resolveCommitDates({ options, mode, deltaDays, resourceId }: ResolveCommitInput) {
   const { bar, isDays } = options;
   const source = bar.allocation.resourceId;
-  const workingDays = readWorkingDays(resourceId);
+  const calendar = readGestureCalendar();
+  const workingDays = resolveGestureWorkingDays(calendar, resourceId);
   // A reassignment keeps the duration its origin measured; only the placement is the target's.
-  const sourceWorkingDays = resourceId === source ? workingDays : readWorkingDays(source);
+  const sourceWorkingDays =
+    resourceId === source ? workingDays : resolveGestureWorkingDays(calendar, source);
   return resolveGesture({
     mode,
     current: { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
@@ -226,7 +271,8 @@ async function savePointerCommit({
     return;
   }
   // Advisory work follows the mutation so a programmer error cannot be mislabeled as rejection.
-  const advisory = readCapacityGestureAdvisory({
+  const advisory = buildCapacityGestureAdvisory({
+    source: readGestureCapacitySource(),
     bar,
     effectiveResourceId,
     isBlocks,
@@ -270,6 +316,7 @@ function commitPointerGesture(
   if (
     targetResourceId &&
     isDropStartBlocked({
+      calendar: readGestureCalendar(),
       resourceId: targetResourceId,
       date: result.dates.startDate,
       ignoreWorkingDays: options.bar.allocation.ignoreWorkingDays,
@@ -283,7 +330,7 @@ function commitPointerGesture(
 
 function resolveKeyboardGesture(options: ControllerOptions, mode: DragMode, deltaDays: number) {
   const { bar } = options;
-  const workingDays = readWorkingDays(bar.allocation.resourceId);
+  const workingDays = resolveGestureWorkingDays(readGestureCalendar(), bar.allocation.resourceId);
   const gestureOptions = {
     ...(workingDays !== undefined ? { workingDays } : {}),
     ignoreWorkingDays: bar.allocation.ignoreWorkingDays,

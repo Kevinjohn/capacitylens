@@ -24,7 +24,7 @@ vi.mock('./masqueradeApi', () => ({
   masqueradeApi: { status: mocks.status },
 }));
 
-vi.mock('./masqueradeController', () => ({
+vi.mock('./masqueradeControllerInstance', () => ({
   masqueradeController:
     (mocks.controllerLoaded(),
     {

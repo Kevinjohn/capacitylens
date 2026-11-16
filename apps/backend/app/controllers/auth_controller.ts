@@ -19,7 +19,7 @@ import { errors as vineErrors } from '@vinejs/vine';
 import { signInValidator, signUpValidator } from '#validators/auth_requests';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import { hasNoCompany } from '#services/installation_company';
+import { hasAnyIdentity, hasNoCompany } from '#services/installation_company';
 import { managedGuard } from '#services/auth/managed_guard';
 
 function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
@@ -59,7 +59,7 @@ export default class AuthController {
       );
     } catch (error) {
       if (!(error instanceof InvalidSessionError)) throw error;
-      const hasUsers = Boolean(await db.from('users').select('id').first());
+      const hasUsers = await hasAnyIdentity(db);
       return ctx.response.unauthorized({
         error: 'Sign-in required.',
         code: 'SIGN_IN_REQUIRED',
@@ -78,7 +78,12 @@ export default class AuthController {
     }
     const { email } = body;
     try {
-      const user = await signInWithPassword(ctx, email, body.password);
+      const user = await signInWithPassword(ctx, {
+        email,
+        password: body.password,
+        clientAddress: ctx.request.ip(),
+        userAgent: ctx.request.header('user-agent'),
+      });
       return ctx.response.ok({ user });
     } catch (error) {
       if (error instanceof InvalidCredentialsError) {
@@ -124,7 +129,14 @@ export default class AuthController {
       ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed');
     }
     try {
-      return ctx.response.created({ user: await signInWithPassword(ctx, email, body.password) });
+      return ctx.response.created({
+        user: await signInWithPassword(ctx, {
+          email,
+          password: body.password,
+          clientAddress: ctx.request.ip(),
+          userAgent: ctx.request.header('user-agent'),
+        }),
+      });
     } catch (error) {
       ctx.logger.warn(
         { code: error instanceof Error ? error.name : 'UNKNOWN' },

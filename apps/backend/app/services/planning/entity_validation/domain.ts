@@ -25,7 +25,12 @@ import type {
   ScopedEntityKey,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
-import { EntityWriteError } from '#services/planning/errors';
+import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
+import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import {
+  effectiveWorkingWeek,
+  effectiveWeekIncludes,
+} from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 
 /** Enforce relational and lifecycle rules against the transaction's evolving projection. */
@@ -164,5 +169,30 @@ export function assertEntityDomain(
     assertDateRange(timeOff.startDate, timeOff.endDate);
   } else if (table === 'closures') {
     assertDateRange(row.startDate as string, row.endDate as string);
+  }
+}
+
+/**
+ * A new allocation, or one moved to another resource without the working-day override, must start
+ * on a working day of that resource's effective week. Later repeat occurrences skip this check.
+ */
+export function assertAllocationStartsOnWorkingDay(
+  row: Record<string, unknown>,
+  existing: Record<string, unknown> | undefined,
+  lookup: ValidationDataLookup,
+  accountId: string
+) {
+  if (existing && (existing.resourceId === row.resourceId || row.ignoreWorkingDays === true)) {
+    return;
+  }
+  const resource = lookup.row('resources', String(row.resourceId)) as Resource | undefined;
+  if (!resource || typeof row.startDate !== 'string') return;
+  const effectiveWeek = effectiveWorkingWeek(resource, lookup.accountWorkingDays(accountId));
+  if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(row.startDate))) {
+    throw new PlanningOperationError(
+      400,
+      'VALIDATION_ERROR',
+      'The allocation must start on a working day.'
+    );
   }
 }

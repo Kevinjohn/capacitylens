@@ -1,5 +1,5 @@
 import type { PlanningHistoryEntry, PlanningIntent } from '@/api/planningContracts';
-import type { PlanningHistory } from './planningCacheController';
+import type { PlanningHistory } from './planningCacheTypes';
 
 // Page-local undo and redo history: moving entries after a commit and deciding eligibility.
 

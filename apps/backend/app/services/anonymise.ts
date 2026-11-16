@@ -5,6 +5,7 @@ import { encodeRow, readStateWithClient } from '#services/state_repository';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
 import { createServerRevision } from '#services/planning/server_timestamp';
+import { discardRestorationGroups } from '#services/planning/restoration';
 
 /** Scrubs planning identity and saved undo images in the caller's transaction. */
 export async function anonymiseResources(
@@ -48,7 +49,7 @@ export async function anonymiseResources(
       }
     }
   }
-  await trx.from('deleted_groups').where('account_id', accountId).delete();
+  await discardRestorationGroups(trx, accountId);
   await writeAudit(trx, {
     accountId,
     actorId,
