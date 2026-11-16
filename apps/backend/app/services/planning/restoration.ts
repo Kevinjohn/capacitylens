@@ -11,6 +11,7 @@ import { DomainError } from '@capacitylens/shared/domain/errors';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
+import { affectedRows } from '#services/affected_rows';
 import { retainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
 import { TABLE_NAMES } from '#services/planning/entity_policy';
 import { createServerRevision } from '#services/planning/server_timestamp';
@@ -39,10 +40,6 @@ function assertRestorationCandidate(assertion: () => void) {
     if (error instanceof DomainError) conflict();
     throw error;
   }
-}
-
-function affectedRows(result: number | unknown[]): number {
-  return Array.isArray(result) ? result.length : result;
 }
 
 /** Saves expected row identities and surviving-child links, then retains the deleted rows. */
