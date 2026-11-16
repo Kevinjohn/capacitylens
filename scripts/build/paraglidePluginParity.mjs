@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile, rm, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { spawnPnpmSync } from '../pnpmSpawn.mjs';
+import { spawnPnpmSync } from '../shared/pnpmSpawn.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));

@@ -43,10 +43,11 @@ test('preset tests run from a checkout path containing spaces and a hash', async
   const directory = await mkdtemp(join(tmpdir(), 'capacitylens preset #'));
   context.after(() => rm(directory, { recursive: true, force: true }));
   await mkdir(join(directory, 'e2e'));
+  await mkdir(join(directory, 'shared'));
   for (const file of [
     'e2e/run-preset.test.mjs',
     'e2e/run-preset.mjs',
-    'pnpmSpawn.mjs',
+    'shared/pnpmSpawn.mjs',
     'e2e/playwrightRunMode.mjs',
   ]) {
     await writeFile(join(directory, file), await readFile(new URL(`../${file}`, import.meta.url)));

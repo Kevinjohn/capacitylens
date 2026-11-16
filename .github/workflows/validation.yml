@@ -5,7 +5,7 @@ name: Validation
 #   Chromium journey;
 # - the weekly schedule, a `v*` tag and manual dispatch run full validation: every tooling check,
 #   frontend coverage, the native packages and every browser.
-# Release publication waits for this workflow's tag run (scripts/require-release-validation.mjs).
+# Release publication waits for this workflow's tag run (scripts/release/require-release-validation.mjs).
 on:
   push:
     branches: [main]

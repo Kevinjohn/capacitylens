@@ -42,7 +42,7 @@ const parentImportAllowances = {
     '../../../scripts/e2e/playwrightServerScope',
     '../../../scripts/e2e/playwrightRunMode.mjs',
   ],
-  'apps/frontend/src/pnpmSpawn.test.ts': ['../../../scripts/pnpmSpawn.mjs'],
+  'apps/frontend/src/pnpmSpawn.test.ts': ['../../../scripts/shared/pnpmSpawn.mjs'],
   'apps/frontend/src/router.test.tsx': ['../../../scripts/build/staticSpaRoutes.mjs'],
   'apps/frontend/src/serve-dist.test.ts': ['../../../scripts/e2e/serve-dist.mjs'],
   'apps/frontend/src/test/generateDocumentationComponentId.test.ts': [
@@ -112,7 +112,7 @@ export default defineConfig([
     // Paraglide generates this runtime from committed sources, so linting skips it.
     'apps/frontend/src/paraglide',
     'reports',
-    // Linters skip both documentation trees: docs/ is generated, and docs-src/ contains
+    // Linters skip both documentation trees: docs/ is local build output, and docs-src/ contains
     // prose and the VitePress config.
     'docs',
     'docs-src',

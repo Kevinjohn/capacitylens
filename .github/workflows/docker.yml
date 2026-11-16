@@ -23,10 +23,10 @@ on:
       - '.dockerignore'
       - 'docker-compose.yml'
       - 'nginx*.conf'
-      - 'scripts/smoke-docker-compose.mjs'
-      - 'scripts/prepare-container-runtime.mjs'
-      - 'scripts/published-image-state.sh'
-      - 'scripts/require-release-validation.mjs'
+      - 'scripts/release/docker/smoke-docker-compose.mjs'
+      - 'scripts/release/docker/prepare-container-runtime.mjs'
+      - 'scripts/release/docker/published-image-state.sh'
+      - 'scripts/release/require-release-validation.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'apps/backend/package.json'
@@ -83,7 +83,7 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: Check first sign-in, company setup and persistence across API recreation
-        run: node scripts/smoke-docker-compose.mjs
+        run: node scripts/release/docker/smoke-docker-compose.mjs
       - name: Check HTTPS through the Caddy profile
         run: |
           set -euo pipefail
@@ -127,7 +127,7 @@ jobs:
           set -euo pipefail
           version="${RELEASE_TAG#v}"
           printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
-          state() { scripts/published-image-state.sh "ghcr.io/kevinjohn/capacitylens-$1:$version"; }
+          state() { scripts/release/docker/published-image-state.sh "ghcr.io/kevinjohn/capacitylens-$1:$version"; }
           api=$(state api)
           web=$(state web)
           # A partial pair still waits; `publish` then refuses it with its own instructions.
@@ -144,7 +144,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
-        run: node scripts/require-release-validation.mjs
+        run: node scripts/release/require-release-validation.mjs
 
   publish:
     name: Publish release images
@@ -185,7 +185,7 @@ jobs:
           # Published image tags are never rebuilt or replaced: a complete pair stops here, and a
           # partial pair fails instead of pushing a second build under the same version.
           # A registry error stops the job; only a definite 'not found' counts as unpublished.
-          state() { scripts/published-image-state.sh "ghcr.io/kevinjohn/capacitylens-$1:$version"; }
+          state() { scripts/release/docker/published-image-state.sh "ghcr.io/kevinjohn/capacitylens-$1:$version"; }
           api=$(state api)
           web=$(state web)
           if [ "$api" = present ] && [ "$web" = present ]; then
@@ -204,7 +204,7 @@ jobs:
           node-version-file: .nvmrc
       - name: Check first sign-in, company setup and persistence across API recreation
         if: steps.version.outputs.present != 'true'
-        run: node scripts/smoke-docker-compose.mjs
+        run: node scripts/release/docker/smoke-docker-compose.mjs
       - name: Publish the images
         if: steps.version.outputs.present != 'true'
         run: docker compose push api web
@@ -217,7 +217,7 @@ jobs:
           curl --fail --silent --show-error --insecure --retry 10 --retry-delay 2 --retry-all-errors \
             https://localhost/health/ready > /tmp/ready-https.json
           node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/ready-https.json')); if(r.isHealthy!==true) throw Error('Not ready over HTTPS')"
-          node scripts/smoke-docker-compose.mjs
+          node scripts/release/docker/smoke-docker-compose.mjs
       - name: Show failure diagnostics
         if: failure()
         run: docker compose --profile caddy logs --no-color

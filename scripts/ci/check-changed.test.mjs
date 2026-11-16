@@ -171,14 +171,14 @@ test('a changed script runs its own test file when one exists', () => {
 test('a changed script also runs the differently named test files that import it', () => {
   const steps = planChecks(['scripts/ci/gateCommands.mjs'], everything, (path) =>
     path === 'scripts/ci/gateCommands.mjs'
-      ? ['scripts/ci/run-gate.test.mjs', 'scripts/check-dependabot.test.mjs']
+      ? ['scripts/ci/run-gate.test.mjs', 'scripts/maintenance/check-dependabot.test.mjs']
       : [],
   );
   assert.deepEqual(step(steps, 'test: 3 script test').args, [
     '--test',
     'scripts/ci/gateCommands.test.mjs',
     'scripts/ci/run-gate.test.mjs',
-    'scripts/check-dependabot.test.mjs',
+    'scripts/maintenance/check-dependabot.test.mjs',
   ]);
   assert.deepEqual(
     step(
@@ -188,7 +188,7 @@ test('a changed script also runs the differently named test files that import it
       ),
       'test:',
     ).args,
-    ['--test', 'scripts/check-dependabot.test.mjs', 'scripts/ci/run-gate.test.mjs'],
+    ['--test', 'scripts/ci/run-gate.test.mjs', 'scripts/maintenance/check-dependabot.test.mjs'],
   );
 });
 
@@ -347,11 +347,28 @@ test('a step that ignores SIGTERM after its time limit is killed and fails', asy
   assert.match(result.output, /stopped after 0\.3 seconds/);
 });
 
-test('documentation sources rebuild docs/ and end-to-end specs are reported as skipped', () => {
+test('documentation sources build and check the site and end-to-end specs are reported as skipped', () => {
   const steps = planChecks(['docs-src/index.md', 'e2e/smoke.spec.ts'], everything);
-  assert.equal(step(steps, 'docs').docsClean, true);
+  assert.deepEqual(step(steps, 'docs: build').args, ['run', 'docs:build']);
+  assert.deepEqual(step(steps, 'docs: check').args, ['run', 'docs:test']);
   assert.equal(typeof step(steps, 'e2e').skip, 'string');
-  assert.deepEqual(labels(steps).slice(-2), ['docs: build and compare docs/', 'e2e']);
+  assert.deepEqual(labels(steps).slice(-3), [
+    'docs: build the documentation site',
+    'docs: check the built site',
+    'e2e',
+  ]);
+});
+
+test('the built-site lightbox test runs through the docs steps, never as a frontend test file', () => {
+  const lightbox = 'apps/frontend/src/test/docs-lightbox.test.ts';
+  for (const options of [{}, staticOnly]) {
+    const steps = planChecks([lightbox], everything, noImporters, options);
+    assert.ok(!labels(steps).some((label) => label.startsWith('test: ')), labels(steps).join());
+    assert.deepEqual(labels(steps).slice(-2), [
+      'docs: build the documentation site',
+      'docs: check the built site',
+    ]);
+  }
 });
 
 test('deleted files and documentation policy inputs run the documentation policy spec', () => {
