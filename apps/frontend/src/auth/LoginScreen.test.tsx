@@ -64,16 +64,22 @@ describe('LoginScreen — password sign-in', () => {
 
 describe('LoginScreen — per-control error cues (WCAG 3.3.1)', () => {
   it('surfaces a network error and re-enables sign in when the request throws', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    signInEmail.mockRejectedValue(new TypeError('offline'));
-    render(<LoginScreen onSignedIn={vi.fn()} />);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      signInEmail.mockRejectedValue(new TypeError('offline'));
+      render(<LoginScreen onSignedIn={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-password' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } });
+      fireEvent.change(screen.getByLabelText('Password'), {
+        target: { value: 'correct-password' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(m.login_network_error());
-    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+      expect(await screen.findByRole('alert')).toHaveTextContent(m.login_network_error());
+      expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('surfaces the product API message for password sign-in rejection', async () => {
