@@ -64,6 +64,8 @@ docker-compose.yml
 .dockerignore
 
 **/build
+# The build tooling folder shares the name but is needed by the image's own build.
+!scripts/build/
 **/.adonisjs
 production
 release

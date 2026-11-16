@@ -29,7 +29,7 @@ jobs:
         id: scope
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: echo "scope=$(node scripts/check-changed.mjs --static-scope "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+        run: echo "scope=$(node scripts/ci/check-changed.mjs --static-scope "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
       - name: Check formatting of a documentation-only change
         if: steps.scope.outputs.scope == 'format'
         run: pnpm run format:check
