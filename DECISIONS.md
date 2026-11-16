@@ -36,15 +36,18 @@ This is the short, present-tense record of decisions that constrain future work.
 - CapacityLens is a single product with one repository and one set of releases.
 - The global sidebar shortcut (⌘B / Ctrl+B) yields while text entry or IME composition owns the
   keyboard and while any modal is open; those contexts keep both the chord and page layout stable.
-- English is the only locale. The message layer and the company `language` field stay: the field
-  selects the runtime locale, is shown when a company is created and cannot be changed afterwards.
+- English is the only locale. The message layer, the company `language` field and the locale sync
+  stay for a later second locale: the field selects the runtime locale and is not shown when a
+  company is created while English is the only locale. It cannot be changed afterwards; a field that
+  was never stored accepts its first value.
 
 ## Scheduling invariants
 
 - A day is over capacity only when allocated capacity is strictly greater than available capacity.
 - A person's effective working week is the intersection of the company's global working days and
   their personal pattern; external parties use the company set verbatim. A company must keep at
-  least one working day — an empty stored selection is repaired to the week-start default.
+  least one working day: writes reject an empty selection; an unset selection reads as the
+  week-start default.
 - Normal allocations do not consume days outside the effective working week. `ignoreWorkingDays`
   (the **Ignore working days** checkbox) is the explicit exception; it never bypasses time off.
 - A company closure is a literal inclusive date span: no working-week filtering, whole days only
@@ -143,8 +146,10 @@ This is the short, present-tense record of decisions that constrain future work.
   ownership first. Invitations the person sent stay acceptable with their inviter cleared. The person
   resource and audit rows keep the former user id as history.
 - Editor and up may change company-wide planning and display configuration (company name,
-  scheduling mode, disciplines, colour mode, feature visibility, time zone, week start). Identity,
-  membership, privacy, lifecycle, import and erasure keep their Owner/Admin gates.
+  scheduling mode, disciplines, colour mode, feature visibility). Identity, membership, privacy,
+  lifecycle, import and erasure keep their Owner/Admin gates.
+- Time zone and week start are chosen when the company is created and cannot be changed
+  afterwards; a field that was never stored accepts its first value.
 - Account colours come from the preset palette. Ordinary writes reject anything else.
 - Client/project privacy is opt-in and Owner-managed. Real names remain stored; only Owners receive
   them. Every other role receives the quoted code name, and non-Owner writes preserve the protected
@@ -187,8 +192,10 @@ This is the short, present-tense record of decisions that constrain future work.
 
 - Account Kit owns accounts: password sign-in, registration, address confirmation, password
   change and reset, invitations, sessions and admission. CapacityLens owns company membership,
-  roles, the member↔resource link, Bouncer policies and every screen and word that renders a kit
-  outcome. Password sign-in is the only sign-in method; there are no identity providers.
+  roles, the member↔resource link, the permission keys, the access-control services and every
+  screen and word that renders a kit outcome. The Access Control package owns the Bouncer abilities
+  for each permission key; CapacityLens has no policies of its own. Password sign-in is the only
+  sign-in method; there are no identity providers.
 - Company memberships are stored and ruled by `@kevinjohn/adonisjs-access-control`: its
   `memberships` table, the roles viewer < editor < admin < owner, and the permission keys declared
   once in `packages/shared/src/domain/access.ts`. Every route with `:accountId` in its path runs
