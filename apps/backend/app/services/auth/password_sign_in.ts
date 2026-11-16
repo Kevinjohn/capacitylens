@@ -22,15 +22,30 @@ function logSignInOutcome(ctx: HttpContext, outcome: 'success' | 'failure' | 'th
   }
 }
 
-/** Signs in through Account Kit and records the observed sign-in for tracked companies. */
-export async function signInWithPassword(ctx: HttpContext, email: string, password: string) {
+/** The credentials and the request facts the controller read for one sign-in. */
+export interface PasswordSignInInput {
+  email: string;
+  password: string;
+  /** The client address, as trusted by the HTTP server's proxy settings. */
+  clientAddress: string;
+  userAgent: string | undefined;
+}
+
+/**
+ * Signs in through Account Kit and records the observed sign-in for tracked companies. The context
+ * is handed only to the packages bound to the request (the session guard and the actor helper).
+ */
+export async function signInWithPassword(
+  ctx: HttpContext,
+  { email, password, clientAddress, userAgent }: PasswordSignInInput
+) {
   try {
     await accountKit.authentication.login(
       {
         email,
         password,
-        clientKey: ctx.request.ip(),
-        sessionLabel: ctx.request.header('user-agent')?.slice(0, 200),
+        clientKey: clientAddress,
+        sessionLabel: userAgent?.slice(0, 200),
       },
       managedGuard.forRequest(ctx)
     );
