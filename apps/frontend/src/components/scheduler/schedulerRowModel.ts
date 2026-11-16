@@ -13,7 +13,7 @@ import type {
   TimeOff,
 } from '@capacitylens/shared/types/entities';
 import { isCreationStartBlockedForEffectiveWeek } from './creationAvailability';
-import { includeRenderableDateRange } from './schedulerModelIndexing';
+import { includeRenderableDateRange } from '@/lib/renderableDateRanges';
 import type { createAllocationFilters } from './schedulerModelFilters';
 import type { createCapacitySource } from './schedulerRowCapacity';
 import type {

@@ -1,12 +1,11 @@
-import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { CompanySetup } from './CompanySetup';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
-  accountClient,
   bindStoredAccountCommandsToIdentity,
   clearStoredAccountCommands,
-} from '@/account/accountClient';
+} from '@/account/accountCommands';
+import { readSoleCompanyOwnership } from './useAccountSummaries';
 import { resolvePublicAuthEntry } from './authEntryRoute';
 import { useStore } from '@/store/useStore';
 import { queryClient } from '@/api/queryClient';
@@ -283,16 +282,7 @@ function AuthenticatedAppProvider({
         onSignOut={signOut}
         onConflict={async () => {
           // A conflict may be another tab's success or an installation that this identity cannot own.
-          const response = await accountClient.listCompanies();
-          if (!response.ok) {
-            throw new Error('Could not verify company access. Refresh the page to try again.');
-          }
-          const companies: unknown = await response.json();
-          const company: unknown =
-            Array.isArray(companies) && companies.length === 1 ? companies[0] : null;
-          if (!isRecord(company) || company.role !== 'owner' || typeof company.id !== 'string') {
-            return false;
-          }
+          if (!(await readSoleCompanyOwnership())) return false;
           const next = await checkAuth('report-error');
           if (!next || next.kind !== 'pass' || next.companySetupRequired) {
             throw new Error('Could not refresh company access. Refresh the page to try again.');

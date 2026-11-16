@@ -12,7 +12,7 @@ import {
   requireValue,
   resetStoreWithAccount,
 } from '@/test/fixtures';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const addResource = useStore.getState().addResource;

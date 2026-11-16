@@ -19,7 +19,7 @@ import type {
   TimeOff,
 } from '@capacitylens/shared/types/entities';
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
-import type { Draft, Patch } from '@/store/entityDrafts';
+import type { Draft, Patch } from '@/lib/entityDrafts';
 
 export interface PlanningCommand {
   intent: PlanningIntent;
