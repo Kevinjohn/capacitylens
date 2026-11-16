@@ -7,7 +7,7 @@ import { carriesHourlyLoad, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types
 import type { Allocation, ID, Weekday } from '@capacitylens/shared/types/entities';
 import { useDragResize } from '@/hooks/useDragResize';
 import type { DragResizePreviewInput, Pointer } from '@/hooks/useDragResize';
-import { isShownByPlanningState } from '@/data/planning/planningCacheController';
+import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { applyGesture } from '@/lib/gestureMath';
 import type { DateRange, DragMode } from '@/lib/gestureMath';

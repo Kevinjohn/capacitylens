@@ -47,10 +47,10 @@ flowchart TD
     Join --> Complete["AdmissionController.complete → completeMembership"]
     Complete --> Company["AuthProvider refreshes access and opens company"]
     Manager["AdmissionRequestsPanel: settings_admission_intro only when requests.length > 0, else settings_admission_empty"] --> Buttons["Approve or Decline"]
-    Buttons --> Client["teamAccessClient.decideAdmission → accountClient.decideAdmission"]
+    Buttons --> Client["teamAccessClient.decideAdmission → admissionRequests.decideAdmission"]
     Client --> Decision["AdmissionController.approve or reject → AccountAdmission decision"]
     Decision --> Reload["Panel reloads request list; person refreshes access when ready"]
     Manager -. "No Revoke control or caller" .-> NoRevoke["api.admission.revoke exists, but this UI does not call it"]
 ```
 
-**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [accountClient.ts](../../apps/frontend/src/account/accountClient.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_controller.ts](../../apps/backend/app/controllers/admission_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)
+**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [admissionRequests.ts](../../apps/frontend/src/account/admissionRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_controller.ts](../../apps/backend/app/controllers/admission_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)

@@ -1,11 +1,11 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { todayISO } from '@capacitylens/shared/lib/dateMath';
 import type { Closure } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
-import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
+import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { isStaleEdit } from '@/lib/isStaleEdit';
+import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
 import { parseText } from '@/lib/validation';
 import { resolveTimeZone } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
@@ -82,52 +82,35 @@ export function ClosureForm({
   const [name, setName] = useState(closure?.name ?? '');
   const [startDate, setStartDate] = useState(closure?.startDate ?? today);
   const [endDate, setEndDate] = useState(closure?.endDate ?? today);
-  const [pending, setPending] = useState(false);
-  const inFlight = useRef(false);
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
+  const closures = useStore((state) => state.data.closures);
+  const { pending, submit } = useEditSubmit({
+    editing: closure,
+    rows: closures,
+    staleMessage: m.form_closure_err_changed,
+    failedMessage: m.form_closure_err_save_failed,
+    cancelledMessage: resolveErrorMessage,
+    fail,
+    onSaved: onClose,
+  });
 
-  const submit = async () => {
-    if (inFlight.current) return;
+  const prepareSave = () => {
     const cleanName = parseText(name, fail, {
       requiredMessage: m.form_closure_err_name_required(),
     });
-    if (!cleanName) return;
+    if (!cleanName) return null;
     if (!startDate || !endDate) {
       fail('dates', m.form_closure_err_dates_required());
-      return;
+      return null;
     }
     if (endDate < startDate) {
       fail('dates', m.form_closure_err_end_before_start());
-      return;
+      return null;
     }
-
     const patch = { name: cleanName, startDate, endDate };
-    inFlight.current = true;
-    setPending(true);
-    try {
-      if (closure) {
-        if (isStaleEdit(useStore.getState().data.closures, closure.id, closure.updatedAt)) {
-          fail(null, m.form_closure_err_changed());
-          return;
-        }
-        await update(closure.id, patch);
-      } else {
-        const result = await add(patch);
-        if (result.kind === 'blocked') return;
-      }
-      onClose();
-    } catch (cause) {
-      // Surface the rejected closure write at the form boundary so invalid data remains correctable.
-      fail(
-        null,
-        cause instanceof Error ? resolveErrorMessage(cause) : m.form_closure_err_save_failed(),
-      );
-    } finally {
-      inFlight.current = false;
-      setPending(false);
-    }
+    return closure ? () => update(closure.id, patch) : () => add(patch);
   };
 
   return (
@@ -135,7 +118,7 @@ export function ClosureForm({
       title={closure ? m.form_closure_edit_title() : m.form_closure_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        void submit();
+        void submit(prepareSave);
       }}
       onEdit={clear}
       footer={<FormActions onCancel={onClose} disabled={pending} />}

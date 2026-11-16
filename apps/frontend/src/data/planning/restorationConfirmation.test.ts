@@ -2,12 +2,9 @@ import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { createStore } from 'zustand/vanilla';
 import { describe, expect, it, vi } from 'vitest';
 import { makeAccount } from '@/test/fixtures';
-import {
-  createPlanningCacheController,
-  createPlanningCacheState,
-  PlanningControllerError,
-} from './planningCacheController';
-import type { PlanningCacheState, PlanningTransport } from './planningCacheController';
+import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
+import { PlanningControllerError } from './planningErrors';
+import type { PlanningCacheState, PlanningTransport } from './planningCacheTypes';
 
 const context = { identity: 'bruce', companyId: 'wayne' };
 const intent = {

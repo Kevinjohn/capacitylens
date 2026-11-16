@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createPlanningCacheState, isSoleAcknowledgedAdvance } from './planningCacheController';
-import type { PlanningControllerMetadata } from './planningCacheController';
+import { createPlanningCacheState } from './planningCacheController';
+import { isSoleAcknowledgedAdvance } from './planningReadiness';
+import type { PlanningControllerMetadata } from './planningCacheTypes';
 
 const context = { identity: 'actor-1', companyId: 'company-1' };
 const basis = { context, revision: 4 };
