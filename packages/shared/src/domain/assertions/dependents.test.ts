@@ -21,9 +21,9 @@ import {
   assertResourceProjectAllowsDependents,
 } from './dependents.js';
 
-// mutations.test.ts proves these rules throw; this file pins which code each rule carries and
-// the guards that decide whether the dependents check runs at all, which the UI and server both
-// branch on.
+// dependents.messages.test.ts proves these rules throw; this file pins which code each rule
+// carries and the guards that decide whether the dependents check runs at all, which the UI and
+// server both branch on.
 
 const TS = '2026-01-01T00:00:00.000Z';
 const A1 = 'a-studio';

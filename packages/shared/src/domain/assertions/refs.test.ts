@@ -17,8 +17,8 @@ import { DomainError } from '../errors.js';
 import type { DomainErrorCode } from '../errors.js';
 import { assertAllocationRefs, assertScopedRefs } from './refs.js';
 
-// mutations.test.ts proves these rules reject bad writes by message; this file pins the code each
-// rule carries and the conditions that decide whether it runs.
+// refs.messages.test.ts proves these rules reject bad writes by message; this file pins the code
+// each rule carries and the conditions that decide whether it runs.
 
 const TS = '2026-01-01T00:00:00.000Z';
 const A1 = 'a-studio';
