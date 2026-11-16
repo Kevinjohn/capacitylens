@@ -3,15 +3,10 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/types';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
-import { writeAudit } from '#services/audit';
 import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
 import { hasOnlyFields } from '#services/request_helpers';
 import { changeMemberRole, changeMemberStatus } from '#services/membership/member_mutations';
-import {
-  confirmMemberSignIn,
-  readMemberSignInTracking,
-  setMemberSignInTracking,
-} from '#services/membership/sign_in_tracking';
+import { changeMemberSignInTracking } from '#services/membership/sign_in_tracking';
 import { readMemberDirectory } from '#services/membership/member_directory';
 
 function readRouteParam(value: unknown) {
@@ -68,19 +63,7 @@ export default class MembersController {
     const accountId = readRouteParam(ctx.params.accountId);
     await withActor(ctx, async (_actor, trx) => {
       const actor = await assertCompanyAction(accountId, 'members:signInTracking', trx);
-      const current = await readMemberSignInTracking(accountId, trx);
-      await setMemberSignInTracking(accountId, enabled, trx);
-      if (!current.enabled && enabled) await confirmMemberSignIn(accountId, actor.actorId, trx);
-      if (current.enabled !== enabled) {
-        await writeAudit(trx, {
-          accountId,
-          actorId: actor.actorId,
-          action: 'memberSignInTrackingChange',
-          entity: 'account',
-          entityId: accountId,
-          fields: ['memberSignInTracking'],
-        });
-      }
+      await changeMemberSignInTracking(trx, { accountId, actorId: actor.actorId, enabled });
     });
     return ctx.response.ok({ enabled });
   }

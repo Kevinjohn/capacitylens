@@ -19,7 +19,7 @@ import { errors as vineErrors } from '@vinejs/vine';
 import { signInValidator, signUpValidator } from '#validators/auth_requests';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import { hasNoCompany } from '#services/installation_company';
+import { hasAnyIdentity, hasNoCompany } from '#services/installation_company';
 import { managedGuard } from '#services/auth/managed_guard';
 
 function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
@@ -59,7 +59,7 @@ export default class AuthController {
       );
     } catch (error) {
       if (!(error instanceof InvalidSessionError)) throw error;
-      const hasUsers = Boolean(await db.from('users').select('id').first());
+      const hasUsers = await hasAnyIdentity(db);
       return ctx.response.unauthorized({
         error: 'Sign-in required.',
         code: 'SIGN_IN_REQUIRED',

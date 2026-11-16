@@ -30,3 +30,17 @@ export async function installationCompanyId(reader: CompanyReader): Promise<stri
   }
   return rows[0] ? String(rows[0].id) : null;
 }
+
+/** The installation's single company and its name, both null before first setup. */
+export async function installationCompany(reader: CompanyReader) {
+  const accountId = await installationCompanyId(reader);
+  const account = accountId
+    ? await reader.from('accounts').where('id', accountId).select('name').first()
+    : null;
+  return { accountId, accountName: (account?.name as string | undefined) ?? null };
+}
+
+/** Whether any identity exists yet; before the first one, sign-in offers setup instead. */
+export async function hasAnyIdentity(reader: CompanyReader): Promise<boolean> {
+  return Boolean(await reader.from('users').select('id').first());
+}

@@ -4,6 +4,7 @@ import access from '#config/access_control';
 import { getActiveMembership } from '#services/auth/authorization';
 import { affectedRows } from '#services/affected_rows';
 import { advancePlanningRevision } from '#services/planning_revision';
+import { writeAudit } from '#services/audit';
 
 type Trx = TransactionClientContract;
 
@@ -35,9 +36,17 @@ async function assertAvailablePerson(trx: Trx, accountId: string, resourceId: st
 /** Applies a CAS member/person association within the caller's product transaction. */
 export async function setMemberResourceLink(
   trx: Trx,
-  input: { accountId: string; userId: string; resourceId: string; expectedRevision: string | null }
+  input: {
+    accountId: string;
+    userId: string;
+    resourceId: string;
+    expectedRevision: string | null;
+    actorId: string;
+    now?: string;
+  }
 ) {
-  const { accountId, userId, resourceId, expectedRevision } = input;
+  const { accountId, userId, resourceId, expectedRevision, actorId } = input;
+  const now = input.now ?? new Date().toISOString();
   await assertEligibleMember(trx, accountId, userId);
   await assertAvailablePerson(trx, accountId, resourceId);
   const current = await currentLink(trx, accountId, userId);
@@ -62,7 +71,6 @@ export async function setMemberResourceLink(
   if (current?.resource_id === resourceId) {
     return { resourceId, revision: String(current.revision), changed: false };
   }
-  const now = new Date().toISOString();
   const revision = crypto.randomUUID();
   if (current) {
     await trx
@@ -81,15 +89,27 @@ export async function setMemberResourceLink(
     });
   }
   await advancePlanningRevision(trx, accountId);
+  await writeAudit(
+    trx,
+    {
+      accountId,
+      actorId,
+      action: 'member-resource.linked',
+      entity: 'membership',
+      entityId: userId,
+      fields: ['resourceLink'],
+    },
+    now
+  );
   return { resourceId, revision, changed: true };
 }
 
 /** Clears a member/person association only at the expected revision. */
 export async function clearMemberResourceLink(
   trx: Trx,
-  input: { accountId: string; userId: string; expectedRevision: string }
+  input: { accountId: string; userId: string; expectedRevision: string; actorId: string }
 ) {
-  const { accountId, userId, expectedRevision } = input;
+  const { accountId, userId, expectedRevision, actorId } = input;
   const member = await access.memberships.find(accountId, userId, trx);
   if (!member) conflictingAdmission('The company member no longer exists.');
   const changed = await trx
@@ -100,4 +120,12 @@ export async function clearMemberResourceLink(
     conflictingAdmission('The member resource link changed. Refresh and retry.');
   }
   await advancePlanningRevision(trx, accountId);
+  await writeAudit(trx, {
+    accountId,
+    actorId,
+    action: 'member-resource.unlinked',
+    entity: 'membership',
+    entityId: userId,
+    fields: ['resourceLink'],
+  });
 }

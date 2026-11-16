@@ -15,11 +15,12 @@ export async function createInitialCompany(
     actorId: string | null;
     weekStartsOn?: 0 | 1;
     timezone?: string;
+    now?: string;
   }
 ) {
   const name = input.name;
   const accountId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = input.now ?? new Date().toISOString();
   await trx.table('accounts').insert(
     encodeRow('accounts', {
       ...NULLABLE_FIELDS.accounts,
