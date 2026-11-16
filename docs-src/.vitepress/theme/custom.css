@@ -317,3 +317,9 @@ html:has(.cl-toggle:checked) {
     margin-bottom: 0.75rem;
   }
 }
+
+/* The per-page feedback link closes every guide, whether or not it has previous/next links. */
+.page-feedback {
+  margin: 32px 0 0;
+  font-size: 14px;
+}
