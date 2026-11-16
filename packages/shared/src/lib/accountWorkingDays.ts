@@ -25,7 +25,7 @@ export function canonicalWeekdaySet(days: readonly Weekday[]): Weekday[] {
   return [...new Set(days)].sort((a, b) => a - b);
 }
 
-/** Repair an absent, empty or malformed account selection to the week-start-aware default. */
+/** Read an absent, empty or malformed stored selection as the week-start-aware default. */
 export function normalizeAccountWorkingDays(value: unknown, weekStartsOn: 0 | 1 = 1): Weekday[] {
   if (!Array.isArray(value) || value.length === 0 || !Array.from(value).every(isWeekday)) {
     return defaultAccountWorkingDays(weekStartsOn);
