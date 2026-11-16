@@ -100,8 +100,7 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
-
-function registerServerModeTest01() {
+describe('AuthProvider — server mode', () => {
   it('signals tenant-data access only after a successful auth check', async () => {
     const auth = deferred<Response>();
     vi.stubGlobal(
@@ -135,9 +134,6 @@ function registerServerModeTest01() {
     expect(await screen.findByText('app-content')).toBeInTheDocument();
     await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledOnce());
   });
-}
-
-function registerServerModeTest02() {
   it('hides tenant data immediately when a sibling tab signs out, then rechecks the session', async () => {
     const fetchSpy = vi
       .fn()
@@ -174,9 +170,6 @@ function registerServerModeTest02() {
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
-}
-
-function registerServerModeTest03() {
   it('does not signal tenant-data access for a signed-out boot', async () => {
     vi.stubGlobal(
       'fetch',
@@ -194,9 +187,6 @@ function registerServerModeTest03() {
     expect(onTenantAccessReady).not.toHaveBeenCalled();
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });
-}
-
-function registerServerModeTest05() {
   it('uses the same-origin auth endpoint when no API origin is configured', async () => {
     // An empty API origin in a same-origin deployment still performs the credentialed auth check.
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -223,9 +213,6 @@ function registerServerModeTest05() {
     expect(init?.credentials).toBe('include');
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
-}
-
-function registerServerModeTest06() {
   it('rejects a body without a user from a credentialed /api/auth/me check', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
@@ -348,11 +335,7 @@ function registerServerModeTest06() {
       });
     }
   });
-}
 
-function registerServerModeTest07() {}
-
-function registerServerModeTest09() {
   it('a 401 replaces the app with the login screen (password form)', async () => {
     vi.stubGlobal(
       'fetch',
@@ -373,13 +356,7 @@ function registerServerModeTest09() {
       screen.queryByText(/sign-in configuration could not be loaded/i),
     ).not.toBeInTheDocument();
   });
-}
 
-function registerServerModeTest10() {}
-
-function registerServerModeTest12() {}
-
-function registerServerModeTest13() {
   it('uses the password sign-in wall for an explicit password-mode 401', async () => {
     // A 401 always offers a way in, never a terminal 'invalid configuration' screen.
     vi.stubGlobal(
@@ -403,9 +380,6 @@ function registerServerModeTest13() {
       screen.queryByText(/sign-in configuration could not be loaded/i),
     ).not.toBeInTheDocument();
   });
-}
-
-function registerServerModeTest14() {
   it('shows the password sign-in wall with a degraded notice for a non-JSON 401', async () => {
     // A proxy returning a plain-HTML 401 (or an empty body) must land on a usable sign-in form, not a
     // dead-end error screen with no way to authenticate.
@@ -425,9 +399,6 @@ function registerServerModeTest14() {
     // The body couldn't be trusted at all, so the login wall says its configuration is a guess.
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
-}
-
-function registerServerModeTest16() {
   it('keeps the retryable auth error boundary for non-401 failures', async () => {
     // The lenient 401 handling is scoped to 401 only. A genuinely unexpected status stays fail-closed.
     vi.stubGlobal(
@@ -447,9 +418,6 @@ function registerServerModeTest16() {
     ).toBeInTheDocument();
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });
-}
-
-function registerServerModeTest17() {
   it("surfaces the authentication service's temporary-unavailability message", async () => {
     vi.stubGlobal(
       'fetch',
@@ -463,9 +431,6 @@ function registerServerModeTest17() {
     );
     expect(await screen.findByText('Sign-in is temporarily unavailable.')).toBeInTheDocument();
   });
-}
-
-function registerServerModeTest18() {
   it('password invite routes render before sign-in so the token can onboard a new identity', async () => {
     window.history.pushState({}, '', '/invite/invite-token');
     try {
@@ -485,9 +450,6 @@ function registerServerModeTest18() {
       window.history.pushState({}, '', '/');
     }
   });
-}
-
-function registerServerModeTest19() {
   it('invite routes render before sign-in so the acceptance form keeps the token', async () => {
     window.history.pushState({}, '', '/invite/invite-token');
     try {
@@ -507,9 +469,6 @@ function registerServerModeTest19() {
       window.history.pushState({}, '', '/');
     }
   });
-}
-
-function registerServerModeTest20() {
   it('a 401 with needsSetup:true explains the setup link above the sign-in form', async () => {
     vi.stubGlobal(
       'fetch',
@@ -525,9 +484,6 @@ function registerServerModeTest20() {
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });
-}
-
-function registerServerModeTest21() {
   it('fail-closed: junk/non-boolean needsSetup on the 401 body shows the ORDINARY sign-in form', async () => {
     // A proxy page or an off-spec server must never conjure a create-account form on a populated
     // instance: only a literal `true` counts.
@@ -544,9 +500,6 @@ function registerServerModeTest21() {
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
   });
-}
-
-function registerServerModeTest22() {
   it('an unreachable auth server renders a retryable auth error boundary', async () => {
     vi.stubGlobal(
       'fetch',
@@ -566,9 +519,6 @@ function registerServerModeTest22() {
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
-}
-
-function registerServerModeTest24() {
   it('keeps an auth timeout behind the error boundary even when browser storage has identity data', async () => {
     localStorage.setItem('capacitylens/offlineRead', 'on');
     localStorage.setItem(
@@ -604,9 +554,6 @@ function registerServerModeTest24() {
     expect(screen.queryByText(/stored-user/)).not.toBeInTheDocument();
     expect(onTenantAccessReady).not.toHaveBeenCalled();
   });
-}
-
-function registerServerModeTest25() {
   it.each([
     ['no user', null],
     ['no email', { id: 'u1' }],
@@ -629,9 +576,6 @@ function registerServerModeTest25() {
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('without a valid user'));
   });
-}
-
-function registerServerModeTest26() {
   it('treats malformed JSON from a reachable auth service as invalid, not offline', async () => {
     vi.stubGlobal(
       'fetch',
@@ -652,9 +596,6 @@ function registerServerModeTest26() {
       screen.getByText('The authentication service returned an invalid response.'),
     ).toBeInTheDocument();
   });
-}
-
-function registerServerModeTest27() {
   it('refreshes a visible selected company every minute and stops after unmount', async () => {
     const fetchSpy = vi.fn(async () =>
       me(200, {
@@ -732,9 +673,6 @@ function registerServerModeTest27() {
     );
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
   });
-}
-
-function registerServerModeTest28() {
   it.each([
     [
       { emailVerified: false, admission: { admitted: false, requirements: {} } },
@@ -768,9 +706,6 @@ function registerServerModeTest28() {
       expect(onTenantAccessReady).not.toHaveBeenCalled();
     },
   );
-}
-
-function registerServerModeTest29() {
   it('warns on the login screen when a mid-session 401 strands unsaved writes', async () => {
     const fetchSpy = vi
       .fn()
@@ -805,9 +740,6 @@ function registerServerModeTest29() {
     );
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });
-}
-
-function registerServerModeTest30() {
   it('planning 401 re-check that CANNOT resolve /me keeps the live authenticated snapshot (warns, no flip to auth-off)', async () => {
     // An unresolved auth re-check must preserve the current session snapshot so an outage cannot remove sign-out controls or change membership affordances.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -841,9 +773,6 @@ function registerServerModeTest30() {
     expect(screen.getByText('user:u1')).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
-}
-
-function registerServerModeTest31() {
   it('a STALE refreshAuth resolving after a newer 401 does not overwrite the login status', async () => {
     // A newer confirmed sign-out must win over an earlier authenticated response, or stale credentials would reopen the protected app.
     const slow = deferred<Response>();
@@ -887,37 +816,9 @@ function registerServerModeTest31() {
     expect(screen.queryByRole('button', { name: /refresh/ })).not.toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
-}
-describe('AuthProvider — server mode', () => {
-  registerServerModeTest01();
-  registerServerModeTest02();
-  registerServerModeTest03();
-  registerServerModeTest05();
-  registerServerModeTest06();
-  registerServerModeTest07();
-  registerServerModeTest09();
-  registerServerModeTest10();
-  registerServerModeTest12();
-  registerServerModeTest13();
-  registerServerModeTest14();
-  registerServerModeTest16();
-  registerServerModeTest17();
-  registerServerModeTest18();
-  registerServerModeTest19();
-  registerServerModeTest20();
-  registerServerModeTest21();
-  registerServerModeTest22();
-  registerServerModeTest24();
-  registerServerModeTest25();
-  registerServerModeTest26();
-  registerServerModeTest27();
-  registerServerModeTest28();
-  registerServerModeTest29();
-  registerServerModeTest30();
-  registerServerModeTest31();
 });
 
-function registerAccountPolicyTest04() {
+describe('AuthProvider auth state', () => {
   it('fails closed on a boot-time auth fetch failure', async () => {
     vi.stubGlobal(
       'fetch',
@@ -937,9 +838,6 @@ function registerAccountPolicyTest04() {
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
-}
-
-function registerAccountPolicyTest05() {
   it('fails closed on a 200 response with an off-spec body', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
@@ -957,9 +855,6 @@ function registerAccountPolicyTest05() {
     ).toBeInTheDocument();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('without a valid user'));
   });
-}
-
-function registerAccountPolicyTest06() {
   it('refreshAuth rechecks the session while preserving the verified identity', async () => {
     const fetchSpy = vi
       .fn()
@@ -985,9 +880,6 @@ function registerAccountPolicyTest06() {
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
     expect(screen.getByText('user:setup-owner')).toBeInTheDocument();
   });
-}
-
-function registerAccountPolicyTest07() {
   it('a FAILED refresh keeps the previous (stale) snapshot with a warn breadcrumb — no crash, no reset', async () => {
     // An unresolved refresh must preserve the last verified session snapshot.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -1017,13 +909,6 @@ function registerAccountPolicyTest07() {
     expect(screen.getByText('user:setup-owner')).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
-}
-
-describe('AuthProvider auth state', () => {
-  registerAccountPolicyTest04();
-  registerAccountPolicyTest05();
-  registerAccountPolicyTest06();
-  registerAccountPolicyTest07();
 });
 
 it('gates tenant hydration behind authenticated company setup and opens scheduling after confirmation', async () => {

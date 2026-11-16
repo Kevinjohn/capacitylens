@@ -16,9 +16,9 @@ const deepDestinations = [
   ['/help', 'Help'],
 ] as const;
 
-// This exercises real document navigations rather than React Router transitions. The Vite history
-// fallback must serve index.html, and the session-only company gate must preserve the URL.
-function registerValidDeepLinkPathSurvivesTest() {
+test.describe('Navigation & shell', () => {
+  // This exercises real document navigations rather than React Router transitions. The Vite history
+  // fallback must serve index.html, and the session-only company gate must preserve the URL.
   for (const [path, heading] of deepDestinations) {
     test(`valid deep link ${path} survives a browser reload`, async ({ page }) => {
       await freezeBrowserDate(page);
@@ -52,9 +52,6 @@ function registerValidDeepLinkPathSurvivesTest() {
       await expect(page).toHaveURL(new RegExp(`${path}$`));
     });
   }
-}
-
-function registerUnknownExtensionlessPathReachesApplicationsTest() {
   test("an unknown extensionless path reaches the application's Not Found screen", async ({
     page,
   }) => {
@@ -63,9 +60,6 @@ function registerUnknownExtensionlessPathReachesApplicationsTest() {
     expect(unknownResponse?.status()).toBe(200);
     await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
   });
-}
-
-function registerSidebarLinksRouteSectionTest() {
   test('sidebar links route to each section', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
@@ -129,10 +123,7 @@ function registerSidebarLinksRouteSectionTest() {
     await page.getByRole('link', { name: 'Schedule' }).click();
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
   });
-}
-
-// Assert the links appear above the account block; presence alone does not verify their order.
-function registerPinsTeamAccessSettingsBelowTest() {
+  // Assert the links appear above the account block; presence alone does not verify their order.
   test('pins Team & access, Settings and Diagnostics below the working destinations, above the account block', async ({
     page,
   }) => {
@@ -174,9 +165,6 @@ function registerPinsTeamAccessSettingsBelowTest() {
     await expect(page.getByTestId('export-data')).toBeVisible();
     await expect(page.getByTestId('import-data')).toBeVisible();
   });
-}
-
-function registerSettingsTogglesColourThemeTest() {
   test('settings toggles the colour theme', async ({ page }) => {
     await openApp(page, '/settings');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
@@ -191,12 +179,9 @@ function registerSettingsTogglesColourThemeTest() {
     await page.getByRole('radio', { name: 'Light' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   });
-}
-
-// WCAG 2.4.2 (Page Titled): each route sets a descriptive document.title of "<nav label> · CapacityLens",
-// derived from the same nav labels, so the tab/history/bookmark differs per page rather than the
-// static "CapacityLens" index.html sets. Assert a couple of routes are distinct and descriptive.
-function registerRouteSetsDescriptiveDistinctDocumentTest() {
+  // WCAG 2.4.2 (Page Titled): each route sets a descriptive document.title of "<nav label> · CapacityLens",
+  // derived from the same nav labels, so the tab/history/bookmark differs per page rather than the
+  // static "CapacityLens" index.html sets. Assert a couple of routes are distinct and descriptive.
   test('each route sets a descriptive, distinct document.title', async ({ page }) => {
     await openApp(page);
     await expect(page).toHaveTitle('Schedule · CapacityLens');
@@ -217,9 +202,6 @@ function registerRouteSetsDescriptiveDistinctDocumentTest() {
     await expect(page).toHaveTitle('Schedule · CapacityLens');
     await expect(page).not.toHaveTitle('CapacityLens');
   });
-}
-
-function registerActiveSectionMarkedAriaCurrentTest() {
   test('the active section is marked aria-current', async ({ page }) => {
     await openApp(page);
     await page.getByRole('link', { name: 'Resources' }).click();
@@ -232,9 +214,6 @@ function registerActiveSectionMarkedAriaCurrentTest() {
       'page',
     );
   });
-}
-
-function registerUsesBlueIdentityGreenPositiveTest() {
   test('uses blue identity and green positive actions while hiding maintenance sections', async ({
     page,
   }) => {
@@ -258,9 +237,6 @@ function registerUsesBlueIdentityGreenPositiveTest() {
     await expect(page.getByRole('heading', { name: 'Device data' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Deleted items' })).toHaveCount(0);
   });
-}
-
-function registerRendersDarkModeTest() {
   test('renders in dark mode', async ({ page }) => {
     // Seed the explicit preference before first paint because light is the default.
     await setTheme(page, 'dark');
@@ -269,10 +245,7 @@ function registerRendersDarkModeTest() {
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
     await expect(page.getByText('Bruce Wayne', { exact: true }).first()).toBeVisible();
   });
-}
-
-// The sidebar rail uses a Radix tooltip; cross-browser coverage must exercise real hover behaviour.
-function registerCollapseToggleRevealsShadcnTooltipTest() {
+  // The sidebar rail uses a Radix tooltip; cross-browser coverage must exercise real hover behaviour.
   test('the collapse toggle reveals its shadcn Tooltip on hover', async ({ page }) => {
     await openApp(page);
     // Desktop default = sidebar open, so the focusable toggle reads "Collapse menu" and
@@ -283,9 +256,6 @@ function registerCollapseToggleRevealsShadcnTooltipTest() {
     await toggle.hover();
     await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toBeVisible();
   });
-}
-
-function registerSidebarTogglesBetweenLightDarkTests() {
   test('sidebar toggles between light and dark mode', async ({ page }) => {
     await openApp(page);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
@@ -296,20 +266,6 @@ function registerSidebarTogglesBetweenLightDarkTests() {
     await page.getByRole('button', { name: 'Switch to light mode' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   });
-}
-
-test.describe('Navigation & shell', () => {
-  registerValidDeepLinkPathSurvivesTest();
-  registerUnknownExtensionlessPathReachesApplicationsTest();
-  registerSidebarLinksRouteSectionTest();
-  registerPinsTeamAccessSettingsBelowTest();
-  registerSettingsTogglesColourThemeTest();
-  registerRouteSetsDescriptiveDistinctDocumentTest();
-  registerActiveSectionMarkedAriaCurrentTest();
-  registerUsesBlueIdentityGreenPositiveTest();
-  registerRendersDarkModeTest();
-  registerCollapseToggleRevealsShadcnTooltipTest();
-  registerSidebarTogglesBetweenLightDarkTests();
 });
 
 test.describe('single-company reload entry', () => {

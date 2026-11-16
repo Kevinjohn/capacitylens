@@ -190,10 +190,6 @@ describe('AllocationBar rendering', () => {
     expect(screen.getByTestId('allocation-bar')).toHaveAccessibleName(/series through 2 Mar 2027/i);
   });
 
-  registerAllocationBarRenderingModeTests();
-});
-
-function registerAllocationBarRenderingModeTests() {
   it('shows just the activity when the bar carries no client/project metadata', () => {
     render(
       <AllocationBar
@@ -234,7 +230,7 @@ function registerAllocationBarRenderingModeTests() {
 
     expect(el.getAttribute('aria-label')).not.toMatch(/per day/);
   });
-}
+});
 
 describe('AllocationBar client/project context', () => {
   const barWithContext = (): BarLayout => ({

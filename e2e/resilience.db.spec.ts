@@ -3,7 +3,7 @@ import { API, serverState, requireStateRows } from './serverTestState';
 import { failRequestsUntilReleased } from './failRequestsUntilReleased';
 import { waitForAppLanding, freezeBrowserDate, openApp } from './browserTestSupport';
 
-function registerInitialStateFailurePreventsEditingTest() {
+test.describe('database-backed resilience', () => {
   test('an initial planning read failure prevents a write until reload recovers the real server data', async ({
     page,
     request,
@@ -41,9 +41,6 @@ function registerInitialStateFailurePreventsEditingTest() {
     await expect(page.getByText('Bruce Wayne')).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
-}
-
-function registerFailedSaveStaysVisiblyUnsavedTest() {
   test('an uncertain typed save is not replayed and a deliberate retry persists exactly once', async ({
     page,
     request,
@@ -112,9 +109,6 @@ function registerFailedSaveStaysVisiblyUnsavedTest() {
       page.getByTestId('client-row').filter({ hasText: 'Retry Recovery Co' }),
     ).toHaveCount(1);
   });
-}
-
-function registerStaleConcurrentEditRejectedExplainedTests() {
   test('a stale concurrent edit is rejected, explained, and replaced by server truth', async ({
     page,
     request,
@@ -186,10 +180,4 @@ function registerStaleConcurrentEditRejectedExplainedTests() {
     ).toBe('First Editor Co');
     await secondContext.close();
   });
-}
-
-test.describe('database-backed resilience', () => {
-  registerInitialStateFailurePreventsEditingTest();
-  registerFailedSaveStaysVisiblyUnsavedTest();
-  registerStaleConcurrentEditRejectedExplainedTests();
 });

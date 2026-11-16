@@ -1,9 +1,9 @@
 import { test, expect } from './dbFixtures';
 import { openApp, selectShadOption, showScheduleFilters } from './browserTestSupport';
 
-// Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)
-// and 5 resource rows across Design/Development/Copywriting.
-function registerOrdersFilterOptionsPlanningHierarchyTest() {
+test.describe('Filters', () => {
+  // Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)
+  // and 5 resource rows across Design/Development/Copywriting.
   test('orders filter options by their planning hierarchy', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -40,9 +40,6 @@ function registerOrdersFilterOptionsPlanningHierarchyTest() {
       'Workshop',
     ]);
   });
-}
-
-function registerSearchesResourcesNameHidesNonTest() {
   test('searches resources by name and hides non-matching rows', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -55,9 +52,6 @@ function registerSearchesResourcesNameHidesNonTest() {
       0,
     );
   });
-}
-
-function registerFiltersScheduleDisciplineTest() {
   test('filters the schedule by discipline', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -69,9 +63,6 @@ function registerFiltersScheduleDisciplineTest() {
       0,
     );
   });
-}
-
-function registerFiltersBarsClientTest() {
   test('filters bars to a client', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -85,18 +76,12 @@ function registerFiltersBarsClientTest() {
     await page.getByLabel('Show unallocated').check();
     await expect(page.locator('[data-testid="scheduler-row"][data-dimmed]').first()).toBeVisible();
   });
-}
-
-function registerFiltersScheduleSingleProjectTest() {
   test('filters the schedule to a single project', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
     await selectShadOption(page.getByLabel('Filter by project'), 'p-brand');
     await expect(page.getByTestId('allocation-bar')).toHaveCount(1);
   });
-}
-
-function registerHidesTentativeBarsWhileCapacityTest() {
   test('hides tentative bars while capacity still counts them', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -112,9 +97,6 @@ function registerHidesTentativeBarsWhileCapacityTest() {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);
     await expect(page.getByTestId('over-marker').first()).toBeVisible();
   });
-}
-
-function registerClearsAllActiveFiltersClearTest() {
   test('clears all active filters with the Clear Filters button', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -133,9 +115,6 @@ function registerClearsAllActiveFiltersClearTest() {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(all);
     await expect(clear).toBeDisabled();
   });
-}
-
-function registerShowsFilteredEmptyStateNothingTest() {
   test('shows the filtered empty state when nothing matches', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -151,9 +130,6 @@ function registerShowsFilteredEmptyStateNothingTest() {
     await expect(page.getByTestId('scheduler-empty')).toBeHidden();
     await expect(page.getByTestId('allocation-bar').first()).toBeVisible();
   });
-}
-
-function registerFiltersScheduleAllProjectsActivityTest() {
   test('filters the schedule to an all-projects activity (the activity lens)', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -161,9 +137,6 @@ function registerFiltersScheduleAllProjectsActivityTest() {
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Design' })).toBeVisible();
     await expect(page.getByTestId('allocation-bar')).toHaveCount(1);
   });
-}
-
-function registerActivityLensMutuallyExclusiveClientTests() {
   test('the activity lens is mutually exclusive with the client / project lens', async ({
     page,
   }) => {
@@ -177,17 +150,4 @@ function registerActivityLensMutuallyExclusiveClientTests() {
     await selectShadOption(page.getByLabel('Filter by project'), 'p-brand');
     await expect(page.getByLabel('Filter by activity')).toHaveText('All activities');
   });
-}
-
-test.describe('Filters', () => {
-  registerOrdersFilterOptionsPlanningHierarchyTest();
-  registerSearchesResourcesNameHidesNonTest();
-  registerFiltersScheduleDisciplineTest();
-  registerFiltersBarsClientTest();
-  registerFiltersScheduleSingleProjectTest();
-  registerHidesTentativeBarsWhileCapacityTest();
-  registerClearsAllActiveFiltersClearTest();
-  registerShowsFilteredEmptyStateNothingTest();
-  registerFiltersScheduleAllProjectsActivityTest();
-  registerActivityLensMutuallyExclusiveClientTests();
 });

@@ -419,7 +419,7 @@ it('guards navigation while a typed planning write is unacknowledged', () => {
   unmount();
 });
 
-function registerSkipLinkLayerTest(): void {
+describe('AppShell navigation links', () => {
   it('places the focused skip link on its dedicated accessibility layer', () => {
     renderAppShell({});
 
@@ -427,9 +427,6 @@ function registerSkipLinkLayerTest(): void {
       'focus:z-(--z-index-skip-link)',
     );
   });
-}
-
-function registerTrailingSlashTitleTest(): void {
   it('keeps a descriptive title on an accepted trailing-slash route', async () => {
     renderAppShell({ initialEntries: ['/resources/'] });
 
@@ -441,9 +438,6 @@ function registerTrailingSlashTitleTest(): void {
 
     expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'page');
   });
-}
-
-function registerLocaleChangeNavigationTest(): void {
   it('resolves navigation labels again after the account locale changes', async () => {
     let secondLocale = false;
     vi.spyOn(m, 'nav_resources').mockImplementation(
@@ -466,9 +460,6 @@ function registerLocaleChangeNavigationTest(): void {
     );
     expect(document.title).toBe('Ressources · CapacityLens');
   });
-}
-
-function registerLoadingAccountLocaleTest(): void {
   it("preserves the last locale while a selected company's slice is still loading", async () => {
     const currentAccount = makeAccount({ language: 'en' });
     const destinationAccount = makeAccount({ id: 'acct-other', name: 'Other Co' });
@@ -492,9 +483,6 @@ function registerLoadingAccountLocaleTest(): void {
     act(() => useStore.setState({ data: makeAppData({ accounts: [destinationAccount] }) }));
     await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith(undefined));
   });
-}
-
-function registerExpectedNavigationLinksTest(): void {
   it('renders all expected nav links', () => {
     renderAppShell({});
 
@@ -522,9 +510,6 @@ function registerExpectedNavigationLinksTest(): void {
     expect(screen.getByRole('link', { name: 'Help' })).toHaveAttribute('aria-current', 'page');
     await waitFor(() => expect(document.title).toBe('Help · CapacityLens'));
   });
-}
-
-function registerAccountNavigationStateTest(): void {
   it('marks the personal Account destination active and gives it a descriptive page title', async () => {
     renderAppShell({ initialEntries: ['/account'] });
     expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'page');
@@ -539,16 +524,10 @@ function registerAccountNavigationStateTest(): void {
     expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account');
     expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
   });
-}
-
-function registerNavigationBrandNameTest(): void {
   it('renders the CapacityLens brand name in the nav', () => {
     renderAppShell({});
     expect(screen.getByText('CapacityLens')).toBeInTheDocument();
   });
-}
-
-function registerImportExportAbsenceTest(): void {
   it('does NOT render the import/export tools in the sidebar', () => {
     renderAppShell({});
 
@@ -556,9 +535,6 @@ function registerImportExportAbsenceTest(): void {
     expect(screen.queryByTestId('export-data')).not.toBeInTheDocument();
     expect(screen.queryByTestId('import-data')).not.toBeInTheDocument();
   });
-}
-
-function registerSidebarSignOutTest(): void {
   it('keeps the avatar-led Account row as the only sidebar session control', () => {
     renderAppShell({});
 
@@ -568,9 +544,6 @@ function registerSidebarSignOutTest(): void {
     expect(account.querySelector("[data-slot='avatar']")).not.toBeNull();
     expect(screen.queryByTestId('nav-sign-out')).not.toBeInTheDocument();
   });
-}
-
-function registerPinnedNavigationOrderTest(): void {
   it('pins Team & access, Settings and Diagnostics, in that order, after every other destination', async () => {
     renderAppShell({});
 
@@ -594,9 +567,6 @@ function registerPinnedNavigationOrderTest(): void {
       ]);
     });
   });
-}
-
-function registerNavigationRoutesTest(): void {
   it('nav links point to correct routes', async () => {
     renderAppShell({});
 
@@ -620,9 +590,16 @@ function registerNavigationRoutesTest(): void {
       '/diagnostics',
     );
   });
-}
+});
 
-function registerDefaultSidebarStateTest(): void {
+describe('AppShell sidebar collapse', () => {
+  beforeEach(() => {
+    act(() => {
+      useStore.getState().setSidebarOpen(true);
+    });
+    localStorage.removeItem('capacitylens/sidebar');
+  });
+
   it('defaults open (jsdom has no matchMedia → large-screen default): links + collapse toggle', () => {
     renderAppShell({});
 
@@ -632,9 +609,6 @@ function registerDefaultSidebarStateTest(): void {
     });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
   });
-}
-
-function registerMobileSidebarTriggerTest(): void {
   it('reports the mobile sheet state and next action from the top-bar trigger', () => {
     stubMatchMedia(() => true);
     sessionStorage.setItem('capacitylens/rotateHintDismissed', '1');
@@ -648,9 +622,6 @@ function registerMobileSidebarTriggerTest(): void {
     expect(trigger).toHaveAccessibleName('Collapse menu');
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
   });
-}
-
-function registerPersistedSidebarCollapseTest(): void {
   it('collapsing keeps the navigation links usable and persists the choice', () => {
     renderAppShell({});
 
@@ -669,9 +640,6 @@ function registerPersistedSidebarCollapseTest(): void {
     ).toHaveAttribute('aria-expanded', 'false');
     expect(localStorage.getItem('capacitylens/sidebar')).toBe('closed');
   });
-}
-
-function registerCollapsedNavigationLinksTest(): void {
   it('collapsed destinations remain real links instead of reopening the menu', () => {
     renderAppShell({});
     act(() => {
@@ -682,18 +650,12 @@ function registerCollapsedNavigationLinksTest(): void {
     expect(screen.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed');
     expect(localStorage.getItem('capacitylens/sidebar')).toBe('closed');
   });
-}
-
-function registerNavigationLinkIconsTest(): void {
   it('nav links carry icons without changing their accessible names', () => {
     renderAppShell({});
     const link = screen.getByRole('link', { name: 'Projects' });
     expect(link.querySelector('svg')).not.toBeNull();
     expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
-}
-
-function registerSidebarKeyboardShortcutTest(): void {
   it('toggles with Cmd/Ctrl+B and prevents the browser shortcut outside guarded contexts', () => {
     renderAppShell({});
     const event = new KeyboardEvent('keydown', {
@@ -710,9 +672,6 @@ function registerSidebarKeyboardShortcutTest(): void {
     expect(useStore.getState().sidebarOpen).toBe(false);
     expect(event.defaultPrevented).toBe(true);
   });
-}
-
-function registerEditableControlShortcutTest(): void {
   it.each([
     ['input', 'input'],
     ['textarea', 'textarea'],
@@ -741,9 +700,6 @@ function registerEditableControlShortcutTest(): void {
       target.remove();
     }
   });
-}
-
-function registerComposingShortcutTest(): void {
   it('ignores Cmd/Ctrl+B during IME composition', () => {
     renderAppShell({});
     const event = new KeyboardEvent('keydown', {
@@ -761,9 +717,6 @@ function registerComposingShortcutTest(): void {
     expect(useStore.getState().sidebarOpen).toBe(true);
     expect(event.defaultPrevented).toBe(false);
   });
-}
-
-function registerModalShortcutTest(): void {
   it('ignores Cmd/Ctrl+B while a modal is open', () => {
     renderAppShell({});
     const modal = document.createElement('div');
@@ -789,329 +742,6 @@ function registerModalShortcutTest(): void {
       modal.remove();
     }
   });
-}
-
-function registerDirtyFormPaletteGuardTest(): void {
-  it('Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette', async () => {
-    useStore.getState().setHydrated(true);
-    renderAppShell({});
-
-    act(() => {
-      useStore.getState().setDirtyForm(true);
-    });
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
-
-    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
-    // Sonner mounts notices through its portal asynchronously, so wait for the rendered message.
-    expect(
-      await screen.findByText(
-        'You have unsaved changes — use Cancel or Save to close this dialog.',
-      ),
-    ).toBeInTheDocument();
-  });
-}
-
-function registerCleanFormPaletteShortcutTest(): void {
-  it('Ctrl+K with dirtyForm=false opens the palette', () => {
-    useStore.getState().setHydrated(true);
-    renderAppShell({});
-
-    act(() => {
-      useStore.getState().setDirtyForm(false);
-    });
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
-
-    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
-  });
-}
-
-function registerModalPaletteShortcutTest(): void {
-  it('leaves Cmd/Ctrl+K to an existing modal', () => {
-    renderAppShell({});
-    const modal = document.createElement('div');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('data-state', 'open');
-    document.body.appendChild(modal);
-    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
-    try {
-      act(() => {
-        window.dispatchEvent(event);
-      });
-      expect(event.defaultPrevented).toBe(false);
-      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
-    } finally {
-      modal.remove();
-    }
-  });
-}
-
-function registerComposingPaletteShortcutTest(): void {
-  it('ignores Cmd/Ctrl+K during IME composition', () => {
-    renderAppShell({});
-    const event = new KeyboardEvent('keydown', {
-      key: 'k',
-      metaKey: true,
-      isComposing: true,
-      cancelable: true,
-    });
-    act(() => {
-      window.dispatchEvent(event);
-    });
-    expect(event.defaultPrevented).toBe(false);
-    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
-  });
-}
-
-function registerRepeatedPaletteShortcutTest(): void {
-  it('keeps the palette open when the Ctrl+K keydown repeats', () => {
-    renderAppShell({});
-
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, repeat: true }));
-    });
-
-    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
-  });
-}
-
-function registerPaletteToggleShortcutTest(): void {
-  it('closes the open palette with a second Ctrl+K', () => {
-    renderAppShell({});
-
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
-    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
-
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
-    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
-  });
-}
-
-function registerLaterModalPaletteShortcutTest(): void {
-  it('leaves Ctrl+K to a later modal even while the palette is open', () => {
-    renderAppShell({});
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-    });
-    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
-
-    const modal = document.createElement('div');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('data-state', 'open');
-    document.body.appendChild(modal);
-    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
-    try {
-      act(() => {
-        window.dispatchEvent(event);
-      });
-      expect(event.defaultPrevented).toBe(false);
-      expect(screen.getByTestId('command-palette')).toBeInTheDocument();
-    } finally {
-      modal.remove();
-    }
-  });
-}
-
-function registerInfoNoticeDismissalTest(): void {
-  it('renders a Sonner toast for an info store notice and clears it on dismiss', async () => {
-    renderAppShell({});
-    expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument();
-
-    act(() => {
-      useStore.getState().setNotice('That allocation could not be moved there.');
-    });
-    // Wait for Sonner's portal before asserting the notification live region.
-    const message = await screen.findByText(/could not be moved/);
-    expect(message.closest('[data-sonner-toast]')).not.toBeNull();
-    expect(message.closest('[aria-live="polite"]')).not.toBeNull();
-
-    act(() => {
-      screen.getByRole('button', { name: 'Close toast' }).click();
-    });
-    await waitFor(() => expect(useStore.getState().notice).toBeNull());
-    await waitFor(() => expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument());
-  });
-}
-
-function registerPersistentErrorNoticeTest(): void {
-  it('keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info', async () => {
-    // Fake timers exercise auto-dismiss and exit animations without real waits. Read synchronously after advancing timers so polling cannot stall while the clock is paused.
-    vi.useFakeTimers();
-    try {
-      renderAppShell({});
-
-      // Baseline: an info notice must auto-dismiss once the 4000ms window elapses. Prove the
-      // window actually closes (so the error assertion below isn't vacuously true).
-      act(() => {
-        useStore.getState().setNotice('Info that should auto-dismiss.');
-      });
-      await act(async () => {
-        // Sonner needs a tick to mount the toast portal.
-        await vi.advanceTimersByTimeAsync(50);
-      });
-      expect(screen.getByText(/auto-dismiss/)).toBeInTheDocument();
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(4500);
-      });
-      expect(screen.queryByText(/auto-dismiss/)).not.toBeInTheDocument();
-
-      expect(useStore.getState().notice).toBeNull();
-
-      // Error: created with duration: Infinity, so the same 4500ms advance must not dismiss it.
-      act(() => {
-        useStore.getState().setNotice('That allocation could not be moved.', 'error');
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(50);
-      });
-      const message = screen.getByText(/could not be moved/);
-      expect(message.closest('[data-sonner-toast]')).not.toBeNull();
-
-      expect(message.closest('[data-sonner-toast]')).toHaveClass('toast-error');
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(4500);
-      });
-      expect(screen.getByText(/could not be moved/)).toBeInTheDocument();
-      expect(useStore.getState().notice?.tone).toBe('error');
-
-      act(() => {
-        screen.getByRole('button', { name: 'Close toast' }).click();
-      });
-      await act(async () => {
-        // Let the exit animation finish so onDismiss can clear the notice.
-        await vi.advanceTimersByTimeAsync(500);
-      });
-      expect(useStore.getState().notice).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-}
-
-function registerPersistentWarningNoticeTest(): void {
-  it('keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)', async () => {
-    // A truncation warning must persist until dismissed because it is the only signal that committed work was reduced. It uses neutral styling because the edit succeeded.
-    vi.useFakeTimers();
-    try {
-      renderAppShell({});
-
-      act(() => {
-        useStore.getState().setNotice('Work volume was capped at 24h/day.', 'warning');
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(50);
-      });
-      const message = screen.getByText(/capped at 24h\/day/);
-      const toastEl = message.closest('[data-sonner-toast]');
-      expect(toastEl).not.toBeNull();
-
-      expect(toastEl).not.toHaveClass('toast-error');
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(4500);
-      });
-      expect(screen.getByText(/capped at 24h\/day/)).toBeInTheDocument();
-      expect(useStore.getState().notice?.tone).toBe('warning');
-
-      act(() => {
-        screen.getByRole('button', { name: 'Close toast' }).click();
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(500);
-      });
-      expect(useStore.getState().notice).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-}
-
-function registerNoticeReplacementRaceTest(): void {
-  it('rapidly replacing notice A with B leaves B intact (no stale-clear race)', async () => {
-    // Dismissing an old Sonner toast can invoke its callback after the replacement is shown. The callback must clear only its own notice; fake timers exercise that ordering before the new notice auto-dismisses.
-    vi.useFakeTimers();
-    try {
-      renderAppShell({});
-
-      // A mounts first (its bridge effect runs, Sonner portals toast A). The swap must dismiss a
-      // *real* live toast for the race to exist at all.
-      act(() => {
-        useStore.getState().setNotice('First notice');
-      });
-      await act(async () => {
-        // Sonner needs a tick to mount the first toast portal.
-        await vi.advanceTimersByTimeAsync(50);
-      });
-      expect(screen.getByText('First notice')).toBeInTheDocument();
-
-      act(() => {
-        useStore.getState().setNotice('Second notice');
-      });
-      // Pump A's deferred dismiss rAF, then its exit-animation removal, in two steps, Sonner
-      // chains those across rAF/flush boundaries, so a single big advance can leave A's node
-      // mid-animation. Total here (~250ms post-swap) stays well under the 4000ms auto-dismiss,
-      // so B never auto-closes.
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(50);
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(200);
-      });
-
-      // Use synchronous queries after advancing the fake clock; polling queries can stall under paused timers.
-      expect(useStore.getState().notice?.message).toBe('Second notice');
-
-      const message = screen.getByText('Second notice');
-      expect(message.closest('[data-sonner-toast]')).not.toBeNull();
-      expect(screen.queryByText('First notice')).not.toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-}
-
-describe('AppShell navigation links', () => {
-  registerSkipLinkLayerTest();
-  registerTrailingSlashTitleTest();
-  registerLocaleChangeNavigationTest();
-  registerLoadingAccountLocaleTest();
-  registerExpectedNavigationLinksTest();
-  registerAccountNavigationStateTest();
-  registerNavigationBrandNameTest();
-  registerImportExportAbsenceTest();
-  registerSidebarSignOutTest();
-  registerPinnedNavigationOrderTest();
-  registerNavigationRoutesTest();
-});
-
-describe('AppShell sidebar collapse', () => {
-  beforeEach(() => {
-    act(() => {
-      useStore.getState().setSidebarOpen(true);
-    });
-    localStorage.removeItem('capacitylens/sidebar');
-  });
-
-  registerDefaultSidebarStateTest();
-  registerMobileSidebarTriggerTest();
-  registerPersistedSidebarCollapseTest();
-  registerCollapsedNavigationLinksTest();
-  registerNavigationLinkIconsTest();
-  registerSidebarKeyboardShortcutTest();
-  registerEditableControlShortcutTest();
-  registerComposingShortcutTest();
-  registerModalShortcutTest();
 });
 
 describe('AppShell hydration gate', () => {
@@ -1292,19 +922,265 @@ describe('AppShell undo/redo keyboard', () => {
 });
 
 describe('AppShell command palette dirty-form guard', () => {
-  registerDirtyFormPaletteGuardTest();
-  registerCleanFormPaletteShortcutTest();
-  registerModalPaletteShortcutTest();
-  registerComposingPaletteShortcutTest();
-  registerRepeatedPaletteShortcutTest();
-  registerPaletteToggleShortcutTest();
-  registerLaterModalPaletteShortcutTest();
+  it('Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette', async () => {
+    useStore.getState().setHydrated(true);
+    renderAppShell({});
+
+    act(() => {
+      useStore.getState().setDirtyForm(true);
+    });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+    });
+
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
+    // Sonner mounts notices through its portal asynchronously, so wait for the rendered message.
+    expect(
+      await screen.findByText(
+        'You have unsaved changes — use Cancel or Save to close this dialog.',
+      ),
+    ).toBeInTheDocument();
+  });
+  it('Ctrl+K with dirtyForm=false opens the palette', () => {
+    useStore.getState().setHydrated(true);
+    renderAppShell({});
+
+    act(() => {
+      useStore.getState().setDirtyForm(false);
+    });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+    });
+
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+  });
+  it('leaves Cmd/Ctrl+K to an existing modal', () => {
+    renderAppShell({});
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('data-state', 'open');
+    document.body.appendChild(modal);
+    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
+    try {
+      act(() => {
+        window.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
+    } finally {
+      modal.remove();
+    }
+  });
+  it('ignores Cmd/Ctrl+K during IME composition', () => {
+    renderAppShell({});
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      metaKey: true,
+      isComposing: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
+  });
+  it('keeps the palette open when the Ctrl+K keydown repeats', () => {
+    renderAppShell({});
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, repeat: true }));
+    });
+
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+  });
+  it('closes the open palette with a second Ctrl+K', () => {
+    renderAppShell({});
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+    });
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+    });
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
+  });
+  it('leaves Ctrl+K to a later modal even while the palette is open', () => {
+    renderAppShell({});
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+    });
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('data-state', 'open');
+    document.body.appendChild(modal);
+    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
+    try {
+      act(() => {
+        window.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+      expect(screen.getByTestId('command-palette')).toBeInTheDocument();
+    } finally {
+      modal.remove();
+    }
+  });
 });
 
 describe('AppShell transient notice', () => {
   // Sonner renders notices asynchronously in its own polite live region, so this suite awaits its portal markup.
-  registerInfoNoticeDismissalTest();
-  registerPersistentErrorNoticeTest();
-  registerPersistentWarningNoticeTest();
-  registerNoticeReplacementRaceTest();
+  it('renders a Sonner toast for an info store notice and clears it on dismiss', async () => {
+    renderAppShell({});
+    expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument();
+
+    act(() => {
+      useStore.getState().setNotice('That allocation could not be moved there.');
+    });
+    // Wait for Sonner's portal before asserting the notification live region.
+    const message = await screen.findByText(/could not be moved/);
+    expect(message.closest('[data-sonner-toast]')).not.toBeNull();
+    expect(message.closest('[aria-live="polite"]')).not.toBeNull();
+
+    act(() => {
+      screen.getByRole('button', { name: 'Close toast' }).click();
+    });
+    await waitFor(() => expect(useStore.getState().notice).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument());
+  });
+  it('keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info', async () => {
+    // Fake timers exercise auto-dismiss and exit animations without real waits. Read synchronously after advancing timers so polling cannot stall while the clock is paused.
+    vi.useFakeTimers();
+    try {
+      renderAppShell({});
+
+      // Baseline: an info notice must auto-dismiss once the 4000ms window elapses. Prove the
+      // window actually closes (so the error assertion below isn't vacuously true).
+      act(() => {
+        useStore.getState().setNotice('Info that should auto-dismiss.');
+      });
+      await act(async () => {
+        // Sonner needs a tick to mount the toast portal.
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(screen.getByText(/auto-dismiss/)).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4500);
+      });
+      expect(screen.queryByText(/auto-dismiss/)).not.toBeInTheDocument();
+
+      expect(useStore.getState().notice).toBeNull();
+
+      // Error: created with duration: Infinity, so the same 4500ms advance must not dismiss it.
+      act(() => {
+        useStore.getState().setNotice('That allocation could not be moved.', 'error');
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      const message = screen.getByText(/could not be moved/);
+      expect(message.closest('[data-sonner-toast]')).not.toBeNull();
+
+      expect(message.closest('[data-sonner-toast]')).toHaveClass('toast-error');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4500);
+      });
+      expect(screen.getByText(/could not be moved/)).toBeInTheDocument();
+      expect(useStore.getState().notice?.tone).toBe('error');
+
+      act(() => {
+        screen.getByRole('button', { name: 'Close toast' }).click();
+      });
+      await act(async () => {
+        // Let the exit animation finish so onDismiss can clear the notice.
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)', async () => {
+    // A truncation warning must persist until dismissed because it is the only signal that committed work was reduced. It uses neutral styling because the edit succeeded.
+    vi.useFakeTimers();
+    try {
+      renderAppShell({});
+
+      act(() => {
+        useStore.getState().setNotice('Work volume was capped at 24h/day.', 'warning');
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      const message = screen.getByText(/capped at 24h\/day/);
+      const toastEl = message.closest('[data-sonner-toast]');
+      expect(toastEl).not.toBeNull();
+
+      expect(toastEl).not.toHaveClass('toast-error');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4500);
+      });
+      expect(screen.getByText(/capped at 24h\/day/)).toBeInTheDocument();
+      expect(useStore.getState().notice?.tone).toBe('warning');
+
+      act(() => {
+        screen.getByRole('button', { name: 'Close toast' }).click();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('rapidly replacing notice A with B leaves B intact (no stale-clear race)', async () => {
+    // Dismissing an old Sonner toast can invoke its callback after the replacement is shown. The callback must clear only its own notice; fake timers exercise that ordering before the new notice auto-dismisses.
+    vi.useFakeTimers();
+    try {
+      renderAppShell({});
+
+      // A mounts first (its bridge effect runs, Sonner portals toast A). The swap must dismiss a
+      // *real* live toast for the race to exist at all.
+      act(() => {
+        useStore.getState().setNotice('First notice');
+      });
+      await act(async () => {
+        // Sonner needs a tick to mount the first toast portal.
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(screen.getByText('First notice')).toBeInTheDocument();
+
+      act(() => {
+        useStore.getState().setNotice('Second notice');
+      });
+      // Pump A's deferred dismiss rAF, then its exit-animation removal, in two steps, Sonner
+      // chains those across rAF/flush boundaries, so a single big advance can leave A's node
+      // mid-animation. Total here (~250ms post-swap) stays well under the 4000ms auto-dismiss,
+      // so B never auto-closes.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+
+      // Use synchronous queries after advancing the fake clock; polling queries can stall under paused timers.
+      expect(useStore.getState().notice?.message).toBe('Second notice');
+
+      const message = screen.getByText('Second notice');
+      expect(message.closest('[data-sonner-toast]')).not.toBeNull();
+      expect(screen.queryByText('First notice')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

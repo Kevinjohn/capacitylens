@@ -1,8 +1,8 @@
 import { test, expect } from './dbFixtures';
 import { openApp, resetSchedulerScroll, setZoom } from './browserTestSupport';
 
-// Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
-function registerAllocationBarFocusableEnterOpensTest() {
+test.describe('Keyboard & accessibility', () => {
+  // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
   test('an allocation bar is focusable and Enter opens the editor', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -12,9 +12,6 @@ function registerAllocationBarFocusableEnterOpensTest() {
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog', { name: 'Edit allocation' })).toBeVisible();
   });
-}
-
-function registerArrowKeysMoveFocusedBarTest() {
   test('arrow keys move a focused bar by a day', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
@@ -25,9 +22,6 @@ function registerArrowKeysMoveFocusedBarTest() {
     await expect(bar).toHaveAccessibleName(/2 Jun to 5 Jun/);
     await expect(bar).toBeFocused();
   });
-}
-
-function registerModalTrapsFocusClosesEscapeTest() {
   test('a modal traps focus, closes on Escape, and restores its trigger', async ({ page }) => {
     await openApp(page, '/resources');
     const trigger = page.getByRole('button', { name: 'Add resource' });
@@ -53,9 +47,6 @@ function registerModalTrapsFocusClosesEscapeTest() {
     await expect(dialog).toHaveCount(0);
     await expect(trigger).toBeFocused();
   });
-}
-
-function registerSchedulerExposesGridRolesSrTest() {
   test('the scheduler exposes grid roles and an sr-only per-row capacity summary', async ({
     page,
   }) => {
@@ -74,9 +65,6 @@ function registerSchedulerExposesGridRolesSrTest() {
     await expect(lane).toHaveAttribute('aria-colindex', '2');
     await expect(bruceHeader.getByText(/\d+ allocations?\./)).toBeAttached();
   });
-}
-
-function registerInvalidFieldMarkedAriaInvalidTests() {
   test('an invalid field is marked aria-invalid and described by the error', async ({ page }) => {
     await openApp(page, '/resources');
     await page.getByRole('button', { name: 'Add resource' }).click();
@@ -108,12 +96,4 @@ function registerInvalidFieldMarkedAriaInvalidTests() {
       page.getByTestId('resource-row').filter({ hasText: 'Accessible resource' }),
     ).toBeVisible();
   });
-}
-
-test.describe('Keyboard & accessibility', () => {
-  registerAllocationBarFocusableEnterOpensTest();
-  registerArrowKeysMoveFocusedBarTest();
-  registerModalTrapsFocusClosesEscapeTest();
-  registerSchedulerExposesGridRolesSrTest();
-  registerInvalidFieldMarkedAriaInvalidTests();
 });

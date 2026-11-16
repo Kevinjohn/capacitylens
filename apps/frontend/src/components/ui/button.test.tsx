@@ -13,11 +13,6 @@ beforeEach(() => {
 });
 
 describe("Button", () => {
-  registerButtonAppearanceTests();
-  registerButtonFeedbackTests();
-});
-
-function registerButtonAppearanceTests() {
   it("renders children", () => {
     render(<Button>Click me</Button>);
     expect(
@@ -112,9 +107,6 @@ function registerButtonAppearanceTests() {
       );
     },
   );
-}
-
-function registerButtonFeedbackTests() {
   it("keeps link-styled actions out of the button press treatment", () => {
     render(<Button variant="link">Learn more</Button>);
 
@@ -145,4 +137,4 @@ function registerButtonFeedbackTests() {
     );
     expect(button).not.toHaveClass("active:scale-95");
   });
-}
+});

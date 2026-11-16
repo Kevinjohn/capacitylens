@@ -51,16 +51,301 @@ describe('MembersSection — member lifecycle', () => {
     { userId: 'ed', role: 'editor' },
   ];
 
-  registerLifecycleStatusTests(lifecycleMembers);
-  registerLifecycleVisibilityTests();
-  registerLifecycleDisclosureTests();
-  registerLifecyclePermissionTests(lifecycleMembers);
-  registerLifecycleTrackingTests();
-  registerLifecycleConcurrencyTests();
-  registerMemberResourceLinkTests();
-});
+  it('never offers a transfer-ownership control on any row', async () => {
+    vi.stubGlobal('fetch', mockApi(lifecycleMembers));
+    renderSection();
+    await screen.findByTestId('members-section');
 
-function registerMemberResourceLinkTests(): void {
+    const edRow = await waitForMemberRow(/ed@x\.io/);
+    await openMemberMenu(userEvent.setup(), edRow);
+    expect(screen.queryByTestId('member-make-owner')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /transfer ownership/i })).not.toBeInTheDocument();
+  });
+
+  it('confirms Suspend before PATCHing the new status', async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockApi(lifecycleMembers);
+    vi.stubGlobal('fetch', fetchMock);
+    renderSection();
+    const edRow = await waitForMemberRow(/ed@x\.io/);
+
+    await chooseMemberAction(user, edRow, 'member-suspend');
+    const dialog = screen.getByRole('alertdialog');
+    expect(within(dialog).getByText(/cannot open this company until/i)).toBeInTheDocument();
+
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/status'),
+      expect.anything(),
+    );
+
+    await user.click(within(dialog).getByRole('button', { name: /Suspend/ }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'suspended' }),
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(useStore.getState().notice?.message).toBe(m.settings_members_status_changed()),
+    );
+  });
+  it('badges a suspended member and offers Restore but no role edit', async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockApi([
+      { userId: 'me', role: 'owner', isSelf: true },
+      { userId: 'ed', role: 'editor', status: 'suspended' },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+    renderSection();
+    await openInactiveGroup(user);
+    const edRow = await waitForMemberRow(/ed@x\.io/);
+    // A non-active member must stay reachable and legible, or the state is unreversible.
+    expect(within(edRow).getByTestId('member-status')).toHaveTextContent(
+      m.settings_member_status_suspended(),
+    );
+    expect(within(edRow).queryByTestId('member-edit')).not.toBeInTheDocument();
+
+    await openMemberMenu(user, edRow);
+    expect(screen.queryByTestId('member-suspend')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('member-restore'));
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: /restore/i }),
+    );
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'active' }) }),
+      ),
+    );
+  });
+  it('keeps non-active members out of the main table and behind a collapsed disclosure', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockApi([
+        { userId: 'me', role: 'owner', isSelf: true },
+        { userId: 'ed', role: 'editor', status: 'suspended' },
+        { userId: 'vic', role: 'viewer', status: 'suspended' },
+      ]),
+    );
+    renderSection();
+
+    const mainTable = await screen.findByTestId('members-table');
+    expect(within(mainTable).getAllByTestId('member-row')).toHaveLength(1);
+    expect(within(mainTable).queryByText(/ed@x\.io/)).not.toBeInTheDocument();
+
+    const toggle = screen.getByTestId('members-inactive-toggle');
+    expect(toggle).toHaveTextContent(m.settings_members_inactive_group({ count: 2 }));
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('members-inactive-table')).not.toBeInTheDocument();
+
+    const inactiveTable = await openInactiveGroup(user);
+    const expectedColumns = ['Name', 'Role', 'Email', 'Link to Resource', 'Actions'];
+    expect(
+      within(mainTable)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(expectedColumns);
+    expect(
+      within(inactiveTable)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(expectedColumns);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    const badges = within(inactiveTable)
+      .getAllByTestId('member-status')
+      .map((badge) => badge.textContent);
+    expect(badges).toEqual([
+      m.settings_member_status_suspended(),
+      m.settings_member_status_suspended(),
+    ]);
+
+    await user.click(toggle);
+    expect(screen.queryByTestId('members-inactive-table')).not.toBeInTheDocument();
+  });
+
+  it('omits the disclosure entirely when every membership is active', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockApi([
+        { userId: 'me', role: 'owner', isSelf: true },
+        { userId: 'ed', role: 'editor' },
+      ]),
+    );
+    renderSection();
+
+    await screen.findByTestId('members-table');
+    expect(screen.queryByTestId('members-inactive-toggle')).not.toBeInTheDocument();
+  });
+  it('offers no member action against the Owner or against yourself', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockApi([
+        { userId: 'me', role: 'admin', isSelf: true },
+        { userId: 'owner', role: 'owner' },
+      ]),
+    );
+    renderSection();
+    const selfRow = await waitForMemberRow(/me@x\.io/);
+
+    // The server reports neither row as manageable: suspending yourself would lock you out, and the
+    // Owner is protected by the single-owner invariant.
+    expect(within(selfRow).queryByTestId('member-menu')).not.toBeInTheDocument();
+
+    const ownerRow = await waitForMemberRow(/owner@x\.io/);
+    expect(within(ownerRow).queryByTestId('member-menu')).not.toBeInTheDocument();
+  });
+
+  it('surfaces a refused status change instead of reporting success', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockApi(lifecycleMembers, {
+        'PATCH /members/ed/status': () => jsonResponse({ error: 'Forbidden.' }, 403),
+      }),
+    );
+    renderSection();
+    const edRow = await waitForMemberRow(/ed@x\.io/);
+
+    await chooseMemberAction(user, edRow, 'member-suspend');
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i }),
+    );
+
+    expect(await screen.findByText('Forbidden.')).toBeInTheDocument();
+    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed());
+  });
+  it('keeps complete legacy email values in the DOM and title without assuming they are valid', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockApi([
+        { userId: 'me', role: 'owner', isSelf: true, email: null },
+        { userId: 'legacy', role: 'viewer', email: 'not an email value' },
+      ]),
+    );
+    renderSection();
+    const missing = within(await waitForMemberRow(/No email/i)).getByTestId('member-email');
+    expect(missing).toHaveTextContent(m.settings_member_email_missing());
+    expect(within(missing).getByText(m.settings_member_email_missing())).not.toHaveAttribute(
+      'title',
+    );
+    const malformed = within(await waitForMemberRow(/not an email value/i)).getByTestId(
+      'member-email',
+    );
+    const fullValue = within(malformed).getByText('not an email value');
+    expect(fullValue).toHaveClass('truncate');
+    expect(fullValue).toHaveAttribute('title', 'not an email value');
+  });
+
+  it('keeps sign-in confirmation absent when the stored setting is enabled', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockApi([
+        { userId: 'me', role: 'owner', isSelf: true, signInConfirmed: true },
+        { userId: 'ed', role: 'editor', signInConfirmed: false },
+      ]),
+    );
+    renderSection();
+    const selfRow = await waitForMemberRow(/me@x\.io/);
+    const edRow = await waitForMemberRow(/ed@x\.io/);
+
+    expect(within(selfRow).queryByTestId('member-sign-in-confirmed')).not.toBeInTheDocument();
+    expect(within(edRow).queryByTestId('member-sign-in-confirmed')).not.toBeInTheDocument();
+    expect(screen.queryByText(/2026|unknown/i)).not.toBeInTheDocument();
+  });
+
+  it('hides sign-in tracking and uses the fixed five-column table', async () => {
+    vi.stubGlobal('fetch', makeSignInTrackingApi());
+    renderSection();
+
+    await screen.findByTestId('members-table');
+    expect(screen.queryByTestId('member-sign-in-tracking')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: m.settings_member_col_sign_in_confirmed() }),
+    ).not.toBeInTheDocument();
+
+    const table = screen.getByTestId('members-table');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual([
+      m.settings_member_col_name(),
+      m.settings_invite_role_label(),
+      m.settings_member_col_email(),
+      m.settings_member_col_scheduled_person(),
+      m.settings_member_col_actions(),
+    ]);
+    const editorRow = requireValue(
+      within(table)
+        .getAllByTestId('member-row')
+        .find((row) => within(row).queryByText('Clark Kent')),
+      'the Clark Kent row in the members table',
+    );
+    const cells = within(editorRow).getAllByRole('cell');
+    expect(cells).toHaveLength(5);
+    const actionCell = requireValue(cells[4], 'the actions cell');
+    expect(within(actionCell).getByTestId('member-masquerade')).toHaveAttribute(
+      'data-variant',
+      'outline',
+    );
+    expect(within(actionCell).getByTestId('member-edit')).toHaveAttribute(
+      'data-variant',
+      'outline',
+    );
+    expect(within(actionCell).getByTestId('member-resource-menu')).toHaveAttribute(
+      'data-variant',
+      'outline',
+    );
+    expect(within(actionCell).getByTestId('member-menu')).toHaveAttribute(
+      'data-variant',
+      'outline',
+    );
+    expect(within(editorRow).getByTestId('member-email')).toHaveClass('text-xs');
+    expect(screen.getByTestId('members-section')).not.toHaveAttribute('data-slot', 'card');
+  });
+  it('permits only one member mutation while an action is in flight', async () => {
+    let release: (() => void) | null = null;
+    const reads = mockApi([
+      { userId: 'me', role: 'owner', isSelf: true },
+      { userId: 'ed', role: 'editor' },
+    ]);
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === 'POST' || init?.method === 'DELETE' || init?.method === 'PATCH') {
+        return new Promise<Response>((resolve) => {
+          release = () => resolve(new Response(null, { status: 204 }));
+        });
+      }
+      return reads(url, init);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderSection();
+    const editorRow = await waitForMemberRow(/ed@x\.io/);
+
+    const user = userEvent.setup();
+    await chooseMemberAction(user, editorRow, 'member-suspend');
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i }),
+    );
+
+    await waitFor(() => expect(within(editorRow).getByTestId('member-menu')).toBeDisabled());
+    expect(within(editorRow).getByTestId('member-edit')).toBeDisabled();
+    await user.click(within(editorRow).getByTestId('member-menu'));
+    expect(screen.queryByText(m.settings_member_settings_heading())).not.toBeInTheDocument();
+
+    const mutations = fetchMock.mock.calls.filter(
+      ([, init]) => init?.method && init.method !== 'GET',
+    );
+    expect(mutations).toHaveLength(1);
+    expect(String(mutations[0]?.[0])).toContain('/status');
+    requireCallback(release, 'the pending member mutation release callback')();
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
+  });
   it('reconciles an uncertain Resource link and invalidates derived pictures', async () => {
     const user = userEvent.setup();
     await requireCreated(
@@ -305,317 +590,4 @@ function registerMemberResourceLinkTests(): void {
     await user.keyboard('{Escape}');
     await waitFor(() => expect(trigger).toHaveFocus());
   });
-}
-
-function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
-  it('never offers a transfer-ownership control on any row', async () => {
-    vi.stubGlobal('fetch', mockApi(lifecycleMembers));
-    renderSection();
-    await screen.findByTestId('members-section');
-
-    const edRow = await waitForMemberRow(/ed@x\.io/);
-    await openMemberMenu(userEvent.setup(), edRow);
-    expect(screen.queryByTestId('member-make-owner')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /transfer ownership/i })).not.toBeInTheDocument();
-  });
-
-  it('confirms Suspend before PATCHing the new status', async () => {
-    const user = userEvent.setup();
-    const fetchMock = mockApi(lifecycleMembers);
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    const edRow = await waitForMemberRow(/ed@x\.io/);
-
-    await chooseMemberAction(user, edRow, 'member-suspend');
-    const dialog = screen.getByRole('alertdialog');
-    expect(within(dialog).getByText(/cannot open this company until/i)).toBeInTheDocument();
-
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      expect.stringContaining('/status'),
-      expect.anything(),
-    );
-
-    await user.click(within(dialog).getByRole('button', { name: /Suspend/ }));
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
-        expect.objectContaining({
-          method: 'PATCH',
-          body: JSON.stringify({ status: 'suspended' }),
-        }),
-      ),
-    );
-    await waitFor(() =>
-      expect(useStore.getState().notice?.message).toBe(m.settings_members_status_changed()),
-    );
-  });
-}
-
-function registerLifecycleVisibilityTests(): void {
-  it('badges a suspended member and offers Restore but no role edit', async () => {
-    const user = userEvent.setup();
-    const fetchMock = mockApi([
-      { userId: 'me', role: 'owner', isSelf: true },
-      { userId: 'ed', role: 'editor', status: 'suspended' },
-    ]);
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    await openInactiveGroup(user);
-    const edRow = await waitForMemberRow(/ed@x\.io/);
-    // A non-active member must stay reachable and legible, or the state is unreversible.
-    expect(within(edRow).getByTestId('member-status')).toHaveTextContent(
-      m.settings_member_status_suspended(),
-    );
-    expect(within(edRow).queryByTestId('member-edit')).not.toBeInTheDocument();
-
-    await openMemberMenu(user, edRow);
-    expect(screen.queryByTestId('member-suspend')).not.toBeInTheDocument();
-    await user.click(screen.getByTestId('member-restore'));
-    await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: /restore/i }),
-    );
-
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'active' }) }),
-      ),
-    );
-  });
-}
-
-function registerLifecycleDisclosureTests(): void {
-  it('keeps non-active members out of the main table and behind a collapsed disclosure', async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal(
-      'fetch',
-      mockApi([
-        { userId: 'me', role: 'owner', isSelf: true },
-        { userId: 'ed', role: 'editor', status: 'suspended' },
-        { userId: 'vic', role: 'viewer', status: 'suspended' },
-      ]),
-    );
-    renderSection();
-
-    const mainTable = await screen.findByTestId('members-table');
-    expect(within(mainTable).getAllByTestId('member-row')).toHaveLength(1);
-    expect(within(mainTable).queryByText(/ed@x\.io/)).not.toBeInTheDocument();
-
-    const toggle = screen.getByTestId('members-inactive-toggle');
-    expect(toggle).toHaveTextContent(m.settings_members_inactive_group({ count: 2 }));
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByTestId('members-inactive-table')).not.toBeInTheDocument();
-
-    const inactiveTable = await openInactiveGroup(user);
-    const expectedColumns = ['Name', 'Role', 'Email', 'Link to Resource', 'Actions'];
-    expect(
-      within(mainTable)
-        .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual(expectedColumns);
-    expect(
-      within(inactiveTable)
-        .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual(expectedColumns);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-    const badges = within(inactiveTable)
-      .getAllByTestId('member-status')
-      .map((badge) => badge.textContent);
-    expect(badges).toEqual([
-      m.settings_member_status_suspended(),
-      m.settings_member_status_suspended(),
-    ]);
-
-    await user.click(toggle);
-    expect(screen.queryByTestId('members-inactive-table')).not.toBeInTheDocument();
-  });
-
-  it('omits the disclosure entirely when every membership is active', async () => {
-    vi.stubGlobal(
-      'fetch',
-      mockApi([
-        { userId: 'me', role: 'owner', isSelf: true },
-        { userId: 'ed', role: 'editor' },
-      ]),
-    );
-    renderSection();
-
-    await screen.findByTestId('members-table');
-    expect(screen.queryByTestId('members-inactive-toggle')).not.toBeInTheDocument();
-  });
-}
-
-function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
-  it('offers no member action against the Owner or against yourself', async () => {
-    vi.stubGlobal(
-      'fetch',
-      mockApi([
-        { userId: 'me', role: 'admin', isSelf: true },
-        { userId: 'owner', role: 'owner' },
-      ]),
-    );
-    renderSection();
-    const selfRow = await waitForMemberRow(/me@x\.io/);
-
-    // The server reports neither row as manageable: suspending yourself would lock you out, and the
-    // Owner is protected by the single-owner invariant.
-    expect(within(selfRow).queryByTestId('member-menu')).not.toBeInTheDocument();
-
-    const ownerRow = await waitForMemberRow(/owner@x\.io/);
-    expect(within(ownerRow).queryByTestId('member-menu')).not.toBeInTheDocument();
-  });
-
-  it('surfaces a refused status change instead of reporting success', async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal(
-      'fetch',
-      mockApi(lifecycleMembers, {
-        'PATCH /members/ed/status': () => jsonResponse({ error: 'Forbidden.' }, 403),
-      }),
-    );
-    renderSection();
-    const edRow = await waitForMemberRow(/ed@x\.io/);
-
-    await chooseMemberAction(user, edRow, 'member-suspend');
-    await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i }),
-    );
-
-    expect(await screen.findByText('Forbidden.')).toBeInTheDocument();
-    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed());
-  });
-}
-
-function registerLifecycleTrackingTests(): void {
-  it('keeps complete legacy email values in the DOM and title without assuming they are valid', async () => {
-    vi.stubGlobal(
-      'fetch',
-      mockApi([
-        { userId: 'me', role: 'owner', isSelf: true, email: null },
-        { userId: 'legacy', role: 'viewer', email: 'not an email value' },
-      ]),
-    );
-    renderSection();
-    const missing = within(await waitForMemberRow(/No email/i)).getByTestId('member-email');
-    expect(missing).toHaveTextContent(m.settings_member_email_missing());
-    expect(within(missing).getByText(m.settings_member_email_missing())).not.toHaveAttribute(
-      'title',
-    );
-    const malformed = within(await waitForMemberRow(/not an email value/i)).getByTestId(
-      'member-email',
-    );
-    const fullValue = within(malformed).getByText('not an email value');
-    expect(fullValue).toHaveClass('truncate');
-    expect(fullValue).toHaveAttribute('title', 'not an email value');
-  });
-
-  it('keeps sign-in confirmation absent when the stored setting is enabled', async () => {
-    vi.stubGlobal(
-      'fetch',
-      mockApi([
-        { userId: 'me', role: 'owner', isSelf: true, signInConfirmed: true },
-        { userId: 'ed', role: 'editor', signInConfirmed: false },
-      ]),
-    );
-    renderSection();
-    const selfRow = await waitForMemberRow(/me@x\.io/);
-    const edRow = await waitForMemberRow(/ed@x\.io/);
-
-    expect(within(selfRow).queryByTestId('member-sign-in-confirmed')).not.toBeInTheDocument();
-    expect(within(edRow).queryByTestId('member-sign-in-confirmed')).not.toBeInTheDocument();
-    expect(screen.queryByText(/2026|unknown/i)).not.toBeInTheDocument();
-  });
-
-  it('hides sign-in tracking and uses the fixed five-column table', async () => {
-    vi.stubGlobal('fetch', makeSignInTrackingApi());
-    renderSection();
-
-    await screen.findByTestId('members-table');
-    expect(screen.queryByTestId('member-sign-in-tracking')).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('columnheader', { name: m.settings_member_col_sign_in_confirmed() }),
-    ).not.toBeInTheDocument();
-
-    const table = screen.getByTestId('members-table');
-    expect(
-      within(table)
-        .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual([
-      m.settings_member_col_name(),
-      m.settings_invite_role_label(),
-      m.settings_member_col_email(),
-      m.settings_member_col_scheduled_person(),
-      m.settings_member_col_actions(),
-    ]);
-    const editorRow = requireValue(
-      within(table)
-        .getAllByTestId('member-row')
-        .find((row) => within(row).queryByText('Clark Kent')),
-      'the Clark Kent row in the members table',
-    );
-    const cells = within(editorRow).getAllByRole('cell');
-    expect(cells).toHaveLength(5);
-    const actionCell = requireValue(cells[4], 'the actions cell');
-    expect(within(actionCell).getByTestId('member-masquerade')).toHaveAttribute(
-      'data-variant',
-      'outline',
-    );
-    expect(within(actionCell).getByTestId('member-edit')).toHaveAttribute(
-      'data-variant',
-      'outline',
-    );
-    expect(within(actionCell).getByTestId('member-resource-menu')).toHaveAttribute(
-      'data-variant',
-      'outline',
-    );
-    expect(within(actionCell).getByTestId('member-menu')).toHaveAttribute(
-      'data-variant',
-      'outline',
-    );
-    expect(within(editorRow).getByTestId('member-email')).toHaveClass('text-xs');
-    expect(screen.getByTestId('members-section')).not.toHaveAttribute('data-slot', 'card');
-  });
-}
-
-function registerLifecycleConcurrencyTests(): void {
-  it('permits only one member mutation while an action is in flight', async () => {
-    let release: (() => void) | null = null;
-    const reads = mockApi([
-      { userId: 'me', role: 'owner', isSelf: true },
-      { userId: 'ed', role: 'editor' },
-    ]);
-    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
-      if (init?.method === 'POST' || init?.method === 'DELETE' || init?.method === 'PATCH') {
-        return new Promise<Response>((resolve) => {
-          release = () => resolve(new Response(null, { status: 204 }));
-        });
-      }
-      return reads(url, init);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    const editorRow = await waitForMemberRow(/ed@x\.io/);
-
-    const user = userEvent.setup();
-    await chooseMemberAction(user, editorRow, 'member-suspend');
-    await user.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: /suspend/i }),
-    );
-
-    await waitFor(() => expect(within(editorRow).getByTestId('member-menu')).toBeDisabled());
-    expect(within(editorRow).getByTestId('member-edit')).toBeDisabled();
-    await user.click(within(editorRow).getByTestId('member-menu'));
-    expect(screen.queryByText(m.settings_member_settings_heading())).not.toBeInTheDocument();
-
-    const mutations = fetchMock.mock.calls.filter(
-      ([, init]) => init?.method && init.method !== 'GET',
-    );
-    expect(mutations).toHaveLength(1);
-    expect(String(mutations[0]?.[0])).toContain('/status');
-    requireCallback(release, 'the pending member mutation release callback')();
-    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
-  });
-}
+});

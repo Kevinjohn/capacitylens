@@ -16,7 +16,7 @@ function refuseNextPlanningMutation(): void {
 
 beforeEach(() => resetStoreWithAccount());
 
-function registerExternalFlip1(): void {
+describe('updateResource rejects a kind-flip-to-external that would orphan dependents', () => {
   it('preserves a server refusal when an external conversion would hide a loaded allocation', async () => {
     const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
     const p = await requireCreated(s().addProject({ name: 'P', clientId: c.id, color: '#2' }));
@@ -47,9 +47,6 @@ function registerExternalFlip1(): void {
     expect(s().data.resources[0]?.kind).toBe('person');
     expect(s().planning.history.past).toHaveLength(before);
   });
-}
-
-function registerExternalFlip2(): void {
   it('preserves a server refusal when an external conversion would hide time off', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
     await s().addTimeOff({
@@ -73,9 +70,6 @@ function registerExternalFlip2(): void {
     expect(s().data.resources[0]?.kind).toBe('person');
     expect(s().planning.history.past).toHaveLength(before);
   });
-}
-
-function registerExternalFlip3(): void {
   it('preserves a server refusal for an immutable kind with and without dependents', async () => {
     const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
     const p = await requireCreated(s().addProject({ name: 'P', clientId: c.id, color: '#2' }));
@@ -130,9 +124,6 @@ function registerExternalFlip3(): void {
     expect(s().data.resources.find((r) => r.id === z.id)?.kind).toBe('person');
     expect(s().planning.history.past).toHaveLength(beforeZero);
   });
-}
-
-function registerExternalFlip4(): void {
   it('editing an external resource’s OTHER fields (name) with no dependents still SUCCEEDS', async () => {
     const ext = await requireCreated(
       s().addResource({
@@ -144,13 +135,6 @@ function registerExternalFlip4(): void {
     await s().updateResource(ext.id, { name: 'Outsource Co' });
     expect(s().data.resources.find((r) => r.id === ext.id)?.name).toBe('Outsource Co');
   });
-}
-
-describe('updateResource rejects a kind-flip-to-external that would orphan dependents', () => {
-  registerExternalFlip1();
-  registerExternalFlip2();
-  registerExternalFlip3();
-  registerExternalFlip4();
 });
 
 describe('parent edits cannot invalidate existing placeholder allocations', () => {

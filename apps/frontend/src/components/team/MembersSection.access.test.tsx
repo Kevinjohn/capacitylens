@@ -30,7 +30,57 @@ afterEach(() => {
 });
 
 describe('MembersSection — self-gate', () => {
-  registerAccountTransitionTest();
+  it('hides the previous account directory while the next account is authorizing', async () => {
+    const nextAccountId = 'acc_second';
+    let resolveNextMembers: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url);
+      const isRead = !init || init.method === undefined || init.method === 'GET';
+      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
+        return jsonResponse({
+          members: [
+            rawMember({
+              userId: 'first-owner',
+              role: 'owner',
+              email: 'first@example.test',
+              isSelf: true,
+            }),
+          ],
+        });
+      }
+      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
+        return await new Promise<Response>((resolve) => {
+          resolveNextMembers = resolve;
+        });
+      }
+      if (target.endsWith('/invites') && isRead) {
+        return jsonResponse({ invites: [] });
+      }
+      throw new Error(`Unexpected request: ${target}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderSection();
+    expect(await screen.findByText('first@example.test')).toBeInTheDocument();
+
+    act(() => useStore.setState({ activeAccountId: nextAccountId }));
+    expect(screen.queryByText('first@example.test')).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveNextMembers?.(
+        jsonResponse({
+          members: [
+            rawMember({
+              userId: 'second-owner',
+              role: 'owner',
+              email: 'second@example.test',
+              isSelf: true,
+            }),
+          ],
+        }),
+      );
+    });
+    expect(await screen.findByText('second@example.test')).toBeInTheDocument();
+  });
 
   it('renders NOTHING when the members read returns 403 (viewer/editor)', async () => {
     vi.stubGlobal('fetch', mockApi({ status: 403 }));
@@ -42,7 +92,53 @@ describe('MembersSection — self-gate', () => {
     expect(screen.queryByRole('heading', { name: 'Members' })).not.toBeInTheDocument();
   });
 
-  registerSelfGateDisplayTests();
+  it('renders nothing while auth state is still checking', () => {
+    vi.stubGlobal('fetch', mockApi([]));
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthContext.Provider value={authValue({ user: null })}>
+          <MembersSection />
+        </AuthContext.Provider>
+      </QueryClientProvider>,
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders an empty directory message without exposing an empty ARIA list', async () => {
+    vi.stubGlobal('fetch', mockApi([]));
+    renderSection();
+
+    const section = await screen.findByTestId('members-section');
+    expect(within(section).queryByTestId('member-row')).not.toBeInTheDocument();
+    expect(within(section).queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('surfaces a malformed member response instead of trusting it', async () => {
+    // Deliberately malformed (missing required member fields), must not go through rawMember,
+    // which would paper over the very thing this test is pinning.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ members: [{ userId: 'me', role: 'owner' }] })),
+    );
+    renderSection();
+
+    expect(await screen.findByText(/invalid members response/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('member-row')).not.toBeInTheDocument();
+  });
+
+  it('keeps loaded members visible and names a failed invitations read', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
+        'GET /invites': () => jsonResponse({}, 503),
+      }),
+    );
+    renderSection();
+
+    expect(await screen.findByText('me@x.io')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load invites (503).');
+    expect(screen.queryByText('Could not load members (503).')).not.toBeInTheDocument();
+  });
 });
 
 describe('MembersSection — directory error retention', () => {
@@ -232,107 +328,3 @@ describe('MembersSection — transient directory state', () => {
     });
   });
 });
-
-function registerSelfGateDisplayTests(): void {
-  it('renders nothing while auth state is still checking', () => {
-    vi.stubGlobal('fetch', mockApi([]));
-    const { container } = render(
-      <QueryClientProvider client={new QueryClient()}>
-        <AuthContext.Provider value={authValue({ user: null })}>
-          <MembersSection />
-        </AuthContext.Provider>
-      </QueryClientProvider>,
-    );
-    expect(container.firstChild).toBeNull();
-  });
-
-  it('renders an empty directory message without exposing an empty ARIA list', async () => {
-    vi.stubGlobal('fetch', mockApi([]));
-    renderSection();
-
-    const section = await screen.findByTestId('members-section');
-    expect(within(section).queryByTestId('member-row')).not.toBeInTheDocument();
-    expect(within(section).queryByRole('list')).not.toBeInTheDocument();
-  });
-
-  it('surfaces a malformed member response instead of trusting it', async () => {
-    // Deliberately malformed (missing required member fields), must not go through rawMember,
-    // which would paper over the very thing this test is pinning.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => jsonResponse({ members: [{ userId: 'me', role: 'owner' }] })),
-    );
-    renderSection();
-
-    expect(await screen.findByText(/invalid members response/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('member-row')).not.toBeInTheDocument();
-  });
-
-  it('keeps loaded members visible and names a failed invitations read', async () => {
-    vi.stubGlobal(
-      'fetch',
-      mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-        'GET /invites': () => jsonResponse({}, 503),
-      }),
-    );
-    renderSection();
-
-    expect(await screen.findByText('me@x.io')).toBeInTheDocument();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load invites (503).');
-    expect(screen.queryByText('Could not load members (503).')).not.toBeInTheDocument();
-  });
-}
-
-function registerAccountTransitionTest(): void {
-  it('hides the previous account directory while the next account is authorizing', async () => {
-    const nextAccountId = 'acc_second';
-    let resolveNextMembers: ((response: Response) => void) | undefined;
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
-      const target = String(url);
-      const isRead = !init || init.method === undefined || init.method === 'GET';
-      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
-        return jsonResponse({
-          members: [
-            rawMember({
-              userId: 'first-owner',
-              role: 'owner',
-              email: 'first@example.test',
-              isSelf: true,
-            }),
-          ],
-        });
-      }
-      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
-        return await new Promise<Response>((resolve) => {
-          resolveNextMembers = resolve;
-        });
-      }
-      if (target.endsWith('/invites') && isRead) {
-        return jsonResponse({ invites: [] });
-      }
-      throw new Error(`Unexpected request: ${target}`);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    renderSection();
-    expect(await screen.findByText('first@example.test')).toBeInTheDocument();
-
-    act(() => useStore.setState({ activeAccountId: nextAccountId }));
-    expect(screen.queryByText('first@example.test')).not.toBeInTheDocument();
-
-    await act(async () => {
-      resolveNextMembers?.(
-        jsonResponse({
-          members: [
-            rawMember({
-              userId: 'second-owner',
-              role: 'owner',
-              email: 'second@example.test',
-              isSelf: true,
-            }),
-          ],
-        }),
-      );
-    });
-    expect(await screen.findByText('second@example.test')).toBeInTheDocument();
-  });
-}

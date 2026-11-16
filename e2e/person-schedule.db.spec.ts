@@ -85,68 +85,6 @@ async function prepareFilteredGrid(page: import('@playwright/test').Page) {
   return { grid, gridElement, before };
 }
 
-function registerPreservationScenario() {
-  test('opens as one read-only modal and preserves the grid state', async ({ page }) => {
-    const { grid, gridElement, before } = await prepareFilteredGrid(page);
-    const trigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
-    await expect(trigger).toHaveAttribute('title', "View Bruce Wayne's schedule");
-    await trigger.click();
-    const sheet = await assertReadOnlySchedule(page);
-    const sheetBox = await sheet.boundingBox();
-    expect(sheetBox).not.toBeNull();
-    expect(sheetBox!.width).toBe(400);
-    expect(sheetBox!.x + sheetBox!.width).toBeCloseTo(1440, 0);
-    await assertGridPreserved(page, grid, before, gridElement);
-    await page.keyboard.press('Escape');
-    await expect(sheet).toHaveCount(0);
-    await expect(trigger).toBeFocused();
-    expect(await grid.evaluate((node) => (node as HTMLElement).scrollLeft)).toBe(before.scrollLeft);
-  });
-}
-
-function registerLayoutScenario() {
-  test('traps focus, closes with Escape, and fits a narrow layout', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await openApp(page);
-    const normalTrigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
-    const normalRow = page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' });
-    const normalRowBox = await normalRow.boundingBox();
-    expect(normalRowBox).not.toBeNull();
-    expect(normalRowBox!.height).toBeGreaterThanOrEqual(60);
-    await normalTrigger.click();
-
-    const dialog = page.getByRole('dialog', { name: "Bruce Wayne's schedule" });
-    const close = dialog.getByRole('button', { name: 'Close' });
-    await expect(close).toBeFocused();
-    for (let tab = 0; tab < 4; tab += 1) {
-      await page.keyboard.press('Tab');
-      expect(
-        await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null),
-      ).toBe(true);
-    }
-    await page.keyboard.press('Escape');
-    await expect(dialog).toHaveCount(0);
-    await expect(normalTrigger).toBeFocused();
-
-    await page.setViewportSize({ width: 520, height: 800 });
-    await dismissLandscapeHint(page);
-    await page.setViewportSize({ width: 520, height: 800 });
-    expect(page.viewportSize()).toEqual({ width: 520, height: 800 });
-    const narrowTrigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
-    await expect(narrowTrigger).toBeVisible();
-    await narrowTrigger.click();
-    const narrowSheet = page.getByRole('dialog', { name: "Bruce Wayne's schedule" });
-    await expect(narrowSheet).toBeVisible();
-    const narrowBox = await narrowSheet.boundingBox();
-    expect(narrowBox).not.toBeNull();
-    expect(narrowBox!.width).toBeLessThanOrEqual(520);
-    expect(narrowBox!.x).toBeGreaterThanOrEqual(0);
-    expect(narrowBox!.x + narrowBox!.width).toBeLessThanOrEqual(520);
-    await page.keyboard.press('Escape');
-    await expect(narrowSheet).toHaveCount(0);
-  });
-}
-
 test('opens from the trigger with both keyboard activation keys', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
@@ -232,6 +170,60 @@ test('renders three drawer entries with dark-theme colors', async ({ page }) => 
 });
 
 test.describe('Individual schedule drawer', () => {
-  registerPreservationScenario();
-  registerLayoutScenario();
+  test('opens as one read-only modal and preserves the grid state', async ({ page }) => {
+    const { grid, gridElement, before } = await prepareFilteredGrid(page);
+    const trigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
+    await expect(trigger).toHaveAttribute('title', "View Bruce Wayne's schedule");
+    await trigger.click();
+    const sheet = await assertReadOnlySchedule(page);
+    const sheetBox = await sheet.boundingBox();
+    expect(sheetBox).not.toBeNull();
+    expect(sheetBox!.width).toBe(400);
+    expect(sheetBox!.x + sheetBox!.width).toBeCloseTo(1440, 0);
+    await assertGridPreserved(page, grid, before, gridElement);
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    expect(await grid.evaluate((node) => (node as HTMLElement).scrollLeft)).toBe(before.scrollLeft);
+  });
+  test('traps focus, closes with Escape, and fits a narrow layout', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openApp(page);
+    const normalTrigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
+    const normalRow = page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' });
+    const normalRowBox = await normalRow.boundingBox();
+    expect(normalRowBox).not.toBeNull();
+    expect(normalRowBox!.height).toBeGreaterThanOrEqual(60);
+    await normalTrigger.click();
+
+    const dialog = page.getByRole('dialog', { name: "Bruce Wayne's schedule" });
+    const close = dialog.getByRole('button', { name: 'Close' });
+    await expect(close).toBeFocused();
+    for (let tab = 0; tab < 4; tab += 1) {
+      await page.keyboard.press('Tab');
+      expect(
+        await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null),
+      ).toBe(true);
+    }
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(normalTrigger).toBeFocused();
+
+    await page.setViewportSize({ width: 520, height: 800 });
+    await dismissLandscapeHint(page);
+    await page.setViewportSize({ width: 520, height: 800 });
+    expect(page.viewportSize()).toEqual({ width: 520, height: 800 });
+    const narrowTrigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
+    await expect(narrowTrigger).toBeVisible();
+    await narrowTrigger.click();
+    const narrowSheet = page.getByRole('dialog', { name: "Bruce Wayne's schedule" });
+    await expect(narrowSheet).toBeVisible();
+    const narrowBox = await narrowSheet.boundingBox();
+    expect(narrowBox).not.toBeNull();
+    expect(narrowBox!.width).toBeLessThanOrEqual(520);
+    expect(narrowBox!.x).toBeGreaterThanOrEqual(0);
+    expect(narrowBox!.x + narrowBox!.width).toBeLessThanOrEqual(520);
+    await page.keyboard.press('Escape');
+    await expect(narrowSheet).toHaveCount(0);
+  });
 });

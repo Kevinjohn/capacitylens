@@ -197,7 +197,7 @@ const accountFeatureCases: Array<{
   },
 ];
 
-function registerAccountFeatureDefaults(): void {
+describe('account feature selector defaults', () => {
   it.each(accountFeatureCases)(
     'pins absent, unmatched and explicit $name values',
     ({ selector, fallback, explicit, values }) => {
@@ -206,10 +206,6 @@ function registerAccountFeatureDefaults(): void {
       for (const value of explicit) expect(selector(accountData(values(value)), 'a1')).toBe(value);
     },
   );
-}
-
-describe('account feature selector defaults', () => {
-  registerAccountFeatureDefaults();
 });
 
 describe('calendar primitive selectors', () => {

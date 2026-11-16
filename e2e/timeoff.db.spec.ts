@@ -7,8 +7,8 @@ import {
   setZoom,
 } from './browserTestSupport';
 
-// Covers US-TOF-01..05.
-function registerBooksTimeOffShowsLabelledTest() {
+test.describe('Time off', () => {
+  // Covers US-TOF-01..05.
   test('books time off and shows it as a labelled block on the schedule', async ({ page }) => {
     await openApp(page, '/timeoff');
     await page.getByRole('button', { name: 'Add time off' }).click();
@@ -38,9 +38,6 @@ function registerBooksTimeOffShowsLabelledTest() {
       page.locator('[data-resource-id="r-nike"]').getByTestId('timeoff-block'),
     ).toBeVisible();
   });
-}
-
-function registerGroupsCurrentFutureEntriesResourceTest() {
   test('groups current and future entries by resource and orders groups and dates', async ({
     page,
   }) => {
@@ -79,9 +76,6 @@ function registerGroupsCurrentFutureEntriesResourceTest() {
       page.getByRole('dialog', { name: 'Edit time off' }).getByLabel('Start'),
     ).toHaveValue('2026-06-08');
   });
-}
-
-function registerKeepsListRowTerseStartTest() {
   test('keeps the list row terse (start date + day count); the type label stays on the timeline', async ({
     page,
   }) => {
@@ -104,9 +98,6 @@ function registerKeepsListRowTerseStartTest() {
     await expect(block).toContainText('Holiday');
     await expect(block).not.toContainText('holiday');
   });
-}
-
-function registerEditsTimeOffEntryListTest() {
   test('edits a time-off entry and the list reflects the change', async ({ page }) => {
     await openApp(page, '/timeoff');
     const row = page
@@ -130,9 +121,6 @@ function registerEditsTimeOffEntryListTest() {
       'Sick',
     );
   });
-}
-
-function registerDeletesTimeOffEntryConfirmationTest() {
   test('deletes a time-off entry after confirmation, and Undo restores it', async ({ page }) => {
     await openApp(page, '/timeoff');
     const bruceGroup = page
@@ -163,9 +151,6 @@ function registerDeletesTimeOffEntryConfirmationTest() {
     await page.getByRole('link', { name: 'Time off' }).click();
     await expect(bruceGroup.getByTestId('timeoff-row')).toBeVisible();
   });
-}
-
-function registerCreatesRepeatedTimeOffIndependentTests() {
   test('creates repeated time off as independent entries', async ({ page }) => {
     await openApp(page, '/timeoff');
     await page.getByRole('button', { name: 'Add time off' }).click();
@@ -214,13 +199,4 @@ function registerCreatesRepeatedTimeOffIndependentTests() {
     await page.getByRole('link', { name: 'Time off' }).click();
     await expect(bruceRows).toHaveCount(13);
   });
-}
-
-test.describe('Time off', () => {
-  registerBooksTimeOffShowsLabelledTest();
-  registerGroupsCurrentFutureEntriesResourceTest();
-  registerKeepsListRowTerseStartTest();
-  registerEditsTimeOffEntryListTest();
-  registerDeletesTimeOffEntryConfirmationTest();
-  registerCreatesRepeatedTimeOffIndependentTests();
 });

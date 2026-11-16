@@ -86,7 +86,7 @@ function chooseRepeat(optionName: string): void {
   fireEvent.click(screen.getByRole('option', { name: optionName }));
 }
 
-function registerTimeOffRepeatBasics(): void {
+describe('TimeOffForm repeat creation', () => {
   it('offers the finite repeat choices only while creating', async () => {
     const { resource } = await renderCreateForm();
 
@@ -141,9 +141,6 @@ function registerTimeOffRepeatBasics(): void {
     fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2026-02-06' } });
     expect(screen.getByTestId('timeoff-repeat-until')).toHaveValue('2027-01-31');
   });
-}
-
-function registerTimeOffRepeatProjection(): void {
   it('previews and saves exactly twelve last Fridays without an anniversary-window thirteenth', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const { resource, onClose } = await renderCreateForm();
@@ -201,9 +198,6 @@ function registerTimeOffRepeatProjection(): void {
     });
     expect(saved.every((entry) => entry.note === 'Family trip')).toBe(true);
   });
-}
-
-function registerTimeOffRepeatValidation(): void {
   it('rejects a non-last-weekday anchor, then unlocks submission after correction', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     await renderCreateForm('2026-01-23');
@@ -257,9 +251,6 @@ function registerTimeOffRepeatValidation(): void {
     expect(screen.getByRole('alert')).toHaveTextContent(/would exceed 31 December 9999/i);
     expect(useStore.getState().data.timeOff).toHaveLength(0);
   });
-}
-
-function registerTimeOffRepeatSubmission(): void {
   it('guards re-entrant submission of one accepted batch', async () => {
     const { onClose } = await renderCreateForm();
     chooseRepeat('Monthly on the last Friday');
@@ -290,9 +281,6 @@ function registerTimeOffRepeatSubmission(): void {
     await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(12));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
-}
-
-function registerTimeOffRepeatPrivacy(): void {
   it('never renders or copies notes for a role without note access', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
@@ -310,12 +298,4 @@ function registerTimeOffRepeatPrivacy(): void {
     await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(12));
     expect(useStore.getState().data.timeOff.every((entry) => entry.note === null)).toBe(true);
   });
-}
-
-describe('TimeOffForm repeat creation', () => {
-  registerTimeOffRepeatBasics();
-  registerTimeOffRepeatProjection();
-  registerTimeOffRepeatValidation();
-  registerTimeOffRepeatSubmission();
-  registerTimeOffRepeatPrivacy();
 });

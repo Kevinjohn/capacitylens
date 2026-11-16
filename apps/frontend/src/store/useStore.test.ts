@@ -26,7 +26,7 @@ beforeEach(() => resetStoreWithAccount());
 
 const personDraft = makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#1' });
 
-function registerStoreCrudPart1(): void {
+describe('store CRUD', () => {
   it('adds entities with a generated id and timestamps', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
     expect(r.id).toBeTruthy();
@@ -52,9 +52,6 @@ function registerStoreCrudPart1(): void {
     expect(updated?.updatedAt).not.toBe(timestamp);
     expect(Number.isFinite(Date.parse(updated?.updatedAt ?? ''))).toBe(true);
   });
-}
-
-function registerStoreCrudPart2(): void {
   it('updates fields from the planning receipt', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
     await s().updateResource(r.id, { name: 'Tyler' });
@@ -104,14 +101,9 @@ function registerStoreCrudPart2(): void {
     ).rejects.toThrow(/placeholder.*bound project/i);
     expect(s().data.allocations).toHaveLength(0);
   });
-}
-
-describe('store CRUD', () => {
-  registerStoreCrudPart1();
-  registerStoreCrudPart2();
 });
 
-function registerSchedulerUiPart1(): void {
+describe('store scheduler UI', () => {
   it('setZoom sets the weeks-visible level', () => {
     s().setZoom(8);
     expect(s().ui.zoom).toBe(8);
@@ -124,9 +116,6 @@ function registerSchedulerUiPart1(): void {
     s().panDays(7);
     expect(s().ui.originDate).toBe('2026-06-08');
   });
-}
-
-function registerSchedulerUiPart5(): void {
   it('setActiveAccount reopens on the current week (resets a panned origin/focus)', () => {
     s().setOriginDate('2020-01-01');
 
@@ -136,66 +125,6 @@ function registerSchedulerUiPart5(): void {
 
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
-}
-
-function registerSchedulerUiPart7(): void {
-  it('goToToday resets the origin and bumps recenterToken (so the grid re-scrolls)', () => {
-    const before = s().ui.recenterToken;
-    s().setOriginDate('2020-01-01');
-    s().goToToday();
-    expect(s().ui.recenterToken).toBe(before + 1);
-    expect(s().ui.originDate).not.toBe('2020-01-01');
-
-    expect(weekdayOf(s().ui.focusDate)).toBe(1);
-    expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
-  });
-
-  it('setNotice sets and clears the transient message', () => {
-    s().setNotice('Nope');
-    expect(s().notice?.message).toBe('Nope');
-    s().setNotice(null);
-    expect(s().notice).toBeNull();
-  });
-
-  it('setNotice records severity (info default, error opt-in) so the UI can persist errors', () => {
-    s().setNotice('Heads up');
-    expect(s().notice?.tone).toBe('info');
-    s().setNotice('Boom', 'error');
-    expect(s().notice?.tone).toBe('error');
-
-    s().setNotice(null);
-    expect(s().notice).toBeNull();
-  });
-
-  it('goToDate snaps focusDate to the week start and bumps recenterToken', () => {
-    const before = s().ui.recenterToken;
-
-    s().goToDate('2026-09-09');
-    expect(weekdayOf(s().ui.focusDate)).toBe(1);
-    expect(s().ui.focusDate).toBe('2026-09-07');
-    expect(s().ui.recenterToken).toBe(before + 1);
-
-    expect(s().ui.originDate).toBe(addDaysISO('2026-09-07', -PAST_BUFFER_DAYS));
-  });
-
-  it('goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday', async () => {
-    const sunStart = 'acct-sun';
-    await resetStoreWithData(
-      makeAppData({
-        accounts: [makeAccount({ id: sunStart, weekStartsOn: 0 })],
-      }),
-      sunStart,
-    );
-
-    useStore.getState().goToDate('2026-09-09');
-    expect(useStore.getState().ui.focusDate).toBe('2026-09-06');
-    expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0);
-
-    expect(useStore.getState().ui.originDate).toBe(addDaysISO('2026-09-06', -PAST_BUFFER_DAYS));
-  });
-}
-
-function registerSchedulerUiPart2(): void {
   it('preserves the visible week when refreshing the currently loaded account', async () => {
     s().goToDate('2026-09-09');
     const before = {
@@ -301,9 +230,6 @@ function registerSchedulerUiPart2(): void {
       expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
     },
   );
-}
-
-function registerSchedulerUiPart3(): void {
   it('snaps free scrolling to the week start when no test override is stored', () => {
     expect(s().weekSnapEnabled).toBe(true);
   });
@@ -350,9 +276,6 @@ function registerSchedulerUiPart3(): void {
     s().toggleGroup('d-design');
     expect(s().ui.collapsedGroups).not.toContain('d-design');
   });
-}
-
-function registerSchedulerUiPart4(): void {
   it('undo and redo move through mutation history', async () => {
     await resetStoreWithAccount();
     const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
@@ -383,9 +306,6 @@ function registerSchedulerUiPart4(): void {
       expect(s().data.clients.find(({ id }) => id === client.id)).toEqual(client);
     }
   });
-}
-
-function registerSchedulerUiPart6(): void {
   it('setFilters merges, hasActiveFilters reflects state, clearFilters resets', () => {
     s().clearFilters();
     expect(hasActiveFilters(s().ui.filters)).toBe(false);
@@ -456,14 +376,58 @@ function registerSchedulerUiPart6(): void {
     expect(s().ui.filters.clientId).toBeNull();
     expect(s().ui.filters.projectId).toBeNull();
   });
-}
+  it('goToToday resets the origin and bumps recenterToken (so the grid re-scrolls)', () => {
+    const before = s().ui.recenterToken;
+    s().setOriginDate('2020-01-01');
+    s().goToToday();
+    expect(s().ui.recenterToken).toBe(before + 1);
+    expect(s().ui.originDate).not.toBe('2020-01-01');
 
-describe('store scheduler UI', () => {
-  registerSchedulerUiPart1();
-  registerSchedulerUiPart5();
-  registerSchedulerUiPart2();
-  registerSchedulerUiPart3();
-  registerSchedulerUiPart4();
-  registerSchedulerUiPart6();
-  registerSchedulerUiPart7();
+    expect(weekdayOf(s().ui.focusDate)).toBe(1);
+    expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
+  });
+
+  it('setNotice sets and clears the transient message', () => {
+    s().setNotice('Nope');
+    expect(s().notice?.message).toBe('Nope');
+    s().setNotice(null);
+    expect(s().notice).toBeNull();
+  });
+
+  it('setNotice records severity (info default, error opt-in) so the UI can persist errors', () => {
+    s().setNotice('Heads up');
+    expect(s().notice?.tone).toBe('info');
+    s().setNotice('Boom', 'error');
+    expect(s().notice?.tone).toBe('error');
+
+    s().setNotice(null);
+    expect(s().notice).toBeNull();
+  });
+
+  it('goToDate snaps focusDate to the week start and bumps recenterToken', () => {
+    const before = s().ui.recenterToken;
+
+    s().goToDate('2026-09-09');
+    expect(weekdayOf(s().ui.focusDate)).toBe(1);
+    expect(s().ui.focusDate).toBe('2026-09-07');
+    expect(s().ui.recenterToken).toBe(before + 1);
+
+    expect(s().ui.originDate).toBe(addDaysISO('2026-09-07', -PAST_BUFFER_DAYS));
+  });
+
+  it('goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday', async () => {
+    const sunStart = 'acct-sun';
+    await resetStoreWithData(
+      makeAppData({
+        accounts: [makeAccount({ id: sunStart, weekStartsOn: 0 })],
+      }),
+      sunStart,
+    );
+
+    useStore.getState().goToDate('2026-09-09');
+    expect(useStore.getState().ui.focusDate).toBe('2026-09-06');
+    expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0);
+
+    expect(useStore.getState().ui.originDate).toBe(addDaysISO('2026-09-06', -PAST_BUFFER_DAYS));
+  });
 });

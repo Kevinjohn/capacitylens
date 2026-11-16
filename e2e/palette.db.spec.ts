@@ -6,7 +6,7 @@ const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
-function registerOpensControlShowsActionsPagesTest() {
+test.describe('Command palette', () => {
   test('opens with Control+K, shows Actions and Pages, closes with Escape', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
@@ -42,9 +42,6 @@ function registerOpensControlShowsActionsPagesTest() {
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('command-palette')).not.toBeVisible();
   });
-}
-
-function registerToggleSecondControlClosesOpenTest() {
   test('toggle: second Control+K closes an open palette', async ({ page }) => {
     await openApp(page);
     await page.keyboard.press('ControlOrMeta+k');
@@ -53,9 +50,6 @@ function registerToggleSecondControlClosesOpenTest() {
     await page.keyboard.press('ControlOrMeta+k');
     await expect(page.getByTestId('command-palette')).not.toBeVisible();
   });
-}
-
-function registerOpensInputFieldCtrlFiresTest() {
   test('opens from an input field (Ctrl+K fires even while typing)', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -66,9 +60,6 @@ function registerOpensInputFieldCtrlFiresTest() {
     await page.keyboard.press('ControlOrMeta+k');
     await expect(page.getByTestId('command-palette')).toBeVisible();
   });
-}
-
-function registerFuzzyFindsSeededResourceJumpsTest() {
   test('fuzzy-finds a seeded resource and jumps to their lane', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
@@ -92,9 +83,6 @@ function registerFuzzyFindsSeededResourceJumpsTest() {
 
     await expect(page.locator('[data-resource-id="r-tyler"]')).toBeVisible();
   });
-}
-
-function registerKeyboardTypeArrowDownEnterTest() {
   test('keyboard: type + arrow down + Enter selects and closes', async ({ page }) => {
     await openApp(page);
     await page.keyboard.press('ControlOrMeta+k');
@@ -117,9 +105,6 @@ function registerKeyboardTypeArrowDownEnterTest() {
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
     await expect(page.locator('[data-resource-id="r-nike"]')).toBeVisible();
   });
-}
-
-function registerNavigatesPagePaletteTest() {
   test('navigates to a page via the palette', async ({ page }) => {
     await openApp(page);
     await page.keyboard.press('ControlOrMeta+k');
@@ -134,9 +119,6 @@ function registerNavigatesPagePaletteTest() {
 
     await expect(page.getByRole('button', { name: 'Add resource' })).toBeVisible();
   });
-}
-
-function registerGoTodayActionNavigatesScheduleTest() {
   test('Go to today action navigates to schedule and recenters', async ({ page }) => {
     await openApp(page);
     const grid = page.getByTestId('scheduler-grid');
@@ -156,9 +138,6 @@ function registerGoTodayActionNavigatesScheduleTest() {
       .poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft))
       .toBeLessThan(4000);
   });
-}
-
-function registerClientActivityResultsApplyDocumentedTest() {
   test('client and activity results apply their documented destinations', async ({ page }) => {
     await openApp(page);
 
@@ -179,9 +158,6 @@ function registerClientActivityResultsApplyDocumentedTest() {
     await expect(page).toHaveURL(/\/activities#activity=t-brand$/);
     await expect(page.getByText('Brand System', { exact: true })).toBeVisible();
   });
-}
-
-function registerGoDateActionAppearsValidTest() {
   test('Go to date action appears for valid ISO date query', async ({ page }) => {
     await openApp(page);
     await page.keyboard.press('ControlOrMeta+k');
@@ -194,9 +170,6 @@ function registerGoDateActionAppearsValidTest() {
     await expect(page.getByTestId('command-palette')).not.toBeVisible();
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
   });
-}
-
-function registerBackdropClickClosesPaletteTest() {
   test('backdrop click closes the palette', async ({ page }) => {
     await openApp(page);
     await page.keyboard.press('ControlOrMeta+k');
@@ -206,9 +179,6 @@ function registerBackdropClickClosesPaletteTest() {
 
     await expect(page.getByTestId('command-palette')).not.toBeVisible();
   });
-}
-
-function registerDirtyFormGuardCtrlWhileTest() {
   test('dirty-form guard: Ctrl+K while a modal is dirty does not open the palette', async ({
     page,
   }) => {
@@ -229,9 +199,6 @@ function registerDirtyFormGuardCtrlWhileTest() {
       page.getByText('You have unsaved changes — use Cancel or Save to close this dialog.'),
     ).toBeVisible();
   });
-}
-
-function registerImpossibleDate20260231Test() {
   test('impossible date 2026-02-31 does not show a Go to date option', async ({ page }) => {
     await openApp(page);
     await page.keyboard.press('ControlOrMeta+k');
@@ -243,9 +210,6 @@ function registerImpossibleDate20260231Test() {
       page.getByTestId('command-palette').getByText(/Go to date 2026-02-31/),
     ).not.toBeVisible();
   });
-}
-
-function registerPaletteProjectSelectionReplacesStaleTest() {
   test('palette project selection replaces stale schedule filters', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -275,9 +239,6 @@ function registerPaletteProjectSelectionReplacesStaleTest() {
     );
     await expect(page.getByPlaceholder('Search people…')).toHaveValue('');
   });
-}
-
-function registerPaletteHasSeriousCriticalAccessibilityTests() {
   test('palette has no serious or critical accessibility violations (light mode)', async ({
     page,
   }) => {
@@ -299,21 +260,4 @@ function registerPaletteHasSeriousCriticalAccessibilityTests() {
       ),
     ).toEqual([]);
   });
-}
-
-test.describe('Command palette', () => {
-  registerOpensControlShowsActionsPagesTest();
-  registerToggleSecondControlClosesOpenTest();
-  registerOpensInputFieldCtrlFiresTest();
-  registerFuzzyFindsSeededResourceJumpsTest();
-  registerKeyboardTypeArrowDownEnterTest();
-  registerNavigatesPagePaletteTest();
-  registerGoTodayActionNavigatesScheduleTest();
-  registerClientActivityResultsApplyDocumentedTest();
-  registerGoDateActionAppearsValidTest();
-  registerBackdropClickClosesPaletteTest();
-  registerDirtyFormGuardCtrlWhileTest();
-  registerImpossibleDate20260231Test();
-  registerPaletteProjectSelectionReplacesStaleTest();
-  registerPaletteHasSeriousCriticalAccessibilityTests();
 });

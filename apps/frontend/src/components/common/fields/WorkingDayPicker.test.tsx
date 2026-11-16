@@ -40,11 +40,6 @@ const renderWorkingDayPicker = ({
   );
 
 describe('WorkingDayPicker', () => {
-  registerWorkingDayPickerLayoutTests();
-  registerWorkingDayPickerStateTests();
-});
-
-function registerWorkingDayPickerLayoutTests() {
   it('renders a full-width Monday–Sunday grid with the three choice headings written once', () => {
     renderWorkingDayPicker({});
     expect(screen.getByRole('columnheader', { name: 'Weekday' })).toBeInTheDocument();
@@ -99,9 +94,6 @@ function registerWorkingDayPickerLayoutTests() {
       expect(screen.getByRole('rowheader', { name: day })).toHaveClass('whitespace-nowrap');
     }
   });
-}
-
-function registerWorkingDayPickerStateTests() {
   it('selects full, half and non-working choices from the persisted subsets', () => {
     renderWorkingDayPicker({});
     const monday = screen.getByRole('row', { name: /Monday/ });
@@ -137,4 +129,4 @@ function registerWorkingDayPickerStateTests() {
     expect(fieldset).toHaveAttribute('aria-invalid', 'true');
     expect(fieldset).toHaveAttribute('aria-describedby', 'err-1');
   });
-}
+});

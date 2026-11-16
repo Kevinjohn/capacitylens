@@ -217,7 +217,7 @@ describe('applyGesture: resize-end', () => {
 
 const wd = { workingDays: [1, 2, 3, 4, 5] as Weekday[] };
 
-function registerWeekendAwareResizeScenarios(): void {
+describe('applyGesture: weekend-aware resize', () => {
   it('resize-end dragging into a weekend snaps forward to the next working day', () => {
     const r: DateRange = { startDate: '2026-05-11', endDate: '2026-05-15' };
 
@@ -267,9 +267,6 @@ function registerWeekendAwareResizeScenarios(): void {
     expect(out.endDate).toBe('2026-06-08');
     expect(out.startDate).toBe('2026-06-07');
   });
-}
-
-function registerWeekendAwareResizeEdgeScenarios(): void {
   it('never widens a weekend-only range while pinning an over-dragged edge', () => {
     const pinnedRange: DateRange = { startDate: '2026-06-06', endDate: '2026-06-07' };
 
@@ -324,9 +321,4 @@ function registerWeekendAwareResizeEdgeScenarios(): void {
       applyGesture({ mode: 'resize-start', range: r, deltaDays: 1, options: wd }).startDate,
     ).toBe('2026-05-18');
   });
-}
-
-describe('applyGesture: weekend-aware resize', () => {
-  registerWeekendAwareResizeScenarios();
-  registerWeekendAwareResizeEdgeScenarios();
 });

@@ -18,13 +18,7 @@ const selectFieldOptions = [
 ];
 
 describe('SelectField', () => {
-  registerSelectFieldBasics(selectFieldOptions);
-  registerSelectFieldGrouping();
-  registerSelectFieldValueEdges();
-  registerSelectFieldFallbackTests(selectFieldOptions);
-});
-
-function registerSelectFieldBasics(options: typeof selectFieldOptions) {
+  const options: typeof selectFieldOptions = selectFieldOptions;
   it('renders all options', () => {
     render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />);
     const select = screen.getByLabelText('Pick one');
@@ -34,7 +28,6 @@ function registerSelectFieldBasics(options: typeof selectFieldOptions) {
     expect(screen.getByRole('option', { name: 'Option B' })).toHaveAttribute('data-value', 'b');
     expect(screen.getByRole('option', { name: 'Option C' })).toBeInTheDocument();
   });
-
   it('calls onChange when an option is selected', () => {
     const onChange = vi.fn();
     render(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />);
@@ -44,7 +37,6 @@ function registerSelectFieldBasics(options: typeof selectFieldOptions) {
     fireEvent.click(screen.getByRole('option', { name: 'Option B' }));
     expect(onChange).toHaveBeenCalledWith('b');
   });
-
   it('opts into a responsive label-control row without changing the default layout', () => {
     const { rerender } = render(
       <SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />,
@@ -67,7 +59,6 @@ function registerSelectFieldBasics(options: typeof selectFieldOptions) {
       'label-control',
     );
   });
-
   it('renders an optional structural separator without creating another option', () => {
     const { baseElement } = render(
       <SelectField
@@ -88,9 +79,6 @@ function registerSelectFieldBasics(options: typeof selectFieldOptions) {
       'true',
     );
   });
-}
-
-function registerSelectFieldGrouping() {
   it('renders contiguous options in accessible labelled groups', () => {
     render(
       <SelectField
@@ -146,9 +134,6 @@ function registerSelectFieldGrouping() {
     expect(within(group).getByRole('option', { name: 'Design' })).toBeInTheDocument();
     expect(screen.getAllByRole('group')).toHaveLength(1);
   });
-}
-
-function registerSelectFieldValueEdges() {
   it('round-trips empty and sentinel-shaped option values without collision', () => {
     const onChange = vi.fn();
     const { rerender } = render(
@@ -183,9 +168,6 @@ function registerSelectFieldValueEdges() {
     fireEvent.click(screen.getByRole('option', { name: 'None' }));
     expect(onChange).toHaveBeenLastCalledWith('');
   });
-}
-
-function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
   it('marks a changed selection dirty inside a Modal', () => {
     const onClose = vi.fn();
     render(
@@ -199,7 +181,6 @@ function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });
-
   it('renders a placeholder option when provided', () => {
     render(
       <SelectField
@@ -212,7 +193,6 @@ function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
     );
     expect(screen.getByText('-- Select --')).toBeInTheDocument();
   });
-
   it('surfaces a non-empty value that is absent from the supplied options', () => {
     const onChange = vi.fn();
     const { rerender } = render(
@@ -233,12 +213,10 @@ function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
     expect(screen.getByLabelText('Unresolved')).toHaveTextContent('Unknown selection');
     expect(onChange).not.toHaveBeenCalled();
   });
-
   it('is disabled when disabled prop is true', () => {
     render(<SelectField label="Locked" value="a" onChange={vi.fn()} options={options} disabled />);
     expect(screen.getByLabelText('Locked')).toBeDisabled();
   });
-
   it('closes an open menu when disabled and does not restore it when re-enabled', () => {
     const onChange = vi.fn();
     const { rerender } = render(
@@ -265,4 +243,4 @@ function registerSelectFieldFallbackTests(options: typeof selectFieldOptions) {
     fireEvent.click(screen.getByRole('option', { name: 'Option B' }));
     expect(onChange).toHaveBeenCalledWith('b');
   });
-}
+});

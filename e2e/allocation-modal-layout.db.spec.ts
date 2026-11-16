@@ -103,14 +103,6 @@ async function chooseSchedulingMode(page: Page, mode: 'Days' | 'Blocks') {
   await resetSchedulerScroll(page);
 }
 
-function registerBeforeEachHooks() {
-  test.beforeEach(async ({ page }) => {
-    await openApp(page);
-    await setZoom(page, 4);
-    await resetSchedulerScroll(page);
-  });
-}
-
 async function assertCreateFields(dialog: Locator) {
   for (const control of [
     dialog.getByRole('combobox', { name: 'Project' }),
@@ -179,24 +171,6 @@ async function assertNarrowCreateLayout(page: Page, dialog: Locator, testInfo: T
   await page.screenshot({ path: testInfo.outputPath('issue_306_allocation_create_narrow.png') });
 }
 
-function registerAlignsCreateRepeatStatusErrorTest() {
-  test('aligns create, repeat, status and error controls, then stacks without narrow overflow', async ({
-    page,
-  }, testInfo: TestInfo) => {
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
-    await enableInlineActivityCreation(page);
-    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-    await setZoom(page, 4);
-    await resetSchedulerScroll(page);
-    const dialog = await openCreate(page, 'Clark Kent');
-    await assertCreateFields(dialog);
-    await assertStatusAlignment(dialog);
-    await chooseWeeklyActivity(dialog);
-    await page.screenshot({ path: testInfo.outputPath('issue_306_allocation_create_desktop.png') });
-    await assertNarrowCreateLayout(page, dialog, testInfo);
-  });
-}
-
 async function assertEditSchedulingRow(page: Page, testInfo: TestInfo) {
   await expectEditableBar(
     page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).first(),
@@ -263,7 +237,27 @@ async function assertExternalVariants(page: Page, testInfo: TestInfo) {
   await page.screenshot({ path: testInfo.outputPath('issue_306_allocation_placeholder.png') });
 }
 
-function registerUsesFullWidthSchedulingRowTest() {
+test.describe('Allocation modal label/control layout', () => {
+  test.beforeEach(async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+    await resetSchedulerScroll(page);
+  });
+  test('aligns create, repeat, status and error controls, then stacks without narrow overflow', async ({
+    page,
+  }, testInfo: TestInfo) => {
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    await enableInlineActivityCreation(page);
+    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+    await setZoom(page, 4);
+    await resetSchedulerScroll(page);
+    const dialog = await openCreate(page, 'Clark Kent');
+    await assertCreateFields(dialog);
+    await assertStatusAlignment(dialog);
+    await chooseWeeklyActivity(dialog);
+    await page.screenshot({ path: testInfo.outputPath('issue_306_allocation_create_desktop.png') });
+    await assertNarrowCreateLayout(page, dialog, testInfo);
+  });
   test('uses the full-width scheduling row for edit, Days, Blocks and External variants', async ({
     page,
   }, testInfo: TestInfo) => {
@@ -271,9 +265,6 @@ function registerUsesFullWidthSchedulingRowTest() {
     await assertDaysAndBlocks(page);
     await assertExternalVariants(page, testInfo);
   });
-}
-
-function registerStacksHourlyThreeFieldRowTests() {
   test('stacks the hourly three-field row without clipping at 360px', async ({ page }) => {
     const dialog = await openCreate(page, 'Clark Kent');
     await dismissLandscapeHint(page);
@@ -284,11 +275,4 @@ function registerStacksHourlyThreeFieldRowTests() {
     ]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
   });
-}
-
-test.describe('Allocation modal label/control layout', () => {
-  registerBeforeEachHooks();
-  registerAlignsCreateRepeatStatusErrorTest();
-  registerUsesFullWidthSchedulingRowTest();
-  registerStacksHourlyThreeFieldRowTests();
 });

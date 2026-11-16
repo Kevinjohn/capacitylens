@@ -69,7 +69,7 @@ function buildBlockTimeOffRows() {
   return { r1, r2 };
 }
 
-function registerMovedSchedulerTests20101() {
+describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   it('search is TRIMMED before matching (leading/trailing whitespace is not part of the term)', () => {
     const d = dataset();
     // Use a single-occurrence search term so a duplicate name or role cannot accidentally rescue an untrimmed query.
@@ -99,9 +99,6 @@ function registerMovedSchedulerTests20101() {
     const ids = model.flatMap((g) => g.rows).map((r) => r.resource.id);
     expect(ids).toContain('r-zed');
   });
-}
-
-function registerMovedSchedulerTests20102() {
   it('search falls back to an EMPTY string (not a literal placeholder) when resource.name is undefined', () => {
     const d = dataset();
     const firstResource = d.resources[0];
@@ -126,9 +123,6 @@ function registerMovedSchedulerTests20102() {
     });
     expect(model.flatMap((g) => g.rows).map((r) => r.resource.id)).not.toContain('r1');
   });
-}
-
-function registerMovedSchedulerTests20103() {
   it('a placeholder IS searchable by its own (unusual, but allowed) `name` field', () => {
     const d = dataset();
     d.resources.push(
@@ -157,9 +151,6 @@ function registerMovedSchedulerTests20103() {
     });
     expect(model.flatMap((g) => g.rows).map((r) => r.resource.id)).toContain('ph-named');
   });
-}
-
-function registerMovedSchedulerTests20104() {
   it('bar.project / bar.client resolve through the projectById / clientById maps (real lookups, not empty maps)', () => {
     const model = build();
     const a1 = requireValue(
@@ -169,9 +160,6 @@ function registerMovedSchedulerTests20104() {
     expect(a1.project).toBe('P1');
     expect(a1.client).toBe('Ferris');
   });
-}
-
-function registerMovedSchedulerTests20105() {
   it('an internal activity bar is always neutral grey', () => {
     const d = dataset();
     d.activities.push({
@@ -211,9 +199,6 @@ function registerMovedSchedulerTests20105() {
     );
     expect(greyBar.color).toBe('#9ca3af');
   });
-}
-
-function registerMovedSchedulerTests20106() {
   it('does not throw when there are no clients at all (scopedAccountId derivation is optional-chained)', () => {
     const d = { ...dataset(), clients: [] };
     expect(() =>
@@ -232,9 +217,6 @@ function registerMovedSchedulerTests20106() {
       }),
     ).not.toThrow();
   });
-}
-
-function registerMovedSchedulerTests20107() {
   it('positions time-off blocks with real fields (id/x/width/label/note), and marks only its OWN days unavailable', () => {
     const d = dataset();
     // Time-off indexing must accumulate all entries for a resource rather than replace earlier entries.
@@ -294,9 +276,6 @@ function registerMovedSchedulerTests20107() {
 
     expect(r1.dayStates[2]?.unavailable).toBe(false);
   });
-}
-
-function registerMovedSchedulerTests20108() {
   it('signals saved half days only when the date retains partial capacity', () => {
     const d = dataset();
     const resource = requireValue(
@@ -354,9 +333,6 @@ function registerMovedSchedulerTests20108() {
     });
     expect(row.dayStates[4]).toMatchObject({ unavailable: true, partialCapacity: false });
   });
-}
-
-function registerMovedSchedulerTests20109() {
   it('marks only the holiday day of a partial allocation overlap as over', () => {
     const d = dataset();
 
@@ -429,9 +405,6 @@ function registerMovedSchedulerTests20109() {
       timeOffConflict: false,
     });
   });
-}
-
-function registerMovedSchedulerTests201010() {
   it('marks only block/time-off overlaps without adding load or treating non-working days as conflicts', () => {
     const { r1, r2 } = buildBlockTimeOffRows();
 
@@ -463,22 +436,4 @@ function registerMovedSchedulerTests201010() {
       timeOffConflict: false,
     });
   });
-}
-
-function registerMutationTestingGapFillEarlyTests() {
-  registerMovedSchedulerTests20101();
-  registerMovedSchedulerTests20102();
-  registerMovedSchedulerTests20103();
-  registerMovedSchedulerTests20104();
-  registerMovedSchedulerTests20105();
-  registerMovedSchedulerTests20106();
-  registerMovedSchedulerTests20107();
-  registerMovedSchedulerTests20108();
-  registerMovedSchedulerTests20109();
-  registerMovedSchedulerTests201010();
-}
-
-describe(
-  'buildSchedulerModel — mutation-testing gap-fill',
-  registerMutationTestingGapFillEarlyTests,
-);
+});

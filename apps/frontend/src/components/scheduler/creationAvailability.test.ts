@@ -56,13 +56,6 @@ describe('creation start availability', () => {
       }),
     ).toBe(false);
   });
-  registerCalendarAvailabilityTests();
-  registerExternalAvailabilityTests();
-  registerBlockReasonTests();
-  registerReasonPrecedenceTests();
-});
-
-function registerCalendarAvailabilityTests() {
   it('blocks global non-working, personal non-working and time-off dates', () => {
     expect(
       isCreationStartBlocked({
@@ -101,9 +94,6 @@ function registerCalendarAvailabilityTests() {
       }),
     ).toBe(false);
   });
-}
-
-function registerExternalAvailabilityTests() {
   it('applies the account boundary to externals without inventing personal capacity', () => {
     const external: Resource = { ...person, kind: 'external', workingDays: [] };
     expect(resolveEffectiveWorkingDays(external, [2, 3, 4, 5])).toEqual([2, 3, 4, 5]);
@@ -136,9 +126,6 @@ function registerExternalAvailabilityTests() {
       }),
     ).toBe(false);
   });
-}
-
-function registerBlockReasonTests() {
   it('does not apply company closures to external resources', () => {
     const external: Resource = { ...person, kind: 'external', workingDays: [] };
 
@@ -162,9 +149,6 @@ function registerBlockReasonTests() {
       }),
     ).toBe(null);
   });
-}
-
-function registerReasonPrecedenceTests() {
   it('names which rule blocked the start, and scopes time off to the resource asked about', () => {
     expect(
       resolveCreationBlockReason({
@@ -219,7 +203,7 @@ function registerReasonPrecedenceTests() {
       }),
     ).toBe('time-off');
   });
-}
+});
 
 describe('#257 characterization: creation and move gate boundaries', () => {
   it('keeps a creation start blocked where the existing-allocation move override is allowed', () => {

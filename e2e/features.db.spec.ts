@@ -11,7 +11,7 @@ import {
   waitForWeekSnap,
 } from './browserTestSupport';
 
-function registerFilteringProjectNarrowsScheduleProjectTest() {
+test.describe('Feature flows', () => {
   test('filtering by project narrows the schedule to that project', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -27,9 +27,6 @@ function registerFilteringProjectNarrowsScheduleProjectTest() {
     // just the project's work ("Show unallocated" opts the dimmed staffing view in).
     await expect(bars).toHaveCount(1);
   });
-}
-
-function registerUndoRestoresDeletedAllocationTest() {
   test('undo restores a deleted allocation', async ({ page }) => {
     await openApp(page);
     const bars = page.getByTestId('allocation-bar');
@@ -57,9 +54,6 @@ function registerUndoRestoresDeletedAllocationTest() {
     await page.keyboard.press('Meta+z');
     await expect(bars).toHaveCount(n);
   });
-}
-
-function registerBookingTimeOffGreysScheduleTest() {
   test('booking time off greys the schedule', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
@@ -82,9 +76,6 @@ function registerBookingTimeOffGreysScheduleTest() {
       .poll(() => page.getByTestId('timeoff-block').count())
       .toBeGreaterThan(blocksBefore);
   });
-}
-
-function registerClickingDisciplineHeaderCollapsesRowsTest() {
   test('clicking a discipline header collapses its rows', async ({ page }, testInfo) => {
     await openApp(page);
     await expect(page.getByText('Bruce Wayne')).toBeVisible();
@@ -95,9 +86,6 @@ function registerClickingDisciplineHeaderCollapsesRowsTest() {
       path: testInfo.outputPath('capacitylens_collapsed.png'),
     });
   });
-}
-
-function registerDraggingAllocationOntoAnotherRowTest() {
   test('dragging an allocation onto another row reassigns it', async ({ page }, testInfo) => {
     await openApp(page);
     // Zoom preserves the seed week’s left edge, so these bars need no manual scroll reset.
@@ -125,9 +113,6 @@ function registerDraggingAllocationOntoAnotherRowTest() {
     ).toBeVisible();
     await expect(clarkLane).not.toHaveAttribute('data-droptarget', '');
   });
-}
-
-function registerRejectsVerticalReassignmentOntoNonTest() {
   test('rejects a vertical reassignment onto a non-working start date unless explicitly ignored', async ({
     page,
   }, testInfo) => {
@@ -207,9 +192,6 @@ function registerRejectsVerticalReassignmentOntoNonTest() {
     await page.mouse.move(0, 0);
     await page.screenshot({ path: testInfo.outputPath('reassignment_working_day_after.png') });
   });
-}
-
-function registerDrawingTimeOffModeOpensTest() {
   test('drawing in Time off mode opens a prefilled time-off form', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
@@ -235,9 +217,6 @@ function registerDrawingTimeOffModeOpensTest() {
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByRole('dialog', { name: 'Add time off' })).toHaveCount(0);
   });
-}
-
-function registerDrawingPlaceholderLocksModalBoundTests() {
   test('drawing on a placeholder locks the modal to its bound project', async ({ page }) => {
     await openApp(page, '/settings');
     await showPlaceholders(page);
@@ -275,15 +254,4 @@ function registerDrawingPlaceholderLocksModalBoundTests() {
     await project.click();
     await expect(page.getByRole('option', { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
-}
-
-test.describe('Feature flows', () => {
-  registerFilteringProjectNarrowsScheduleProjectTest();
-  registerUndoRestoresDeletedAllocationTest();
-  registerBookingTimeOffGreysScheduleTest();
-  registerClickingDisciplineHeaderCollapsesRowsTest();
-  registerDraggingAllocationOntoAnotherRowTest();
-  registerRejectsVerticalReassignmentOntoNonTest();
-  registerDrawingTimeOffModeOpensTest();
-  registerDrawingPlaceholderLocksModalBoundTests();
 });
