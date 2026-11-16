@@ -78,7 +78,12 @@ export default class AuthController {
     }
     const { email } = body;
     try {
-      const user = await signInWithPassword(ctx, email, body.password);
+      const user = await signInWithPassword(ctx, {
+        email,
+        password: body.password,
+        clientAddress: ctx.request.ip(),
+        userAgent: ctx.request.header('user-agent'),
+      });
       return ctx.response.ok({ user });
     } catch (error) {
       if (error instanceof InvalidCredentialsError) {
@@ -124,7 +129,14 @@ export default class AuthController {
       ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed');
     }
     try {
-      return ctx.response.created({ user: await signInWithPassword(ctx, email, body.password) });
+      return ctx.response.created({
+        user: await signInWithPassword(ctx, {
+          email,
+          password: body.password,
+          clientAddress: ctx.request.ip(),
+          userAgent: ctx.request.header('user-agent'),
+        }),
+      });
     } catch (error) {
       ctx.logger.warn(
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
