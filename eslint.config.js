@@ -33,18 +33,18 @@ const sharedTestFiles = [
 const parentImportAllowances = {
   'apps/frontend/src/data/buildInfo.ts': ['../../../../package.json'],
   'apps/frontend/src/build/staticSpaRouteDocuments.test.ts': ['../../vite.config'],
-  'apps/frontend/src/bundleBudgetGate.test.ts': ['../../../scripts/bundleBudget.mjs'],
+  'apps/frontend/src/bundleBudgetGate.test.ts': ['../../../scripts/build/bundleBudget.mjs'],
   'apps/frontend/src/csp.test.ts': [
     '../../../nginx.conf?raw',
     '../../../nginx-security-headers.conf?raw',
   ],
   'apps/frontend/src/playwrightServerScope.test.ts': [
-    '../../../scripts/playwrightServerScope',
-    '../../../scripts/playwrightRunMode.mjs',
+    '../../../scripts/e2e/playwrightServerScope',
+    '../../../scripts/e2e/playwrightRunMode.mjs',
   ],
-  'apps/frontend/src/pnpmSpawn.test.ts': ['../../../scripts/pnpmSpawn.mjs'],
-  'apps/frontend/src/router.test.tsx': ['../../../scripts/staticSpaRoutes.mjs'],
-  'apps/frontend/src/serve-dist.test.ts': ['../../../scripts/serve-dist.mjs'],
+  'apps/frontend/src/pnpmSpawn.test.ts': ['../../../scripts/shared/pnpmSpawn.mjs'],
+  'apps/frontend/src/router.test.tsx': ['../../../scripts/build/staticSpaRoutes.mjs'],
+  'apps/frontend/src/serve-dist.test.ts': ['../../../scripts/e2e/serve-dist.mjs'],
   'apps/frontend/src/test/generateDocumentationComponentId.test.ts': [
     '../../../../docs-src/.vitepress/generateDocumentationComponentId.mts',
     '../../../../docs-src/.vitepress/config.mts',
@@ -112,12 +112,12 @@ export default defineConfig([
     // Paraglide generates this runtime from committed sources, so linting skips it.
     'apps/frontend/src/paraglide',
     'reports',
-    // Linters skip both documentation trees: docs/ is generated, and docs-src/ contains
+    // Linters skip both documentation trees: docs/ is local build output, and docs-src/ contains
     // prose and the VitePress config.
     'docs',
     'docs-src',
-    'scripts/docs-lightbox.js',
-    'scripts/docs-standalone.mjs',
+    'scripts/docs/docs-lightbox.js',
+    'scripts/docs/docs-standalone.mjs',
   ]),
 
   // Authored JavaScript shares a baseline, but runtime globals belong to its execution environment.

@@ -10,10 +10,10 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parsePort } from '../../scripts/parsePort.mjs';
-import { ports, testShare } from '../../scripts/ports.mjs';
-import { STATIC_SPA_ROUTES } from '../../scripts/staticSpaRoutes.mjs';
-import { ENTRY_RAW_LIMIT_KB } from '../../scripts/bundleBudget.mjs';
+import { parsePort } from '../../scripts/dev/parsePort.mjs';
+import { ports, testShare } from '../../scripts/dev/ports.mjs';
+import { STATIC_SPA_ROUTES } from '../../scripts/build/staticSpaRoutes.mjs';
+import { ENTRY_RAW_LIMIT_KB } from '../../scripts/build/bundleBudget.mjs';
 import { isAccountEmail } from '../../packages/shared/src/account/validation.ts';
 import { createResetControlServer } from '../../apps/backend/start/e2e_reset_control.ts';
 import { createRetirableListener } from '../../apps/backend/start/e2e_retirable_listener.ts';
@@ -251,7 +251,7 @@ export default defineConfig(({ mode, command }) => {
       proxy: {
         '/api': {
           // Keep this `CAPACITYLENS_DEV_API_PORT ?? lane dbApi` default identical to
-          // scripts/dev-fullstack.mjs's API_PORT so the launcher and this proxy stay in lockstep.
+          // scripts/dev/dev-fullstack.mjs's API_PORT so the launcher and this proxy stay in lockstep.
           target: `http://localhost:${devApiPort}`,
           changeOrigin: true,
           ...(drainProbe?.proxyOptions ?? {}),
@@ -263,7 +263,7 @@ export default defineConfig(({ mode, command }) => {
         },
       },
     },
-    // `vite preview` and scripts/serve-dist.mjs both default to 4173, so this needs a lane too.
+    // `vite preview` and scripts/e2e/serve-dist.mjs both default to 4173, so this needs a lane too.
     preview: {
       host: '127.0.0.1',
       port: lanePorts.preview,
@@ -277,7 +277,16 @@ export default defineConfig(({ mode, command }) => {
       setupFiles: ['./src/test/setup.ts'],
       css: true,
       include: ['src/**/*.{test,spec}.{ts,tsx}', '../../packages/shared/**/*.{test,spec}.ts'],
-      exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
+      // The docs lightbox test reads the built site in docs/, which is not committed; it runs
+      // after `pnpm run docs:build` through `pnpm run docs:test`.
+      exclude: [
+        'e2e/**',
+        'node_modules/**',
+        'dist/**',
+        ...(process.env.CAPACITYLENS_DOCS_SITE_TESTS === '1'
+          ? []
+          : ['src/test/docs-lightbox.test.ts']),
+      ],
       coverage: {
         provider: 'v8',
         reporter: ['text-summary', 'html', 'lcov'],
