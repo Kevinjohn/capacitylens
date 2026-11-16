@@ -24,6 +24,22 @@ describe('typed planning domain rejections', () => {
     ).rejects.toThrow(/not loaded/i);
   });
 
+  it('passes the shared company guard when the company is known only from the summaries', async () => {
+    const { activeAccountId, data } = useStore.getState();
+    if (!activeAccountId) throw new Error('Expected an active account.');
+    useStore.setState({
+      data: { ...data, accounts: [] },
+      accountSummaries: [{ id: activeAccountId, name: 'Daily Planet', role: 'owner' }],
+    });
+    const sent = getStubPlanningTransport().calls.length;
+    // The guard admits a company whose slice is still loading; the command builder then refuses
+    // because the company row is not published yet, so nothing is sent.
+    await expect(
+      useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),
+    ).rejects.toThrow('The planning change could not be prepared.');
+    expect(getStubPlanningTransport().calls).toHaveLength(sent);
+  });
+
   it('refuses a foreign row while treating an absent id as stale', async () => {
     const foreign = makeClient({ id: 'foreign-client', accountId: 'a2' });
     useStore.setState((state) => ({

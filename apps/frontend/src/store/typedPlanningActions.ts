@@ -43,18 +43,9 @@ function createdId(value: unknown): string {
 /** The remaining planning writers share the allocation controller and await its reconciliation. */
 export function createTypedPlanningActions(
   get: StoreApi<StoreState>['getState'],
-  blockedByViewer: StoreInternals['blockedByViewer'],
+  { requireAccount, blockedByViewer }: Pick<StoreInternals, 'requireAccount' | 'blockedByViewer'>,
 ) {
-  const accountId = () => {
-    const id = get().activeAccountId;
-    if (!id || !get().data.accounts.some((row) => row.id === id)) {
-      throw new Error('No active company is selected.');
-    }
-    if (get().activeAccountLoadFailed === id) {
-      throw new Error('The active account is not loaded — cannot mutate scoped data.');
-    }
-    return id;
-  };
+  const accountId = requireAccount;
   const blocked = blockedByViewer;
   const owned = <
     K extends

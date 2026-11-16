@@ -18,7 +18,7 @@ describe('store slice composition', () => {
       createRuntimeSlice(set, get, useStore),
       createSchedulerSlice(buildEmptyFilters)(set, get, useStore),
       createAllocationSlice(internals, createTestPlanningTransport())(set, get, useStore),
-      createTypedPlanningActions(get, internals.blockedByViewer),
+      createTypedPlanningActions(get, internals),
     ];
 
     const keySets = slices.map((slice) => new Set(Object.keys(slice)));

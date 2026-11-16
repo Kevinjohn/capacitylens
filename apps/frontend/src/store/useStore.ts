@@ -43,7 +43,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ...createRuntimeSlice(set, get, store),
     ...createSchedulerSlice(buildEmptyFilters)(set, get, store),
     ...createAllocationSlice(internals, createStorePlanningTransport())(set, get, store),
-    ...createTypedPlanningActions(get, internals.blockedByViewer),
+    ...createTypedPlanningActions(get, internals),
   };
 });
 
