@@ -233,3 +233,31 @@ export function withExternal(): AppData {
   });
   return data;
 }
+
+export function makeDisciplines(): AppData['disciplines'] {
+  return [
+    {
+      id: 'd-design',
+      accountId: 'acct-test',
+      createdAt: 't',
+      updatedAt: 't',
+      name: 'Design',
+      sortOrder: 0,
+      color: null,
+    },
+    {
+      id: 'd-dev',
+      accountId: 'acct-test',
+      createdAt: 't',
+      updatedAt: 't',
+      name: 'Development',
+      sortOrder: 1,
+      color: null,
+    },
+  ];
+}
+
+export const barIds = (model: GroupModel[]) =>
+  allBars(model)
+    .map((b) => b.allocation.id)
+    .sort();
