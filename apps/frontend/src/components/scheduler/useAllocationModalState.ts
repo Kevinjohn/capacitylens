@@ -5,7 +5,7 @@ import { parseDate, todayISO } from '@capacitylens/shared/lib/dateMath';
 import { carriesHourlyLoad } from '@capacitylens/shared/types/entities';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCanEdit } from '@/auth/permissionContext';
-import { isSoleAcknowledgedAdvance } from '@/data/planning/planningCacheController';
+import { isSoleAcknowledgedAdvance } from '@/data/planning/planningReadiness';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
 import { formatWeekdayScheduleDate } from '@/lib/dateDisplay';
 import { resolveResourceDisplayName } from '@/lib/metadata';
