@@ -1,0 +1,62 @@
+import { useEffect } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import { m } from '@/i18n';
+import { hasOpenModal, isTextEntryShortcutOwner } from '@/lib/shortcutGuards';
+import { isShownByPlanningState } from '@/data/planning/planningNotices';
+import { resolveErrorMessage } from '@/lib/errorMessage';
+import { useStore } from '@/store/useStore';
+
+type StoreState = ReturnType<typeof useStore.getState>;
+
+interface GlobalShortcutsInput {
+  paletteOpen: boolean;
+  redo: StoreState['redoPlanning'];
+  setPaletteOpen: Dispatch<SetStateAction<boolean>>;
+  undo: StoreState['undoPlanning'];
+}
+
+type PaletteShortcutInput = Pick<GlobalShortcutsInput, 'paletteOpen' | 'setPaletteOpen'>;
+type HistoryShortcutInput = Pick<GlobalShortcutsInput, 'redo' | 'undo'>;
+
+function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcutInput): boolean {
+  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return false;
+  if (event.isComposing) return true;
+  if (useStore.getState().dirtyForm) {
+    event.preventDefault();
+    if (!event.repeat) useStore.getState().setNotice(m.dialog_unsaved_changes());
+    return true;
+  }
+  const paletteModal = input.paletteOpen
+    ? document.querySelector('[data-testid="command-palette"]')
+    : null;
+  if (hasOpenModal(paletteModal)) return true;
+  event.preventDefault();
+  if (!event.repeat) input.setPaletteOpen((open) => !open);
+  return true;
+}
+
+function applyHistoryShortcutEffect(event: KeyboardEvent, input: HistoryShortcutInput) {
+  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
+  if (event.isComposing || isTextEntryShortcutOwner(event.target) || hasOpenModal()) return;
+  if (useStore.getState().dirtyForm) return;
+  event.preventDefault();
+  (event.shiftKey ? input.redo() : input.undo()).catch((error: unknown) => {
+    if (!isShownByPlanningState(error)) {
+      useStore.getState().setNotice(resolveErrorMessage(error), 'error');
+    }
+  });
+}
+
+/** Binds the command-palette and undo/redo keyboard shortcuts. */
+export function useGlobalShortcuts(input: GlobalShortcutsInput) {
+  const { paletteOpen, redo, setPaletteOpen, undo } = input;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!applyPaletteShortcutEffect(event, { paletteOpen, setPaletteOpen })) {
+        applyHistoryShortcutEffect(event, { redo, undo });
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [paletteOpen, redo, setPaletteOpen, undo]);
+}

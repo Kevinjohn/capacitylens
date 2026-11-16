@@ -6,7 +6,7 @@ import { CapacityOverviewRoute, DiagnosticsRoute, RouteLoading, router } from '.
 import { PermissionContext } from './auth/permissionContext';
 import { resetStoreWithAccount } from './test/fixtures';
 import { useStore } from './store/useStore';
-import { STATIC_SPA_ROUTES } from '../../../scripts/staticSpaRoutes.mjs';
+import { STATIC_SPA_ROUTES } from '../../../scripts/build/staticSpaRoutes.mjs';
 
 vi.mock('./components/AppShell', () => ({ AppShell: Outlet }));
 vi.mock('./components/activities/ActivityList', () => ({

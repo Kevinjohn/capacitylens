@@ -1,6 +1,7 @@
 import { newId } from '@capacitylens/shared/lib/id';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { listActiveCompanyIds, getActiveMembership } from '#services/auth/authorization';
+import { writeAudit } from '#services/audit';
 
 const TRACKING_KEY = 'member-sign-in-tracking';
 const observedKey = (userId: string) => `member-sign-in:${userId}`;
@@ -33,7 +34,8 @@ export async function readMemberSignInTracking(accountId: string, trx: Transacti
 export async function setMemberSignInTracking(
   accountId: string,
   active: boolean,
-  trx: TransactionClientContract
+  trx: TransactionClientContract,
+  now = new Date().toISOString()
 ) {
   const current = await readMemberSignInTracking(accountId, trx);
   if (current.enabled === active) return;
@@ -45,7 +47,6 @@ export async function setMemberSignInTracking(
       .delete();
     return;
   }
-  const now = new Date().toISOString();
   await trx.table('company_settings').insert({
     id: newId(),
     account_id: accountId,
@@ -57,10 +58,42 @@ export async function setMemberSignInTracking(
 }
 
 /** Records a proven sign-in only for active memberships in enabled windows. */
-export async function recordMemberSignIn(userId: string, trx: TransactionClientContract) {
-  const now = new Date().toISOString();
+export async function recordMemberSignIn(
+  userId: string,
+  trx: TransactionClientContract,
+  now = new Date().toISOString()
+) {
   for (const accountId of await listActiveCompanyIds(userId, trx)) {
     await confirmMemberSignIn(accountId, userId, trx, now);
+  }
+}
+
+/**
+ * Turns a company's sign-in tracking on or off for an authorized actor: an enabling Owner is
+ * confirmed in the new window at once, and a change is audited.
+ */
+export async function changeMemberSignInTracking(
+  trx: TransactionClientContract,
+  input: { accountId: string; actorId: string; enabled: boolean; now?: string }
+) {
+  const { accountId, actorId, enabled: requested } = input;
+  const now = input.now ?? new Date().toISOString();
+  const current = await readMemberSignInTracking(accountId, trx);
+  await setMemberSignInTracking(accountId, requested, trx, now);
+  if (!current.enabled && requested) await confirmMemberSignIn(accountId, actorId, trx, now);
+  if (current.enabled !== requested) {
+    await writeAudit(
+      trx,
+      {
+        accountId,
+        actorId,
+        action: 'memberSignInTrackingChange',
+        entity: 'account',
+        entityId: accountId,
+        fields: ['memberSignInTracking'],
+      },
+      now
+    );
   }
 }
 

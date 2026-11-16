@@ -5,16 +5,15 @@ import type { ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entiti
 interface NormalizeValidWriteInput {
   table: ScopedEntityKey;
   candidate: Record<string, unknown>;
-  existing: Record<string, unknown> | undefined;
-  canSeePrivateNames: boolean;
+  /** The caller cannot see this stored private row's names, so they stay as stored. */
+  restrictedPrivateRow: boolean;
 }
 
 /** Canonicalize only values that already passed strict ordinary-write validation. */
 export function normalizeValidWrite({
   table,
   candidate,
-  existing,
-  canSeePrivateNames,
+  restrictedPrivateRow,
 }: NormalizeValidWriteInput): void {
   if (table === 'resources') {
     candidate.workingDays = canonicalWeekdaySet(candidate.workingDays as Weekday[]);
@@ -28,7 +27,7 @@ export function normalizeValidWrite({
     delete candidate.codeName;
     return;
   }
-  if (!canSeePrivateNames && existing?.isPrivate === true) return;
+  if (restrictedPrivateRow) return;
   if (candidate.isPrivate !== true) {
     delete candidate.isPrivate;
     delete candidate.codeName;

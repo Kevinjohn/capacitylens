@@ -1,3 +1,4 @@
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { expect, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
@@ -11,7 +12,7 @@ import type {
   PlanningControllerOptions,
   PlanningSnapshot,
   PlanningTransport,
-} from '@/data/planning/planningCacheController';
+} from '@/data/planning/planningCacheTypes';
 
 // Shared setup for the planning cache controller transition tests.
 
@@ -77,6 +78,7 @@ export function setup(options: Options = {}) {
   const lookup = vi.fn<PlanningTransport['lookup']>();
   let id = 0;
   const controller = createPlanningCacheController({
+    readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
     transport: { read, execute, lookup },

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createTestPlanningTransport } from '@/test/createTestPlanningTransport';
 import { createAccountSlice } from './accountSlice';
 import { createAllocationSlice } from './allocationSlice';
+import { createPlanningSessionSlice } from './planningSessionSlice';
 import { createRuntimeSlice } from './runtimeSlice';
 import { createSchedulerSlice } from './schedulerSlice';
 import { createStoreInternals } from '@/store/storeInternal';
@@ -17,8 +18,13 @@ describe('store slice composition', () => {
       createAccountSlice()(set, get, useStore),
       createRuntimeSlice(set, get, useStore),
       createSchedulerSlice(buildEmptyFilters)(set, get, useStore),
-      createAllocationSlice(internals, createTestPlanningTransport())(set, get, useStore),
-      createTypedPlanningActions(get, internals.blockedByViewer),
+      createPlanningSessionSlice(internals.blockedByViewer, createTestPlanningTransport())(
+        set,
+        get,
+        useStore,
+      ),
+      createAllocationSlice(internals)(set, get, useStore),
+      createTypedPlanningActions(get, internals),
     ];
 
     const keySets = slices.map((slice) => new Set(Object.keys(slice)));

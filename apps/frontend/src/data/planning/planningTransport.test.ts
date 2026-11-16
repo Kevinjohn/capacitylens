@@ -265,6 +265,16 @@ describe('generated planning transport', () => {
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
   });
 
+  it('sends an empty proof when the caller captured none, never a newer shared one', async () => {
+    const { transport, requests } = harness({ revision: 1, canWrite: true, data: emptyAppData() });
+    setMasqueradeContextToken('newer-context');
+
+    await transport.read({ identity: 'bruce-login', companyId: 'wayne' }, signal).catch(() => null);
+
+    expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('');
+    setMasqueradeContextToken(null);
+  });
+
   it('surfaces context changes without replaying a stale write', async () => {
     const { transport, fetcher } = harness(
       { error: 'The masquerade context changed.', code: 'MASQUERADE_CONTEXT_CHANGED' },

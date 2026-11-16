@@ -3,7 +3,7 @@ import type db from '@adonisjs/lucid/services/db';
 import logger from '@adonisjs/core/services/logger';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { listBundles } from '@kevinjohn/adonisjs-sqlite-backup';
-import { checkDatabase } from '#services/state_repository';
+import { checkDatabase } from '#services/database_health';
 import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
 
 /** Release level and backup timing are administration facts: Owners and Admins only. */

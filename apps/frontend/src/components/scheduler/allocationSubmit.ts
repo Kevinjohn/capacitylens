@@ -8,7 +8,7 @@ import { parseText } from '@/lib/validation';
 import type { useStore } from '@/store/useStore';
 import { resolveEndDate, validateAllocationDraft } from './allocationDraft';
 import { resolveEffectiveWeekPlacementBlockReason } from './creationAvailability';
-import { listRenderableDateRanges } from './schedulerModelIndexing';
+import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
 
 import type { FieldError } from '@/hooks/useFieldError';
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';

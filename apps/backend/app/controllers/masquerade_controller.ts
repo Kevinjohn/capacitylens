@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
+import db from '@adonisjs/lucid/services/db';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { currentMasquerade, endMasquerade, startMasquerade } from '#services/auth/masquerade';
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
@@ -34,10 +35,14 @@ export default class MasqueradeController {
       return ctx.response.badRequest({ error: 'Target member is required.' });
     }
     return respond(ctx, async () => {
-      const started = await startMasquerade(ctx, body.targetUserId as string);
+      const started = await startMasquerade(
+        ctx,
+        body.targetUserId as string,
+        ctx.request.header('X-Masquerade-Context') ?? ''
+      );
       if (!started.isMasquerading) throw new MasqueradeError('E_MASQUERADE_UNAVAILABLE');
       return ctx.response.ok({
-        ...(await currentMasquerade(ctx)),
+        ...(await currentMasquerade(ctx, db.connection(), accountId)),
         accountId,
       });
     });
@@ -48,16 +53,17 @@ export default class MasqueradeController {
       try {
         const signIn = await signedInSession(ctx);
         if (!signIn) return ctx.response.ok({ active: false, contextToken: null });
-        const accountId = ctx.request.input('accountId');
-        if (typeof accountId === 'string' && accountId) {
-          const mode = await currentMasquerade(ctx);
+        const input: unknown = ctx.request.input('accountId');
+        const accountId = typeof input === 'string' && input ? input : undefined;
+        if (accountId) {
+          const mode = await currentMasquerade(ctx, db.connection(), accountId);
           if (mode.active) return ctx.response.ok(mode);
           if (!(await activeCompanyRole(signIn.userId, accountId, undefined))) {
             throw new IdentityAuthorityError('Company membership is unavailable.');
           }
           return ctx.response.ok({ ...mode, accountId });
         }
-        return ctx.response.ok(await currentMasquerade(ctx));
+        return ctx.response.ok(await currentMasquerade(ctx, db.connection(), undefined));
       } catch (error) {
         if (error instanceof InvalidSessionError) {
           return ctx.response.ok({ active: false, contextToken: null });
@@ -83,7 +89,7 @@ export default class MasqueradeController {
         throw new MasqueradeError('E_MASQUERADE_CONTEXT_REQUIRED');
       }
       if (header !== body.token) throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
-      const mode = await endMasquerade(ctx);
+      const mode = await endMasquerade(ctx, header);
       return ctx.response.ok({ active: false, contextToken: mode.contextToken });
     });
   }

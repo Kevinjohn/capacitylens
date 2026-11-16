@@ -2,9 +2,14 @@ import { MASQUERADE_ERROR_CODES } from '@capacitylens/shared/domain/masquerade';
 import type { MasqueradeErrorCode } from '@capacitylens/shared/domain/masquerade';
 import { noteAuditWarning } from '@/lib/auditWarning';
 import { readApiErrorCode } from '@/lib/readApiError';
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 
 let masqueradeEndedHandler: (() => void) | null = null;
+let readMasqueradeContextToken: () => string | null = () => null;
+
+/** Register the reader of the current masquerade context proof sent with every request. */
+export function setMasqueradeContextReader(reader: () => string | null): void {
+  readMasqueradeContextToken = reader;
+}
 
 /** Register the session-projection recovery hook without coupling the common fetch layer to React. */
 export function setMasqueradeEndedHandler(handler: (() => void) | null): void {
@@ -91,7 +96,7 @@ function headersWithMasqueradeContext(
     requestOptions.method ?? (input instanceof Request ? input.method : 'GET')
   ).toUpperCase();
   if (method === 'OPTIONS') return requestOptions.headers;
-  const token = getMasqueradeContextToken();
+  const token = readMasqueradeContextToken();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(requestOptions.headers).forEach((value, name) => headers.set(name, value));
   if (!headers.has('X-Masquerade-Context') && token !== null) {

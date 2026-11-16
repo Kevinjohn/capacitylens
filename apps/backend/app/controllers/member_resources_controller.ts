@@ -1,8 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
 import { assertCompanyAction } from '#services/auth/authorization';
-import { runAccountCommand, readAccountCommand } from '#services/account_commands';
-import { writeAudit } from '#services/audit';
+import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
 import { invalidAdmission } from '#services/admission/errors';
 import { renderAdmissionFailure } from '#services/admission/http';
@@ -26,7 +25,10 @@ export default class MemberResourcesController {
       ) {
         invalidAdmission();
       }
-      const command = readAccountCommand(ctx);
+      const command = parseAccountCommand(
+        ctx.request.header('x-account-command-id'),
+        ctx.request.header('idempotency-key')
+      );
       const { accountId, userId } = ctx.params;
       const result = await withActor(ctx, async (currentActor, trx) => {
         let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
@@ -42,17 +44,8 @@ export default class MemberResourcesController {
               userId,
               resourceId: body.resourceId as string,
               expectedRevision: body.expectedRevision as string | null,
+              actorId,
             });
-            if (link.changed) {
-              await writeAudit(trx, {
-                accountId,
-                actorId,
-                action: 'member-resource.linked',
-                entity: 'membership',
-                entityId: userId,
-                fields: ['resourceLink'],
-              });
-            }
             return { resourceId: link.resourceId, revision: link.revision };
           },
           actorId: currentActor.userId,
@@ -71,7 +64,10 @@ export default class MemberResourcesController {
     try {
       const body = bodyOf(ctx.request.body(), ['expectedRevision']);
       if (typeof body.expectedRevision !== 'string' || !body.expectedRevision) invalidAdmission();
-      const command = readAccountCommand(ctx);
+      const command = parseAccountCommand(
+        ctx.request.header('x-account-command-id'),
+        ctx.request.header('idempotency-key')
+      );
       const { accountId, userId } = ctx.params;
       await withActor(ctx, async (currentActor, trx) => {
         let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
@@ -86,14 +82,7 @@ export default class MemberResourcesController {
               accountId,
               userId,
               expectedRevision: body.expectedRevision as string,
-            });
-            await writeAudit(trx, {
-              accountId,
               actorId,
-              action: 'member-resource.unlinked',
-              entity: 'membership',
-              entityId: userId,
-              fields: ['resourceLink'],
             });
             return { ok: true };
           },

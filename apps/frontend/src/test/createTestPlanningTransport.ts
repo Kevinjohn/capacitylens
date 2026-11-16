@@ -1,4 +1,4 @@
-import type { PlanningTransport } from '@/data/planning/planningCacheController';
+import type { PlanningTransport } from '@/data/planning/planningCacheTypes';
 import { StubPlanningTransport } from './planning/stubPlanningTransport';
 import { setPlanningTransportHandle } from './planningTransportHandle';
 

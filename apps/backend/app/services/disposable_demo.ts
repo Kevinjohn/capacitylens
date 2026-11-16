@@ -3,9 +3,49 @@ import type { ApplicationService } from '@adonisjs/core/types';
 import db from '@adonisjs/lucid/services/db';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
-import { insertDisposableDemoSeed } from '#services/state_repository';
+import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
+import { withTransaction } from '#services/with_transaction';
+import { establishInitialCompanyAuthority } from '#services/initial_company_authority';
+import { tables } from '#services/product_tables';
+import { encodeRow } from '#services/state_repository';
 import env from '#start/env';
 import { hasNoCompany } from '#services/installation_company';
+
+/** Insert the single disposable company graph and its authority in one transaction. */
+async function insertDisposableDemoSeed(ownerId: string) {
+  await withTransaction(async (trx) => {
+    if (!(await hasNoCompany(trx))) {
+      throw new Error('Refusing demo seed: companies already exist');
+    }
+    if (await trx.from('memberships').first()) {
+      throw new Error('Refusing demo seed: memberships already exist');
+    }
+    const data = seedForCurrentWeek();
+    const company = data.accounts.find((account) => account.id === 'a-studio');
+    if (!company) throw new Error('Disposable company fixture is missing');
+    for (const [key, table] of Object.entries(tables)) {
+      const rows =
+        key === 'accounts'
+          ? [company]
+          : data[key as keyof typeof tables].filter(
+              (row) => 'accountId' in row && row.accountId === company.id
+            );
+      if (rows.length > 0) {
+        await trx
+          .table(table)
+          .multiInsert(
+            rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>))
+          );
+      }
+    }
+    await establishInitialCompanyAuthority(trx, {
+      accountId: company.id,
+      ownerId,
+      actorId: ownerId,
+      now: new Date().toISOString(),
+    });
+  });
+}
 
 /** The demo commands run only on the per-launch storage `pnpm run dev:demo` creates under tmp/. */
 export function assertDisposableDemoDatabase(app: ApplicationService) {
