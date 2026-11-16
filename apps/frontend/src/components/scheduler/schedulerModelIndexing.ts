@@ -27,6 +27,17 @@ export function reportInvalidScheduleDateRangeOnce(row: { id: string }): void {
   console.error(`Scheduler omitted ${row.id}: invalid date range.`);
 }
 
+/** Keeps a row whose date range the scheduler can draw, reporting a corrupt one once. */
+export function includeRenderableDateRange(row: {
+  id: string;
+  startDate: ISODate;
+  endDate: ISODate;
+}): boolean {
+  const renderable = hasRenderableDateRange(row);
+  if (!renderable) reportInvalidScheduleDateRangeOnce(row);
+  return renderable;
+}
+
 /** Closures or time off the scheduler can honour. Day states, drawing, shading, forms and
  * announcements all read this list so the scheduler ignores a corrupt row in every path alike. */
 export function listRenderableDateRanges<

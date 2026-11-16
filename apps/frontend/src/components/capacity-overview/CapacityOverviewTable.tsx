@@ -5,29 +5,18 @@ import { m } from '@/i18n';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PersonScheduleSheet } from '@/components/person-schedule/PersonScheduleSheet';
 import { usePersonScheduleDrawer } from '@/components/person-schedule/usePersonScheduleDrawer';
-import type { CapacityOverviewHorizon } from './capacityOverviewDates';
-import type { CapacityDisplayMode } from './capacityOverviewBar';
 import { CapacityTable } from './CapacityOverviewTableGrid';
 import { OverviewLegend } from './OverviewLegend';
 import { OverviewToolbar } from './OverviewToolbar';
+import type { OverviewToolbarProps } from './OverviewToolbar';
 import type { PersonScheduleTriggerHandlers } from './CapacityOverviewTableGrid';
 import type { CapacityOverviewModel } from './capacityOverviewModel';
 import { useResourceAvatars } from '@/account/useResourceAvatars';
 import { useStore } from '@/store/useStore';
 
 /** The prepared capacity model and schedule actions consumed by the table. */
-export interface CapacityOverviewTableProps {
+export interface CapacityOverviewTableProps extends OverviewToolbarProps {
   model: CapacityOverviewModel;
-  horizon: CapacityOverviewHorizon;
-  includeTentative: boolean;
-  hasAvailability: boolean;
-  showTotals: boolean;
-  capacityDisplayMode: CapacityDisplayMode;
-  onHorizonChange: (horizon: CapacityOverviewHorizon) => void;
-  onIncludeTentativeChange: (checked: boolean) => void;
-  onHasAvailabilityChange: (checked: boolean) => void;
-  onShowTotalsChange: (checked: boolean) => void;
-  onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void;
 }
 
 interface CapacityOverviewTableWithScheduleProps extends CapacityOverviewTableProps {

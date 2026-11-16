@@ -10,20 +10,13 @@ import { readLaneSnapshots } from './gestureLanes';
 import type { LaneSnapshot } from './gestureLanes';
 import type { BarLayout } from './schedulerModel';
 import { useAllocationGestureController } from './useAllocationGestureController';
+import type { GestureRuntime } from './useAllocationGestureController';
 
 interface AllocationGestureOptions {
   bar: BarLayout;
   geom: ColumnGeometry;
   indexAtClientX: (clientX: number) => number;
   onEdit?: (id: ID) => void;
-}
-
-interface GestureRuntime {
-  lanesRef: React.RefObject<LaneSnapshot[]>;
-  previewDaysRef: React.RefObject<Map<ID, Weekday[] | undefined>>;
-  setDropTarget: (element: HTMLElement | null) => void;
-  startGeometryWatch: () => void;
-  stopGeometryWatch: () => void;
 }
 
 function watchLaneGeometry(

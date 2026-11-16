@@ -51,7 +51,8 @@ interface ControllerOptions {
   onEdit?: (id: ID) => void;
 }
 
-interface GestureRuntime {
+/** Per-allocation refs and geometry watch shared by the gesture hook and its controller. */
+export interface GestureRuntime {
   lanesRef: React.RefObject<LaneSnapshot[]>;
   previewDaysRef: React.RefObject<Map<ID, Weekday[] | undefined>>;
   setDropTarget: (element: HTMLElement | null) => void;
