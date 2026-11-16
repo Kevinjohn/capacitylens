@@ -28,10 +28,10 @@ C -->|no| E["Read the error and resolve loading or existing-data conditions"]
 ```mermaid
 flowchart TD
   view["SettingsDataSection shows ExampleDataSection when empty and authorized"] --> action["ExampleDataSection.addExampleData checks planning readiness"]
-  action --> api["accountClient.addExampleData sends request"]
+  action --> api["companyDataRequests.addExampleData sends request"]
   api --> controller["ExampleDataController.store authorizes and writes example records"]
   controller --> refresh["store.refreshPlanning loads accepted authoritative company state"]
   refresh --> notice["ExampleDataSection sets result notice"]
 ```
 
-**Code references:** [SettingsDataSection.tsx](../../apps/frontend/src/components/settings/SettingsDataSection.tsx), [accountClient.ts](../../apps/frontend/src/account/accountClient.ts), [useStore.ts](../../apps/frontend/src/store/useStore.ts), [example_data_controller.ts](../../apps/backend/app/controllers/example_data_controller.ts)
+**Code references:** [SettingsDataSection.tsx](../../apps/frontend/src/components/settings/SettingsDataSection.tsx), [companyDataRequests.ts](../../apps/frontend/src/data/companyDataRequests.ts), [useStore.ts](../../apps/frontend/src/store/useStore.ts), [example_data_controller.ts](../../apps/backend/app/controllers/example_data_controller.ts)
