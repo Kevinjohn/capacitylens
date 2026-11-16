@@ -75,6 +75,23 @@ for (const targetFile of sidebarTargets) {
   }
 }
 
+// llms.txt, robots.txt and sitemap.xml are published with the site; every llms.txt link to the site
+// must name a page the build produced.
+const siteUrl = 'https://kevinjohn.github.io/capacitylens/';
+for (const name of ['llms.txt', 'robots.txt', 'sitemap.xml']) {
+  if (!existsSync(resolve(siteDir, name))) failures.push(`${name} is missing from the build`);
+}
+if (existsSync(resolve(siteDir, 'llms.txt'))) {
+  for (const [, url] of readFileSync(resolve(siteDir, 'llms.txt'), 'utf8').matchAll(
+    /\]\((\S+?)\)/g,
+  )) {
+    if (!url.startsWith(siteUrl)) continue;
+    const path = url.slice(siteUrl.length).split('#', 1)[0];
+    const target = resolve(siteDir, path.endsWith('/') || path === '' ? `${path}index.html` : path);
+    if (!existsSync(target)) failures.push(`llms.txt links to a missing page: ${url}`);
+  }
+}
+
 if (failures.length > 0) {
   console.error(`docs navigation check failed:\n  ${failures.join('\n  ')}`);
   process.exit(1);
