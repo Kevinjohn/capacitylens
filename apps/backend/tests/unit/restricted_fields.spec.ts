@@ -44,12 +44,13 @@ test.group('restricted fields', () => {
     test(`${table}: a write naming a declared field is refused`, ({ assert }) => {
       for (const field of rule!.fields) {
         for (const mode of ['create', 'update'] as const) {
-          assert.throws(
-            () => assertMayWriteRestrictedFields(key, { [field]: `SECRET ${field}` }, editor, mode),
-            PlanningOperationError,
-            undefined,
-            `${table}.${field} ${mode}`
-          );
+          let refused: unknown;
+          try {
+            assertMayWriteRestrictedFields(key, { [field]: `SECRET ${field}` }, editor, mode);
+          } catch (error) {
+            refused = error;
+          }
+          assert.instanceOf(refused, PlanningOperationError, `${table}.${field} ${mode}`);
         }
       }
     });
