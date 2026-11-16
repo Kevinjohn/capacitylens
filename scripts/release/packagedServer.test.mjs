@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { operatorFixture } from '../apps/backend/tests/unit/operator_command_support.ts';
+import { operatorFixture } from '../../apps/backend/tests/unit/operator_command_support.ts';
 import {
   buildSmokeEnvironment,
   expectJsonStatus,

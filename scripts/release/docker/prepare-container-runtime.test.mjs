@@ -38,7 +38,7 @@ test('container assembly preserves compiled runtime and build policy while repai
 test('Compose upgrades before API startup and preserves the private persistent deployment boundary', async () => {
   const { default: YAML } = await import('yaml');
   const compose = YAML.parse(
-    await readFile(new URL('../docker-compose.yml', import.meta.url), 'utf8'),
+    await readFile(new URL('../../../docker-compose.yml', import.meta.url), 'utf8'),
   );
   assert.equal(compose.name, 'capacitylens');
   assert.deepEqual(compose.services.upgrade.tmpfs, ['/tmp:size=32m,mode=1777']);
@@ -73,7 +73,7 @@ test('Compose upgrades before API startup and preserves the private persistent d
     'capacitylens-db',
   ]);
   const workflow = YAML.parse(
-    await readFile(new URL('../.github/workflows/docker.yml', import.meta.url), 'utf8'),
+    await readFile(new URL('../../../.github/workflows/docker.yml', import.meta.url), 'utf8'),
   );
   assert.deepEqual(workflow.on.push.branches, ['main']);
   // Pull requests run the smoke only when they change container or runtime inputs (#1970), never
@@ -89,7 +89,7 @@ test('Compose upgrades before API startup and preserves the private persistent d
 test('Compose runs the published release images by default and can still build them', async () => {
   const { default: YAML } = await import('yaml');
   const compose = YAML.parse(
-    await readFile(new URL('../docker-compose.yml', import.meta.url), 'utf8'),
+    await readFile(new URL('../../../docker-compose.yml', import.meta.url), 'utf8'),
   );
   // No default version: an unset release must stop Compose instead of running an arbitrary image.
   const published = (name) =>
@@ -101,7 +101,7 @@ test('Compose runs the published release images by default and can still build t
   assert.deepEqual(compose.services.upgrade.build, { context: '.', target: 'api' });
   assert.equal(compose.services.web.build.target, 'web');
 
-  const dockerfile = await readFile(new URL('../Dockerfile', import.meta.url), 'utf8');
+  const dockerfile = await readFile(new URL('../../../Dockerfile', import.meta.url), 'utf8');
   assert.equal(
     dockerfile.split('org.opencontainers.image.source="https://github.com/Kevinjohn/capacitylens"')
       .length,
@@ -110,7 +110,7 @@ test('Compose runs the published release images by default and can still build t
   );
 
   const workflow = YAML.parse(
-    await readFile(new URL('../.github/workflows/docker.yml', import.meta.url), 'utf8'),
+    await readFile(new URL('../../../.github/workflows/docker.yml', import.meta.url), 'utf8'),
   );
   assert.deepEqual(workflow.on.release.types, ['published']);
   const { publish, smoke, validated } = workflow.jobs;
@@ -118,7 +118,9 @@ test('Compose runs the published release images by default and can still build t
   // Publication waits for successful validation and smoke runs of the same tag and commit.
   assert.equal(publish.needs, 'validated');
   assert.ok(
-    validated.steps.some((step) => step.run === 'node scripts/require-release-validation.mjs'),
+    validated.steps.some(
+      (step) => step.run === 'node scripts/release/require-release-validation.mjs',
+    ),
   );
   assert.deepEqual(validated.permissions, {
     actions: 'read',
@@ -128,7 +130,7 @@ test('Compose runs the published release images by default and can still build t
   // Already-published images skip the validation wait, so publish can re-run them.
   const detect = validated.steps.findIndex((step) => step.id === 'images');
   const wait = validated.steps.findIndex(
-    (step) => step.run === 'node scripts/require-release-validation.mjs',
+    (step) => step.run === 'node scripts/release/require-release-validation.mjs',
   );
   assert.ok(detect >= 0 && detect < wait);
   assert.match(validated.steps[wait].if, /steps\.images\.outputs\.present != 'true'/);
@@ -137,9 +139,10 @@ test('Compose runs the published release images by default and can still build t
   const commands = publish.steps.map((step) => step.run ?? '');
   const position = (text) => commands.findIndex((run) => run.includes(text));
   // Images are smoked before they are pushed, and the pushed images are then run without a build.
-  assert.ok(position('node scripts/smoke-docker-compose.mjs') >= 0);
+  assert.ok(position('node scripts/release/docker/smoke-docker-compose.mjs') >= 0);
   assert.ok(
-    position('node scripts/smoke-docker-compose.mjs') < position('docker compose push api web'),
+    position('node scripts/release/docker/smoke-docker-compose.mjs') <
+      position('docker compose push api web'),
   );
   assert.ok(position('docker compose push api web') < position('--no-build --pull always'));
   assert.ok(smoke.steps.some((step) => (step.run ?? '').includes('--profile caddy up')));
@@ -148,7 +151,7 @@ test('Compose runs the published release images by default and can still build t
 test('the optional Caddy profile serves HTTPS in front of the web container only', async () => {
   const { default: YAML } = await import('yaml');
   const compose = YAML.parse(
-    await readFile(new URL('../docker-compose.yml', import.meta.url), 'utf8'),
+    await readFile(new URL('../../../docker-compose.yml', import.meta.url), 'utf8'),
   );
   const { caddy } = compose.services;
   // Without the profile the stack is unchanged: no service outside it publishes 80 or 443.
@@ -172,7 +175,7 @@ test('the optional Caddy profile serves HTTPS in front of the web container only
 });
 
 test('native compilation tools are installed before dependencies and stay outside the runtime stage', async () => {
-  const dockerfile = await readFile(new URL('../Dockerfile', import.meta.url), 'utf8');
+  const dockerfile = await readFile(new URL('../../../Dockerfile', import.meta.url), 'utf8');
   const stages = dockerfile.split(/(?=^FROM )/m);
   const dependencies = stages.find((stage) => / AS deps\n/.test(stage));
   const runtime = stages.find((stage) => / AS api\n/.test(stage));
@@ -192,7 +195,7 @@ test('native compilation tools are installed before dependencies and stay outsid
 
 test('the web image copies the Vite output consumed by the root standalone build', async () => {
   const ts = await import('typescript');
-  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const repository = fileURLToPath(new URL('../../../', import.meta.url));
   const configPath = join(repository, 'apps/frontend/vite.config.ts');
   const source = ts.createSourceFile(
     configPath,
@@ -231,7 +234,7 @@ test('the web image copies the Vite output consumed by the root standalone build
   assert.ok(syncedSource);
   assert.equal(
     fileURLToPath(
-      new URL(syncedSource, new URL('./build/sync-adonis-public.mjs', import.meta.url)),
+      new URL(syncedSource, new URL('../../build/sync-adonis-public.mjs', import.meta.url)),
     ),
     `${output}/`,
   );

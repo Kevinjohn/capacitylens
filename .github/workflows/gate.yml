@@ -18,12 +18,12 @@ on:
     branches: [main]
     paths:
       - 'packaging/**'
-      - 'scripts/package-managed-release.mjs'
-      - 'scripts/deploy-managed-runtime.mjs'
-      - 'scripts/prepare-container-runtime.mjs'
-      - 'scripts/packagedServer.mjs'
-      - 'scripts/smoke-packaged-*.mjs'
-      - 'scripts/loopbackHttpProxy.mjs'
+      - 'scripts/release/package-managed-release.mjs'
+      - 'scripts/release/deploy-managed-runtime.mjs'
+      - 'scripts/release/docker/prepare-container-runtime.mjs'
+      - 'scripts/release/packagedServer.mjs'
+      - 'scripts/release/smoke-packaged-*.mjs'
+      - 'scripts/release/loopbackHttpProxy.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'

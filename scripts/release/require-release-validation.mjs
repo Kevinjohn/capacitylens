@@ -2,7 +2,7 @@
 // from the tag push that validates them, so starting checks on the tag does not make publication
 // wait for them. This script makes it wait:
 //
-//   RELEASE_TAG=v1.2.3 GH_REPO=owner/repo node scripts/require-release-validation.mjs
+//   RELEASE_TAG=v1.2.3 GH_REPO=owner/repo node scripts/release/require-release-validation.mjs
 //
 // It passes only when the latest push run of every required workflow, for that tag and the commit
 // the tag names, completed successfully. It waits while a run is queued or in progress or has not

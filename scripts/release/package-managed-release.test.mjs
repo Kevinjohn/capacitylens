@@ -20,7 +20,7 @@ import {
   sha256File,
 } from './package-managed-release.mjs';
 
-const repositoryRoot = fileURLToPath(new URL('..', import.meta.url));
+const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 async function makeRelease(packages = []) {
   const root = await mkdtemp(join(tmpdir(), 'capacitylens-release-test-'));

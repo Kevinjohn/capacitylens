@@ -261,7 +261,7 @@ async function readVersion(repositoryRoot) {
  * @throws When deployment or release validation fails.
  */
 export async function packageManagedRelease(outputPath = 'production') {
-  const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
+  const repositoryRoot = resolve(fileURLToPath(new URL('../..', import.meta.url)));
   if (outputPath !== 'production')
     throw new Error('Production output path must be exactly production/.');
   const output = resolve(repositoryRoot, outputPath);
@@ -365,7 +365,7 @@ export async function sha256File(path) {
  * @throws When validation, copying, archive commands or checksum I/O fail.
  */
 export async function packageReleaseArchive() {
-  const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
+  const repositoryRoot = resolve(fileURLToPath(new URL('../..', import.meta.url)));
   const source = join(repositoryRoot, 'production');
   await checkGeneratedOutput(source);
   await inspectManagedRelease(source, await readDevelopmentPackages(repositoryRoot));

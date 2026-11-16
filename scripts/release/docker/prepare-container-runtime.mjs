@@ -1,11 +1,11 @@
 import { cp, readdir, rename, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { carryBuildPolicy } from './package-managed-release.mjs';
+import { carryBuildPolicy } from '../package-managed-release.mjs';
 import {
   assertInternalDependencyLinks,
   repairBackendSelfLinks,
-} from './deploy-managed-runtime.mjs';
+} from '../deploy-managed-runtime.mjs';
 
 async function removeSourceMaps(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
