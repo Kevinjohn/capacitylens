@@ -5,8 +5,7 @@ import type { Activity } from '@capacitylens/shared/types/entities';
 import type { useNavigate } from 'react-router-dom';
 import { fuzzyFilter } from '@/lib/fuzzy';
 import { resolveResourceDisplayName } from '@/lib/metadata';
-import { ACCOUNT_LINK, ADMIN_LINKS, DIAGNOSTICS_LINK, HELP_LINK, LINKS } from '@/lib/navLinks';
-import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors';
+import type { AppRouteDefinition } from '@/lib/navLinks';
 import type { useActiveScopedData } from '@/store/useScopedData';
 import { buildEmptyFilters } from '@/store/useStore';
 import type { Filters } from '@/store/useStore';
@@ -23,9 +22,8 @@ export interface PaletteItem {
 interface BuildPaletteItemsInput {
   query: string;
   data: ReturnType<typeof useActiveScopedData>;
-  disciplinesEnabled: boolean;
-  showCapacityOverview: boolean;
-  showDiagnostics: boolean;
+  /** The routes the member may be shown, from the shared route table. */
+  routes: readonly AppRouteDefinition[];
   placeholdersEnabled: boolean;
   externalEnabled: boolean;
   navigate: ReturnType<typeof useNavigate>;
@@ -86,27 +84,17 @@ function buildActionItems({
   return actions;
 }
 
-function buildPageItems({
-  disciplinesEnabled,
-  showCapacityOverview,
-  showDiagnostics,
-  navigate,
-  onClose,
-}: BuildPaletteItemsInput): PaletteItem[] {
-  return [...LINKS, ...ADMIN_LINKS, DIAGNOSTICS_LINK, HELP_LINK, ACCOUNT_LINK]
-    .filter(({ to }) => disciplinesEnabled || to !== '/disciplines')
-    .filter(({ to }) => showCapacityOverview || to !== ROUTE_CAPACITY_OVERVIEW)
-    .filter(({ to }) => showDiagnostics || to !== ROUTE_DIAGNOSTICS)
-    .map(({ to, label }) => ({
-      id: `page-${to === '/' ? 'schedule' : to.slice(1)}`,
-      label: label(),
-      sublabel: to,
-      section: m.palette_section_pages(),
-      onSelect: () => {
-        void navigate(to);
-        onClose();
-      },
-    }));
+function buildPageItems({ routes, navigate, onClose }: BuildPaletteItemsInput): PaletteItem[] {
+  return routes.map(({ to, label }) => ({
+    id: `page-${to === '/' ? 'schedule' : to.slice(1)}`,
+    label: label(),
+    sublabel: to,
+    section: m.palette_section_pages(),
+    onSelect: () => {
+      void navigate(to);
+      onClose();
+    },
+  }));
 }
 
 function buildResourceItems(input: BuildPaletteItemsInput): PaletteItem[] {
