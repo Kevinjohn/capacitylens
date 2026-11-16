@@ -1,4 +1,3 @@
-import db from '@adonisjs/lucid/services/db';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import access from '#config/access_control';
 import { hasOnlyFields } from '#services/request_helpers';
@@ -8,7 +7,7 @@ import { hasNoCompany } from '#services/installation_company';
 /** Only the sole native principal can claim an entirely uninitialized installation. */
 export async function requiresFirstCompanySetup(
   userId: string,
-  connection: Pick<typeof db, 'from'> | TransactionClientContract = db
+  connection: TransactionClientContract
 ) {
   const users = await connection.from('users').select('id').limit(2);
   return (
