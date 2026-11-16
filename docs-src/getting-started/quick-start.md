@@ -28,7 +28,9 @@ may provide controls for these steps; check that they support the required proce
    [installation guide](/self-hosting/install-without-docker#install-with-one-command) gives the
    exact commands and the manual steps.
 
-3. **Open the setup link** the command prints at the end.
+3. **Hand over the setup link.** The command ends with `Open this setup link at
+   https://capacity.example.com:` followed by a one-time link. If you are the Owner, open it in your
+   browser. Otherwise, send it privately to the Owner, who opens it.
 
 </div>
 
@@ -41,8 +43,8 @@ for your own Linux server.
 
 1. ![Accept invite page for Company setup with Name and Password fields and Accept invitation](../screenshots/steps/owner_setup_sign_in_form.png)
 
-   **Sign in.** Open the setup link the installer printed for you. Enter your name and a password
-   and select **Accept invitation**.
+   **Sign in.** The setup link opens **Accept invite**. Enter your **Name** and a **Password** and
+   select **Accept invitation**.
 
 2. **Create the company.** On **Set up your company**, enter **Company name** and select
    **Create company**. Schedule opens with you as Owner; no server restart is needed.

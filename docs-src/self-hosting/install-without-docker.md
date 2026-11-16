@@ -49,8 +49,8 @@ The command runs the steps under [Install by hand](#install-by-hand):
 Verified backups run when the service starts and every 24 hours; see
 [Backups and restore](/self-hosting/backups-and-restore). Mail is left unset: add the
 `CAPACITYLENS_MAIL_*` settings with `sudoedit /etc/capacitylens.env` and restart the service before
-inviting anyone else ([step 3](#_3-configure-the-installation) says what works without them). Open
-the setup link and continue at [step 5](#_5-open). Until the Owner has signed up, running the same
+inviting anyone else ([step 3](#_3-configure-the-installation) says what works without them). Then
+continue at [step 5](#_5-open) to hand over the setup link. Until the Owner has signed up, running the same
 command again finishes an interrupted install and prints a fresh link. Running a newer release's
 command without arguments upgrades; see [Upgrades](/self-hosting/upgrades).
 
@@ -141,7 +141,8 @@ certificate details. Do not expose the loopback application port publicly.
 ### 5. Open
 
 Check `https://capacity.example.com/health/ready`. The install command has already printed the
-one-time setup link; by hand, print it for the Owner's email address:
+one-time setup link after `Open this setup link at https://capacity.example.com:`; by hand, print
+it for the Owner's email address:
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
@@ -151,9 +152,11 @@ sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
   /usr/bin/env node ace.js account-kit:admission:bootstrap owner@example.com --role=viewer
 ```
 
-Open the printed link, enter a name and password and select **Accept invitation**. On **Set up your
-company**, enter **Company name** and select **Create company**. Schedule opens with that identity as
-Owner. Send the link privately if someone else will become Owner.
+If you are the Owner, open the printed link in your browser. Otherwise, send it privately to the
+person who will be Owner; they continue from [Access your company](/owner/). The link opens
+**Accept invite**: enter a **Name** and **Password** and select **Accept invitation**. On **Set up
+your company**, enter **Company name** and select **Create company**. Schedule opens with that
+identity as Owner.
 
 The company starts with Monday, Monday–Friday working days, day-based scheduling and the Internal
 client, without a sample schedule. The server blocks additional open signup until the first company
