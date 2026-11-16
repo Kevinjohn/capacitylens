@@ -1,4 +1,8 @@
 import { vi } from 'vitest';
+// Load the store and auth graph while the file is collected, as the single AuthProvider test file
+// did through its signOut import. Otherwise each file's first freshProvider() call transforms it
+// cold inside the 5 s test timeout.
+import './signOut';
 
 /** A signed-in body defaults to an admitted member so each test states only the gate it exercises. */
 const admittedGates = {
