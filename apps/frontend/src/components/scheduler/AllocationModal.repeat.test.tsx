@@ -4,7 +4,8 @@ import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
-import { addDaysISO, todayISO } from '@capacitylens/shared/lib/dateMath';
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
+import { readCalendarToday } from '@/lib/calendarToday';
 import { chooseOption } from './__tests__/schedulerTestKit';
 import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningFixtures';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
@@ -112,6 +113,26 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     await user.clear(start);
     await user.type(start, '2028-02-10');
     expect(repeatUntil).toHaveValue('2028-04-15');
+  });
+
+  it('fills the suggested cutoff once a valid start follows repeat being switched on', async () => {
+    const resource = await addPerson();
+    const user = userEvent.setup();
+    renderAsOwner(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId: resource.id, startDate: '2027-12-03', endDate: '2027-12-05' }}
+        onClose={vi.fn()}
+      />,
+    );
+    const start = screen.getByLabelText('Start Date');
+    await user.clear(start);
+    await chooseOption(user, 'Repeat', 'Weekly');
+    const repeatUntil = screen.getByLabelText('Repeat until');
+    expect(repeatUntil).toHaveValue('');
+
+    await user.type(start, '2028-01-10');
+    expect(repeatUntil).toHaveValue('2028-03-31');
   });
 
   it('clamps the suggested cutoff at the supported date boundary', async () => {
@@ -391,7 +412,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     await user.click(save);
     expect(screen.getByRole('alert')).toHaveTextContent('Choose when the repeat should end.');
 
-    await user.type(repeatUntil, addDaysISO(todayISO('UTC'), -1));
+    await user.type(repeatUntil, addDaysISO(readCalendarToday('UTC'), -1));
     await user.click(save);
     expect(screen.getByRole('alert')).toHaveTextContent('Repeat until cannot be before today.');
 

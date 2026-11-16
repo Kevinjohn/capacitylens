@@ -6,31 +6,30 @@ import {
 import { addDaysISO, eachDayISO, rangesOverlap } from '@capacitylens/shared/lib/dateMath';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
-import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from '@/lib/metadata';
 import {
   buildExternalBand,
   buildDisciplineGroups,
   hasSupplementaryResources,
 } from '@/store/selectors';
 import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities';
-import type { AppData, ISODate, Resource, Weekday } from '@capacitylens/shared/types/entities';
+import type { AppData, ISODate, Weekday } from '@capacitylens/shared/types/entities';
 import { NEUTRAL_COLOR } from '@/lib/palette';
 import { packLanes, resolveLaneTop, resolveRowHeightForLanes } from '@/lib/lanePacking';
 import type { LaneLayout } from '@/lib/lanePacking';
 import { laneLayout as compactLaneLayout } from './layout';
 import {
-  createDisplayNameComparator,
-  createEngagementFavouriteDisplayNameComparator,
-  createFavouriteDisplayNameComparator,
-} from '@/lib/displayOrder';
+  buildEngagementGroups,
+  buildResourceBand,
+  createResourceComparator,
+} from '@/lib/resourceGrouping';
 import {
   bucketByCoveredDate,
   groupByResourceId,
-  includeRenderableDateRange,
   NO_ALLOCATIONS,
   NO_TIME_OFF,
   NO_CLOSURES,
 } from './schedulerModelIndexing';
+import { includeRenderableDateRange } from '@/lib/renderableDateRanges';
 import { createAllocationFilters } from './schedulerModelFilters';
 import { createRowBuilder } from './schedulerRowModel';
 import { createCapacitySource } from './schedulerRowCapacity';
@@ -55,22 +54,6 @@ interface BuildResourceGroupsInput {
   data: AppData;
   disciplinesEnabled: boolean;
   groupByEngagement: boolean;
-}
-
-interface BuildFallbackGroupsInput {
-  resources: Resource[];
-  groupByEngagement: boolean;
-  /** The single band used when engagement grouping is off. */
-  ungrouped: { key: string; title: string; color?: string };
-}
-
-interface CreateResourceComparatorInput {
-  groupByEngagement: boolean;
-  comparators: {
-    byDisplayName: (a: Resource, b: Resource) => number;
-    byFavouriteDisplayName: (a: Resource, b: Resource) => number;
-    byEngagementFavouriteDisplayName: (a: Resource, b: Resource) => number;
-  };
 }
 
 interface CreateSchedulerRowBuilderInput {
@@ -197,35 +180,6 @@ export function applyVisibleUtilization({
   });
 }
 
-const UNASSIGNED_BAND = { key: 'unassigned', title: 'Unassigned', color: NEUTRAL_COLOR };
-const ALL_RESOURCES_BAND = { key: 'resources', title: 'Resources' };
-
-function buildFallbackGroups({
-  resources,
-  groupByEngagement,
-  ungrouped,
-}: BuildFallbackGroupsInput): SchedulerResourceGroup[] {
-  if (!groupByEngagement) {
-    return resources.length ? [{ ...ungrouped, discipline: null, resources }] : [];
-  }
-  return [
-    {
-      ...ungrouped,
-      key: 'engagement-studio',
-      title: 'Studio',
-      discipline: null,
-      resources: resources.filter((resource) => resource.engagement === 'studio'),
-    },
-    {
-      ...ungrouped,
-      key: 'engagement-supplementary',
-      title: 'Supplementary',
-      discipline: null,
-      resources: resources.filter((resource) => resource.engagement === 'supplementary'),
-    },
-  ].filter((group) => group.resources.length > 0);
-}
-
 function buildResourceGroups({
   data,
   disciplinesEnabled,
@@ -246,46 +200,25 @@ function buildResourceGroups({
     }
     const unassigned =
       disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
-    groups.push(
-      ...buildFallbackGroups({
-        resources: unassigned,
-        groupByEngagement,
-        ungrouped: UNASSIGNED_BAND,
-      }),
-    );
+    const fallbackGroups = buildEngagementGroups({
+      resources: unassigned,
+      groupByEngagement,
+      ungrouped: { ...buildResourceBand('unassigned'), color: NEUTRAL_COLOR },
+    });
+    groups.push(...fallbackGroups.map((group) => ({ ...group, discipline: null })));
   } else {
-    groups.push(
-      ...buildFallbackGroups({
-        resources: data.resources.filter(isCapacityTracked),
-        groupByEngagement,
-        ungrouped: ALL_RESOURCES_BAND,
-      }),
-    );
+    const fallbackGroups = buildEngagementGroups({
+      resources: data.resources.filter(isCapacityTracked),
+      groupByEngagement,
+      ungrouped: buildResourceBand('resources'),
+    });
+    groups.push(...fallbackGroups.map((group) => ({ ...group, discipline: null })));
   }
   const external = buildExternalBand(data.resources);
   if (external) {
-    groups.push({
-      ...external,
-      key: 'external',
-      title: 'External / 3rd party',
-      color: NEUTRAL_COLOR,
-    });
+    groups.push({ ...external, ...buildResourceBand('external'), color: NEUTRAL_COLOR });
   }
   return groups;
-}
-
-function createResourceComparator({
-  groupByEngagement,
-  comparators,
-}: CreateResourceComparatorInput): (a: Resource, b: Resource) => number {
-  const comparePeople = groupByEngagement
-    ? comparators.byEngagementFavouriteDisplayName
-    : comparators.byFavouriteDisplayName;
-  return (a, b) => {
-    const placeholderOrder = Number(a.kind === 'placeholder') - Number(b.kind === 'placeholder');
-    if (placeholderOrder !== 0) return placeholderOrder;
-    return a.kind === 'placeholder' ? comparators.byDisplayName(a, b) : comparePeople(a, b);
-  };
 }
 
 function createSchedulerRowBuilder({
@@ -340,23 +273,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   } = preferences;
 
   const groupByEngagement = hasSupplementaryResources(data.resources);
-  // Resolve the shared placeholder label once per model build so sorting reuses it while still following the active locale.
-  const placeholderLabel = resolvePlaceholderDisplayName();
-  const resolveDisplayName = (resource: Resource): string =>
-    resource.kind === 'placeholder' ? placeholderLabel : resolveResourceDisplayName(resource);
-  const byFavouriteResourceDisplayName =
-    createFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
-  const byEngagementFavouriteResourceDisplayName =
-    createEngagementFavouriteDisplayNameComparator<Resource>(resolveDisplayName);
-  const byResourceDisplayName = createDisplayNameComparator<Resource>(resolveDisplayName);
-  const byResourceOrder = createResourceComparator({
-    groupByEngagement,
-    comparators: {
-      byDisplayName: byResourceDisplayName,
-      byFavouriteDisplayName: byFavouriteResourceDisplayName,
-      byEngagementFavouriteDisplayName: byEngagementFavouriteResourceDisplayName,
-    },
-  });
+  const byResourceOrder = createResourceComparator(groupByEngagement);
   const { buildRow, resourceVisible } = createSchedulerRowBuilder({
     options,
     accountWorkingDays,

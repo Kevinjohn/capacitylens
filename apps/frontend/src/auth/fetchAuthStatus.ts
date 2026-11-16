@@ -1,4 +1,4 @@
-import { accountClient } from '@/account/accountClient';
+import { sessionRequests } from '@/account/sessionRequests';
 import { isTransportFailure } from '@/data/requestTimeout';
 import { m } from '@/i18n';
 import type { AuthStatusResult } from './authStatus';
@@ -13,7 +13,7 @@ async function resolveIdentityWhileMasqueradeStatusIsUnknown(
 ): Promise<AuthStatusResult> {
   if (!isTransportFailure(statusError)) return authServiceError(statusError);
   try {
-    const response = await accountClient.me();
+    const response = await sessionRequests.me();
     if (response.status === 401) return readAuthResponse(response);
     if (!response.ok) return readAuthResponse(response);
     // /me does not prove that masquerade is inactive. Keep the auth boundary closed even if
@@ -86,7 +86,7 @@ export async function fetchAuthStatus(
   if (!(await adoptMasqueradeStatus(masquerade, acceptStatus))) return null;
   if (!acceptEffects()) return null;
   try {
-    return await readAuthResponse(await accountClient.me());
+    return await readAuthResponse(await sessionRequests.me());
   } catch (error) {
     console.warn('AuthProvider: /api/auth/me check failed', error);
     return authServiceError(error);

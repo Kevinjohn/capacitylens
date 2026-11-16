@@ -39,4 +39,4 @@ flowchart TD
   E --> F["Accepted result updates planning history and Schedule"]
 ```
 
-**Code references:** [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
+**Code references:** [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts), [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)

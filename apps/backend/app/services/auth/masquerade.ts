@@ -2,10 +2,12 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { MasqueradeError as PackageMasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import type { MasqueradeService, ModeView } from '@kevinjohn/adonisjs-masquerade';
 import app from '@adonisjs/core/services/app';
-import db from '@adonisjs/lucid/services/db';
 import { nativeAdapter } from '#config/masquerade';
 import { actorIn } from '#services/auth/current_actor';
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import type {
+  QueryClientContract,
+  TransactionClientContract,
+} from '@adonisjs/lucid/types/database';
 import {
   listActiveCompanyIds,
   activeCompanyRole,
@@ -22,8 +24,15 @@ export async function masqueradeService(): Promise<MasqueradeService<HttpContext
   return runtime.service;
 }
 
-/** Current package mode with product display details, read outside any product transaction. */
-export async function currentMasquerade(ctx: HttpContext) {
+/**
+ * Current package mode with product display details, read outside any product transaction. The
+ * package reads its own state from the request; the caller supplies the company it asked about.
+ */
+export async function currentMasquerade(
+  ctx: HttpContext,
+  client: QueryClientContract,
+  requestedAccountId: string | undefined
+) {
   const service = await masqueradeService();
   try {
     await service.resolve(ctx);
@@ -38,15 +47,12 @@ export async function currentMasquerade(ctx: HttpContext) {
   const view = await service.status(ctx);
   if (!view.isMasquerading) return { active: false as const, contextToken: view.contextToken };
   const actor = await nativeAdapter.authenticateActor(ctx);
-  const target = await db
+  const target = await client
     .from('users')
     .where('id', view.targetId)
     .select('display_name', 'email')
     .first();
   if (!target) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
-  const requestedAccountId =
-    (typeof ctx.params.accountId === 'string' && ctx.params.accountId) ||
-    (typeof ctx.request.input('accountId') === 'string' && ctx.request.input('accountId'));
   let accountId: string | null = null;
   let effectiveRole: Role | null = null;
   if (requestedAccountId) {
@@ -92,36 +98,32 @@ export async function currentMasquerade(ctx: HttpContext) {
   };
 }
 
-export async function startMasquerade(ctx: HttpContext, targetUserId: string) {
+/** Starts a read-only view as the target; `expectedContext` is the caller's current context token. */
+export async function startMasquerade(
+  ctx: HttpContext,
+  targetUserId: string,
+  expectedContext: string
+) {
   const service = await masqueradeService();
-  return service.start(ctx, {
-    targetId: targetUserId,
-    access: 'view',
-    expectedContext: ctx.request.header('X-Masquerade-Context') ?? '',
-  });
+  return service.start(ctx, { targetId: targetUserId, access: 'view', expectedContext });
 }
 
-export async function endMasquerade(ctx: HttpContext) {
+/** Ends the view; `expectedContext` is the caller's current context token. */
+export async function endMasquerade(ctx: HttpContext, expectedContext: string) {
   const service = await masqueradeService();
-  return service.stop(ctx, {
-    expectedContext: ctx.request.header('X-Masquerade-Context') ?? '',
-  });
+  return service.stop(ctx, { expectedContext });
 }
 
 /** Resolves only the identity admitted before the product transaction; never substitutes on error. */
 export async function effectiveReadPrincipal(
-  ctx: HttpContext,
   trx: TransactionClientContract,
-  requestedAccountId?: string
+  accountId: string | undefined
 ) {
   const actor = actorIn(trx);
   const context = actor.masqueradeContext;
   if (!context || context.actorId !== actor.userId) {
     throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
   }
-  const accountId =
-    requestedAccountId ??
-    (typeof ctx.params.accountId === 'string' ? ctx.params.accountId : undefined);
   if (context.isMasquerading && accountId) {
     const actorRole = await activeCompanyRole(actor.userId, accountId, trx);
     const targetRole = await activeCompanyRole(context.effectiveId, accountId, trx);

@@ -1,6 +1,5 @@
 import { RefusalError } from '#exceptions/refusal_error';
 import { randomUUID } from 'node:crypto';
-import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import {
   E_DUPLICATE_REQUEST_CONFLICT,
@@ -21,10 +20,14 @@ export interface AccountCommandIdentity {
 
 export class AccountCommandError extends RefusalError {}
 
-/** Parses the existing paired account-command headers, minting both for older callers. */
-export function readAccountCommand(ctx: HttpContext): AccountCommandIdentity {
-  const commandId = ctx.request.header('x-account-command-id');
-  const requestKey = ctx.request.header('idempotency-key');
+/**
+ * Parses the paired account-command headers (`X-Account-Command-Id`, `Idempotency-Key`), minting
+ * both for older callers that send neither.
+ */
+export function parseAccountCommand(
+  commandId: string | undefined,
+  requestKey: string | undefined
+): AccountCommandIdentity {
   if (commandId === undefined && requestKey === undefined) {
     return { commandId: randomUUID(), requestKey: randomUUID() };
   }

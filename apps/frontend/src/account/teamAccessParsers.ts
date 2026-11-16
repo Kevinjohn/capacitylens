@@ -1,6 +1,6 @@
 // Decodes untrusted team and access responses into the typed shapes the client returns.
 import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/types';
-import type { AdmissionStatus } from './accountClient';
+import type { AdmissionStatus } from './admissionRequests';
 import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
 import { isNullableString, isTimestamp } from './accessResult';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
