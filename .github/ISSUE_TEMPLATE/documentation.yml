@@ -1,0 +1,25 @@
+name: Documentation feedback
+description: A guide page is incomplete, wrong or confusing
+labels: [documentation]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: Filled in when you use the link at the foot of a guide page.
+      placeholder: https://kevinjohn.github.io/capacitylens/…
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: What were you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What was missing, incorrect or confusing?
+      description: Name the step or heading where you got stuck.
+    validations:
+      required: true
