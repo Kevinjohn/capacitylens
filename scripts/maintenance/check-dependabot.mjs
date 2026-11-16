@@ -107,8 +107,10 @@ export function verifyDependencyUpdatePolicy(source) {
 
 function main() {
   try {
-    const [path = fileURLToPath(new URL('../.github/dependabot.yml', import.meta.url)), ...extra] =
-      process.argv.slice(2);
+    const [
+      path = fileURLToPath(new URL('../../.github/dependabot.yml', import.meta.url)),
+      ...extra
+    ] = process.argv.slice(2);
     if (extra.length) throw new Error('Expected one optional configuration path.');
     const source = readFileSync(path, 'utf8');
     const count = verifyDependabotConfiguration(source);

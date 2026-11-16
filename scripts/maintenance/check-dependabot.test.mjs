@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { parseDocument } from 'yaml';
-import { gateCommands } from './ci/gateCommands.mjs';
+import { gateCommands } from '../ci/gateCommands.mjs';
 import {
   verifyDependabotConfiguration,
   verifyDependencyUpdatePolicy,
@@ -23,7 +23,7 @@ const config = (updates = [entry()]) => ({ version: 2, updates });
 test('accepts the checked-in YAML and the existing three schedule choices', () => {
   assert.equal(
     verifyDependabotConfiguration(
-      readFileSync(new URL('../.github/dependabot.yml', import.meta.url), 'utf8'),
+      readFileSync(new URL('../../.github/dependabot.yml', import.meta.url), 'utf8'),
     ),
     3,
   );
@@ -48,7 +48,7 @@ test('accepts the checked-in YAML and the existing three schedule choices', () =
 });
 
 test('checks the weekly grouped npm policy and preserves monthly patch-only infrastructure updates', () => {
-  const source = readFileSync(new URL('../.github/dependabot.yml', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../../.github/dependabot.yml', import.meta.url), 'utf8');
   assert.equal(verifyDependencyUpdatePolicy(source), true);
 
   const document = parseDocument(source);
@@ -176,7 +176,10 @@ test('CLI reports success and fails on invalid content, missing files and extra 
   const current = run();
   assert.equal(current.status, 0, current.stderr);
   assert.match(current.stdout, /3 update entries and repository policy verified/);
-  writeFileSync(path, readFileSync(new URL('../.github/dependabot.yml', import.meta.url), 'utf8'));
+  writeFileSync(
+    path,
+    readFileSync(new URL('../../.github/dependabot.yml', import.meta.url), 'utf8'),
+  );
   assert.equal(run(path).status, 0);
   writeFileSync(path, 'version: 1');
   const invalid = run(path);
@@ -203,7 +206,7 @@ test('the tooling gate owns configuration validation and its regressions in CI',
     }
   }
   const workflow = parseDocument(
-    readFileSync(new URL('../.github/workflows/gate.yml', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../.github/workflows/gate.yml', import.meta.url), 'utf8'),
   ).toJS();
   assert.ok(workflow.jobs.tooling.steps.some(({ run }) => run === 'pnpm run gate:tooling'));
   assert.ok(!workflow.jobs['workflow-lint'].steps.some(({ run }) => run?.includes('ruby -e')));
@@ -216,7 +219,10 @@ const hasJq = spawnSync('jq', ['--version'], { stdio: 'ignore' }).status === 0;
 
 function loadDependabotSummaryRun() {
   const run = parseDocument(
-    readFileSync(new URL('../.github/workflows/dependabot-summary.yml', import.meta.url), 'utf8'),
+    readFileSync(
+      new URL('../../.github/workflows/dependabot-summary.yml', import.meta.url),
+      'utf8',
+    ),
   )
     .toJS()
     .jobs.summary.steps.find(

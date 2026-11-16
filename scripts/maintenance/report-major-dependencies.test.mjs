@@ -129,7 +129,7 @@ test('rejects missing or malformed registry versions', () => {
 test('workflow invokes the report script without forwarding extra arguments', () => {
   const workflow = parseDocument(
     readFileSync(
-      new URL('../.github/workflows/major-dependency-report.yml', import.meta.url),
+      new URL('../../.github/workflows/major-dependency-report.yml', import.meta.url),
       'utf8',
     ),
   ).toJS();
@@ -151,7 +151,7 @@ test('workflow invokes the report script without forwarding extra arguments', ()
   try {
     const shimDirectory = path.join(temporaryDirectory, 'bin');
     const outputPath = path.join(temporaryDirectory, 'major-dependency-report.md');
-    const workspacePath = fileURLToPath(new URL('..', import.meta.url));
+    const workspacePath = fileURLToPath(new URL('../..', import.meta.url));
     const workspaceJsonPath = path.join(temporaryDirectory, 'workspace.json');
     const pnpmShimPath = path.join(shimDirectory, 'pnpm');
     const reportScriptPath = fileURLToPath(

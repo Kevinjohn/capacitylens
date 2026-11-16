@@ -171,14 +171,14 @@ test('a changed script runs its own test file when one exists', () => {
 test('a changed script also runs the differently named test files that import it', () => {
   const steps = planChecks(['scripts/ci/gateCommands.mjs'], everything, (path) =>
     path === 'scripts/ci/gateCommands.mjs'
-      ? ['scripts/ci/run-gate.test.mjs', 'scripts/check-dependabot.test.mjs']
+      ? ['scripts/ci/run-gate.test.mjs', 'scripts/maintenance/check-dependabot.test.mjs']
       : [],
   );
   assert.deepEqual(step(steps, 'test: 3 script test').args, [
     '--test',
     'scripts/ci/gateCommands.test.mjs',
     'scripts/ci/run-gate.test.mjs',
-    'scripts/check-dependabot.test.mjs',
+    'scripts/maintenance/check-dependabot.test.mjs',
   ]);
   assert.deepEqual(
     step(
@@ -188,7 +188,7 @@ test('a changed script also runs the differently named test files that import it
       ),
       'test:',
     ).args,
-    ['--test', 'scripts/check-dependabot.test.mjs', 'scripts/ci/run-gate.test.mjs'],
+    ['--test', 'scripts/ci/run-gate.test.mjs', 'scripts/maintenance/check-dependabot.test.mjs'],
   );
 });
 

@@ -113,7 +113,7 @@ function main() {
   if (process.argv.length !== 2) throw new Error('Usage: report-major-dependencies.mjs');
   const outputPath = process.env.MAJOR_DEPENDENCY_REPORT_FILE;
 
-  const repositoryRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+  const repositoryRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
   const listing = execFileSync('pnpm', ['list', '--recursive', '--depth', '0', '--json'], {
     cwd: repositoryRoot,
     encoding: 'utf8',

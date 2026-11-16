@@ -127,7 +127,7 @@ function isDcoRatifiedCommit(target, ratifications, head) {
     '--patch',
     ratification.attestationCommit,
     '--',
-    'scripts/dco-ratifications.json',
+    'scripts/maintenance/dco-ratifications.json',
   ]).split('\0');
 
   return evaluateDcoRatification(target, ratification, {
@@ -192,7 +192,7 @@ export function verifyDcoRange(base, head) {
 function main() {
   const [base, head] = process.argv.slice(2);
   if (!base || !head) {
-    console.error('Usage: node scripts/check-dco.mjs <base-sha> <head-sha>');
+    console.error('Usage: node scripts/maintenance/check-dco.mjs <base-sha> <head-sha>');
     process.exitCode = 2;
     return;
   }

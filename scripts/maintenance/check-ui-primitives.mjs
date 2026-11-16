@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
-const mcpManifest = JSON.parse(await readFile(new URL('../.mcp.json', import.meta.url), 'utf8'));
+const mcpManifest = JSON.parse(await readFile(new URL('../../.mcp.json', import.meta.url), 'utf8'));
 const registryCommand = await readFile(new URL('./ui-registry.mjs', import.meta.url), 'utf8');
 const registryPin = registryCommand.match(/shadcn@([^\s"']+)/)?.[1];
 const mcpPin = mcpManifest.mcpServers.shadcn.args
@@ -14,7 +14,9 @@ if (!registryPin || registryPin !== mcpPin) {
   process.exit(1);
 }
 // shadcn reads components.json from its working directory, so both entry points must start beside it.
-const registryDir = registryCommand.match(/cwd: fileURLToPath\(new URL\('\.\.\/([^']+?)\/?'/)?.[1];
+const registryDir = registryCommand.match(
+  /cwd: fileURLToPath\(new URL\('\.\.\/\.\.\/([^']+?)\/?'/,
+)?.[1];
 const mcpArgs = mcpManifest.mcpServers.shadcn.args;
 const mcpDir = mcpArgs[mcpArgs.indexOf('--cwd') + 1];
 if (!registryDir || !mcpArgs.includes('--cwd') || registryDir !== mcpDir) {
@@ -59,7 +61,7 @@ const sourceOwnedPrimitives = {
 
 const changed = [];
 for (const [path, expected] of Object.entries(sourceOwnedPrimitives)) {
-  const source = await readFile(new URL(`../${path}`, import.meta.url));
+  const source = await readFile(new URL(`../../${path}`, import.meta.url));
   const actual = createHash('sha256').update(source).digest('hex');
   if (actual !== expected) changed.push(path);
 }
