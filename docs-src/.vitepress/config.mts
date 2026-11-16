@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { defineConfig } from "vitepress";
 import { imageLightbox } from "./lightbox.mts";
-import { BASE } from "./base.mjs";
+import { BASE, SITE_URL } from "./base.mjs";
 import { generateDocumentationComponentId } from "./generateDocumentationComponentId.mts";
 import { ports } from "../../scripts/ports.mjs";
 
@@ -154,6 +154,8 @@ export default defineConfig({
     "Documentation for CapacityLens — a self-hosted helicopter view of who is busy, free, or overworked, week by week.",
   lang: "en-GB",
   base: BASE,
+  // sitemap.xml lists every page at its public address; robots.txt and llms.txt in public/ point at it.
+  sitemap: { hostname: SITE_URL },
   // Keep real .html extensions in links: the postbuild step (scripts/docs-standalone.mjs)
   // turns the build into standalone pages that open straight from disk, where
   // extensionless URLs would need a server to rewrite them.
