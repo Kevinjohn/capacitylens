@@ -151,7 +151,7 @@ test.group('product error adapters', () => {
     for (const error of [
       new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED'),
       new MasqueradeError('E_MASQUERADE_NOT_ALLOWED'),
-      new AdmissionRequiredError({ admitted: false }),
+      new AdmissionRequiredError({ admitted: false, requirements: { invitation: { met: false } } }),
       new IdentityAuthorityError('Invalid membership role.'),
       Object.assign(new Error('Route not found'), { code: 'E_ROUTE_NOT_FOUND' }),
     ]) {
