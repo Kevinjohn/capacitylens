@@ -14,10 +14,10 @@ import {
   createResetControlServer,
   createResetControlToken,
   cleanupResetControlEndpoints,
-  createRetirableListener,
   requestResetControl,
   resetControlEndpoint,
 } from '../apps/backend/start/e2e_reset_control.ts';
+import { createRetirableListener } from '../apps/backend/start/e2e_retirable_listener.ts';
 import {
   configureServerTarget,
   prepareServerTemplate,

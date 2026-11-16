@@ -8,7 +8,7 @@ import type {
 import { isAccountRole } from '@capacitylens/shared/account/types';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { isTimestamp } from '@/account/accessResult';
-import { accountClient } from '@/account/accountClient';
+import { masqueradeRequests } from './masqueradeRequests';
 import { extractApiErrorMessage } from '@/lib/readApiError';
 
 function parseMasqueradeState(value: unknown, accountIdFallback?: string): MasqueradeState | null {
@@ -83,7 +83,7 @@ async function assertMasqueradeState(response: Response): Promise<MasqueradeStat
 /** Reads and changes the current user’s temporary account masquerade. */
 export const masqueradeApi = {
   async status(accountId?: string): Promise<MasqueradeBootstrapStatus> {
-    const response = await accountClient.masqueradeStatus(accountId);
+    const response = await masqueradeRequests.masqueradeStatus(accountId);
     const body = await readMasqueradeBody(
       response,
       `Masquerade status could not be read (${response.status}).`,
@@ -125,12 +125,12 @@ export const masqueradeApi = {
 
   async start(accountId: string, targetUserId: string): Promise<MasqueradeState> {
     const body: StartMasqueradePayload = { targetUserId };
-    return assertMasqueradeState(await accountClient.startMasquerade(accountId, body));
+    return assertMasqueradeState(await masqueradeRequests.startMasquerade(accountId, body));
   },
 
   async end(token: string, reason: ClientMasqueradeEndReason): Promise<void> {
     const body: EndMasqueradePayload = { token, reason };
-    const response = await accountClient.endMasquerade(body);
+    const response = await masqueradeRequests.endMasquerade(body);
     await readMasqueradeBody(response, `Masquerade could not be ended (${response.status}).`);
   },
 };

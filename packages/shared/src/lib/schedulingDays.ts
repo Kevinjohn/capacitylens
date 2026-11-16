@@ -1,12 +1,5 @@
-import {
-  addDaysISO,
-  countWorkingDays,
-  daysInclusive,
-  endDateForWorkingDays,
-  isWeekendAware,
-  MAX_ISO_DATE,
-  MAX_MATERIALISED_DAYS,
-} from './dateMath.js';
+import { addDaysISO, daysInclusive, MAX_ISO_DATE, MAX_MATERIALISED_DAYS } from './dateMath.js';
+import { countWorkingDays, endDateForWorkingDays, isWeekendAware } from './workingWeek.js';
 import type { ISODate, Weekday } from '../types/entities.js';
 
 // Conversions for the "days" scheduling input mode. An allocation always stores

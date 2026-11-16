@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
-import { accountClient } from './accountClient';
+import { memberRequests } from './memberRequests';
 import { useStore } from '@/store/useStore';
 import { useAuth } from '@/auth/authContext';
 
@@ -58,7 +58,7 @@ export function useResourceAvatars(accountId: string | null): ReadonlyMap<string
     const epoch = ++requestEpoch.current;
     setProjection(null);
     if (!accountId || !navigator.onLine) return;
-    void accountClient
+    void memberRequests
       .listResourceAvatars(accountId)
       .then(async (response) => {
         if (!response.ok) throw new Error(`Resource avatars returned ${response.status}.`);

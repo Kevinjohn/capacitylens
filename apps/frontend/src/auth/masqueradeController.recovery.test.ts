@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { makeAccount, makeAppData } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import type { PlanningPendingMutation } from '@/data/planning/planningCacheController';
+import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes';
 import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { reprojectAccess } from './reprojectAccess';

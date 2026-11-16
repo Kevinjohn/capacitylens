@@ -1,12 +1,23 @@
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type {
-  PlanningExecution,
   PlanningHistoryEntry,
   PlanningIntent,
-  PlanningMutationLookup,
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
+import type {
+  PlanningCacheState,
+  PlanningCacheStore,
+  PlanningClientContext,
+  PlanningControllerMetadata,
+  PlanningControllerOptions,
+  PlanningDraft,
+  PlanningHistory,
+  PlanningPendingMutation,
+  PlanningSnapshot,
+} from './planningCacheTypes';
+import { errorDetails, PlanningControllerError } from './planningErrors';
+import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
 import {
   cloneImmutable,
   emptyHistory,
@@ -21,138 +32,6 @@ import {
   isValidReceipt,
   isValidSnapshot,
 } from './planningReceipts';
-
-/** A canonical read normalized by the typed transport; its wire shape remains transport-owned. */
-export interface PlanningSnapshot {
-  revision: number;
-  canWrite: boolean;
-  data: AppData;
-  /** Stable key produced by the typed transport from its verified authority projection. */
-  accessKey?: string;
-}
-
-/** Client identity is deliberately opaque; company id distinguishes its planning projection. */
-export interface PlanningClientContext {
-  readonly identity: string | symbol;
-  readonly companyId: string;
-  /** Mode boundary captured when this planning context is installed. */
-  readonly masqueradeContextToken?: string | null | undefined;
-}
-
-export interface PlanningTransport {
-  execute(
-    context: PlanningClientContext,
-    execution: PlanningExecution,
-    signal: AbortSignal,
-  ): Promise<PlanningMutationSuccess>;
-  read(context: PlanningClientContext, signal: AbortSignal): Promise<PlanningSnapshot>;
-  lookup(
-    context: PlanningClientContext,
-    mutationId: string,
-    signal: AbortSignal,
-  ): Promise<PlanningMutationLookup>;
-}
-
-export interface PlanningHistory {
-  past: PlanningHistoryEntry[];
-  future: PlanningHistoryEntry[];
-  /** Revision at the acknowledged history tip; metadata only, never a data snapshot. */
-  tipRevision: number | null;
-}
-
-export type PlanningStatus =
-  'idle' | 'loading' | 'ready' | 'pending' | 'refused' | 'uncertain' | 'error';
-
-export type PlanningMutationOutcome =
-  | { kind: 'pending'; execution: PlanningExecution }
-  | { kind: 'acknowledged'; mutationId: string; revision: number }
-  | { kind: 'refused'; mutationId: string; code?: string }
-  | { kind: 'uncertain'; execution: PlanningExecution };
-
-export interface PlanningPendingMutation {
-  execution: PlanningExecution;
-  inverse: PlanningIntent | null;
-  historyEntry: PlanningHistoryEntry | null;
-  kind: 'new' | 'undo' | 'redo';
-  /** Commitment is durable while the mandatory canonical read is pending or fails. */
-  commitment?: { revision: number; historyEligible: boolean; replacementHandle?: string };
-}
-
-export interface PlanningControllerMetadata {
-  context: PlanningClientContext | null;
-  accessKey: string | null;
-  canWrite: boolean;
-  revision: number | null;
-  status: PlanningStatus;
-  history: PlanningHistory;
-  pending: PlanningPendingMutation | null;
-  outcome: PlanningMutationOutcome | null;
-  error: unknown | null;
-}
-
-/** History controls use only the current acknowledged revision, with no unresolved write. */
-export function isPlanningHistoryReady(planning: PlanningControllerMetadata): boolean {
-  return (
-    planning.context !== null &&
-    planning.canWrite &&
-    planning.revision !== null &&
-    planning.history.tipRevision === planning.revision &&
-    planning.pending === null &&
-    (planning.status === 'ready' || planning.status === 'refused')
-  );
-}
-
-/** The controller owns metadata; planning rows remain in the one Zustand `data` value. */
-export interface PlanningCacheState {
-  data: AppData;
-  planning: PlanningControllerMetadata;
-}
-
-export interface PlanningCacheStore {
-  getState(): PlanningCacheState;
-  setState(update: (state: PlanningCacheState) => Partial<PlanningCacheState>): void;
-}
-
-export interface PlanningDraft {
-  readonly baseRevision: number;
-  readonly context: PlanningClientContext;
-  /** Request proof frozen with the action; context changes never replace an admitted write's proof. */
-  readonly requestContext: PlanningClientContext;
-  readonly generation: number;
-}
-
-export interface PlanningControllerOptions {
-  getState: PlanningCacheStore['getState'];
-  setState: PlanningCacheStore['setState'];
-  transport: PlanningTransport;
-  /** The current masquerade context proof, captured into each request when it is dispatched. */
-  readMasqueradeContextToken: () => string | null;
-  createMutationId?: () => string;
-  onAuthLoss?: () => void;
-  confirmRestorationCleanup?: (count: number, signal: AbortSignal) => Promise<boolean>;
-}
-
-export class PlanningControllerError extends Error {
-  readonly code: string | undefined;
-  readonly status: number | undefined;
-  readonly uncertain: boolean;
-  readonly restorableItemCount: number | undefined;
-
-  constructor(
-    message: string,
-    code?: string,
-    status?: number,
-    uncertain = false,
-    restorableItemCount?: number,
-  ) {
-    super(message);
-    this.name = 'PlanningControllerError';
-    this.code = code;
-    this.status = status;
-    this.uncertain = uncertain;
-    this.restorableItemCount = restorableItemCount;
-  }
-}
 
 // A declined restoration confirmation; distinct from any reply the transport can return.
 const DECLINED = Symbol('declined');
@@ -188,44 +67,6 @@ function sameContext(
       Object.is(left.identity, right.identity) &&
       left.masqueradeContextToken === right.masqueradeContextToken)
   );
-}
-
-function errorDetails(error: unknown): { code?: string; status?: number; message: string } {
-  if (error !== null && typeof error === 'object') {
-    const candidate = error as {
-      code?: unknown;
-      status?: unknown;
-      statusCode?: unknown;
-      message?: unknown;
-    };
-    return {
-      ...(typeof candidate.code === 'string' ? { code: candidate.code } : {}),
-      ...(typeof candidate.status === 'number'
-        ? { status: candidate.status }
-        : typeof candidate.statusCode === 'number'
-          ? { status: candidate.statusCode }
-          : {}),
-      message:
-        typeof candidate.message === 'string' ? candidate.message : 'Planning request failed.',
-    };
-  }
-  return { message: error instanceof Error ? error.message : 'Planning request failed.' };
-}
-
-/** True when the planning state already shows the outcome: the follow-up canonical read resolves a
- * stale revision, and a 403 refusal stays visible as refused. Callers add no notice for either. */
-export function isShownByPlanningState(error: unknown): boolean {
-  const { code, status } = errorDetails(error);
-  return code === 'STALE_REVISION' || status === 409 || status === 403;
-}
-
-/** The planning notice to show: a 403 refusal keeps the rows (K2), and a failed read leaves them stale. */
-export function readPlanningProblem(
-  planning: PlanningControllerMetadata,
-): 'refused' | 'unavailable' | null {
-  if (planning.error === null) return null;
-  if (errorDetails(planning.error).status === 403) return 'refused';
-  return planning.status === 'error' ? 'unavailable' : null;
 }
 
 // K2: only an ended session loses scope. Every 403, membership loss included, is a refusal that
@@ -441,12 +282,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         403,
       );
     }
-    if (
-      !context ||
-      baseRevision === null ||
-      state.planning.pending ||
-      !['ready', 'refused'].includes(state.planning.status)
-    ) {
+    if (!context || baseRevision === null || !isPlanningReadyForChange(state.planning)) {
       throw new PlanningControllerError('Planning is not ready for a new change.');
     }
     const immutableContext = context;
@@ -573,7 +409,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (state.planning.pending) {
       throw new PlanningControllerError('A planning change is already pending or uncertain.');
     }
-    if (state.planning.status !== 'ready' && state.planning.status !== 'refused') {
+    if (!isPlanningReadyForChange(state.planning)) {
       throw new PlanningControllerError('Planning is not ready for a new change.');
     }
   }
@@ -839,11 +675,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       !entry ||
       !targetIntent ||
       !state.planning.context ||
-      !state.planning.canWrite ||
       state.planning.revision === null ||
-      history.tipRevision !== state.planning.revision ||
-      state.planning.pending ||
-      !['ready', 'refused'].includes(state.planning.status)
+      !isPlanningHistoryReady(state.planning)
     ) {
       return null;
     }
