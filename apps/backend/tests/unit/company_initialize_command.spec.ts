@@ -275,7 +275,10 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
       assert.equal(data.accounts[0]!.weekStartsOn, 1);
       assert.lengthOf(data.clients, 1);
       assert.equal(data.clients[0]!.builtin, true);
-      const smokeUrl = new URL('../../../../scripts/smoke-packaged-server.mjs', import.meta.url);
+      const smokeUrl = new URL(
+        '../../../../scripts/release/smoke-packaged-server.mjs',
+        import.meta.url
+      );
       const { writeSmokeSchedule } = (await import(smokeUrl.href)) as {
         writeSmokeSchedule(
           origin: string,

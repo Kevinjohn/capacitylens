@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseReportPhaseName } from '../../../scripts/playwrightServerScope';
-import { E2E_RUN_PRESETS, resolvePlaywrightRunMode } from '../../../scripts/playwrightRunMode.mjs';
+import { parseReportPhaseName } from '../../../scripts/e2e/playwrightServerScope';
+import {
+  E2E_RUN_PRESETS,
+  resolvePlaywrightRunMode,
+} from '../../../scripts/e2e/playwrightRunMode.mjs';
 
 describe('Playwright server scope', () => {
   it.each(Object.entries(E2E_RUN_PRESETS))(
