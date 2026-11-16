@@ -11,6 +11,7 @@ As an Owner or Admin, I want to manage member access and invitations so that onl
 ## Acceptance criteria
 
 - Owner/Admin entry leads to member and invitation actions; see [US-TEAM-02](../team/US-TEAM-02-invite-member.md) through [US-TEAM-07](../team/US-TEAM-07-link-resource.md).
+- The **Members** heading has no intro line. The **Invite someone** section has no intro paragraph; its explanation is the invitation dialog description. **Waiting for approval** explains approval only while a request is listed; otherwise it shows "Nobody is waiting for approval."
 
 ## User flow
 
@@ -27,9 +28,10 @@ B -->|schedule link| E["Link, change or remove the person's schedule link"]
 ```mermaid
 flowchart TD
   team["TeamAccessView renders MembersSection for managers"] --> section["MembersSection delegates invite and member row controls"]
+  team --> approval["AdmissionRequestsPanel shows its explanation only when requests are listed"]
   section --> invite["InviteMemberPanel calls invitation controller actions"]
   section --> member["Member row actions call teamAccessClient membership methods"]
   member --> list["MembersSection refreshes directory projection"]
 ```
 
-**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx), [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx), [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts)
+**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx), [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx), [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts)

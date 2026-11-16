@@ -10,7 +10,7 @@ As a company member, I want to see my role and its capabilities so that I unders
 
 ## Acceptance criteria
 
-- **Your access** shows the member’s role and a summary of what it allows. **See full capabilities** expands a list marking each capability Allowed or Not allowed (view the schedule, edit scheduling data, manage members and invites, see time-off notes, see private real names, transfer ownership); **Hide full capabilities** collapses it.
+- **Your access** shows the member’s role and a summary of what it allows. It is the only place the app states the signed-in person’s role; the left menu does not show a company name or role label. **See full capabilities** expands a list marking each capability Allowed or Not allowed (view the schedule, edit scheduling data, manage members and invites, see time-off notes, see private real names, transfer ownership); **Hide full capabilities** collapses it.
 - Owners and Admins also see member management; other roles see that an Owner or Admin manages invitations and membership changes.
 - A signed-in person without company access sees the applicable limited-access screen instead of Team & access.
 
@@ -18,7 +18,7 @@ As a company member, I want to see my role and its capabilities so that I unders
 
 ```mermaid
 flowchart TD
-    Open["Open Team & access"] --> Role["See your role and access summary"]
+    Open["Open Team & access"] --> Role["See your role and access summary (the only place the role is stated)"]
     Role --> Expand["Select See full capabilities"]
     Expand --> Review["Review what the role can do"]
     Review --> Hide["Select Hide full capabilities"]
@@ -31,7 +31,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     Route["router.tsx /team route"] --> View["TeamAccessView resolves role and access experience"]
-    View --> Card["CurrentAccessCard renders role and summary"]
+    View --> Card["CurrentAccessCard renders resolveAccessLabel role and summary"]
     Card --> Toggle["Local capabilitiesOpen state toggles CapabilityList"]
     Toggle --> Capabilities["listCapabilities uses shared can and visibility rules"]
     Auth["AuthProvider routes limited access to AccessScreen"] --> Limited["AccessScreen shows applicable next step"]

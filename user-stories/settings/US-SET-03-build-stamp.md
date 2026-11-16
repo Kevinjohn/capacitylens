@@ -4,7 +4,7 @@ As an Owner or Admin, I want to read the build details so that I can identify wh
 
 **Status:** Current
 **Access:** Owner, Admin
-**Entry:** Diagnostics → Build details (when configured)
+**Entry:** Help → Diagnostics (Owner, Admin) or the command palette → Diagnostics, then Build details (when configured)
 **Documentation:** [Diagnostics](../../docs-src/admin/diagnostics.md)
 **Source:** [DiagnosticsBuildDetails.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx)
 
@@ -16,7 +16,7 @@ As an Owner or Admin, I want to read the build details so that I can identify wh
 
 ```mermaid
 flowchart TD
-A["Open Diagnostics"] --> B{"Build details available?"}
+A["Open Help and select Diagnostics, or choose Diagnostics in the command palette"] --> B{"Build details available?"}
 B -->|yes| C["Read the build identifier and mode"]
 B -->|no| D["Build details row is omitted"]
 ```
@@ -25,9 +25,9 @@ B -->|no| D["Build details row is omitted"]
 
 ```mermaid
 flowchart TD
-  view["DiagnosticsBuildDetails renders"] --> info["buildInfo.readBuildStamp reads configured build SHA"]
+  entry["HelpView Diagnostics link or palette Diagnostics item opens /diagnostics"] --> view["DiagnosticsBuildDetails renders"] --> info["buildInfo.readBuildStamp reads configured build SHA"]
   info --> stamp["buildInfo formats build stamp and mode"]
   stamp --> row["DiagnosticsBuildDetails shows or omits row"]
 ```
 
-**Code references:** [DiagnosticsBuildDetails.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx), [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts)
+**Code references:** [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx), [DiagnosticsBuildDetails.tsx](../../apps/frontend/src/components/diagnostics/DiagnosticsBuildDetails.tsx), [buildInfo.ts](../../apps/frontend/src/data/buildInfo.ts)

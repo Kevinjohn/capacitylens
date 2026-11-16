@@ -39,9 +39,7 @@ with an export.
 - **Allocation labels on this device:** show the client and project name ahead of the activity
   name on bars.
 - **Utilisation figures on this device:** choose total, per-discipline and personal figures.
-- **Appearance on this device:** **Light**, **Dark** or **Match system**. The moon or sun button
-  below **Settings** in the left menu switches to the opposite of the scheme shown, even when the
-  left menu is collapsed.
+- **Appearance on this device:** **Light**, **Dark** or **Match system**.
 
 ## Company setup
 

@@ -93,8 +93,8 @@ That's a working schedule.
 
 ![Getting started progress at 0/5 with the five setup milestones on Schedule](../screenshots/flows/getting_started_five_steps.png)
 
-**Getting started** on Schedule ticks off these five steps as you go, in any order, and stays
-until an Owner or Admin dismisses it. **Show me around** starts a short tour.
+**Getting started** on Schedule ticks off these five steps as you go, in any order, and leaves
+when all five are done, or earlier when an Owner or Admin dismisses it. **Show me around** starts a short tour.
 
 Steps complete from the company's records, including imported ones. Internal work doesn't count
 towards the client or project steps. Editors can open and close the checklist; Viewers don't see

@@ -14,7 +14,7 @@ As a company member, I want the current section identified in navigation so that
 
 ## Acceptance criteria
 
-- The current destination is marked as current; the root Schedule link matches only the root route.
+- The current destination is marked as current; the root Schedule link matches only the root route. The **Help** row is current on `/diagnostics` as well as `/help`, because Diagnostics is reached from Help.
 
 ## User flow
 
@@ -36,6 +36,7 @@ flowchart TD
   loc["useLocation reads pathname"] --> menu["NavMenu maps links"]
   menu --> nav["NavLink computes aria-current and active style"]
   nav --> root["end=true for Schedule root route"]
+  help["HelpMenuItem matchPath on help and diagnostics routes"] --> nav
 ```
 
 **Code references:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts)

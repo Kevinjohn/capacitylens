@@ -58,7 +58,7 @@ handler. A story's role label is descriptive; the server owns enforcement.
 | Time off      | `/timeoff`     | [Time off](../apps/frontend/src/components/timeoff/TimeOffList.tsx)                    | [Time off](../docs-src/using/time-off.md)                   |
 | Team & access | `/team`        | [Team](../apps/frontend/src/components/team/TeamAccessView.tsx)                        | [Team and access](../docs-src/using/team-access.md)         |
 | Settings      | `/settings`    | [Settings](../apps/frontend/src/components/settings/SettingsView.tsx)                  | [Settings](../docs-src/using/settings.md)                   |
-| Diagnostics   | `/diagnostics` | [Diagnostics](../apps/frontend/src/components/diagnostics/DiagnosticsView.tsx)         | [Support](../docs-src/using/settings.md)                    |
+| Diagnostics   | `/diagnostics` | [Diagnostics](../apps/frontend/src/components/diagnostics/DiagnosticsView.tsx)         | [Diagnostics](../docs-src/admin/diagnostics.md)             |
 | Help          | `/help`        | [Help](../apps/frontend/src/components/HelpView.tsx)                                   | [User guide](../docs-src/using/index.md)                    |
 | Account       | `/account`     | [Account](../apps/frontend/src/components/account/AccountView.tsx)                     | [Account](../docs-src/using/account.md)                     |
 

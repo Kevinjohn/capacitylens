@@ -9,7 +9,7 @@ next: false
 
 Copy a support report from here and paste it into your problem report.
 
-Only Owners and Admins see **Diagnostics**, below Settings in the left menu, or can find it in the
+Only Owners and Admins see the **Diagnostics** link on **Help** or can find it in the
 command palette. Editors and Viewers who visit `/diagnostics` return to the schedule. The disposable demo uses the same role checks.
 
 ## Copy a support report
