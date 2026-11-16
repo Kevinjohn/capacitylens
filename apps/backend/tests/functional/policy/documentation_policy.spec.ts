@@ -80,6 +80,17 @@ test.group('M5 documentation and policy contracts', () => {
     );
   });
 
+  test('keeps the README install commands and success check in step with the guide', ({
+    assert,
+  }) => {
+    const installBlock = (text: string) => /```bash\n(sha256sum -c[\s\S]*?)```/.exec(text)?.[1];
+    const guide = read('docs-src/self-hosting/install-without-docker.md');
+    const readme = read('README.md');
+    assert.isString(installBlock(readme));
+    assert.equal(installBlock(readme), installBlock(guide));
+    for (const text of [readme, guide]) assert.include(text, '`"isHealthy":true`');
+  });
+
   test('keeps local Markdown links from the public README resolvable', ({ assert }) => {
     const links = [...read('README.md').matchAll(/\]\(([^)]+)\)/g)]
       .map((match) => match[1])
