@@ -60,8 +60,8 @@ export function GettingStarted() {
   return <GettingStartedForAccount key={accountId} accountId={accountId} />;
 }
 
-function shouldOpenChecklistByDefault(pathname: string, done: number): boolean {
-  return pathname === '/' && done < 5;
+function shouldOpenChecklistByDefault(pathname: string): boolean {
+  return pathname === '/';
 }
 
 function GettingStartedForAccount({ accountId }: { accountId: string }) {
@@ -73,16 +73,18 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
   const done = Object.values(steps).filter(Boolean).length;
   const [openChoice, setOpenChoice] = useState<{ path: string; open: boolean } | null>(null);
   const open =
-    openChoice?.path === pathname ? openChoice.open : shouldOpenChecklistByDefault(pathname, done);
+    openChoice?.path === pathname ? openChoice.open : shouldOpenChecklistByDefault(pathname);
   const setOpen = (value: boolean) => setOpenChoice({ path: pathname, open: value });
   const { canShowTour, tourBusy, showTour } = useTourAction(setNotice);
   const { dismissed, loaded, loadFailed, retryLoad, confirmOpen, setConfirmOpen, saving, dismiss } =
     useCompanyDismissal(accountId, pathname, setNotice);
-  const requestDismiss = () => {
-    if (done < 5) setConfirmOpen(true);
-    else void dismiss();
-  };
-  if (!loaded || dismissed || (activeRole !== null && !can(activeRole, 'planning:write'))) {
+  const requestDismiss = () => setConfirmOpen(true);
+  if (
+    done === 5 ||
+    !loaded ||
+    dismissed ||
+    (activeRole !== null && !can(activeRole, 'planning:write'))
+  ) {
     return null;
   }
   const canDismiss = isOwnerOrAdmin(activeRole);

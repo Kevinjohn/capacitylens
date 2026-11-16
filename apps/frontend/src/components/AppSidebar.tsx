@@ -1,14 +1,10 @@
-import { CircleHelpIcon, EyeIcon, MoonIcon, SunIcon } from 'lucide-react';
 import { matchPath, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/authContext';
-import { can } from '@capacitylens/shared/domain/access';
-import { usePermissionStatus, useRole } from '@/auth/permissionContext';
-import { resolveAccessLabel } from '@/lib/accessCopy';
 import { DEFAULT_COLORS } from '@/lib/palette';
 import { Avatar } from './common/ui';
 import { ACCOUNT_LINK, HELP_LINK } from '@/lib/navLinks';
+import { ROUTE_DIAGNOSTICS } from '@/lib/tourAnchors';
 import type { NavigationLinkDefinition } from '@/lib/navLinks';
-import { Badge } from './ui/badge';
 import {
   Sidebar,
   SidebarContent,
@@ -27,29 +23,17 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { m } from '@/i18n';
 import { SCHEDULER_DENSITY } from './scheduler/layout';
-import { useStore } from '@/store/useStore';
-import { resolveTheme, subscribeToSystemScheme } from '@/lib/theme';
-import { useSyncExternalStore } from 'react';
 import type React from 'react';
 import { APP_NAME } from '@capacitylens/shared/brand';
 
 interface AppSidebarProps {
-  activeAccount: { name: string } | undefined;
-
   adminLinks: NavigationLinkDefinition[];
   navLinks: NavigationLinkDefinition[];
-  onShowOrientation: (trigger: HTMLButtonElement, mobile: boolean) => void;
   open: boolean;
 }
 
 /** CapacityLens navigation composed from the standard ShadCN Sidebar primitives. */
-export function AppSidebar({
-  activeAccount,
-  adminLinks,
-  navLinks,
-  onShowOrientation,
-  open,
-}: AppSidebarProps) {
+export function AppSidebar({ adminLinks, navLinks, open }: AppSidebarProps) {
   const { pathname } = useLocation();
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
   const expanded = isMobile ? openMobile : open;
@@ -81,13 +65,8 @@ export function AppSidebar({
         adminLinks={adminLinks}
         pathname={pathname}
         onNavigate={closeOnMobile}
-        onShowOrientation={onShowOrientation}
       />
-      <SidebarAccountFooter
-        activeAccount={activeAccount}
-        onNavigate={closeOnMobile}
-        pathname={pathname}
-      />
+      <SidebarAccountFooter onNavigate={closeOnMobile} pathname={pathname} />
 
       <SidebarRail aria-hidden="true" />
     </Sidebar>
@@ -124,15 +103,12 @@ function SidebarNavigation({
   adminLinks,
   pathname,
   onNavigate,
-  onShowOrientation,
 }: {
   navLinks: NavigationLinkDefinition[];
   adminLinks: NavigationLinkDefinition[];
   pathname: string;
   onNavigate: () => void;
-  onShowOrientation: (trigger: HTMLButtonElement, mobile: boolean) => void;
 }) {
-  const { isMobile } = useSidebar();
   return (
     <SidebarContent>
       {/* One <nav> landmark around both groups. The admin group is a separate visual block
@@ -143,23 +119,6 @@ function SidebarNavigation({
         <SidebarGroup>
           <SidebarGroupContent>
             <NavMenu links={navLinks} pathname={pathname} onNavigate={onNavigate} />
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  type="button"
-                  data-testid="product-orientation-reopen"
-                  aria-label={m.product_orientation_heading({ app: APP_NAME })}
-                  tooltip={m.product_orientation_heading({ app: APP_NAME })}
-                  onClick={(event) => {
-                    onShowOrientation(event.currentTarget, isMobile);
-                    onNavigate();
-                  }}
-                >
-                  <CircleHelpIcon aria-hidden="true" focusable="false" />
-                  <span>{m.product_orientation_heading({ app: APP_NAME })}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -167,9 +126,7 @@ function SidebarNavigation({
           <SidebarGroup className="mt-auto">
             <SidebarSeparator className="mx-0 mb-1" />
             <SidebarGroupContent>
-              <NavMenu links={adminLinks} pathname={pathname} onNavigate={onNavigate}>
-                <ThemeToggleMenuItem />
-              </NavMenu>
+              <NavMenu links={adminLinks} pathname={pathname} onNavigate={onNavigate} />
             </SidebarGroupContent>
           </SidebarGroup>
         )}
@@ -179,28 +136,15 @@ function SidebarNavigation({
 }
 
 function SidebarAccountFooter({
-  activeAccount,
   onNavigate,
   pathname,
 }: {
-  activeAccount: AppSidebarProps['activeAccount'];
   onNavigate: () => void;
   pathname: string;
 }) {
-  const showCompanyContext = activeAccount !== undefined;
   return (
     <SidebarFooter>
-      {showCompanyContext && (
-        <div className="group-data-[collapsible=icon]:hidden">
-          <SidebarSeparator className="mx-0" />
-          <div className="min-w-0 px-2">
-            <div className="truncate text-sm font-semibold" title={activeAccount.name}>
-              {activeAccount.name}
-            </div>
-            <ActiveRoleBadge />
-          </div>
-        </div>
-      )}
+      <SidebarSeparator className="mx-0" />
       <SidebarMenu>
         <HelpMenuItem onNavigate={onNavigate} pathname={pathname} />
         <SessionMenuItem onNavigate={onNavigate} pathname={pathname} />
@@ -216,7 +160,10 @@ function HelpMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pathna
       <SidebarMenuButton
         asChild
         size="sm"
-        isActive={matchPath({ path: HELP_LINK.to, end: true }, pathname) !== null}
+        isActive={
+          matchPath({ path: HELP_LINK.to, end: true }, pathname) !== null ||
+          matchPath({ path: ROUTE_DIAGNOSTICS, end: true }, pathname) !== null
+        }
         tooltip={HELP_LINK.label()}
       >
         <NavLink to={HELP_LINK.to} onClick={onNavigate}>
@@ -233,12 +180,10 @@ function NavMenu({
   links,
   onNavigate,
   pathname,
-  children,
 }: {
   links: NavigationLinkDefinition[];
   onNavigate: () => void;
   pathname: string;
-  children?: React.ReactNode;
 }) {
   return (
     <SidebarMenu>
@@ -256,32 +201,7 @@ function NavMenu({
           </SidebarMenuItem>
         );
       })}
-      {children}
     </SidebarMenu>
-  );
-}
-
-// Choose explicit light or dark here; Settings retains the separate system-following preference.
-// Derive the target from the displayed scheme so system mode toggles predictably.
-function ThemeToggleMenuItem() {
-  const theme = useStore((state) => state.theme);
-  const setTheme = useStore((state) => state.setTheme);
-  const dark = useSyncExternalStore(subscribeToSystemScheme, () => resolveTheme(theme)) === 'dark';
-  const label = dark ? m.nav_switch_to_light_mode() : m.nav_switch_to_dark_mode();
-  const ThemeIcon = dark ? SunIcon : MoonIcon;
-
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        type="button"
-        tooltip={label}
-        aria-label={label}
-        onClick={() => setTheme(dark ? 'light' : 'dark')}
-      >
-        <ThemeIcon aria-hidden="true" focusable="false" />
-        <span>{label}</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
   );
 }
 
@@ -314,36 +234,5 @@ function SessionMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pat
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
-}
-
-function ActiveRoleBadge() {
-  const role = useRole();
-  const permissionStatus = usePermissionStatus();
-  const resolvedRole = permissionStatus === 'resolved' ? role : null;
-  const label = resolveAccessLabel({
-    permissionStatus,
-    role: resolvedRole,
-  });
-  const viewOnly = resolvedRole !== null && !can(resolvedRole, 'planning:write');
-  let roleContent: React.ReactNode = label;
-  if (viewOnly) {
-    roleContent = (
-      <>
-        {label} · <span data-testid="view-only">{m.nav_view_only()}</span>
-      </>
-    );
-  }
-
-  return (
-    <Badge
-      data-testid="active-role"
-      variant="outline"
-      className="mt-1 text-2xs text-(--chrome-sidebar-muted-ink)"
-      title={viewOnly ? m.nav_view_only_title() : undefined}
-    >
-      {viewOnly && <EyeIcon aria-hidden="true" focusable="false" />}
-      {roleContent}
-    </Badge>
   );
 }

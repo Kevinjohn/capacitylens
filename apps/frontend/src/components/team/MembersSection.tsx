@@ -274,7 +274,6 @@ function MembersDirectorySection({
     >
       <header className="flex flex-col gap-2">
         <h2 className="font-semibold">{m.settings_members_heading()}</h2>
-        <p className="text-sm text-muted-foreground">{m.settings_members_intro()}</p>
       </header>
       <div className="flex flex-col gap-4">
         <p

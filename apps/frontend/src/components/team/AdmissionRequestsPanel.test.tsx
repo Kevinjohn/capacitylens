@@ -42,6 +42,24 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
     expect(screen.getByTestId('admission-requests')).toHaveAttribute('aria-busy', 'false');
   });
 
+  it('explains approval only while at least one request is listed', async () => {
+    const list = vi
+      .spyOn(teamAccessClient, 'listAdmissionRequests')
+      .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [] })
+      .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [pendingRequest] });
+
+    const first = render(<AdmissionRequestsPanel />);
+    expect(await screen.findByText('Nobody is waiting for approval.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument();
+    expect(screen.queryByText(/People who signed in and asked for access/)).not.toBeInTheDocument();
+    first.unmount();
+
+    render(<AdmissionRequestsPanel />);
+    await screen.findByTestId('admission-request');
+    expect(screen.getByText(/People who signed in and asked for access/)).toBeInTheDocument();
+    expect(list).toHaveBeenCalledTimes(2);
+  });
+
   it('shows a decision refusal and keeps the request available', async () => {
     const list = vi
       .spyOn(teamAccessClient, 'listAdmissionRequests')

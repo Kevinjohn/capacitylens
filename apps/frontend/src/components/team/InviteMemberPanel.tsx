@@ -71,9 +71,6 @@ function InviteHeader({ onOpen }: { onOpen: () => void }) {
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex flex-col gap-1">
         <h2 className="font-semibold">{m.settings_invite_heading()}</h2>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          {m.settings_invite_intro({ app: APP_NAME })}
-        </p>
       </div>
       <Button type="button" data-testid="invite-open" onClick={onOpen}>
         {m.settings_invite_open()}

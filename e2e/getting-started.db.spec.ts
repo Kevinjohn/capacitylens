@@ -34,12 +34,8 @@ async function finishClientAndProjectMilestones(page: Page): Promise<void> {
   await expect(
     page.getByTestId('project-row').filter({ hasText: 'Blue Beetle launch' }),
   ).toBeVisible();
-  await expect(progress).toHaveAttribute('aria-valuenow', '5');
-  await expect(page.getByTestId('getting-started-progress')).toBeVisible();
-  await expect(page.getByTestId('getting-started')).toHaveCount(0);
-  await page.getByTestId('getting-started-dismiss').click();
-  await expect(page.getByText('Do you really want to hide this forever?')).toHaveCount(0);
   await expect(page.getByTestId('getting-started-progress')).toHaveCount(0);
+  await expect(page.getByTestId('getting-started')).toHaveCount(0);
 }
 
 test.describe('getting started', () => {

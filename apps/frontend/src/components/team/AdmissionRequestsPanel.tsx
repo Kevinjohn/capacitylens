@@ -77,7 +77,9 @@ export function AdmissionRequestsPanel() {
         <CardTitle>
           <h2>{m.settings_admission_heading()}</h2>
         </CardTitle>
-        <CardDescription>{m.settings_admission_intro()}</CardDescription>
+        {listing.kind === 'ready' && listing.requests.length > 0 && (
+          <CardDescription>{m.settings_admission_intro()}</CardDescription>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {listing.kind === 'loading' && (
