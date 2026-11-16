@@ -20,7 +20,6 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog';
 import { m } from '@/i18n';
-import { isRecord } from '@capacitylens/shared/lib/isRecord';
 
 function StepRow({ done, label, to }: { done: boolean; label: string; to: string }) {
   const labelContent = done ? (
@@ -223,16 +222,11 @@ function useCompanyDismissal(
     if (dismissedRef.current) return;
     const controller = new AbortController();
     void gettingStartedClient
-      .read(accountId, controller.signal)
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Getting started read failed (${response.status})`);
-        const result: unknown = await response.json();
-        if (!isRecord(result) || typeof result.dismissed !== 'boolean') {
-          throw new Error('Getting started response was invalid');
-        }
+      .readDismissed(accountId, controller.signal)
+      .then((companyDismissed) => {
         if (!controller.signal.aborted && !dismissedRef.current) {
-          setDismissed(result.dismissed);
-          dismissedRef.current = result.dismissed;
+          setDismissed(companyDismissed);
+          dismissedRef.current = companyDismissed;
           setLoadFailed(false);
           setLoaded(true);
         }
@@ -251,8 +245,7 @@ function useCompanyDismissal(
     if (saving) return;
     setSaving(true);
     try {
-      const response = await gettingStartedClient.dismiss(accountId);
-      if (!response.ok) throw new Error(`Getting started dismissal failed (${response.status})`);
+      await gettingStartedClient.dismiss(accountId);
       dismissedRef.current = true;
       setDismissed(true);
       setConfirmOpen(false);

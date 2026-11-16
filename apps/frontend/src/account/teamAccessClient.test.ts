@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { accountClient } from './accountClient';
+import { admissionRequests } from './admissionRequests';
+import { invitationRequests } from './invitationRequests';
+import { memberRequests } from './memberRequests';
 import { runCommand } from './commandRequest';
 import { resolveRejectionMessage, teamAccessClient } from './teamAccessClient';
 
@@ -17,7 +19,7 @@ describe('teamAccessClient command outcomes', () => {
       .fn()
       .mockResolvedValueOnce({ code: 'COMMAND_IN_PROGRESS', error: 'Still running.' })
       .mockRejectedValue(new Error('body already consumed'));
-    vi.spyOn(accountClient, 'createInvitation').mockResolvedValue({
+    vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue({
       ok: false,
       status: 409,
       json: readBody,
@@ -35,7 +37,7 @@ describe('teamAccessClient command outcomes', () => {
 
   it('decodes an equivalent successful status instead of reporting a rejected command', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.spyOn(accountClient, 'createInvitation').mockResolvedValue(
+    vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
       new Response(JSON.stringify({ emailed: true }), { status: 200 }),
     );
 
@@ -53,7 +55,7 @@ describe('teamAccessClient command outcomes', () => {
 describe('teamAccessClient directory validation', () => {
   it('defaults absent additive fields and contains unsupported rows', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.spyOn(accountClient, 'listMembers').mockResolvedValue(
+    vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(
       json({
         members: [
           {
@@ -118,7 +120,7 @@ describe('teamAccessClient directory validation', () => {
         isSelf: false,
         manage,
       };
-      vi.spyOn(accountClient, 'listMembers').mockResolvedValue(json({ members: [member] }));
+      vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(json({ members: [member] }));
 
       await expect(teamAccessClient.listMembers('account-1')).resolves.toMatchObject({
         kind: 'invalid',
@@ -136,7 +138,7 @@ describe('teamAccessClient member resource links', () => {
       request: async () =>
         Response.json({ code: 'CONFLICT', error: 'A conflict occurred.' }, { status: 409 }),
     });
-    vi.spyOn(accountClient, 'setMemberResourceLink').mockResolvedValue(response);
+    vi.spyOn(memberRequests, 'setMemberResourceLink').mockResolvedValue(response);
     await expect(
       teamAccessClient.setMemberResourceLink({
         companyId: 'a1',
@@ -153,7 +155,7 @@ describe('teamAccessClient member resource links', () => {
   ])(
     'decodes create/change success with expected revision %s',
     async (expectedRevision, revision) => {
-      vi.spyOn(accountClient, 'setMemberResourceLink').mockResolvedValue(
+      vi.spyOn(memberRequests, 'setMemberResourceLink').mockResolvedValue(
         json({ resourceId: 'r1', revision }),
       );
       await expect(
@@ -168,7 +170,7 @@ describe('teamAccessClient member resource links', () => {
   );
 
   it('preserves a structured conflict and contains an uncertain success body', async () => {
-    vi.spyOn(accountClient, 'setMemberResourceLink')
+    vi.spyOn(memberRequests, 'setMemberResourceLink')
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ code: 'CONFLICT', error: 'The member link changed.' }), {
           status: 409,
@@ -197,7 +199,7 @@ describe('teamAccessClient invitation rows', () => {
   it('drops rows without an address or an invitable role and keeps valid peers', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const row = { expiresAt: '2026-08-27T10:00:00.000Z', createdAt: '2026-07-27T10:00:00.000Z' };
-    vi.spyOn(accountClient, 'listInvitations').mockResolvedValue(
+    vi.spyOn(invitationRequests, 'listInvitations').mockResolvedValue(
       json({
         invites: [
           { ...row, id: 1, role: 'viewer', preauthEmail: 'selina@wayne.test' },
@@ -223,7 +225,7 @@ describe('teamAccessClient invitation creation', () => {
     [202, false],
   ])('reports whether a %s invitation was emailed', async (status, emailed) => {
     const create = vi
-      .spyOn(accountClient, 'createInvitation')
+      .spyOn(invitationRequests, 'createInvitation')
       .mockResolvedValue(new Response(JSON.stringify({ id: 1, emailed }), { status }));
     const input = { accountId: 'a1', role: 'editor' as const, email: 'selina@wayne.test' };
 
@@ -238,7 +240,7 @@ describe('teamAccessClient invitation creation', () => {
     'rejects a non-canonical invitation timestamp: %s',
     async (expiresAt) => {
       vi.spyOn(console, 'warn').mockImplementation(() => {});
-      vi.spyOn(accountClient, 'listInvitations').mockResolvedValue(
+      vi.spyOn(invitationRequests, 'listInvitations').mockResolvedValue(
         json({
           invites: [
             {
@@ -270,7 +272,7 @@ describe('teamAccessClient duplicate validation', () => {
       email: 'ada@example.test',
       isSelf: false,
     };
-    vi.spyOn(accountClient, 'listMembers').mockResolvedValue(
+    vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(
       json({
         members: [member, { ...member, role: 'admin' }],
       }),
@@ -289,7 +291,7 @@ describe('teamAccessClient duplicate validation', () => {
       expiresAt: '2026-08-27T10:00:00.000Z',
       createdAt: '2026-07-27T10:00:00.000Z',
     };
-    vi.spyOn(accountClient, 'listInvitations').mockResolvedValue(
+    vi.spyOn(invitationRequests, 'listInvitations').mockResolvedValue(
       json({
         invites: [invitation, { ...invitation, role: 'editor' }],
       }),
@@ -354,7 +356,7 @@ describe('teamAccessClient admission requests', () => {
     { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: 42 },
   ])('rejects an admission page with a malformed required row', async (row) => {
     const list = vi
-      .spyOn(accountClient, 'listAdmissionRequests')
+      .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async () => json({ items: [row], nextCursor: null }));
 
     await expect(teamAccessClient.listAdmissionRequests()).resolves.toMatchObject({
@@ -366,7 +368,7 @@ describe('teamAccessClient admission requests', () => {
   it('accepts string requestedAt values from fresh response bodies', async () => {
     const row = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: 'not-a-date' };
     const list = vi
-      .spyOn(accountClient, 'listAdmissionRequests')
+      .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status) =>
         json(
           status === 'pending'
@@ -387,7 +389,7 @@ describe('teamAccessClient admission requests', () => {
     const valid = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: null };
     const malformed = { userId: 'jason', email: 'jason@wayne.test', requestedAt: 42 };
     const list = vi
-      .spyOn(accountClient, 'listAdmissionRequests')
+      .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status, cursor) => {
         if (status === 'pending' && cursor === null) {
           return json({ items: [valid, malformed], nextCursor: 'next' });
@@ -409,7 +411,7 @@ describe('teamAccessClient admission requests', () => {
     const valid = { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: null };
     const malformed = { userId: 'jason', email: 'jason@wayne.test', requestedAt: 42 };
     const list = vi
-      .spyOn(accountClient, 'listAdmissionRequests')
+      .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status, cursor) => {
         if (status === 'pending') return json({ items: [valid], nextCursor: null });
         if (status === 'rejected' && cursor === null) {
@@ -432,7 +434,7 @@ describe('teamAccessClient admission requests', () => {
   it('reads every page of pending, declined and revoked records', async () => {
     const row = (userId: string) => ({ userId, email: `${userId}@wayne.test`, requestedAt: null });
     const list = vi
-      .spyOn(accountClient, 'listAdmissionRequests')
+      .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async (status, cursor) => {
         if (status === 'pending') {
           return cursor
