@@ -347,11 +347,16 @@ test('a step that ignores SIGTERM after its time limit is killed and fails', asy
   assert.match(result.output, /stopped after 0\.3 seconds/);
 });
 
-test('documentation sources rebuild docs/ and end-to-end specs are reported as skipped', () => {
+test('documentation sources build and check the site and end-to-end specs are reported as skipped', () => {
   const steps = planChecks(['docs-src/index.md', 'e2e/smoke.spec.ts'], everything);
-  assert.equal(step(steps, 'docs').docsClean, true);
+  assert.deepEqual(step(steps, 'docs: build').args, ['run', 'docs:build']);
+  assert.deepEqual(step(steps, 'docs: check').args, ['run', 'docs:test']);
   assert.equal(typeof step(steps, 'e2e').skip, 'string');
-  assert.deepEqual(labels(steps).slice(-2), ['docs: build and compare docs/', 'e2e']);
+  assert.deepEqual(labels(steps).slice(-3), [
+    'docs: build the documentation site',
+    'docs: check the built site',
+    'e2e',
+  ]);
 });
 
 test('deleted files and documentation policy inputs run the documentation policy spec', () => {

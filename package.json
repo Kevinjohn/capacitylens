@@ -58,6 +58,7 @@
     "preview": "node scripts/dev/with-lane.mjs pnpm --dir apps/frontend exec vite preview",
     "docs:dev": "node scripts/dev/with-lane.mjs vitepress dev docs-src",
     "docs:build": "vitepress build docs-src && node scripts/docs/docs-standalone.mjs && node scripts/docs/check-docs-navigation.mjs",
+    "docs:test": "CAPACITYLENS_DOCS_SITE_TESTS=1 pnpm --dir apps/frontend exec vitest run src/test/docs-lightbox.test.ts",
     "docs:preview": "node scripts/dev/with-lane.mjs vitepress preview docs-src",
     "test": "node scripts/dev/with-lane.mjs turbo test",
     "dev:api": "CAPACITYLENS_VITE_SERVICE=dbWeb pnpm --dir apps/frontend dev",

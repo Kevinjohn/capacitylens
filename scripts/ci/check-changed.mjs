@@ -189,7 +189,7 @@ export function planChecks(
   if (!testsOnly) return steps;
   const owners = {
     static: 'the static analysis job runs it',
-    docs: 'the docs workflow builds and compares docs/',
+    docs: 'the docs workflow builds and checks the site',
   };
   return steps
     .filter((step) => !step.forLint)
@@ -481,13 +481,20 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
     });
 
   if (paths.some((path) => path.startsWith('docs-src/')))
-    steps.push({
-      label: 'docs: build and compare docs/',
-      args: ['run', 'docs:build'],
-      docsClean: true,
-      owner: 'docs',
-      reason: 'documentation sources changed',
-    });
+    steps.push(
+      {
+        label: 'docs: build the documentation site',
+        args: ['run', 'docs:build'],
+        owner: 'docs',
+        reason: 'documentation sources changed',
+      },
+      {
+        label: 'docs: check the built site',
+        args: ['run', 'docs:test'],
+        owner: 'docs',
+        reason: 'documentation sources changed',
+      },
+    );
   if (paths.some((path) => path.startsWith('e2e/')))
     steps.push({ label: 'e2e', skip: 'end-to-end specs run with pnpm run e2e' });
   return steps;
@@ -611,11 +618,6 @@ export async function runStep(step, limits = stepLimits) {
       else if (status !== 0) resolve({ passed: false, output });
       else if (ranNoTests(step, output))
         resolve({ passed: false, output: `${output}\nno tests were executed` });
-      else if (step.docsClean && git(['status', '--porcelain', '--', 'docs']).trim())
-        resolve({
-          passed: false,
-          output: `${output}\ndocs/ differs from its sources; commit the rebuilt output`,
-        });
       else resolve({ passed: true, output });
     });
   });
