@@ -9,7 +9,7 @@ import { OwnerPermissions } from '@/test/ownerPermissions';
 import { RestorationCleanupDialog } from '@/components/common/RestorationCleanupDialog';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
