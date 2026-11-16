@@ -3,14 +3,12 @@ import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningC
 import { client } from '@/api/queryClient';
 import { PlanningControllerError } from './planningCacheController';
 import type { PlanningClientContext, PlanningTransport } from './planningCacheController';
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 
 type PlanningClient = typeof client;
 
+// The caller captures the proof into the context; a missing one sends an empty proof, never a newer one.
 function capturedContextToken(context: PlanningClientContext): string | null {
-  return Object.hasOwn(context, 'masqueradeContextToken')
-    ? (context.masqueradeContextToken ?? null)
-    : getMasqueradeContextToken();
+  return context.masqueradeContextToken ?? null;
 }
 
 function withMasqueradeContext(

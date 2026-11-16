@@ -1,3 +1,4 @@
+import { setMasqueradeContextToken } from './masqueradeContext';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { loadPlanningData, makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
@@ -41,6 +42,8 @@ function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
       start: vi.fn(async () => state),
       end: vi.fn(async () => {}),
     },
+    readState: () => useStore.getState(),
+    setContextToken: setMasqueradeContextToken,
     ...overrides,
   };
   return { controller: new MasqueradeController(dependencies), dependencies, resume };

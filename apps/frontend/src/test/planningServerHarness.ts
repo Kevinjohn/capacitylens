@@ -1,3 +1,4 @@
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 // Reuse the app's prebundled entry so loading this test module does not trigger a Vite dependency reload.
 import { createStore } from 'zustand';
 import type { StoreApi } from 'zustand/vanilla';
@@ -88,6 +89,7 @@ export async function initializePlanningServerHarness(key: string, companyId: st
     },
   };
   const controller = createPlanningCacheController({
+    readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
     transport,

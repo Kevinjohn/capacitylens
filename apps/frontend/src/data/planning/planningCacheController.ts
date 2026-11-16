@@ -7,7 +7,6 @@ import type {
   PlanningMutationLookup,
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import {
   cloneImmutable,
   emptyHistory,
@@ -126,6 +125,8 @@ export interface PlanningControllerOptions {
   getState: PlanningCacheStore['getState'];
   setState: PlanningCacheStore['setState'];
   transport: PlanningTransport;
+  /** The current masquerade context proof, captured into each request when it is dispatched. */
+  readMasqueradeContextToken: () => string | null;
   createMutationId?: () => string;
   onAuthLoss?: () => void;
   confirmRestorationCleanup?: (count: number, signal: AbortSignal) => Promise<boolean>;
@@ -239,6 +240,10 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   const { transport } = options;
   const store: PlanningCacheStore = { getState: options.getState, setState: options.setState };
   const createMutationId = options.createMutationId ?? (() => crypto.randomUUID());
+  const withContextToken = (context: PlanningClientContext): PlanningClientContext =>
+    context.masqueradeContextToken === undefined
+      ? Object.freeze({ ...context, masqueradeContextToken: options.readMasqueradeContextToken() })
+      : context;
   let generation = 0;
   let readSequence = 0;
   let accessKeyEstablished = false;
@@ -401,7 +406,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       },
     }));
     try {
-      const snapshot = await transport.read(context, controller.signal);
+      const snapshot = await transport.read(withContextToken(context), controller.signal);
       if (!isCurrent(capturedGeneration, context) || sequence !== readSequence) return false;
       return acceptRead(snapshot);
     } catch (error) {
@@ -447,7 +452,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const immutableContext = context;
     const requestContext = Object.freeze({
       ...immutableContext,
-      masqueradeContextToken: getMasqueradeContextToken(),
+      masqueradeContextToken: options.readMasqueradeContextToken(),
     });
     return Object.freeze({
       baseRevision,
@@ -845,7 +850,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const context = Object.freeze({ ...state.planning.context });
     const requestContext = Object.freeze({
       ...context,
-      masqueradeContextToken: getMasqueradeContextToken(),
+      masqueradeContextToken: options.readMasqueradeContextToken(),
     });
     return {
       entry,

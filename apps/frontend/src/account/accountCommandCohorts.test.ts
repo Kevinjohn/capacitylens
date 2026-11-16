@@ -9,9 +9,10 @@ vi.mock('@/data/requestTimeout', () => ({
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: vi.fn((signal?: AbortSignal) => signal),
   setMasqueradeEndedHandler: vi.fn(),
+  setMasqueradeContextReader: vi.fn(),
 }));
 
-import { masqueradeController } from '@/auth/masqueradeController';
+import { masqueradeController } from '@/auth/masqueradeControllerInstance';
 import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
 import {
   accountClient,

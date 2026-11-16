@@ -9,7 +9,7 @@ import type {
   PlanningSnapshot,
   PlanningTransport,
 } from './planningCacheController';
-import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken, setMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { makeAccount } from '@/test/fixtures';
 
 const context = { identity: 'actor-1', companyId: 'company-1' };
@@ -54,6 +54,7 @@ function harness(transport: PlanningTransport) {
   );
   let id = 0;
   const controller = createPlanningCacheController({
+    readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
     transport: {
@@ -98,6 +99,22 @@ describe('planning cache controller', () => {
     expect(execute.mock.calls[0]?.[0]).toEqual({
       ...context,
       masqueradeContextToken: 'captured-idle-context',
+    });
+  });
+
+  it('sends a canonical read with the proof current when the read is dispatched', async () => {
+    const read = vi
+      .fn<PlanningTransport['read']>()
+      .mockResolvedValue({ revision: 3, canWrite: true, data: canonicalData() });
+    const h = harness({ execute: vi.fn(), read, lookup: vi.fn() });
+    h.controller.setContext(context);
+    setMasqueradeContextToken('current-context');
+
+    await h.controller.refresh();
+
+    expect(read.mock.calls[0]?.[0]).toEqual({
+      ...context,
+      masqueradeContextToken: 'current-context',
     });
   });
 

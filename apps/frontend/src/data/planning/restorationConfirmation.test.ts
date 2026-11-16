@@ -1,3 +1,4 @@
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { createStore } from 'zustand/vanilla';
 import { describe, expect, it, vi } from 'vitest';
 import { makeAccount } from '@/test/fixtures';
@@ -34,6 +35,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
       projection: { mode: 'refetch', history: 'clear' },
     }));
   const controller = createPlanningCacheController({
+    readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
     transport: {

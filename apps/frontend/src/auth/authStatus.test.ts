@@ -108,7 +108,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { accountClient } = await import('@/account/accountClient');
     const { useStore } = await import('@/store/useStore');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { masqueradeController } = await import('./masqueradeController');
+    const { masqueradeController } = await import('./masqueradeControllerInstance');
     const { getMasqueradeContextToken, setMasqueradeContextToken } =
       await import('./masqueradeContext');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
@@ -152,7 +152,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
 
   it('fails closed without adopting an active status whose principal is not a valid user', async () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { masqueradeController } = await import('./masqueradeController');
+    const { masqueradeController } = await import('./masqueradeControllerInstance');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: true,
       accountId: 'a-studio',
@@ -177,7 +177,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
 
   it('ignores an active status read that resolves after local identity invalidation', async () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { masqueradeController } = await import('./masqueradeController');
+    const { masqueradeController } = await import('./masqueradeControllerInstance');
     const { useStore } = await import('@/store/useStore');
     const { getMasqueradeContextToken } = await import('./masqueradeContext');
     let resolveStatus!: (status: Awaited<ReturnType<typeof masqueradeApi.status>>) => void;

@@ -3,6 +3,7 @@ import { readCurrentWeekAnchor } from './schedulerSlice';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator } from 'zustand';
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { emptyAppData, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import {
   createPlanningCacheController,
@@ -95,6 +96,7 @@ export function createPlanningSessionSlice(
       transport,
       onAuthLoss: () => clearPrivatePlanning(true),
       confirmRestorationCleanup: requestRestorationCleanup,
+      readMasqueradeContextToken: getMasqueradeContextToken,
     });
     let contextEpoch = 0;
     let contextCompanyId: string | null = null;

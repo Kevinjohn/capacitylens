@@ -1,3 +1,4 @@
+import { setMasqueradeContextToken } from './masqueradeContext';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { makeAccount, makeAppData } from '@/test/fixtures';
@@ -71,6 +72,8 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
     },
     switchAccount,
     api,
+    readState: () => useStore.getState(),
+    setContextToken: setMasqueradeContextToken,
   });
   return { controller, api, switchAccount };
 }

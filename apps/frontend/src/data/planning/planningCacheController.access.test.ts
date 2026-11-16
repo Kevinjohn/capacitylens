@@ -1,3 +1,4 @@
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import { makeAccount, makeAppData, makeClient } from '@/test/fixtures';
@@ -51,6 +52,7 @@ async function setup() {
   const execute = vi.fn<PlanningTransport['execute']>();
   const lookup = vi.fn<PlanningTransport['lookup']>();
   const controller = createPlanningCacheController({
+    readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
     transport: { read, execute, lookup },

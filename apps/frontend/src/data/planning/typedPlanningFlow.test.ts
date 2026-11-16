@@ -1,3 +1,4 @@
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { createStore } from 'zustand/vanilla';
 import { describe, expect, it } from 'vitest';
 import {
@@ -22,6 +23,7 @@ function flow(initial: PlanningCacheState['data']) {
   const transport = new StubPlanningTransport();
   transport.reset(companyId, initial);
   const controller = createPlanningCacheController({
+    readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState(update) {
       store.setState((state) => update(state));
