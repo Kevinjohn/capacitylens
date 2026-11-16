@@ -1,10 +1,12 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { m } from '@/i18n';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
-import { parseDate, todayISO } from '@capacitylens/shared/lib/dateMath';
+import { parseDate } from '@capacitylens/shared/lib/dateMath';
+import { readCalendarToday } from '@/lib/calendarToday';
 import { carriesHourlyLoad } from '@capacitylens/shared/types/entities';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCanEdit } from '@/auth/permissionContext';
+import { isSoleAcknowledgedAdvance } from '@/data/planning/planningReadiness';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
 import { formatWeekdayScheduleDate } from '@/lib/dateDisplay';
 import { resolveResourceDisplayName } from '@/lib/metadata';
@@ -69,31 +71,14 @@ function useAllocationModalContext(props: AllocationModalProps) {
   const data = useActiveScopedData();
   const actions = useAllocationStoreActions();
   const addActivity: typeof actions.addActivity = async (draft) => {
-    const before = useStore.getState();
+    const basis = draftBasis.current;
     const canAdvance = isCurrentDraft();
-    const unchangedData = JSON.stringify(before.data);
     const result = await actions.addActivity(draft);
-    if (canAdvance && result.kind === 'created' && before.planning.revision !== null) {
-      const after = useStore.getState();
-      const acknowledgedRows = after.data.activities.filter(
-        (activity) => activity.id === result.value.id,
-      );
-      const withoutCreatedActivity = {
-        ...after.data,
-        activities: after.data.activities.filter((activity) => activity.id !== result.value.id),
-      };
-      // Only this editor's sole acknowledged addition may advance its draft. A later read or
-      // another mutation must leave the original revision stale, even if creation succeeded.
-      if (
-        after.planning.context === before.planning.context &&
-        after.planning.revision === before.planning.revision + 1 &&
-        !before.data.activities.some((activity) => activity.id === result.value.id) &&
-        acknowledgedRows.length === 1 &&
-        JSON.stringify(acknowledgedRows[0]) === JSON.stringify(result.value) &&
-        JSON.stringify(withoutCreatedActivity) === unchangedData
-      ) {
-        draftBasis.current = { context: after.planning.context, revision: after.planning.revision };
-      }
+    const after = useStore.getState().planning;
+    // Only this editor's sole acknowledged addition may advance its draft. A later read or
+    // another mutation must leave the original revision stale, even if creation succeeded.
+    if (canAdvance && result.kind === 'created' && isSoleAcknowledgedAdvance(basis, after)) {
+      draftBasis.current = { context: after.context, revision: after.revision };
     }
     return result;
   };
@@ -132,7 +117,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
     mode,
     resourceById: resourcesById,
     accountWorkingDays,
-    today: todayISO(calendarTimeZone),
+    today: readCalendarToday(calendarTimeZone),
   });
   const fieldError = useFieldError();
   // Register focus before the schedule hook registers its repeat-adjustment effect.

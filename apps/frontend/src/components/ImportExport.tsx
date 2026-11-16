@@ -14,8 +14,7 @@ import { useExportAction } from './import-export/useExportAction';
 import { usePendingImport } from './import-export/usePendingImport';
 import type { PendingImport } from './import-export/usePendingImport';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
-import { apiFetch } from '@/data/requestTimeout';
-import { readApiError } from '@/lib/readApiError';
+import { companyDataRequests } from '@/data/companyDataRequests';
 
 function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
   return (
@@ -158,28 +157,11 @@ export function ImportExport() {
       selectionRef.current === selection && useStore.getState().activeAccountId === activeAccountId;
     setPreviewBusy(true);
     try {
-      const response = await apiFetch('/api/transfer/preview', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: activeAccountId, document: pendingImport.document }),
-      });
-      if (!response.ok) {
-        throw new Error(
-          (await readApiError(response)) ?? m.data_import_failed({ status: response.status }),
-        );
-      }
-      const result: unknown = await response.json();
-      if (
-        !result ||
-        typeof result !== 'object' ||
-        !('baseRevision' in result) ||
-        !Number.isSafeInteger(result.baseRevision)
-      ) {
-        throw new Error(m.data_import_failed({ status: 0 }));
-      }
+      const revision = await companyDataRequests.readTransferPreviewRevision(
+        activeAccountId,
+        pendingImport.document,
+      );
       if (!isCurrent()) return;
-      const revision = result.baseRevision as number;
       setPreviewRevision(revision);
     } catch (error) {
       if (isCurrent()) setNotice(resolveErrorMessage(error), 'error');
