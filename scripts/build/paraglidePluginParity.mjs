@@ -3,10 +3,10 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile, rm, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { spawnPnpmSync } from './pnpmSpawn.mjs';
+import { spawnPnpmSync } from '../pnpmSpawn.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = join(root, 'apps/frontend');
 const generated = join(frontend, 'src/paraglide');
 const temp = await mkdtemp(join(tmpdir(), 'capacitylens-paraglide-parity-'));

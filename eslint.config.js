@@ -33,7 +33,7 @@ const sharedTestFiles = [
 const parentImportAllowances = {
   'apps/frontend/src/data/buildInfo.ts': ['../../../../package.json'],
   'apps/frontend/src/build/staticSpaRouteDocuments.test.ts': ['../../vite.config'],
-  'apps/frontend/src/bundleBudgetGate.test.ts': ['../../../scripts/bundleBudget.mjs'],
+  'apps/frontend/src/bundleBudgetGate.test.ts': ['../../../scripts/build/bundleBudget.mjs'],
   'apps/frontend/src/csp.test.ts': [
     '../../../nginx.conf?raw',
     '../../../nginx-security-headers.conf?raw',
@@ -43,7 +43,7 @@ const parentImportAllowances = {
     '../../../scripts/playwrightRunMode.mjs',
   ],
   'apps/frontend/src/pnpmSpawn.test.ts': ['../../../scripts/pnpmSpawn.mjs'],
-  'apps/frontend/src/router.test.tsx': ['../../../scripts/staticSpaRoutes.mjs'],
+  'apps/frontend/src/router.test.tsx': ['../../../scripts/build/staticSpaRoutes.mjs'],
   'apps/frontend/src/serve-dist.test.ts': ['../../../scripts/serve-dist.mjs'],
   'apps/frontend/src/test/generateDocumentationComponentId.test.ts': [
     '../../../../docs-src/.vitepress/generateDocumentationComponentId.mts',

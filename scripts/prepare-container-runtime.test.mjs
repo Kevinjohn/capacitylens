@@ -220,18 +220,18 @@ test('the web image copies the Vite output consumed by the root standalone build
   const build = manifest.scripts.build;
   assert.ok(
     build.indexOf('pnpm --dir apps/frontend build') <
-      build.indexOf('node scripts/sync-adonis-public.mjs'),
+      build.indexOf('node scripts/build/sync-adonis-public.mjs'),
   );
   assert.ok(
-    build.indexOf('node scripts/sync-adonis-public.mjs') <
+    build.indexOf('node scripts/build/sync-adonis-public.mjs') <
       build.indexOf('pnpm --dir apps/backend build'),
   );
-  const sync = await readFile(join(repository, 'scripts/sync-adonis-public.mjs'), 'utf8');
+  const sync = await readFile(join(repository, 'scripts/build/sync-adonis-public.mjs'), 'utf8');
   const syncedSource = /await cp\(new URL\('([^']+)'/.exec(sync)?.[1];
   assert.ok(syncedSource);
   assert.equal(
     fileURLToPath(
-      new URL(syncedSource, new URL('../scripts/sync-adonis-public.mjs', import.meta.url)),
+      new URL(syncedSource, new URL('./build/sync-adonis-public.mjs', import.meta.url)),
     ),
     `${output}/`,
   );

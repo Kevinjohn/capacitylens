@@ -12,8 +12,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parsePort } from '../../scripts/dev/parsePort.mjs';
 import { ports, testShare } from '../../scripts/dev/ports.mjs';
-import { STATIC_SPA_ROUTES } from '../../scripts/staticSpaRoutes.mjs';
-import { ENTRY_RAW_LIMIT_KB } from '../../scripts/bundleBudget.mjs';
+import { STATIC_SPA_ROUTES } from '../../scripts/build/staticSpaRoutes.mjs';
+import { ENTRY_RAW_LIMIT_KB } from '../../scripts/build/bundleBudget.mjs';
 import { isAccountEmail } from '../../packages/shared/src/account/validation.ts';
 import {
   createResetControlServer,
