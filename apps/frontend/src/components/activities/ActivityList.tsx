@@ -15,7 +15,7 @@ import { ClipboardCheck } from 'lucide-react';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
 import { buildActivityListModel } from './activityListModel';
 import { useStore } from '@/store/useStore';
-import { isShownByPlanningState } from '@/data/planning/planningCacheController';
+import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
 import { buildActivityArchiveImpactCopy, safeArchiveImpact } from '@/lib/archiveImpactCopy';

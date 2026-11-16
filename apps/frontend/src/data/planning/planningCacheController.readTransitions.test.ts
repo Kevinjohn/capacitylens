@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  isPlanningHistoryReady,
-  PlanningControllerError,
-  readPlanningProblem,
-} from './planningCacheController';
-import type { PlanningSnapshot } from './planningCacheController';
+import { isPlanningHistoryReady } from './planningReadiness';
+import { PlanningControllerError } from './planningErrors';
+import { readPlanningProblem } from './planningNotices';
+import type { PlanningSnapshot } from './planningCacheTypes';
 import { snapshot, deferred, ready, readyWithHistory } from '@/test/planningTransitionHarness';
 
 // Pins the coordinator transitions that no other controller test asserts directly.
