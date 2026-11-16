@@ -1,11 +1,12 @@
 import { act } from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadPlanningData, makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { AppShell } from './AppShell';
+import { HelpView } from './HelpView';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
 import { buildProductOrientationKey } from '@/lib/productOrientation';
@@ -70,7 +71,12 @@ function authenticatedAuth(userId: string): AuthContextValue {
 function shellTree(path: string, auth = authenticatedAuth('user-a')) {
   const shell = (
     <MemoryRouter initialEntries={[path]}>
-      <AppShell />
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="*" element={null} />
+          <Route path="help" element={<HelpView />} />
+        </Route>
+      </Routes>
     </MemoryRouter>
   );
   return <AuthContext.Provider value={auth}>{shell}</AuthContext.Provider>;
@@ -98,18 +104,25 @@ describe('AppShell product orientation', () => {
     );
   });
 
-  it('reopens and focuses guidance from the named sidebar action', async () => {
+  it('reopens guidance from Help, focuses it, and returns focus to the Help button on close', async () => {
     localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
-    renderShell();
+    renderShell('/help');
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Got it' }));
-    const reopen = screen.getByRole('button', { name: 'How CapacityLens works' });
+    expect(
+      screen
+        .queryByTestId('app-sidebar')
+        ?.querySelector('[data-testid="product-orientation-reopen"]'),
+    ).toBeNull();
+    const reopen = await screen.findByTestId('product-orientation-reopen');
+    expect(reopen).toHaveAccessibleName('How CapacityLens works');
     await user.click(reopen);
     expect(screen.getByRole('region', { name: 'How CapacityLens works' })).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: 'How CapacityLens works' })).toHaveFocus(),
     );
-    expect(reopen).toHaveAttribute('data-testid', 'product-orientation-reopen');
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(reopen).toHaveFocus();
   });
 
   it('focuses the visible orientation heading on entry', async () => {
@@ -146,14 +159,16 @@ describe('AppShell product orientation', () => {
     );
   });
 
-  it('keeps the orientation action available in the collapsed sidebar', () => {
+  it('keeps the orientation action out of the sidebar, collapsed or not', () => {
     renderShell();
     act(() => useStore.getState().setSidebarOpen(false));
 
-    expect(screen.getByRole('button', { name: 'How CapacityLens works' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'How CapacityLens works' }),
+    ).not.toBeInTheDocument();
   });
 
-  it('keeps the orientation action available in the mobile sidebar and returns focus to its trigger', async () => {
+  it('reopens guidance from Help on mobile and returns focus to the Help button', async () => {
     localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
     vi.stubGlobal(
       'matchMedia',
@@ -172,26 +187,16 @@ describe('AppShell product orientation', () => {
       ),
     );
     sessionStorage.setItem('capacitylens/rotateHintDismissed', '1');
-    renderShell();
+    renderShell('/help');
     const user = userEvent.setup();
-    const menuTrigger = screen.getByRole('button', { name: 'Expand menu' });
-    await user.keyboard('{Control>}b{/Control}');
-    const orientationAction = screen.getByRole('button', { name: 'How CapacityLens works' });
-    expect(screen.getByRole('button', { name: 'Collapse menu' })).toBeInTheDocument();
-    await user.click(orientationAction);
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    const reopen = await screen.findByTestId('product-orientation-reopen');
+    await user.click(reopen);
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: 'How CapacityLens works' })).toHaveFocus(),
     );
     await user.click(screen.getByRole('button', { name: 'Got it' }));
-    await waitFor(() => expect(menuTrigger).toHaveFocus());
-
-    await user.click(menuTrigger);
-    await user.click(screen.getByRole('button', { name: 'How CapacityLens works' }));
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'How CapacityLens works' })).toHaveFocus(),
-    );
-    await user.click(screen.getByRole('button', { name: 'Got it' }));
-    await waitFor(() => expect(menuTrigger).toHaveFocus());
+    await waitFor(() => expect(reopen).toHaveFocus());
   });
 
   it('scopes guidance to the authenticated subject when the signed-in user changes', async () => {
@@ -258,8 +263,7 @@ describe('AppShell product orientation', () => {
     await waitFor(() =>
       expect(screen.getByRole('region', { name: 'How CapacityLens works' })).toBeInTheDocument(),
     );
-    await waitFor(() => expect(screen.getByTestId('active-role')).toHaveTextContent('Viewer'));
-    expect(screen.getByRole('button', { name: 'How CapacityLens works' })).toBeInTheDocument();
+    expect(screen.queryByTestId('active-role')).not.toBeInTheDocument();
   });
 
   it('preserves focus on an unrelated control across an ordinary shell rerender', async () => {

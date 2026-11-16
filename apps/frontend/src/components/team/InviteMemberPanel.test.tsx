@@ -60,11 +60,13 @@ describe('InviteMemberPanel creation guidance', () => {
     renderInvite();
 
     expect(screen.queryByTestId('invite-preauth')).not.toBeInTheDocument();
+    expect(screen.queryByText(/emails each invitation/)).not.toBeInTheDocument();
     await user.click(screen.getByTestId('invite-open'));
 
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAccessibleName('Invite someone');
     expect(dialog).toHaveAccessibleDescription(/emails each invitation/);
+    expect(screen.getAllByText(/emails each invitation/)).toHaveLength(1);
     expect(dialog.querySelectorAll('[data-product-layout="label-control"]')).toHaveLength(2);
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });

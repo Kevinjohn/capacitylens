@@ -55,11 +55,11 @@ test('turning disciplines off hides every surface; turning it back on restores t
 
   await expect(page.getByRole('link', { name: 'Disciplines' })).toHaveCount(0);
 
-  // Collapsed navigation shows the same 10 destinations, including Diagnostics, without
-  // Disciplines. External appears under Resources.
+  // Collapsed navigation shows the same 9 destinations without Disciplines. External appears
+  // under Resources.
   await page.getByRole('button', { name: 'Collapse menu' }).click();
   await expect(page.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed');
-  await expect(page.getByRole('navigation').getByRole('link')).toHaveCount(10);
+  await expect(page.getByRole('navigation').getByRole('link')).toHaveCount(9);
   await expect(page.getByRole('link', { name: 'Disciplines' })).toHaveCount(0);
   await page.getByTestId('app-sidebar').getByRole('button', { name: 'Expand menu' }).click();
 

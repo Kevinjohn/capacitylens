@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
@@ -13,11 +13,15 @@ vi.mock('@/lib/tour', () => ({ startTour: tourMock.startTour }));
 
 beforeEach(() => tourMock.startTour.mockReset().mockResolvedValue(undefined));
 
-function renderHelp(role: Role) {
+function renderHelp(role: Role, showOrientation = vi.fn()) {
   return render(
     <PermissionContext.Provider value={{ role, status: 'resolved' }}>
       <MemoryRouter initialEntries={['/help']}>
-        <HelpView />
+        <Routes>
+          <Route element={<Outlet context={{ showOrientation }} />}>
+            <Route path="help" element={<HelpView />} />
+          </Route>
+        </Routes>
       </MemoryRouter>
     </PermissionContext.Provider>,
   );
@@ -43,4 +47,29 @@ describe('HelpView', () => {
       expect(tourMock.startTour).toHaveBeenCalledWith(expect.objectContaining({ role }));
     },
   );
+
+  it.each([
+    ['owner', true],
+    ['admin', true],
+    ['editor', false],
+    ['viewer', false],
+  ] as const)('%s sees the Diagnostics link: %s', (role, visible) => {
+    renderHelp(role);
+
+    const link = screen.queryByRole('link', { name: 'Diagnostics' });
+    if (visible) expect(link).toHaveAttribute('href', '/diagnostics');
+    else expect(link).not.toBeInTheDocument();
+  });
+
+  it('reopens the orientation from its own button', async () => {
+    const showOrientation = vi.fn();
+    const user = userEvent.setup();
+    renderHelp('viewer', showOrientation);
+
+    const button = screen.getByTestId('product-orientation-reopen');
+    expect(button).toHaveAccessibleName('How CapacityLens works');
+    await user.click(button);
+
+    expect(showOrientation).toHaveBeenCalledExactlyOnceWith(button);
+  });
 });

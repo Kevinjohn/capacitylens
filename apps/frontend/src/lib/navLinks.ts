@@ -57,14 +57,19 @@ export const LINKS: NavigationLinkDefinition[] = [
  * separator. They are the same `NavigationLinkDefinition` shape and render through the same
  * menu markup as `LINKS`, only their placement differs. Team & access is here because it is
  * role-gated in practice (most people never act on it) and Settings because it is rarely visited:
- * neither should compete for the eye with the day-to-day scheduling destinations above. Diagnostics
- * is Owner/Admin-only; the sidebar and command palette drop it for other roles.
+ * neither should compete for the eye with the day-to-day scheduling destinations above.
  */
 export const ADMIN_LINKS: NavigationLinkDefinition[] = [
   { to: ROUTE_TEAM, label: () => m.nav_team_access(), icon: ShieldCheckIcon },
   { to: ROUTE_SETTINGS, label: () => m.nav_settings(), icon: SlidersHorizontalIcon },
-  { to: ROUTE_DIAGNOSTICS, label: () => m.nav_diagnostics(), icon: StethoscopeIcon },
 ];
+
+/** Owner/Admin support page, reached from Help and the command palette rather than the sidebar. */
+export const DIAGNOSTICS_LINK: NavigationLinkDefinition = {
+  to: ROUTE_DIAGNOSTICS,
+  label: () => m.nav_diagnostics(),
+  icon: StethoscopeIcon,
+};
 
 /** The personal account destination rendered in the sidebar session footer. */
 export const ACCOUNT_LINK: NavigationLinkDefinition = {

@@ -98,7 +98,7 @@ describe('Getting started', () => {
     expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
   });
 
-  it('keeps the completed bar until dismissal and skips the warning at 5/5', async () => {
+  it('renders nothing once all five steps are done', async () => {
     await resetStoreWithAccount('acct-complete-checklist');
     const store = useStore.getState();
     const person = await requireCreated(
@@ -129,16 +129,13 @@ describe('Getting started', () => {
       hoursPerDay: 0,
       status: 'tentative',
     });
-    const user = userEvent.setup();
     renderChecklist('owner');
-    expect(await screen.findByRole('progressbar', { name: 'Getting started' })).toHaveAttribute(
-      'aria-valuenow',
-      '5',
-    );
-    expect(screen.queryByTestId('getting-started')).not.toBeInTheDocument();
-    await user.click(screen.getByTestId('getting-started-dismiss'));
-    expect(screen.queryByText('Do you really want to hide this forever?')).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    await act(async () => {});
     expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('getting-started')).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
   });
 
   it.each(['starting', 'active', 'ending'] as const)(

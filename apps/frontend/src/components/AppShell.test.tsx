@@ -538,13 +538,14 @@ describe('AppShell navigation links', () => {
   it('keeps the avatar-led Account row as the only sidebar session control', () => {
     renderAppShell({});
 
-    expect(screen.getByText('Test Co')).toBeInTheDocument();
+    expect(screen.queryByText('Test Co')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('active-role')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Switch company' })).not.toBeInTheDocument();
     const account = screen.getByRole('link', { name: 'Account' });
     expect(account.querySelector("[data-slot='avatar']")).not.toBeNull();
     expect(screen.queryByTestId('nav-sign-out')).not.toBeInTheDocument();
   });
-  it('pins Team & access, Settings and Diagnostics, in that order, after every other destination', async () => {
+  it('pins Team & access and Settings, in that order, after every other destination', async () => {
     renderAppShell({});
 
     // Scoped to the nav landmark so the skip-to-content link above the sidebar stays out of it.
@@ -563,7 +564,6 @@ describe('AppShell navigation links', () => {
         '/timeoff',
         '/team',
         '/settings',
-        '/diagnostics',
       ]);
     });
   });
@@ -585,10 +585,10 @@ describe('AppShell navigation links', () => {
     expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute('href', '/activities');
     expect(screen.getByRole('link', { name: 'Time off' })).toHaveAttribute('href', '/timeoff');
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings');
-    expect(screen.getByRole('link', { name: 'Diagnostics' })).toHaveAttribute(
-      'href',
-      '/diagnostics',
-    );
+    expect(screen.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
+    expect(screen.queryByRole('link', { name: 'Diagnostics' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Switch to (dark|light) mode$/ })).toBeNull();
+    expect(screen.queryByTestId('product-orientation-reopen')).not.toBeInTheDocument();
   });
 });
 

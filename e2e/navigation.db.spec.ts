@@ -124,7 +124,7 @@ test.describe('Navigation & shell', () => {
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
   });
   // Assert the links appear above the account block; presence alone does not verify their order.
-  test('pins Team & access, Settings and Diagnostics below the working destinations, above the account block', async ({
+  test('pins Team & access and Settings below the working destinations, above the account block', async ({
     page,
   }) => {
     await openApp(page);
@@ -144,7 +144,6 @@ test.describe('Navigation & shell', () => {
         '/timeoff',
         '/team',
         '/settings',
-        '/diagnostics',
       ]);
 
     // The one-company footer keeps Help directly above Account.
@@ -256,15 +255,21 @@ test.describe('Navigation & shell', () => {
     await toggle.hover();
     await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toBeVisible();
   });
-  test('sidebar toggles between light and dark mode', async ({ page }) => {
+  test('Diagnostics is reached from Help and keeps the Help row active', async ({ page }) => {
+    await openApp(page, '/help');
+    await expect(page.getByRole('link', { name: 'Diagnostics', exact: true })).toHaveCount(1);
+    await page.getByRole('main').getByRole('link', { name: 'Diagnostics', exact: true }).click();
+    await expect(page.getByTestId('diagnostics-report-text')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Help', exact: true })).toHaveAttribute(
+      'data-active',
+      'true',
+    );
+  });
+  test('the sidebar offers no theme toggle', async ({ page }) => {
     await openApp(page);
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-
-    await page.getByRole('button', { name: 'Switch to dark mode' }).click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-
-    await page.getByRole('button', { name: 'Switch to light mode' }).click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.getByRole('button', { name: /^Switch to (dark|light) mode$/ })).toHaveCount(
+      0,
+    );
   });
 });
 
