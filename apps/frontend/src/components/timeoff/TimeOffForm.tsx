@@ -6,7 +6,7 @@ import { hasPlaceholdersEnabled, resolveTimeZone } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
-import { todayISO } from '@capacitylens/shared/lib/dateMath';
+import { readCalendarToday } from '@/lib/calendarToday';
 import { m } from '@/i18n';
 import {
   DateField,
@@ -20,6 +20,7 @@ import type { Option } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
 import { buildTimeOffTypeOptions, resolveResourceDisplayName } from '@/lib/metadata';
 import { resolveErrorMessage } from '@/lib/errorMessage';
+import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
 import { canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
@@ -69,7 +70,7 @@ function useTimeOffDraft({
   calendarTimeZone,
   canEditNote,
 }: TimeOffDraftOptions) {
-  const today = todayISO(calendarTimeZone);
+  const today = readCalendarToday(calendarTimeZone);
   const [resourceId, setResourceId] = useState(
     resolveDraftValue(timeOff?.resourceId, defaults?.resourceId, ''),
   );
@@ -112,7 +113,8 @@ function useTimeOffResourceOptions({
         .filter((resource) => !isExternalResource(resource))
         .filter(
           (resource) =>
-            placeholdersEnabled || resource.kind !== 'placeholder' || resource.id === resourceId,
+            resource.id === resourceId ||
+            isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled: false }),
         ),
     [resources, placeholdersEnabled, resourceId],
   );

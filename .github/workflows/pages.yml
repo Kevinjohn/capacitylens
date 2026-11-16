@@ -9,9 +9,9 @@ concurrency:
 
 jobs:
   upload:
-    name: Upload documentation site
+    name: Build and upload documentation site
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -23,6 +23,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/setup
+      # The site is built in this run; docs/ is not committed.
+      - run: pnpm run docs:build
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
