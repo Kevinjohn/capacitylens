@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { seed } from '@capacitylens/shared/data/seed';
 import { APP_DATA_KEYS } from '@capacitylens/shared/types/entities';
 import { encodeRow } from '#services/state_repository';
-import { TABLE_NAMES } from '#services/planning/entity_policy';
+import { tables } from '#services/product_tables';
 
 // Captured from encodeRow before JSON columns were derived from the models; stored bytes must not move.
 const expected = JSON.parse(
@@ -22,10 +22,10 @@ test.group('encodeRow', () => {
       APP_DATA_KEYS.map((key) => {
         const rows = data[key] as unknown as Record<string, unknown>[];
         return [
-          TABLE_NAMES[key],
+          tables[key],
           {
-            seed: rows.map((row) => encodeRow(TABLE_NAMES[key], row)),
-            filled: encodeRow(TABLE_NAMES[key], filled({ ...rows[0] })),
+            seed: rows.map((row) => encodeRow(tables[key], row)),
+            filled: encodeRow(tables[key], filled({ ...rows[0] })),
           },
         ];
       })

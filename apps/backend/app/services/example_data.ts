@@ -1,8 +1,9 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { buildExampleCompany, countExampleRows } from '@capacitylens/shared/data/exampleCompany';
-import { todayISO } from '@capacitylens/shared/lib/dateMath';
+import logger from '@adonisjs/core/services/logger';
+import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
 import { encodeRow, readStateWithClient } from '#services/state_repository';
-import { TABLE_NAMES } from '#services/planning/entity_policy';
+import { tables } from '#services/product_tables';
 import { writeAudit } from '#services/audit';
 import { EntityWriteError } from '#services/planning/errors';
 import { advancePlanningRevision } from '#services/planning_revision';
@@ -43,18 +44,26 @@ export async function addExampleData(
       'EXAMPLE_DATA_COMPANY_NOT_EMPTY'
     );
   }
+  const today = resolveCalendarToday(account.timezone ?? undefined);
+  if (today.kind === 'invalid-time-zone') {
+    // The example still lands around the server's local date; the operator log names the zone.
+    logger.warn(
+      { timeZone: today.timeZone, err: today.cause },
+      'Example data used the local date because the company time zone is invalid'
+    );
+  }
   const sample = buildExampleCompany({
     accountId,
-    referenceDate: todayISO(account.timezone ?? undefined),
+    referenceDate: today.date,
     weekStartsOn: account.weekStartsOn ?? 1,
   });
   for (const key of INSERT_ORDER) {
     const rows = sample[key];
     if (rows.length > 0) {
       await trx
-        .table(TABLE_NAMES[key])
+        .table(tables[key])
         .multiInsert(
-          rows.map((row) => encodeRow(TABLE_NAMES[key], row as unknown as Record<string, unknown>))
+          rows.map((row) => encodeRow(tables[key], row as unknown as Record<string, unknown>))
         );
     }
   }

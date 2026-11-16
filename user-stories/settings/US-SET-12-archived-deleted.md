@@ -37,9 +37,7 @@ archive["useLifecycleActions.run: archive or unarchive"] --> command["Build reso
   command --> send["sendPlanningCommand: createStorePlanningTransport selects transport"]
   send --> server["PlanningController → mutatePlanning → transitionLifecycle"]
   server --> view["Planning cache reconciles; active and archived views refresh"]
-  individual["useLifecycleActions.run: anonymise"] --> configured{"isServerConfigured?"}
-  configured -->|yes| named["dispatchServerLifecycle: resource anonymise endpoint and fresh read"]
-  configured -->|no| local["dispatchLocalLifecycle: anonymiseResource in page memory"]
+  individual["useLifecycleActions.run: anonymise"] --> named["runResourceAnonymisation: resource anonymise endpoint and fresh read"]
 ```
 
 **Code references:** [useLifecycleActions.ts](../../apps/frontend/src/hooks/useLifecycleActions.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts), [anonymise_controller.ts](../../apps/backend/app/controllers/anonymise_controller.ts), [anonymise.ts](../../apps/backend/app/services/anonymise.ts)

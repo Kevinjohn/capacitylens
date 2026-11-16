@@ -256,13 +256,13 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     rawClients: raw.clients,
   });
   const draft = buildResourceSubmitDraft(form);
-  const readResources = () => useStore.getState().data.resources;
+  const resources = useStore((state) => state.data.resources);
   const { submit, submitting } = useResourceSubmit({
     resource,
     kind,
     isPlaceholder,
     draft,
-    readResources,
+    resources,
     fail,
     onClose,
     add,

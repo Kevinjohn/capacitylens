@@ -1,7 +1,6 @@
 import {
   externalCapacityDefaults,
   type AppData,
-  type AppDataKey,
   type ScopedEntityKey,
 } from '@capacitylens/shared/types/entities';
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
@@ -16,56 +15,84 @@ import { hasUsablePrivateCodeName } from '@capacitylens/shared/domain/privateNam
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
+import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
 import { validateEntityRow, requiredFields } from '#validators/entities/index';
+import { ENTITY_ID_PATTERN } from '#validators/planning/fields';
 import { assertEntityDomain } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
-import { EntityWriteError } from '#services/planning/errors';
+import {
+  hiddenFields,
+  restrictionFor,
+  restrictsPrivateRow,
+} from '#services/planning/restricted_fields';
+import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 
-export const TABLE_NAMES = {
-  accounts: 'accounts',
-  disciplines: 'disciplines',
-  resources: 'resources',
-  clients: 'clients',
-  projects: 'projects',
-  phases: 'phases',
-  activities: 'activities',
-  allocations: 'allocations',
-  timeOff: 'time_off',
-  closures: 'closures',
-} as const satisfies Record<AppDataKey, import('#services/state_repository').ProductTable>;
+/** Server-owned values every new row of a table starts with, before validation. */
+const CREATE_DEFAULTS: Partial<Record<ScopedEntityKey, Record<string, unknown>>> = {
+  clients: { builtin: null },
+  allocations: { seriesId: null },
+  resources: { avatarUrl: null, halfDays: [], engagement: 'studio' },
+};
+/** Fields a new row may not supply: lifecycle state and the Internal client flag. */
+const SERVER_SET_ON_CREATE = new Set(['archivedAt', 'deletedAt', 'builtin']);
 
-export const isLifecycle = (table: AppDataKey) =>
-  ['clients', 'projects', 'resources', 'activities'].includes(table);
+/** Applies a new row's server-owned defaults; lifecycle tables start active. */
+export function applyCreateDefaults(table: ScopedEntityKey, candidate: Record<string, unknown>) {
+  const defaults: Record<string, unknown> = {
+    ...(isLifecycleEntityKey(table) ? { archivedAt: null, deletedAt: null } : {}),
+    ...CREATE_DEFAULTS[table],
+  };
+  for (const [field, value] of Object.entries(defaults)) {
+    if (SERVER_SET_ON_CREATE.has(field)) candidate[field] = value;
+    else candidate[field] ??= Array.isArray(value) ? [...value] : value;
+  }
+}
+
+const isEmptyValue = (value: unknown) => value === undefined || value === null || value === false;
+
+/** Refuses a write that names a restricted field the caller may not change. */
+export function assertMayWriteRestrictedFields(
+  table: ScopedEntityKey,
+  fields: Record<string, unknown>,
+  capabilities: PlanningCapabilities,
+  mode: 'create' | 'update'
+) {
+  const rule = restrictionFor(table, capabilities);
+  if (!rule) return;
+  const named = rule.fields.some(
+    (field) =>
+      Object.hasOwn(fields, field) &&
+      !(mode === 'create' && rule.emptyAllowedOnCreate && isEmptyValue(fields[field]))
+  );
+  if (named) throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', rule.refusal);
+}
 
 const IMMUTABLE_ACCOUNT_FIELDS = ['language', 'weekStartsOn', 'timezone'] as const;
-const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/;
 
 function reject(field: string, reason: string): never {
   throw new EntityWriteError(`${field} ${reason}.`);
 }
 
+/** Keeps a restricted caller's write from changing what it cannot see: stored values win. */
 function pinHiddenFields(
   table: ScopedEntityKey,
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
   context: PlanningCapabilities
 ) {
-  if (table === 'timeOff' && !context.canSeeTimeOffNote) {
-    if (typeof existing?.note === 'string') candidate.note = existing.note;
-    else delete candidate.note;
+  const rule = restrictionFor(table, context);
+  if (!rule) return;
+  const privateRow = existing?.isPrivate === true;
+  const keepsStored = rule.privateRowFields.length === 0 || privateRow;
+  for (const field of rule.fields) {
+    const stored = existing?.[field];
+    if (keepsStored && stored !== null && stored !== undefined) candidate[field] = stored;
+    else delete candidate[field];
   }
-  if ((table === 'clients' || table === 'projects') && !context.canSeePrivateNames) {
-    if (existing?.isPrivate === true) {
-      candidate.name = existing.name;
-      candidate.isPrivate = true;
-      if (typeof existing.codeName === 'string') candidate.codeName = existing.codeName;
-      else delete candidate.codeName;
-    } else {
-      delete candidate.isPrivate;
-      delete candidate.codeName;
-    }
+  if (privateRow) {
+    for (const field of rule.privateRowFields) candidate[field] = existing[field];
   }
 }
 
@@ -169,7 +196,7 @@ function assertManagedFields(
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined
 ) {
-  if (isLifecycle(table)) {
+  if (isLifecycleEntityKey(table)) {
     for (const field of ['archivedAt', 'deletedAt'] as const) {
       if (Object.hasOwn(requested, field) && requested[field] !== (existing?.[field] ?? null)) {
         throw new EntityWriteError(`${field} is managed by its lifecycle action.`);
@@ -223,12 +250,7 @@ function validationView(
   context: PlanningCapabilities
 ) {
   const visible = { ...candidate };
-  if (table === 'timeOff' && !context.canSeeTimeOffNote) delete visible.note;
-  if ((table === 'clients' || table === 'projects') && !context.canSeePrivateNames) {
-    delete visible.isPrivate;
-    delete visible.codeName;
-    if (existing?.isPrivate === true) delete visible.name;
-  }
+  for (const field of hiddenFields(table, context, existing)) delete visible[field];
   return visible;
 }
 
@@ -237,8 +259,6 @@ function assertRequired(table: ScopedEntityKey, candidate: Record<string, unknow
   if (missing.length) {
     throw new EntityWriteError(`Missing required field(s): ${missing.join(', ')}.`);
   }
-  if (table === 'resources' && candidate.halfDays === undefined) candidate.halfDays = [];
-  if (table === 'resources' && candidate.engagement === undefined) candidate.engagement = 'studio';
 }
 
 export interface EntityWriteOptions {
@@ -255,9 +275,9 @@ export async function prepareEntityWrite(
   context: PlanningCapabilities,
   options: EntityWriteOptions
 ): Promise<Record<string, unknown>> {
-  if (typeof row.id !== 'string' || !ID_PATTERN.test(row.id)) {
+  if (typeof row.id !== 'string' || !ENTITY_ID_PATTERN.test(row.id)) {
     throw new EntityWriteError(
-      'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde or hyphen.'
+      'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde, colon or hyphen.'
     );
   }
   if (typeof row.accountId !== 'string' || row.accountId.length === 0) {
@@ -266,18 +286,9 @@ export async function prepareEntityWrite(
   if (existing && existing.accountId !== row.accountId) {
     throw new EntityWriteError('Not found.', 404);
   }
+  const hidden = hiddenFields(table, context, existing);
   for (const [field, value] of Object.entries(row)) {
-    if (value !== undefined) continue;
-    if (table === 'timeOff' && field === 'note' && !context.canSeeTimeOffNote) continue;
-    if (
-      (table === 'clients' || table === 'projects') &&
-      !context.canSeePrivateNames &&
-      (field === 'isPrivate' ||
-        field === 'codeName' ||
-        (field === 'name' && existing?.isPrivate === true))
-    ) {
-      continue;
-    }
+    if (value !== undefined || hidden.includes(field)) continue;
     reject(field, 'cannot be undefined');
   }
   let candidate = { ...row };
@@ -288,16 +299,8 @@ export async function prepareEntityWrite(
     const visible = validationView(table, candidate, existing, context);
     const validated = await validateEntityRow(table, visible);
     const preserved: Record<string, unknown> = {};
-    if (table === 'timeOff' && !context.canSeeTimeOffNote && Object.hasOwn(candidate, 'note')) {
-      preserved.note = candidate.note;
-    }
-    if ((table === 'clients' || table === 'projects') && !context.canSeePrivateNames) {
-      for (const field of ['isPrivate', 'codeName'] as const) {
-        if (Object.hasOwn(candidate, field)) preserved[field] = candidate[field];
-      }
-      if (existing?.isPrivate === true && Object.hasOwn(candidate, 'name')) {
-        preserved.name = candidate.name;
-      }
+    for (const field of hidden) {
+      if (Object.hasOwn(candidate, field)) preserved[field] = candidate[field];
     }
     candidate = { ...validated, ...preserved };
   } catch (error) {
@@ -347,8 +350,7 @@ export async function prepareEntityWrite(
   normalizeValidWrite({
     table,
     candidate,
-    existing,
-    canSeePrivateNames: context.canSeePrivateNames,
+    restrictedPrivateRow: restrictsPrivateRow(table, context, existing),
   });
   try {
     assertEntityDomain(

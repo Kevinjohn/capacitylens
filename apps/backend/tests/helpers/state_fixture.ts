@@ -3,7 +3,8 @@ import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
 import { seed } from '@capacitylens/shared/data/seed';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import access from '#config/access_control';
-import { encodeRow, readStateWithClient, tables } from '#services/state_repository';
+import { encodeRow, readStateWithClient } from '#services/state_repository';
+import { tables } from '#services/product_tables';
 
 /** Reads one company fixture or combines explicit company reads of every stored company. */
 export async function readState(

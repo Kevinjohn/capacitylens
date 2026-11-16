@@ -1,10 +1,10 @@
 import { m } from '@/i18n';
 import { effectiveProjectId } from '@capacitylens/shared/lib/integrity';
 import type { Activity, Resource } from '@capacitylens/shared/types/entities';
-import { isExternalResource } from '@capacitylens/shared/types/entities';
 import { useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { resolveResourceDisplayName } from '@/lib/metadata';
+import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import { parseText } from '@/lib/validation';
 import type { useStore } from '@/store/useStore';
 import type { Option } from '@/components/common/ui';
@@ -64,13 +64,8 @@ function buildResourceOptions({
   return resources
     .filter(
       (resource) =>
-        placeholdersEnabled ||
-        resource.kind !== 'placeholder' ||
-        resource.id === selectedResourceId,
-    )
-    .filter(
-      (resource) =>
-        externalEnabled || !isExternalResource(resource) || resource.id === selectedResourceId,
+        resource.id === selectedResourceId ||
+        isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled }),
     )
     .map((resource) => ({ value: resource.id, label: describeResource(resource) }));
 }
