@@ -14,7 +14,7 @@ import {
   completeRestorationCleanup,
   readRestorationCleanupCount,
   subscribeRestorationCleanup,
-} from './restorationCleanupConfirmation';
+} from '@/data/planning/restorationCleanupConfirmation';
 
 /** Keeps a pending save in its original editor until the company-wide Restore loss is accepted. */
 export function RestorationCleanupDialog() {

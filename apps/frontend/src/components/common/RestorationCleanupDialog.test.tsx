@@ -5,7 +5,7 @@ import { RestorationCleanupDialog } from './RestorationCleanupDialog';
 import {
   completeRestorationCleanup,
   requestRestorationCleanup,
-} from './restorationCleanupConfirmation';
+} from '@/data/planning/restorationCleanupConfirmation';
 
 afterEach(() => completeRestorationCleanup(false));
 describe('Restore cleanup dialog', () => {
