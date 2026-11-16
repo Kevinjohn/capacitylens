@@ -24,7 +24,7 @@ This is the short, present-tense record of decisions that constrain future work.
   distinguish brand/default, neutral, warning, danger and outline states.
 - Employment type is recorded for people but does not add a visual badge to the schedule or roster.
 - Product orientation is non-blocking and shown automatically to eligible users until dismissed.
-  The sidebar action can reopen it at any time. Dismissal is a versioned device preference scoped
+  The **How CapacityLens works** button on Help can reopen it at any time. Dismissal is a versioned device preference scoped
   to the signed-in person and company (with a stable no-company scope), never
   company data or export data. Reopening focuses the guidance; automatic background state changes
   do not repeatedly steal focus. A copy change may bump the version to show materially changed
