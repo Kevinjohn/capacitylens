@@ -40,9 +40,13 @@ source and unchanged production service hashes.
 
 ## Media evidence
 
-- [64-path asset, metadata and retention manifest](/reviews/1711/assets.json)
-- [GIF frame coverage and exact reconstruction record](/reviews/1711/gif_frames.json)
-- [MP4 native-frame coverage](/reviews/1711/mp4_frames.json)
+The three manifests and the seven replay screenshots are kept in the repository at
+[`f65766be8`](https://github.com/Kevinjohn/capacitylens/tree/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711),
+the last `main` commit that published them; the runtime and replay records stay on this site.
+
+- [64-path asset, metadata and retention manifest](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/assets.json)
+- [GIF frame coverage and exact reconstruction record](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/gif_frames.json)
+- [MP4 native-frame coverage](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/mp4_frames.json)
 - [Current-demo replay and screenshot hashes](/reviews/1711/replay.json)
 
 The reconstruction uses pinned tree `13866f5b6153bafdc524f1d20f3ab87ce53434fb`: 172 media paths
@@ -119,13 +123,13 @@ of today's capacity values. No missing control or broken recorded workflow was f
 
 These original-resolution captures contain fictional demo data and were reviewed before publication:
 
-- [Initial capacity indicators](/reviews/1711/replay/replay_schedule_initial.png)
-- [Booking reassigned to Clark](/reviews/1711/replay/replay_reassigned.png)
-- [Daily Planet client](/reviews/1711/replay/replay_clients_created.png)
-- [Website Relaunch project](/reviews/1711/replay/replay_projects_created.png)
-- [Selina Kyle resource](/reviews/1711/replay/replay_resource_created.png)
-- [Completed bookings](/reviews/1711/replay/replay_schedule_completed.png)
-- [Final Overview](/reviews/1711/replay/replay_overview_final.png)
+- [Initial capacity indicators](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/replay/replay_schedule_initial.png)
+- [Booking reassigned to Clark](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/replay/replay_reassigned.png)
+- [Daily Planet client](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/replay/replay_clients_created.png)
+- [Website Relaunch project](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/replay/replay_projects_created.png)
+- [Selina Kyle resource](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/replay/replay_resource_created.png)
+- [Completed bookings](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/replay/replay_schedule_completed.png)
+- [Final Overview](https://github.com/Kevinjohn/capacitylens/blob/f65766be89032fba9fec037022a7c5f158765eed/docs-src/public/reviews/1711/replay/replay_overview_final.png)
 
 The screenshots support visible outcomes; the action assertions and replay record establish the
 exercised journey. Demo changes are in memory, so this is not a persistence claim. This review is
