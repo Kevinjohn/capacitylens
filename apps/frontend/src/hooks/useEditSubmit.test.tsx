@@ -113,6 +113,18 @@ describe('useEditSubmit', () => {
     expect(result.current.pending).toBe(false);
   });
 
+  it('shows the form message for a cancelled save when one is given', async () => {
+    const { input, result } = renderSubmit({
+      cancelledMessage: (error) => `Gotham: ${error.message}`,
+    });
+    await act(() =>
+      result.current.submit(() => () => Promise.reject(new PlanningSaveCancelledError())),
+    );
+    expect(input.fail).toHaveBeenCalledWith(null, 'Gotham: The planning save was cancelled.');
+    expect(input.onSaved).not.toHaveBeenCalled();
+    expect(result.current.pending).toBe(false);
+  });
+
   it('shows a failed save on the form and reopens it for a retry', async () => {
     const { input, result } = renderSubmit();
     await act(() => result.current.submit(() => () => Promise.reject(new Error('Server down.'))));

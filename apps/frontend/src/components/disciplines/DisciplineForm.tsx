@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useEditSubmit } from '@/hooks/useEditSubmit';
+import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError } from '@/hooks/useFieldError';
 import { validatePresetColor, parseName } from '@/lib/validation';
 import { m } from '@/i18n';
@@ -34,6 +35,7 @@ export function DisciplineForm({
     editing: discipline,
     rows: allDisciplines,
     staleMessage: m.form_discipline_err_changed,
+    cancelledMessage: resolveErrorMessage,
     fail,
     onSaved: onClose,
   });

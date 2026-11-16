@@ -2,6 +2,7 @@ import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useEditSubmit } from '@/hooks/useEditSubmit';
+import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError } from '@/hooks/useFieldError';
 import { parseText } from '@/lib/validation';
 import { m } from '@/i18n';
@@ -67,6 +68,7 @@ export function ExternalForm({
     editing: resource,
     rows: resources,
     staleMessage: m.form_external_err_changed,
+    cancelledMessage: resolveErrorMessage,
     fail,
     onSaved: onClose,
   });

@@ -179,6 +179,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
     rows: timeOffRows,
     staleMessage: m.form_timeoff_err_changed,
     failedMessage: m.form_timeoff_err_save_failed,
+    cancelledMessage: resolveErrorMessage,
     fail,
     onSaved: onClose,
   });
