@@ -36,9 +36,7 @@ const parentImportAllowances = {
   'apps/frontend/src/bundleBudgetGate.test.ts': ['../../../scripts/bundleBudget.mjs'],
   'apps/frontend/src/csp.test.ts': [
     '../../../nginx.conf?raw',
-    '../../../nginx.client.conf.template?raw',
     '../../../nginx-security-headers.conf?raw',
-    '../../../scripts/render-client-nginx.mjs',
   ],
   'apps/frontend/src/playwrightServerScope.test.ts': [
     '../../../scripts/playwrightServerScope',

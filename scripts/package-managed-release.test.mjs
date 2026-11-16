@@ -506,11 +506,7 @@ for (const filename of [
 }
 
 test('all shipped nginx configs suppress browser bearer routes', async () => {
-  for (const path of [
-    'nginx.conf',
-    'nginx.client.conf.template',
-    'packaging/release/capacitylens.nginx.conf',
-  ]) {
+  for (const path of ['nginx.conf', 'packaging/release/capacitylens.nginx.conf']) {
     const conf = await readFile(join(repositoryRoot, path), 'utf8');
     const locations = [...conf.matchAll(/location\s+(~\*?)\s+([^\s{]+)\s*\{([^}]+)\}/g)].map(
       ([, operator, expression, body]) => ({
