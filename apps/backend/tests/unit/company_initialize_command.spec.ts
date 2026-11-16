@@ -47,6 +47,7 @@ test('company initialization creates canonical defaults and refuses a second set
     assert.equal(account.name, 'Wayne Enterprises');
     assert.equal(account.week_starts_on, '1');
     assert.equal(account.working_days, '[1,2,3,4,5]');
+    assert.equal(account.timezone, 'Etc/GMT');
     assert.equal(inspect.prepare('SELECT builtin FROM clients').get()!.builtin, 'true');
     assert.deepInclude(inspect.prepare('SELECT * FROM memberships').get()!, {
       user_id: 'bruce',

@@ -28,7 +28,7 @@ export async function createInitialCompany(
       color: FALLBACK_PRESET_COLOR,
       schedulingMode: 'days',
       weekStartsOn: input.weekStartsOn ?? 1,
-      timezone: input.timezone ?? null,
+      timezone: input.timezone ?? 'Etc/GMT',
       workingDays: defaultAccountWorkingDays(input.weekStartsOn),
       disciplinesEnabled: false,
       placeholdersEnabled: false,
