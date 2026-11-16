@@ -16,12 +16,14 @@ import { settingsMutationValidator } from '#validators/planning/settings';
 import { planningMutationValidator } from '#validators/planning_operations';
 import type { PlanningMutationInput } from '#validators/planning/contracts';
 import { sendRefusal } from '#services/planning/http_refusal';
+import { withActor } from '#services/auth/current_actor';
 
 /** Resource routes accept only their named operation and matching target; the body never selects a table. */
 export default class PlanningController {
   async show(ctx: HttpContext) {
     try {
-      return await readPlanning(ctx, String(ctx.params.accountId));
+      const accountId = String(ctx.params.accountId);
+      return await withActor(ctx, (_actor, trx) => readPlanning(trx, accountId));
     } catch (error) {
       return sendRefusal(error, ctx);
     }
@@ -29,7 +31,8 @@ export default class PlanningController {
 
   async archive(ctx: HttpContext) {
     try {
-      return await readArchiveRecovery(ctx, String(ctx.params.accountId));
+      const accountId = String(ctx.params.accountId);
+      return await withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, accountId));
     } catch (error) {
       return sendRefusal(error, ctx);
     }
@@ -38,7 +41,10 @@ export default class PlanningController {
   async lookup(ctx: HttpContext) {
     try {
       const mutationId = await validatePlanningMutationId(ctx.params.mutationId);
-      return await lookupPlanningMutation(ctx, String(ctx.params.accountId), mutationId);
+      const accountId = String(ctx.params.accountId);
+      return await withActor(ctx, (actor, trx) =>
+        lookupPlanningMutation({ trx, actor, accountId, mutationId })
+      );
     } catch (error) {
       return sendRefusal(error, ctx);
     }
@@ -82,7 +88,8 @@ export default class PlanningController {
           'The operation target does not match this resource route.'
         );
       }
-      return await mutatePlanning(ctx, String(ctx.params.accountId), input);
+      const accountId = String(ctx.params.accountId);
+      return await withActor(ctx, (actor, trx) => mutatePlanning({ trx, actor, accountId, input }));
     } catch (error) {
       return sendRefusal(error, ctx);
     }

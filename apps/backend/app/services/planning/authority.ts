@@ -1,4 +1,3 @@
-import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
@@ -18,12 +17,8 @@ export interface PlanningAuthority {
 }
 
 /** Resolves the caller's planning authority and write capabilities inside the transaction. */
-export async function resolvePlanningAuthority(
-  ctx: HttpContext,
-  trx: TransactionClientContract,
-  accountId: string
-) {
-  const principal = await effectiveReadPrincipal(ctx, trx, accountId);
+export async function resolvePlanningAuthority(trx: TransactionClientContract, accountId: string) {
+  const principal = await effectiveReadPrincipal(trx, accountId);
   const membership = await getActiveMembership(principal.effectiveId, accountId, trx);
   if (!membership || (principal.accountId !== null && principal.accountId !== accountId)) {
     throw new PlanningOperationError(

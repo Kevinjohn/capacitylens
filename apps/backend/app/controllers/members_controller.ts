@@ -4,7 +4,7 @@ import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { writeAudit } from '#services/audit';
-import { runAccountCommand, readAccountCommand } from '#services/account_commands';
+import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
 import { hasOnlyFields } from '#services/request_helpers';
 import { changeMemberRole, changeMemberStatus } from '#services/membership/member_mutations';
 import {
@@ -28,7 +28,10 @@ interface SemanticMutationInput<T> {
 
 async function semanticMutation<T>(ctx: HttpContext, input: SemanticMutationInput<T>) {
   const { accountId, operation, payload, work } = input;
-  const command = readAccountCommand(ctx);
+  const command = parseAccountCommand(
+    ctx.request.header('x-account-command-id'),
+    ctx.request.header('idempotency-key')
+  );
   return withActor(ctx, async (currentActor, trx) => {
     let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
     return runAccountCommand(trx, {
