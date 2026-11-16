@@ -38,7 +38,8 @@ first. It covers setup, standards, tests, signed commits and the pull-request pr
 
 For documentation, edit the Markdown sources under `docs-src/`, follow the
 [documentation style guide](https://github.com/Kevinjohn/capacitylens/blob/main/docs-src/STYLE.md),
-and rebuild the committed site before opening a pull request.
+and check that `pnpm run docs:build` passes before opening a pull request. Commit only the sources;
+the built site is not committed.
 
 ## Report a vulnerability
 

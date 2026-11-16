@@ -10,20 +10,7 @@ import {
   hasPlaceholdersEnabled,
 } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
-import { resolveResourceDisplayName } from '@/lib/metadata';
-import {
-  createDisplayNameComparator,
-  createEngagementFavouriteDisplayNameComparator,
-  createFavouriteDisplayNameComparator,
-} from '@/lib/displayOrder';
-
-const byFavouriteDisplayName = createFavouriteDisplayNameComparator<Resource>(
-  resolveResourceDisplayName,
-);
-const byEngagementFavouriteDisplayName = createEngagementFavouriteDisplayNameComparator<Resource>(
-  resolveResourceDisplayName,
-);
-const byDisplayName = createDisplayNameComparator<Resource>(resolveResourceDisplayName);
+import { createResourceComparator } from '@/lib/resourceGrouping';
 
 type PartitionResourcesOptions = { resources: Resource[]; groupByEngagement: boolean };
 function partitionResources({ resources, groupByEngagement }: PartitionResourcesOptions) {
@@ -35,9 +22,11 @@ function partitionResources({ resources, groupByEngagement }: PartitionResources
     else if (resource.kind === 'placeholder') placeholders.push(resource);
     else if (isExternalResource(resource)) externals.push(resource);
   }
-  people.sort(groupByEngagement ? byEngagementFavouriteDisplayName : byFavouriteDisplayName);
-  placeholders.sort(byDisplayName);
-  externals.sort(byFavouriteDisplayName);
+  // Placeholders and externals are always Studio, so engagement order only moves people.
+  const compareResources = createResourceComparator(groupByEngagement);
+  people.sort(compareResources);
+  placeholders.sort(compareResources);
+  externals.sort(compareResources);
   return {
     people,
     studioPeople: people.filter((resource) => resource.engagement === 'studio'),

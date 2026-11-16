@@ -4,21 +4,18 @@ import { matchPath, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { GettingStarted } from './GettingStarted';
 import { Toaster } from 'sonner';
 import { useStore } from '@/store/useStore';
-import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from '@/store/selectors';
-import { usePermissionStatus, useRole } from '@/auth/permissionContext';
-import { resolveCapacityOverviewAccessDecision } from '@/auth/capacityOverviewAccess';
 import { CommandPalette } from './CommandPalette';
 import { PermissionProvider } from '@/auth/PermissionProvider';
 import { RotateHint } from './RotateHint';
 import { Spinner } from './ui/spinner';
 import { Alert, AlertDescription } from './ui/alert';
 import { m } from '@/i18n';
-import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from '@/lib/navLinks';
+import { ACCOUNT_LINK } from '@/lib/navLinks';
 import { AppEntryGate } from './AppEntryGate';
 import { useAppShellController } from './useAppShellController';
+import { useVisibleRoutes } from './useVisibleRoutes';
 import { AppSidebar } from './AppSidebar';
 import { SidebarProvider, SidebarTrigger, useSidebar } from './ui/sidebar';
-import { ROUTE_CAPACITY_OVERVIEW } from '@/lib/tourAnchors';
 import { readPlanningProblem } from '@/data/planning/planningNotices';
 import { useAuth } from '@/auth/authContext';
 import { ProductOrientation } from './ProductOrientation';
@@ -80,7 +77,6 @@ type GatedAppProps = {
     | ReturnType<typeof useStore.getState>['data']['accounts'][number]
     | ReturnType<typeof useStore.getState>['accountSummaries'][number]
     | undefined;
-  navLinks: typeof LINKS;
   dirtyForm: boolean;
   paletteOpen: boolean;
   closePalette: () => void;
@@ -98,7 +94,6 @@ function GatedApp({
   sidebarOpen,
   setSidebarOpen,
   activeAccount,
-  navLinks,
   dirtyForm,
   paletteOpen,
   closePalette,
@@ -131,7 +126,7 @@ function GatedApp({
           className="h-full min-h-0"
           style={{ '--sidebar-width': '12rem', '--sidebar-width-icon': '3.5rem' } as CSSProperties}
         >
-          <GatedSidebar navLinks={navLinks} sidebarOpen={sidebarOpen} />
+          <GatedSidebar sidebarOpen={sidebarOpen} />
           {/* prettier-ignore */}
           <GatedMain
             hydrated={hydrated}
@@ -147,20 +142,8 @@ function GatedApp({
   );
 }
 
-function GatedSidebar({ navLinks, sidebarOpen }: Pick<GatedAppProps, 'navLinks' | 'sidebarOpen'>) {
-  const role = useRole();
-  const permissionStatus = usePermissionStatus();
-  const overviewAccess = useStore((state) =>
-    resolveCapacityOverviewAccess(state.data, state.activeAccountId),
-  );
-  const visibleNavLinks =
-    resolveCapacityOverviewAccessDecision({
-      role,
-      status: permissionStatus,
-      access: overviewAccess,
-    }) === 'allowed'
-      ? navLinks
-      : navLinks.filter(({ to }) => to !== ROUTE_CAPACITY_OVERVIEW);
+function GatedSidebar({ sidebarOpen }: Pick<GatedAppProps, 'sidebarOpen'>) {
+  const routes = useVisibleRoutes();
   return (
     <>
       <a
@@ -169,7 +152,11 @@ function GatedSidebar({ navLinks, sidebarOpen }: Pick<GatedAppProps, 'navLinks' 
       >
         {m.nav_skip_to_content()}
       </a>
-      <AppSidebar adminLinks={ADMIN_LINKS} navLinks={visibleNavLinks} open={sidebarOpen} />
+      <AppSidebar
+        adminLinks={routes.filter(({ sidebar }) => sidebar === 'admin')}
+        navLinks={routes.filter(({ sidebar }) => sidebar === 'primary')}
+        open={sidebarOpen}
+      />
     </>
   );
 }
@@ -240,10 +227,6 @@ export function AppShell() {
   const activeAccount =
     accounts.find((account) => account.id === activeAccountId) ??
     accountSummaries.find((a) => a.id === activeAccountId);
-  const disciplinesEnabled = useStore((state) =>
-    hasDisciplinesEnabled(state.data, state.activeAccountId),
-  );
-  const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== '/disciplines');
   const accountRoute =
     matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
 
@@ -266,7 +249,6 @@ export function AppShell() {
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         activeAccount={activeAccount}
-        navLinks={navLinks}
         dirtyForm={dirtyForm}
         paletteOpen={paletteOpen}
         closePalette={closePalette}

@@ -99,6 +99,8 @@ function PersonCell({
   const scheduleTitle =
     personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
   const imageUrl = resolveResourceAvatarUrl(resource, resourceAvatars);
+  // Placeholders sit in the uncoloured Unassigned demand band, so they always show their own colour,
+  // even with a discipline. The schedule intentionally gives a placeholder its discipline's colour.
   return (
     <th
       scope="row"

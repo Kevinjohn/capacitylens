@@ -1,7 +1,7 @@
-import type { Patch } from './entityDrafts';
+import type { Patch } from '@/lib/entityDrafts';
 import type { Filters } from './filters';
 import type { StoreEntityActions } from './StoreEntityActions';
-export * from './entityDrafts';
+export * from '@/lib/entityDrafts';
 export * from './filters';
 export * from './StoreEntityActions';
 import type { WeeksZoom } from '@/lib/schedulerConfig';
@@ -107,7 +107,7 @@ export interface StoreState extends StoreEntityActions {
   /** Advances only when a current planning request confirms that sign-in authority was lost. */
   planningAuthLossVersion: number;
   /** Submit one typed planning command and resolve after authoritative reconciliation. */
-  sendPlanningCommand: (command: PlanningCommand, original?: unknown) => Promise<void>;
+  sendPlanningCommand: (command: PlanningCommand) => Promise<void>;
   /** Current user notice, or null. Dismissal and treatment follow Notice. */
   notice: Notice | null;
   /** Latest keyboard capacity announcement and sequence token. The token makes equal
