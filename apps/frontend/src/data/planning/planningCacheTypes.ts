@@ -25,11 +25,16 @@ export interface PlanningClientContext {
 }
 
 /**
- * The server port. Error contract: a transport reports a failure the controller must act on by
- * throwing `PlanningControllerError` — `uncertain: true` when the commit boundary is unknown (the
- * controller then reconciles through `lookup`), and code `RESTORATION_CONFIRMATION_REQUIRED` with a
- * positive `restorableItemCount` when the server needs cleanup confirmed. Any other thrown value is a
- * definite failure, read for `code` and `status` only.
+ * The server port. Error contract: the controller reads any thrown value for `code`, `status` and
+ * `message` only. On `execute`, status 401 ends the planning scope; code `MUTATION_ID_REUSED`, status
+ * 408, a status of 500 or more, or no status (a network failure) leaves the commit boundary unknown,
+ * so the controller marks the write uncertain and reconciles through `lookup`; code `STALE_REVISION`
+ * or status 409 is refused and refreshed; codes `AUTHORIZATION_DENIED`, `VALIDATION_ERROR` and
+ * `NO_CHANGE`, and any other status below 500, are refused. Only a server request to confirm cleanup
+ * must be a `PlanningControllerError`: code `RESTORATION_CONFIRMATION_REQUIRED` with a positive
+ * `restorableItemCount`. A transport must not set `uncertain`; the controller sets it on failures it
+ * has already recorded. A `read` or `lookup` failure ends the scope on 401 and is otherwise recorded
+ * on the planning state.
  */
 export interface PlanningTransport {
   execute(
