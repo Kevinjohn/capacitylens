@@ -126,6 +126,21 @@ TypeScript domain package for the scheduling rules. Start with [CONTRIBUTING.md]
 the [architecture reference](docs-src/reference/architecture.md) and the
 [standing decisions](DECISIONS.md).
 
+### Where do I edit?
+
+| To change…                                        | Edit                                                                                                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| A screen, form or the schedule grid               | [`apps/frontend/`](apps/frontend/) (React SPA)                                                                                              |
+| An API route, authorization, a migration or a job | [`apps/backend/`](apps/backend/) (AdonisJS server)                                                                                          |
+| A scheduling or validation rule both sides share  | [`packages/shared/`](packages/shared/), for example [`src/domain/`](packages/shared/src/domain/) and [`src/lib/`](packages/shared/src/lib/) |
+| A user guide                                      | [`docs-src/`](docs-src/), the guide sources                                                                                                 |
+| The offline documentation site                    | Nothing: [`docs/`](docs/) is generated from `docs-src/` by `pnpm run docs:build` and committed                                              |
+| What a feature must do (acceptance criteria)      | [`user-stories/`](user-stories/)                                                                                                            |
+
+Guides explain how to use the product; stories state the behaviour a change must keep; `docs/` is
+build output, so a hand edit there is overwritten. The
+[architecture reference](docs-src/reference/architecture.md) maps modules within each directory.
+
 [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·
 [Reviews and compliance](docs-src/security/reviews.md) ·
 [ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) · [Releases](https://github.com/Kevinjohn/capacitylens/releases) ·
