@@ -1,6 +1,5 @@
 import { indexEntities } from '@adonisjs/core/generators';
 import { defineConfig } from '@adonisjs/core/app';
-import { indexPolicies } from '@adonisjs/bouncer';
 import { generateRegistry } from '@tuyau/core/hooks';
 
 async function accountKitCommands() {
@@ -43,7 +42,6 @@ export default defineConfig({
     () => import('@adonisjs/lucid/commands'),
     () => import('@kevinjohn/adonisjs-sqlite-backup/commands'),
     () => import('@adonisjs/session/commands'),
-    () => import('@adonisjs/bouncer/commands'),
     accountKitCommands,
     () => import('@kevinjohn/adonisjs-account-kit/admission/commands'),
     () => import('@kevinjohn/adonisjs-access-control/commands'),
@@ -143,7 +141,6 @@ export default defineConfig({
 
   hooks: {
     init: [
-      indexPolicies(),
       indexEntities({
         transformers: { enabled: true },
       }),
