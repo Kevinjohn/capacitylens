@@ -28,7 +28,7 @@ RUN NODE_ENV=production HOST=127.0.0.1 PORT=0 LOG_LEVEL=error APP_KEY=capacityle
 # Deployment runs in this disposable build stage, preserving the pinned release-asset packages.
 FROM web-build AS server-deploy
 RUN pnpm --filter @capacitylens/backend deploy --prod --legacy --no-optional /runtime-deploy \
-    && node scripts/prepare-container-runtime.mjs /app /runtime-deploy /prod/backend
+    && node scripts/release/docker/prepare-container-runtime.mjs /app /runtime-deploy /prod/backend
 
 FROM docker.io/library/node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS api
 # Links the published image to this repository on GitHub Container Registry.
