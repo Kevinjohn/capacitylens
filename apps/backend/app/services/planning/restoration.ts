@@ -268,6 +268,39 @@ export async function restoreGroup(
   }
 }
 
+/**
+ * Lets a create reuse the id of a row this session deleted and can still restore: the retained
+ * row is purged first. Any other existing row with that id refuses the create.
+ */
+export async function reclaimRetainedId(
+  trx: TransactionClientContract,
+  accountId: string,
+  table: RetainedTable,
+  id: string,
+  identity: RestorationIdentity
+) {
+  const prior = await trx
+    .from(tables[table])
+    .select('account_id', 'deleted_at', 'deletion_group_id')
+    .where('id', id)
+    .first();
+  if (!prior) return;
+  if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id) {
+    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+  }
+  if (!(await ownsUnconsumedGroup(trx, accountId, String(prior.deletion_group_id), identity))) {
+    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+  }
+  const purged = await retainedQuery(trx, accountId, table)
+    .onlyTrashed()
+    .where('id', id)
+    .where('deletion_group_id', String(prior.deletion_group_id))
+    .forceDelete();
+  if (purged !== 1) {
+    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+  }
+}
+
 /** Whether the caller's own session holds the unconsumed group that retained a row. */
 export async function ownsUnconsumedGroup(
   trx: TransactionClientContract,

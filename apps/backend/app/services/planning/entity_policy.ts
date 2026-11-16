@@ -1,6 +1,7 @@
 import {
   externalCapacityDefaults,
   type AppData,
+  type AppDataKey,
   type ScopedEntityKey,
 } from '@capacitylens/shared/types/entities';
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
@@ -20,9 +21,60 @@ import { validateEntityRow, requiredFields } from '#validators/entities/index';
 import { ENTITY_ID_PATTERN } from '#validators/planning/fields';
 import { assertEntityDomain } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
-import { EntityWriteError } from '#services/planning/errors';
+import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
+
+/** Server-owned values every new row of a table starts with, before validation. */
+const CREATE_DEFAULTS: Partial<Record<ScopedEntityKey, Record<string, unknown>>> = {
+  clients: { builtin: null },
+  allocations: { seriesId: null },
+  resources: { avatarUrl: null, halfDays: [], engagement: 'studio' },
+};
+/** Fields a new row may not supply: lifecycle state and the Internal client flag. */
+const SERVER_SET_ON_CREATE = new Set(['archivedAt', 'deletedAt', 'builtin']);
+
+/** Applies a new row's server-owned defaults; lifecycle tables start active. */
+export function applyCreateDefaults(table: ScopedEntityKey, candidate: Record<string, unknown>) {
+  const defaults: Record<string, unknown> = {
+    ...(isLifecycleEntityKey(table) ? { archivedAt: null, deletedAt: null } : {}),
+    ...CREATE_DEFAULTS[table],
+  };
+  for (const [field, value] of Object.entries(defaults)) {
+    if (SERVER_SET_ON_CREATE.has(field)) candidate[field] = value;
+    else candidate[field] ??= Array.isArray(value) ? [...value] : value;
+  }
+}
+
+/** Refuses a write that names a restricted field the caller may not change. */
+export function assertMayWriteRestrictedFields(
+  table: AppDataKey,
+  fields: Record<string, unknown>,
+  capabilities: PlanningCapabilities,
+  mode: 'create' | 'update'
+) {
+  if (
+    (table === 'clients' || table === 'projects') &&
+    !capabilities.canSeePrivateNames &&
+    ((mode === 'create' &&
+      (fields.isPrivate === true || (fields.codeName !== null && fields.codeName !== undefined))) ||
+      (mode === 'update' &&
+        (Object.hasOwn(fields, 'isPrivate') || Object.hasOwn(fields, 'codeName'))))
+  ) {
+    throw new PlanningOperationError(
+      403,
+      'AUTHORIZATION_DENIED',
+      'Only an owner can change private names.'
+    );
+  }
+  if (table === 'timeOff' && !capabilities.canSeeTimeOffNote && Object.hasOwn(fields, 'note')) {
+    throw new PlanningOperationError(
+      403,
+      'AUTHORIZATION_DENIED',
+      'The time-off note is restricted.'
+    );
+  }
+}
 
 const IMMUTABLE_ACCOUNT_FIELDS = ['language', 'weekStartsOn', 'timezone'] as const;
 
@@ -221,8 +273,6 @@ function assertRequired(table: ScopedEntityKey, candidate: Record<string, unknow
   if (missing.length) {
     throw new EntityWriteError(`Missing required field(s): ${missing.join(', ')}.`);
   }
-  if (table === 'resources' && candidate.halfDays === undefined) candidate.halfDays = [];
-  if (table === 'resources' && candidate.engagement === undefined) candidate.engagement = 'studio';
 }
 
 export interface EntityWriteOptions {

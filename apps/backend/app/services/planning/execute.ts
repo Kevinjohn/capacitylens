@@ -16,7 +16,8 @@ import { encodeRow } from '#services/state_repository';
 import { tables } from '#services/product_tables';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
-import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js';
+import { existingRow, PlanningOperationError, updateSettings } from './writer.js';
+import { writeEntity } from './entity_write.js';
 import {
   deleteAllocations,
   deleteRows,
@@ -138,7 +139,7 @@ export async function executePlanningIntent(
   try {
     switch (intent.operation) {
       case 'allocation.create':
-        await writeRow({
+        await writeEntity({
           ...writeOptions,
           table: 'allocations',
           id: intent.allocation.id,
@@ -150,7 +151,7 @@ export async function executePlanningIntent(
         assertAllocationGroupHomogeneous(intent.allocations);
         const seriesId = crypto.randomUUID();
         for (const [index, allocation] of intent.allocations.entries()) {
-          await writeRow({
+          await writeEntity({
             ...writeOptions,
             table: 'allocations',
             id: allocation.id,
@@ -162,7 +163,7 @@ export async function executePlanningIntent(
         return unchanged;
       }
       case 'allocation.update':
-        await writeRow({
+        await writeEntity({
           ...writeOptions,
           table: 'allocations',
           id: intent.id,
@@ -177,7 +178,7 @@ export async function executePlanningIntent(
           intent.operation === 'allocation.duplicate' ? [intent.occurrence] : intent.occurrences;
         const seriesId = intent.operation === 'allocation.repeat' ? crypto.randomUUID() : null;
         for (const [index, occurrence] of occurrences.entries()) {
-          await writeRow({
+          await writeEntity({
             ...writeOptions,
             table: 'allocations',
             id: occurrence.id,
@@ -204,7 +205,7 @@ export async function executePlanningIntent(
       case 'catalogue.update': {
         const entity = intent.entity;
         const fields = 'fields' in entity ? entity.fields : entity.changes;
-        await writeRow({
+        await writeEntity({
           ...writeOptions,
           table: entity.entity,
           id: entity.id,
@@ -252,7 +253,7 @@ export async function executePlanningIntent(
       }
       case 'resource.create':
       case 'resource.update':
-        await writeRow({
+        await writeEntity({
           ...writeOptions,
           table: 'resources',
           id: intent.id,
@@ -272,7 +273,7 @@ export async function executePlanningIntent(
         );
         return unchanged;
       case 'timeOff.create':
-        await writeRow({
+        await writeEntity({
           ...writeOptions,
           table: 'timeOff',
           id: intent.timeOff.id,
@@ -281,7 +282,7 @@ export async function executePlanningIntent(
         });
         return unchanged;
       case 'timeOff.update':
-        await writeRow({
+        await writeEntity({
           ...writeOptions,
           table: 'timeOff',
           id: intent.id,
@@ -291,7 +292,7 @@ export async function executePlanningIntent(
         return unchanged;
       case 'timeOff.repeat':
         for (const entry of intent.entries) {
-          await writeRow({
+          await writeEntity({
             ...writeOptions,
             table: 'timeOff',
             id: entry.id,
@@ -308,7 +309,7 @@ export async function executePlanningIntent(
       }
       case 'closure.create':
       case 'closure.update':
-        await writeRow({
+        await writeEntity({
           ...writeOptions,
           table: 'closures',
           id: intent.id,
