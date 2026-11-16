@@ -1,6 +1,6 @@
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
-import { accountClient } from './accountClient';
+import { memberRequests } from './memberRequests';
 import { readCommandResult } from './accessResult';
 import type { TeamAccessResult } from './accessResult';
 
@@ -24,6 +24,6 @@ export const ownershipTransferAccess = {
     targetPrincipalId: string;
     confirmationId: string;
   }): Promise<TeamAccessResult<OwnershipTransferReceipt>> {
-    return readCommandResult(await accountClient.transferOwnership(input), parseReceipt, 200);
+    return readCommandResult(await memberRequests.transferOwnership(input), parseReceipt, 200);
   },
 };

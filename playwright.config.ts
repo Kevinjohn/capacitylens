@@ -1,9 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 import type { ReporterDescription } from '@playwright/test';
-import { parseReportPhaseName } from './scripts/playwrightServerScope';
-import { resolvePlaywrightRunMode } from './scripts/playwrightRunMode.mjs';
-import { configurationWorkerCount } from './scripts/playwrightWorkers.mjs';
-import { ports } from './scripts/ports.mjs';
+import { parseReportPhaseName } from './scripts/e2e/playwrightServerScope';
+import { resolvePlaywrightRunMode } from './scripts/e2e/playwrightRunMode.mjs';
+import { configurationWorkerCount } from './scripts/e2e/playwrightWorkers.mjs';
+import { ports } from './scripts/dev/ports.mjs';
 
 const lanePorts = ports();
 const runMode = resolvePlaywrightRunMode(process.env);

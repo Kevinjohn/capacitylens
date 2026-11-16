@@ -1,9 +1,9 @@
 import { AUDIT_WARNING_HEADER } from '@/lib/auditWarning';
 import { m } from '@/i18n';
 import { useState } from 'react';
-import { accountClient } from '@/account/accountClient';
 import { useCan } from '@/auth/permissionContext';
 import { resolveErrorMessage } from '@/lib/errorMessage';
+import { companyDataRequests } from '@/data/companyDataRequests';
 import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
 import type { SuspendedReplacementOutcome } from '@/data/planning/suspendedReplacement';
 import { useScopedData } from '@/store/useScopedData';
@@ -78,7 +78,7 @@ function ExampleDataSection() {
     setBusy(true);
     try {
       const outcome = await runSuspendedReplacement({
-        send: () => accountClient.addExampleData(accountId),
+        send: () => companyDataRequests.addExampleData(accountId),
         recovery: 'refresh',
       });
       reportExampleData(outcome, setNotice);

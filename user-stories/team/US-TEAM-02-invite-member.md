@@ -38,7 +38,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     Panel["InviteMemberPanel opens Modal with settings_invite_intro description, then submit"] --> Hook["useMemberInvites submitInvite validates email"]
-    Hook --> Client["teamAccessClient.createInvitation → accountClient.createInvitation"]
+    Hook --> Client["teamAccessClient.createInvitation → invitationRequests.createInvitation"]
     Client --> Route["api.invites.create → InvitationsController.create"]
     Route --> MailConfig{"CAPACITYLENS_MAIL_HOST configured?"}
     MailConfig -- "No" --> Refused["MAIL_UNAVAILABLE; UI shows failure"]
@@ -48,4 +48,4 @@ flowchart TD
     Stored --> Resend["Outstanding invites exposes Resend"]
 ```
 
-**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [accountClient.ts](../../apps/frontend/src/account/accountClient.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts)
+**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [invitationRequests.ts](../../apps/frontend/src/account/invitationRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts)

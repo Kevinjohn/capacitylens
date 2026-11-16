@@ -22,7 +22,7 @@ import { Calendar } from 'lucide-react';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
 import { useConfirmDelete } from '@/hooks/useConfirmDelete';
 import { CompanyClosureSection } from './CompanyClosureSection';
-import { useCalendarToday } from '@/components/scheduler/useCalendarToday';
+import { useCalendarToday } from '@/hooks/useCalendarToday';
 
 interface PersonalTimeOffSectionProps {
   groups: TimeOffGroup[];
