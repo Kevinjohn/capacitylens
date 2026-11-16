@@ -4,7 +4,7 @@ import { useActiveScopedData } from '@/store/useScopedData';
 import { carriesHourlyLoad, emptyAppData } from '@capacitylens/shared/types/entities';
 import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { buildSchedulerModel, applyVisibleUtilization } from './schedulerModel';
-import { useCalendarToday } from './useCalendarToday';
+import { useCalendarToday } from '@/hooks/useCalendarToday';
 import { buildVisibleSpanLabels, resolveVisibleWindow } from './visibleSpan';
 import { buildAverageUtilizationLabel } from './schedulerGridModal';
 import type { useSchedulerViewport } from './useSchedulerViewport';

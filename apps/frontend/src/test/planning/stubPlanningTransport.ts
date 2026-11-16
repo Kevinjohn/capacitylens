@@ -2,7 +2,7 @@ import type {
   PlanningClientContext,
   PlanningSnapshot,
   PlanningTransport,
-} from '@/data/planning/planningCacheController';
+} from '@/data/planning/planningCacheTypes';
 import type {
   PlanningExecution,
   PlanningIntent,

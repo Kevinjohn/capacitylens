@@ -6,6 +6,10 @@ import { resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { ExternalForm } from './ExternalForm';
 import { OwnerPermissions } from '@/test/ownerPermissions';
+import { RestorationCleanupDialog } from '@/components/common/RestorationCleanupDialog';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
@@ -127,8 +131,63 @@ describe('ExternalForm', () => {
     await user.type(screen.getByLabelText('Company'), 'Unscoped partner');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/No active account/);
+    expect(screen.getByRole('alert')).toHaveTextContent(/No active company is selected/);
     expect(onClose).not.toHaveBeenCalled();
     expect(useStore.getState().data.resources).toEqual([]);
+  });
+
+  it('keeps the edited draft open and reports the save cancelled when Restore cleanup is cancelled', async () => {
+    const user = userEvent.setup();
+    const resource = await requireCreated(
+      useStore.getState().addResource({
+        kind: 'external',
+        name: 'Kord Industries',
+        role: 'Visual design',
+        employmentType: 'contractor',
+        engagement: 'studio' as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: '#737373',
+      }),
+    );
+    const closure = await requireCreated(
+      useStore
+        .getState()
+        .addClosure({ name: 'Gotham holiday', startDate: '2026-12-24', endDate: '2026-12-25' }),
+    );
+    queuePlanningPatch(() => ({ upserts: [], removed: [{ entity: 'closures', id: closure.id }] }), {
+      replacementGroupId: 'closure-restore-group',
+    });
+    await useStore.getState().deleteClosure(closure.id);
+    getStubPlanningTransport().failNext(
+      new PlanningControllerError(
+        'This change clears 1 restorable item.',
+        'RESTORATION_CONFIRMATION_REQUIRED',
+        409,
+        false,
+        1,
+      ),
+    );
+    const before = structuredClone(useStore.getState().data);
+    const onClose = vi.fn();
+    render(
+      <>
+        <ExternalForm resource={resource} onClose={onClose} />
+        <RestorationCleanupDialog />
+      </>,
+    );
+    await user.clear(screen.getByLabelText('Company'));
+    await user.type(screen.getByLabelText('Company'), 'Kord Studio');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'This change clears 1 restorable item',
+    );
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Company')).toHaveValue('Kord Studio');
+    expect(screen.getByRole('alert')).toHaveTextContent('The planning save was cancelled.');
+    expect(useStore.getState().data).toEqual(before);
   });
 });

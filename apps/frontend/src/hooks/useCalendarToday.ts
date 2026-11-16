@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { todayISO } from '@capacitylens/shared/lib/dateMath';
+import { readCalendarToday } from '@/lib/calendarToday';
 import type { ISODate } from '@capacitylens/shared/types/entities';
 
 const BOUNDARY_SEARCH_MS = 36 * 60 * 60 * 1000;
@@ -9,7 +9,7 @@ export function resolveMillisecondsUntilNextCalendarDate(
   timeZone: string,
   now = Date.now(),
 ): number {
-  const dateAt = (instant: number): ISODate => todayISO(timeZone, instant);
+  const dateAt = (instant: number): ISODate => readCalendarToday(timeZone, instant);
   const currentDate = dateAt(now);
   let lower = now;
   let upper = now + BOUNDARY_SEARCH_MS;
@@ -53,5 +53,5 @@ export function useCalendarToday(timeZone: string): ISODate {
     };
   }, [timeZone]);
 
-  return todayISO(timeZone);
+  return readCalendarToday(timeZone);
 }
