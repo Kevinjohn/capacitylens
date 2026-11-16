@@ -17,7 +17,6 @@ import type {
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
-import type { StoreApi } from 'zustand';
 import {
   buildCatalogueCreate,
   buildCatalogueUpdate,
@@ -42,7 +41,7 @@ function createdId(value: unknown): string {
 
 /** The remaining planning writers share the allocation controller and await its reconciliation. */
 export function createTypedPlanningActions(
-  get: StoreApi<StoreState>['getState'],
+  get: () => Pick<StoreState, 'data' | 'sendPlanningCommand'>,
   { requireAccount, blockedByViewer }: Pick<StoreInternals, 'requireAccount' | 'blockedByViewer'>,
 ) {
   const accountId = requireAccount;
@@ -70,9 +69,9 @@ export function createTypedPlanningActions(
     id: string,
     companyId: string,
   ) => getOwned(get().data, companyId, key, id);
-  const send = async (command: PlanningCommand | null, original: unknown = null) => {
+  const send = async (command: PlanningCommand | null) => {
     if (!command) return false;
-    await get().sendPlanningCommand(command, original);
+    await get().sendPlanningCommand(command);
     return true;
   };
   const created = <
@@ -127,7 +126,6 @@ export function createTypedPlanningActions(
         original,
         args: { entity: key, id, changes },
       }),
-      original,
     );
   };
   const deleteCatalogue = async (key: 'phases' | 'disciplines', id: string) => {
@@ -208,7 +206,6 @@ export function createTypedPlanningActions(
           original,
           args: { id, changes },
         }),
-        original,
       );
     },
     addTimeOff: createTimeOff,
@@ -252,7 +249,6 @@ export function createTypedPlanningActions(
             original,
             args: { id, changes },
           }),
-          original,
         );
       }
     },
@@ -286,7 +282,6 @@ export function createTypedPlanningActions(
             original,
             args: { id, changes },
           }),
-          original,
         );
       }
     },
@@ -321,10 +316,7 @@ export function createTypedPlanningActions(
                 original.weekStartsOn ?? 1,
               ),
             };
-      await send(
-        buildSettingsUpdate({ data: get().data, accountId: id, original, args: changes }),
-        original,
-      );
+      await send(buildSettingsUpdate({ data: get().data, accountId: id, original, args: changes }));
     },
   };
 }

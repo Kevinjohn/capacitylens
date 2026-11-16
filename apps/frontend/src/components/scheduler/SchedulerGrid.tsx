@@ -167,20 +167,6 @@ function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
   return { screenReaderAnnouncement, modal, setModal, editAllocation, createFromDraw };
 }
 
-function useGridVirtualization(
-  preferences: ReturnType<typeof useSchedulerGridPreferences>,
-  viewport: ReturnType<typeof useSchedulerViewport>,
-  gridModel: ReturnType<typeof useSchedulerGridModel>,
-) {
-  return useSchedulerGridVirtualization({
-    model: gridModel.model,
-    ui: preferences.ui,
-    density: gridModel.density,
-    data: preferences.data,
-    viewport,
-  });
-}
-
 type GridViewProps = {
   preferences: ReturnType<typeof useSchedulerGridPreferences>;
   gridModel: ReturnType<typeof useSchedulerGridModel>;
@@ -200,11 +186,14 @@ type GridViewProps = {
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 };
 
-function SchedulerModalBoundary({ interactions }: Pick<GridViewProps, 'interactions'>) {
-  if (!interactions.modal) return null;
+function SchedulerModalBoundary({
+  modal,
+  setModal,
+}: Pick<GridViewProps['interactions'], 'modal' | 'setModal'>) {
+  if (!modal) return null;
   return (
     <Suspense fallback={null}>
-      <SchedulerModal modal={interactions.modal} close={() => interactions.setModal(null)} />
+      <SchedulerModal modal={modal} close={() => setModal(null)} />
     </Suspense>
   );
 }
@@ -266,22 +255,22 @@ function SchedulerGridContents(props: GridViewProps) {
         resourceAvatars={props.resourceAvatars}
         onViewSchedule={props.onViewSchedule}
       />
-      <SchedulerModalBoundary interactions={interactions} />
+      <SchedulerModalBoundary modal={interactions.modal} setModal={interactions.setModal} />
     </>
   );
 }
 
 function SchedulerGridFooter({
-  virtualization,
+  visibleClosures,
   screenReaderAnnouncement,
-}: Pick<GridViewProps, 'virtualization'> & {
+}: Pick<GridViewProps['virtualization'], 'visibleClosures'> & {
   screenReaderAnnouncement: ReturnType<typeof useSchedulerInteractions>['screenReaderAnnouncement'];
 }) {
   return (
     <>
-      {virtualization.visibleClosures.length > 0 && (
+      {visibleClosures.length > 0 && (
         <div className="sr-only">
-          {virtualization.visibleClosures.map((closure) => (
+          {visibleClosures.map((closure) => (
             <span key={closure.id}>
               {m.scheduler_closure_aria({
                 name: closure.name,
@@ -367,7 +356,7 @@ function SchedulerGridSurface({
         onRestoreFocus={personScheduleDrawer.restoreFocus}
       />
       <SchedulerGridFooter
-        virtualization={virtualization}
+        visibleClosures={virtualization.visibleClosures}
         screenReaderAnnouncement={interactions.screenReaderAnnouncement}
       />
     </div>
@@ -393,7 +382,13 @@ export function SchedulerGrid() {
   });
   const gridModel = useSchedulerGridModel(preferences, viewport);
   const { scrollRef, headerRef, timelineWidth, days, geom, visibleStartDate } = viewport;
-  const virtualization = useGridVirtualization(preferences, viewport, gridModel);
+  const virtualization = useSchedulerGridVirtualization({
+    model: gridModel.model,
+    ui,
+    density: gridModel.density,
+    data: preferences.data,
+    viewport,
+  });
   const personScheduleDrawer = usePersonScheduleDrawer({
     data: preferences.data,
     fallbackRef: scrollRef,
