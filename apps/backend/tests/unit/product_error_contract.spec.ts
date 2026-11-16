@@ -11,6 +11,9 @@ import {
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
+import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
+import { IdentityAuthorityError } from '#services/auth/authorization';
+import { renderAdmissionFailure } from '#services/admission/http';
 
 function context(error: unknown) {
   const result = { status: 0, body: undefined as unknown, headers: {} as Record<string, string> };
@@ -103,6 +106,64 @@ test.group('product error adapters', () => {
       assert.equal((result.body as { code: string }).code, 'ADMISSION_REQUIRED');
     });
   }
+  test('identity and admission refusals keep the wording stated for each surface', async ({
+    assert,
+  }) => {
+    const identity = new IdentityAuthorityError('Invalid membership role.');
+    const decision = { admitted: false, requirements: { invitation: { met: false } } };
+    const admission = new AdmissionRequiredError(decision);
+    const viaHandler = async (error: unknown) => {
+      const { ctx, result } = context(error);
+      await new HttpExceptionHandler().handle(error, ctx);
+      return result.body;
+    };
+    const viaPlanning = async (error: unknown) => {
+      const { ctx, result } = context(error);
+      await new PlanningController().lookup(ctx);
+      return result.body;
+    };
+    assert.deepEqual(await viaHandler(identity), {
+      error: 'Invalid membership role.',
+      code: 'IDENTITY_AUTHORITY_DENIED',
+    });
+    assert.deepEqual(await viaPlanning(identity), {
+      error: 'Planning access is unavailable.',
+      code: 'ACCOUNT_MEMBERSHIP_LOST',
+    });
+    const admissionRoute = context(identity);
+    renderAdmissionFailure(admissionRoute.ctx, identity);
+    assert.deepEqual(admissionRoute.result.body, {
+      error: 'Forbidden.',
+      code: 'IDENTITY_AUTHORITY_DENIED',
+    });
+    assert.deepEqual(await viaHandler(admission), {
+      error: 'Your access to this company is waiting on admission.',
+      code: 'ADMISSION_REQUIRED',
+      decision,
+    });
+    assert.deepEqual(await viaPlanning(admission), {
+      error: 'Company access needs admission.',
+      code: 'ADMISSION_REQUIRED',
+      decision,
+    });
+  });
+  test('reporting skips every refusal the handler maps below 500', async ({ assert }) => {
+    for (const error of [
+      new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED'),
+      new MasqueradeError('E_MASQUERADE_NOT_ALLOWED'),
+      new AdmissionRequiredError({ admitted: false }),
+      new IdentityAuthorityError('Invalid membership role.'),
+      Object.assign(new Error('Route not found'), { code: 'E_ROUTE_NOT_FOUND' }),
+    ]) {
+      const { ctx, diagnostics } = context(error);
+      await new HttpExceptionHandler().report(error, ctx);
+      assert.lengthOf(diagnostics, 0, String((error as { code?: string }).code));
+    }
+    const unexpected = context(new Error('SENTINEL'));
+    await new HttpExceptionHandler().report(new Error('SENTINEL'), unexpected.ctx);
+    assert.lengthOf(unexpected.diagnostics, 1);
+    assert.include(unexpected.diagnostics[0]!.fields, { errorType: 'unexpected', status: 500 });
+  });
   test('constraint refusals carry the validation code', async ({ assert }) => {
     const error = Object.assign(new Error('SENTINEL_SQL_TEXT SENTINEL_PAYLOAD'), {
       code: 'SQLITE_CONSTRAINT_FOREIGNKEY',

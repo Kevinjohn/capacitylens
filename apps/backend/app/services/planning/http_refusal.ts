@@ -10,6 +10,10 @@ import { RestorationConfirmationError } from '#services/planning/restoration';
 import { PlanningOperationError } from '#services/planning/execute';
 import { IdentityAuthorityError } from '#services/auth/authorization';
 import type { PlanningMutationFailure } from '#validators/planning/contracts';
+import {
+  admissionRequiredResponse,
+  identityAuthorityResponse,
+} from '#exceptions/http_error_mapping';
 
 /** Map a planning failure to its HTTP status and body; anything unrecognised is rethrown. */
 function refusal(error: unknown): {
@@ -55,25 +59,14 @@ function refusal(error: unknown): {
     };
   }
   if (error instanceof AdmissionRequiredError) {
-    return {
-      status: 403,
-      body: {
-        error: 'Company access needs admission.',
-        code: 'ADMISSION_REQUIRED',
-        decision: error.decision,
-      } satisfies ProductHttpErrorBody,
-    };
+    return admissionRequiredResponse(error, 'planning');
   }
   const kitRefusal = buildKitRefusal(error);
   if (kitRefusal && kitRefusal.status < 500) return kitRefusal;
   const accessRefusal = buildAccessRefusal(error);
   if (accessRefusal) return accessRefusal;
-  // Identity resolution failures invalidate the projection; action refusals use PlanningOperationError.
   if (error instanceof IdentityAuthorityError) {
-    return {
-      status: 403,
-      body: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
-    };
+    return identityAuthorityResponse(error, 'planning');
   }
   throw error;
 }
