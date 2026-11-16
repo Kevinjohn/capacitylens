@@ -25,11 +25,11 @@ import {
 import {
   bucketByCoveredDate,
   groupByResourceId,
-  includeRenderableDateRange,
   NO_ALLOCATIONS,
   NO_TIME_OFF,
   NO_CLOSURES,
 } from './schedulerModelIndexing';
+import { includeRenderableDateRange } from '@/lib/renderableDateRanges';
 import { createAllocationFilters } from './schedulerModelFilters';
 import { createRowBuilder } from './schedulerRowModel';
 import { createCapacitySource } from './schedulerRowCapacity';

@@ -17,7 +17,7 @@ function render(ui: ReactNode) {
   return rtlRender(ui, { wrapper: OwnerPermissions });
 }
 
-vi.mock('@/components/scheduler/useCalendarToday', () => ({
+vi.mock('@/hooks/useCalendarToday', () => ({
   useCalendarToday: () => '2026-09-10',
 }));
 

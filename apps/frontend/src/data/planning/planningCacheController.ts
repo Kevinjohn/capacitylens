@@ -102,6 +102,24 @@ export function isPlanningHistoryReady(planning: PlanningControllerMetadata): bo
   );
 }
 
+/**
+ * Returns whether `planning` is `basis` advanced by exactly one acknowledged change in the same
+ * context. Every committed change advances the company revision by one, so nothing else was
+ * committed in between and rows read at `basis` are current apart from that change.
+ */
+export function isSoleAcknowledgedAdvance(
+  basis: Pick<PlanningControllerMetadata, 'context' | 'revision'>,
+  planning: PlanningControllerMetadata,
+): boolean {
+  return (
+    basis.revision !== null &&
+    planning.context === basis.context &&
+    planning.revision === basis.revision + 1 &&
+    planning.outcome?.kind === 'acknowledged' &&
+    planning.outcome.revision === planning.revision
+  );
+}
+
 /** The controller owns metadata; planning rows remain in the one Zustand `data` value. */
 export interface PlanningCacheState {
   data: AppData;

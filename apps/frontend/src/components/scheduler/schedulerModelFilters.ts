@@ -6,7 +6,7 @@ import type { Filters } from '@/store/useStore';
 import { internalClientFor } from '@capacitylens/shared/data/internalClient';
 import type { Allocation, AppData, Resource } from '@capacitylens/shared/types/entities';
 import type { SchedulerModelOptions } from './schedulerModelTypes';
-import { buildAllocationAttribution } from './buildAllocationAttribution';
+import { buildAllocationAttribution } from '@/lib/buildAllocationAttribution';
 
 function createResourceVisibility({
   search,

@@ -1,20 +1,21 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { Allocation, ISODate, Resource } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
 import { formatCapacityAdvisory } from '@/lib/capacity';
-import { useStore } from '@/store/useStore';
 import {
   DEFAULT_ACCOUNT_ID,
   makeActivity,
   makeAllocation,
+  makeAppData,
   makeBar,
   makeResource,
-  resetStoreWithAccount,
+  WORKDAYS,
 } from '@/test/fixtures';
-import { readCapacityAnnouncement, readCapacityGestureAdvisory } from './gestureAnnouncements';
+import { buildCapacityAnnouncement, buildCapacityGestureAdvisory } from './gestureAnnouncements';
+import type { GestureCapacitySource } from './gestureAnnouncements';
 
-// Both readers pull from the live store, so the window, the resource set and the allocations are
-// seeded directly into state and the resulting strings compared with the compiled messages.
+// Both builders are pure, so each case passes its resources and allocations as the capacity source
+// and compares the resulting strings with the compiled messages.
 
 const A = DEFAULT_ACCOUNT_ID;
 const NAME = 'Diana Prince';
@@ -41,36 +42,45 @@ const alloc = (
     hoursPerDay,
   });
 
+let source: GestureCapacitySource;
+
 function seed(resources: Resource[], allocations: Allocation[]): void {
-  useStore.setState((state) => ({
-    // Anchor the visible window to fixed fixture dates so the clamp is deterministic.
-    ui: { ...state.ui, originDate: '2026-06-01', rangeDays: 14 },
-    data: {
-      ...state.data,
+  source = {
+    data: makeAppData({
       activities: [makeActivity({ id: 't1', accountId: A, kind: 'repeatable', projectId: null })],
       resources,
       allocations,
-    },
-  }));
+    }),
+    accountWorkingDays: WORKDAYS,
+  };
 }
 
-beforeEach(() => resetStoreWithAccount());
+// Anchor the visible window to fixed fixture dates so the clamp is deterministic.
+const announce = (resourceId: string) =>
+  buildCapacityAnnouncement({
+    source,
+    resourceId,
+    visibleRange: { start: '2026-06-01', end: '2026-06-14' },
+    blocksMode: false,
+  });
+const advise = (input: Omit<Parameters<typeof buildCapacityGestureAdvisory>[0], 'source'>) =>
+  buildCapacityGestureAdvisory({ ...input, source });
 
-describe('readCapacityAnnouncement', () => {
+describe('buildCapacityAnnouncement', () => {
   it('is silent for an unknown or untracked resource', () => {
     seed(
       [person('r1'), person('ext', { kind: 'external' })],
       [alloc('a', 'ext', '2026-06-01', '2026-06-02')],
     );
-    expect(readCapacityAnnouncement('missing')).toBe('');
-    expect(readCapacityAnnouncement('ext')).toBe('');
+    expect(announce('missing')).toBe('');
+    expect(announce('ext')).toBe('');
   });
 
   it('reports no conflicts without allocations or when load stays within capacity', () => {
     seed([person('r1')], []);
-    expect(readCapacityAnnouncement('r1')).toBe(clear);
+    expect(announce('r1')).toBe(clear);
     seed([person('r1')], [alloc('a', 'r1', '2026-06-01', '2026-06-02')]);
-    expect(readCapacityAnnouncement('r1')).toBe(clear);
+    expect(announce('r1')).toBe(clear);
   });
 
   it('counts only the named resource and picks singular or plural wording', () => {
@@ -83,12 +93,12 @@ describe('readCapacityAnnouncement', () => {
         alloc('d', 'r2', '2026-06-03', '2026-06-04'),
       ],
     );
-    expect(readCapacityAnnouncement('r1')).toBe(overOne);
+    expect(announce('r1')).toBe(overOne);
     seed(
       [person('r1')],
       [alloc('a', 'r1', '2026-06-01', '2026-06-03'), alloc('b', 'r1', '2026-06-02', '2026-06-03')],
     );
-    expect(readCapacityAnnouncement('r1')).toBe(over(2));
+    expect(announce('r1')).toBe(over(2));
   });
 
   it('spans from the earliest start to the latest end regardless of allocation order', () => {
@@ -103,7 +113,7 @@ describe('readCapacityAnnouncement', () => {
         alloc('mid2', 'r1', '2026-06-04', '2026-06-05', 4),
       ],
     );
-    expect(readCapacityAnnouncement('r1')).toBe(over(3));
+    expect(announce('r1')).toBe(over(3));
   });
 
   it('clamps the counted days to the visible window on both sides', () => {
@@ -111,21 +121,21 @@ describe('readCapacityAnnouncement', () => {
       [person('r1')],
       [alloc('a', 'r1', '2026-05-25', '2026-06-05'), alloc('b', 'r1', '2026-05-25', '2026-06-05')],
     );
-    expect(readCapacityAnnouncement('r1')).toBe(over(5));
+    expect(announce('r1')).toBe(over(5));
     seed(
       [person('r1')],
       [alloc('a', 'r1', '2026-06-10', '2026-06-19'), alloc('b', 'r1', '2026-06-10', '2026-06-19')],
     );
-    expect(readCapacityAnnouncement('r1')).toBe(over(3));
+    expect(announce('r1')).toBe(over(3));
     seed(
       [person('r1')],
       [alloc('a', 'r1', '2026-06-22', '2026-06-23'), alloc('b', 'r1', '2026-06-22', '2026-06-23')],
     );
-    expect(readCapacityAnnouncement('r1')).toBe(clear);
+    expect(announce('r1')).toBe(clear);
   });
 });
 
-describe('readCapacityGestureAdvisory', () => {
+describe('buildCapacityGestureAdvisory', () => {
   const dates = { startDate: '2026-06-01', endDate: '2026-06-02' } as const;
   const overTwo = formatCapacityAdvisory({ overDays: 2, timeOffDays: 0 }, 'toast');
   const own = alloc('own', 'r1', '2026-06-01', '2026-06-02');
@@ -139,16 +149,16 @@ describe('readCapacityGestureAdvisory', () => {
       ],
     );
     const input = { bar: makeBar({ allocation: own }), isBlocks: false, dates, reconciledHours: 9 };
-    expect(readCapacityGestureAdvisory({ ...input, effectiveResourceId: 'missing' })).toBe('');
-    expect(readCapacityGestureAdvisory({ ...input, effectiveResourceId: 'ext' })).toBe('');
+    expect(advise({ ...input, effectiveResourceId: 'missing' })).toBe('');
+    expect(advise({ ...input, effectiveResourceId: 'ext' })).toBe('');
   });
 
   it('excludes the gestured bar’s own allocation from the existing load', () => {
     seed([person('r1')], [own]);
     const input = { effectiveResourceId: 'r1', isBlocks: false, dates, reconciledHours: 8 };
-    expect(readCapacityGestureAdvisory({ ...input, bar: makeBar({ allocation: own }) })).toBe('');
+    expect(advise({ ...input, bar: makeBar({ allocation: own }) })).toBe('');
     expect(
-      readCapacityGestureAdvisory({
+      advise({
         ...input,
         bar: makeBar({ allocation: { ...own, id: 'another' } }),
       }),
@@ -164,7 +174,7 @@ describe('readCapacityGestureAdvisory', () => {
       dates,
       reconciledHours: 2,
     };
-    expect(readCapacityGestureAdvisory({ ...input, isBlocks: false })).toBe(overTwo);
-    expect(readCapacityGestureAdvisory({ ...input, isBlocks: true })).toBe('');
+    expect(advise({ ...input, isBlocks: false })).toBe(overTwo);
+    expect(advise({ ...input, isBlocks: true })).toBe('');
   });
 });

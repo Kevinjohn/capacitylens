@@ -1,7 +1,7 @@
-import type { Patch } from './entityDrafts';
+import type { Patch } from '@/lib/entityDrafts';
 import type { Filters } from './filters';
 import type { StoreEntityActions } from './StoreEntityActions';
-export * from './entityDrafts';
+export * from '@/lib/entityDrafts';
 export * from './filters';
 export * from './StoreEntityActions';
 import type { WeeksZoom } from '@/lib/schedulerConfig';

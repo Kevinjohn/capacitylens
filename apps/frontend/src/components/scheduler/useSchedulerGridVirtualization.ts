@@ -5,7 +5,7 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import type { GroupModel, RowModel } from './schedulerModel';
 import type { buildSchedulerDensity } from './layout';
 import { buildLayout, resolveVirtualWindow } from './virtualWindow';
-import { listRenderableDateRanges } from './schedulerModelIndexing';
+import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
 import type { useSchedulerViewport } from './useSchedulerViewport';
 
 interface UseSchedulerGridVirtualizationInput {
