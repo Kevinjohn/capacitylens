@@ -35,7 +35,9 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 
 ## Working and delivery rules
 
-- Never commit task work on `main`. Fetch `origin/main` and create a unique feature branch from it. Use a sibling worktree when more than one change is in progress at the same time, and resume existing work in the worktree it was started in. Target `main` for pull requests, or the predecessor branch for an unmerged stack.
+- Never commit task work on `main`. Fetch `origin/main` and create a unique feature branch from it. Use a sibling worktree when more than one change is in progress at the same time, and resume existing work in the worktree it was started in. Target `main` for pull requests.
+- Base a pull request on another open pull request's branch only when it needs that change's code; independent changes each branch from `main`. The required check runs only for pull requests that target `main`, and changing a pull request's base does not start it.
+- Land a stack by merging each pull request into its base branch from the top down, then merging the bottom one into `main` after its checks pass. Do not merge a stack bottom-up.
 - `DECISIONS.md` states the target; code may lag until the owning issue lands.
 - Record new implementation, design or investigation plans in a GitHub issue; do not add repository Markdown plans. Keep settled scope and existing plans authoritative.
 - Use the Node version in `.nvmrc` and `pnpm` for JavaScript package operations. Do not use npm, npx or yarn.
