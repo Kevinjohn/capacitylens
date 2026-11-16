@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://kevinjohn.github.io/capacitylens/sitemap.xml

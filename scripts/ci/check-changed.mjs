@@ -37,6 +37,9 @@ const typeInput = /(?:^|\/)(?:tsconfig[^/]*\.json|package\.json)$/;
 const backendSpec = /^apps\/backend\/tests\/.+\.spec\.ts$/;
 const frontendTest =
   /^(?:apps\/frontend\/src\/.+\.(?:test|spec)\.tsx?|packages\/shared\/.+\.(?:test|spec)\.ts)$/;
+// Reads the built documentation site, so the default frontend suite excludes it and only the docs
+// steps (build, then `docs:test`) can run it.
+const docsSiteTest = 'apps/frontend/src/test/docs-lightbox.test.ts';
 // Backend static file tests read the built application, which a fresh worktree lacks.
 const appBuildOutput = 'apps/backend/public/assets';
 // CI builds the application before backend tests with these fixed, non-secret values
@@ -189,7 +192,7 @@ export function planChecks(
   if (!testsOnly) return steps;
   const owners = {
     static: 'the static analysis job runs it',
-    docs: 'the docs workflow builds and compares docs/',
+    docs: 'the docs workflow builds and checks the site',
   };
   return steps
     .filter((step) => !step.forLint)
@@ -250,14 +253,15 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
         if (exists(spec)) specReasons.set(spec, specReasons.get(spec) ?? `imports ${sources[0]}`);
   }
   const backendSpecs = [...specReasons.keys()];
-  const frontendTests = present.filter((path) => frontendTest.test(path));
+  const frontendTests = present.filter((path) => frontendTest.test(path) && path !== docsSiteTest);
   const frontendLint = presentCode.filter((path) => path.startsWith('apps/frontend/'));
   const rootLint = presentCode.filter((path) =>
     /^(?:scripts|e2e|packages\/shared\/src)\//.test(path),
   );
   const backendLint = presentCode.filter((path) => path.startsWith('apps/backend/'));
-  const related = presentCode.filter((path) =>
-    /^(?:apps\/frontend\/src|packages\/shared\/src)\//.test(path),
+  const related = presentCode.filter(
+    (path) =>
+      /^(?:apps\/frontend\/src|packages\/shared\/src)\//.test(path) && path !== docsSiteTest,
   );
   // Configuration outside src affects every frontend test, which `vitest related` cannot see.
   const frontendSuite =
@@ -480,14 +484,21 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
       skip: '--static; the full check runs them',
     });
 
-  if (paths.some((path) => path.startsWith('docs-src/')))
-    steps.push({
-      label: 'docs: build and compare docs/',
-      args: ['run', 'docs:build'],
-      docsClean: true,
-      owner: 'docs',
-      reason: 'documentation sources changed',
-    });
+  if (paths.some((path) => path.startsWith('docs-src/') || path === docsSiteTest))
+    steps.push(
+      {
+        label: 'docs: build the documentation site',
+        args: ['run', 'docs:build'],
+        owner: 'docs',
+        reason: 'documentation sources or the built-site test changed',
+      },
+      {
+        label: 'docs: check the built site',
+        args: ['run', 'docs:test'],
+        owner: 'docs',
+        reason: 'documentation sources or the built-site test changed',
+      },
+    );
   if (paths.some((path) => path.startsWith('e2e/')))
     steps.push({ label: 'e2e', skip: 'end-to-end specs run with pnpm run e2e' });
   return steps;
@@ -611,11 +622,6 @@ export async function runStep(step, limits = stepLimits) {
       else if (status !== 0) resolve({ passed: false, output });
       else if (ranNoTests(step, output))
         resolve({ passed: false, output: `${output}\nno tests were executed` });
-      else if (step.docsClean && git(['status', '--porcelain', '--', 'docs']).trim())
-        resolve({
-          passed: false,
-          output: `${output}\ndocs/ differs from its sources; commit the rebuilt output`,
-        });
       else resolve({ passed: true, output });
     });
   });
