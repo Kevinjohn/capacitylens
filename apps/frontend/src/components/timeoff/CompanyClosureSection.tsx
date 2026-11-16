@@ -26,7 +26,7 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { ClosureForm } from './ClosureForm';
-import { useCalendarToday } from '@/components/scheduler/useCalendarToday';
+import { useCalendarToday } from '@/hooks/useCalendarToday';
 import { buildClosureList } from './timeOffView';
 
 interface ClosureItemsProps {

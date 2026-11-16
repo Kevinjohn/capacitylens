@@ -1,12 +1,12 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useActiveScopedData, useScopedData } from '@/store/useScopedData';
+import { useEditSubmit } from '@/hooks/useEditSubmit';
+import type { EntitySave } from '@/hooks/useEditSubmit';
 import { useFieldError } from '@/hooks/useFieldError';
-import { resolveDomainErrorMessage, resolveErrorMessage } from '@/lib/errorMessage';
+import { resolveDomainErrorMessage } from '@/lib/errorMessage';
 import { validatePresetColor, parseName } from '@/lib/validation';
-import { isStaleEdit } from '@/lib/isStaleEdit';
 import { validateProjectClient } from '@capacitylens/shared/lib/integrity';
 import { DEFAULT_COLORS } from '@/lib/palette';
 import { byName } from '@/lib/displayOrder';
@@ -24,10 +24,6 @@ import { PrivateNameFields } from '@/components/common/PrivateNameFields';
 import { usePrivateNameFields } from '@/components/common/usePrivateNameFields';
 import { FieldError } from '@/components/ui/field';
 import type { Project } from '@capacitylens/shared/types/entities';
-
-type ProjectPrivacy = NonNullable<
-  ReturnType<ReturnType<typeof usePrivateNameFields>['parsePrivacyPatch']>
->;
 
 /** Add (no `project`) or edit a project: name, required client, preset colour. `onClose` fires on
  * save or cancel. */
@@ -50,10 +46,16 @@ export function ProjectForm({
   const [name, setName] = useState(project?.name ?? '');
   const [clientId, setClientId] = useState(project?.clientId ?? '');
   const [color, setColor] = useState(project?.color ?? DEFAULT_COLORS.project);
-  const [pending, setPending] = useState(false);
-  const inFlight = useRef(false);
   const { error, errorField, errorId, fail } = useFieldError();
   const privateNameFields = usePrivateNameFields(project, fail);
+  const allProjects = useStore((state) => state.data.projects);
+  const { pending, submit } = useEditSubmit({
+    editing: project,
+    rows: allProjects,
+    staleMessage: m.form_project_err_changed,
+    fail,
+    onSaved: onClose,
+  });
   const selectedClientIsInternal =
     clients.find((client) => client.id === clientId)?.builtin === true;
   // Internal projects always read as neutral grey, so their colour is not editable.
@@ -79,25 +81,15 @@ export function ProjectForm({
     rawClients,
     project,
   });
-  const submit = useProjectSubmit({
-    project,
-    name,
-    clientId,
-    color,
-    privateNameFields,
-    fail,
-    add,
-    update,
-    onClose,
-    pendingState: { inFlight, setPending },
-  });
+  const prepareSave = () =>
+    prepareProjectSave({ project, name, clientId, color, privateNameFields, fail, add, update });
 
   return (
     <Modal
       title={project ? m.form_project_edit_title() : m.form_project_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        void submit();
+        void submit(prepareSave);
       }}
       footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
@@ -146,7 +138,7 @@ function resolveProjectClientOptions({
   ];
 }
 
-function useProjectSubmit({
+function prepareProjectSave({
   project,
   name,
   clientId,
@@ -155,8 +147,6 @@ function useProjectSubmit({
   fail,
   add,
   update,
-  onClose,
-  pendingState,
 }: {
   project: Project | undefined;
   name: string;
@@ -166,76 +156,29 @@ function useProjectSubmit({
   fail: ReturnType<typeof useFieldError>['fail'];
   add: ReturnType<typeof useStore.getState>['addProject'];
   update: ReturnType<typeof useStore.getState>['updateProject'];
-  onClose: () => void;
-  pendingState: { inFlight: { current: boolean }; setPending: (pending: boolean) => void };
-}) {
-  return async () => {
-    if (pendingState.inFlight.current) return;
-    const trimmed = parseName(name, fail);
-    if (!trimmed) return;
-    const privacy = privateNameFields.parsePrivacyPatch();
-    if (!privacy) return;
-    const check = validateProjectClient(clientId);
-    if (!check.ok) {
-      const code = check.codes[0];
-      if (!code) throw new Error('Project validation failed without an error code.');
-      fail('client', resolveDomainErrorMessage(code));
-      return;
-    }
-    if (!validatePresetColor(color, fail)) return;
-    pendingState.inFlight.current = true;
-    pendingState.setPending(true);
-    try {
-      if (
-        project &&
-        isStaleEdit(useStore.getState().data.projects, project.id, project.updatedAt)
-      ) {
-        fail(null, m.form_project_err_changed());
-        return;
-      }
-      if (!(await saveProject({ project, trimmed, clientId, color, privacy, add, update }))) return;
-      onClose();
-    } catch (error) {
-      if (error instanceof PlanningSaveCancelledError) return;
-      // Surface store rejection at the project form so invalid writes cannot escape the event boundary.
-      fail(null, resolveErrorMessage(error));
-    } finally {
-      pendingState.inFlight.current = false;
-      pendingState.setPending(false);
-    }
-  };
-}
-
-async function saveProject({
-  project,
-  trimmed,
-  clientId,
-  color,
-  privacy,
-  add,
-  update,
-}: {
-  project: Project | undefined;
-  trimmed: string;
-  clientId: string;
-  color: string;
-  privacy: ProjectPrivacy;
-  add: ReturnType<typeof useStore.getState>['addProject'];
-  update: ReturnType<typeof useStore.getState>['updateProject'];
-}) {
-  if (project) {
-    await update(project.id, { name: trimmed, clientId, color, ...privacy });
-    return true;
+}): EntitySave | null {
+  const trimmed = parseName(name, fail);
+  if (!trimmed) return null;
+  const privacy = privateNameFields.parsePrivacyPatch();
+  if (!privacy) return null;
+  const check = validateProjectClient(clientId);
+  if (!check.ok) {
+    const code = check.codes[0];
+    if (!code) throw new Error('Project validation failed without an error code.');
+    fail('client', resolveDomainErrorMessage(code));
+    return null;
   }
-  const result = await add({
-    name: trimmed,
-    clientId,
-    color,
-    ...(privacy.isPrivate && privacy.codeName
-      ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
-      : {}),
-  });
-  return result.kind === 'created';
+  if (!validatePresetColor(color, fail)) return null;
+  if (project) return () => update(project.id, { name: trimmed, clientId, color, ...privacy });
+  return () =>
+    add({
+      name: trimmed,
+      clientId,
+      color,
+      ...(privacy.isPrivate && privacy.codeName
+        ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
+        : {}),
+    });
 }
 
 function ProjectFormFields({

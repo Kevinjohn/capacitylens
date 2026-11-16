@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent, act } from '@testing-library/react';
 import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { useStore } from '@/store/useStore';
 import type { Allocation, Weekday } from '@capacitylens/shared/types/entities';
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from '@/test/fixtures';

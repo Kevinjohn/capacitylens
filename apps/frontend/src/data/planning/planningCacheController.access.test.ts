@@ -2,12 +2,9 @@ import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import { makeAccount, makeAppData, makeClient } from '@/test/fixtures';
-import {
-  createPlanningCacheController,
-  createPlanningCacheState,
-  PlanningControllerError,
-} from './planningCacheController';
-import type { PlanningSnapshot, PlanningTransport } from './planningCacheController';
+import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
+import { PlanningControllerError } from './planningErrors';
+import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 
 type RequestStage = 'read' | 'execute' | 'lookup';
 type Success = Awaited<ReturnType<PlanningTransport['execute']>>;
