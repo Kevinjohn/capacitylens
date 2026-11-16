@@ -1,4 +1,4 @@
-import type { Draft, Patch } from './entityDrafts';
+import type { Draft, Patch } from '@/lib/entityDrafts';
 import type {
   Activity,
   Allocation,

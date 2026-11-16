@@ -5,7 +5,7 @@ import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from '@japa/runner';
-import { terminateProcessTree } from '../../../../scripts/devProcesses.mjs';
+import { terminateProcessTree } from '../../../../scripts/dev/devProcesses.mjs';
 
 // Proxy trust, HSTS and cookie security are read once at boot, so each case starts its own server.
 const backendRoot = new URL('../../', import.meta.url);

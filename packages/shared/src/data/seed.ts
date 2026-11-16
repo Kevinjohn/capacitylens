@@ -1,5 +1,5 @@
 import type { AppData } from '../types/entities.js';
-import { addDaysISO, dayIndex, startOfWeekISO, todayISO } from '../lib/dateMath.js';
+import { addDaysISO, dayIndex, startOfWeekISO, toISODate } from '../lib/dateMath.js';
 import { isValidISODate } from '../lib/isoDates.js';
 import { SEED_WEEK } from './seed/constants.js';
 import { createOrgTables } from './seed/orgTables.js';
@@ -32,7 +32,7 @@ export function seed(): AppData {
 /** The canonical demo scenarios shifted onto the week containing `referenceDate`.
  * Keep `seed()` fixed for repeatable tests, screenshots and written walkthroughs; disposable server demo
  * entry points use this variant so a new visitor never lands on an empty, expired schedule. */
-export function seedForCurrentWeek(referenceDate = todayISO()): AppData {
+export function seedForCurrentWeek(referenceDate = toISODate(new Date())): AppData {
   const week = startOfWeekISO(referenceDate);
   const shift = (date: string) => {
     const shifted = addDaysISO(week, dayIndex(date, SEED_WEEK));

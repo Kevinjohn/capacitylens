@@ -116,7 +116,7 @@ describe('active-account replacement invariant', () => {
 
     await expect(
       requireCreated(s().addClient({ name: 'Orphan', color: '#111111' })),
-    ).rejects.toThrow(/no active company/i);
+    ).rejects.toThrow(/not loaded/i);
     expect(s().data).toBe(dataBefore);
   });
 });
@@ -130,9 +130,11 @@ describe('active-account permission publication', () => {
     });
 
     s().setActiveAccount(B);
-    await expect(s().addClient({ name: 'Must not land', color: '#111111' })).rejects.toThrow(
-      /no active company/i,
-    );
+    // B is known from the summaries before its rows load, so the write reaches the role check,
+    // which refuses it under the fail-closed viewer role.
+    await expect(s().addClient({ name: 'Must not land', color: '#111111' })).resolves.toEqual({
+      kind: 'blocked',
+    });
     await s().refreshPlanning();
     await s().addClient({ name: 'Still must not land', color: '#111111' });
     unsubscribe();

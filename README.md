@@ -131,15 +131,15 @@ and invitations and password resets need email delivery. See
 
 ## Documentation
 
-Read the [documentation](https://kevinjohn.github.io/capacitylens/) online, open
-[`docs/index.html`](docs/) straight from a checkout with no server or build, or read the Markdown
-sources in [`docs-src/`](docs-src/). [What is CapacityLens?](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html)
+Read the [documentation](https://kevinjohn.github.io/capacitylens/) online, read the Markdown
+sources in [`docs-src/`](docs-src/), or run `pnpm run docs:build` for a copy in `docs/` that opens
+from disk with no server. [What is CapacityLens?](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html)
 is the one-page introduction.
 
-To update the site, edit `docs-src/` and run `pnpm run docs:build`, then commit the sources and
-rebuilt `docs/` together. Documentation checks verify that they match. GitHub Pages publishes the
-committed output only on a manual run of **Publish documentation** from `main`; neither a
-documentation merge nor a published release updates the live site. See the
+To update the site, edit `docs-src/` and run `pnpm run docs:build` to check it; commit only the
+sources. `docs/` is build output and is not committed. GitHub Pages builds and publishes the site
+only on a manual run of **Publish documentation** from `main`; neither a documentation merge nor a
+published release updates the live site. See the
 [documentation contribution instructions](CONTRIBUTING.md#documentation-and-github-pages).
 
 ## Project status
@@ -170,7 +170,7 @@ the [architecture reference](docs-src/reference/architecture.md) and the
 | An API route, authorization, a migration or a job | [`apps/backend/`](apps/backend/) (AdonisJS server)                                                                                          |
 | A scheduling or validation rule both sides share  | [`packages/shared/`](packages/shared/), for example [`src/domain/`](packages/shared/src/domain/) and [`src/lib/`](packages/shared/src/lib/) |
 | A user guide                                      | [`docs-src/`](docs-src/), the guide sources                                                                                                 |
-| The offline documentation site                    | Nothing: [`docs/`](docs/) is generated from `docs-src/` by `pnpm run docs:build` and committed                                              |
+| The offline documentation site                    | Nothing: `docs/` is generated from `docs-src/` by `pnpm run docs:build` and not committed                                                   |
 | What a feature must do (acceptance criteria)      | [`user-stories/`](user-stories/)                                                                                                            |
 
 Guides explain how to use the product; stories state the behaviour a change must keep; `docs/` is

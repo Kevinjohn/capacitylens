@@ -7,7 +7,7 @@ import {
   assertEntryBundleWithinBudget,
   ENTRY_GZIP_LIMIT_BYTES,
   ENTRY_RAW_LIMIT_BYTES,
-} from '../../../scripts/bundleBudget.mjs';
+} from '../../../scripts/build/bundleBudget.mjs';
 
 const repositoryRoot = resolve(process.cwd(), '../..');
 
@@ -25,15 +25,15 @@ describe('bundle budget entry selection', () => {
 
   const arrange = (html: string) => {
     directory = mkdtempSync(join(tmpdir(), 'capacitylens-bundle-budget-'));
-    mkdirSync(join(directory, 'scripts'), { recursive: true });
+    mkdirSync(join(directory, 'scripts/build'), { recursive: true });
     mkdirSync(join(directory, 'dist/assets'), { recursive: true });
     cpSync(
-      resolve(repositoryRoot, 'scripts/bundleBudget.mjs'),
-      join(directory, 'scripts/bundleBudget.mjs'),
+      resolve(repositoryRoot, 'scripts/build/bundleBudget.mjs'),
+      join(directory, 'scripts/build/bundleBudget.mjs'),
     );
     cpSync(
-      resolve(repositoryRoot, 'scripts/check-bundle-budget.mjs'),
-      join(directory, 'scripts/check-bundle-budget.mjs'),
+      resolve(repositoryRoot, 'scripts/build/check-bundle-budget.mjs'),
+      join(directory, 'scripts/build/check-bundle-budget.mjs'),
     );
     writeFileSync(join(directory, 'dist/index.html'), html);
     writeFileSync(join(directory, 'dist/assets/app.js'), 'export const app = true\n');
@@ -42,7 +42,7 @@ describe('bundle budget entry selection', () => {
 
   it('accepts one module entry regardless of attribute order and quote style', () => {
     arrange(`<script src='/assets/app.js' crossorigin type='module'></script>`);
-    const result = spawnSync(process.execPath, ['scripts/check-bundle-budget.mjs'], {
+    const result = spawnSync(process.execPath, ['scripts/build/check-bundle-budget.mjs'], {
       cwd: requireDirectory(),
       encoding: 'utf8',
     });
@@ -55,7 +55,7 @@ describe('bundle budget entry selection', () => {
       <script type="module" src="/assets/shim.js"></script>
       <script type="module" src="/assets/app.js"></script>
     `);
-    const result = spawnSync(process.execPath, ['scripts/check-bundle-budget.mjs'], {
+    const result = spawnSync(process.execPath, ['scripts/build/check-bundle-budget.mjs'], {
       cwd: requireDirectory(),
       encoding: 'utf8',
     });

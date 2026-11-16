@@ -8,11 +8,10 @@ import {
   MIN_PASSWORD_LENGTH,
   passwordLengthFailure,
 } from '@capacitylens/shared/domain/password';
-import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { m } from '@/i18n';
-import { accountClient } from '@/account/accountClient';
+import { readInvitationPreview, signUpWithInvitation } from '@/account/invitationSignupClient';
+import type { InvitationPreview } from '@/account/invitationSignupClient';
 import { resolveRoleLabel } from '@/lib/accessCopy';
-import { readApiError, readApiErrorCode } from '@/lib/readApiError';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,28 +20,13 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 // The invitation route renders before sign-in. The server owns the token, fixes the address and
 // grants membership; an Owner or Admin still approves the new identity before it sees company data.
 
-interface Preview {
-  accountName: string | null;
-  role: string | null;
-  email: string;
-}
-
 type State =
   | { kind: 'checking' }
-  | { kind: 'form'; preview: Preview }
-  | { kind: 'working'; preview: Preview }
+  | { kind: 'form'; preview: InvitationPreview }
+  | { kind: 'working'; preview: InvitationPreview }
   | { kind: 'failed'; message: string }
   /** The sign-up answer was lost or failed after the account may have been created. */
   | { kind: 'uncertain' };
-
-function parsePreview(body: unknown): Preview | null {
-  if (!isRecord(body) || typeof body.email !== 'string') return null;
-  return {
-    email: body.email,
-    accountName: typeof body.accountName === 'string' ? body.accountName : null,
-    role: typeof body.role === 'string' ? body.role : null,
-  };
-}
 
 /** Before the company exists an invitation is the setup link, and setup grants Owner. */
 function roleText(role: string | null) {
@@ -73,25 +57,18 @@ function useInvitePreview(token: string | undefined) {
   useEffect(() => {
     if (!token) return;
     let current = true;
-    accountClient
-      .previewInvitation(token)
-      .then(async (response) => {
-        // Only a not-found or rejected token is an invalid invitation; anything else may pass on retry.
-        if (!response.ok && response.status !== 400 && response.status !== 404) {
-          if (current) setState({ kind: 'failed', message: m.invite_err_unavailable() });
-          return;
-        }
-        const preview = response.ok ? parsePreview(await response.json().catch(() => null)) : null;
-        if (current) {
-          setState(
-            preview
-              ? { kind: 'form', preview }
-              : {
-                  kind: 'failed',
-                  message: response.ok ? m.invite_err_unavailable() : m.invite_err_invalid(),
-                },
-          );
-        }
+    readInvitationPreview(token)
+      .then((result) => {
+        if (!current) return;
+        setState(
+          result.kind === 'ok'
+            ? { kind: 'form', preview: result.preview }
+            : {
+                kind: 'failed',
+                message:
+                  result.kind === 'invalid' ? m.invite_err_invalid() : m.invite_err_unavailable(),
+              },
+        );
       })
       .catch((failure: unknown) => {
         console.warn('InviteAccept: preview failed', failure);
@@ -117,7 +94,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
     document.title = `${m.invite_title()} · ${APP_NAME}`;
   }, []);
 
-  const submit = async (event: FormEvent, preview: Preview) => {
+  const submit = async (event: FormEvent, preview: InvitationPreview) => {
     event.preventDefault();
     if (!token) return;
     const invalid = signupValidationError(name, password);
@@ -125,29 +102,25 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
     if (invalid) return;
     setState({ kind: 'working', preview });
     try {
-      const response = await accountClient.signupWithInvitation(token, {
-        name: name.trim(),
-        password,
-      });
-      if (response.ok) {
+      const result = await signUpWithInvitation(token, { name: name.trim(), password });
+      if (result.kind === 'signed-up') {
         // A full reload rechecks the session; after a 202 the account exists and sign-in shows.
         window.location.assign('/');
         return;
       }
-      if (response.status >= 500) {
+      if (result.kind === 'uncertain') {
         setPassword('');
         setState({ kind: 'uncertain' });
         return;
       }
-      const code = await readApiErrorCode(response);
-      if (code === 'INVALID_TOKEN') {
+      if (result.kind === 'invalid-token') {
         setState({ kind: 'failed', message: m.invite_err_invalid() });
         return;
       }
       setError(
-        code === 'EMAIL_REGISTERED'
+        result.kind === 'email-registered'
           ? m.invite_err_email_registered()
-          : ((await readApiError(response)) ?? m.invite_err_failed()),
+          : (result.message ?? m.invite_err_failed()),
       );
       setState({ kind: 'form', preview });
     } catch (failure) {

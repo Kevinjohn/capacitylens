@@ -1,12 +1,12 @@
 import { foldForSearch } from '@/lib/fuzzy';
 import { resolveResourceDisplayName } from '@/lib/metadata';
+import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import { hasLensFilter } from '@/store/useStore';
 import type { Filters } from '@/store/useStore';
 import { internalClientFor } from '@capacitylens/shared/data/internalClient';
-import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { Allocation, AppData, Resource } from '@capacitylens/shared/types/entities';
 import type { SchedulerModelOptions } from './schedulerModelTypes';
-import { buildAllocationAttribution } from './buildAllocationAttribution';
+import { buildAllocationAttribution } from '@/lib/buildAllocationAttribution';
 
 function createResourceVisibility({
   search,
@@ -20,8 +20,7 @@ function createResourceVisibility({
   externalEnabled: boolean;
 }) {
   return (resource: Resource): boolean => {
-    if (!placeholdersEnabled && resource.kind === 'placeholder') return false;
-    if (!externalEnabled && isExternalResource(resource)) return false;
+    if (!isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled })) return false;
     if (filteredDisciplineId && resource.disciplineId !== filteredDisciplineId) return false;
     if (!search) return true;
     const text = [resolveResourceDisplayName(resource), resource.name, resource.role].join(' ');

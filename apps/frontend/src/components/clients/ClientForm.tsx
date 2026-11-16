@@ -1,11 +1,9 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
-import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useStore } from '@/store/useStore';
+import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { useFieldError } from '@/hooks/useFieldError';
-import { resolveErrorMessage } from '@/lib/errorMessage';
 import { validatePresetColor, parseName } from '@/lib/validation';
-import { isStaleEdit } from '@/lib/isStaleEdit';
 import { m } from '@/i18n';
 import { ColorField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
 import { PrivateNameFields } from '@/components/common/PrivateNameFields';
@@ -77,46 +75,32 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
   const updateClient = useStore((state) => state.updateClient);
   const [name, setName] = useState(client?.name ?? '');
   const [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client);
-  const [pending, setPending] = useState(false);
-  const inFlight = useRef(false);
   const { error, errorField, errorId, fail } = useFieldError();
   const privateNameFields = usePrivateNameFields(client, fail);
+  const clients = useStore((state) => state.data.clients);
+  const { pending, submit } = useEditSubmit({
+    editing: client,
+    rows: clients,
+    staleMessage: m.form_client_err_changed,
+    fail,
+    onSaved: onClose,
+  });
 
-  const submit = async () => {
-    if (inFlight.current) return;
+  const prepareSave = () => {
     const trimmed = parseName(name, fail);
-    if (!trimmed) return;
+    if (!trimmed) return null;
     const privacy = privateNameFields.parsePrivacyPatch();
-    if (!privacy) return;
-    if (!validatePresetColor(color, fail)) return;
-    inFlight.current = true;
-    setPending(true);
-    // Surface store integrity rejections as form errors so they remain visible instead of escaping the React event handler.
-    try {
-      if (client) {
-        if (isStaleEdit(useStore.getState().data.clients, client.id, client.updatedAt)) {
-          fail(null, m.form_client_err_changed());
-          return;
-        }
-        await updateClient(client.id, { name: trimmed, color, ...privacy });
-      } else {
-        const result = await addClient({
-          name: trimmed,
-          color,
-          ...(privacy.isPrivate && privacy.codeName
-            ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
-            : {}),
-        });
-        if (result.kind === 'blocked') return;
-      }
-      onClose();
-    } catch (e) {
-      if (e instanceof PlanningSaveCancelledError) return;
-      fail(null, resolveErrorMessage(e));
-    } finally {
-      inFlight.current = false;
-      setPending(false);
-    }
+    if (!privacy) return null;
+    if (!validatePresetColor(color, fail)) return null;
+    if (client) return () => updateClient(client.id, { name: trimmed, color, ...privacy });
+    return () =>
+      addClient({
+        name: trimmed,
+        color,
+        ...(privacy.isPrivate && privacy.codeName
+          ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
+          : {}),
+      });
   };
 
   return (
@@ -124,7 +108,7 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
       title={client ? m.form_client_edit_title() : m.form_client_add_title()}
       onClose={onClose}
       onSubmit={() => {
-        void submit();
+        void submit(prepareSave);
       }}
       footer={<FormActions onCancel={onClose} disabled={pending} />}
     >

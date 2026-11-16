@@ -13,7 +13,7 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningControllerError } from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 
 beforeEach(async () => {
   await resetStoreWithAccount();

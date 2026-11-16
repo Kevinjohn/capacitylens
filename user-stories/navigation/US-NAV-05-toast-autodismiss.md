@@ -39,4 +39,4 @@ flowchart TD
   toast --> clear["dismiss or auto-close clears same notice"]
 ```
 
-**Code references:** [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts)
+**Code references:** [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts); [shellNotices.ts](../../apps/frontend/src/components/app-shell/shellNotices.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts)
