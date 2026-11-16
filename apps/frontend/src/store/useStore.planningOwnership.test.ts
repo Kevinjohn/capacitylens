@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  PlanningControllerError,
-  readPlanningProblem,
-} from '@/data/planning/planningCacheController';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { readPlanningProblem } from '@/data/planning/planningNotices';
 import { useStore } from '@/store/useStore';
 import {
   makeAccount,

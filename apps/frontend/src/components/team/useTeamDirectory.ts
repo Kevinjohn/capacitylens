@@ -268,6 +268,8 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     setReloadKey(lastRequestedReadGeneration);
     return lastRequestedReadGeneration;
   }, []);
+  // Invitation-only writes refresh the independently authorized invite read. Apply its response
+  // only while both its account and authorizing member-load generation remain current.
   const reloadInvites = useCallback(async () => setInviteReloadKey((key) => key + 1), []);
   const { membersQuery, invitationsQuery } = useScopedDirectoryQueries({
     options: { ...options, enabled: options.enabled && !masqueradeActive },
@@ -305,29 +307,11 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
   };
 }
 
-// Invitation-only writes refresh the independently authorized invite read. Apply its response only while both its account and authorizing member-load generation remain current.
-function useActionState() {
-  const actionLock = useRef<string | null>(null);
-  const [busyAction, setBusyAction] = useState<string | null>(null);
-  const beginAction = useCallback((key: string): boolean => {
-    if (actionLock.current !== null) return false;
-    actionLock.current = key;
-    setBusyAction(key);
-    return true;
-  }, []);
-  const endAction = useCallback(() => {
-    actionLock.current = null;
-    setBusyAction(null);
-  }, []);
-  return { busyAction, beginAction, endAction };
-}
-
-/** Owns authoritative directory reads, self-gating, reload generations and action exclusion. */
+/** Owns authoritative directory reads, self-gating and reload generations. */
 export function useTeamDirectory(options: TeamDirectoryOptions) {
   const { activeAccountId } = options;
   const { directory, setDirectory, reload, acceptedReadGeneration, reloadInvites } =
     useDirectoryRead(options);
-  const { busyAction, beginAction, endAction } = useActionState();
   const currentAccountLoaded = directory.accountId === activeAccountId;
   const replaceAuthorizedDirectory = useCallback(
     (next: TeamDirectory, invites: TeamInvitation[]) => {
@@ -356,8 +340,5 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
     reload,
     acceptedReadGeneration,
     reloadInvites,
-    busyAction,
-    beginAction,
-    endAction,
   };
 }

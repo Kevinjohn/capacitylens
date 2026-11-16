@@ -1,5 +1,6 @@
 import type { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
-import { daysInclusive, todayISO } from '@capacitylens/shared/lib/dateMath';
+import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { readCalendarToday } from '@/lib/calendarToday';
 import {
   effectiveWorkingWeek,
   lacksEffectiveWorkingDays,
@@ -17,8 +18,9 @@ import type {
   SchedulingMode,
 } from '@capacitylens/shared/types/entities';
 import { carriesHourlyLoad, FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { RepeatSelection } from '@/lib/repeatingAllocations';
+import { useRepeatUntil } from '@/hooks/useRepeatUntil';
 
 import type { AllocationModalSeed } from './buildAllocationModalSeed';
 import {
@@ -76,7 +78,7 @@ function useEffectiveSchedule(input: {
 }
 
 function resolveRepeatRange(startDate: ISODate, calendarTimeZone: string) {
-  const repeatToday = todayISO(calendarTimeZone);
+  const repeatToday = readCalendarToday(calendarTimeZone);
   return {
     repeatToday,
     repeatUntilMinimum:
@@ -98,7 +100,7 @@ function resolveInitialDaysOfWork(seed: AllocationModalSeed): number {
 function resolveInitialDates(seed: AllocationModalSeed, calendarTimeZone: string) {
   return {
     startDate: seed.initialStart,
-    endDate: seed.editing?.endDate ?? seed.create?.endDate ?? todayISO(calendarTimeZone),
+    endDate: seed.editing?.endDate ?? seed.create?.endDate ?? readCalendarToday(calendarTimeZone),
   };
 }
 
@@ -110,33 +112,6 @@ function resolveInitialDetails(seed: AllocationModalSeed) {
     task: seed.editing?.task ?? '',
     ignoreWorkingDays: seed.editing?.ignoreWorkingDays ?? false,
   };
-}
-
-function useRepeatSchedule(startDate: ISODate) {
-  const [repeat, setRepeat] = useState<RepeatSelection>('none');
-  const [repeatUntil, setRepeatUntil] = useState('');
-  const repeatUntilIsSuggested = useRef(false);
-  useEffect(() => {
-    if (repeat !== 'none' && repeatUntilIsSuggested.current && isValidISODate(startDate)) {
-      setRepeatUntil(defaultRepeatUntilDate(startDate));
-    }
-  }, [repeat, startDate]);
-  const changeRepeat = (value: string) => {
-    const next = value as RepeatSelection;
-    if (repeat === 'none' && next !== 'none' && isValidISODate(startDate)) {
-      repeatUntilIsSuggested.current = true;
-      setRepeatUntil(defaultRepeatUntilDate(startDate));
-    } else if (next === 'none') {
-      repeatUntilIsSuggested.current = false;
-      setRepeatUntil('');
-    }
-    setRepeat(next);
-  };
-  const changeRepeatUntil = (value: string) => {
-    repeatUntilIsSuggested.current = false;
-    setRepeatUntil(value);
-  };
-  return { repeat, repeatUntil, changeRepeat, changeRepeatUntil };
 }
 
 function useScheduleFields(seed: AllocationModalSeed, calendarTimeZone: string) {
@@ -189,7 +164,10 @@ export function useAllocationScheduleState({
   const fields = useScheduleFields(seed, calendarTimeZone);
   const { noteEdited, ...scheduleFields } = fields;
   const { startDate, endDate, ignoreWorkingDays } = fields;
-  const { repeat, repeatUntil, changeRepeat, changeRepeatUntil } = useRepeatSchedule(startDate);
+  const { repeat, repeatUntil, changeRepeat, changeRepeatUntil } = useRepeatUntil<RepeatSelection>(
+    startDate,
+    defaultRepeatUntilDate,
+  );
   const { selectedEffectiveWeek, values: effectiveValues } = useEffectiveSchedule({
     selectedResource,
     accountWorkingDays,

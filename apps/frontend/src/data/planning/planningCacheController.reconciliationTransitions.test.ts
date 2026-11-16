@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PlanningControllerError } from './planningCacheController';
+import { PlanningControllerError } from './planningErrors';
 import { uncertain } from '@/test/planningTransitionHarness';
 
 // Pins the coordinator transitions that no other controller test asserts directly.

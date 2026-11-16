@@ -41,4 +41,4 @@ flowchart TD
   C --> D["ResourceLane renders today line only when todayX is in range"]
 ```
 
-**Code references:** [useCalendarToday.ts](../../apps/frontend/src/components/scheduler/useCalendarToday.ts), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
+**Code references:** [useCalendarToday.ts](../../apps/frontend/src/hooks/useCalendarToday.ts), [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [SchedulerGridRows.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRows.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)

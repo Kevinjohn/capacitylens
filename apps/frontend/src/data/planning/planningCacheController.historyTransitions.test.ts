@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
-import { isPlanningHistoryReady } from './planningCacheController';
+import { isPlanningHistoryReady } from './planningReadiness';
 import {
   update,
   inverse,
