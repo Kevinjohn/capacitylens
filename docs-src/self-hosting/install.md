@@ -21,9 +21,10 @@ which also keeps the manual steps. Managed platforms can follow
 [Deploy on a managed host](/self-hosting/managed-vps/).
 
 Whoever manages your hosting runs the [install command](/self-hosting/install-without-docker#install-with-one-command)
-or completes the [manual steps](/self-hosting/install-without-docker#install-by-hand). The last step
-is to open the setup link. First sign-in and company naming then happen in the browser,
-without stopping the service. Hosting maintenance, backups and upgrades stay with that operator.
+or completes the [manual steps](/self-hosting/install-without-docker#install-by-hand). Both end by
+printing a one-time setup link. An operator who is also the Owner opens it in a browser; otherwise
+the operator sends it privately to the Owner, who opens it. First sign-in and company naming then
+happen in the browser, without stopping the service. Hosting maintenance, backups and upgrades stay with that operator.
 
 Use a TLS proxy on the same machine, forwarding to the loopback listener; see
 [TLS and networking](/self-hosting/tls-and-networking). A proxy in a separate container or on a

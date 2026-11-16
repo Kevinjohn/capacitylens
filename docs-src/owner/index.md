@@ -15,14 +15,15 @@ next: false
 Create your sign-in, name the company and give someone its day-to-day running. Whoever manages
 hosting remains responsible for the server, backups and upgrades.
 
-You need the one-time setup link from whoever installed CapacityLens.
+You need the one-time setup link. If you installed CapacityLens yourself, it is the link the install
+command printed; otherwise, whoever installed it sends it to you privately.
 
 <div class="steps">
 
 1. ![Accept invite page with Name, Password and Accept invitation](../screenshots/steps/owner_setup_sign_in_form.png)
 
-   **Sign in for the first time.** Open the setup link. Enter your **Name** and a **Password**, then
-   select **Accept invitation**. The link works once.
+   **Sign in for the first time.** Open the setup link in your browser. On **Accept invite**, enter
+   your **Name** and a **Password**, then select **Accept invitation**. The link works once.
 
 2. **Create your company.** On **Set up your company**, enter **Company name** and select
    **Create company**. Schedule opens with you as Owner. [Company setup](/owner/create-your-company)
