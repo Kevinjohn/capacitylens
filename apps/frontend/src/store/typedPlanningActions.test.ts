@@ -32,11 +32,11 @@ describe('typed planning domain rejections', () => {
       accountSummaries: [{ id: activeAccountId, name: 'Daily Planet', role: 'owner' }],
     });
     const sent = getStubPlanningTransport().calls.length;
-    // The guard admits a company whose slice is still loading; the command builder then refuses
-    // because the company row is not published yet, so nothing is sent.
+    // The guard admits a company whose slice is still loading; no command can be built until the
+    // company row is published, so the write is refused as no company selected and nothing is sent.
     await expect(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),
-    ).rejects.toThrow('The planning change could not be prepared.');
+    ).rejects.toThrow('No active company is selected.');
     expect(getStubPlanningTransport().calls).toHaveLength(sent);
   });
 
