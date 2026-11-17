@@ -21,6 +21,12 @@ const MARKER_CLIENT = 'MARKER_CLIENT_KANE';
 const MARKER_ARCHIVED_CLIENT = 'MARKER_ARCHIVED_FALCONE';
 const MARKER_PROJECT = 'MARKER_PROJECT_MONARCH';
 const MARKER_NOTE = 'MARKER_NOTE_ARKHAM';
+/** The code name each private name marker carries; a reader who may not see the name gets it quoted. */
+const codeNamesByMarker: Record<string, string> = {
+  [MARKER_CLIENT]: 'Nightwing',
+  [MARKER_ARCHIVED_CLIENT]: 'Oracle',
+  [MARKER_PROJECT]: 'Aurora',
+};
 
 type Role = 'owner' | 'admin' | 'editor' | 'viewer';
 
@@ -51,11 +57,16 @@ const principals: Principal[] = [
 ];
 
 /** Names are visible to an effective Owner only; the time-off note to an effective Owner or Admin. */
-function markersHiddenFrom(role: Role) {
+function listHiddenMarkers(role: Role) {
   const hidden: string[] = [];
   if (role !== 'owner') hidden.push(MARKER_CLIENT, MARKER_ARCHIVED_CLIENT, MARKER_PROJECT);
   if (role !== 'owner' && role !== 'admin') hidden.push(MARKER_NOTE);
   return hidden;
+}
+
+/** Only an effective Owner or Admin asks the state route for archived rows. */
+function canReadInactive(role: Role) {
+  return role === 'owner' || role === 'admin';
 }
 
 const IDENTITY = 'identity or account reply with no client, project or time-off rows';
@@ -74,7 +85,7 @@ async function send<T extends ApiRequest>(request: T, cookie: string, intent: ob
     .send();
 }
 
-const companyRoute = (path: string) => `/api/accounts/${accountId}/${path}`;
+const buildCompanyRoute = (path: string) => `/api/accounts/${accountId}/${path}`;
 
 /** A preset colour used by a seeded client that differs from the row's own, so the update is a real
  * change. */
@@ -90,17 +101,21 @@ async function pickOtherColor(table: 'clients' | 'projects', id: string) {
   return other.color;
 }
 
-async function archiveAsOwner(f: Fixture, path: string, intent: object) {
-  const archived = await send(f.client.post(companyRoute(path)), f.ownerCookie, intent);
+async function archiveAsOwner(fixture: Fixture, path: string, intent: object) {
+  const archived = await send(
+    fixture.client.post(buildCompanyRoute(path)),
+    fixture.ownerCookie,
+    intent
+  );
   archived.assertStatus(200);
 }
 
 type Exposure =
   | {
-      call: (f: Fixture, principal: Principal) => Promise<ApiResponse>;
+      call: (fixture: Fixture, principal: Principal) => Promise<ApiResponse>;
       write: boolean;
       /** Markers the reply carries for a reader allowed to see them. */
-      carries: string[];
+      carries: string[] | ((principal: Principal) => string[]);
     }
   | { none: string };
 
@@ -108,117 +123,146 @@ const replies: Record<string, Exposure> = {
   'api.planning.show': {
     write: false,
     carries: [MARKER_CLIENT, MARKER_PROJECT, MARKER_NOTE],
-    call: (f) => session(f.client.get(companyRoute('planning')), f.cookie).send(),
+    call: (fixture) =>
+      session(fixture.client.get(buildCompanyRoute('planning')), fixture.cookie).send(),
   },
   'api.planning.archive': {
     write: false,
     carries: [MARKER_ARCHIVED_CLIENT],
-    call: (f) => session(f.client.get(companyRoute('planning/archive')), f.cookie).send(),
+    call: (fixture) =>
+      session(fixture.client.get(buildCompanyRoute('planning/archive')), fixture.cookie).send(),
   },
   'api.state': {
     write: false,
-    carries: [MARKER_CLIENT, MARKER_ARCHIVED_CLIENT, MARKER_PROJECT, MARKER_NOTE],
-    call: (f, principal) => {
-      const inactive = principal.effective === 'owner' || principal.effective === 'admin';
+    carries: (principal) => [
+      MARKER_CLIENT,
+      MARKER_PROJECT,
+      MARKER_NOTE,
+      ...(canReadInactive(principal.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
+    ],
+    call: (fixture, principal) => {
+      const inactive = canReadInactive(principal.effective);
       return session(
-        f.client.get(`/api/state?accountId=${accountId}${inactive ? '&includeInactive=1' : ''}`),
-        f.cookie
+        fixture.client.get(
+          `/api/state?accountId=${accountId}${inactive ? '&includeInactive=1' : ''}`
+        ),
+        fixture.cookie
       ).send();
     },
   },
   'api.planning.client.update': {
     write: true,
     carries: [MARKER_CLIENT],
-    call: async (f) =>
-      send(f.client.patch(companyRoute(`clients/${f.clientId}`)), f.cookie, {
+    call: async (fixture) =>
+      send(fixture.client.patch(buildCompanyRoute(`clients/${fixture.clientId}`)), fixture.cookie, {
         operation: 'catalogue.update',
         entity: {
           entity: 'clients',
-          id: f.clientId,
-          changes: { color: await pickOtherColor('clients', f.clientId) },
+          id: fixture.clientId,
+          changes: { color: await pickOtherColor('clients', fixture.clientId) },
         },
       }),
   },
   'api.planning.client.unarchive': {
     write: true,
     carries: [MARKER_CLIENT, MARKER_PROJECT],
-    call: async (f) => {
-      const entity = { entity: 'clients', id: f.clientId };
-      await archiveAsOwner(f, `clients/${f.clientId}/archive`, {
+    call: async (fixture) => {
+      const entity = { entity: 'clients', id: fixture.clientId };
+      await archiveAsOwner(fixture, `clients/${fixture.clientId}/archive`, {
         operation: 'catalogue.archive',
         entity,
       });
-      return send(f.client.post(companyRoute(`clients/${f.clientId}/unarchive`)), f.cookie, {
-        operation: 'catalogue.unarchive',
-        entity,
-      });
+      return send(
+        fixture.client.post(buildCompanyRoute(`clients/${fixture.clientId}/unarchive`)),
+        fixture.cookie,
+        {
+          operation: 'catalogue.unarchive',
+          entity,
+        }
+      );
     },
   },
   'api.planning.project.update': {
     write: true,
     carries: [MARKER_PROJECT],
-    call: async (f) =>
-      send(f.client.patch(companyRoute(`projects/${f.projectId}`)), f.cookie, {
-        operation: 'catalogue.update',
-        entity: {
-          entity: 'projects',
-          id: f.projectId,
-          changes: { color: await pickOtherColor('projects', f.projectId) },
-        },
-      }),
+    call: async (fixture) =>
+      send(
+        fixture.client.patch(buildCompanyRoute(`projects/${fixture.projectId}`)),
+        fixture.cookie,
+        {
+          operation: 'catalogue.update',
+          entity: {
+            entity: 'projects',
+            id: fixture.projectId,
+            changes: { color: await pickOtherColor('projects', fixture.projectId) },
+          },
+        }
+      ),
   },
   'api.planning.project.unarchive': {
     write: true,
     carries: [MARKER_PROJECT],
-    call: async (f) => {
-      const entity = { entity: 'projects', id: f.projectId };
-      await archiveAsOwner(f, `projects/${f.projectId}/archive`, {
+    call: async (fixture) => {
+      const entity = { entity: 'projects', id: fixture.projectId };
+      await archiveAsOwner(fixture, `projects/${fixture.projectId}/archive`, {
         operation: 'catalogue.archive',
         entity,
       });
-      return send(f.client.post(companyRoute(`projects/${f.projectId}/unarchive`)), f.cookie, {
-        operation: 'catalogue.unarchive',
-        entity,
-      });
+      return send(
+        fixture.client.post(buildCompanyRoute(`projects/${fixture.projectId}/unarchive`)),
+        fixture.cookie,
+        {
+          operation: 'catalogue.unarchive',
+          entity,
+        }
+      );
     },
   },
   'api.planning.timeOff.update': {
     write: true,
     carries: [MARKER_NOTE],
-    call: async (f) => {
-      const row = await db.from('time_off').where('id', f.timeOffId).first();
+    call: async (fixture) => {
+      const row = await db.from('time_off').where('id', fixture.timeOffId).first();
       const type = row?.type === 'holiday' ? 'sick' : 'holiday';
-      return send(f.client.patch(companyRoute(`time-off/${f.timeOffId}`)), f.cookie, {
-        operation: 'timeOff.update',
-        id: f.timeOffId,
-        changes: { type },
-      });
+      return send(
+        fixture.client.patch(buildCompanyRoute(`time-off/${fixture.timeOffId}`)),
+        fixture.cookie,
+        {
+          operation: 'timeOff.update',
+          id: fixture.timeOffId,
+          changes: { type },
+        }
+      );
     },
   },
   'api.planning.resource.unarchive': {
     write: true,
     carries: [MARKER_NOTE],
-    call: async (f) => {
-      await archiveAsOwner(f, `resources/${f.resourceId}/archive`, {
+    call: async (fixture) => {
+      await archiveAsOwner(fixture, `resources/${fixture.resourceId}/archive`, {
         operation: 'resource.archive',
-        id: f.resourceId,
+        id: fixture.resourceId,
       });
-      return send(f.client.post(companyRoute(`resources/${f.resourceId}/unarchive`)), f.cookie, {
-        operation: 'resource.unarchive',
-        id: f.resourceId,
-      });
+      return send(
+        fixture.client.post(buildCompanyRoute(`resources/${fixture.resourceId}/unarchive`)),
+        fixture.cookie,
+        {
+          operation: 'resource.unarchive',
+          id: fixture.resourceId,
+        }
+      );
     },
   },
   'api.planning.restoreGroup': {
     write: true,
     carries: [MARKER_NOTE],
-    call: async (f) => {
+    call: async (fixture) => {
       const deleted = await send(
-        f.client.post(companyRoute(`time-off/${f.timeOffId}/delete`)),
-        f.cookie,
+        fixture.client.post(buildCompanyRoute(`time-off/${fixture.timeOffId}/delete`)),
+        fixture.cookie,
         {
           operation: 'timeOff.delete',
-          id: f.timeOffId,
+          id: fixture.timeOffId,
         }
       );
       const groupId =
@@ -227,10 +271,14 @@ const replies: Record<string, Exposure> = {
             (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
               .replacementGroupId
           : randomUUID();
-      return send(f.client.post(companyRoute('planning/restore-group')), f.cookie, {
-        operation: 'planning.restoreGroup',
-        restorationGroupId: groupId,
-      });
+      return send(
+        fixture.client.post(buildCompanyRoute('planning/restore-group')),
+        fixture.cookie,
+        {
+          operation: 'planning.restoreGroup',
+          restorationGroupId: groupId,
+        }
+      );
     },
   },
   'api.accounts.anonymise': { none: COUNTS },
@@ -324,17 +372,19 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
   const projectRow = fixture.projects.find((row) => row.clientId === clientRow?.id);
   const timeOffRow = fixture.timeOff.find((row) => row.accountId === accountId);
   if (!clientRow || !projectRow || !timeOffRow) throw new Error('Seed data lacks the marker rows');
-  await db
-    .from('clients')
-    .where({ id: clientRow.id })
-    .update({ name: MARKER_CLIENT, is_private: 'true', code_name: 'Nightwing' });
-  await db
-    .from('projects')
-    .where({ id: projectRow.id })
-    .update({ name: MARKER_PROJECT, is_private: 'true', code_name: 'Aurora' });
+  await db.from('clients').where({ id: clientRow.id }).update({
+    name: MARKER_CLIENT,
+    is_private: 'true',
+    code_name: codeNamesByMarker[MARKER_CLIENT],
+  });
+  await db.from('projects').where({ id: projectRow.id }).update({
+    name: MARKER_PROJECT,
+    is_private: 'true',
+    code_name: codeNamesByMarker[MARKER_PROJECT],
+  });
   await db.from('time_off').where({ id: timeOffRow.id }).update({ note: MARKER_NOTE });
   const archivedId = randomUUID();
-  const created = await send(client.post(companyRoute('clients')), ownerCookie, {
+  const created = await send(client.post(buildCompanyRoute('clients')), ownerCookie, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -343,13 +393,13 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
         name: MARKER_ARCHIVED_CLIENT,
         color: clientRow.color,
         isPrivate: true,
-        codeName: 'Oracle',
+        codeName: codeNamesByMarker[MARKER_ARCHIVED_CLIENT],
       },
     },
   });
   created.assertStatus(200);
   const archived = await send(
-    client.post(companyRoute(`clients/${archivedId}/archive`)),
+    client.post(buildCompanyRoute(`clients/${archivedId}/archive`)),
     ownerCookie,
     {
       operation: 'catalogue.archive',
@@ -398,7 +448,7 @@ test.group('restricted values in replies', (group) => {
         const target = await signIn(client, principal.effective);
         const started = await session(
           client
-            .post(companyRoute('masquerade'))
+            .post(buildCompanyRoute('masquerade'))
             .header('X-Masquerade-Context', await readContextToken(client, viewer.cookie)),
           viewer.cookie
         )
@@ -412,15 +462,14 @@ test.group('restricted values in replies', (group) => {
           principal.effective === 'owner' ? owner : await signIn(client, principal.effective);
         cookie = member.cookie;
       }
-      const f: Fixture = { client, ownerCookie: owner.cookie, cookie, ...markers };
-      const hidden = markersHiddenFrom(principal.effective);
+      const fixture: Fixture = { client, ownerCookie: owner.cookie, cookie, ...markers };
+      const hidden = listHiddenMarkers(principal.effective);
       for (const [name, exposure] of Object.entries(replies)) {
         if ('none' in exposure) continue;
-        const reply = await exposure.call(f, principal);
+        const reply = await exposure.call(fixture, principal);
         const text = reply.text();
-        for (const marker of hidden)
-          assert.notInclude(text, marker, `${name} to ${principal.label}`);
         const where = `${name} to ${principal.label}`;
+        for (const marker of hidden) assert.notInclude(text, marker, where);
         if (exposure.write) {
           const refused = principal.viewAs || principal.effective === 'viewer';
           assert.equal(reply.status(), refused ? 403 : 200, where);
@@ -431,10 +480,15 @@ test.group('restricted values in replies', (group) => {
         } else {
           assert.equal(reply.status(), 200, where);
         }
-        // Positive control: a reply that succeeds carries every marker this reader may see.
-        if (reply.status() === 200 && !principal.viewAs) {
-          for (const marker of exposure.carries.filter((value) => !hidden.includes(value)))
-            assert.include(text, marker, where);
+        // Positive control: a reply that succeeds carries every marker this reader may see, and the
+        // quoted code name, as JSON text, in place of each name it may not.
+        if (reply.status() === 200) {
+          const { carries } = exposure;
+          for (const marker of typeof carries === 'function' ? carries(principal) : carries) {
+            const codeName = codeNamesByMarker[marker];
+            if (!hidden.includes(marker)) assert.include(text, marker, where);
+            else if (codeName) assert.include(text, `\\"${codeName}\\"`, where);
+          }
         }
       }
       if (viewToken) {
