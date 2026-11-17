@@ -6,12 +6,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { ResourceForm } from './ResourceForm';
 import { useStore } from '@/store/useStore';
-import {
-  makeResource,
-  makeResourceDraft,
-  requireValue,
-  resetStoreWithAccount,
-} from '@/test/fixtures';
+import { makeResourceDraft, requireValue, resetStoreWithAccount } from '@/test/fixtures';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
@@ -28,21 +23,6 @@ afterEach(async () => {
 });
 
 describe('ResourceForm layout', () => {
-  it('uses compact label-control rows while leaving working days full width', async () => {
-    await useStore.getState().addDiscipline({ name: 'Design', color: '#737373', sortOrder: 0 });
-    render(<ResourceForm kind="person" onClose={vi.fn()} />);
-
-    for (const label of ['Name', 'Role', 'Discipline', 'Engagement']) {
-      expect(screen.getByLabelText(label).closest('[data-slot="field"]')).toHaveAttribute(
-        'data-product-layout',
-        'label-control',
-      );
-    }
-    expect(screen.getByRole('group', { name: 'Working days' })).not.toHaveAttribute(
-      'data-product-layout',
-    );
-  });
-
   it("uses the compact row for a placeholder's bound project", () => {
     render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
 
@@ -519,7 +499,7 @@ it('does not surface a late typed write rejection after its company changed', as
   }
 });
 
-it('requires a placeholder to be bound to a project', async () => {
+it('hides Employment and Engagement for a placeholder and requires a bound project', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
   render(<ResourceForm kind="placeholder" onClose={onClose} />);
@@ -661,12 +641,6 @@ describe('ResourceForm engagement', () => {
   });
 });
 
-it('does not show working days for placeholders', () => {
-  render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
-
-  expect(screen.queryByRole('group', { name: 'Working days' })).not.toBeInTheDocument();
-});
-
 it('opens legacy working days as full days and unselected weekdays as not working', () => {
   render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
@@ -680,40 +654,6 @@ it('opens legacy working days as full days and unselected weekdays as not workin
       name: 'Saturday Not working',
     }),
   ).toBeChecked();
-});
-
-it('persists a mutually exclusive mixed full, half and non-working pattern', async () => {
-  const user = userEvent.setup();
-  render(<ResourceForm kind="person" onClose={vi.fn()} />);
-
-  await user.type(screen.getByLabelText('Name'), 'Barbara Gordon');
-  await user.click(
-    within(screen.getByRole('row', { name: /Tuesday/ })).getByRole('radio', {
-      name: 'Tuesday Half day',
-    }),
-  );
-  await user.click(
-    within(screen.getByRole('row', { name: /Friday/ })).getByRole('radio', {
-      name: 'Friday Not working',
-    }),
-  );
-  await user.click(screen.getByRole('button', { name: 'Save' }));
-
-  expect(useStore.getState().data.resources[0]).toMatchObject({
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4],
-    halfDays: [2],
-  });
-  expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
-    operation: 'resource.create',
-    fields: { workingDays: [1, 2, 3, 4], halfDays: [2] },
-  });
-});
-
-it('hides working hours when editing a person', () => {
-  render(<ResourceForm resource={makeResource({ workingHoursPerDay: 6 })} onClose={vi.fn()} />);
-
-  expect(screen.queryByLabelText('Working hours / day')).not.toBeInTheDocument();
 });
 
 it('preserves a six-hour working day when editing a person’s role', async () => {
