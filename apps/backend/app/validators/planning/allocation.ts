@@ -50,30 +50,6 @@ const occurrence = vine
   .object({ id: uuid(), startDate: calendarDate(), endDate: calendarDate() })
   .use(dateRange());
 
-const distinctOccurrenceIds = vine.createRule((value, _options, field) => {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
-  const { sourceAllocationId, occurrences } = value as {
-    sourceAllocationId?: unknown;
-    occurrences?: unknown;
-  };
-  if (!Array.isArray(occurrences) || typeof sourceAllocationId !== 'string') return;
-  const ids = occurrences.map((item) =>
-    item !== null && typeof item === 'object' && !Array.isArray(item)
-      ? (item as { id?: unknown }).id
-      : undefined
-  );
-  if (
-    ids.some((id) => typeof id !== 'string' || id === sourceAllocationId) ||
-    new Set(ids).size !== ids.length
-  ) {
-    field.report(
-      'Occurrence IDs must be distinct from the source and each other.',
-      'distinctIds',
-      field
-    );
-  }
-});
-
 const duplicateIdIsDistinct = vine.createRule((value, _options, field) => {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
   const { sourceAllocationId, occurrence: duplicate } = value as {
@@ -151,16 +127,6 @@ export const allocationIntent = vine
           occurrence,
         })
         .use(duplicateIdIsDistinct())
-    ),
-    vine.union.if(
-      (value) => operationMatches(value, 'allocation.repeat'),
-      vine
-        .object({
-          operation: vine.literal('allocation.repeat'),
-          sourceAllocationId: entityId(),
-          occurrences: vine.array(occurrence).minLength(1),
-        })
-        .use(distinctOccurrenceIds())
     ),
   ])
   .otherwise((_value, field) =>

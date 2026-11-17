@@ -183,34 +183,28 @@ export async function executePlanningIntent({
           mode: 'update',
         });
         return unchanged;
-      case 'allocation.duplicate':
-      case 'allocation.repeat': {
+      case 'allocation.duplicate': {
         const source = existingRow(data, 'allocations', intent.sourceAllocationId);
-        const occurrences =
-          intent.operation === 'allocation.duplicate' ? [intent.occurrence] : intent.occurrences;
-        const seriesId = intent.operation === 'allocation.repeat' ? crypto.randomUUID() : null;
-        for (const [index, occurrence] of occurrences.entries()) {
-          await writeEntity({
-            ...writeOptions,
-            table: 'allocations',
-            id: occurrence.id,
-            fields: {
-              resourceId: source.resourceId,
-              activityId: source.activityId,
-              projectId: source.projectId,
-              startDate: occurrence.startDate,
-              endDate: occurrence.endDate,
-              hoursPerDay: source.hoursPerDay,
-              status: source.status,
-              note: source.note,
-              task: source.task,
-              ignoreWorkingDays: source.ignoreWorkingDays,
-              seriesId,
-            },
-            mode: 'create',
-            permissiveRepeatStart: intent.operation === 'allocation.repeat' && index > 0,
-          });
-        }
+        const { occurrence } = intent;
+        await writeEntity({
+          ...writeOptions,
+          table: 'allocations',
+          id: occurrence.id,
+          fields: {
+            resourceId: source.resourceId,
+            activityId: source.activityId,
+            projectId: source.projectId,
+            startDate: occurrence.startDate,
+            endDate: occurrence.endDate,
+            hoursPerDay: source.hoursPerDay,
+            status: source.status,
+            note: source.note,
+            task: source.task,
+            ignoreWorkingDays: source.ignoreWorkingDays,
+            seriesId: null,
+          },
+          mode: 'create',
+        });
         return unchanged;
       }
       case 'catalogue.create':
