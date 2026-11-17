@@ -43,15 +43,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationScheduleFields repeat preview"] --> B["allocationSubmit validates cutoff and occurrence drafts"]
-  B -->|valid| C["allocationSlice.addAllocations"]
+  A["AllocationScheduleFields repeat preview"] --> B["allocationSubmit validates the repeat fields"]
+  B -->|valid| C["allocationSlice.addRepeatedAllocation sends the first allocation, the pattern and the occurrence ids"]
   B -->|invalid| I["Repeat/date error; no write"]
   C --> D["Planning cache controller executes group command"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
   E --> F["planningTransport sends api.planning.allocation.createGroup"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
   J --> I["Repeat error; draft remains available"]
-  F --> G["PlanningController.mutatePlanning executes group writeRow operations"]
+  F --> G["PlanningController.mutatePlanning writes the first allocation, then repeat_occurrences expands and writes the rest"]
   G --> H["Acknowledgement reconciles separate occurrences"]
 ```
 
@@ -60,6 +60,7 @@ flowchart TD
 - [writer.ts](../../apps/backend/app/services/planning/writer.ts)
 
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+- [repeat_occurrences.ts](../../apps/backend/app/services/planning/repeat_occurrences.ts)
 
 - [planning.ts](../../apps/backend/app/services/planning.ts)
 
