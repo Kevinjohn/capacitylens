@@ -19,7 +19,7 @@ export function BetaImportPreview({ preview, error, onContinue }: BetaImportPrev
       </p>
     );
   }
-  if (!preview) return <p role="status">{m.data_importing_body()}</p>;
+  if (!preview) return <p role="status">{m.app_loading()}</p>;
   const count = Object.values(preview.counts).reduce((total, rows) => total + rows, 0);
   return (
     <div className="flex flex-col gap-3">

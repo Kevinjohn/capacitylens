@@ -40,7 +40,7 @@ describe('Beta import preview', () => {
 
   it('waits for the server reply before offering to continue', () => {
     render(<BetaImportPreview preview={null} error={null} onContinue={vi.fn()} />);
-    expect(screen.getByRole('status')).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…');
     expect(screen.queryByRole('button')).toBeNull();
   });
 });

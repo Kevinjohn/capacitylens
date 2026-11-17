@@ -550,6 +550,11 @@ test.group('beta transfer apply', (group) => {
       .update({ role: 'admin' });
     const roleDenied = await apply(client, cookie, full, baseRevision, roleProof);
     roleDenied.assertStatus(403);
+    const previewDenied = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+      .json({ accountId, document: full })
+      .send();
+    previewDenied.assertStatus(403);
+    assert.notProperty(previewDenied.body(), 'companyName');
     const roleProofRow = await db.from('password_confirmations').where('id', roleProof).first();
     assert.isNull(roleProofRow?.consumed_at);
 
