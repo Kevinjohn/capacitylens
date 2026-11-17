@@ -4,7 +4,7 @@ import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithData, DEFAULT_ACCOUNT_ID, makeAllocation } from '@/test/fixtures';
-import { schedulerDataset } from './__tests__/schedulerTestKit';
+import { schedulerDataset } from '@/test/schedulerTestKit';
 
 // A draw-mode toggle updates the bars layer's inert state without rerendering memoized AllocationBar children. The fixture keeps the real grid and lane boundaries and replaces only the leaf bar with a render counter; it tests callback stability, not every possible geometry invalidation.
 const barRenderCount = vi.fn();

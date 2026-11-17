@@ -13,11 +13,7 @@ import {
   makeBar as makeBarBase,
   resetStoreWithData,
 } from '@/test/fixtures';
-import {
-  renderWithOwnerAndTooltip as render,
-  GEOM,
-  indexAtClientX,
-} from './__tests__/schedulerTestKit';
+import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 import { buildAllocationBarInset } from './layout';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
 
