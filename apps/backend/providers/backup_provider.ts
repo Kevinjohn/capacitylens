@@ -1,3 +1,6 @@
+// Backups use the native online SQLite backup of `@kevinjohn/adonisjs-sqlite-backup`; retention
+// counts only verified READY bundles.
+
 import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, sep } from 'node:path';
 import type { ApplicationService } from '@adonisjs/core/types';
@@ -15,7 +18,10 @@ function assertOutsideLiveDatabase(directory: string, livePath: string): void {
   }
 }
 
-/** Own the web schedule while the package owns copying, verification and retention. */
+/**
+ * Own the web schedule while the package owns copying, verification, retention and restore
+ * preparation.
+ */
 export default class BackupProvider {
   private backup?: SqliteBackup;
   private pending?: Promise<CreateResult>;

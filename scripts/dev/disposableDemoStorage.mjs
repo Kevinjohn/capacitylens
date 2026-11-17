@@ -1,3 +1,7 @@
+// Each `pnpm run dev:demo` invocation owns a fresh `demo-l<lane>-*` directory beneath the backend's
+// `tmp/` directory, with `.demo.db` as its database basename. Cleanup removes it only after the
+// owned process groups have exited.
+
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
