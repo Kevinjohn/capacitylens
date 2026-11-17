@@ -1,5 +1,6 @@
 // Validation and domain errors use the flat `{ error, code? }` contract. Vine runs behind one
-// response adapter; the SPA keys its presentation on `code`.
+// response adapter, so a validation failure answers 400 rather than Vine's 422 `errors[]`; the SPA
+// keys its presentation on `code`.
 
 import type {
   HttpErrorBody,

@@ -79,6 +79,8 @@ export async function deployManagedRuntime(repositoryRoot, deployment, backend) 
       source,
     );
     // The pinned release-asset packages are resolved correctly by legacy deploy; dedicated-lockfile deploy tries the registry.
+    // Omitting optional dependencies keeps the assembler and its unpatched `braces` transitive
+    // dependency out of shipped runtimes. The `gate:deps` audit checks the same optional-free graph.
     checked(
       [
         '--filter',

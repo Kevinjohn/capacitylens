@@ -9,10 +9,10 @@ This is the short, present-tense record of decisions that constrain future work.
 - “Utilisation” is the product term.
 - Clients own projects; projects and internal work contain activities; allocations connect a
   resource to an activity over a date range.
-- Activities are `project`, `internal` or `repeatable` (the user-facing label is **Project-specific**,
-  **Internal** or **All projects**). Only project-specific activities may reference a project or
-  phase. An all-projects activity stays project-less, but each of its allocations may optionally
-  attribute the booking to a project; project-specific and internal allocations must not.
+- Activities are **Project-specific**, **Internal** or **All projects**. Only project-specific
+  activities may reference a project or phase. An all-projects activity stays project-less, but each
+  of its allocations may optionally attribute the booking to a project; project-specific and
+  internal allocations must not.
 - Resources are people, placeholders or external parties. External parties have no capacity and
   do not contribute to utilisation.
 - Personal time-off creation may repeat into a finite batch of independent dated, whole-day records;
@@ -36,7 +36,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - CapacityLens is a single product with one repository and one set of releases.
 - The global sidebar shortcut (⌘B / Ctrl+B) yields while text entry or IME composition owns the
   keyboard and while any modal is open; those contexts keep both the chord and page layout stable.
-- English is the only locale. The message layer, the company `language` field and the locale sync
+- English is the only locale. The message layer, the company language field and the locale sync
   stay for a later second locale: the field selects the runtime locale and is not shown when a
   company is created while English is the only locale. It cannot be changed afterwards; a field that
   was never stored accepts its first value.
@@ -48,8 +48,8 @@ This is the short, present-tense record of decisions that constrain future work.
   their personal pattern; external parties use the company set verbatim. A company must keep at
   least one working day: writes reject an empty selection; an unset selection reads as the
   week-start default.
-- Normal allocations do not consume days outside the effective working week. `ignoreWorkingDays`
-  (the **Ignore working days** checkbox) is the explicit exception; it never bypasses time off.
+- Normal allocations do not consume days outside the effective working week. The **Ignore working
+  days** checkbox is the explicit exception; it never bypasses time off.
 - A company closure is a literal inclusive date span: no working-week filtering, whole days only
   and no per-person exception. Closures and personal time off are independent and may overlap
   freely, with no merging or precedence.
@@ -60,8 +60,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - Changing global working days reinterprets existing allocations: stored dates never move, while
   capacity, utilisation and conflicts are recalculated.
 - Displayed utilisation is calculated over the visible 1/2/4/6/8-week window.
-- `overSoon` is calculated over a fixed forward 14-day window from today and never changes with
-  zoom or pan.
+- The overbooked-soon warning is calculated over a fixed forward 14-day window from today and
+  never changes with zoom or pan.
 - Today is the company's calendar date, resolved by the server in the company time zone and sent
   with the planning read; the browser never reads its own clock for it.
 - The visible span is chosen from a **Weeks visible** dropdown, not a row of always-on buttons; the
@@ -179,8 +179,8 @@ This is the short, present-tense record of decisions that constrain future work.
 
 ## Browser data
 
-- Scheduling records and identity snapshots are never persisted in the browser. The Zustand
-  planning slice is a non-persisted cache replaced from server reads; it is never authoritative.
+- Scheduling records and identity snapshots are never persisted in the browser. The planning
+  slice is a non-persisted cache replaced from server reads; it is never authoritative.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
 - Ordinary device preferences live in localStorage. The disposable demo uses the same server-owned
   planning data path as an installation.
@@ -294,11 +294,11 @@ This is the short, present-tense record of decisions that constrain future work.
 The AdonisJS documentation is the structural reference. These choices deliberately differ from
 framework defaults; any other departure needs a decision recorded here first.
 
-1. `packages/shared` is imported by the backend and the SPA. It contains pure domain rules and wire
+1. The shared package is imported by the backend and the SPA. It contains pure domain rules and wire
    types, never backend code.
-2. Validation errors use the flat `{ error, code? }` contract with status 400, not Vine's 422
-   `errors[]`. Empty strings are not converted to null; empty optionals are `null` on the wire,
-   in storage and in the export.
+2. Validation errors use the product's flat error contract, not Vine's default response. Empty
+   strings are not converted to null; empty optionals are `null` on the wire, in storage and in the
+   export.
 3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.
@@ -306,18 +306,18 @@ framework defaults; any other departure needs a decision recorded here first.
    strings; instants may use Lucid date-time columns and serialise to ISO.
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the
    framework's names.
-6. The backend serves the SPA from `public/` with the product security headers and a history
-   fallback rather than a separate static-file proxy.
+6. The backend serves the SPA with the product security headers and a history fallback rather than
+   a separate static-file proxy.
 7. The SQLite pool is one connection, configured when it is created. Network, mail and password
    hashing stay outside transactions.
 8. CSRF is the Origin / Sec-Fetch-Site check, not Shield's XSRF token.
 9. The TanStack Query cache is used for account and admin reads only; planning data lives in the
-   Zustand planning slice (see Browser data).
+   planning slice (see Browser data).
 
 ## Installation
 
-- Installation is one runnable release archive, and the server takes production defaults when
-  `NODE_ENV=production`. Its `install.sh` script, which runs the manual steps as root on a systemd
+- Installation is one runnable release archive, and the installed server runs with production
+  defaults. Its install script, which runs the manual steps as root on a systemd
   host, is the default path. It never rewrites an existing environment file; running a newer
   release's script without arguments is the upgrade. Backup scheduling stays
   in the web provider. The manual steps remain the documented fallback.
@@ -326,25 +326,24 @@ framework defaults; any other departure needs a decision recorded here first.
 - Native Node with a loopback TLS proxy on the same machine is the expected installation. The
   operator owns that proxy; the server's HSTS header is host-only. Existing container support is
   optional. A proxy on a separate machine is unsupported for the first release. The Compose stack's
-  own nginx hop is supported: its API trusts forwarded headers from private-network peers
-  (`CAPACITYLENS_TRUST_PROXY_HEADERS=private`), so each client keeps its own request limits.
-- The empty `social_*` tables and `login_link_tokens` stay: Account Kit 0.3.4 visits them in its
-  hourly prune, account deletion and every credential change, whichever capabilities are enabled.
-- Production deployment omits optional dependencies, which keeps the assembler and its unpatched
-  `braces` transitive dependency out of shipped runtimes. The production audit uses the same
+  own nginx hop is supported: its API trusts forwarded headers from private-network peers, so each
+  client keeps its own request limits.
+- Account Kit's empty tables for capabilities the product does not use stay: the kit visits them
+  in its hourly prune, account deletion and every credential change, whichever capabilities are
+  enabled.
+- Production deployment omits optional dependencies, which keeps the framework's build tooling and
+  its unpatched transitive dependency out of shipped runtimes. The production audit uses the same
   optional-free graph and fails on high severity.
-- SMTP is the only mail transport. Nodemailer stays on 10.x at 10.1.4 or later; the Postmark
-  transport is unsupported because it is incompatible with Nodemailer 10.
+- SMTP is the only mail transport.
 
 ## Open source
 
-- The repository is GPL-3.0-or-later. CapacityLens names and logos are not granted by the licence; see
-  `TRADEMARKS.md`.
+- The repository is GPL-3.0-or-later. CapacityLens names and logos are not granted by the licence.
 
 ## Continuous integration
 
 - Patch and minor dependency updates preserve the declared Node runtime floors, the TypeScript
-  5.9.3 compiler baseline, the browser build target and the production host boundary. Raising any
+  compiler baseline, the browser build target and the production host boundary. Raising any
   of them is a separate product decision supported by validation, never a side effect of updating a
   package.
 - Keep formatting, type checking, lint, dependency security checks, product builds and meaningful
@@ -352,8 +351,8 @@ framework defaults; any other departure needs a decision recorded here first.
   ratchet or custom structural rule. Add a focused check only when experience shows it protects a
   concrete invariant.
 - Local commands and CI validate the same behaviour. A test run passes only when its process exits.
-- `CAPACITYLENS_ALLOW_RESET` stays: it is the only switch that loads the browser-test worker reset
-  harness, and production refuses to start with it set. There is no HTTP reset route.
+- The browser-test reset switch stays: it is the only switch that loads the browser-test worker
+  reset harness, and production refuses to start with it set. There is no HTTP reset route.
 
 ## Module boundaries
 
@@ -362,3 +361,10 @@ framework defaults; any other departure needs a decision recorded here first.
   propagation when extracting.
 - Public wire fields, stable identifiers and shipped data formats are not renamed as part of
   structural cleanup.
+
+## Open for review
+
+Decisions taken during delivery that the owner has not yet confirmed; an entry leaves this section
+when confirmed or reversed.
+
+- None recorded.
