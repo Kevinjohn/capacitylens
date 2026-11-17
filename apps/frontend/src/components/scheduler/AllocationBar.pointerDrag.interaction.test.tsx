@@ -319,6 +319,32 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       ignoreWorkingDays: true,
     });
   });
+  it('updates a vertical drag without a trailing transform transition', async () => {
+    const allocation = await seedAllocation();
+    render(
+      <AllocationBar
+        bar={barFor(allocation)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
+    const bar = screen.getByTestId('allocation-bar');
+
+    expect(bar).toHaveClass('transition-shadow');
+    expect(bar.className).not.toContain('transition-[box-shadow,transform]');
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
+    act(() => {
+      document.dispatchEvent(
+        new MouseEvent('pointermove', { clientX: 50, clientY: 75, bubbles: true }),
+      );
+    });
+    expect(bar).toHaveStyle({ transform: 'translateY(50px)' });
+    act(() => {
+      document.dispatchEvent(new Event('pointercancel'));
+    });
+  });
+
   it('assigns a shared lane-boundary drop to the following lane', async () => {
     const st = useStore.getState();
     const client = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
