@@ -68,7 +68,8 @@ matching archived item; restored records keep their existing planning links.
    Hours, Days or Blocks.
 3. Mark the booking tentative or add a note if that helps. If you use **Repeat**, check the preview
    before saving.
-4. Select **Save**, then check the bar sits on the right row and dates, and look at utilisation.
+4. Select **Save**, then check the bar sits on the right row and dates, and look at utilisation. If
+   the booking puts the person over capacity or overlaps time off, a notice says so after saving.
 
 Bookings use only the person's working days and the company's working week, within the person's
 start and end dates. A new booking must start on a working day inside those dates.

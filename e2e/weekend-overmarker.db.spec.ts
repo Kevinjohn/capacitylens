@@ -58,8 +58,12 @@ test.describe('Weekend over-marker', () => {
     await bar.click();
     const edit = page.getByRole('dialog', { name: 'Edit allocation' });
     await edit.getByRole('checkbox', { name: 'Ignore working days' }).click();
-    await expect(edit.getByText(/over capacity on 2 days/i)).toBeVisible();
     await page.getByRole('button', { name: 'Save' }).click();
+    // The save reply carries the advisory; the notice shows it after the dialog closes.
+    await expect(edit).toBeHidden();
+    await expect(
+      page.getByText('Saved. This allocation is over capacity on 2 days.'),
+    ).toBeVisible();
     await expect(clarkOverMarkers(page)).toHaveCount(baseline + 2);
     // Check marker positions as well as count: both new markers should sit on non-working weekend columns, the same
     // `left` as Clark's grey unavailable-day cells, so a regression that flagged Fri/Mon instead would

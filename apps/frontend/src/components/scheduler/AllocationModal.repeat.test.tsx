@@ -21,26 +21,8 @@ import {
   renderAsOwner,
 } from '@/test/allocationModalTestKit';
 
-type CapacityAdvisoryMockInput =
-  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisory>[0]
-  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisoryFromLoad>[0];
-const capacityAdvisoryMock = vi.hoisted(() =>
-  vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
-    overDays: 0,
-    timeOffDays: 0,
-  })),
-);
-// Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
-vi.mock('@capacitylens/shared/lib/capacity', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@capacitylens/shared/lib/capacity')>()),
-  buildCapacityAdvisory: capacityAdvisoryMock,
-  buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
-}));
-
 beforeEach(async () => {
   await resetAllocationModalStore();
-  capacityAdvisoryMock.mockClear();
-  capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
 
 // These cases drive many sequential user interactions and can exceed Vitest's 5 s default on CI hardware.
@@ -501,55 +483,35 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     ).toBeInTheDocument();
   });
 
-  it('aggregates singular/plural repeat advisory fragments and keeps saving advisory-only', async () => {
+  it('shows the save reply repeat advisory after the dialog closes, with no preview', async () => {
     const resource = await addPerson();
+    const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
       <AllocationModal
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
-        onClose={vi.fn()}
+        onClose={onClose}
       />,
     );
     await completeAssignment(user);
     await chooseOption(user, 'Repeat', 'Weekly');
-    capacityAdvisoryMock.mockClear();
-    let call = 0;
-    capacityAdvisoryMock.mockImplementation(() => {
-      call += 1;
-      if (call === 1) return { overDays: 1, timeOffDays: 1 };
-      if (call === 2) return { overDays: 0, timeOffDays: 1 };
-      return { overDays: 0, timeOffDays: 0 };
+    await user.clear(screen.getByLabelText('Repeat until'));
+    await user.type(screen.getByLabelText('Repeat until'), '2099-06-15');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    queueAllocationGroupResponse('server-repeat-series', {
+      overCapacityAllocations: 1,
+      timeOffAllocations: 2,
+      nonEffectiveStartAllocations: 1,
     });
-    await user.clear(screen.getByLabelText('Repeat until'));
-    await user.type(screen.getByLabelText('Repeat until'), '2099-09-01');
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'For this repeat, 1 allocation may exceed capacity and 2 allocations overlap time off. Saving is still allowed.',
-    );
-    expect(capacityAdvisoryMock).toHaveBeenCalledTimes(14);
-    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
-  });
-
-  it('surfaces monthly occurrences whose starts fall outside the effective week', async () => {
-    const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Tyler'), workingDays: [1] }),
-    );
-    const user = userEvent.setup();
-    renderAsOwner(
-      <AllocationModal
-        kind="create"
-        create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-01' }}
-        onClose={vi.fn()}
-      />,
-    );
-    await completeAssignment(user);
-    await chooseOption(user, 'Repeat', 'Monthly');
-    await user.clear(screen.getByLabelText('Repeat until'));
-    await user.type(screen.getByLabelText('Repeat until'), '2099-09-01');
-
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'For this repeat, 3 allocations start on a non-working day. Saving is still allowed.',
-    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(useStore.getState().notice).toEqual({
+      message:
+        'Saved. For this repeat, 1 allocation exceeds capacity and 2 allocations overlap time off and 1 allocation starts on a non-working day.',
+      tone: 'warning',
+    });
   });
 
   it('duplicates exactly one allocation through the single-row path and never exposes Repeat', async () => {

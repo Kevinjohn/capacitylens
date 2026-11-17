@@ -2,48 +2,54 @@ import { addDaysISO, daysInclusive } from '@capacitylens/shared/lib/dateMath';
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { Allocation, ID, TimeOff } from '@capacitylens/shared/types/entities';
-import type { PlanningExecution } from '@/api/planningContracts';
+import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { queuePlanningPatch } from './queuePlanningPatch';
 
 /** Queue a canonical group receipt for tests that exercise frontend batch command wiring. Later
  * occurrences follow the repeat pattern and keep the first occurrence's calendar span. */
-export function queueAllocationGroupResponse(seriesId: ID | null = null): void {
-  queuePlanningPatch((execution) => {
-    const intent = execution.intent;
-    if (intent.operation !== 'allocation.createGroup') {
-      throw new Error(`Expected allocation.createGroup, received ${intent.operation}.`);
-    }
-    const { allocation, repeat, occurrenceIds } = intent;
-    const { startDates } = generateRepeatingStartDates(
-      allocation.startDate,
-      repeat.until,
-      repeat.pattern,
-    );
-    const ids = [allocation.id, ...occurrenceIds];
-    if (startDates.length !== ids.length) {
-      throw new Error('The occurrence identities do not match the repeat.');
-    }
-    const span = daysInclusive(allocation.startDate, allocation.endDate);
-    const createdAt = new Date().toISOString();
-    return {
-      removed: [],
-      upserts: startDates.map((startDate, index) => ({
-        entity: 'allocations',
-        row: {
-          ...NULLABLE_FIELDS.allocations,
-          ...allocation,
-          id: ids[index],
-          startDate,
-          endDate: addDaysISO(startDate, span - 1),
-          accountId: DEFAULT_ACCOUNT_ID,
-          createdAt,
-          updatedAt: createdAt,
-          seriesId,
-        } as Allocation,
-      })),
-    };
-  });
+export function queueAllocationGroupResponse(
+  seriesId: ID | null = null,
+  repeatAdvisory?: PlanningMutationSuccess['repeatAdvisory'],
+): void {
+  queuePlanningPatch(
+    (execution) => {
+      const intent = execution.intent;
+      if (intent.operation !== 'allocation.createGroup') {
+        throw new Error(`Expected allocation.createGroup, received ${intent.operation}.`);
+      }
+      const { allocation, repeat, occurrenceIds } = intent;
+      const { startDates } = generateRepeatingStartDates(
+        allocation.startDate,
+        repeat.until,
+        repeat.pattern,
+      );
+      const ids = [allocation.id, ...occurrenceIds];
+      if (startDates.length !== ids.length) {
+        throw new Error('The occurrence identities do not match the repeat.');
+      }
+      const span = daysInclusive(allocation.startDate, allocation.endDate);
+      const createdAt = new Date().toISOString();
+      return {
+        removed: [],
+        upserts: startDates.map((startDate, index) => ({
+          entity: 'allocations',
+          row: {
+            ...NULLABLE_FIELDS.allocations,
+            ...allocation,
+            id: ids[index],
+            startDate,
+            endDate: addDaysISO(startDate, span - 1),
+            accountId: DEFAULT_ACCOUNT_ID,
+            createdAt,
+            updatedAt: createdAt,
+            seriesId,
+          } as Allocation,
+        })),
+      };
+    },
+    repeatAdvisory ? { repeatAdvisory } : {},
+  );
 }
 
 /** Queue a deletion receipt for a test-owned set of rows. */

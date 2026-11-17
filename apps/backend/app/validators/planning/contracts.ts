@@ -1,6 +1,8 @@
 import type { HttpErrorBody, ProductErrorCode } from '@capacitylens/shared/api/httpErrors';
 import type { Infer } from '@vinejs/vine/types';
 import type { ArchiveImpact } from '@capacitylens/shared/domain/lifecycle';
+import type { CapacityAdvisory } from '@capacitylens/shared/lib/capacity';
+import type { RepeatingAllocationAdvisory } from '@capacitylens/shared/lib/capacity/repeatAdvisory';
 import type {
   Account,
   Activity,
@@ -50,6 +52,10 @@ export interface PlanningMutationSuccess {
     | { consumedGroupId: null; replacementGroupId: null };
   /** Active descendants this archive hid, measured from the committed before-state. */
   archived?: ArchiveImpact;
+  /** Allocation create, update and duplicate: the saved row's capacity advisory. */
+  advisory?: CapacityAdvisory;
+  /** Allocation createGroup: advisory counts over the occurrences it wrote. */
+  repeatAdvisory?: RepeatingAllocationAdvisory;
 }
 
 /** Product planning refusal codes; Kit codes retain their own contract. */

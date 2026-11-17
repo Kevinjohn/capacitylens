@@ -1,5 +1,5 @@
 import type { StateCreator, StoreApi } from 'zustand';
-import type { PlanningIntent } from '@/api/planningContracts';
+import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
 import {
   assertAllocationWithinResourceAvailability,
   assertDateRange,
@@ -16,6 +16,7 @@ import {
   buildAllocationUpdate,
 } from '@/data/planning/planningCommands';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
+import type { AllocationSaveAdvisory } from '@/store/StoreEntityActions';
 import type { StoreInternals } from '@/store/storeInternal';
 import type { Draft, StoreState } from '@/store/types';
 
@@ -108,6 +109,13 @@ function createdRows(get: StoreApi<StoreState>['getState'], ids: readonly ID[]):
   return rows as Allocation[];
 }
 
+function readSaveAdvisory(receipt: PlanningMutationSuccess | undefined): AllocationSaveAdvisory {
+  return {
+    ...(receipt?.advisory ? { advisory: receipt.advisory } : {}),
+    ...(receipt?.repeatAdvisory ? { repeatAdvisory: receipt.repeatAdvisory } : {}),
+  };
+}
+
 /** Create allocation actions backed by the planning cache controller. */
 export function createAllocationSlice(
   internals: AllocationSliceInternals,
@@ -132,10 +140,12 @@ export function createAllocationSlice(
         const prepared = prepareNew([input]);
         if (!prepared) return { kind: 'blocked' };
         const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
-        await send(requireCommand(buildAllocationCreate({ ...prepared, args: draft })));
+        const receipt = await send(
+          requireCommand(buildAllocationCreate({ ...prepared, args: draft })),
+        );
         const [created] = createdRows(get, [draft.id]);
         if (!created) throw new Error('Allocation creation produced no row.');
-        return { kind: 'created', value: created };
+        return { kind: 'created', value: created, ...readSaveAdvisory(receipt) };
       },
       addRepeatedAllocation: async (input, repeat, count) => {
         if (!Number.isSafeInteger(count) || count < 2) {
@@ -151,7 +161,7 @@ export function createAllocationSlice(
         // Later occurrence ids are minted here too, so Undo can delete the whole set by id.
         const occurrenceIds = Array.from({ length: count - 1 }, () => newId());
         const ids = [draft.id, ...occurrenceIds];
-        await send({
+        const receipt = await send({
           intent: {
             operation: 'allocation.createGroup',
             allocation: command.intent.allocation,
@@ -160,7 +170,7 @@ export function createAllocationSlice(
           },
           inverse: { operation: 'allocation.deleteGroup', ids },
         });
-        return { kind: 'created', value: createdRows(get, ids) };
+        return { kind: 'created', value: createdRows(get, ids), ...readSaveAdvisory(receipt) };
       },
       duplicateAllocation: async (sourceId, input) => {
         const prepared = prepareNew([input]);
@@ -168,7 +178,7 @@ export function createAllocationSlice(
         const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
         const original = resolveOwnedRow(prepared.data, 'allocations', sourceId);
         if (!original) throw new Error('The allocation to duplicate no longer exists.');
-        await send(
+        const receipt = await send(
           requireCommand(
             buildAllocationDuplicate({
               ...prepared,
@@ -179,7 +189,7 @@ export function createAllocationSlice(
         );
         const [created] = createdRows(get, [draft.id]);
         if (!created) throw new Error('Allocation creation produced no row.');
-        return { kind: 'created', value: created };
+        return { kind: 'created', value: created, ...readSaveAdvisory(receipt) };
       },
       updateAllocation: async (id, patch) => {
         const data = get().data;
@@ -207,8 +217,7 @@ export function createAllocationSlice(
           args: { id, changes: patch },
         });
         if (!command) return false;
-        await send(command);
-        return true;
+        return readSaveAdvisory(await send(command));
       },
       deleteAllocation: async (id) => {
         if (blockedByViewer() || !resolveOwnedRow(get().data, 'allocations', id)) return;

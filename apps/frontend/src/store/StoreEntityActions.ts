@@ -24,6 +24,13 @@ export interface AllocationRepeat {
 /** A create action can be blocked until a writable role is confirmed. */
 export type CreateResult<T> = { kind: 'created'; value: T } | { kind: 'blocked' };
 
+/** The capacity advisory the server computed for the allocation rows a save wrote. */
+export type AllocationSaveAdvisory = Pick<PlanningMutationSuccess, 'advisory' | 'repeatAdvisory'>;
+
+/** An allocation create result that also carries the save reply's capacity advisory. */
+export type AllocationCreateResult<T> =
+  ({ kind: 'created'; value: T } & AllocationSaveAdvisory) | { kind: 'blocked' };
+
 /** Store actions write the active company through the canonical planning transport. Authority
  * restrictions may return a blocked result or no-op; stale IDs are no-ops. Reference and input-integrity
  * failures throw, and callers handling user input must surface them. */
@@ -66,22 +73,22 @@ export interface StoreEntityActions {
   deleteActivity: (id: ID) => Promise<PlanningMutationSuccess | undefined>;
 
   /** Create one allocation as one typed planning write; it resolves once the server acknowledges it. */
-  addAllocation: (input: Draft<Allocation>) => Promise<CreateResult<Allocation>>;
+  addAllocation: (input: Draft<Allocation>) => Promise<AllocationCreateResult<Allocation>>;
   /** Create a repeated set as one typed planning write and one Undo step. The server places the
    * `count` occurrences from the first one and the repeat; a mismatched count or a refusal rejects. */
   addRepeatedAllocation: (
     input: Draft<Allocation>,
     repeat: AllocationRepeat,
     count: number,
-  ) => Promise<CreateResult<Allocation[]>>;
+  ) => Promise<AllocationCreateResult<Allocation[]>>;
   /** Copy an allocation as one typed planning write, reusing the source when nothing else changed. */
   duplicateAllocation: (
     sourceId: ID,
     input: Draft<Allocation>,
-  ) => Promise<CreateResult<Allocation>>;
-  /** Apply an allocation patch. False means an authority refusal, a missing target or no change;
-   * validation, tenancy and server refusals reject. */
-  updateAllocation: (id: ID, patch: Patch<Allocation>) => Promise<boolean>;
+  ) => Promise<AllocationCreateResult<Allocation>>;
+  /** Apply an allocation patch and resolve with the save reply's capacity advisory. False means an
+   * authority refusal, a missing target or no change; validation, tenancy and server refusals reject. */
+  updateAllocation: (id: ID, patch: Patch<Allocation>) => Promise<false | AllocationSaveAdvisory>;
   /** Delete an allocation from the active account. */
   deleteAllocation: (id: ID) => Promise<void>;
   /** Atomically delete one linked occurrence and every same-series occurrence starting on/after it. */

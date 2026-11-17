@@ -449,6 +449,95 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(await rows(), saved);
   });
 
+  test('allocation save replies carry the capacity advisory of the rows they wrote', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(accountId, true);
+    const { cookie } = await signIn(client);
+    // Bruce works eight hours Monday to Friday and has nothing booked in November.
+    const allocation = { ...newAllocation(data), hoursPerDay: 5 };
+    const advisory = (response: { body(): unknown }) =>
+      (response.body() as { advisory?: unknown }).advisory;
+
+    // The saved row is not counted against itself.
+    const created = await session(client.post(route('allocations')), cookie)
+      .json(input(0, { operation: 'allocation.create', allocation }))
+      .send();
+    created.assertStatus(200);
+    assert.deepEqual(advisory(created), { overDays: 0, timeOffDays: 0 });
+
+    // A copy on the same days adds five hours to five: ten is over eight on each of five days.
+    const duplicated = await session(
+      client.post(route(`allocations/${allocation.id}/duplicate`)),
+      cookie
+    )
+      .json(
+        input(1, {
+          operation: 'allocation.duplicate',
+          sourceAllocationId: allocation.id,
+          occurrence: { id: randomUUID(), startDate: '2026-11-02', endDate: '2026-11-06' },
+        })
+      )
+      .send();
+    duplicated.assertStatus(200);
+    assert.deepEqual(advisory(duplicated), { overDays: 5, timeOffDays: 0 });
+
+    // Three plus five is exactly eight, which is not over capacity.
+    const updated = await session(client.patch(route(`allocations/${allocation.id}`)), cookie)
+      .json(
+        input(2, { operation: 'allocation.update', id: allocation.id, changes: { hoursPerDay: 3 } })
+      )
+      .send();
+    updated.assertStatus(200);
+    assert.deepEqual(advisory(updated), { overDays: 0, timeOffDays: 0 });
+    assert.notProperty(updated.body(), 'repeatAdvisory');
+
+    const timeOff = await session(client.post(route('time-off')), cookie)
+      .json(
+        input(3, {
+          operation: 'timeOff.create',
+          timeOff: {
+            id: randomUUID(),
+            resourceId: allocation.resourceId,
+            startDate: '2026-12-02',
+            endDate: '2026-12-02',
+            type: 'holiday',
+          },
+        })
+      )
+      .send();
+    timeOff.assertStatus(200);
+    assert.notProperty(timeOff.body(), 'advisory');
+
+    // Monthly from Monday 2 November: 2 November meets eight booked hours, 2 December is time off,
+    // 2 January is a Saturday and 2 February is clear.
+    const repeated = await session(client.post(route('allocations/create-group')), cookie)
+      .json(
+        input(4, {
+          operation: 'allocation.createGroup',
+          allocation: {
+            ...allocation,
+            id: randomUUID(),
+            endDate: '2026-11-02',
+            hoursPerDay: 1,
+          },
+          repeat: { pattern: { kind: 'monthly-date' }, until: '2027-02-02' },
+          occurrenceIds: [randomUUID(), randomUUID(), randomUUID()],
+        })
+      )
+      .send();
+    repeated.assertStatus(200);
+    assert.deepEqual((repeated.body() as { repeatAdvisory?: unknown }).repeatAdvisory, {
+      overCapacityAllocations: 1,
+      timeOffAllocations: 1,
+      nonEffectiveStartAllocations: 1,
+    });
+    assert.notProperty(repeated.body(), 'advisory');
+  });
+
   test('time-off repeat rolls back a later invalid entry; closure and settings commit with correct projection', async ({
     client,
     assert,
