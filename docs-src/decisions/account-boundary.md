@@ -46,14 +46,13 @@ the company and becomes its Owner.
 
 ## Member-to-resource links
 
-The `account_member_resources` control table links one member to one scheduled person for avatar
-presentation. It has no foreign keys into scheduling data; a suspended member keeps their link.
+The `account_member_resources` control table links one member to one scheduled person, shown in the
+member directory. It has no foreign keys into scheduling data; a suspended member keeps their link.
 Ordinary product writes keep resource kind immutable; the database cleanup trigger also removes a
 link if a stored person resource changes to another kind. The scheduling graph uses database
 triggers to reject cross-company references; control links are instead validated transactionally.
 Imports preserve valid links and check their references in the import transaction. Archived and
-anonymised resources and their links remain stored. The ordinary read surface exposes only
-`{ resourceId, imageUrl }` for active, validated links.
+anonymised resources and their links remain stored.
 
 ## Known accepted limits
 

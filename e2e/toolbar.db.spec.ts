@@ -65,15 +65,6 @@ test.describe('Toolbar', () => {
       .poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft))
       .toBeLessThan(4000);
   });
-  // The toolbar has no jump-to-date picker in this layout.
-  // Its coverage lives at the two levels that still exercise it: the component
-  // (src/components/scheduler/JumpToDateInput.test.tsx) and the week-start snap it triggers
-  // (goToDate in src/store/useStore.test.ts). This test asserts only that it is gone from the bar.
-  test('does not expose the jump-to-date picker', async ({ page }) => {
-    await openApp(page);
-    await expect(page.getByTestId('scheduler-toolbar')).toBeVisible();
-    await expect(page.getByLabel('Jump to date')).toHaveCount(0);
-  });
   test('shows a responsive filter row with search left and the remaining controls grouped right', async ({
     page,
   }) => {

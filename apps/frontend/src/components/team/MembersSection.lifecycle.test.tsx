@@ -12,7 +12,6 @@ import {
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { teamAccessClient } from '@/account/teamAccessClient';
-import * as resourceAvatars from '@/account/useResourceAvatars';
 import {
   chooseMemberAction,
   waitForMemberRow,
@@ -361,7 +360,6 @@ describe('MembersSection — member lifecycle', () => {
       status: 409,
       message: 'The operation may have completed.',
     });
-    const invalidate = vi.spyOn(resourceAvatars, 'invalidateResourceAvatars');
     renderSection();
     const row = await waitForMemberRow(/ed@x\.io/);
     await user.click(within(row).getByTestId('member-resource-menu'));
@@ -371,7 +369,6 @@ describe('MembersSection — member lifecycle', () => {
     expect(
       await within(dialog).findByText(m.settings_member_resource_unknown()),
     ).toBeInTheDocument();
-    await waitFor(() => expect(invalidate).toHaveBeenCalled());
     expect(
       fetchMock.mock.calls.filter(([url]) => String(url).includes('/members')).length,
     ).toBeGreaterThan(1);

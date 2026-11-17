@@ -29,7 +29,7 @@ apps/backend/
     account_kit/          product callbacks the Account Kit calls (admission, invitations)
     admission/            admission HTTP mapping and errors
     membership/           member directory, role and status changes, ownership transfer
-    member_resources/     member-to-resource links and avatars
+    member_resources/     member-to-resource links
     operations/           stopped-server operator work: reset, owner recovery, initialisation
     health/               database readiness check
   app/models/             Lucid models; every scoped row carries its company id
