@@ -95,8 +95,9 @@ This is the short, present-tense record of decisions that constrain future work.
   no company is named. An export always names its company.
 - Planning reads return current authority, one integer company revision and the complete,
   confidentially projected company slice from one transaction. Every typed mutation carries the
-  company revision it was drafted against; a mismatch returns 409 and the client refetches. No
-  automatic rebase or replay. A revision advances once per transaction that changes planning data,
+  company revision it was drafted against; a mismatch returns 409 and the client refetches. An edit
+  form's update also carries the row's `updatedAt` from when the form opened, and a mismatch
+  returns the same 409. No automatic rebase or replay. A revision advances once per transaction that changes planning data,
   planning projection or membership authority; session activity, mail and configuration edits that
   change neither do not advance it.
 - A planning mutation is identified by a client-minted UUID recorded with the audit row in the

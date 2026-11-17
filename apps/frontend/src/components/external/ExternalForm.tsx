@@ -90,7 +90,7 @@ export function ExternalForm({
       ...externalCapacityDefaults(),
       color: NEUTRAL_COLOR,
     };
-    return resource ? () => update(resource.id, patch) : () => add(patch);
+    return resource ? () => update(resource.id, patch, resource.updatedAt) : () => add(patch);
   };
 
   return (

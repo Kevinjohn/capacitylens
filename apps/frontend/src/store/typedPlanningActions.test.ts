@@ -56,6 +56,22 @@ describe('typed planning domain rejections', () => {
     expect(useStore.getState().data.clients.find((row) => row.id === foreign.id)).toBe(foreign);
   });
 
+  it("sends an edit form's row timestamp with the update", async () => {
+    const created = await useStore
+      .getState()
+      .addClient({ name: 'Wayne Enterprises', color: '#2d75da' });
+    const row = requireCreated(created);
+    const write = useStore
+      .getState()
+      .updateClient(row.id, { name: 'Queen Industries' }, row.updatedAt);
+    // The transport is bound when the store is built, so the pending execution is what it is sent.
+    expect(useStore.getState().planning.pending?.execution).toMatchObject({
+      intent: { operation: 'catalogue.update', entity: { entity: 'clients', id: row.id } },
+      expectedUpdatedAt: row.updatedAt,
+    });
+    await write;
+  });
+
   it('rejects an empty company working week before normalization', async () => {
     const account = useStore.getState().data.accounts[0];
     if (!account) throw new Error('Expected account fixture.');

@@ -71,6 +71,9 @@ export function createTypedPlanningActions(
   ) => getOwned(get().data, companyId, key, id);
   const send = async (command: PlanningCommand | null) =>
     command ? get().sendPlanningCommand(command) : undefined;
+  /** Adds the edited row's opening `updatedAt` to an update, when the form supplied one. */
+  const expecting = (command: PlanningCommand | null, expectedUpdatedAt: string | undefined) =>
+    command && expectedUpdatedAt !== undefined ? { ...command, expectedUpdatedAt } : command;
   const created = <
     K extends keyof Pick<
       StoreState['data'],
@@ -111,18 +114,22 @@ export function createTypedPlanningActions(
     key: 'clients' | 'projects' | 'phases' | 'activities' | 'disciplines',
     id: string,
     changes: object,
+    expectedUpdatedAt?: string,
   ) => {
     const companyId = accountId();
     if (blocked()) return;
     const original = owned(key, id, companyId);
     if (!original) return;
     await send(
-      buildCatalogueUpdate({
-        data: get().data,
-        accountId: companyId,
-        original,
-        args: { entity: key, id, changes },
-      }),
+      expecting(
+        buildCatalogueUpdate({
+          data: get().data,
+          accountId: companyId,
+          original,
+          args: { entity: key, id, changes },
+        }),
+        expectedUpdatedAt,
+      ),
     );
   };
   const deleteCatalogue = async (key: 'phases' | 'disciplines', id: string) => {
@@ -149,19 +156,21 @@ export function createTypedPlanningActions(
   };
   return {
     addDiscipline: (input: Draft<Discipline>) => createCatalogue<Discipline>('disciplines', input),
-    updateDiscipline: (id: string, patch: Patch<Discipline>) =>
-      updateCatalogue('disciplines', id, patch),
+    updateDiscipline: (id: string, patch: Patch<Discipline>, expectedUpdatedAt?: string) =>
+      updateCatalogue('disciplines', id, patch, expectedUpdatedAt),
     deleteDiscipline: (id: string) => deleteCatalogue('disciplines', id),
     addClient: (input: Draft<Client>) => createCatalogue<Client>('clients', input),
-    updateClient: (id: string, patch: Patch<Client>) => updateCatalogue('clients', id, patch),
+    updateClient: (id: string, patch: Patch<Client>, expectedUpdatedAt?: string) =>
+      updateCatalogue('clients', id, patch, expectedUpdatedAt),
     addProject: (input: Draft<Project>) => createCatalogue<Project>('projects', input),
-    updateProject: (id: string, patch: Patch<Project>) => updateCatalogue('projects', id, patch),
+    updateProject: (id: string, patch: Patch<Project>, expectedUpdatedAt?: string) =>
+      updateCatalogue('projects', id, patch, expectedUpdatedAt),
     addPhase: (input: Draft<Phase>) => createCatalogue<Phase>('phases', input),
     updatePhase: (id: string, patch: Patch<Phase>) => updateCatalogue('phases', id, patch),
     deletePhase: (id: string) => deleteCatalogue('phases', id),
     addActivity: (input: Draft<Activity>) => createCatalogue<Activity>('activities', input),
-    updateActivity: (id: string, patch: Patch<Activity>) =>
-      updateCatalogue('activities', id, patch),
+    updateActivity: (id: string, patch: Patch<Activity>, expectedUpdatedAt?: string) =>
+      updateCatalogue('activities', id, patch, expectedUpdatedAt),
     deleteActivity: async (id: string) => {
       const companyId = accountId();
       if (blocked() || !owned('activities', id, companyId)) return undefined;
@@ -187,7 +196,7 @@ export function createTypedPlanningActions(
       await send(command);
       return { kind: 'created', value: created('resources', id) };
     },
-    updateResource: async (id: string, patch: Patch<Resource>) => {
+    updateResource: async (id: string, patch: Patch<Resource>, expectedUpdatedAt?: string) => {
       const companyId = accountId();
       if (blocked()) return;
       const original = owned('resources', id, companyId);
@@ -197,12 +206,15 @@ export function createTypedPlanningActions(
           ? patch
           : { ...patch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) };
       await send(
-        buildResourceUpdate({
-          data: get().data,
-          accountId: companyId,
-          original,
-          args: { id, changes },
-        }),
+        expecting(
+          buildResourceUpdate({
+            data: get().data,
+            accountId: companyId,
+            original,
+            args: { id, changes },
+          }),
+          expectedUpdatedAt,
+        ),
       );
     },
     addTimeOff: createTimeOff,
@@ -234,18 +246,21 @@ export function createTypedPlanningActions(
         value: commands.map((entry) => created('timeOff', createdId(entry.id))),
       };
     },
-    updateTimeOff: async (id: string, changes: Patch<TimeOff>) => {
+    updateTimeOff: async (id: string, changes: Patch<TimeOff>, expectedUpdatedAt?: string) => {
       const companyId = accountId();
       if (blocked()) return;
       const original = owned('timeOff', id, companyId);
       if (original) {
         await send(
-          buildTimeOffUpdate({
-            data: get().data,
-            accountId: companyId,
-            original,
-            args: { id, changes },
-          }),
+          expecting(
+            buildTimeOffUpdate({
+              data: get().data,
+              accountId: companyId,
+              original,
+              args: { id, changes },
+            }),
+            expectedUpdatedAt,
+          ),
         );
       }
     },
@@ -267,18 +282,21 @@ export function createTypedPlanningActions(
       await send(command);
       return { kind: 'created', value: created('closures', id) };
     },
-    updateClosure: async (id: string, changes: Patch<Closure>) => {
+    updateClosure: async (id: string, changes: Patch<Closure>, expectedUpdatedAt?: string) => {
       const companyId = accountId();
       if (blocked()) return;
       const original = owned('closures', id, companyId);
       if (original) {
         await send(
-          buildClosureUpdate({
-            data: get().data,
-            accountId: companyId,
-            original,
-            args: { id, changes },
-          }),
+          expecting(
+            buildClosureUpdate({
+              data: get().data,
+              accountId: companyId,
+              original,
+              args: { id, changes },
+            }),
+            expectedUpdatedAt,
+          ),
         );
       }
     },

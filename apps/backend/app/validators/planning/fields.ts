@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine';
-import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
+import { isValidISODate, parseISOTimestamp } from '@capacitylens/shared/lib/isoDates';
 import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
 import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
@@ -118,6 +118,16 @@ export const meta = () => ({
   mutationId: uuid(),
   baseRevision: revision(),
   confirmedRestorationCount: revision().optional(),
+  /** The edited row's `updatedAt` when its form opened; an update refuses a row that has moved on. */
+  expectedUpdatedAt: vine
+    .string()
+    .use(
+      vine.createRule((value, _options, field) => {
+        if (parseISOTimestamp(value) !== null) return;
+        field.report('The {{ field }} field must be a timestamp.', 'timestamp', field);
+      })()
+    )
+    .optional(),
 });
 
 export const requireChanges = (allowedFields: readonly string[]) =>

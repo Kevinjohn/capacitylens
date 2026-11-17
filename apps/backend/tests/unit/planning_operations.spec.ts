@@ -159,6 +159,25 @@ test.group('planning operation contracts', () => {
     );
   });
 
+  test('accepts only a timestamp as the expected row timestamp', async ({ assert }) => {
+    const edit = {
+      mutationId: uuid,
+      baseRevision: 0,
+      intent: {
+        operation: 'catalogue.update',
+        entity: { entity: 'clients', id: otherUuid, changes: { name: 'Wayne Enterprises' } },
+      },
+    } as const;
+    const accepted = await planningMutationValidator.validate({
+      ...edit,
+      expectedUpdatedAt: '2026-03-02T09:00:00.000Z',
+    });
+    assert.equal(accepted.expectedUpdatedAt, '2026-03-02T09:00:00.000Z');
+    await assert.rejects(() =>
+      planningMutationValidator.validate({ ...edit, expectedUpdatedAt: 'yesterday' })
+    );
+  });
+
   test('requires a writable update and preserves omission separately from null', async ({
     assert,
   }) => {

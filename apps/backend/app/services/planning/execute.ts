@@ -84,6 +84,8 @@ export interface ExecutePlanningIntentOptions {
   /** The mutable, complete company snapshot; the caller keeps its own before-image. */
   data: AppData;
   identity: RestorationIdentity;
+  /** The edited row's `updatedAt` when its form opened; only single-row updates check it. */
+  expectedUpdatedAt?: string;
 }
 
 /**
@@ -98,6 +100,7 @@ export async function executePlanningIntent({
   capabilities,
   data,
   identity,
+  expectedUpdatedAt,
 }: ExecutePlanningIntentOptions): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null };
   if (!capabilities.canWrite) {
@@ -106,7 +109,7 @@ export async function executePlanningIntent({
   if (!data.accounts.some((row) => row.id === accountId)) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
-  const writeOptions = { trx, data, accountId, capabilities, identity };
+  const writeOptions = { trx, data, accountId, capabilities, identity, expectedUpdatedAt };
   try {
     switch (intent.operation) {
       case 'allocation.create':

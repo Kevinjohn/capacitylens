@@ -119,7 +119,7 @@ Then, in order:
 10. Before image: `readStateWithClient` (`apps/backend/app/services/state_repository.ts`).
 11. `executePlanningIntent` (`apps/backend/app/services/planning/execute.ts`) re-checks the write
     capability, then `writeRow` (`apps/backend/app/services/planning/writer.ts`) applies the
-    privacy gate, existence check, `prepareEntityWrite` from
+    privacy gate, existence check, the `expectedUpdatedAt` precondition, `prepareEntityWrite` from
     `apps/backend/app/services/planning/entity_policy.ts`, the working-day gate when the
     resource changes, and the SQL update.
 12. After image: `readStateWithClient` again.

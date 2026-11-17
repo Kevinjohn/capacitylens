@@ -147,7 +147,7 @@ export function prepareTimeOffSave(options: SaveTimeOffOptions): EntitySave | nu
   const { timeOff } = options;
   if (timeOff) {
     const patch = options.canEditNote ? { ...basePatch, note: cleanNote } : basePatch;
-    return () => options.update(timeOff.id, patch);
+    return () => options.update(timeOff.id, patch, timeOff.updatedAt);
   }
   const baseDraft = { ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) };
   const repeatedDrafts = buildTimeOffDraftsForSave(baseDraft, options);
