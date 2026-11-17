@@ -44,6 +44,7 @@ type OptionalStringKey =
   | 'CAPACITYLENS_CORS_ORIGIN'
   | 'CAPACITYLENS_DB'
   | 'CAPACITYLENS_DEV_WEB_ORIGINS'
+  | 'CAPACITYLENS_FIXED_TODAY'
   | 'CAPACITYLENS_MAIL_FROM'
   | 'CAPACITYLENS_MAIL_HOST'
   | 'CAPACITYLENS_MAIL_PASSWORD'
@@ -98,6 +99,8 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_DB: optional,
   // Set by scripts/dev/dev-fullstack.mjs to its lane's Vite origins; ignored outside development.
   CAPACITYLENS_DEV_WEB_ORIGINS: optional,
+  // Set by scripts/e2e-server.mjs so the server's today matches the browser tests' frozen date.
+  CAPACITYLENS_FIXED_TODAY: optional,
   CAPACITYLENS_LOG: Env.schema.enum.optional(['0', '1'] as const),
   CAPACITYLENS_MAIL_FROM: Env.schema.string.optional({ format: 'email' }),
   CAPACITYLENS_MAIL_HOST: Env.schema.string.optional({ format: 'host' }),

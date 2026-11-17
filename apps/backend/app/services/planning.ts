@@ -1,6 +1,7 @@
 import { activeOnly, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import type { AppData } from '@capacitylens/shared/types/entities';
+import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
+import { readCompanyToday } from '#services/company_today';
 import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import type { CurrentActor } from '#services/auth/current_actor';
@@ -57,6 +58,8 @@ export interface PlanningSnapshot {
   revision: number;
   authority: PlanningAuthority;
   data: AppData;
+  /** The company's current calendar date in its own time zone. */
+  today: ISODate;
 }
 
 /** Resolves current product authority, revision and rows from the same database snapshot. */
@@ -72,6 +75,7 @@ export async function readPlanning(
     revision,
     authority,
     data: transformState(activeOnly(data), accountId, authority.role),
+    today: readCompanyToday(data.accounts.find((row) => row.id === accountId)?.timezone ?? null),
   };
 }
 
