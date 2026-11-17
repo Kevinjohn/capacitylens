@@ -3,11 +3,6 @@
 // code owns live company authority and the response contract; its pre-flight and transactional
 // policy require a confirmed email, admission, a live Owner and no view-as mode. Credential writes
 // remain Account Kit-owned.
-//
-// Account deletion issues and spends its own `delete-account` confirmation, scoped to the person's
-// id with no company authority, just before Account Kit's deletion transaction. The Kit's own
-// current-password check stays because it cannot be turned off. A confirmation's scope carries no
-// foreign key to `accounts`.
 
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { RefusalError } from '#exceptions/refusal_error';

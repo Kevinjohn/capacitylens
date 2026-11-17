@@ -266,14 +266,15 @@ This is the short, present-tense record of decisions that constrain future work.
   reconciliation refresh the browser. Company navigation ends the mode globally; signing out ends
   only the current session. Each company request checks both real-actor and target permissions. No
   failed target check falls back to actor permissions.
-- The product transaction revalidates the view-as request's real actor/session and company/target
-  access. Already-admitted operator requests may finish after start; already-admitted target
-  requests remain read-only after stop. Covered writes require the context captured for the action,
-  including idle-mode writes; stale actions are refused and never automatically replayed.
+- The product transaction revalidates the real actor/session and the company/target access
+  captured before it. Already-admitted operator requests may finish after start; already-admitted
+  target requests remain read-only after stop. Covered writes require the context captured for the
+  action, including idle-mode writes; stale actions are refused and never automatically replayed.
 - Every route is gated by name before its handler runs: public routes pass, limited routes need a
-  valid sign-in, and every other route also needs a confirmed address and admission. A route in no
-  list gets the strictest check. The gate adds an early refusal; it does not replace the check
-  inside the product transaction.
+  valid sign-in, and every other route also needs a confirmed address and admission. A named route
+  in no list gets the strictest check; unnamed routes (the health probes and the application shell)
+  have no gate. The gate adds an early refusal; it does not replace the check inside the product
+  transaction.
 - Each route declares its view-as policy where it is registered. No route allows writes under
   view-as; some reads are refused outright, and a request carrying a stale view-as context is
   refused, reads included.

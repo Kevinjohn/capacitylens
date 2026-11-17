@@ -138,9 +138,11 @@ export default class CredentialController {
 
   /**
    * Deletes the signed-in identity with its memberships and member links, then ends this sign-in.
-   * The password is checked by issuing and spending a `delete-account` password confirmation, which
-   * gives deletion the same wrong-password limit and refusal as other sensitive actions. An Owner
-   * transfers ownership first.
+   * The password is checked by issuing and spending a `delete-account` password confirmation, scoped
+   * to the person's id with no company authority, just before Account Kit's deletion transaction.
+   * That gives deletion the same wrong-password limit and refusal as other sensitive actions. The
+   * Kit's own current-password check stays because it cannot be turned off. An Owner transfers
+   * ownership first.
    */
   async deleteAccount(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
