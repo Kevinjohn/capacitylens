@@ -51,7 +51,7 @@ const principals: Principal[] = [
 ];
 
 /** Names are visible to an effective Owner only; the time-off note to an effective Owner or Admin. */
-function hiddenMarkers(role: Role) {
+function markersHiddenFrom(role: Role) {
   const hidden: string[] = [];
   if (role !== 'owner') hidden.push(MARKER_CLIENT, MARKER_ARCHIVED_CLIENT, MARKER_PROJECT);
   if (role !== 'owner' && role !== 'admin') hidden.push(MARKER_NOTE);
@@ -63,52 +63,61 @@ const COUNTS = 'counts, ids or no body';
 const UNRESTRICTED = 'changes no restricted table and replies with no restricted row';
 const CALLER = 'replies with caller-sent fields or removed ids only';
 
-async function revision() {
+async function readRevision() {
   const row = await db.from('company_planning_revisions').where('account_id', accountId).first();
   return Number(row?.revision ?? 0);
 }
 
 async function send<T extends ApiRequest>(request: T, cookie: string, intent: object) {
   return session(request, cookie)
-    .json({ mutationId: randomUUID(), baseRevision: await revision(), intent })
+    .json({ mutationId: randomUUID(), baseRevision: await readRevision(), intent })
     .send();
 }
 
-const route = (path: string) => `/api/accounts/${accountId}/${path}`;
+const companyRoute = (path: string) => `/api/accounts/${accountId}/${path}`;
 
-/** Another seeded preset colour than the row's own, so the update is a real change. */
-async function otherColor(table: 'clients' | 'projects', id: string) {
+/** A preset colour used by a seeded client that differs from the row's own, so the update is a real
+ * change. */
+async function pickOtherColor(table: 'clients' | 'projects', id: string) {
+  // Both tables store `color` as a non-null preset string.
   const own = (await db.from(table).where('id', id).first()) as { color: string };
-  const current = own.color;
   const presets = (await db
     .from('clients')
     .where('account_id', accountId)
-    .select('color')) as Array<{
-    color: string;
-  }>;
-  return presets.find((row) => row.color !== current)!.color;
+    .select('color')) as Array<{ color: string }>;
+  const other = presets.find((row) => row.color !== own.color);
+  if (!other) throw new Error('The seed needs two client colours');
+  return other.color;
 }
 
 async function archiveAsOwner(f: Fixture, path: string, intent: object) {
-  const archived = await send(f.client.post(route(path)), f.ownerCookie, intent);
+  const archived = await send(f.client.post(companyRoute(path)), f.ownerCookie, intent);
   archived.assertStatus(200);
 }
 
 type Exposure =
-  | { call: (f: Fixture, principal: Principal) => Promise<ApiResponse>; write: boolean }
+  | {
+      call: (f: Fixture, principal: Principal) => Promise<ApiResponse>;
+      write: boolean;
+      /** Markers the reply carries for a reader allowed to see them. */
+      carries: string[];
+    }
   | { none: string };
 
 const replies: Record<string, Exposure> = {
   'api.planning.show': {
     write: false,
-    call: (f) => session(f.client.get(route('planning')), f.cookie).send(),
+    carries: [MARKER_CLIENT, MARKER_PROJECT, MARKER_NOTE],
+    call: (f) => session(f.client.get(companyRoute('planning')), f.cookie).send(),
   },
   'api.planning.archive': {
     write: false,
-    call: (f) => session(f.client.get(route('planning/archive')), f.cookie).send(),
+    carries: [MARKER_ARCHIVED_CLIENT],
+    call: (f) => session(f.client.get(companyRoute('planning/archive')), f.cookie).send(),
   },
   'api.state': {
     write: false,
+    carries: [MARKER_CLIENT, MARKER_ARCHIVED_CLIENT, MARKER_PROJECT, MARKER_NOTE],
     call: (f, principal) => {
       const inactive = principal.effective === 'owner' || principal.effective === 'admin';
       return session(
@@ -119,25 +128,27 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.client.update': {
     write: true,
+    carries: [MARKER_CLIENT],
     call: async (f) =>
-      send(f.client.patch(route(`clients/${f.clientId}`)), f.cookie, {
+      send(f.client.patch(companyRoute(`clients/${f.clientId}`)), f.cookie, {
         operation: 'catalogue.update',
         entity: {
           entity: 'clients',
           id: f.clientId,
-          changes: { color: await otherColor('clients', f.clientId) },
+          changes: { color: await pickOtherColor('clients', f.clientId) },
         },
       }),
   },
   'api.planning.client.unarchive': {
     write: true,
+    carries: [MARKER_CLIENT, MARKER_PROJECT],
     call: async (f) => {
       const entity = { entity: 'clients', id: f.clientId };
       await archiveAsOwner(f, `clients/${f.clientId}/archive`, {
         operation: 'catalogue.archive',
         entity,
       });
-      return send(f.client.post(route(`clients/${f.clientId}/unarchive`)), f.cookie, {
+      return send(f.client.post(companyRoute(`clients/${f.clientId}/unarchive`)), f.cookie, {
         operation: 'catalogue.unarchive',
         entity,
       });
@@ -145,25 +156,27 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.project.update': {
     write: true,
+    carries: [MARKER_PROJECT],
     call: async (f) =>
-      send(f.client.patch(route(`projects/${f.projectId}`)), f.cookie, {
+      send(f.client.patch(companyRoute(`projects/${f.projectId}`)), f.cookie, {
         operation: 'catalogue.update',
         entity: {
           entity: 'projects',
           id: f.projectId,
-          changes: { color: await otherColor('projects', f.projectId) },
+          changes: { color: await pickOtherColor('projects', f.projectId) },
         },
       }),
   },
   'api.planning.project.unarchive': {
     write: true,
+    carries: [MARKER_PROJECT],
     call: async (f) => {
       const entity = { entity: 'projects', id: f.projectId };
       await archiveAsOwner(f, `projects/${f.projectId}/archive`, {
         operation: 'catalogue.archive',
         entity,
       });
-      return send(f.client.post(route(`projects/${f.projectId}/unarchive`)), f.cookie, {
+      return send(f.client.post(companyRoute(`projects/${f.projectId}/unarchive`)), f.cookie, {
         operation: 'catalogue.unarchive',
         entity,
       });
@@ -171,10 +184,11 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.timeOff.update': {
     write: true,
+    carries: [MARKER_NOTE],
     call: async (f) => {
       const row = await db.from('time_off').where('id', f.timeOffId).first();
       const type = row?.type === 'holiday' ? 'sick' : 'holiday';
-      return send(f.client.patch(route(`time-off/${f.timeOffId}`)), f.cookie, {
+      return send(f.client.patch(companyRoute(`time-off/${f.timeOffId}`)), f.cookie, {
         operation: 'timeOff.update',
         id: f.timeOffId,
         changes: { type },
@@ -183,12 +197,13 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.resource.unarchive': {
     write: true,
+    carries: [MARKER_NOTE],
     call: async (f) => {
       await archiveAsOwner(f, `resources/${f.resourceId}/archive`, {
         operation: 'resource.archive',
         id: f.resourceId,
       });
-      return send(f.client.post(route(`resources/${f.resourceId}/unarchive`)), f.cookie, {
+      return send(f.client.post(companyRoute(`resources/${f.resourceId}/unarchive`)), f.cookie, {
         operation: 'resource.unarchive',
         id: f.resourceId,
       });
@@ -196,17 +211,23 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.restoreGroup': {
     write: true,
+    carries: [MARKER_NOTE],
     call: async (f) => {
-      const deleted = await send(f.client.post(route(`time-off/${f.timeOffId}/delete`)), f.cookie, {
-        operation: 'timeOff.delete',
-        id: f.timeOffId,
-      });
+      const deleted = await send(
+        f.client.post(companyRoute(`time-off/${f.timeOffId}/delete`)),
+        f.cookie,
+        {
+          operation: 'timeOff.delete',
+          id: f.timeOffId,
+        }
+      );
       const groupId =
         deleted.status() === 200
-          ? (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
+          ? // A committed delete reply always carries its replacement restoration group.
+            (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
               .replacementGroupId
           : randomUUID();
-      return send(f.client.post(route('planning/restore-group')), f.cookie, {
+      return send(f.client.post(companyRoute('planning/restore-group')), f.cookie, {
         operation: 'planning.restoreGroup',
         restorationGroupId: groupId,
       });
@@ -313,7 +334,7 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
     .update({ name: MARKER_PROJECT, is_private: 'true', code_name: 'Aurora' });
   await db.from('time_off').where({ id: timeOffRow.id }).update({ note: MARKER_NOTE });
   const archivedId = randomUUID();
-  const created = await send(client.post(route('clients')), ownerCookie, {
+  const created = await send(client.post(companyRoute('clients')), ownerCookie, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -327,10 +348,14 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
     },
   });
   created.assertStatus(200);
-  const archived = await send(client.post(route(`clients/${archivedId}/archive`)), ownerCookie, {
-    operation: 'catalogue.archive',
-    entity: { entity: 'clients', id: archivedId },
-  });
+  const archived = await send(
+    client.post(companyRoute(`clients/${archivedId}/archive`)),
+    ownerCookie,
+    {
+      operation: 'catalogue.archive',
+      entity: { entity: 'clients', id: archivedId },
+    }
+  );
   archived.assertStatus(200);
   return {
     clientId: clientRow.id,
@@ -340,9 +365,10 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
   };
 }
 
-async function contextToken(client: ApiClient, cookie: string) {
+async function readContextToken(client: ApiClient, cookie: string) {
   const status = await session(client.get('/api/masquerade'), cookie).send();
   status.assertStatus(200);
+  // The status reply is checked by String(); a missing token fails the masquerade start.
   return String((status.body() as { contextToken: unknown }).contextToken);
 }
 
@@ -372,44 +398,44 @@ test.group('restricted values in replies', (group) => {
         const target = await signIn(client, principal.effective);
         const started = await session(
           client
-            .post(route('masquerade'))
-            .header('X-Masquerade-Context', await contextToken(client, viewer.cookie)),
+            .post(companyRoute('masquerade'))
+            .header('X-Masquerade-Context', await readContextToken(client, viewer.cookie)),
           viewer.cookie
         )
           .json({ targetUserId: target.userId })
           .send();
         started.assertStatus(200);
         cookie = viewer.cookie;
-        viewToken = await contextToken(client, cookie);
+        viewToken = await readContextToken(client, cookie);
       } else {
         const member =
           principal.effective === 'owner' ? owner : await signIn(client, principal.effective);
         cookie = member.cookie;
       }
       const f: Fixture = { client, ownerCookie: owner.cookie, cookie, ...markers };
-      const hidden = hiddenMarkers(principal.effective);
+      const hidden = markersHiddenFrom(principal.effective);
       for (const [name, exposure] of Object.entries(replies)) {
         if ('none' in exposure) continue;
         const reply = await exposure.call(f, principal);
         const text = reply.text();
         for (const marker of hidden)
           assert.notInclude(text, marker, `${name} to ${principal.label}`);
-        const realManager = !principal.viewAs && ['owner', 'admin'].includes(principal.effective);
-        if (realManager) assert.equal(reply.status(), 200, `${name} to ${principal.label}`);
-        if (exposure.write && (principal.viewAs || principal.effective === 'viewer'))
-          assert.equal(reply.status(), 403, `${name} to ${principal.label}`);
-        if (name === 'api.planning.archive' && principal.viewAs)
-          assert.equal(reply.status(), 403, `${name} to ${principal.label}`);
-        if (name === 'api.planning.show') {
-          assert.equal(reply.status(), 200, `${name} to ${principal.label}`);
-          if (principal.effective === 'owner') {
-            assert.include(text, MARKER_CLIENT);
-            assert.include(text, MARKER_PROJECT);
-          }
-          if (['owner', 'admin'].includes(principal.effective)) assert.include(text, MARKER_NOTE);
+        const where = `${name} to ${principal.label}`;
+        if (exposure.write) {
+          const refused = principal.viewAs || principal.effective === 'viewer';
+          assert.equal(reply.status(), refused ? 403 : 200, where);
+        } else if (name === 'api.planning.archive') {
+          if (principal.viewAs) assert.equal(reply.status(), 403, where);
+          else if (principal.effective === 'owner' || principal.effective === 'admin')
+            assert.equal(reply.status(), 200, where);
+        } else {
+          assert.equal(reply.status(), 200, where);
         }
-        if (name === 'api.planning.archive' && principal.effective === 'owner')
-          assert.include(text, MARKER_ARCHIVED_CLIENT);
+        // Positive control: a reply that succeeds carries every marker this reader may see.
+        if (reply.status() === 200 && !principal.viewAs) {
+          for (const marker of exposure.carries.filter((value) => !hidden.includes(value)))
+            assert.include(text, marker, where);
+        }
       }
       if (viewToken) {
         const ended = await session(client.delete('/api/masquerade'), cookie)
