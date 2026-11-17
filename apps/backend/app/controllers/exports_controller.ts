@@ -8,7 +8,11 @@ import { withActor } from '#services/auth/current_actor';
 import access from '#config/access_control';
 import { resolvePlanningAuthority } from '#services/planning/authority';
 import { sendRefusal } from '#services/planning/http_refusal';
-import { buildBetaExport, serializeBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import {
+  BetaTransferError,
+  buildBetaExport,
+  serializeBetaExport,
+} from '@capacitylens/shared/data/betaTransfer';
 
 export default class ExportsController {
   async show(ctx: HttpContext) {
@@ -53,6 +57,10 @@ export default class ExportsController {
       ctx.response.header('Content-Disposition', 'attachment; filename="capacitylens-data.json"');
       return ctx.response.send(text);
     } catch (error) {
+      // A document that fails validation is refused as the import path refuses one.
+      if (error instanceof BetaTransferError) {
+        return ctx.response.badRequest({ error: error.message });
+      }
       return sendRefusal(error, ctx);
     }
   }
