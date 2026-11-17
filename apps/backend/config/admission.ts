@@ -1,8 +1,10 @@
-/**
- * The optional allowed email domain comes from `CAPACITYLENS_ALLOWED_EMAIL_DOMAINS`. When an
- * existing limited account needs invitation evidence, the operator uses the kit's
- * `grant-invitation` command.
- */
+// The optional allowed email domain comes from `CAPACITYLENS_ALLOWED_EMAIL_DOMAINS`. When an
+// existing limited account needs invitation evidence, the operator uses the kit's
+// `grant-invitation` command.
+//
+// The first identity comes from the operator's bootstrap invitation, printed by
+// `account-kit:admission:bootstrap`.
+
 import env from '#start/env';
 import { defineAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { admissionAuthorize } from '#services/account_kit/policy';

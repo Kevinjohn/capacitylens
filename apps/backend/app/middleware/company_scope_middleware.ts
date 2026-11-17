@@ -1,3 +1,8 @@
+// Every route with `:accountId` in its path runs the Access Control package's `scope` middleware,
+// through this one, after authentication. The server still authorizes inside the request
+// transaction through the package's `memberships.authorize`; a route that takes the company id from
+// the body has only that check.
+
 import type { HttpContext } from '@adonisjs/core/http';
 import type { NextFn } from '@adonisjs/core/types/http';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';

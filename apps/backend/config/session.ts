@@ -1,4 +1,3 @@
-/** Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`. */
 import { publicOrigin } from '#config/public_origin';
 import { defineConfig, stores } from '@adonisjs/session';
 import { protectManagedSessionConfig } from '@kevinjohn/adonisjs-account-kit/http';

@@ -1,3 +1,6 @@
+// Shield owns HSTS, `nosniff`, frame protection and the CSP. Secure-cookie behaviour follows
+// `CAPACITYLENS_PUBLIC_URL`.
+
 import { publicOrigin } from '#config/public_origin';
 import { defineConfig } from '@adonisjs/shield';
 

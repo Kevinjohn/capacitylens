@@ -1,13 +1,12 @@
-/**
- * View-as-member uses the pinned `@kevinjohn/adonisjs-masquerade` package for identity-wide,
- * read-only modes and durable lifecycle audit.
- *
- * Package admission captures the request identity before product transactions. Package operations
- * never run inside the single-connection product transaction.
- *
- * Package events are authoritative for view-as lifecycle audit. They carry no company ID and no
- * separate explicit, company-switch or sign-out classification.
- */
+// View-as-member uses the pinned `@kevinjohn/adonisjs-masquerade` package for identity-wide,
+// read-only modes and durable lifecycle audit.
+//
+// Package admission captures the request identity before product transactions. Package operations
+// never run inside the single-connection product transaction.
+//
+// Package events are authoritative for view-as lifecycle audit. They carry no company ID and no
+// separate explicit, company-switch or sign-out classification.
+
 import type { HttpContext } from '@adonisjs/core/http';
 import { MasqueradeError as PackageMasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import type { MasqueradeService, ModeView } from '@kevinjohn/adonisjs-masquerade';

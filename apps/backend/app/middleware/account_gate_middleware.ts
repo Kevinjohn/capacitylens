@@ -1,3 +1,8 @@
+// One router middleware applies each route's account gate by its name before the handler runs,
+// using Account Kit's managed guard. A route name in no list gets the strictest check; only the
+// health probes and the application shell have no name. Routes under `/api/auth` are public at the
+// gate because their handlers answer a signed-out caller themselves.
+
 import type { HttpContext } from '@adonisjs/core/http';
 import type { NextFn } from '@adonisjs/core/types/http';
 import app from '@adonisjs/core/services/app';

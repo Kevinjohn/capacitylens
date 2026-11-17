@@ -1,6 +1,3 @@
-/**
- * Rate limits on authentication and the API use `@adonisjs/limiter`.
- */
 import { defineConfig, stores } from '@adonisjs/limiter';
 
 export default defineConfig({

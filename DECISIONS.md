@@ -195,9 +195,10 @@ This is the short, present-tense record of decisions that constrain future work.
   roles, the member↔resource link, the permission keys, the access-control services and every
   screen and word that renders a kit outcome. CapacityLens has no authorization policies of its
   own. Password sign-in is the only sign-in method; there are no identity providers.
-- Roles rank viewer < editor < admin < owner, and the permission keys are declared once. Every
-  company route refuses a caller without an active membership before its handler, with the refusal
-  the handler would give, and the server authorizes again inside the request transaction. The
+- Roles rank viewer < editor < admin < owner, and the permission keys are declared once. A route
+  with the company in its path refuses a caller without an active membership before its handler,
+  with the refusal the handler would give. The server always authorizes inside the request
+  transaction; a route that takes the company from the request body has only that check. The
   browser reads the permissions only to show or hide controls. A membership is active or suspended.
   Nobody manages their own membership, and an Admin cannot manage the Owner.
 - Admission is cumulative and owned by the kit: an optional allowed email domain, invitation
@@ -212,11 +213,11 @@ This is the short, present-tense record of decisions that constrain future work.
   and approval.
 - Invitations are emailed only; the acceptance link is never shown in the product. One configured
   lifetime (seven days) applies to every invitation. Accepting creates a new identity and refuses an
-  already-registered address; identities are never merged by email. Only the operator gives an
-  existing limited account invitation evidence. An invitation never proposes or creates a Resource;
-  link the member to a Resource after they join.
-- A company invitation creates the invited membership with its audit entry and planning revision in
-  one transaction, and deleting an account removes its memberships. An invitation without a company,
+  already-registered address; identities are never merged by email. When an existing limited
+  account needs invitation evidence, the operator grants it. An invitation never proposes or creates
+  a Resource; link the member to a Resource after they join.
+- A company invitation carries its company id. It creates the invited membership with its audit
+  entry and planning revision in one transaction, and deleting an account removes its memberships. An invitation without a company,
   such as the operator's, creates no membership.
 - Invitations, address confirmation and password resets need configured mail delivery. Without
   it they are refused with an explanation rather than falling back to a copyable link.
@@ -229,8 +230,8 @@ This is the short, present-tense record of decisions that constrain future work.
   session, live credential revision, company, action and exact intent. It verifies the current
   password and is spent in the same transaction as the change, including ownership transfer's
   idempotency execution boundary.
-- Only a live Owner with a confirmed address, admission and no view-as mode can confirm a password
-  for a company action. Credential writes stay with Account Kit.
+- Both the check before confirming and the check inside the transaction require a confirmed
+  address, admission, a live Owner and no view-as mode. Credential writes stay with Account Kit.
 - Wrong passwords are limited per account before hashing: five failures per minute, then a
   20-minute block. A successful confirmation resets only that account's budget.
 - Cleaning up old confirmations never fails the confirmation being issued.
@@ -251,9 +252,9 @@ This is the short, present-tense record of decisions that constrain future work.
   also requires an admitted identity. Neither path creates credentials or changes identity
   admission. No environment variable grants company ownership.
   A development-only demo command may, on an empty disposable database, create the sample company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
-- Only the development bootstrap identity is created already confirmed and with a known password;
-  every other account starts unconfirmed, with a mailed proof. Production refuses the setting that
-  enables it.
+- The development bootstrap identity is the one account created outside the kit, already
+  confirmed and with a known password; the kit creates an account only unconfirmed, with a mailed
+  proof. Production refuses the setting that enables it.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
   for a locked-out Owner is the kit's operator command, never an in-product action.

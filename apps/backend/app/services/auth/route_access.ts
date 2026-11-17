@@ -2,11 +2,6 @@
  * What the account gate asks of a request before its handler runs. `public` asks nothing, and the
  * handler decides for itself. `limited` needs a valid sign-in. `admitted` also needs a confirmed
  * address and admission.
- *
- * One router middleware applies this by route name before the handler runs, using Account Kit's
- * managed guard. A route name in no list gets the strictest check; only the health probes and the
- * application shell have no name. Routes under `/api/auth` are public at the gate because their
- * handlers answer a signed-out caller themselves.
  */
 export type RouteAccess = 'public' | 'limited' | 'admitted';
 

@@ -1,8 +1,7 @@
-/**
- * The development bootstrap identity is the one account written straight into `users`, already
- * confirmed and with a known password. The kit creates an account only unconfirmed, with a mailed
- * proof.
- */
+// The development bootstrap identity is the one account written straight into `users`, already
+// confirmed and with a known password. The kit creates an account only unconfirmed, with a mailed
+// proof.
+
 import type { ApplicationService } from '@adonisjs/core/types';
 import env from '#start/env';
 import db from '@adonisjs/lucid/services/db';
