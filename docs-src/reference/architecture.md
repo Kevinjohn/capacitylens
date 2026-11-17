@@ -162,8 +162,7 @@ or none, and is sent with its own status.
 
 A request that times out or loses its response may or may not have committed. The browser sends
 nothing new: it refetches, shows the server's state, clears undo history and records an
-`unconfirmed` outcome, which asks the person to check that their change is there. Earlier Undo and
-Redo entries are cleared with it.
+`unconfirmed` outcome, which asks the person to check that their change is there.
 
 ## Planning internals other modules import
 

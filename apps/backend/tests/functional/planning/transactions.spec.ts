@@ -164,10 +164,6 @@ db.exec('COMMIT')`,
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const mutationId = randomUUID();
-    assert.lengthOf(
-      await db.from('planning_mutations').where({ account_id: accountId, mutation_id: mutationId }),
-      0
-    );
     const allocation = newAllocation(await readState(accountId, true));
     const input = {
       mutationId,

@@ -50,7 +50,7 @@ The suites cover the frontend, backend and shared workspace packages.
   tests cover session-bound deletion and restoration of bookings,
   time off, closures, phases and disciplines through the typed routes. Deleted rows stay hidden
   from reads and exports. Only the deleting session can restore each group once, with the original
-  IDs and timestamps. Tests cover fresh Redo handles, uncertain-response lookup, surviving-child
+  IDs and timestamps. Tests cover fresh Redo handles, surviving-child
   links, failed-transaction rollback and cleanup after sign-out, revocation, expiry, credential
   changes, privacy changes, anonymisation and import. Old groups cannot affect restored,
   replacement or newer-deleted rows. Catalogue and resource screens keep their archive controls.
