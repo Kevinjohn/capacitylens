@@ -1,5 +1,6 @@
 import type { HttpErrorBody, ProductErrorCode } from '@capacitylens/shared/api/httpErrors';
 import type { Infer } from '@vinejs/vine/types';
+import type { ArchiveImpact } from '@capacitylens/shared/domain/lifecycle';
 import type {
   Account,
   Activity,
@@ -57,6 +58,8 @@ export interface PlanningMutationSuccess {
         };
       }
     | { mode: 'refetch'; history: 'clear' };
+  /** Active descendants this archive hid, measured from the committed before-state. */
+  archived?: ArchiveImpact;
 }
 
 /** A commitment lookup never returns a prior response or a before-image. */

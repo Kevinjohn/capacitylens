@@ -1,4 +1,4 @@
-import { activeOnly, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
+import { activeOnly, archiveImpact, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
@@ -121,6 +121,10 @@ export async function mutatePlanning({
       mutationId: input.mutationId,
     },
   });
+  const archived =
+    input.intent.operation === 'catalogue.archive'
+      ? archiveImpact(activeOnly(before), input.intent.entity.entity, input.intent.entity.id)
+      : undefined;
   const after = await readStateWithClient(trx, accountId, true);
   if (semanticState(before) === semanticState(after)) {
     throw new PlanningOperationError(
@@ -178,6 +182,7 @@ export async function mutatePlanning({
     projection: requiresRefetch(input.intent)
       ? { mode: 'refetch', history: 'clear' }
       : { mode: 'patch', history: 'retain', changed },
+    ...(archived ? { archived } : {}),
   };
 }
 
