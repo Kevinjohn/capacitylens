@@ -1,6 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
-import { seed } from '@capacitylens/shared/data/seed';
+import { companySeed } from '@/test/companyDocument';
 import {
   fetchInactiveSlice,
   InactiveSliceHttpError,
@@ -22,7 +21,7 @@ const ok = (body: unknown): Response =>
 
 describe('fetchInactiveSlice', () => {
   it('requests a complete strict inactive slice for the account with credentials', async () => {
-    const body = buildBetaExport(seed(), { accountId: 'a-studio', completeness: 'full' }).data;
+    const body = companySeed('a-studio');
     const fetchMock = vi.fn(async () => ok(body));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -104,22 +103,13 @@ describe('fetchInactiveSlice', () => {
     await expect(fetchInactiveSlice('a-studio')).rejects.toBe(fault);
   });
 
-  it('refuses a complete-looking response with invalid lifecycle state or a broken link', async () => {
-    const valid = buildBetaExport(seed(), { accountId: 'a-studio', completeness: 'full' }).data;
-    const lifecycle = structuredClone(valid);
-    const client = lifecycle.clients[0];
-    if (!client) throw new Error('The inactive fixture has no client.');
-    Object.assign(client, { archivedAt: 'yesterday' });
-    const broken = structuredClone(valid);
-    const project = broken.projects[0];
-    if (!project) throw new Error('The inactive fixture has no project.');
-    Object.assign(project, { clientId: 'missing-client' });
-    for (const body of [lifecycle, broken]) {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn(async () => ok(body)),
-      );
-      await expect(fetchInactiveSlice('a-studio')).rejects.toBeInstanceOf(InactiveSliceShapeError);
-    }
+  it('refuses a response that holds more than the requested company', async () => {
+    const body = companySeed('a-studio');
+    const other = companySeed('a-loft').accounts;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ok({ ...body, accounts: [...body.accounts, ...other] })),
+    );
+    await expect(fetchInactiveSlice('a-studio')).rejects.toBeInstanceOf(InactiveSliceShapeError);
   });
 });

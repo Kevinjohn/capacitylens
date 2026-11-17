@@ -1,15 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
-import {
-  buildBetaExport,
-  parseBetaExport,
-  serializeBetaExport,
-} from '@capacitylens/shared/data/betaTransfer';
-import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
+import { buildBetaExport, parseBetaExport } from '@capacitylens/shared/data/betaTransfer';
 import { seed } from '@capacitylens/shared/data/seed';
+import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData, resetStoreWithAccount } from '@/test/fixtures';
+import { companyDocument } from '@/test/companyDocument';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
 
@@ -23,8 +20,20 @@ const originalPlanning = {
 
 const accountId = 'a-studio';
 
-function document(): BetaExportDocument {
-  return buildBetaExport(seed(), { accountId, completeness: 'full' });
+function document() {
+  return companyDocument(accountId, 'full');
+}
+
+/** A preview reply as the server sends it for {@link document}. */
+function previewReply(baseRevision: number) {
+  const data = document().data;
+  return Response.json({
+    baseRevision,
+    imported: 5,
+    changed: true,
+    companyName: 'Wayne Enterprises',
+    counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, data[key].length])),
+  });
 }
 
 function renderTools() {
@@ -45,19 +54,18 @@ function renderTools() {
   );
 }
 
-async function selectFile(file: BetaExportDocument) {
+function selectFile(contents: string) {
   const input = screen.getByTestId('import-input');
   Object.defineProperty(input, 'files', {
-    value: [new File([serializeBetaExport(file)], 'transfer.json', { type: 'application/json' })],
+    value: [new File([contents], 'transfer.json', { type: 'application/json' })],
     configurable: true,
   });
   fireEvent.change(input);
-  await screen.findByRole('button', { name: 'Continue' });
 }
 
-async function previewFile(file: BetaExportDocument) {
-  await selectFile(file);
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+async function previewFile(file: unknown) {
+  selectFile(JSON.stringify(file));
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
   await screen.findByRole('button', { name: 'Replace data' });
 }
 
@@ -66,7 +74,7 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
     'fetch',
     vi.fn(async (url: string) => {
       if (String(url).endsWith('/api/transfer/preview')) {
-        return Response.json({ baseRevision: 7, imported: 5, changed: true });
+        return previewReply(7);
       }
       if (String(url).endsWith('/api/auth/password-confirmation')) {
         return Response.json({ confirmationId: 'proof-7' });
@@ -228,60 +236,37 @@ describe('beta import and export', () => {
     expect(download).not.toHaveBeenCalled();
   });
 
-  it('refuses a redacted document before showing replacement confirmation', async () => {
+  it('refuses a file that is not JSON without asking the server', async () => {
     const before = structuredClone(useStore.getState().data);
-    const redacted = buildBetaExport(seed(), { accountId, completeness: 'redacted' });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
     renderTools();
-    const input = screen.getByTestId('import-input');
-    Object.defineProperty(input, 'files', {
-      value: [
-        new File([serializeBetaExport(redacted)], 'redacted.json', { type: 'application/json' }),
-      ],
-      configurable: true,
-    });
-    fireEvent.change(input);
-    await screen.findByRole('alert');
-    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
-    expect(screen.getByRole('alert')).toHaveTextContent(/full|redacted/i);
-    expect(useStore.getState().data).toEqual(before);
-  });
-
-  it.each([
-    ['invalid JSON', '{ "format":', /valid JSON/i],
-    ['unrelated JSON', '{ "hello": "world" }', /beta-native CapacityLens export/i],
-    ['unsupported version', JSON.stringify({ ...document(), schemaVersion: 3 }), /unsupported/i],
-  ])('refuses %s without changing server data', async (_case, contents, message) => {
-    const before = structuredClone(useStore.getState().data);
-    renderTools();
-    const input = screen.getByTestId('import-input');
-    Object.defineProperty(input, 'files', {
-      value: [new File([contents], 'invalid.json', { type: 'application/json' })],
-      configurable: true,
-    });
-    fireEvent.change(input);
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(message));
-    expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull();
-    expect(useStore.getState().data).toEqual(before);
-  });
-
-  it('refuses a full document with a name over the beta field limit', async () => {
-    const before = structuredClone(useStore.getState().data);
-    const oversized = document();
-    const oversizedAccount = oversized.data.accounts[0];
-    if (!oversizedAccount) throw new Error('The import fixture has no company.');
-    oversizedAccount.name = 'W'.repeat(1000);
-    renderTools();
-    const input = screen.getByTestId('import-input');
-    Object.defineProperty(input, 'files', {
-      value: [
-        new File([JSON.stringify(oversized)], 'oversized.json', { type: 'application/json' }),
-      ],
-      configurable: true,
-    });
-    fireEvent.change(input);
+    selectFile('{ "format":');
     await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(/too long|length|characters/i),
+      expect(useStore.getState().notice?.message).toMatch(/not valid CapacityLens JSON/),
     );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useStore.getState().data).toEqual(before);
+  });
+
+  it("shows the server's reason for refusing a document in the preview dialog", async () => {
+    const before = structuredClone(useStore.getState().data);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json(
+          { error: 'format: is not a beta-native CapacityLens export' },
+          { status: 400 },
+        ),
+      ),
+    );
+    renderTools();
+    selectFile('{ "hello": "world" }');
+    const alert = await screen.findByRole('alert');
+    expect(screen.getByRole('dialog')).toContainElement(alert);
+    expect(alert).toHaveTextContent('format: is not a beta-native CapacityLens export');
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
     expect(useStore.getState().data).toEqual(before);
   });
 
@@ -295,7 +280,7 @@ describe('beta import and export', () => {
         const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
         requests.push({ url: path, body });
         if (path.endsWith('/api/transfer/preview')) {
-          return Response.json({ baseRevision: 7, imported: 5, changed: true });
+          return previewReply(7);
         }
         if (path.endsWith('/api/auth/password-confirmation')) {
           return Response.json({ confirmationId: 'proof-7' });
@@ -322,14 +307,10 @@ describe('beta import and export', () => {
     expect(requests[1]?.body).toMatchObject({
       action: 'import',
       accountId,
-      intent: { baseRevision: 7, document: incoming },
     });
-    expect(requests[2]?.body).toMatchObject({
-      accountId,
-      baseRevision: 7,
-      document: incoming,
-      confirmationId: 'proof-7',
-    });
+    expect(requests[1]?.body.intent).toEqual({ baseRevision: 7, document: incoming });
+    expect(requests[2]?.body).toMatchObject({ accountId, baseRevision: 7, confirmationId: 'proof-7' });
+    expect(requests[2]?.body.document).toEqual(incoming);
   });
 
   it.each([403, 409])('releases planning commands after a refused %i import', async (status) => {
@@ -379,17 +360,18 @@ describe('beta import and export', () => {
       }),
     );
     renderTools();
-    await selectFile(first);
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    selectFile(JSON.stringify(first));
     await waitFor(() => expect(previews).toHaveLength(1));
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await selectFile(second);
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    selectFile(JSON.stringify(second));
     await waitFor(() => expect(previews).toHaveLength(2));
-    previews[0]?.(Response.json({ baseRevision: 11, imported: 5, changed: true }));
-    expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull();
-    previews[1]?.(Response.json({ baseRevision: 22, imported: 5, changed: true }));
+    previews[0]?.(previewReply(11));
+    // Let the stale reply settle completely before checking it was ignored.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
+    previews[1]?.(previewReply(22));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
     await screen.findByRole('button', { name: 'Replace data' });
     fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
@@ -402,11 +384,8 @@ describe('beta import and export', () => {
     );
     expect(proof?.body.intent).toEqual({ baseRevision: 22, document: second });
     const apply = requests.find((request) => request.url.endsWith('/api/transfer/apply'));
-    expect(apply?.body).toMatchObject({
-      baseRevision: 22,
-      document: second,
-      confirmationId: 'proof-b',
-    });
+    expect(apply?.body).toMatchObject({ baseRevision: 22, confirmationId: 'proof-b' });
+    expect(apply?.body.document).toEqual(second);
   });
 
   it.each(['admin', 'editor', 'viewer'] as const)(

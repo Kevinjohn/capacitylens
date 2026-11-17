@@ -15,7 +15,7 @@ As an Owner, I want to preview and replace company data so that I can restore a 
 | Import JSON | JSON file chooser                      | Shown to the Owner; accepts application/json; the file must be a complete beta v1 export from this product |
 | Password    | Password input in **Confirm it’s you** | Server only; the Owner’s current password                                                                  |
 
-Choosing a file opens **Import data?** with "{count} planning records for {company}. Entity IDs and company settings are preserved." and **Continue**; closing it changes nothing. Continue first has the server check the file. A second **Import data?** dialog reads "Import {file} — this replaces this company’s data with {record counts}." followed by "This cannot be undone." and offers **Replace data** and **Cancel**. Replace data opens **Confirm it’s you**, where **Continue** applies the import and **Cancel** returns to the previous dialog.
+Choosing a file has the server check it and opens **Import data?** with the server's reason for refusing it, or with "{count} planning records for {company}. Entity IDs and company settings are preserved." and **Continue**; closing it changes nothing. A second **Import data?** dialog reads "Import {file} — this replaces this company’s data with {record counts}." followed by "This cannot be undone." and offers **Replace data** and **Cancel**. Replace data opens **Confirm it’s you**, where **Continue** applies the import and **Cancel** returns to the previous dialog.
 
 - Cancel, invalid input or a stale revision leaves data unchanged. Import is Owner-only.
 
@@ -35,12 +35,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  file["ImportExport selects JSON file"] --> parse["usePendingImport.readFile calls parseBetaExport"]
-  parse --> preview["BetaImportPreview.prepareBetaImport previews without replacing"]
-  preview --> branch{"Server preview"}
-  branch --> serverPreview["ImportExport calls transfer preview and records baseRevision"]
-  serverPreview --> serverBoundary["TransferController.preview checks the server preview and base revision"]
-  serverBoundary --> confirm["Replace confirmation opens PasswordConfirmationDialog"]
+  file["ImportExport selects JSON file"] --> parse["usePendingImport.readFile reads JSON"]
+  parse --> serverBoundary["TransferController.preview validates the document and replies with the reason or the summary and base revision"]
+  serverBoundary --> preview["BetaImportPreview renders the reply without replacing"]
+  preview --> confirm["Continue opens the replace confirmation, then PasswordConfirmationDialog"]
   confirm --> apply["useServerImport posts api.transfer.apply; TransferController.apply consumes confirmation and calls applyBetaAccountTransfer"]
   apply --> refresh["useServerImport refreshes canonical planning data"]
 ```

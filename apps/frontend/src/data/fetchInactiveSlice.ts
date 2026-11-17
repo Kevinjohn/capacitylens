@@ -1,15 +1,11 @@
+import { APP_DATA_KEYS } from '@capacitylens/shared/types/entities';
 import type { AppData, ID } from '@capacitylens/shared/types/entities';
-import {
-  BETA_EXPORT_FORMAT,
-  BETA_EXPORT_SCHEMA_VERSION,
-  BetaTransferError,
-  parseBetaExport,
-} from '@capacitylens/shared/data/betaTransfer';
+import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { readApiError } from '@/lib/readApiError';
 import { apiReadRouteUrl } from '@/api/queryClient';
 import { apiFetch, API_BULK_TIMEOUT_MS } from './requestTimeout';
 
-// The shared inactive-slice reader validates the complete tenant projection so backup and lifecycle views cannot accept a partial response.
+// The shared inactive-slice reader checks the tenant projection is structurally complete so backup and lifecycle views cannot accept a partial response. The rows are the server's own; it does not re-validate them.
 
 /**
  * A non-OK response from the inactive-slice read. Carries the raw {@link status} so callers can
@@ -43,9 +39,10 @@ export class InactiveSliceShapeError extends Error {
 }
 
 /**
- * Fetches one complete tenant slice including inactive rows and validates it under the strict beta transfer contract.
+ * Fetches one complete tenant slice including inactive rows and checks that every table is present
+ * and that it holds exactly the requested company.
  *
- * @throws InactiveSliceHttpError for non-success HTTP status; InactiveSliceShapeError for invalid rows, links, or tenant scope. Transport and decoding errors propagate.
+ * @throws InactiveSliceHttpError for non-success HTTP status; InactiveSliceShapeError for a missing or non-array table or the wrong company. Transport and decoding errors propagate.
  */
 export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): Promise<AppData> {
   const res = await apiFetch(
@@ -57,22 +54,14 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
   );
   if (!res.ok) throw new InactiveSliceHttpError(res.status, await readApiError(res));
   const body: unknown = await res.json();
-  let document;
-  try {
-    // The state endpoint returns raw AppData; wrapping it validates every row and link before a
-    // backup can turn it into a portable file. Redacted mode also accepts Admin projections.
-    document = parseBetaExport(
-      JSON.stringify({
-        format: BETA_EXPORT_FORMAT,
-        schemaVersion: BETA_EXPORT_SCHEMA_VERSION,
-        completeness: 'redacted',
-        data: body,
-      }),
-    );
-  } catch (error) {
-    if (error instanceof BetaTransferError) throw new InactiveSliceShapeError();
-    throw error;
+  if (!isRecord(body) || !APP_DATA_KEYS.every((key) => Array.isArray(body[key]))) {
+    throw new InactiveSliceShapeError();
   }
-  if (document.data.accounts[0]?.id !== accountId) throw new InactiveSliceShapeError();
-  return document.data;
+  const accounts = body.accounts as unknown[];
+  const account = accounts[0];
+  if (accounts.length !== 1 || !isRecord(account) || account.id !== accountId) {
+    throw new InactiveSliceShapeError();
+  }
+  // The server owns these rows; the checks above only refuse a partial or foreign response.
+  return body as unknown as AppData;
 }
