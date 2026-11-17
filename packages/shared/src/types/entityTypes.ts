@@ -42,6 +42,8 @@ export const DATE_STYLES: DateStyle[] = [
 ];
 /** The format a null `dateStyle` reads back as. */
 export const DEFAULT_DATE_STYLE: DateStyle = 'day-month';
+/** Every resource kind, in the order forms and validation list them. */
+export const RESOURCE_KINDS = ['person', 'placeholder', 'external'] as const;
 /**
  * What a resource row represents:
  * - `person`: a real team member with capacity (the default).
@@ -52,13 +54,15 @@ export const DEFAULT_DATE_STYLE: DateStyle = 'day-month';
  *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
  *   defaults. See the external-resource rule in DECISIONS.md.
  */
-export type ResourceKind = 'person' | 'placeholder' | 'external';
+export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 /** A person's contract status. */
 export type EmploymentType = 'permanent' | 'freelancer' | 'contractor';
 /** How the agency regards a person, independently of contract status or discipline. */
 export type ResourceEngagement = 'studio' | 'supplementary';
 /** The reason for a time-off entry. */
 export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other';
+/** Every activity kind, in the order validation lists them. */
+export const ACTIVITY_KINDS = ['project', 'internal', 'repeatable'] as const;
 /**
  * What an activity is, the axis the schedule's "activity view" filters on. Three kinds:
  * - `project`: project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
@@ -67,7 +71,7 @@ export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other';
  * Coherence (enforced in assertScopedRefs and validated on import): `project` has a `projectId`;
  * `internal`/`repeatable` have neither `projectId` nor `phaseId`.
  */
-export type ActivityKind = 'project' | 'internal' | 'repeatable';
+export type ActivityKind = (typeof ACTIVITY_KINDS)[number];
 
 /** Identity and revision fields shared by persisted entities. */
 export interface Entity {

@@ -1,4 +1,5 @@
 import {
+  RESOURCE_KINDS,
   externalCapacityDefaults,
   type AppData,
   type ScopedEntityKey,
@@ -28,6 +29,9 @@ import {
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
+
+// Widened so a stored value of unknown type can be checked against the known kinds.
+const resourceKinds: readonly unknown[] = RESOURCE_KINDS;
 
 /** Server-owned values every new row of a table starts with, before validation. */
 const CREATE_DEFAULTS: Partial<Record<ScopedEntityKey, Record<string, unknown>>> = {
@@ -172,7 +176,7 @@ function assertResourceFields(
 }
 
 function assertResourceKind(candidate: Record<string, unknown>, existing: Record<string, unknown>) {
-  if (!['person', 'placeholder', 'external'].includes(existing.kind as string)) {
+  if (!resourceKinds.includes(existing.kind)) {
     throw new EntityWriteError(
       'The stored resource kind is invalid and must be repaired by import.',
       400,

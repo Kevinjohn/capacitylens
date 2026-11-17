@@ -3,7 +3,7 @@ import {
   effectiveProjectId,
   validateAllocationAssignment,
 } from '../../lib/integrity.js';
-import { isExternalResource } from '../../types/entities.js';
+import { RESOURCE_KINDS, isExternalResource } from '../../types/entities.js';
 import type {
   Activity,
   Allocation,
@@ -24,7 +24,7 @@ import {
 } from '../validationLookup.js';
 import type { ValidationDataLookup } from '../validationLookup.js';
 
-const RESOURCE_KINDS: ReadonlySet<unknown> = new Set(['person', 'placeholder', 'external']);
+const knownResourceKinds: ReadonlySet<unknown> = new Set(RESOURCE_KINDS);
 
 /** Require the target row to belong to accountId before an update or delete.
  * Returns null for a stale id so callers can preserve the no-op contract; otherwise returns the owned row.
@@ -222,7 +222,7 @@ function assertResourceKindImmutable(
   record: Record<string, unknown>,
 ): void {
   if (previous === undefined) return;
-  if (typeof previous.kind !== 'string' || !RESOURCE_KINDS.has(previous.kind)) {
+  if (typeof previous.kind !== 'string' || !knownResourceKinds.has(previous.kind)) {
     throwDomainError(
       'resource_kind_immutable',
       'The stored resource kind is invalid and must be repaired by import.',
