@@ -234,7 +234,6 @@ describe('generated planning transport', () => {
         mutationId,
         revision: 6,
         restoration,
-        projection: { mode: 'patch', history: 'retain', changed: { upserts: [], removed: [] } },
       };
       const { transport, requests } = harness(receipt);
       expect(await transport.execute(context, execution(intent), signal)).toEqual(receipt);

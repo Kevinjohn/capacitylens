@@ -219,7 +219,6 @@ describe('typed planning flow', () => {
         mutationId: execution.mutationId,
         revision: execution.baseRevision + 1,
         restoration: { consumedGroupId: null, replacementGroupId: null },
-        projection: { mode: 'refetch', history: 'clear' },
       }),
       { ...initial, clients: [next] },
     );

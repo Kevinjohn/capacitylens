@@ -38,8 +38,8 @@ export function projectionChanges(before: AppData, after: AppData) {
 }
 
 /**
- * Fields whose change alters what a saved before-image or a patched projection may reveal: private
- * names, and the activity kind that decides which fields an activity carries.
+ * Fields whose change alters what a saved before-image may reveal: private names, and the activity
+ * kind that decides which fields an activity carries.
  */
 export const PRIVACY_TRIGGER_FIELDS: Partial<Record<AppDataKey, readonly string[]>> = {
   clients: ['isPrivate', 'codeName'],
@@ -49,13 +49,6 @@ export const PRIVACY_TRIGGER_FIELDS: Partial<Record<AppDataKey, readonly string[
 
 function triggerFields(entity: AppDataKey) {
   return PRIVACY_TRIGGER_FIELDS[entity] ?? [];
-}
-
-/** A catalogue update that names a privacy trigger field makes the browser refetch. */
-export function requiresRefetch(intent: PlanningMutationInput['intent']) {
-  if (intent.operation !== 'catalogue.update' || !('changes' in intent.entity)) return false;
-  const { entity, changes } = intent.entity;
-  return triggerFields(entity).some((field) => Object.hasOwn(changes, field));
 }
 
 /** A catalogue update that actually changes a privacy trigger field ends pending restoration. */

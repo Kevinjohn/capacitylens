@@ -498,27 +498,18 @@ test.group('planning operation contracts', () => {
     assert.equal(noChange.code, 'NO_CHANGE');
   });
 
-  test('types delete-created restore handles and explicit refetch responses', ({ assert }) => {
+  test('types delete-created restore handles', ({ assert }) => {
     const deletion: PlanningMutationSuccess = {
       status: 'committed',
       mutationId: uuid,
       revision: 18,
       restoration: { consumedGroupId: null, replacementGroupId: otherUuid },
-      projection: {
-        mode: 'patch',
-        history: 'retain',
-        changed: { upserts: [], removed: [{ entity: 'allocations', id: uuid }] },
-      },
     };
     const restoration: PlanningMutationSuccess = {
       ...deletion,
       mutationId: otherUuid,
       revision: 19,
       restoration: { consumedGroupId: otherUuid, replacementGroupId: null },
-    };
-    const refetch: PlanningMutationSuccess = {
-      ...deletion,
-      projection: { mode: 'refetch', history: 'clear' },
     };
 
     assert.deepEqual(deletion.restoration, {
@@ -529,7 +520,6 @@ test.group('planning operation contracts', () => {
       consumedGroupId: otherUuid,
       replacementGroupId: null,
     });
-    assert.deepEqual(refetch.projection, { mode: 'refetch', history: 'clear' });
   });
 
   test('malformed repeat entries fail as validation errors, not rule exceptions', async ({

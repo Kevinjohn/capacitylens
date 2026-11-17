@@ -48,16 +48,6 @@ export interface PlanningMutationSuccess {
     | { consumedGroupId: null; replacementGroupId: string }
     | { consumedGroupId: string; replacementGroupId: null }
     | { consumedGroupId: null; replacementGroupId: null };
-  projection:
-    | {
-        mode: 'patch';
-        history: 'retain';
-        changed: {
-          upserts: ProjectedPlanningRow[];
-          removed: Array<{ entity: AppDataKey; id: string }>;
-        };
-      }
-    | { mode: 'refetch'; history: 'clear' };
   /** Active descendants this archive hid, measured from the committed before-state. */
   archived?: ArchiveImpact;
 }

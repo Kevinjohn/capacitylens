@@ -79,14 +79,17 @@ test.group('authenticated typed planning transactions', (group) => {
     created.assertStatus(200);
     assert.equal(created.body().revision, 1);
     assert.equal(created.body().status, 'committed');
-    assert.equal(created.body().projection.mode, 'patch');
-    assert.equal(
-      created
-        .body()
-        .projection.changed.upserts.find(
-          (entry: { row: { id: string } }) => entry.row.id === allocation.id
-        ).entity,
-      'allocations'
+    assert.deepEqual(created.body(), {
+      status: 'committed',
+      mutationId,
+      revision: 1,
+      restoration: { consumedGroupId: null, replacementGroupId: null },
+    });
+    const read = await session(client.get(planningUrl), cookie).send();
+    read.assertStatus(200);
+    assert.equal(read.body().revision, 1);
+    assert.isTrue(
+      read.body().data.allocations.some((row: { id: string }) => row.id === allocation.id)
     );
     const duplicate = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
       .json(input)

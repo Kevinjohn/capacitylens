@@ -17,7 +17,6 @@ const body = (response: { body(): unknown }) =>
   response.body() as {
     code: string;
     revision: number;
-    projection: { mode: string; history: string };
   };
 const route = (path: string) => `/api/accounts/${accountId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
@@ -456,25 +455,17 @@ test.group('authenticated planning operations', (group) => {
       .send();
     setting.assertStatus(200);
     assert.equal(body(setting).revision, 2);
-    const projection = body(setting).projection as {
-      mode: string;
-      history: string;
-      changed: {
-        upserts: Array<{ entity: string; row: { id: string; weekStartsOn: number | null } }>;
-        removed: unknown[];
-      };
+    const read = await session(client.get(planningUrl), cookie).send();
+    read.assertStatus(200);
+    const snapshot = read.body() as {
+      revision: number;
+      data: { accounts: Array<{ id: string; weekStartsOn: number | null }> };
     };
-    assert.equal(projection.mode, 'patch');
-    assert.equal(projection.history, 'retain');
+    assert.equal(snapshot.revision, 2);
     assert.deepEqual(
-      projection.changed.upserts.map(({ entity, row }) => ({
-        entity,
-        id: row.id,
-        weekStartsOn: row.weekStartsOn,
-      })),
-      [{ entity: 'accounts', id: accountId, weekStartsOn: 0 }]
+      snapshot.data.accounts.map(({ id, weekStartsOn }) => ({ id, weekStartsOn })),
+      [{ id: accountId, weekStartsOn: 0 }]
     );
-    assert.isEmpty(projection.changed.removed);
     const state = await readState(accountId, true);
     assert.equal(state.accounts[0]?.weekStartsOn, 0);
     assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day');
@@ -515,7 +506,6 @@ test.group('authenticated planning operations', (group) => {
       .send();
     repeated.assertStatus(200);
     assert.equal(body(repeated).revision, 2);
-    assert.equal(body(repeated).projection.mode, 'patch');
     const state = await readState(accountId, true);
     const first = state.allocations.find((row) => row.id === firstId);
     const later = state.allocations.find((row) => row.id === laterId);
@@ -598,11 +588,7 @@ test.group('authenticated planning operations', (group) => {
     const afterMove = await readState(accountId, true);
     assert.equal(afterMove.phases.find((row) => row.id === id)?.projectId, 'p-brand');
   });
-  test('activity kind edits clear history after dependent attribution is removed', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
+  test('activity kind edits remove dependent attribution', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const data = await readState(accountId, true);
@@ -644,7 +630,6 @@ test.group('authenticated planning operations', (group) => {
       .send();
     changed.assertStatus(200);
     assert.equal(body(changed).revision, 3);
-    assert.deepEqual(body(changed).projection, { mode: 'refetch', history: 'clear' });
     const afterKindChange = await readState(accountId, true);
     assert.isNull(afterKindChange.allocations.find((row) => row.id === allocation.id)?.projectId);
 
@@ -690,7 +675,6 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     sameKind.assertStatus(200);
-    assert.deepEqual(body(sameKind).projection, { mode: 'refetch', history: 'clear' });
     const renamed = await session(client.patch(route(`activities/${activityId}`)), cookie)
       .json(
         input(4, {
@@ -704,7 +688,5 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     renamed.assertStatus(200);
-    assert.equal(body(renamed).projection.mode, 'patch');
-    assert.equal(body(renamed).projection.history, 'retain');
   });
 });

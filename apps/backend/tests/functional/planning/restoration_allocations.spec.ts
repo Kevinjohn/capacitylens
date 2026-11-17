@@ -25,6 +25,7 @@ import {
   createAllocations,
   stored,
   currentRevision,
+  readAllocationIds,
   markers,
   planningAudit,
   consumedAt,
@@ -100,7 +101,7 @@ test.group('session-bound allocation restoration', (suite) => {
       assert.isString(groupId);
       assert.notInclude(groups, groupId, `round ${round} must mint a new group`);
       groups.push(groupId);
-      assert.deepEqual(deleted.body().projection.changed.removed, [{ entity: 'allocations', id }]);
+      assert.notInclude(await readAllocationIds(client, cookie), id!);
       assert.notInclude(deleted.text(), note);
       assert.isUndefined(await stored(id!));
       const retained = await db.from('allocations').where('id', id!).first();
@@ -219,10 +220,10 @@ test.group('session-bound allocation restoration', (suite) => {
     const keptRow = await stored(kept!);
     const deleted = await deleteGroup(client, cookie, [first!, second!], 1);
     deleted.assertStatus(200);
-    assert.sameDeepMembers(deleted.body().projection.changed.removed, [
-      { entity: 'allocations', id: first },
-      { entity: 'allocations', id: second },
-    ]);
+    const readIds = await readAllocationIds(client, cookie);
+    assert.notInclude(readIds, first!);
+    assert.notInclude(readIds, second!);
+    assert.include(readIds, kept!);
     assert.isUndefined(await stored(first!));
     assert.isUndefined(await stored(second!));
     assert.deepEqual(await stored(kept!), keptRow);
@@ -265,7 +266,8 @@ test.group('session-bound allocation restoration', (suite) => {
     const deleted = await deleteGroup(client, cookie, listed, 1);
     deleted.assertStatus(200);
     assert.equal(deleted.body().revision, 2);
-    assert.lengthOf(deleted.body().projection.changed.removed, 501);
+    const readIds = await readAllocationIds(client, cookie);
+    assert.isFalse(listed.some((id) => readIds.includes(id)));
     assert.notInclude(deleted.text(), note);
     const groupId = deleted.body().restoration.replacementGroupId;
     assert.isString(groupId);

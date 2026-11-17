@@ -188,16 +188,11 @@ describe('store scheduler UI', () => {
       mutationId,
       revision: revision + 1,
       restoration: { consumedGroupId: null, replacementGroupId: null },
-      projection: {
-        mode: 'patch',
-        history: 'retain',
-        changed: {
-          removed: [],
-          upserts: [{ entity: 'clients', row: remoteClient }],
-        },
-      },
     };
-    getStubPlanningTransport().respondNext(remoteReceipt);
+    getStubPlanningTransport().respondNext(remoteReceipt, undefined, () => ({
+      removed: [],
+      upserts: [{ entity: 'clients', row: remoteClient }],
+    }));
     await getStubPlanningTransport().execute(
       context,
       remoteExecution,

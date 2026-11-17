@@ -18,34 +18,33 @@ function render(ui: ReactElement) {
 }
 
 function queueRepeatedEntries(): void {
-  getStubPlanningTransport().respondNext((execution) => {
-    if (execution.intent.operation !== 'timeOff.repeat') {
-      throw new Error('Expected repeated time off');
-    }
-    return {
+  getStubPlanningTransport().respondNext(
+    (execution) => ({
       status: 'committed',
       mutationId: execution.mutationId,
       revision: execution.baseRevision + 1,
       restoration: { consumedGroupId: null, replacementGroupId: null },
-      projection: {
-        mode: 'patch',
-        history: 'retain',
-        changed: {
-          upserts: execution.intent.entries.map((row) => ({
-            entity: 'timeOff' as const,
-            row: {
-              createdAt: '2026-01-15T12:00:00.000Z',
-              updatedAt: '2026-01-15T12:00:00.000Z',
-              ...row,
-              note: row.note ?? null,
-              accountId: useStore.getState().data.accounts[0]?.id ?? 'unit-fixture',
-            },
-          })),
-          removed: [],
-        },
-      },
-    };
-  });
+    }),
+    undefined,
+    (execution) => {
+      if (execution.intent.operation !== 'timeOff.repeat') {
+        throw new Error('Expected repeated time off');
+      }
+      return {
+        upserts: execution.intent.entries.map((row) => ({
+          entity: 'timeOff' as const,
+          row: {
+            createdAt: '2026-01-15T12:00:00.000Z',
+            updatedAt: '2026-01-15T12:00:00.000Z',
+            ...row,
+            note: row.note ?? null,
+            accountId: useStore.getState().data.accounts[0]?.id ?? 'unit-fixture',
+          },
+        })),
+        removed: [],
+      };
+    },
+  );
 }
 
 const resourceDraft = {

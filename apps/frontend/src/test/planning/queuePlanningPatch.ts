@@ -1,13 +1,10 @@
-import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
+import type { PlanningExecution } from '@/api/planningContracts';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import type { StubPlanningTransport } from './stubPlanningTransport';
+import type { PlanningPatch, StubPlanningTransport } from './stubPlanningTransport';
 
-export type PlanningPatch = Extract<
-  PlanningMutationSuccess['projection'],
-  { mode: 'patch' }
->['changed'];
+export type { PlanningPatch };
 
-/** Queue the exact patch a test needs without teaching the transport how planning rules work. */
+/** Queue a receipt and the rows it changes, without teaching the transport planning rules. */
 export function queuePlanningPatch(
   changed: (execution: PlanningExecution) => PlanningPatch,
   restoration: { consumedGroupId?: string | null; replacementGroupId?: string | null } = {},
@@ -18,20 +15,19 @@ export function queuePlanningPatch(
   if (consumedGroupId !== null && replacementGroupId !== null) {
     throw new Error('A planning restoration receipt cannot consume and replace a group together.');
   }
-  transport.respondNext((execution) => ({
-    status: 'committed',
-    mutationId: execution.mutationId,
-    revision: execution.baseRevision + 1,
-    restoration:
-      consumedGroupId !== null
-        ? { consumedGroupId, replacementGroupId: null }
-        : replacementGroupId !== null
-          ? { consumedGroupId: null, replacementGroupId }
-          : { consumedGroupId: null, replacementGroupId: null },
-    projection: {
-      mode: 'patch',
-      history: 'retain',
-      changed: changed(execution),
-    },
-  }));
+  transport.respondNext(
+    (execution) => ({
+      status: 'committed',
+      mutationId: execution.mutationId,
+      revision: execution.baseRevision + 1,
+      restoration:
+        consumedGroupId !== null
+          ? { consumedGroupId, replacementGroupId: null }
+          : replacementGroupId !== null
+            ? { consumedGroupId: null, replacementGroupId }
+            : { consumedGroupId: null, replacementGroupId: null },
+    }),
+    undefined,
+    changed,
+  );
 }

@@ -12,7 +12,6 @@ export interface Reply {
   code?: string;
   restorableItemCount?: number;
   restoration: { consumedGroupId: string | null; replacementGroupId: string };
-  projection: { changed: { removed: Array<{ entity: string; id: string }> } };
 }
 
 export async function send(
@@ -99,6 +98,15 @@ export async function createAllocations(client: ApiClient, cookie: string, count
 export async function stored(id: string) {
   const state = await readState(accountId, true);
   return state.allocations.find((row) => row.id === id);
+}
+
+/** Allocation ids in the planning read the browser replaces its slice from. */
+export async function readAllocationIds(client: ApiClient, cookie: string) {
+  const snapshot = await session(client.get(`/api/accounts/${accountId}/planning`), cookie).send();
+  snapshot.assertStatus(200);
+  return (snapshot.body() as { data: { allocations: Array<{ id: string }> } }).data.allocations.map(
+    (row) => row.id
+  );
 }
 
 export async function currentRevision(client: ApiClient, cookie: string, account = accountId) {

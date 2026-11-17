@@ -36,7 +36,7 @@ The suites cover the frontend, backend and shared workspace packages.
   the snapshot; a read-only snapshot cannot open a writable draft or execute history. Completion results are suppressed if the initiating context changes during the
   post-commit read. Activity updates supplying a kind conservatively clear typed history because
   kind changes can discard allocation bindings that the inverse cannot recover. Activity updates
-  omitting kind retain ordinary patch/history behavior, including project or phase changes. Settings
+  omitting kind retain ordinary history behaviour, including project or phase changes. Settings
   updates and catalogue privacy/code-name updates also clear typed history. Pure command builders
   preserve captured fields and send explicit non-delete intents: an unchanged allocation copy uses
   source-ID duplication, while a copy with edited non-date fields uses explicit creation with a fresh

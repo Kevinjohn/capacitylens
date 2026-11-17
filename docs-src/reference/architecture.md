@@ -129,12 +129,11 @@ Then, in order:
     pending restoration groups needs an exact confirmation count. An hours change skips it.
 15. `advancePlanningRevision` moves the company revision forward once.
 16. The commitment marker is inserted into `planning_mutations`.
-17. Projection: `projectionChanges` diffs `transformState` (from
-    `apps/backend/app/transformers/state_transformer.ts`) of the active before and after rows, so
-    the patch carries only what this member's role may see.
+17. `projectionChanges` diffs the projected before and after rows for the audit fields, using
+    `transformState` (from `apps/backend/app/transformers/state_transformer.ts`) of the active rows.
 18. `writeAudit` (`apps/backend/app/services/audit.ts`) records the operation with fields from the
     projected change. An audit failure rolls back rows, revision and marker together.
-19. The response is `{ status: 'committed', mutationId, revision, restoration, projection }`.
+19. The response is `{ status: 'committed', mutationId, revision, restoration, archived? }`.
     `withCurrent` commits when the callback returns.
 20. Any throw goes through the controller's `refusal` mapping (next section).
 
@@ -240,7 +239,7 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 | Planning read | `GET …/planning`; scheduler | `app/services/planning.ts` `readPlanning` | Read-only `withActor`; authority, revision and rows on one handle | `currentAuthority`: view-as principal, live membership, `planning:read` ability | `transformState` by role | `ACCOUNT_MEMBERSHIP_LOST`, `AUTHORIZATION_DENIED`, 401, Kit codes | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/transactions.spec.ts`, `tests/unit/state_transformer.spec.ts` |
 | Archive recovery read | `GET …/planning/archive`; archive screens | `app/services/planning.ts` `readArchiveRecovery` | Read-only `withActor` | `currentAuthority` plus `canWrite` (false under view-as) | `archiveRecovery` identity-only rows | `AUTHORIZATION_DENIED`, `MASQUERADE_READ_ONLY`, `ACCOUNT_MEMBERSHIP_LOST` | `tests/functional/planning/archive_recovery.spec.ts` |
 | Allocation intents | `POST`/`PATCH …/allocations…`; scheduler | `app/services/planning/execute.ts`, `app/services/planning/writer.ts` | `withActor` in `mutatePlanning` | `currentAuthority`, `planning:write` ability, capability re-check, privacy gate | `projectionChanges` | Planning failure table | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/availability.spec.ts`, `tests/functional/planning/tenant_bulk.spec.ts` |
-| Catalogue intents | `…/clients`, `/projects`, `/activities`, `/phases`, `/disciplines`; catalogue editors | `app/services/planning/execute.ts`, `app/services/planning/entity_policy.ts` | `withActor` in `mutatePlanning` | As allocation, plus owner-only privacy fields and the built-in client | `projectionChanges`; refetch on privacy, code name or kind change | Failure table, restoration confirmation, codeless 409 | `tests/functional/planning/operations.spec.ts`, `tests/functional/planning/independent_operations.spec.ts` |
+| Catalogue intents | `…/clients`, `/projects`, `/activities`, `/phases`, `/disciplines`; catalogue editors | `app/services/planning/execute.ts`, `app/services/planning/entity_policy.ts` | `withActor` in `mutatePlanning` | As allocation, plus owner-only privacy fields and the built-in client | `projectionChanges` | Failure table, restoration confirmation, codeless 409 | `tests/functional/planning/operations.spec.ts`, `tests/functional/planning/independent_operations.spec.ts` |
 | Resource intents | `…/resources`; people screens | `app/services/planning/execute.ts` | `withActor` in `mutatePlanning` | As allocation | `projectionChanges` | `VALIDATION_ERROR`, `AUTHORIZATION_DENIED`, `NO_CHANGE` | `tests/functional/planning/operations.spec.ts`, `tests/unit/planning_typed_operations.spec.ts` |
 | Time-off intents | `…/time-off`; time-off screen | `app/services/planning/execute.ts`, `app/services/planning/restoration.ts` | `withActor` in `mutatePlanning` | As allocation, plus note visibility | `projectionChanges`; notes nulled by role | `VALIDATION_ERROR`, `AUTHORIZATION_DENIED`, `NO_CHANGE` | `tests/functional/planning/restoration_catalogue.spec.ts`, `tests/functional/planning_operations.spec.ts` |
 | Closure intents | `…/closures`; time-off screen | `app/services/planning/execute.ts` | `withActor` in `mutatePlanning` | As allocation | `projectionChanges` | `VALIDATION_ERROR`, `AUTHORIZATION_DENIED`, `NO_CHANGE` | `tests/functional/planning_operations.spec.ts` |
