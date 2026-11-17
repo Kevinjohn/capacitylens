@@ -9,7 +9,7 @@ import {
   lifecycleStatus,
   unarchive,
 } from '@capacitylens/shared/domain/lifecycle';
-import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
+import type { AppData, AppDataKey, Client } from '@capacitylens/shared/types/entities';
 import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { encodeRow } from '#services/state_repository';
@@ -78,7 +78,7 @@ async function transitionLifecycle(
   action: 'archive' | 'unarchive'
 ) {
   const current = existingRow(data, table, id);
-  if (table === 'clients' && current.builtin === true) {
+  if (table === 'clients' && (current as Client).builtin === true) {
     throw new PlanningOperationError(
       409,
       null,
@@ -89,12 +89,12 @@ async function transitionLifecycle(
   let next: Record<string, unknown>;
   if (action === 'archive') {
     next = {
-      ...(archive(current as never, now) as unknown as Record<string, unknown>),
+      ...archive(current, now),
       updatedAt: now,
     };
   } else {
-    if (!canUnarchive(current as never)) {
-      const noChange = lifecycleStatus(current as never) === 'active';
+    if (!canUnarchive(current)) {
+      const noChange = lifecycleStatus(current) === 'active';
       throw new PlanningOperationError(
         400,
         noChange ? 'NO_CHANGE' : 'VALIDATION_ERROR',
@@ -104,7 +104,7 @@ async function transitionLifecycle(
       );
     }
     next = {
-      ...(unarchive(current as never) as unknown as Record<string, unknown>),
+      ...unarchive(current),
       updatedAt: now,
     };
   }

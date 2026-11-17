@@ -1,6 +1,7 @@
 import {
   RESOURCE_KINDS,
   externalCapacityDefaults,
+  type Account,
   type AppData,
   type ScopedEntityKey,
 } from '@capacitylens/shared/types/entities';
@@ -227,7 +228,7 @@ function assertManagedFields(
 export function assertFrozenAccountFields(
   requested: Record<string, unknown>,
   candidate: Record<string, unknown>,
-  existing: Record<string, unknown>
+  existing: Partial<Pick<Account, (typeof IMMUTABLE_ACCOUNT_FIELDS)[number]>>
 ) {
   for (const field of IMMUTABLE_ACCOUNT_FIELDS) {
     if (

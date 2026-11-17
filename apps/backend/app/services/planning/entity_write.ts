@@ -18,7 +18,7 @@ import { assertAllocationStartsOnWorkingDay } from '#services/planning/entity_va
 import { PlanningOperationError } from '#services/planning/errors';
 import { isRetainedTable } from './retained_rows.js';
 import { reclaimRetainedId, type RestorationIdentity } from './restoration.js';
-import { writeRow, type Row } from './writer.js';
+import { rowsOf, writeRow } from './writer.js';
 
 interface WriteEntityOptions {
   trx: TransactionClientContract;
@@ -34,7 +34,7 @@ interface WriteEntityOptions {
 }
 
 function lookupFor(data: AppData): ValidationDataLookup {
-  const rows = (table: AppDataKey) => data[table] as unknown as Row[];
+  const rows = (table: AppDataKey) => rowsOf(data, table);
   return {
     row: (table, id) => rows(table).find((row) => row.id === id),
     allocationsForResource: (accountId, resourceId) =>
@@ -79,7 +79,7 @@ export async function writeEntity({
   identity,
   permissiveRepeatStart,
 }: WriteEntityOptions) {
-  const existing = (data[table] as unknown as Row[]).find((row) => row.id === id);
+  const existing = rowsOf(data, table).find((row) => row.id === id);
   assertMayWriteRestrictedFields(table, fields, capabilities, mode);
   if (mode === 'create' && existing) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
