@@ -139,7 +139,12 @@ const cases: Array<{
     path: `time-off/${id}`,
   },
   {
-    intent: { operation: 'timeOff.repeat', entries: [timeOff] },
+    intent: {
+      operation: 'timeOff.repeat',
+      timeOff,
+      repeat: { pattern: { kind: 'monthly-date' }, until: '2026-12-02' },
+      occurrenceIds: ['occurrence-2'],
+    },
     method: 'POST',
     path: 'time-off/repeat',
   },

@@ -15,7 +15,8 @@ As an Editor, I want to create linked repeating allocations so that a recurring 
 | Repeat       | Select     | Create only; defaults to Doesn’t repeat; Weekly, Every 2 weeks, Every 3 weeks, Every 4 weeks or Monthly                                                    |
 | Repeat until | Date input | Required when repeating; suggested as the end of the second calendar month after Start; not before today or Start; at most six calendar months after Start |
 
-- The form previews **Creates {count} linked allocations through {repeatUntil}. Last start: {lastStart}.** and warns, without blocking, when occurrences may exceed capacity, overlap time off or start on a non-working day.
+- The form previews **Creates {count} linked allocations through {repeatUntil}. Last start: {lastStart}.**
+- After Save, a warning notice reports how many occurrences exceed capacity, overlap time off or start on a non-working day. It never blocks the save.
 - Save creates the previewed occurrences as one undoable action; each occurrence remains separately editable.
 
 ## User flow

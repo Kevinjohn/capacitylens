@@ -3,7 +3,7 @@ import type { CapacityAdvisory } from '@capacitylens/shared/lib/capacity';
 import { plural } from '@/lib/pluralCopy';
 
 /** The surface an advisory is written for. Over/time-off counts exist on every surface; only the
- * wording differs (a toast appends to a committed-move sentence, the form states it standalone).
+ * wording differs (a toast appends to a committed-move sentence, the saved-allocation notice states it standalone).
  * The `repeat` variant counts whole allocations and can add the non-effective-start count. */
 export type CapacityAdvisoryVariant = 'toast' | 'form' | 'repeat';
 

@@ -148,7 +148,12 @@ export function createPlanningSessionSlice(
       if (commandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
       }
-      const receipt = await controller.execute(controller.begin(), command.intent, command.inverse);
+      const receipt = await controller.execute(
+        controller.begin(),
+        command.intent,
+        command.inverse,
+        command.expectedUpdatedAt,
+      );
       if (!receipt) throw new PlanningSaveCancelledError();
       return receipt;
     };

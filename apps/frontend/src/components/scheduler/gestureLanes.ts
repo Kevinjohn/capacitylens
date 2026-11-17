@@ -1,6 +1,3 @@
-import type { AppData, ID } from '@capacitylens/shared/types/entities';
-import { resolveSharedActiveData, resolveSharedScopedData } from '@/store/useScopedData';
-
 /** Measured lane bounds and resource identity used during pointer hit testing. */
 export interface LaneSnapshot {
   id: string;
@@ -37,10 +34,4 @@ export function resolveLaneAt(
     }
   }
   return undefined;
-}
-
-// Reuse the shared scoped active projection because every pointer frame reads the same data version already used by rendering.
-/** Resolves the scoped scheduling data used for a gesture preview. */
-export function buildActiveGestureData(data: AppData, activeAccountId: ID | null): AppData {
-  return resolveSharedActiveData(resolveSharedScopedData(data, activeAccountId));
 }

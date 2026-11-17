@@ -19,8 +19,8 @@ import {
   resolveGesture,
   resolveVolumePreservingHours,
 } from './allocationDrag';
-import { buildCapacityAnnouncement, buildCapacityGestureAdvisory } from './gestureAnnouncements';
-import type { GestureCapacitySource } from './gestureAnnouncements';
+import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
+import { buildCapacityAnnouncement } from './gestureAnnouncements';
 import { buildGesturePreviewDates } from './gestureGeometry';
 import {
   hasEffectiveDaysFor,
@@ -30,7 +30,7 @@ import {
   resolveMemoisedWorkingDays,
 } from './gestureWorkingWeeks';
 import type { GestureCalendar } from './gestureWorkingWeeks';
-import { buildActiveGestureData, readLaneSnapshots, resolveLaneAt } from './gestureLanes';
+import { readLaneSnapshots, resolveLaneAt } from './gestureLanes';
 import type { LaneSnapshot } from './gestureLanes';
 import type { BarLayout } from './schedulerModel';
 import { useAllocationFocus } from './useAllocationFocus';
@@ -69,14 +69,6 @@ function readGestureCalendar(): GestureCalendar {
   return {
     resources: state.data.resources,
     accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
-  };
-}
-
-function readGestureCapacitySource(): GestureCapacitySource {
-  const { data, activeAccountId } = useStore.getState();
-  return {
-    data: buildActiveGestureData(data, activeAccountId),
-    accountWorkingDays: listAccountWorkingDays(data, activeAccountId),
   };
 }
 
@@ -231,18 +223,12 @@ function reconcileCommitHours({ options, targetResourceId, dates, hours }: Recon
 
 interface SavePointerCommitInput {
   options: ControllerOptions;
-  effectiveResourceId: ID;
   targetResourceId: ID | null;
   result: ReturnType<typeof resolveCommitDates>;
 }
 
-async function savePointerCommit({
-  options,
-  effectiveResourceId,
-  targetResourceId,
-  result,
-}: SavePointerCommitInput) {
-  const { bar, isBlocks } = options;
+async function savePointerCommit({ options, targetResourceId, result }: SavePointerCommitInput) {
+  const { bar } = options;
   const { setNotice, updateAllocation } = useStore.getState();
   const reconciledHours = reconcileCommitHours({
     options,
@@ -250,8 +236,9 @@ async function savePointerCommit({
     dates: result.dates,
     hours: result.hours,
   });
+  let updated: Awaited<ReturnType<typeof updateAllocation>>;
   try {
-    const updated = await updateAllocation(bar.allocation.id, {
+    updated = await updateAllocation(bar.allocation.id, {
       ...result.dates,
       ...(reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null),
       ...(targetResourceId ? { resourceId: targetResourceId } : {}),
@@ -267,15 +254,8 @@ async function savePointerCommit({
     );
     return;
   }
-  // Advisory work follows the mutation so a programmer error cannot be mislabeled as rejection.
-  const advisory = buildCapacityGestureAdvisory({
-    source: readGestureCapacitySource(),
-    bar,
-    effectiveResourceId,
-    isBlocks,
-    dates: result.dates,
-    reconciledHours,
-  });
+  // The server measured the saved row; its advisory follows the reply.
+  const advisory = updated.advisory ? formatCapacityAdvisory(updated.advisory, 'toast') : '';
   const dayCapacity = result.clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : '';
   setNotice(
     `${targetResourceId ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${dayCapacity}${m.scheduler_toast_undo_hint({ shortcut: buildUndoShortcut() })}`,
@@ -322,7 +302,7 @@ function commitPointerGesture(
     useStore.getState().setNotice(m.scheduler_toast_non_working_drop(), 'error');
     return;
   }
-  void savePointerCommit({ options, effectiveResourceId, targetResourceId, result });
+  void savePointerCommit({ options, targetResourceId, result });
 }
 
 function resolveKeyboardGesture(options: ControllerOptions, mode: DragMode, deltaDays: number) {

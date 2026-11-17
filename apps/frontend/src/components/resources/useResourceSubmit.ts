@@ -150,7 +150,7 @@ async function saveResource(input: {
 }) {
   const { resource, patch, add, update } = input;
   if (resource) {
-    await update(resource.id, patch);
+    await update(resource.id, patch, resource.updatedAt);
     return undefined;
   }
   return await add({

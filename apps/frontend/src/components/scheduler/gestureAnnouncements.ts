@@ -1,28 +1,10 @@
-import { blockHoursPerDay } from '@capacitylens/shared/lib/schedulingDays';
-import type { DateRange } from '@/lib/gestureMath';
-import type { BarLayout } from './schedulerModel';
 import { m } from '@/i18n';
-import {
-  buildCapacityAdvisory,
-  applyCapacityMode,
-  listTimeOffApplyingTo,
-} from '@capacitylens/shared/lib/capacity';
 import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
-import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { FULL_DAY_HOURS, isCapacityTracked } from '@capacitylens/shared/types/entities';
-import type { AppData, ID, Resource, Weekday } from '@capacitylens/shared/types/entities';
+import { isCapacityTracked } from '@capacitylens/shared/types/entities';
+import type { ID, Resource } from '@capacitylens/shared/types/entities';
 import { resolveResourceDisplayName } from '@/lib/metadata';
-import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
 import { readServerDayCapacity } from './schedulerRowCapacity';
-
-/** The active company's planning rows and working week a gesture measures capacity against. */
-export interface GestureCapacitySource {
-  /** Active, scoped rows, as `buildActiveGestureData` returns them. */
-  data: AppData;
-  accountWorkingDays: Weekday[];
-}
 
 /** The server's capacity figures and the visible span a keyboard announcement counts over. */
 export interface CapacityAnnouncementInput {
@@ -36,15 +18,6 @@ export interface CapacityAnnouncementInput {
 export interface VisibleOverCapacity {
   name: string;
   overDays: number;
-}
-
-interface BuildCapacityGestureAdvisoryInput {
-  source: GestureCapacitySource;
-  bar: BarLayout;
-  effectiveResourceId: ID;
-  isBlocks: boolean;
-  dates: DateRange;
-  reconciledHours: number;
 }
 
 /**
@@ -79,48 +52,4 @@ export function formatCapacityAnnouncement(overCapacity: VisibleOverCapacity | u
 /** Builds the screen-reader status from the server's figures for the visible range. */
 export function buildCapacityAnnouncement(input: CapacityAnnouncementInput): string {
   return formatCapacityAnnouncement(buildVisibleOverCapacity(input));
-}
-
-/** Builds the capacity warning associated with a proposed bar gesture, or `''` when there is none. */
-export function buildCapacityGestureAdvisory({
-  source,
-  bar,
-  effectiveResourceId,
-  isBlocks,
-  dates,
-  reconciledHours,
-}: BuildCapacityGestureAdvisoryInput) {
-  const { data } = source;
-  const resource = data.resources.find((candidate) => candidate.id === effectiveResourceId);
-  let advisory = '';
-  if (resource && isCapacityTracked(resource)) {
-    const others = applyCapacityMode({
-      allocations: data.allocations.filter(
-        (allocation) =>
-          allocation.resourceId === effectiveResourceId && allocation.id !== bar.allocation.id,
-      ),
-      blocksMode: isBlocks,
-    });
-    const timeOff = listTimeOffApplyingTo(
-      effectiveResourceId,
-      listRenderableDateRanges(data.timeOff),
-    );
-    const result = buildCapacityAdvisory({
-      resource: resource,
-      proposal: {
-        resourceId: effectiveResourceId,
-        startDate: dates.startDate,
-        endDate: dates.endDate,
-        // Use the shared blocks-load projection so gesture warnings match the grid even when stored allocations carry hourly values.
-        hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,
-        ignoreWorkingDays: bar.allocation.ignoreWorkingDays,
-      },
-      otherAllocations: others,
-      timeOff: timeOff,
-      effectiveWeek: effectiveWorkingWeek(resource, source.accountWorkingDays),
-      closures: listRenderableDateRanges(data.closures),
-    });
-    advisory = formatCapacityAdvisory(result, 'toast');
-  }
-  return advisory;
 }

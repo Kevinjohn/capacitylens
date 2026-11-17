@@ -9,6 +9,8 @@ import type { useStore } from '@/store/useStore';
 import { resolveEndDate, validateAllocationDraft } from './allocationDraft';
 import { resolveEffectiveWeekPlacementBlockReason } from './creationAvailability';
 import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
+import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
+import type { AllocationSaveAdvisory } from '@/store/StoreEntityActions';
 
 import type { FieldError } from '@/hooks/useFieldError';
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
@@ -21,6 +23,7 @@ type CommandInput = Omit<AllocationModalSnapshot, 'editId' | 'repeatUntilMinimum
     | 'updateAllocation'
     | 'deleteAllocation'
     | 'deleteAllocationSeriesFrom'
+    | 'setNotice'
   > & {
     fail: FieldError['fail'];
     canEdit: boolean;
@@ -166,26 +169,48 @@ function rejectsNewPlacement({ command, draft, operation }: RejectNewPlacementIn
   return blocked !== null;
 }
 
-async function saveDraft(input: CommandInput, draft: ValidatedDraft): Promise<boolean> {
+/** Saves the draft; resolves with the reply's capacity advisory, or null when nothing was created. */
+async function saveDraft(
+  input: CommandInput,
+  draft: ValidatedDraft,
+): Promise<AllocationSaveAdvisory | null> {
   if (input.editing) {
     const { hoursPerDay, ...fields } = draft;
-    await input.updateAllocation(input.editing.id, {
+    const saved = await input.updateAllocation(input.editing.id, {
       ...fields,
       projectId: draft.projectId,
       ...(!input.isBlocks || input.isExternal ? { hoursPerDay } : {}),
     });
-    return true;
+    return saved || {};
   }
   if (input.repeat === 'none') {
     const result = await input.addAllocation(draft);
-    return result.kind === 'created';
+    return result.kind === 'created' ? result : null;
   }
   const repeat = { pattern: resolveRepeatPattern(input.repeat), until: input.repeatUntil };
   // The count tells the store how many ids to mint; the server places each occurrence.
   const { startDates } = generateRepeatingStartDates(draft.startDate, repeat.until, repeat.pattern);
   // One typed group write creates the repeated set; the server assigns its series id.
   const result = await input.addRepeatedAllocation(draft, repeat, startDates.length);
-  return result.kind === 'created';
+  return result.kind === 'created' ? result : null;
+}
+
+/** Shows the server's capacity advisory for a saved allocation once the dialog has closed. */
+function showSaveAdvisory(input: CommandInput, saved: AllocationSaveAdvisory): void {
+  const { advisory, repeatAdvisory } = saved;
+  const message = repeatAdvisory
+    ? formatCapacityAdvisory(
+        {
+          overDays: repeatAdvisory.overCapacityAllocations,
+          timeOffDays: repeatAdvisory.timeOffAllocations,
+          nonEffectiveStartAllocations: repeatAdvisory.nonEffectiveStartAllocations,
+        },
+        'repeat',
+      )
+    : advisory
+      ? formatCapacityAdvisory(advisory, 'form')
+      : '';
+  if (message) input.setNotice(message, 'warning');
 }
 
 function reportSaveError(input: CommandInput, error: unknown): void {
@@ -211,7 +236,10 @@ export function createAllocationCommands(input: CommandInput) {
     const draft = validateDraft();
     if (!draft || rejectsNewPlacement({ command: input, draft, operation: 'save' })) return;
     try {
-      if (await saveDraft(input, draft)) input.onClose();
+      const saved = await saveDraft(input, draft);
+      if (!saved) return;
+      input.onClose();
+      showSaveAdvisory(input, saved);
     } catch (e) {
       // Route save rejection through the dialog error policy so invalid allocations remain editable.
       reportSaveError(input, e);
@@ -223,7 +251,9 @@ export function createAllocationCommands(input: CommandInput) {
     if (!draft || rejectsNewPlacement({ command: input, draft, operation: 'duplicate' })) return;
     try {
       const result = await input.duplicateAllocation(input.editing.id, draft);
-      if (result.kind === 'created') input.onClose();
+      if (result.kind !== 'created') return;
+      input.onClose();
+      showSaveAdvisory(input, result);
     } catch (e) {
       // Surface a failed duplication at form level without closing the dialog.
       input.fail(

@@ -19,7 +19,6 @@ import {
 } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
-import { buildAllocationAdvisory } from './buildAllocationAdvisory';
 import { buildAllocationModalSeed } from './buildAllocationModalSeed';
 import type { AllocationModalProps } from './allocationModalTypes';
 import { buildRepeatProjection } from './buildRepeatProjection';
@@ -36,6 +35,7 @@ function useAllocationStoreActions() {
     deleteAllocation: useStore((state) => state.deleteAllocation),
     deleteAllocationSeriesFrom: useStore((state) => state.deleteAllocationSeriesFrom),
     addActivity: useStore((state) => state.addActivity),
+    setNotice: useStore((state) => state.setNotice),
   };
 }
 
@@ -178,15 +178,12 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>
   const repeatProjection = useRepeatProjection(
     buildRepeatProjectionInput(context, target, schedule),
   );
-  const advisory = useAllocationAdvisory(
-    buildAdvisoryInput({ context, target, schedule, repeatProjection }),
-  );
   // A typed span can produce an invalid date; guard formatWeekdayScheduleDate() to avoid crashing the modal.
   const parsedEndDate = parseDate(schedule.effEndDate);
   const endDateHint = Number.isNaN(parsedEndDate.getTime())
     ? null
     : formatWeekdayScheduleDate(schedule.effEndDate);
-  return { target, schedule, repeatProjection, advisory, endDateHint };
+  return { target, schedule, repeatProjection, endDateHint };
 }
 
 /** Coordinates allocation dialog fields, validation, and submission. */
@@ -199,7 +196,7 @@ function buildModalState(
   context: ReturnType<typeof useAllocationModalContext>,
   state: ReturnType<typeof useTargetSchedule>,
 ) {
-  const { target, schedule, repeatProjection, advisory, endDateHint } = state;
+  const { target, schedule, repeatProjection, endDateHint } = state;
   const { submit, onDuplicate, onDelete } = createAllocationCommands({
     ...target.fields,
     ...target,
@@ -224,6 +221,7 @@ function buildModalState(
     updateAllocation: context.updateAllocation,
     deleteAllocation: context.deleteAllocation,
     deleteAllocationSeriesFrom: context.deleteAllocationSeriesFrom,
+    setNotice: context.setNotice,
   });
 
   const createName = resolveCreateName({
@@ -247,7 +245,6 @@ function buildModalState(
       create: context.create,
       repeatProjection,
       repeatLastStart,
-      advisory,
       error: context.fieldError.error,
       errorField: context.fieldError.errorField,
       errorId: context.fieldError.errorId,
@@ -300,42 +297,6 @@ function buildRepeatProjectionInput(
   };
 }
 
-interface BuildAdvisoryInput {
-  context: ReturnType<typeof useAllocationModalContext>;
-  target: ReturnType<typeof useAllocationTargetState>;
-  schedule: ReturnType<typeof useAllocationScheduleState>;
-  repeatProjection: ReturnType<typeof useRepeatProjection>;
-}
-
-function buildAdvisoryInput({
-  context,
-  target,
-  schedule,
-  repeatProjection,
-}: BuildAdvisoryInput): Parameters<typeof buildAllocationAdvisory>[0] {
-  return {
-    attributedProjectId: target.attributedProjectId,
-    create: context.create,
-    editId: context.editId,
-    effEndDate: schedule.effEndDate,
-    effHoursPerDay: schedule.fields.effHoursPerDay,
-    ignoreWorkingDays: schedule.fields.ignoreWorkingDays,
-    isBlocks: context.isBlocks,
-    isExternal: schedule.fields.isExternal,
-    repeat: schedule.fields.repeat,
-    repeatProjection,
-    resourceId: target.fields.resourceId,
-    selectedResource: target.selectedResource,
-    selectedEffectiveWeek: schedule.selectedEffectiveWeek,
-    startDate: schedule.fields.startDate,
-    data: {
-      allocations: context.data.allocations,
-      closures: context.data.closures,
-      timeOff: context.data.timeOff,
-    },
-  };
-}
-
 function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0]) {
   // prettier-ignore
   const { activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
@@ -378,37 +339,6 @@ function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0])
       ignoreWorkingDays, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
       repeatUntilMinimum, resourceId, selectedActivity, selectedEffectiveProjectId, selectedResource,
       selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver],
-  );
-}
-
-function useAllocationAdvisory(input: Parameters<typeof buildAllocationAdvisory>[0]) {
-  // prettier-ignore
-  const { attributedProjectId, create, editId, effEndDate, effHoursPerDay, ignoreWorkingDays, isBlocks,
-    isExternal, repeat, repeatProjection, resourceId, selectedResource, selectedEffectiveWeek, startDate, data } = input;
-  const { allocations, closures, timeOff } = data;
-  return useMemo(
-    () =>
-      buildAllocationAdvisory({
-        attributedProjectId,
-        create,
-        editId,
-        effEndDate,
-        effHoursPerDay,
-        ignoreWorkingDays,
-        isBlocks,
-        isExternal,
-        repeat,
-        repeatProjection,
-        resourceId,
-        selectedResource,
-        selectedEffectiveWeek,
-        startDate,
-        data: { allocations, closures, timeOff },
-      }),
-    // prettier-ignore
-    [attributedProjectId, create, editId, effEndDate, effHoursPerDay, ignoreWorkingDays, isBlocks,
-      isExternal, repeat, repeatProjection, resourceId, selectedResource, selectedEffectiveWeek,
-      startDate, allocations, closures, timeOff],
   );
 }
 

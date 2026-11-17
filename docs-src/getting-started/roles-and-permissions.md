@@ -89,8 +89,8 @@ _name_** stays visible throughout.
 You can read the company using that member's role and redactions, but you cannot change data. The
 server refuses every write and every company, membership, or authentication route while this view is
 active, except **End now** and sign out. Each company request still checks both your access and the
-member’s access. An Admin who views the
-company as the Owner sees what the Owner sees, including real names.
+member’s access. You can view only members whose role ranks at or below yours, so an Admin cannot
+view as the Owner. If the member is promoted above you during the view, it ends for that company.
 
 The banner shows the deadline: a view lasts 15 minutes. Select **End now** to return to your own
 view sooner. The view applies to all your signed-in sessions; another tab updates when you return

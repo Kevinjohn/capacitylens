@@ -83,11 +83,12 @@ function validInput(overrides: Partial<CommandInput> = {}): CommandInput {
     duplicateAllocation: vi.fn<CommandInput['duplicateAllocation']>(() =>
       Promise.resolve(created(makeAllocation())),
     ),
-    updateAllocation: vi.fn<CommandInput['updateAllocation']>(() => Promise.resolve(true)),
+    updateAllocation: vi.fn<CommandInput['updateAllocation']>(() => Promise.resolve({})),
     deleteAllocation: vi.fn<CommandInput['deleteAllocation']>(() => Promise.resolve()),
     deleteAllocationSeriesFrom: vi.fn<CommandInput['deleteAllocationSeriesFrom']>(() =>
       Promise.resolve(),
     ),
+    setNotice: vi.fn(),
     fail: vi.fn(),
     canEdit: true,
     onClose: vi.fn(),
@@ -587,5 +588,81 @@ describe('createAllocationCommands delete', () => {
     createAllocationCommands(opaque).onDelete();
     await settle();
     expectFailed(opaque, null, m.form_allocation_err_delete_failed());
+  });
+});
+
+describe('createAllocationCommands save advisory', () => {
+  const overTwo = { overDays: 2, timeOffDays: 1 };
+  const overTwoNotice =
+    'Saved. This allocation is over capacity on 2 days and on time off for 1 day.';
+
+  it('shows the reply advisory for a create, an edit and a duplicate after closing', async () => {
+    const create = validInput({
+      addAllocation: vi.fn<CommandInput['addAllocation']>(() =>
+        Promise.resolve({ ...created(makeAllocation()), advisory: overTwo }),
+      ),
+    });
+    await submit(create);
+    expect(create.onClose).toHaveBeenCalledOnce();
+    expect(create.setNotice).toHaveBeenCalledExactlyOnceWith(overTwoNotice, 'warning');
+
+    const edit = editInput({
+      updateAllocation: vi.fn<CommandInput['updateAllocation']>(() =>
+        Promise.resolve({ advisory: overTwo }),
+      ),
+    });
+    await submit(edit);
+    expect(edit.setNotice).toHaveBeenCalledExactlyOnceWith(overTwoNotice, 'warning');
+
+    const duplicate = editInput({
+      duplicateAllocation: vi.fn<CommandInput['duplicateAllocation']>(() =>
+        Promise.resolve({ ...created(makeAllocation()), advisory: overTwo }),
+      ),
+    });
+    createAllocationCommands(duplicate).onDuplicate();
+    await settle();
+    expect(duplicate.onClose).toHaveBeenCalledOnce();
+    expect(duplicate.setNotice).toHaveBeenCalledExactlyOnceWith(overTwoNotice, 'warning');
+  });
+
+  it('stays silent when the reply has nothing to report', async () => {
+    const clear = validInput({
+      addAllocation: vi.fn<CommandInput['addAllocation']>(() =>
+        Promise.resolve({
+          ...created(makeAllocation()),
+          advisory: { overDays: 0, timeOffDays: 0 },
+        }),
+      ),
+    });
+    await submit(clear);
+    expect(clear.onClose).toHaveBeenCalledOnce();
+    expect(clear.setNotice).not.toHaveBeenCalled();
+
+    const edit = editInput();
+    await submit(edit);
+    expect(edit.onClose).toHaveBeenCalledOnce();
+    expect(edit.setNotice).not.toHaveBeenCalled();
+  });
+
+  it('counts a repeat by allocation from its repeat advisory', async () => {
+    const input = validInput({
+      repeat: 'weekly',
+      repeatUntil: '2027-01-18',
+      addRepeatedAllocation: vi.fn<CommandInput['addRepeatedAllocation']>(() =>
+        Promise.resolve({
+          ...created([makeAllocation()]),
+          repeatAdvisory: {
+            overCapacityAllocations: 1,
+            timeOffAllocations: 2,
+            nonEffectiveStartAllocations: 0,
+          },
+        }),
+      ),
+    });
+    await submit(input);
+    expect(input.setNotice).toHaveBeenCalledExactlyOnceWith(
+      'Saved. For this repeat, 1 allocation exceeds capacity and 2 allocations overlap time off.',
+      'warning',
+    );
   });
 });

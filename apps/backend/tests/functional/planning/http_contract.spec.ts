@@ -234,6 +234,7 @@ test.group('authenticated typed planning transactions', (group) => {
       mutationId,
       revision: 1,
       restoration: { consumedGroupId: null, replacementGroupId: null },
+      advisory: { overDays: 0, timeOffDays: 0 },
     });
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);

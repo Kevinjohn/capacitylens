@@ -1,6 +1,6 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { m } from '@/i18n';
-import { can } from '@capacitylens/shared/domain/access';
+import { canViewAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamMember } from '@/account/teamAccessClient';
 import { resolveRoleLabel } from '@/lib/accessCopy';
@@ -21,7 +21,7 @@ function buildMemberAffordances(
 ): { mayMasquerade: boolean; mayTouch: boolean; hasMenu: boolean } {
   const active = member.status === 'active';
   return {
-    mayMasquerade: active && !member.isSelf && !!myRole && can(myRole, 'viewAs:use'),
+    mayMasquerade: active && !member.isSelf && !!myRole && canViewAs(myRole, member.role),
     mayTouch: active && member.manage,
     hasMenu: member.manage,
   };

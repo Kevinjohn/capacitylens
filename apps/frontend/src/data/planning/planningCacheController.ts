@@ -380,12 +380,14 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     inverse: PlanningIntent | null,
     kind: 'new' | 'undo' | 'redo',
     entry: PlanningHistoryEntry | null,
+    expectedUpdatedAt?: string,
   ): NonNullable<typeof attempt> {
     const pending: PlanningPendingMutation = {
       execution: cloneImmutable({
         mutationId: createMutationId(),
         baseRevision: draft.baseRevision,
         intent,
+        ...(expectedUpdatedAt === undefined ? {} : { expectedUpdatedAt }),
       }),
       inverse: inverse ? cloneImmutable(inverse) : null,
       historyEntry: entry ? cloneImmutable(entry) : null,
@@ -576,10 +578,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     inverse: PlanningIntent | null,
     kind: 'new' | 'undo' | 'redo',
     entry: PlanningHistoryEntry | null,
+    expectedUpdatedAt?: string,
   ): Promise<PlanningMutationSuccess | null> {
     assertCanPerform(draft);
     const before = store.getState().planning;
-    const owner = startAttempt(draft, intent, inverse, kind, entry);
+    const owner = startAttempt(draft, intent, inverse, kind, entry, expectedUpdatedAt);
     const controller = requestController();
     try {
       const receipt = await send(owner, before, controller);
@@ -592,11 +595,13 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }
   }
 
-  /** Returns no receipt after context invalidation or a declined cleanup confirmation. */
+  /** Returns no receipt after context invalidation or a declined cleanup confirmation. An edit
+   * form passes its row's opening `updatedAt`; Undo and Redo never send one. */
   async function execute(
     draft: PlanningDraft,
     intent: PlanningIntent,
     inverse: PlanningIntent | null,
+    expectedUpdatedAt?: string,
   ): Promise<PlanningMutationSuccess | null> {
     const forward = cloneImmutable(intent);
     const undoIntent = inverse ? cloneImmutable(inverse) : null;
@@ -606,6 +611,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       undoIntent,
       'new',
       undoIntent ? { forward, inverse: undoIntent } : null,
+      expectedUpdatedAt,
     );
   }
 

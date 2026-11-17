@@ -20,6 +20,7 @@ import {
   semanticState,
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
+import { buildSaveAdvisory } from '#services/planning/save_advisory';
 import {
   countRestorableItems,
   discardRestorationGroups,
@@ -121,6 +122,7 @@ export async function mutatePlanning({
       sessionId: actor.sessionId,
       mutationId: input.mutationId,
     },
+    expectedUpdatedAt: input.expectedUpdatedAt,
   });
   // archiveImpact measures the active projection itself. Passing the full state keeps an active row
   // whose parent is already archived measurable: it hides nothing more, so every count is zero.
@@ -183,5 +185,6 @@ export async function mutatePlanning({
     revision,
     restoration,
     ...(archived ? { archived } : {}),
+    ...buildSaveAdvisory(input.intent, activeOnly(after), accountId),
   };
 }

@@ -107,32 +107,27 @@ test.group('typed planning writers', (group) => {
     const initialState = await readState('a-studio', true);
     const resourceId = initialState.resources[0]!.id;
     const firstId = randomUUID();
-    const secondId = randomUUID();
+    // The later occurrence reuses an existing entry's id, so its write fails after the first.
+    const takenId = initialState.timeOff[0]!.id;
     const intent: PlanningIntent = {
       operation: 'timeOff.repeat',
-      entries: [
-        {
-          id: firstId,
-          resourceId,
-          startDate: '2026-10-20',
-          endDate: '2026-10-20',
-          type: 'holiday',
-        },
-        {
-          id: secondId,
-          resourceId: randomUUID(),
-          startDate: '2026-10-27',
-          endDate: '2026-10-27',
-          type: 'holiday',
-        },
-      ],
+      timeOff: {
+        id: firstId,
+        resourceId,
+        startDate: '2026-10-20',
+        endDate: '2026-10-20',
+        type: 'holiday',
+      },
+      repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-10-27' },
+      occurrenceIds: [takenId],
     };
-    await assert.rejects(() =>
-      db.transaction((trx) => executePlanningIntent(trx, 'a-studio', intent, owner))
+    await assert.rejects(
+      () => db.transaction((trx) => executePlanningIntent(trx, 'a-studio', intent, owner)),
+      'The record already exists.'
     );
     const state = await readState('a-studio', true);
-    const rows = state.timeOff;
-    assert.isFalse(rows.some((row) => row.id === firstId || row.id === secondId));
+    assert.isFalse(state.timeOff.some((row) => row.id === firstId));
+    assert.deepEqual(state.timeOff, initialState.timeOff);
   });
 
   test('permits Editor settings but reserves capacity access for Admin', async ({ assert }) => {
