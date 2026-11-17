@@ -254,6 +254,23 @@ export default defineConfig([
     rules: parentImportRules(allowed),
   })),
 
+  // The e2e harness modules start and stop servers, so an unhandled promise there leaves a run
+  // hanging or failing without its cause.
+  {
+    files: ['tooling/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: ['./tsconfig.e2e.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+    },
+  },
+
   // Colocated shared tests use Node; production resolves through the pure package project.
   {
     files: sharedTestFiles,
